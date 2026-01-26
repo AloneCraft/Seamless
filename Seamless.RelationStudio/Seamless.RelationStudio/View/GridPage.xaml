@@ -4,7 +4,7 @@
              xmlns:dataGrid="http://schemas.syncfusion.com/maui"
              xmlns:RelationStudio="clr-namespace:Seamless.RelationStudio"
              xmlns:vm="using:Seamless.RelationStudio.ViewModel"
-             x:Class="Seamless.RelationStudio.MainPage">
+             x:Class="Seamless.RelationStudio.GridPage">
  <ContentPage.Resources>
   <ResourceDictionary>
    <RelationStudio:UnitConverter x:Key="UnitConv" />
@@ -16,9 +16,11 @@
    <Setter Property="HorizontalTextAlignment" Value="End" />
   </Style>-->
  </ContentPage.Resources>
+ <!--
  <ContentPage.BindingContext>
   <vm:Statistics />
  </ContentPage.BindingContext>
+ -->
  <ContentPage.Content>
   <FlexLayout Direction="Row" JustifyContent="SpaceBetween" AlignItems="Stretch">
    <dataGrid:SfDataGrid x:Name="RamDataGrid"

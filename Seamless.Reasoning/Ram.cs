@@ -14,6 +14,11 @@ public struct Ram(long Bytes,double レイテンシsecond,long BytesSecond) {
     public long Bytes { get; set; } = Bytes;
     public double レイテンシsecond { get; set; } = レイテンシsecond;
     public long BytesSecond { get; set; } = BytesSecond;
+
+    public double CacheSizeKiB => this.Bytes / (double)Const.Ki;
+    public double LatencyNs => this.レイテンシsecond * 1_000_000_000.0;
+    public double BandwidthGiB => this.BytesSecond / (double)Const.Gi;
+
     public List<int> 直接アクセス可能なコア { get; set; }
     public override string ToString() {
         var sb = new StringBuilder();

@@ -2,10 +2,16 @@
 
 using Syncfusion.Maui.Core.Hosting;
 
+using Seamless.RelationStudio.ViewModel;
+
 namespace Seamless.RelationStudio;
 
 public static class MauiProgramExtensions {
     public static MauiAppBuilder UseSharedMauiApp(this MauiAppBuilder builder) {
+        builder.Services.AddSingleton<Statistics>();
+        builder.Services.AddTransient<ChartPage>();
+        builder.Services.AddTransient<GridPage>();
+
         builder
             .UseMauiApp<App>()
             .ConfigureSyncfusionCore()

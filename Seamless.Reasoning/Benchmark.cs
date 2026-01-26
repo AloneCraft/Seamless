@@ -257,7 +257,7 @@ public class Benchmark:IBenchmark {
         // 計測前にGCを掃除し、スレッドをバックグラウンドへ移動
         GC.Collect(2,GCCollectionMode.Forced,true);
         GC.WaitForPendingFinalizers();
-        for(var Bits = Const.最小Bits;Bits < 29;Bits++) {
+        for(var Bits = Const.最小Bits;Bits < 20;Bits++) {
             var Bytes = 1 << Bits;
             //var 中間容量=(Bits+容量)/2;
             // A. レイテンシ計測
