@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/新しいフォルダー1/">
+    <File Path="ReadMe.txt" />
+  </Folder>
+  <Project Path="Seamless.Reasoning.Test/Seamless.Reasoning.Test.csproj" />
+  <Project Path="Seamless.Reasoning/Seamless.Reasoning.csproj" />
+  <Project Path="Seamless.RelationStudio/Seamless.RelationStudio.Droid/Seamless.RelationStudio.Droid.csproj" Id="57d962a4-d843-4999-9da8-d70e2704b4c6">
+    <Deploy />
+  </Project>
+  <Project Path="Seamless.RelationStudio/Seamless.RelationStudio.iOS/Seamless.RelationStudio.iOS.csproj" Id="01a8c759-f002-46b0-ab3d-ce77097124e0">
+    <Deploy />
+  </Project>
+  <Project Path="Seamless.RelationStudio/Seamless.RelationStudio.Mac/Seamless.RelationStudio.Mac.csproj" Id="7f892119-fa89-429a-8904-ff85e7769b14">
+    <Deploy />
+  </Project>
+  <Project Path="Seamless.RelationStudio/Seamless.RelationStudio.WinUI/Seamless.RelationStudio.WinUI.csproj" Id="241d99b4-19d8-4a1f-96ef-576703ab0374">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="Seamless.RelationStudio/Seamless.RelationStudio/Seamless.RelationStudio.csproj" Id="ef7af892-31ef-4e55-99dd-3dd3e59bf993" />
+  <Project Path="Seamless.StorageCollections/Seamless.StorageCollections.csproj" Id="74a30f83-c4d0-41d6-8253-3e8e2d06c601" />
+</Solution>

@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:dataGrid="http://schemas.syncfusion.com/maui"
+             xmlns:RelationStudio="clr-namespace:Seamless.RelationStudio"
+             xmlns:vm="using:Seamless.RelationStudio.ViewModel"
+             x:Class="Seamless.RelationStudio.MainPage">
+ <ContentPage.Resources>
+  <ResourceDictionary>
+   <RelationStudio:UnitConverter x:Key="UnitConv" />
+  </ResourceDictionary>
+  <Style x:Key="NumericColumnStyle" TargetType="dataGrid:DataGridTextColumn">
+   <Setter Property="HeaderTextAlignment" Value="End" />
+  </Style>
+  <!--<Style x:Key="RightAlignedCellStyle" TargetType="dataGrid:DataGridCell">
+   <Setter Property="HorizontalTextAlignment" Value="End" />
+  </Style>-->
+ </ContentPage.Resources>
+ <ContentPage.BindingContext>
+  <vm:Statistics />
+ </ContentPage.BindingContext>
+ <ContentPage.Content>
+  <FlexLayout Direction="Row" JustifyContent="SpaceBetween" AlignItems="Stretch">
+   <dataGrid:SfDataGrid x:Name="RamDataGrid"
+                       ItemsSource="{Binding Rams}"
+                       AutoGenerateColumnsMode="None">
+    <dataGrid:SfDataGrid.Columns>
+     <dataGrid:DataGridTextColumn MappingName="Bytes"            HeaderText="Bytes"            CellStyle="{StaticResource NumericColumnStyle}" Width="150" ColumnWidthMode="Auto" DisplayBinding="{Binding Bytes,            Converter={StaticResource UnitConv}, ConverterParameter={x:Static RelationStudio:UnitConverterParameter.Ki},StringFormat='{0:N0} KiB'}">
+     </dataGrid:DataGridTextColumn>
+     <dataGrid:DataGridTextColumn MappingName="レイテンシsecond" HeaderText="レイテンシsecond" ColumnWidthMode="Auto" DisplayBinding="{Binding レイテンシsecond, Converter={StaticResource UnitConv}, ConverterParameter={x:Static RelationStudio:UnitConverterParameter.n },StringFormat='{0:N2} ns'}" />
+     <dataGrid:DataGridTextColumn MappingName="BytesSecond"      HeaderText="BytesSecond"      ColumnWidthMode="Auto" DisplayBinding="{Binding BytesSecond,      Converter={StaticResource UnitConv}, ConverterParameter={x:Static RelationStudio:UnitConverterParameter.Gi},StringFormat='{0:N2} GiB/s'}" />
+    </dataGrid:SfDataGrid.Columns>
+   </dataGrid:SfDataGrid>
+   <!--<dataGrid:SfDataGrid x:Name="dataGrid2"
+                        ItemsSource="{Binding Rams}"
+                        AutoGenerateColumnsMode="None">
+    <dataGrid:SfDataGrid.Columns>
+     <dataGrid:DataGridTextColumn MappingName="Bytes" HeaderText="Bytes" />
+     <dataGrid:DataGridTextColumn MappingName="レイテンシsecond" HeaderText="レイテンシsecond" />
+     <dataGrid:DataGridTextColumn MappingName="BytesSecond" HeaderText="BytesSecond" />
+    </dataGrid:SfDataGrid.Columns>
+   </dataGrid:SfDataGrid>-->
+  </FlexLayout>
+ </ContentPage.Content>
+</ContentPage>
