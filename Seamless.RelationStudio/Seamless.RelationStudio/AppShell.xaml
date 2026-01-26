@@ -9,7 +9,7 @@
 
     <TabBar>
         <Tab Title="Grid">
-            <ShellContent ContentTemplate="{DataTemplate local:MainPage}" Route="MainPage" />
+            <ShellContent ContentTemplate="{DataTemplate local:GridPage}" Route="MainPage" />
         </Tab>
         <Tab Title="Chart">
             <ShellContent ContentTemplate="{DataTemplate local:ChartPage}" Route="ChartPage" />

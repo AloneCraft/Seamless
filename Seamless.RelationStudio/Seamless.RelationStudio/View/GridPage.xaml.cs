@@ -3,13 +3,13 @@
 using Syncfusion.Maui.DataGrid;
 namespace Seamless.RelationStudio;
 
-public partial class MainPage:ContentPage {
+public partial class GridPage:ContentPage {
     int count = 0;
 
-    public MainPage() {
+    public GridPage(Statistics stats) {
         InitializeComponent();
-        var BindingContext=(Statistics)this.BindingContext;
-        BindingContext.read();
+        BindingContext = stats;
+        stats.read();
     }
 
     private void OnCounterClicked(object sender,EventArgs e) {

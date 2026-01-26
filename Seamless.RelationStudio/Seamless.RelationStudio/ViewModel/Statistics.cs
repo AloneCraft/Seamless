@@ -20,35 +20,21 @@ public partial class Statistics:ObservableObject{
     //public ObservableCollection<GridRowModel> SfGrid { get; } = new();
     public ObservableCollection<Ram> Rams{ get; } = new();
     public ObservableCollection<コア> SfGrid { get; } = new();
+    private bool IsLoaded;
     public async Task read(){
+        if(IsLoaded) return;
+        IsLoaded=true;
+
         var Rams=this.Rams;
         var SfGrid=this.SfGrid;
-        //SfGrid.Add(new GridRowModel{列0 = "33",列1 = "444"});
-        //SfGrid.Add(
-        //    new コア(0){
-        //        L1 =new(10,3,4){レイテンシsecond = 10},
-        //        L2 = new(10,3,4){レイテンシsecond = 10}
-        //    }
-        //);
-        var Benchmark=new Benchmark();
-        //Benchmark.Run();
-        Benchmark.GetRamsEnumerableAsync(Rams);
-        //await foreach(var a in Benchmark.GetRamsEnumerable()){
-        //    //    Rams.Add(a);
-        //    //    b++;
-        //    //    //if(b==2) break;
-        //}
-        //var b=0;
-        //await foreach(var a in Benchmark.GetRamsEnumerable()){
-        //    Rams.Add(a);
-        //    b++;
-        //    //if(b==2) break;
-        //}
-        //var EnumeratorAsync=Benchmark.GetコアEnumerableAsync();
-        //await foreach(コア a in EnumeratorAsync){
-        //    SfGrid.Add(
-        //        a
-        //    );
-        //}
+        
+        using var Benchmark=new Benchmark();
+        
+        await foreach(var a in Benchmark.GetRamsEnumerable()){
+            Rams.Add(a);
+        }
+        await foreach(var a in Benchmark.GetコアEnumerableAsync()){
+            SfGrid.Add(a);
+        }
     }
 }
