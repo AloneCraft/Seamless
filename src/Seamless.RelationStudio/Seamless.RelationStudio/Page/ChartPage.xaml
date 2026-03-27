@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:chart="http://schemas.syncfusion.com/maui"
+             xmlns:local="clr-namespace:Seamless.RelationStudio"
+             xmlns:pageModel="clr-namespace:Seamless.RelationStudio.PageModel"
+             x:Class="Seamless.RelationStudio.ChartPage"
+             Title="Chart">
+    <ContentPage.Resources>
+        <local:InverseBoolConverter x:Key="InverseBoolConverter" />
+    </ContentPage.Resources>
+    <ContentPage.BindingContext>
+        <pageModel:Chart />
+    </ContentPage.BindingContext>
+    <VerticalStackLayout>
+        <chart:SfCartesianChart x:Name="Chart" HorizontalOptions="Fill" VerticalOptions="FillAndExpand">
+            <chart:SfCartesianChart.Legend>
+                <chart:ChartLegend ToggleSeriesVisibility="True">
+                    <chart:ChartLegend.ItemTemplate>
+                        <DataTemplate>
+                            <StackLayout Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding Item.IsVisible, Mode=TwoWay}" />
+                                <Label Text="{Binding Text}" VerticalOptions="Center" />
+                            </StackLayout>
+                        </DataTemplate>
+                    </chart:ChartLegend.ItemTemplate>
+                </chart:ChartLegend>
+            </chart:SfCartesianChart.Legend>
+
+            <chart:SfCartesianChart.XAxes>
+                <chart:CategoryAxis>
+                    <chart:CategoryAxis.Title>
+                        <chart:ChartAxisTitle Text="Cache Size (KiB)" />
+                    </chart:CategoryAxis.Title>
+                </chart:CategoryAxis>
+            </chart:SfCartesianChart.XAxes>
+
+            <chart:SfCartesianChart.YAxes>
+                <chart:NumericalAxis x:Name="YLatency">
+                     <chart:NumericalAxis.Title>
+                        <chart:ChartAxisTitle Text="Latency (ns)" />
+                    </chart:NumericalAxis.Title>
+                </chart:NumericalAxis>
+                
+                <chart:NumericalAxis x:Name="YBandwidth">
+                     <chart:NumericalAxis.Title>
+                        <chart:ChartAxisTitle Text="Bandwidth (GiB/s)" />
+                    </chart:NumericalAxis.Title>
+                </chart:NumericalAxis>
+            </chart:SfCartesianChart.YAxes>
+
+            <chart:SfCartesianChart.Series>
+                <chart:LineSeries ItemsSource="{Binding Enumerableコア.Rams}"
+                                  XBindingPath="CacheSizeKiB"
+                                  YBindingPath="LatencyNs" 
+                                  YAxisName="YLatency"
+                                  Label="Latency (Main)"
+                                  ShowMarkers="True"
+                                  EnableTooltip="True">
+                </chart:LineSeries>
+                 <chart:LineSeries ItemsSource="{Binding Rams}"
+                                   XBindingPath="CacheSizeKiB"
+                                   YBindingPath="BandwidthGiB" 
+                                   YAxisName="YBandwidth"
+                                   Label="Bandwidth (Main)"
+                                   LegendIcon="Rectangle"
+                                   Opacity="0.5"
+                                   ShowMarkers="True"
+                                   EnableTooltip="True">
+                  <chart:LineSeries.MarkerSettings>
+                   <chart:ChartMarkerSettings Type="Rectangle" 
+                                              Width="10" 
+                                              Height="10" 
+                                              Fill="White" 
+                                              Stroke="Blue" 
+                                              StrokeWidth="2" />
+                  </chart:LineSeries.MarkerSettings>
+                 </chart:LineSeries>
+            </chart:SfCartesianChart.Series>
+        </chart:SfCartesianChart>
+    </VerticalStackLayout>
+</ContentPage>
