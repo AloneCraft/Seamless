@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -12,7 +13,8 @@ namespace Seamless.Reasoning;
 public class コア(nint OS上のID) {
     public nint OS上のID { get; set; } = OS上のID;
     public string 種類 { get; set; } // "P-Core" or "E-Core"
-    public List<Ram> ListRam;
+    //public ObservableCollection<Ram> EnumerableRam{ get; } = new();
+    public Ram[] ArrayRam;
     public Ram L1 { get; set; }
     public Ram L2 { get; set; }
     public Ram L3 { get; set; }
@@ -58,7 +60,7 @@ public class コア(nint OS上のID) {
                 var BytesSecond=計測演算性能Only(使いまわしバッファ);
                 List全部Ram.Add(new(0,0,BytesSecond));
             }
-            for(var Bits = Const.最小Bits;Bits < 29;Bits++) {
+            for(var Bits=Const.最小Bits;Bits<Const.最大Bits;Bits++) {
                 var Bytes = 1 << Bits;
                 //var 中間容量=(Bits+容量)/2;
                 // A. レイテンシ計測

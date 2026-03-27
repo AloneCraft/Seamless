@@ -1,0 +1,1 @@
+using System; using System.Reflection; using Tsavorite.core; foreach(var m in typeof(ObjectAllocator<>).GetMethods(BindingFlags.Public|BindingFlags.Instance)) { var mp = m.GetParameters(); if (mp.Length > 0 && mp[0].ParameterType.Name.Contains("Span")) { Console.WriteLine($"{m.Name}({string.Join(", ", System.Linq.Enumerable.Select(mp, p => p.ParameterType.Name))})"); } }

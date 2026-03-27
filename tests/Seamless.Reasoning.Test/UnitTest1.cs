@@ -26,7 +26,10 @@ public class UnitTest1 {
                 this.WriteLine($"コア{a},{b.ToString()}");
             }
             var コア0=new コア(OS上のID);
-            コア0.ListRam=List全部Ram;
+            var EnumerableRam=コア0.ArrayRam;
+            foreach(var b in List全部Ram){
+                EnumerableRam.Add(b);
+            }
             if(List一部Ram.Count>0){
                 コア0.L1=List一部Ram[0];
                 if(List一部Ram.Count>1){

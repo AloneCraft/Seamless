@@ -1,0 +1,13 @@
+namespace Seamless.Collections;
+using System.Collections;
+using Tsavorite.core;
+internal readonly struct ValueEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions,TStoreFunctions,TAllocator> Session):IEnumerable<TValue>
+    where TKey:IEquatable<TKey>
+    where TValue:IEquatable<TValue>
+    where TSessionFunctions:ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>
+    where TStoreFunctions:IStoreFunctions<SpanByte,SpanByte>
+    where TAllocator:IAllocator<SpanByte,SpanByte,TStoreFunctions>{
+    public Enumerator<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator,ValueIterator<TValue>,TValue> GetEnumerator()=>new(Session,new());
+    IEnumerator<TValue> IEnumerable<TValue>.GetEnumerator()=>this.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator()=>this.GetEnumerator();
+}
