@@ -22,7 +22,7 @@ public interface IBenchmark : IDisposable{
 
     // 2. 計測フェーズ（ここだけを計測する）
     // 戻り値として、計算したバイト数や演算回数を返す
-    void Run();
+    //void Run();
 
     // 3. 後始末（IDisposableで代用可だが明示的に定義してもよい）
     void Cleanup();
