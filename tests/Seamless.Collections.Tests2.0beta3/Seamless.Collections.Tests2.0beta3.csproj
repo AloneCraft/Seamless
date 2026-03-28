@@ -64,10 +64,6 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Coverage\Collection\" />
-  </ItemGroup>
-
   <Import Project="..\Seamless.Collections.Tests\Seamless.Collections.Tests.projitems" Label="Shared" />
 
 </Project>
