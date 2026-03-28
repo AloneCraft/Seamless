@@ -2,12 +2,13 @@
   <Folder Name="/src/">
     <Project Path="src/Common/Common.csproj" />
     <Project Path="src/Seamless.Collections/Seamless.Collections.csproj" />
-    <Project Path="src/Seamless.Collections11/Seamless.Collections11.csproj" />
+    <Project Path="src/Seamless.Collections1.1.1/Seamless.Collections1.1.1.csproj" />
     <Project Path="src/Seamless.Reasoning/Seamless.Reasoning.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="tests/Seamless.Collections.Tests/Seamless.Collections.Tests.shproj" Id="f485746b-4005-416a-8e23-c2a691d7f41d" />
-    <Project Path="tests/Seamless.CollectionsTests2.0beta3/Seamless.CollectionsTests2.0beta3.csproj" Id="2b0b8368-648c-40a4-a41c-48461d2dc8e6" />
+    <Project Path="tests/Seamless.Collections.Tests1.1.1/Seamless.Collections.Tests1.1.1.csproj" />
+    <Project Path="tests/Seamless.Collections.Tests2.0beta3/Seamless.Collections.Tests2.0beta3.csproj" />
     <Project Path="tests/TestCommon/TestCommon.csproj" />
   </Folder>
   <Folder Name="/新しいフォルダー1/">
