@@ -53,6 +53,7 @@ public abstract class Collection<TKey,TValue,TSessionFunctions,TStoreFunctions,T
         if(disposing){
             //マネージドリソースの解放
             this.Session.Dispose();
+        } else{
         }
         //アンマネージドリソースの解放（必要なければ省略可）
         this.disposed=true;
