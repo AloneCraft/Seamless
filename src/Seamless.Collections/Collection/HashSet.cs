@@ -41,8 +41,8 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 		}
 	}
 	void ICollection<T>.Add(T item) => this.Add(item);
-	public bool Contains(T item) =>
-		this.PrivateContainsKey(item);
+	//public bool Contains(T item) =>
+	//	this.Contains(item);
 	public void CopyTo(T[] array,int arrayIndex) {
 		ArgumentNullException.ThrowIfNull(array);
 		ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);

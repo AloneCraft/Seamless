@@ -9,8 +9,8 @@ public class Collection5 {
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize = Const.MinObjectLogCapacity;
 
-    private sealed class ProbeCollection<TKey, TValue>:Collection<TKey,TValue,AddSessionFunctions<TKey,TValue>,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> where TKey : IEquatable<TKey> where TValue : IEquatable<TValue> {
-        public ProbeCollection(TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> store,long logMemorySize,double mutableFraction) : base(store,new AddSessionFunctions<TKey,TValue>(),logMemorySize,mutableFraction) {
+    private sealed class ProbeCollection<TKey, TValue>:Collection<TKey,TValue> where TKey : IEquatable<TKey> where TValue : IEquatable<TValue> {
+        public ProbeCollection(TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> store,long logMemorySize,double mutableFraction) : base(store,logMemorySize,mutableFraction) {
         }
 
         public void Upsert(TKey key,TValue value) {
