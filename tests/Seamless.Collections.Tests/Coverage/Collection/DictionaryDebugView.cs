@@ -4,7 +4,7 @@ namespace Seamless.Collections.Tests;
 [Collection("Sequential")]
 public class DictionaryDebugView {
     [Fact, Trait("Category","Coverage")]
-    public void Test() {
+    public void Items_全エントリを返す() {
         using var store = new DictionaryStore<int,string>();
         using var dict = store.Create();
         dict.Add(2,"b");
@@ -14,6 +14,9 @@ public class DictionaryDebugView {
         Assert.Equal(2,items.Length);
         Assert.Contains(items,x => x.Key==1&&x.Value=="a");
         Assert.Contains(items,x => x.Key==2&&x.Value=="b");
+    }
+    [Fact, Trait("Category","Coverage")]
+    public void ctor_null_例外() {
         Assert.Throws<ArgumentNullException>(() => new DictionaryDebugView<int,string>(null!));
     }
 }

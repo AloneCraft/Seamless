@@ -3,7 +3,6 @@ using Common;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
-using Seamless.Collections.Tests;
 using Tsavorite.core;
 
 namespace Seamless.Collections;

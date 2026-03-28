@@ -2,10 +2,9 @@ using System.Runtime.Serialization;
 using Xunit;
 namespace Seamless.Collections.Tests;
 
-[Collection("Sequential")]
-public class DictionaryIReadOnly {
+public partial class Dictionary {
     [Fact, Trait("Category","Coverage")]
-    public void IReadOnlyDictionary_Keys() {
+    public void Keys_IReadOnlyDictionary() {
         using var store = new DictionaryStore<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");
@@ -17,7 +16,7 @@ public class DictionaryIReadOnly {
         Assert.Contains(2,keys);
     }
     [Fact, Trait("Category","Coverage")]
-    public void IReadOnlyDictionary_Values() {
+    public void Values_IReadOnlyDictionary() {
         using var store = new DictionaryStore<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");

@@ -10,6 +10,23 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="RelationalDatabase\**" />
+    <Compile Remove="Serializer\**" />
+    <EmbeddedResource Remove="RelationalDatabase\**" />
+    <EmbeddedResource Remove="Serializer\**" />
+    <None Remove="RelationalDatabase\**" />
+    <None Remove="Serializer\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="IRelation.cs" />
+    <Compile Remove="KeyComparer.cs" />
+    <Compile Remove="Relation.cs" />
+    <Compile Remove="Store\Relation.cs" />
+    <Compile Remove="Tuple.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="Microsoft.Garnet" Version="2.0.0-beta.3" />    <PackageReference Include="ZLinq" Version="1.*" />
   </ItemGroup>

@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using Tsavorite.core;
-namespace Seamless.Collections.Tests;
+namespace Seamless.Collections;
 /// <summary>
 /// ディスクI/Oを行わず、退避ページをヒープ上のバイト配列に保持するデバイス。
 /// </summary>
