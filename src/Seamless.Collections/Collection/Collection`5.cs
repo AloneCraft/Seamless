@@ -1,8 +1,5 @@
-using System.Diagnostics;
 using Garnet.common;
 namespace Seamless.Collections;
-
-using MemoryPack;
 using System.Diagnostics.CodeAnalysis;
 using Tsavorite.core;
 public abstract class Collection<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator>:IDisposable
@@ -45,7 +42,7 @@ public abstract class Collection<TKey,TValue,TSessionFunctions,TStoreFunctions,T
     private protected KeyEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetKeyEnumerable()=>new(this.Session);
     private protected ValueEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetValueEnumerable()=>new(this.Session);
     private protected KeyValueEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetKeyValueEnumerable()=>new(this.Session);
-    public bool IsDisposed=>this.disposed;
+    public abstract bool IsDisposed{get;}
     private bool disposed;
     public void Dispose(){
         this.Dispose(true);

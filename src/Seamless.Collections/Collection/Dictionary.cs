@@ -2,8 +2,6 @@ namespace Seamless.Collections;
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.Serialization;
-
 using Tsavorite.core;
 
 /// <summary>
@@ -138,9 +136,16 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 			} else {
 			}
 			var FixedKey = (Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-            var Session=this.Session;
+			var Session=this.Session;
 			var Status = Session.BasicContext.Upsert(FixedKey,ValueBytes);
 			Pending(Session,Status);
 		}
+	}
+	public override bool IsDisposed=>this.disposed;
+	private bool disposed;
+	protected override void Dispose(bool disposing) {
+		if(this.disposed) return;
+		this.disposed=true;
+		base.Dispose(disposing);
 	}
 }

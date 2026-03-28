@@ -1,4 +1,7 @@
+using Common;
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
+using Tsavorite.core;
 using Xunit;
 namespace Seamless.Collections.Tests;
 
@@ -215,7 +218,24 @@ public partial class Dictionary {
         using var dict = store.Create();
         dict.Add(1,"a");
         IEnumerable<KeyValuePair<int,string>> e = dict;
-        Assert.Equal(1,e.Count());
+        Assert.Single(e);
+    }
+    [Fact, Trait("Category","Coverage")]
+    public void Add_正常追加() {
+        using var store = new DictionaryStore<int,string>();
+        using var dict = store.Create();
+        dict.Add(1,"a");
+        Assert.True(dict.ContainsKey(1));
+    }
+    [Fact, Trait("Category","Coverage")]
+    public void Dispose_安全に呼び出せる() {
+        var store = new DictionaryStore<int,string>();
+        var dict = store.Create();
+        Assert.False(dict.IsDisposed);
+        dict.Dispose();
+        Assert.True(dict.IsDisposed);
+        dict.Dispose();
+        store.Dispose();
     }
     [Fact, Trait("Category","Coverage")]
     public void GetEnumerator_IEnumerable() {
@@ -228,4 +248,97 @@ public partial class Dictionary {
         while(en.MoveNext()) count++;
         Assert.Equal(1,count);
     }
+    [Fact, Trait("Category","Coverage")]
+    public void Add_LogFull_例外を投げる() {
+        using var store = new DictionaryStore<int,string>();
+        using var dict = store.Create();
+        Assert.Throws<OutOfMemoryException>((Action)(() => {
+            for(var i = 0; ; i++) dict.Add(i,"v");
+        }));
     }
+    [Fact, Trait("Category","Coverage")]
+    public void Item_Setter_LogFull_例外を投げる() {
+        using var store = new DictionaryStore<int,string>();
+        using var dict = store.Create();
+        Assert.Throws<OutOfMemoryException>((Action)(() => {
+            for(var i = 0; ; i++) dict[i]="v";
+        }));
+    }
+    [Fact, Trait("Category","Coverage")]
+    public void EntryCount_件数を返す() {
+        using var store = new DictionaryStore<int,string>();
+        using var dict = store.Create();
+        dict.Add(1,"a");
+        Assert.True(dict.EntryCount>=1);
+    }
+    [Fact, Trait("Category","Coverage")]
+    public void Pending_Writeパス() {
+        using var store = new DictionaryStore<int,string>();
+        using var dict = store.Create();
+        dict.Add(1,"a");
+        Assert.True(dict.Remove(1));
+    }
+    [Fact, Trait("Category","Coverage")]
+    public void Pending_Readパス() {
+        using var store = new DictionaryStore<int,string>();
+        using var dict = store.Create();
+        dict.Add(1,"a");
+        Assert.True(dict.TryGetValue(1,out var v));
+        Assert.Equal("a",v);
+    }
+    private static string CreateDiskFolder() =>
+        Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    [Fact, Trait("Category","Coverage")]
+    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
+    public void WouldOverflowMutable_MutableFractionZero() {
+        var folder = CreateDiskFolder();
+        using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        // MutableFraction=0 → MutableBytes=0 → MutableBytes=LogMemorySize 分岐を通す
+        using var store = new DictionaryStore<int,string>(LogDevice,ObjDevice,MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0);
+        using var dict = store.Create();
+        dict.Add(1,"a");
+        Assert.Equal("a",dict[1]);
+    }
+    [Fact, Trait("Category","Coverage")]
+    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
+    public void WouldOverflowMutable_OverflowDetected() {
+        var folder = CreateDiskFolder();
+        using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        // MemorySize=8KB, MutableFraction=0.5 → MutableBytes=4KB → 少量レコードでオーバーフロー
+        using var store = new DictionaryStore<int,string>(LogDevice,ObjDevice,MemorySize: Const.LogMemorySize,MutableFraction: 0.5);
+        using var dict = store.Create();
+        Assert.Throws<OutOfMemoryException>((Action)(() => {
+            for(var i = 0;;i++) dict.Add(i,"v");
+        }));
+    }
+    [Fact, Trait("Category","Coverage")]
+    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
+    public void Pending_Readパス_IsPending() {
+        var folder = CreateDiskFolder();
+        using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var store = new DictionaryStore<int,string>(LogDevice,ObjDevice,MemorySize: Const.MinObjectLogCapacity);
+        using var dict = store.Create();
+        dict.Add(0,"target");
+        // 全レコードをディスクに追い出す → 次のReadでIsPending=true
+        store.Store.Log.FlushAndEvict(true);
+        Assert.True(dict.TryGetValue(0,out var v));
+        Assert.Equal("target",v);
+    }
+    [Fact, Trait("Category","Coverage")]
+    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
+    public void Pending_Writeパス_IsPending() {
+        var folder = CreateDiskFolder();
+        using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var store = new DictionaryStore<int,string>(LogDevice,ObjDevice,MemorySize: Const.MinObjectLogCapacity);
+        using var dict = store.Create();
+        dict.Add(0,"target");
+        // 全レコードをディスクに追い出す → 次のRMWでIsPending=true
+        // TryAdd on existing key: AddSessionFunctionsのRMWがPENDING → Pending(Session,Status) IsPending=true 分岐を通す
+        store.Store.Log.FlushAndEvict(true);
+        Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(0,"other"));
+    }
+}

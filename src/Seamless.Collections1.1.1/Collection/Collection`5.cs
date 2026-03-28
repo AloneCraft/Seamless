@@ -92,6 +92,7 @@ public abstract class Collection<TKey, TValue, TSessionFunctions, TStoreFunction
         GC.SuppressFinalize(this);
     }
     private bool Disposed;
+    public bool IsDisposed => this.Disposed;
     protected virtual void Dispose(bool disposing) {
         if(this.Disposed) return;
         if(disposing) {

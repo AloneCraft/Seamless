@@ -77,4 +77,13 @@ public class CollectionStore2 {
         //例外なく完了すること
         Assert.True(store.Address.BeginAddress>=address.BeginAddress);
     }
+    [Fact, Trait("Category","Coverage")]
+    public void Finalize_GCによる非同期破棄() {
+        static void CreateOrphan() {
+            _ = new DictionaryStore<int,string>();
+        }
+        CreateOrphan();
+        GC.Collect(GC.MaxGeneration,GCCollectionMode.Forced,blocking: true);
+        GC.WaitForPendingFinalizers();
+    }
 }

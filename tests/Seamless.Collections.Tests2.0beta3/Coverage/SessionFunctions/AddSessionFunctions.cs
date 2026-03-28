@@ -107,6 +107,7 @@ public class AddSessionFunctions {
             var upsertLogObject = f.GetUpsertFieldInfo(key,in srcObject,ref input);
             Assert.True(upsertLogObject.ValueIsObject);
         }
+        f.ConvertOutputToHeap(ref input,ref output);
     }
 
     [Fact, Trait("Category","Coverage")]
