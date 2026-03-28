@@ -8,8 +8,8 @@ using Tsavorite.core;
 internal struct Enumerator<TKey, TValue, TSessionFunctions, TStoreFunctions, TAllocator, TIterator, T>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions,TStoreFunctions,TAllocator> Session,TIterator Iterator):IEnumerator<T>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue>
-    where TSessionFunctions : ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>
-    where TStoreFunctions : IStoreFunctions<SpanByte,SpanByte>
+    where TSessionFunctions : SSessionFunctions
+    where TStoreFunctions : SStoreFunctions
     where TAllocator : IAllocator<SpanByte,SpanByte,TStoreFunctions>
     where TIterator : ScanIteratorFunctions<T> {
     private TIterator Iterator = Iterator;

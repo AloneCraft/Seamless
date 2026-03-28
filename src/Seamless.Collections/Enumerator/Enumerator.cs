@@ -9,7 +9,7 @@ internal struct Enumerator<TKey, TValue, TSessionFunctions, TStoreFunctions, TAl
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue>
     where TSessionFunctions : ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
-    where TStoreFunctions : IStoreFunctions
+    where TStoreFunctions : SStoreFunctions
     where TAllocator : IAllocator<TStoreFunctions>
     where TIterator : ScanIteratorFunctions<T> {
     private TIterator Iterator = Iterator;

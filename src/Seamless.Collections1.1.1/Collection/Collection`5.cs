@@ -9,8 +9,8 @@ using Tsavorite.core;
 public abstract class Collection<TKey, TValue, TSessionFunctions, TStoreFunctions, TAllocator>:IDisposable
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue>
-    where TSessionFunctions : ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>
-    where TStoreFunctions : IStoreFunctions<SpanByte,SpanByte>
+    where TSessionFunctions : SSessionFunctions
+    where TStoreFunctions : SStoreFunctions
     where TAllocator : IAllocator<SpanByte,SpanByte,TStoreFunctions> {
     private protected const int RecordOverheadBytes = 128;
     private protected readonly TsavoriteKV<SpanByte,SpanByte,TStoreFunctions,TAllocator> Store;
@@ -92,7 +92,7 @@ public abstract class Collection<TKey, TValue, TSessionFunctions, TStoreFunction
         GC.SuppressFinalize(this);
     }
     private bool Disposed;
-    public bool IsDisposed => this.Disposed;
+    public abstract bool IsDisposed{get;}
     protected virtual void Dispose(bool disposing) {
         if(this.Disposed) return;
         if(disposing) {

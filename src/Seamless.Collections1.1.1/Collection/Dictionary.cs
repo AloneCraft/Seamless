@@ -133,5 +133,11 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 			}
 		}
 	}
-    ~Dictionary() => this.Dispose(false);
+    public override bool IsDisposed=>this.disposed;
+    private bool disposed;
+    protected override void Dispose(bool disposing) {
+        if(this.disposed) return;
+        this.disposed=true;
+        base.Dispose(disposing);
+    }
 }

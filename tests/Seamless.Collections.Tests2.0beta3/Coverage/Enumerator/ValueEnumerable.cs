@@ -11,7 +11,7 @@ public partial class ValueEnumerable {
         using var store = new DictionaryStore<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");
-        var ve = new global::Seamless.Collections.ValueEnumerable<int, string, SF, Store, Alloc>(dict.Session);
+        var ve = new global::Seamless.Collections.ValueEnumerable<int, string, SF, Store, Alloc>(dict.ClientSession);
         var count = 0;
         foreach(var _ in ve) count++;
         Assert.Equal(1,count);
@@ -21,7 +21,7 @@ public partial class ValueEnumerable {
         using var store = new DictionaryStore<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");
-        var ve = new global::Seamless.Collections.ValueEnumerable<int, string, SF, Store, Alloc>(dict.Session);
+        var ve = new global::Seamless.Collections.ValueEnumerable<int, string, SF, Store, Alloc>(dict.ClientSession);
         IEnumerable ie = ve;
         var en = ie.GetEnumerator();
         var count = 0;

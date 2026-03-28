@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Collection\Collection`5.cs" />
     <Compile Remove="IRelation.cs" />
     <Compile Remove="KeyComparer.cs" />
     <Compile Remove="Relation.cs" />

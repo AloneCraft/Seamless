@@ -136,7 +136,7 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 			} else {
 			}
 			var FixedKey = (Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-			var Session=this.Session;
+			var Session=this.ClientSession;
 			var Status = Session.BasicContext.Upsert(FixedKey,ValueBytes);
 			Pending(Session,Status);
 		}

@@ -11,7 +11,7 @@ public partial class KeyEnumerable {
         using var store = new HashSetStore<int>();
         using var set = store.Create();
         set.Add(1);
-        var ke = new global::Seamless.Collections.KeyEnumerable<int, global::Seamless.Collections.Empty, SF, Store, Alloc>(set.Session);
+        var ke = new global::Seamless.Collections.KeyEnumerable<int, global::Seamless.Collections.Empty, SF, Store, Alloc>(set.ClientSession);
         IEnumerable ie = ke;
         var en = ie.GetEnumerator();
         var count = 0;
