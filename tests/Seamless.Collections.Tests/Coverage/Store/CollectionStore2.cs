@@ -78,6 +78,12 @@ public class CollectionStore2 {
         Assert.True(store.Address.BeginAddress>=address.BeginAddress);
     }
     [Fact, Trait("Category","Coverage")]
+    public void Dispose_二重呼び出し_冪等() {
+        var store = new HashSetStore<int>();
+        store.Dispose();
+        store.Dispose();
+    }
+    [Fact, Trait("Category","Coverage")]
     public void Finalize_GCによる非同期破棄() {
         static void CreateOrphan() {
             _ = new DictionaryStore<int,string>();

@@ -38,7 +38,7 @@ public abstract class Collection<TKey, TValue>:Collection<TKey,TValue,AddSession
     }
     public int Count => (int)this.GetLongCount();
     public long EntryCount => this.Store.EntryCount;
-    private protected Status Read(TKey Key,ref SpanByteAndMemory Output) {
+    private protected Status Read(TKey Key,out SpanByteAndMemory Output){
         var KeyBytes = Serialize(Key);
         SpanByteAndMemory Value0 = default;
         unsafe {
@@ -101,8 +101,7 @@ public abstract class Collection<TKey, TValue>:Collection<TKey,TValue,AddSession
         }
     }
     public bool Contains(TKey Key) {
-        SpanByteAndMemory Output = default;
-        var Status = this.Read(Key,ref Output);
+        var Status = this.Read(Key,out _);
         Debug.Assert(Status.Found==!Status.NotFound);
         return Status.Found;
     }
