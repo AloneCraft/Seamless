@@ -13,7 +13,6 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	private readonly byte[] EmptyBytes;
 	private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,IntersectSessionFunctions,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> IntersectSession;
 	private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,SymmetricExceptSessionFunctions,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> SymmetricExceptSession;
-	private bool SetOperationSessionsDisposed;
 	internal HashSet(TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
 		this.EmptyBytes=Serialize(default(Empty));
 		this.IntersectSession=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,IntersectSessionFunctions>(new IntersectSessionFunctions());
@@ -155,14 +154,16 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 			this.Add(item);
 		}
 	}
-	protected override void Dispose(bool disposing) {
-		if(!this.SetOperationSessionsDisposed) {
-			this.SetOperationSessionsDisposed=true;
-			if(disposing) {
-				this.IntersectSession.Dispose();
-				this.SymmetricExceptSession.Dispose();
-			}
-		}
-		base.Dispose(disposing);
-	}
+    public override bool IsDisposed=>this.disposed;
+    private bool disposed;
+    protected override void Dispose(bool disposing) {
+        if(this.disposed) return;
+        if(disposing){
+            this.IntersectSession.Dispose();
+            this.SymmetricExceptSession.Dispose();
+        }else{
+        }
+        this.disposed=true;
+        base.Dispose(disposing);
+    }
 }

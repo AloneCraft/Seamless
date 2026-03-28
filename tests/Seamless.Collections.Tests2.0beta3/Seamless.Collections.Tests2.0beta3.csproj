@@ -32,10 +32,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="Coverage\Collection\CollectionBase.cs" />
-    <Compile Include="Coverage\Collection\CollectionInternals.cs" />
-    <Compile Include="Coverage\Collection\IsDisposed.cs" />
-    <Compile Include="Coverage\Collection\TestCollection.cs" />
     <Compile Include="Coverage\Enumerator\KeyEnumerable.cs" />
     <Compile Include="Coverage\Enumerator\KeyValueEnumerable.cs" />
     <Compile Include="Coverage\Enumerator\ValueEnumerable.cs" />
@@ -66,6 +62,10 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Coverage\Collection\" />
   </ItemGroup>
 
   <Import Project="..\Seamless.Collections.Tests\Seamless.Collections.Tests.projitems" Label="Shared" />

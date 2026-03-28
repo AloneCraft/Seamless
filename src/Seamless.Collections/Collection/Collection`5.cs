@@ -2,26 +2,29 @@ using Garnet.common;
 namespace Seamless.Collections;
 using System.Diagnostics.CodeAnalysis;
 using Tsavorite.core;
-public abstract class Collection<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator>:IDisposable
+//public abstract class Collectionx<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator>:IDisposable
+public abstract class Collectionx<TKey,TValue>:IDisposable
     where TKey:IEquatable<TKey>
     where TValue:IEquatable<TValue>
-    where TSessionFunctions:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
-    where TStoreFunctions:IStoreFunctions
-    where TAllocator:IAllocator<TStoreFunctions>{
+    //where TSessionFunctions:SSessionFunctions//ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
+    {
+    //AddSessionFunctions;
+    //StoreFunctions<SpanByteComparer,DefaultRecordDisposer>
+    //ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>
     private protected const int RecordOverheadBytes=128;
     internal readonly TsavoriteKV<TStoreFunctions,TAllocator> Store;
     private protected readonly long LogMemorySize;
     private protected readonly double MutableFraction;
     private protected readonly TSessionFunctions SessionFunctions;
-    public ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions,TStoreFunctions,TAllocator> Session;
-    private protected readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,DeleteSessionFunctions,TStoreFunctions,TAllocator> DeleteSession;
-    private protected Collection(TsavoriteKV<TStoreFunctions,TAllocator> Store,TSessionFunctions SessionFunctions,long LogMemorySize=0,double MutableFraction=1.0){
+    public TClientSession Session;
+    private protected readonly TDeleteClientSession DeleteSession;
+    private protected Collectionx(TsavoriteKV<TStoreFunctions,TAllocator> Store,TSessionFunctions SessionFunctions,long LogMemorySize=0,double MutableFraction=1.0){
         this.Store=Store;
         this.LogMemorySize=LogMemorySize;
         this.MutableFraction=MutableFraction;
         this.SessionFunctions=SessionFunctions;
         this.Session=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions>(SessionFunctions);
-        this.DeleteSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,DeleteSessionFunctions>(new DeleteSessionFunctions());
+        this.DeleteSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,DeleteSessionFunctions>(new ());
     }
     public void Clear(){
         var Session=this.Session;
@@ -58,5 +61,5 @@ public abstract class Collection<TKey,TValue,TSessionFunctions,TStoreFunctions,T
         //アンマネージドリソースの解放（必要なければ省略可）
         this.disposed=true;
     }
-    [ExcludeFromCodeCoverage]~Collection()=>this.Dispose(false);
+    ~Collectionx()=>this.Dispose(false);
 }

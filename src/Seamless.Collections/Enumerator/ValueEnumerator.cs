@@ -5,7 +5,7 @@ internal readonly struct ValueEnumerable<TKey,TValue,TSessionFunctions,TStoreFun
     where TKey:IEquatable<TKey>
     where TValue:IEquatable<TValue>
     where TSessionFunctions:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
-    where TStoreFunctions:IStoreFunctions
+    where TStoreFunctions:SStoreFunctions
     where TAllocator:IAllocator<TStoreFunctions>{
     public Enumerator<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator,ValueIterator<TValue>,TValue> GetEnumerator()=>new(Session,new());
     IEnumerator<TValue> IEnumerable<TValue>.GetEnumerator()=>this.GetEnumerator();

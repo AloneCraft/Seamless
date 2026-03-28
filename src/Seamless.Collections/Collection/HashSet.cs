@@ -18,8 +18,8 @@ namespace Seamless.Collections;
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
 public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable<T> {
 	private readonly byte[] EmptyBytes;
-	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectSessionFunctions,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> IntersectSession;
-	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptSessionFunctions,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> SymmetricExceptSession;
+	private readonly SIntersectClientSession IntersectSession;
+	private readonly SSymmetricExceptIntersectClientSession SymmetricExceptSession;
 	internal HashSet(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
 		this.EmptyBytes=Serialize(Empty.Default);
 		this.IntersectSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectSessionFunctions>(new IntersectSessionFunctions());

@@ -53,8 +53,8 @@ public abstract class Collection<TKey, TValue>:Collection<TKey,TValue,AddSession
         }
     }
     private protected static Status Pending<TSessionFunctions0,TStoreFunctions0,TAllocator0>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions0,TAllocator0>Session,Status Status)
-        where TSessionFunctions0:ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>
-        where TStoreFunctions0  :IStoreFunctions<SpanByte,SpanByte>
+        where TSessionFunctions0:SSessionFunctions
+        where TStoreFunctions0  :SStoreFunctions
         where TAllocator0 : IAllocator<SpanByte,SpanByte,TStoreFunctions0>{
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
@@ -66,8 +66,8 @@ public abstract class Collection<TKey, TValue>:Collection<TKey,TValue,AddSession
         return Status;
     }
     private protected static Status Pending<TSessionFunctions0,TStoreFunctions0,TAllocator0>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions0,TAllocator0>Session,Status Status,ref SpanByteAndMemory Output)
-        where TSessionFunctions0:ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>
-        where TStoreFunctions0  :IStoreFunctions<SpanByte,SpanByte>
+        where TSessionFunctions0:SSessionFunctions
+        where TStoreFunctions0  :SStoreFunctions
         where TAllocator0 : IAllocator<SpanByte,SpanByte,TStoreFunctions0>{
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);

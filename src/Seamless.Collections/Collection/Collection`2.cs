@@ -8,8 +8,41 @@ namespace Seamless.Collections;
 /// <see cref="IDictionary{TKey,TValue}"/> を実装し、利用者に Tsavorite の詳細を見せない。
 /// 静的ポリモーフィズムにより仮想ディスパッチを回避する。
 /// </summary>
-public abstract class Collection<TKey,TValue>:Collection<TKey,TValue,AddSessionFunctions,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>where TKey:IEquatable<TKey>where TValue:IEquatable<TValue>{
-    protected Collection(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize=0,double MutableFraction=1.0):base(Store,new AddSessionFunctions(),LogMemorySize,MutableFraction){}
+//public abstract class Collection<TKey,TValue>:Collectionx<TKey,TValue,AddSessionFunctions,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>where TKey:IEquatable<TKey>where TValue:IEquatable<TValue>{
+public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<TKey>where TValue:IEquatable<TValue>{
+    private protected const int RecordOverheadBytes=128;
+    internal readonly TsavoriteKV<TStoreFunctions,TAllocator> Store;
+    private protected readonly long LogMemorySize;
+    private protected readonly double MutableFraction;
+    private protected readonly TSessionFunctions SessionFunctions=new();
+    public TClientSession ClientSession;
+    private protected readonly TDeleteClientSession DeleteClientSession;
+    protected Collection(TsavoriteKV<TStoreFunctions,TAllocator> Store,long LogMemorySize=0,double MutableFraction=1.0){
+        this.Store=Store;
+        this.LogMemorySize=LogMemorySize;
+        this.MutableFraction=MutableFraction;
+        this.ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions>(this.SessionFunctions);
+        this.DeleteClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,DeleteSessionFunctions>(new ());
+    }
+    public void Clear(){
+        var Session=this.ClientSession;
+        Session.BasicContext.CompletePending(wait:true);
+        Session.Dispose();
+        this.Store.Reset();
+        this.ClientSession=this.Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions>(this.SessionFunctions);
+    }
+
+
+
+
+
+
+
+
+
+    private protected KeyEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetKeyEnumerable()=>new(this.ClientSession);
+    private protected ValueEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetValueEnumerable()=>new(this.ClientSession);
+    private protected KeyValueEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetKeyValueEnumerable()=>new(this.ClientSession);
     private protected OutOfMemoryException ThrowLogFull() {
         var Log = this.Store.Log;
         return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
@@ -32,13 +65,13 @@ public abstract class Collection<TKey,TValue>:Collection<TKey,TValue,AddSessionF
     public long GetLongCount() {
         var Iterator = new CounterIterator();
         long Cursor = 0;
-        this.Session.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        this.ClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         return Iterator.Counter;
     }
     public int Count => (int)this.GetLongCount();
     public long EntryCount => this.Store.EntryCount;
     private protected Status Read(TKey Key,ref SpanByteAndMemory Output) {
-        var Session=this.Session;
+        var Session=this.ClientSession;
         var KeyBytes = Serialize(Key);
         var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
         var Status = Session.BasicContext.Read(FixedKey,ref Output);
@@ -51,7 +84,7 @@ public abstract class Collection<TKey,TValue>:Collection<TKey,TValue,AddSessionF
     
     private protected static Status Pending<TSessionFunctions0,TStoreFunctions0,TAllocator0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions0,TAllocator0>Session,Status Status)
         where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
-        where TStoreFunctions0  :IStoreFunctions
+        where TStoreFunctions0  :SStoreFunctions
         where TAllocator0 : IAllocator<TStoreFunctions0>{
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
@@ -64,7 +97,7 @@ public abstract class Collection<TKey,TValue>:Collection<TKey,TValue,AddSessionF
     }
     private protected static Status Pending<TSessionFunctions0,TStoreFunctions0,TAllocator0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions0,TAllocator0>Session,Status Status,ref SpanByteAndMemory Output)
         where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
-        where TStoreFunctions0  :IStoreFunctions
+        where TStoreFunctions0  :SStoreFunctions
         where TAllocator0 : IAllocator<TStoreFunctions0>{
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
@@ -84,7 +117,7 @@ public abstract class Collection<TKey,TValue>:Collection<TKey,TValue,AddSessionF
         }
 
 
-        var Session=this.Session;
+        var Session=this.ClientSession;
         var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
         var FixedInput = PinnedSpanByte.FromPinnedSpan(ValueBytes);
         SpanByteAndMemory FixedOutput = default;
@@ -104,7 +137,7 @@ public abstract class Collection<TKey,TValue>:Collection<TKey,TValue,AddSessionF
         return Status.Found;
     }
     public bool Remove(TKey key) {
-        var DeleteSession = this.DeleteSession;
+        var DeleteSession = this.DeleteClientSession;
         var KeyBytes = Serialize(key);
         var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Input = default(PinnedSpanByte);
@@ -114,4 +147,21 @@ public abstract class Collection<TKey,TValue>:Collection<TKey,TValue,AddSessionF
         Debug.Assert(Status.Found!=Status.NotFound);
         return Status.Found;
     }
+    public abstract bool IsDisposed{get;}
+    private bool disposed;
+    public void Dispose(){
+        this.Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+    protected virtual void Dispose(bool disposing){
+        if(this.disposed) return;
+        if(disposing){
+            //マネージドリソースの解放
+            this.ClientSession.Dispose();
+        } else{
+        }
+        //アンマネージドリソースの解放（必要なければ省略可）
+        this.disposed=true;
+    }
+    ~Collection()=>this.Dispose(false);
 }
