@@ -2,7 +2,6 @@ using Common;
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Numerics;
 using Tsavorite.core;
 
 namespace Seamless.Collections;
@@ -96,15 +95,10 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 			return (Log.BeginAddress,Log.HeadAddress,Log.ReadOnlyAddress,Log.TailAddress);
 		}
 	}
-	~CollectionStore() {
-		this.Dispose(false);
-	}
-
 	public void Dispose() {
 		this.Dispose(true);
 		GC.SuppressFinalize(this);
 	}
-
 	protected virtual void Dispose(bool disposing) {
 		if(this.Disposed) return;
 		this.Disposed=true;
@@ -115,4 +109,5 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 		} else {
 		}
 	}
+    ~CollectionStore()=>this.Dispose(false);
 }

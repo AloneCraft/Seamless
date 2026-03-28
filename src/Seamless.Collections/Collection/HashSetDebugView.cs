@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Diagnostics;
 namespace Seamless.Collections;
 internal sealed class HashSetDebugView<T> where T : IEquatable<T> {

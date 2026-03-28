@@ -33,28 +33,6 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
         }
 	}
 	void ICollection<T>.Add(T item) => this.Add(item);
-	public bool Contains(T item) {
-		var k = Serialize(item);
-		unsafe {
-			fixed(byte* pKey = k) {
-				var key = SpanByte.FromPinnedPointer(pKey,k.Length);
-                var Session=this.Session;
-				SpanByteAndMemory output = default;
-				var Status = Session.BasicContext.Read(ref key,ref output);
-                Status=Pending(Session,Status);
-
-				//if(Status.IsPending) {
-				//	this.Session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
-				//	completedOutputs.Next();
-				//	Status=completedOutputs.Current.Status;
-				//	completedOutputs.Dispose();
-				//} else {
-				//}
-				Debug.Assert(Status.Found!=Status.NotFound);
-				return Status.Found;
-			}
-		}
-	}
 	public void CopyTo(T[] array,int arrayIndex) {
 		ArgumentNullException.ThrowIfNull(array);
 		ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
@@ -87,16 +65,11 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 					var Input = SpanByte.FromPinnedPointer(PInput,InputBytes.Length);
 					SpanByteAndMemory Output = default;
 					var Status = Session.BasicContext.RMW(ref Key,ref Input,ref Output);
-                    Pending(Session,Status);
 
-					//if(Status.IsPending) {
-					//	Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-					//	CompletedOutputs.Next();
-					//	CompletedOutputs.Dispose();
-					//}
 				}
 			}
 		}
+        Session.BasicContext.CompletePending(wait: true);
 	}
 	public bool IsProperSubsetOf(HashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
@@ -169,11 +142,12 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 					var Key = SpanByte.FromPinnedPointer(PKey,KeyBytes.Length);
 					var Input = SpanByte.FromPinnedPointer(PInput,InputBytes.Length);
 					SpanByteAndMemory Output = default;
-					var Status = Session.BasicContext.RMW(ref Key,ref Input,ref Output);
-					Pending(Session,Status);
+					Session.BasicContext.RMW(ref Key,ref Input,ref Output);
 				}
 			}
 		}
+        Session.BasicContext.CompletePending(wait: true);
+        this.SymmetricExceptSession.Dispose();
 	}
 	public void UnionWith(HashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);

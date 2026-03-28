@@ -20,7 +20,6 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	private readonly byte[] EmptyBytes;
 	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectSessionFunctions,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> IntersectSession;
 	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptSessionFunctions,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> SymmetricExceptSession;
-	private bool SetOperationSessionsDisposed;
 	internal HashSet(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
 		this.EmptyBytes=Serialize(Empty.Default);
 		this.IntersectSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectSessionFunctions>(new IntersectSessionFunctions());
@@ -40,8 +39,6 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 		}
 	}
 	void ICollection<T>.Add(T item) => this.Add(item);
-	//public bool Contains(T item) =>
-	//	this.Contains(item);
 	public void CopyTo(T[] array,int arrayIndex) {
 		ArgumentNullException.ThrowIfNull(array);
 		ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
@@ -152,14 +149,17 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 			this.Add(item);
 		}
 	}
+    public override bool IsDisposed=>this.disposed;
+    private bool disposed;
 	protected override void Dispose(bool disposing) {
-		if(!this.SetOperationSessionsDisposed) {
-			this.SetOperationSessionsDisposed=true;
-			if(disposing) {
-				this.IntersectSession.Dispose();
-				this.SymmetricExceptSession.Dispose();
-			}
-		}
-		base.Dispose(disposing);
+        if(this.disposed) return;
+        if(disposing){
+            this.IntersectSession.Dispose();
+            this.SymmetricExceptSession.Dispose();
+        }else{
+
+        }
+        this.disposed=true;
+        base.Dispose(disposing);
 	}
 }

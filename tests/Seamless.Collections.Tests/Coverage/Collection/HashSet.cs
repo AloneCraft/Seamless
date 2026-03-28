@@ -373,4 +373,34 @@ public class HashSet {
         set.Clear();
         Assert.Equal(0,set.Count);
     }
+    [Fact, Trait("Category","Coverage")]
+    public void GetEnumerator_IEnumerable_明示的() {
+        using var store = new HashSetStore<int>();
+        using var set = store.Create();
+        set.Add(1);
+        var count = 0;
+        var en = ((System.Collections.IEnumerable)set).GetEnumerator();
+        while(en.MoveNext()) count++;
+        Assert.Equal(1,count);
+    }
+    [Fact, Trait("Category","Coverage")]
+    public void Dispose_安全に呼び出せる() {
+        var store = new HashSetStore<int>();
+        var set = store.Create();
+        Assert.False(set.IsDisposed);
+        set.Dispose();
+        Assert.True(set.IsDisposed);
+        set.Dispose();
+        store.Dispose();
+    }
+    [Fact, Trait("Category","Coverage")]
+    public void Dispose_GCファイナライザ経路() {
+        static void CreateOrphan() {
+            var store = new HashSetStore<int>();
+            _ = store.Create();
+        }
+        CreateOrphan();
+        GC.Collect(GC.MaxGeneration,GCCollectionMode.Forced,blocking: true);
+        GC.WaitForPendingFinalizers();
+    }
     }
