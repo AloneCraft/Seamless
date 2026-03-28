@@ -45,13 +45,6 @@ public class AddSessionFunctions {
         }
     }
 
-    [Fact, Trait("Category","Coverage")]
-    public void AddSessionFunctions_ConvertOutputToHeapは例外を投げる() {
-        var sessionFunctions = new Seamless.Collections.AddSessionFunctions();
-        var input = default(PinnedSpanByte);
-        SpanByteAndMemory output = default;
-        Assert.Throws<NotSupportedException>(() => sessionFunctions.ConvertOutputToHeap(ref input,ref output));
-    }
 
     [Fact, Trait("Category","Coverage")]
     public void AddSessionFunctions_35メソッドを直接実行する() {

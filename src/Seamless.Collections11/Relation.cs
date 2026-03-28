@@ -23,13 +23,15 @@ public sealed class Relation<TKey,TValue>:Collection<TValue,Empty>,IRelation<TVa
 				var Input = SpanByte.FromPinnedPointer(pValue, ValueBytes.Length);
 				SpanByteAndMemory output=default;
 				var Status=this.Session.BasicContext.RMW(ref Key,ref Input,ref output);
-				if(Status.IsPending){
-					this.Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
-					CompletedOutputs.Next();
-					Status=CompletedOutputs.Current.Status;
-					CompletedOutputs.Dispose();
-				}else{
-                }
+                Status=Pending(this.Session,Status);
+
+				//if(Status.IsPending){
+				//	this.Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
+				//	CompletedOutputs.Next();
+				//	Status=CompletedOutputs.Current.Status;
+				//	CompletedOutputs.Dispose();
+				//}else{
+    //            }
                 Debug.Assert(Status.Found!=Status.NotFound);
 				return Status.NotFound;
 			}

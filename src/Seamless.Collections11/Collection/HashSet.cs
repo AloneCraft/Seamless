@@ -30,15 +30,18 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 			fixed(byte* pKey = keyBytes, pValue = valueBytes) {
 				var key = SpanByte.FromPinnedPointer(pKey,keyBytes.Length);
 				var input = SpanByte.FromPinnedPointer(pValue,valueBytes.Length);
+                var Session=this.Session;
 				SpanByteAndMemory output = default;
-				var Status = this.Session.BasicContext.RMW(ref key,ref input,ref output);
-				if(Status.IsPending) {
-					this.Session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
-					completedOutputs.Next();
-					Status=completedOutputs.Current.Status;
-					completedOutputs.Dispose();
-				} else {
-				}
+				var Status = Session.BasicContext.RMW(ref key,ref input,ref output);
+   
+				//if(Status.IsPending) {
+				//	this.Session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
+				//	completedOutputs.Next();
+				//	Status=completedOutputs.Current.Status;
+				//	completedOutputs.Dispose();
+				//} else {
+				//}
+                Debug.Assert(Status.Found!=Status.NotFound);
 				return Status.NotFound;
 			}
 		}
@@ -49,16 +52,20 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 		unsafe {
 			fixed(byte* pKey = k) {
 				var key = SpanByte.FromPinnedPointer(pKey,k.Length);
+                var Session=this.Session;
 				SpanByteAndMemory output = default;
-				var Status = this.Session.BasicContext.Read(ref key,ref output);
-				if(Status.IsPending) {
-					this.Session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
-					completedOutputs.Next();
-					Status=completedOutputs.Current.Status;
-					completedOutputs.Dispose();
-				} else {
-				}
-				return !Status.NotFound;
+				var Status = Session.BasicContext.Read(ref key,ref output);
+                Status=Pending(Session,Status);
+
+				//if(Status.IsPending) {
+				//	this.Session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
+				//	completedOutputs.Next();
+				//	Status=completedOutputs.Current.Status;
+				//	completedOutputs.Dispose();
+				//} else {
+				//}
+				Debug.Assert(Status.Found!=Status.NotFound);
+				return Status.Found;
 			}
 		}
 	}
@@ -94,11 +101,13 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 					var Input = SpanByte.FromPinnedPointer(PInput,InputBytes.Length);
 					SpanByteAndMemory Output = default;
 					var Status = Session.BasicContext.RMW(ref Key,ref Input,ref Output);
-					if(Status.IsPending) {
-						Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-						CompletedOutputs.Next();
-						CompletedOutputs.Dispose();
-					}
+                    Pending(Session,Status);
+
+					//if(Status.IsPending) {
+					//	Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
+					//	CompletedOutputs.Next();
+					//	CompletedOutputs.Dispose();
+					//}
 				}
 			}
 		}
@@ -175,11 +184,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 					var Input = SpanByte.FromPinnedPointer(PInput,InputBytes.Length);
 					SpanByteAndMemory Output = default;
 					var Status = Session.BasicContext.RMW(ref Key,ref Input,ref Output);
-					if(Status.IsPending) {
-						Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-						CompletedOutputs.Next();
-						CompletedOutputs.Dispose();
-					}
+					Pending(Session,Status);
 				}
 			}
 		}

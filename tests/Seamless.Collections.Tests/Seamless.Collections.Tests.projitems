@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>f485746b-4005-416a-8e23-c2a691d7f41d</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Seamless.Collections.Tests</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)AdventureWorks2008R2\AdventureWorks2008R2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\Collection`5.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\Dictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\DictionaryDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\Empty.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\HashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\HashSetDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\RelationAndEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Internal\KeyComparerAndRelationStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Serializer\IObjectSerializerViaTsavorite.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\SessionFunctions\AddSessionFunctions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\SessionFunctions\DefaultSessionFunctions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\SessionFunctions\DeleteSessionFunctions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\SessionFunctions\IntersectSessionFunctions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\SessionFunctions\SessionFunctions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\SessionFunctions\SessionFunctionTestDummies.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\SessionFunctions\SymmetricExceptSessionFunctions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Store\CollectionStore2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Function\SessionFunctions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Function\TestDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Function\TestDictionaryDevice.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Function\TestHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Function\TestHashSetDevice.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IDevice\TestLocalStorageDevice.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IDevice\TestMemoryOnlyDevice.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Test.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestKeyComparer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestRelation.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestTsavorite.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)動作確認\TestIteratorLookup.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="$(MSBuildThisFileDirectory)Coverage\ScanIteratorFunctions\" />
+    <Folder Include="$(MSBuildThisFileDirectory)ISessionFunctions\" />
+  </ItemGroup>
+</Project>

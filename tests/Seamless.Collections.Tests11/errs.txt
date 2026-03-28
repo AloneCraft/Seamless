@@ -1,7 +1,0 @@
-g:\GitHub\バイブコーディング\Seamless\tests\Seamless.Collections.Tests1_1\TestTsavorite.cs(164,44): error CS1061: 'BasicContext<SpanByte, SpanByte, SpanByte, SpanByteAndMemory, Empty, SpanByteFunctions<Empty>, StoreFunctions<SpanByte, SpanByte, SpanByteComparer, SpanByteRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByte, SpanByte, SpanByteComparer, SpanByteRecordDisposer>>>' に 'Iterate' の定義が含まれておらず、型 'BasicContext<SpanByte, SpanByte, SpanByte, SpanByteAndMemory, Empty, SpanByteFunctions<Empty>, StoreFunctions<SpanByte, SpanByte, SpanByteComparer, SpanByteRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByte, SpanByte, SpanByteComparer, SpanByteRecordDisposer>>>' の最初の引数を受け付けるアクセス可能な拡張メソッド 'Iterate' が見つかりませんでした。using ディレクティブまたはアセンブリ参照が不足していないことを確認してください [g:\GitHub\バイブコーディング\Seamless\tests\Seamless.Collections.Tests1_1\Seamless.Collections.Tests1_1.csproj]
-
-ビルドに失敗しました。
-    36 個の警告
-    1 エラー
-
-経過時間 00:00:01.15

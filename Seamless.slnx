@@ -6,9 +6,8 @@
     <Project Path="src/Seamless.Reasoning/Seamless.Reasoning.csproj" />
   </Folder>
   <Folder Name="/test/">
-    <Project Path="tests/Seamless.Collections.Benchmarks/Seamless.Collections.Benchmarks.csproj" />
-    <Project Path="tests/Seamless.Collections.Tests/Seamless.Collections.Tests.csproj" />
-    <Project Path="tests/Seamless.Collections.Tests11/Seamless.Collections.Tests11.csproj" />
+    <Project Path="tests/Seamless.Collections.Tests/Seamless.Collections.Tests.shproj" Id="f485746b-4005-416a-8e23-c2a691d7f41d" />
+    <Project Path="tests/Seamless.CollectionsTests2.0beta3/Seamless.CollectionsTests2.0beta3.csproj" Id="2b0b8368-648c-40a4-a41c-48461d2dc8e6" />
     <Project Path="tests/TestCommon/TestCommon.csproj" />
   </Folder>
   <Folder Name="/新しいフォルダー1/">

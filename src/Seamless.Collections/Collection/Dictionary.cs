@@ -1,7 +1,5 @@
-using System.Diagnostics.CodeAnalysis;
-using Garnet.common;
 namespace Seamless.Collections;
-
+using System.Diagnostics.CodeAnalysis;
 using System.Collections;
 using System.Diagnostics;
 using Tsavorite.core;
@@ -17,6 +15,16 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 	where TValue : IEquatable<TValue> {
 	internal Dictionary(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) { }
 	public bool IsReadOnly => false;
+    public bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
+        SpanByteAndMemory Output = default;
+        var Status = this.Read(Key,ref Output);
+        if(Status.NotFound) {
+            Value=default;
+            return false;
+        }
+        Value=Deserialize<TValue>(Output.ReadOnlySpan);
+        return true;
+    }
 	public TryAddResult TryAdd(TKey Key,TValue Value) =>
 		this.PrivateTryAdd(Key,Value);
 	public void Add(TKey Key,TValue Value) {
@@ -28,10 +36,17 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 		}
 	}
 	public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
-	public bool ContainsKey(TKey Key) {
-		return this.PrivateContainsKey(Key);
-	}
-	public bool Contains(KeyValuePair<TKey,TValue> item) => this.TryGetValue(item.Key,out var value)&&EqualityComparer<TValue>.Default.Equals(value,item.Value);
+    bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item) {
+        SpanByteAndMemory Output = default;
+        var Status = this.Read(item.Key,ref Output);
+        Debug.Assert(Status.Found==!Status.NotFound);
+        return Status.Found;
+    }
+    //public bool Contains(T item) =>
+    //    this.PrivateContainsKey(item);
+
+	public bool ContainsKey(TKey Key)=>
+		this.Contains(Key);
     /// <summary>
     /// Key,Value両方が一致するエントリを削除する。Keyのみが存在する場合は削除しない。
     /// </summary>
