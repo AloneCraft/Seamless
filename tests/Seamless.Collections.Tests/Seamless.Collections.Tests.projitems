@@ -31,7 +31,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="$(MSBuildThisFileDirectory)Coverage\ScanIteratorFunctions\" />
-    <Folder Include="$(MSBuildThisFileDirectory)Coverage\Serializer\" />
     <Folder Include="$(MSBuildThisFileDirectory)ISessionFunctions\" />
   </ItemGroup>
 </Project>
