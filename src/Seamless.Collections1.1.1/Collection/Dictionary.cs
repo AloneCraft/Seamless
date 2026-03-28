@@ -1,7 +1,8 @@
 namespace Seamless.Collections;
-using System.Diagnostics.CodeAnalysis;
 using System.Collections;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.Serialization;
 using Tsavorite.core;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ Dictionary。
@@ -10,7 +11,7 @@ using Tsavorite.core;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(DictionaryDebugView<,>))]
-public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionary<TKey,TValue>
+public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionary<TKey,TValue>, IReadOnlyDictionary<TKey,TValue>
 	where TKey : IEquatable<TKey>
 	where TValue : IEquatable<TValue> {
 	internal Dictionary(TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) { }
@@ -83,6 +84,8 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 	public List<KeyValuePair<TKey,TValue>> ToList() => [.. this.GetKeyValueEnumerable()];
 	public ICollection<TKey> Keys => new List<TKey>(this.GetKeyEnumerable());
 	public ICollection<TValue> Values => new List<TValue>(this.GetValueEnumerable());
+	IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Keys;
+	IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Values;
 	public TValue this[TKey Key] {
 		get {
 			var KeyBytes = Serialize(Key);
