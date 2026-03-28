@@ -12,6 +12,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)AdventureWorks2008R2\AdventureWorks2008R2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\DictionaryDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\DictionaryIReadOnly.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\Empty.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\HashSetDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Function\TestHashSet.cs" />

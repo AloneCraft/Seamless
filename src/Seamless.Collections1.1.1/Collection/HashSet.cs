@@ -21,30 +21,16 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	}
 	public bool IsReadOnly => false;
 	public bool Add(T item) {
-		var keyBytes = Serialize(item);
-		var valueBytes = Serialize(default(Empty));
-		if(this.WouldOverflowMutable(keyBytes.Length,valueBytes.Length)) {
-			this.ThrowLogFull();
-		}
-		unsafe {
-			fixed(byte* pKey = keyBytes, pValue = valueBytes) {
-				var key = SpanByte.FromPinnedPointer(pKey,keyBytes.Length);
-				var input = SpanByte.FromPinnedPointer(pValue,valueBytes.Length);
-                var Session=this.Session;
-				SpanByteAndMemory output = default;
-				var Status = Session.BasicContext.RMW(ref key,ref input,ref output);
-   
-				//if(Status.IsPending) {
-				//	this.Session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
-				//	completedOutputs.Next();
-				//	Status=completedOutputs.Current.Status;
-				//	completedOutputs.Dispose();
-				//} else {
-				//}
-                Debug.Assert(Status.Found!=Status.NotFound);
-				return Status.NotFound;
-			}
-		}
+        var Result = this.PrivateTryAdd(item,Empty.Default);
+        switch(Result) {
+            case TryAddResult.Success:
+                return true;
+            case TryAddResult.KeyAlreadyExists:
+                return false;
+            default:
+                Debug.Assert(TryAddResult.LogFull==Result);
+                throw this.ThrowLogFull();
+        }
 	}
 	void ICollection<T>.Add(T item) => this.Add(item);
 	public bool Contains(T item) {

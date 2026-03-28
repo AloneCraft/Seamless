@@ -1,8 +1,11 @@
 namespace Seamless.Collections;
-using System.Diagnostics.CodeAnalysis;
 using System.Collections;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.Serialization;
+
 using Tsavorite.core;
+
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ Dictionary。
 /// <see cref="IDictionary{TKey,TValue}"/> を実装し、利用者に Tsavorite の詳細を見せない。
@@ -10,8 +13,8 @@ using Tsavorite.core;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(DictionaryDebugView<,>))]
-public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionary<TKey,TValue>
-	where TKey : IEquatable<TKey>
+public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey, TValue>
+	where TKey :IEquatable<TKey>
 	where TValue : IEquatable<TValue> {
 	internal Dictionary(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) { }
 	public bool IsReadOnly => false;
@@ -99,7 +102,9 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 	public IEnumerator<KeyValuePair<TKey,TValue>> GetEnumerator() => this.GetKeyValueEnumerable().GetEnumerator();
 	public List<KeyValuePair<TKey,TValue>> ToList() => [.. this.GetKeyValueEnumerable()];
 	public ICollection<TKey> Keys => new List<TKey>(this.GetKeyEnumerable());
-	public ICollection<TValue> Values => new List<TValue>(this.GetValueEnumerable());
+    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys=>this.Keys;
+    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values=>this.Values;
+    public ICollection<TValue> Values => new List<TValue>(this.GetValueEnumerable());
 	public TValue this[TKey Key] {
 		get {
 			if(this.TryGetValue(Key,out var Value)) {

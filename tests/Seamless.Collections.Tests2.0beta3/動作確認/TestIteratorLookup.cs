@@ -2,7 +2,6 @@
 using Tsavorite.core;
 
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Seamless.Collections.Tests;
 
