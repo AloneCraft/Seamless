@@ -11,16 +11,24 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AdventureWorks2008R2\AdventureWorks2008R2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\DictionaryCoverage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\DictionaryDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\DictionaryIReadOnly.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\Empty.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\HashSetCoverage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Coverage\Collection\HashSetDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Device\MemoryOnlyDeviceCoverage.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Enumerator\EnumeratorCoverage.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Enumerator\KeyEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Enumerator\KeyValueEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Enumerator\ValueEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Coverage\Store\CollectionStore2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Function\TestHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Test.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)TestRelation.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="$(MSBuildThisFileDirectory)Coverage\ScanIteratorFunctions\" />
+    <Folder Include="$(MSBuildThisFileDirectory)Coverage\Serializer\" />
     <Folder Include="$(MSBuildThisFileDirectory)ISessionFunctions\" />
   </ItemGroup>
 </Project>

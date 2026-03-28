@@ -12,6 +12,40 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Coverage\**" />
+    <Compile Remove="Function\**" />
+    <Compile Remove="IDevice\**" />
+    <Compile Remove="動作確認\**" />
+    <EmbeddedResource Remove="Coverage\**" />
+    <EmbeddedResource Remove="Function\**" />
+    <EmbeddedResource Remove="IDevice\**" />
+    <EmbeddedResource Remove="動作確認\**" />
+    <None Remove="Coverage\**" />
+    <None Remove="Function\**" />
+    <None Remove="IDevice\**" />
+    <None Remove="動作確認\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Common.cs" />
+    <Compile Remove="TestKeyComparer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Coverage\Collection\IsDisposed.cs" />
+    <Compile Include="Coverage\Enumerator\KeyEnumerable.cs" />
+    <Compile Include="Coverage\Enumerator\KeyValueEnumerable.cs" />
+    <Compile Include="Coverage\Enumerator\ValueEnumerable.cs" />
+    <Compile Include="Coverage\SessionFunctions\AddSessionFunctions.cs" />
+    <Compile Include="Coverage\SessionFunctions\DefaultSessionFunctions.cs" />
+    <Compile Include="Coverage\SessionFunctions\DeleteSessionFunctions.cs" />
+    <Compile Include="Coverage\SessionFunctions\IntersectSessionFunctions.cs" />
+    <Compile Include="Coverage\SessionFunctions\SessionFunctions.cs" />
+    <Compile Include="Coverage\SessionFunctions\SessionFunctionTestDummies.cs" />
+    <Compile Include="Coverage\SessionFunctions\SymmetricExceptSessionFunctions.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="8.0.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

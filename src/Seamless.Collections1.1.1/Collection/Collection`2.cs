@@ -46,7 +46,9 @@ public abstract class Collection<TKey, TValue>:Collection<TKey,TValue,AddSession
                 var Session=this.Session;
                 var FixedKey = SpanByte.FromPinnedPointer(pKey,KeyBytes.Length);
                 var Status = Session.BasicContext.Read(ref FixedKey,ref Value0);
-                return Pending(Session,Status,ref Value0);
+                var Result = Pending(Session,Status,ref Value0);
+                Output = Value0;
+                return Result;
             }
         }
     }
