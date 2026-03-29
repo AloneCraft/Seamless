@@ -14,7 +14,10 @@ using Tsavorite.core;
 public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey, TValue>
 	where TKey :IEquatable<TKey>
 	where TValue : IEquatable<TValue> {
-	internal Dictionary(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) { }
+	private readonly TTryGetValueRemoveClientSession TryGetValueRemoveClientSession;
+	internal Dictionary(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
+		this.TryGetValueRemoveClientSession=Store.NewSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TryGetValueRemoveSessionFunctions>(new ());
+	}
 	public bool IsReadOnly => false;
     public bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
         SpanByteAndMemory Output = default;
@@ -65,10 +68,18 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
         return false;
     }
     public bool Remove(TKey key,[MaybeNullWhen(false)]out TValue value) {
-        if(this.TryGetValue(key,out value)) {
-            return this.Remove(key);
-        } else {
+        var Session = this.TryGetValueRemoveClientSession;
+        var KeyBytes = Serialize(key);
+        var FixedKey = (Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
+        var Input = default(PinnedSpanByte);
+        SpanByteAndMemory Output = default;
+        var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
+        Status=Pending(Session,Status,ref Output);
+        if(Status.Found) {
+            value=Deserialize<TValue>(Output.ReadOnlySpan);
+            return true;
         }
+        value=default;
         return false;
     }
     //public bool Remove(TKey key) {
@@ -110,23 +121,6 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 			} else {
 				throw new KeyNotFoundException();
 			}
-			//         SpanByteAndMemory Output = default;
-			//         var Status=this.Read(Key,ref Output);
-			////var KeyBytes = Serialize(Key);
-			////SpanByteAndMemory valueBytes = default;
-			////var FixedKey = (Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-			////var Status = this.Session.BasicContext.Read(FixedKey,ref valueBytes);
-			//if(Status.IsPending) {
-			//	this.Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-			//	CompletedOutputs.Next();
-			//	Status=CompletedOutputs.Current.Status;
-			//	Output=CompletedOutputs.Current.Output;
-			//	CompletedOutputs.Dispose();
-			//} else {
-			//}
-			//if(Status.NotFound)
-			//	throw new KeyNotFoundException();
-			//return Deserialize<TValue>(Output.ReadOnlySpan);
 		}
 		set {
 			var KeyBytes = Serialize(Key);
@@ -146,6 +140,9 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 	protected override void Dispose(bool disposing) {
 		if(this.disposed) return;
 		this.disposed=true;
+		if(disposing) {
+			this.TryGetValueRemoveClientSession.Dispose();
+		}
 		base.Dispose(disposing);
 	}
 }

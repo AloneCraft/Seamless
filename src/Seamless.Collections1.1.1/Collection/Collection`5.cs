@@ -17,15 +17,15 @@ public abstract class Collection<TKey, TValue, TSessionFunctions, TStoreFunction
     private protected readonly long LogMemorySize;
     private protected readonly double MutableFraction;
     private protected readonly TSessionFunctions SessionFunctions;
-    public                     ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions,TStoreFunctions,TAllocator> Session;
-    private protected readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,DeleteSessionFunctions<TKey>,TStoreFunctions,TAllocator> DeleteSession;
+    public                     ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions,TStoreFunctions,TAllocator> ClientSession;
+    private protected readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,DeleteSessionFunctions<TKey>,TStoreFunctions,TAllocator> DeleteClientSession;
     private protected Collection(TsavoriteKV<SpanByte,SpanByte,TStoreFunctions,TAllocator> Store,TSessionFunctions SessionFunctions,long LogMemorySize = 0,double MutableFraction = 1.0) {
         this.Store=Store;
         this.LogMemorySize=LogMemorySize;
         this.MutableFraction=MutableFraction;
         this.SessionFunctions=SessionFunctions;
-        this.Session=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,TSessionFunctions>(SessionFunctions);
-        this.DeleteSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,DeleteSessionFunctions<TKey>>(new DeleteSessionFunctions<TKey>());
+        this.ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,TSessionFunctions>(SessionFunctions);
+        this.DeleteClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,DeleteSessionFunctions<TKey>>(new DeleteSessionFunctions<TKey>());
     }
     //private protected void ThrowLogFull() {
     //    var Log = this.Store.Log;
@@ -78,15 +78,15 @@ public abstract class Collection<TKey, TValue, TSessionFunctions, TStoreFunction
 
 
     public void Clear() {
-        var Session = this.Session;
+        var Session = this.ClientSession;
         Session.BasicContext.CompletePending(wait: true);
         Session.Dispose();
         this.Store.Reset();
-        this.Session=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,TSessionFunctions>(this.SessionFunctions);
+        this.ClientSession=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,TSessionFunctions>(this.SessionFunctions);
     }
-    private protected KeyEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetKeyEnumerable() => new(this.Session);
-    private protected ValueEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetValueEnumerable() => new(this.Session);
-    private protected KeyValueEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetKeyValueEnumerable() => new(this.Session);
+    private protected KeyEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetKeyEnumerable() => new(this.ClientSession);
+    private protected ValueEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetValueEnumerable() => new(this.ClientSession);
+    private protected KeyValueEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetKeyValueEnumerable() => new(this.ClientSession);
     public void Dispose() {
         this.Dispose(true);
         GC.SuppressFinalize(this);
@@ -97,7 +97,7 @@ public abstract class Collection<TKey, TValue, TSessionFunctions, TStoreFunction
         if(this.Disposed) return;
         if(disposing) {
             //マネージドリソースの解放
-            this.Session.Dispose();
+            this.ClientSession.Dispose();
         }
         //アンマネージドリソースの解放（必要なければ省略可）
         this.Disposed=true;

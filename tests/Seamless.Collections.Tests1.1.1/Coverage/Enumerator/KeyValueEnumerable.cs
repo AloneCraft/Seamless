@@ -11,7 +11,7 @@ public partial class KeyValueEnumerable {
         using var store = new DictionaryStore<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");
-        var kve = new global::Seamless.Collections.KeyValueEnumerable<int, string, SF, Store, Alloc>(dict.Session);
+        var kve = new global::Seamless.Collections.KeyValueEnumerable<int, string, SF, Store, Alloc>(dict.ClientSession);
         IEnumerable<KeyValuePair<int,string>> ie = kve;
         Assert.Equal(1,ie.Count());
     }
@@ -20,7 +20,7 @@ public partial class KeyValueEnumerable {
         using var store = new DictionaryStore<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");
-        var kve = new global::Seamless.Collections.KeyValueEnumerable<int, string, SF, Store, Alloc>(dict.Session);
+        var kve = new global::Seamless.Collections.KeyValueEnumerable<int, string, SF, Store, Alloc>(dict.ClientSession);
         IEnumerable ie = kve;
         var en = ie.GetEnumerator();
         var count = 0;

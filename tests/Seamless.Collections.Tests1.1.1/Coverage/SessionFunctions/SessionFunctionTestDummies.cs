@@ -1,0 +1,1 @@
+namespace Seamless.Collections.Tests;

@@ -89,7 +89,7 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 			var KeyBytes = Serialize(Key);
 			unsafe {
 				fixed(byte* pKey = KeyBytes) {
-                    var Session=this.Session;
+                    var Session=this.ClientSession;
 					var FixedKey = SpanByte.FromPinnedPointer(pKey,KeyBytes.Length);
 					SpanByteAndMemory ValueBytes = default;
 					var Status = Session.BasicContext.Read(ref FixedKey,ref ValueBytes);
@@ -117,7 +117,7 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 			}
 			unsafe {
 				fixed(byte* pKey = KeyBytes, pValue = ValueBytes){
-                    var Session=this.Session;
+                    var Session=this.ClientSession;
 					var FixedKey = SpanByte.FromPinnedPointer(pKey,KeyBytes.Length);
 					var KeyValue = SpanByte.FromPinnedPointer(pValue,ValueBytes.Length);
 					var Status = Session.BasicContext.Upsert(FixedKey,KeyValue);

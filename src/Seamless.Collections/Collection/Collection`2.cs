@@ -82,10 +82,8 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
     
     
     
-    private protected static Status Pending<TSessionFunctions0,TStoreFunctions0,TAllocator0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions0,TAllocator0>Session,Status Status)
-        where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
-        where TStoreFunctions0  :SStoreFunctions
-        where TAllocator0 : IAllocator<TStoreFunctions0>{
+    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions,TAllocator>Session,Status Status)
+        where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
             CompletedOutputs.Next();
@@ -95,10 +93,20 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         }
         return Status;
     }
-    private protected static Status Pending<TSessionFunctions0,TStoreFunctions0,TAllocator0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions0,TAllocator0>Session,Status Status,ref SpanByteAndMemory Output)
-        where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
-        where TStoreFunctions0  :SStoreFunctions
-        where TAllocator0 : IAllocator<TStoreFunctions0>{
+    //private protected static Status Pending<TSessionFunctions0,TStoreFunctions0,TAllocator0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions0,TAllocator0>Session,Status Status)
+    //    where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
+    //    where TStoreFunctions0  :SStoreFunctions
+    //    where TAllocator0 : IAllocator<TStoreFunctions0>{
+    //    if(Status.IsPending) {
+    //        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
+    //        CompletedOutputs.Next();
+    //        Status=CompletedOutputs.Current.Status;
+    //        CompletedOutputs.Dispose();
+    //    } else {
+    //    }
+    //    return Status;
+    //}
+    private protected static Status Pending(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions,TStoreFunctions,TAllocator>Session,Status Status,ref SpanByteAndMemory Output){
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
             CompletedOutputs.Next();
@@ -109,6 +117,32 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         }
         return Status;
     }
+    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions,TAllocator>Session,Status Status,ref SpanByteAndMemory Output)
+        where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
+        if(Status.IsPending) {
+            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
+            CompletedOutputs.Next();
+            Status=CompletedOutputs.Current.Status;
+            Output=CompletedOutputs.Current.Output;
+            CompletedOutputs.Dispose();
+        } else {
+        }
+        return Status;
+    }
+    //private protected static Status Pending<TSessionFunctions0,TStoreFunctions0,TAllocator0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions0,TAllocator0>Session,Status Status,ref SpanByteAndMemory Output)
+    //    where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
+    //    where TStoreFunctions0  :SStoreFunctions
+    //    where TAllocator0 : IAllocator<TStoreFunctions0>{
+    //    if(Status.IsPending) {
+    //        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
+    //        CompletedOutputs.Next();
+    //        Status=CompletedOutputs.Current.Status;
+    //        Output=CompletedOutputs.Current.Output;
+    //        CompletedOutputs.Dispose();
+    //    } else {
+    //    }
+    //    return Status;
+    //}
     private protected TryAddResult PrivateTryAdd(TKey Key,TValue Value){
         var KeyBytes = Serialize(Key);
         var ValueBytes = Serialize(Value);
@@ -137,13 +171,13 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         return Status.Found;
     }
     public bool Remove(TKey key) {
-        var DeleteSession = this.DeleteClientSession;
+        var DeleteClientSession = this.DeleteClientSession;
         var KeyBytes = Serialize(key);
         var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Input = default(PinnedSpanByte);
         SpanByteAndMemory Output = default;
-        var Status = DeleteSession.BasicContext.RMW(FixedKey,ref Input,ref Output);
-        Status=Pending(DeleteSession,Status);
+        var Status = DeleteClientSession.BasicContext.RMW(FixedKey,ref Input,ref Output);
+        Status=Pending(DeleteClientSession,Status);
         Debug.Assert(Status.Found!=Status.NotFound);
         return Status.Found;
     }
