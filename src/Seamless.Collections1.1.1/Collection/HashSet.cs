@@ -11,12 +11,12 @@ namespace Seamless.Collections;
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
 public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable<T> {
 	private readonly byte[] EmptyBytes;
-	private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,IntersectSessionFunctions,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> IntersectSession;
-	private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,SymmetricExceptSessionFunctions,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> SymmetricExceptSession;
+	private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,IntersectSessionFunctions,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> IntersectClientSession;
+	private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,SymmetricExceptSessionFunctions,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> SymmetricExceptClientSession;
 	internal HashSet(TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
 		this.EmptyBytes=Serialize(default(Empty));
-		this.IntersectSession=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,IntersectSessionFunctions>(new IntersectSessionFunctions());
-		this.SymmetricExceptSession=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,SymmetricExceptSessionFunctions>(new SymmetricExceptSessionFunctions());
+		this.IntersectClientSession=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,IntersectSessionFunctions>(new IntersectSessionFunctions());
+		this.SymmetricExceptClientSession=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,SymmetricExceptSessionFunctions>(new SymmetricExceptSessionFunctions());
 	}
 	public bool IsReadOnly => false;
 	public bool Add(T item) {
@@ -52,7 +52,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	public void IntersectWith(HashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		var InputBytes = this.EmptyBytes;
-		var Session = this.IntersectSession;
+		var Session = this.IntersectClientSession;
 		foreach(var Key0 in this.GetKeyEnumerable()) {
 			if(other.Contains(Key0)) {
 				continue;
@@ -133,7 +133,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	public void SymmetricExceptWith(HashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		var InputBytes = this.EmptyBytes;
-		var Session = this.SymmetricExceptSession;
+		var Session = this.SymmetricExceptClientSession;
 		foreach(var Item in other) {
 			var KeyBytes = Serialize(Item);
 			unsafe {
@@ -146,7 +146,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 			}
 		}
         Session.BasicContext.CompletePending(wait: true);
-        this.SymmetricExceptSession.Dispose();
+        this.SymmetricExceptClientSession.Dispose();
 	}
 	public void UnionWith(HashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
@@ -159,8 +159,8 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
     protected override void Dispose(bool disposing) {
         if(this.disposed) return;
         if(disposing){
-            this.IntersectSession.Dispose();
-            this.SymmetricExceptSession.Dispose();
+            this.IntersectClientSession.Dispose();
+            this.SymmetricExceptClientSession.Dispose();
         }else{
         }
         this.disposed=true;

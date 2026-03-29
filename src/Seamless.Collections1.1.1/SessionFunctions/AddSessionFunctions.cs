@@ -3,7 +3,7 @@ namespace Seamless.Collections;
 using System.Buffers;
 using Tsavorite.core;
 
-public sealed class AddSessionFunctions<TKey, TValue>:SSessionFunctions {
+public struct AddSessionFunctions<TKey, TValue>:SSessionFunctions {
     public bool SingleReader(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref SpanByteAndMemory dst,ref ReadInfo readInfo) {
         var span = value.AsReadOnlySpan();
         if(!span.IsEmpty) dst.CopyFrom(span,MemoryPool<byte>.Shared);
