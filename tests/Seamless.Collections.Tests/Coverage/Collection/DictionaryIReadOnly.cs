@@ -1,5 +1,3 @@
-using System.Runtime.Serialization;
-using Xunit;
 namespace Seamless.Collections.Tests;
 
 public partial class Dictionary {

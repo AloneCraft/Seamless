@@ -1,7 +1,6 @@
-using Xunit;
 namespace Seamless.Collections.Tests;
 
-[Collection("Sequential")]
+
 public class HashSet {
     [Fact, Trait("Category","Coverage")]
     public void IsReadOnly_偽を返す() {

@@ -8,7 +8,7 @@ public abstract class Test<TKey,TValue>(ITestOutputHelper? output=null)
     protected void Write(string message)=>output?.WriteLine(message);
     protected const int Count=64;
 }
-//[Collection("Sequential")]
+//
 //public abstract class Benchmark<TKey,TValue>(ITestOutputHelper output):Test<TKey,TValue>(output) 
 //    where TKey:IEquatable<TKey> 
 //    where TValue:notnull{

@@ -1,13 +1,6 @@
-﻿using System.Diagnostics;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics;
-using System.Text;
+﻿using System.Text;
 #pragma warning disable CS8618 // null 非許容のフィールドには、コンストラクターの終了時に非 null 値が入っていなければなりません。'required' 修飾子を追加するか、null 許容として宣言することを検討してください。
 namespace Seamless.Reasoning;
-using System;
-
 // 計測設定（パラメータ）
 public struct Ram(long Bytes,double レイテンシsecond,long BytesSecond) {
     //public string 名前 { get; set; } = 名前;// "L1i", "L1d", "L2", "L3"

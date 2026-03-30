@@ -2,7 +2,7 @@ using System.Collections;
 using Xunit;
 namespace Seamless.Collections.Tests;
 
-[Collection("Sequential")]
+
 public partial class Enumerator {
     // Enumerator.MoveNext: 空コレクション → false
     [Fact, Trait("Category","Coverage")]

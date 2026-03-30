@@ -2,7 +2,6 @@ namespace Seamless.Collections;
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.Serialization;
 using Tsavorite.core;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ Dictionary。

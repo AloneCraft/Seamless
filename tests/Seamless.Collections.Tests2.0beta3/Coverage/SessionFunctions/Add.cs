@@ -4,18 +4,15 @@ using Garnet.common;
 
 using MemoryPack;
 
-using System.Diagnostics.CodeAnalysis;
-
+using Seamless.Collections;
 using Tsavorite.core;
-
-using Xunit;
 
 using OA = Tsavorite.core.ObjectAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>>;
 using StoreFunc = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>;
-namespace Seamless.Collections.Tests;
+namespace Seamless.SessionFunctions.Tests;
 
-[Collection("Sequential")]
-public class AddSessionFunctions {
+
+public class Add {
     private static string CreateDiskFolder() =>
         Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private readonly struct DummyEpochAccessor:IEpochAccessor {
@@ -27,17 +24,17 @@ public class AddSessionFunctions {
     private static FixedSpanByteKey MakeKey(byte[] b) => (FixedSpanByteKey)(ReadOnlySpan<byte>)b;
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize = Const.MinObjectLogCapacity;
-    private void Add(){
+    private void Add_TKey_TValue(){
         using var store = new DictionaryStore<int,string>();
         using var dict = store.Create();
         dict.Add(1,"one");
         Assert.True(dict.TryGetValue(1,out var value));
     }
-    [Fact,Trait("Category","Coverage")]public void NeedInitialUpdate()=>this.Add();
-    [Fact, Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo()=>this.Add();
-    [Fact,Trait("Category","Coverage")]public void InitialUpdater()=>this.Add();
-    [Fact,Trait("Category","Coverage")]public void PostInitialUpdater()=>this.Add();
-    [Fact,Trait("Category","Coverage")]public void PostRMWOperation()=>this.Add();
+    [Fact,Trait("Category","Coverage")]public void NeedInitialUpdate()=>this.Add_TKey_TValue();
+    [Fact, Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo()=>this.Add_TKey_TValue();
+    [Fact,Trait("Category","Coverage")]public void InitialUpdater()=>this.Add_TKey_TValue();
+    [Fact,Trait("Category","Coverage")]public void PostInitialUpdater()=>this.Add_TKey_TValue();
+    [Fact,Trait("Category","Coverage")]public void PostRMWOperation()=>this.Add_TKey_TValue();
     [Fact, Trait("Category","Coverage")]public void Reader() {
         using var store = new DictionaryStore<int,string>();
         using var dict = store.Create();
@@ -48,7 +45,7 @@ public class AddSessionFunctions {
     }
     private void Upsert() {
         using var store = new DictionaryStore<int,string>();
-        using var session = store.Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Seamless.Collections.Empty,Seamless.Collections.Add_SessionFunctions>(new Seamless.Collections.Add_SessionFunctions());
+        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Seamless.Collections.Empty, SessionFunctions.Add>(new SessionFunctions.Add());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
         //InitialWriter(ReadOnlySpan<byte>)のclosing}を通す
@@ -67,7 +64,7 @@ public class AddSessionFunctions {
 
     [Fact, Trait("Category","Coverage")]public void InPlaceWriter() {
         using var store = new DictionaryStore<int,string>();
-        using var session = store.Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Seamless.Collections.Empty,Seamless.Collections.Add_SessionFunctions>(new Seamless.Collections.Add_SessionFunctions());
+        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Seamless.Collections.Empty, SessionFunctions.Add>(new SessionFunctions.Add());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
         //InitialWriter(ReadOnlySpan<byte>)のclosing}を通す
@@ -87,11 +84,20 @@ public class AddSessionFunctions {
             }
         }
     }
-
-    [Fact, Trait("Category","Coverage")]
+    private sealed class DummyHeapObject:IHeapObject {
+        public static int MaxSerializedObjectSize => 0;
+        public long HeapMemorySize => 0;
+        public IHeapObject Clone() => this;
+        public void Serialize(BinaryWriter writer) { }
+        public void WriteType(BinaryWriter writer,bool includeNamespace) { }
+        public void DoSerialize(BinaryWriter writer) { }
+        public void CacheSerializedObjectData(ref LogRecord srcLogRecord,ref LogRecord newLogRecord,ref RMWInfo rmwInfo) { }
+        public void ClearSerializedObjectData() { }
+        public void Dispose() { }
+    }    [Fact, Trait("Category","Coverage")]
     public void UpsertHeapObject() {
         using var store = new DictionaryStore<int,string>();
-        using var session = store.Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Seamless.Collections.Empty,Seamless.Collections.Add_SessionFunctions>(new Seamless.Collections.Add_SessionFunctions());
+        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Seamless.Collections.Empty, SessionFunctions.Add>(new SessionFunctions.Add());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(500));
         // 新規キー → GetUpsertFieldInfo(IHeapObject), InitialWriter(IHeapObject), PostInitialWriter(IHeapObject)
@@ -106,7 +112,7 @@ public class AddSessionFunctions {
     [Fact,Trait("Category","Coverage")]public void InPlaceWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
 
     private sealed class ScanAndUpsertFunctions(
-        ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Seamless.Collections.Empty,Seamless.Collections.Add_SessionFunctions,StoreFunc,OA> session,
+        ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Seamless.Collections.Empty, SessionFunctions.Add,StoreFunc,OA> session,
         byte[]? externalKeyBytes
     ) : IScanIteratorFunctions {
         public bool OnStart(long beginAddress,long endAddress) => true;
@@ -118,7 +124,7 @@ public class AddSessionFunctions {
             var output = default(SpanByteAndMemory);
             var options = default(UpsertOptions);
             if(externalKeyBytes is not null) {
-                var extKey = AddSessionFunctions.MakeKey(externalKeyBytes);
+                var extKey = Add.MakeKey(externalKeyBytes);
                 bc.Upsert<FixedSpanByteKey,TSourceLogRecord>(extKey,ref input,in logRecord,ref output,ref options);
             } else {
                 bc.Upsert<TSourceLogRecord>(ref input,in logRecord,ref output,ref options);
@@ -132,7 +138,7 @@ public class AddSessionFunctions {
     [Fact, Trait("Category","Coverage")]
     public void TSourceLogRecord() {
         using var store = new DictionaryStore<int,string>();
-        using var session = store.Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Seamless.Collections.Empty,Seamless.Collections.Add_SessionFunctions>(new Seamless.Collections.Add_SessionFunctions());
+        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Seamless.Collections.Empty, SessionFunctions.Add>(new SessionFunctions.Add());
         var addr1 = store.Store.Log.TailAddress;
         session.BasicContext.Upsert(MakeKey(SerInt(600)),SerStr("log"));
         var addr2 = store.Store.Log.TailAddress;
@@ -151,7 +157,7 @@ public class AddSessionFunctions {
     public void RMW() {
         using var store = new DictionaryStore<int,string>();
         var key = MakeKey(SerInt(1));
-        using var session = store.Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Seamless.Collections.Empty,Seamless.Collections.Add_SessionFunctions>(new Seamless.Collections.Add_SessionFunctions());
+        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Seamless.Collections.Empty, SessionFunctions.Add>(new SessionFunctions.Add());
         var bc = session.BasicContext;
 
         {
@@ -180,44 +186,30 @@ public class AddSessionFunctions {
     [Fact,Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo_TSourceLogRecord_PinnedSpanByte()=>this.RMW();
     [Fact,Trait("Category","Coverage")]public void InPlaceUpdater()=>this.RMW();
     [Fact,Trait("Category","Coverage")]public void NeedCopyUpdate()=>this.RMW();
-
-    [Fact, Trait("Category","Coverage")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
-    public void AddSessionFunctions_IsPendingパス_RMWCompletionCallbackとReadCompletionCallbackを通す() {
-        var folder = CreateFolder();
-        using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = new DictionaryStore<int,string>(logDevice,objDevice,MemorySize: TestMemorySize,MutableFraction: 0);
+    [Fact,Trait("Category","Coverage")]public void RMWCompletionCallback(){
+        var folder = CreateDiskFolder();
+        using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var store = new DictionaryStore<int,string>(LogDevice,ObjDevice,MemorySize: Const.MinObjectLogCapacity);
         using var dict = store.Create();
-        for(var a = 0; a<500; a++) {
-            dict[a]=$"v{a}";
-        }
-        // ディスク上のキーにTryAdd → NeedCopyUpdate(→false)、IsPending → RMWCompletionCallback
-        Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(1,"x"));
-        // ディスク上のキーにTryGetValue → IsPending → ReadCompletionCallback
-        Assert.True(dict.TryGetValue(1,out var value));
-        Assert.Equal("v1",value);
+        dict.Add(0,"target");
+        // 全レコードをディスクに追い出す → 次のRMWでIsPending=true
+        // TryAdd on existing key: AddSessionFunctionsのRMWがPENDING → Pending(Session,Status) IsPending=true 分岐を通す
+        store.Store.Log.FlushAndEvict(true);
+        Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(0,"other"));
     }
-    [Fact,Trait("Category","Coverage")]public void RMWCompletionCallback()=>this.AddSessionFunctions_IsPendingパス_RMWCompletionCallbackとReadCompletionCallbackを通す();
-    [Fact,Trait("Category","Coverage")]public void ReadCompletionCallback()=>this.AddSessionFunctions_IsPendingパス_RMWCompletionCallbackとReadCompletionCallbackを通す();
-    //AddSessionはDelete與羽h内
-
-    //[Fact, Trait("Category","Coverage")]
-    //public void AddSessionFunctions_Delete() {
-    //    using var store = new DictionaryStore<int,string>();
-    //    using var session = store.Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Seamless.Collections.Empty,Seamless.Collections.AddSessionFunctions>(new Seamless.Collections.AddSessionFunctions());
-    //    var bc = session.BasicContext;
-    //    var key = MakeKey(SerInt(400));
-    //    // キー未存在 → InitialDeleter, PostInitialDeleter, PostDeleteOperation
-    //    var status1 = bc.Delete(key);
-    //    if(status1.IsPending) { bc.CompletePending(wait: true); }
-    //    Assert.True(status1.NotFound);
-    //    // 既存キー → InPlaceDeleter, PostDeleteOperation
-    //    bc.Upsert(key,SerStr("value"));
-    //    var status2 = bc.Delete(key);
-    //    if(status2.IsPending) { bc.CompletePending(wait: true); }
-    //    Assert.False(status2.NotFound);
-    //}
+    [Fact,Trait("Category","Coverage")]public void ReadCompletionCallback(){
+        var folder = CreateDiskFolder();
+        using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var store = new DictionaryStore<int,string>(LogDevice,ObjDevice,MemorySize: Const.MinObjectLogCapacity);
+        using var dict = store.Create();
+        dict[0]="target";
+        // 全レコードをディスクに追い出す → 次のReadでIsPending=true
+        store.Store.Log.FlushAndEvict(true);
+        Assert.True(dict.TryGetValue(0,out var v));
+        Assert.Equal("target",v);
+    }
     [Fact, Trait("Category","Coverage")]public void ConvertOutputToHeap() {
         var folder = CreateDiskFolder();
         using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);

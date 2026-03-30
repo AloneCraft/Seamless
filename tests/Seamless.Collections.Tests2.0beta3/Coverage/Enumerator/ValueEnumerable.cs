@@ -1,6 +1,5 @@
 using System.Collections;
-using Xunit;
-using SF    = global::Seamless.Collections.Add_SessionFunctions;
+using SF    = global::Seamless.SessionFunctions.Add;
 using Store = global::Tsavorite.core.StoreFunctions<global::Tsavorite.core.SpanByteComparer, global::Tsavorite.core.DefaultRecordDisposer>;
 using Alloc = global::Tsavorite.core.ObjectAllocator<global::Tsavorite.core.StoreFunctions<global::Tsavorite.core.SpanByteComparer, global::Tsavorite.core.DefaultRecordDisposer>>;
 namespace Seamless.Collections.Tests;

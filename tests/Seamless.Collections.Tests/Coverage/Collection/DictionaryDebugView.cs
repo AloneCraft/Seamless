@@ -1,7 +1,6 @@
-using Xunit;
 namespace Seamless.Collections.Tests;
 
-[Collection("Sequential")]
+
 public class DictionaryDebugView {
     [Fact, Trait("Category","Coverage")]
     public void Items_全エントリを返す() {

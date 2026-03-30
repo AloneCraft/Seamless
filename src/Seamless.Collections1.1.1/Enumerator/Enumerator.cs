@@ -5,12 +5,12 @@ using System.Collections;
 using System.Diagnostics;
 
 using Tsavorite.core;
-internal struct Enumerator<TKey, TValue, TSessionFunctions, TStoreFunctions, TAllocator, TIterator, T>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions,TStoreFunctions,TAllocator> Session,TIterator Iterator):IEnumerator<T>
+internal struct Enumerator<TKey, TValue, TSessionFunctions, TStoreFunctions0, TAllocator0, TIterator, T>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions,TStoreFunctions0,TAllocator0> Session,TIterator Iterator):IEnumerator<T>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue>
     where TSessionFunctions : SSessionFunctions
-    where TStoreFunctions : SStoreFunctions
-    where TAllocator : IAllocator<SpanByte,SpanByte,TStoreFunctions>
+    where TStoreFunctions0 : SStoreFunctions
+    where TAllocator0 : IAllocator<SpanByte,SpanByte,TStoreFunctions0>
     where TIterator : ScanIteratorFunctions<T> {
     private TIterator Iterator = Iterator;
     private long Cursor = 0, Count;

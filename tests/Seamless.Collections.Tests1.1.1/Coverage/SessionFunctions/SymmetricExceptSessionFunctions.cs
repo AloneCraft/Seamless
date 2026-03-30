@@ -1,6 +1,5 @@
 using Common;
 using Tsavorite.core;
-using Xunit;
 using SSessionFunctions = Tsavorite.core.ISessionFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteAndMemory,Seamless.Collections.Empty>;
 namespace Seamless.Collections.Tests;
 

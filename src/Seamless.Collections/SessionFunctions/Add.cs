@@ -1,8 +1,8 @@
-namespace Seamless.Collections;
+namespace Seamless.SessionFunctions;
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using Tsavorite.core;
-public readonly struct Add_SessionFunctions():ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty> {
+public readonly struct Add():ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Collections.Empty> {
     private readonly MemoryPool<byte> memoryPool = MemoryPool<byte>.Shared;
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
@@ -104,7 +104,7 @@ public readonly struct Add_SessionFunctions():ISessionFunctions<PinnedSpanByte,S
         where TEpochAccessor : IEpochAccessor {
     }
 
-    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Empty ctx,Status status,RecordMetadata recordMetadata){
+    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
     }
     [ExcludeFromCodeCoverage]public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
         throw new NotSupportedException();
@@ -124,7 +124,7 @@ public readonly struct Add_SessionFunctions():ISessionFunctions<PinnedSpanByte,S
     }
 
 
-    public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Empty ctx,Status status,RecordMetadata recordMetadata){
+    public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
     }
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input)
         where TSourceLogRecord : ISourceLogRecord {

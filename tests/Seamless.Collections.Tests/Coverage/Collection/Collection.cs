@@ -1,9 +1,7 @@
 using Tsavorite.core;
-
-using Xunit;
 namespace Seamless.Collections.Tests;
 
-[Collection("Sequential")]
+
 public class Collection {
     internal sealed class TestCollection<TKey,TValue>(CollectionStore<TKey,TValue> store)
         :Collection<TKey,TValue>(store.Store,store.LogMemorySize,store.MutableFraction)
