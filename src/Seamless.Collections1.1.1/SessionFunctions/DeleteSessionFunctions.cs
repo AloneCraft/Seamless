@@ -122,7 +122,7 @@ public sealed class DeleteSessionFunctions<TKey>:SSessionFunctions {
     public bool ConcurrentDeleter(ref SpanByte key,ref SpanByte value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
     	return true;
     }
-    public void PostDeleteOperation<TEpochAccessor>(ref SpanByte key,ref DeleteInfo deleteInfo,TEpochAccessor epoch) { 
+    void SSessionFunctions.PostDeleteOperation<TEpochAccessor>(ref SpanByte key,ref DeleteInfo deleteInfo,TEpochAccessor epoch) { 
         throw new NotSupportedException();
     }
     //

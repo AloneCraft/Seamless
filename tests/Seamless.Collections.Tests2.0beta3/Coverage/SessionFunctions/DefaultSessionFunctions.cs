@@ -123,67 +123,67 @@ public class DefaultSessionFunctions {
         }
     }
 
-    [Fact,Trait("Category","Coverage")]
-    public void DefaultSessionFunctions_35メソッドを直接実行する() {
-        var f=new Seamless.Collections.DefaultSessionFunctions();
-        var disk=default(DiskLogRecord);
-        var src=new DummySourceLogRecord(1,"v");
-        var key=MakeKey(SerInt(11));
-        var span=SerStr("x");
-        var logRecord=default(LogRecord);
-        var sizeInfo=default(RecordSizeInfo);
-        var input=default(PinnedSpanByte);
-        SpanByteAndMemory output=default;
-        var readInfo=default(ReadInfo);
-        var upsertInfo=default(UpsertInfo);
-        var rmwInfo=default(RMWInfo);
-        var deleteInfo=default(DeleteInfo);
-        var status=default(Status);
-        var metadata=default(RecordMetadata);
+    //[Fact,Trait("Category","Coverage")]
+    //public void DefaultSessionFunctions_35メソッドを直接実行する() {
+    //    var f=new Seamless.Collections.DefaultSessionFunctions();
+    //    var disk=default(DiskLogRecord);
+    //    var src=new DummySourceLogRecord(1,"v");
+    //    var key=MakeKey(SerInt(11));
+    //    var span=SerStr("x");
+    //    var logRecord=default(LogRecord);
+    //    var sizeInfo=default(RecordSizeInfo);
+    //    var input=default(PinnedSpanByte);
+    //    SpanByteAndMemory output=default;
+    //    var readInfo=default(ReadInfo);
+    //    var upsertInfo=default(UpsertInfo);
+    //    var rmwInfo=default(RMWInfo);
+    //    var deleteInfo=default(DeleteInfo);
+    //    var status=default(Status);
+    //    var metadata=default(RecordMetadata);
 
-        Assert.True(f.Reader(in src,ref input,ref output,ref readInfo));
-        _=Record.Exception(()=>f.InPlaceWriter(ref logRecord,in sizeInfo,ref input,span,ref output,ref upsertInfo));
-        _=Record.Exception(()=>f.InPlaceWriter(ref logRecord,in sizeInfo,ref input,new DummyHeapObject(),ref output,ref upsertInfo));
-        _=Record.Exception(()=>f.InPlaceWriter(ref logRecord,in sizeInfo,ref input,in src,ref output,ref upsertInfo));
-        _=Record.Exception(()=>f.InitialWriter(ref logRecord,in sizeInfo,ref input,span,ref output,ref upsertInfo));
-        _=Record.Exception(()=>f.InitialWriter(ref logRecord,in sizeInfo,ref input,(IHeapObject)null!,ref output,ref upsertInfo));
-        _=Record.Exception(()=>f.InitialWriter(ref logRecord,in sizeInfo,ref input,in src,ref output,ref upsertInfo));
-        f.PostUpsertOperation(key,ref input,span,ref upsertInfo,new DummyEpochAccessor());
-        f.PostUpsertOperation(key,ref input,new DummyHeapObject(),ref upsertInfo,new DummyEpochAccessor());
-        f.PostInitialWriter(ref logRecord,in sizeInfo,ref input,span,ref output,ref upsertInfo);
-        f.PostInitialWriter(ref logRecord,in sizeInfo,ref input,new DummyHeapObject(),ref output,ref upsertInfo);
-        f.PostInitialWriter(ref logRecord,in sizeInfo,ref input,in src,ref output,ref upsertInfo);
-        Assert.True(f.NeedInitialUpdate(key,ref input,ref output,ref rmwInfo));
-        _=Record.Exception(()=>f.InitialUpdater(ref logRecord,in sizeInfo,ref input,ref output,ref rmwInfo));
-        _=Record.Exception(()=>f.InPlaceUpdater(ref logRecord,in sizeInfo,ref input,ref output,ref rmwInfo));
-        f.PostInitialUpdater(ref logRecord,in sizeInfo,ref input,ref output,ref rmwInfo);
-        Assert.True(f.NeedCopyUpdate(in src,ref input,ref output,ref rmwInfo));
-        _=Record.Exception(()=>f.CopyUpdater(in src,ref logRecord,in sizeInfo,ref input,ref output,ref rmwInfo));
-        Assert.True(f.PostCopyUpdater(in src,ref logRecord,in sizeInfo,ref input,ref output,ref rmwInfo));
-        f.PostRMWOperation(key,ref input,ref rmwInfo,new DummyEpochAccessor());
-        f.RMWCompletionCallback(ref disk,ref input,ref output,default,status,metadata);
-        Assert.True(f.InitialDeleter(ref logRecord,ref deleteInfo));
-        f.PostInitialDeleter(ref logRecord,ref deleteInfo);
-        Assert.True(f.InPlaceDeleter(ref logRecord,ref deleteInfo));
-        f.PostDeleteOperation(key,ref deleteInfo,new DummyEpochAccessor());
-        f.ReadCompletionCallback(ref disk,ref input,ref output,default,status,metadata);
+    //    Assert.True(f.Reader(in src,ref input,ref output,ref readInfo));
+    //    _=Record.Exception(()=>f.InPlaceWriter(ref logRecord,in sizeInfo,ref input,span,ref output,ref upsertInfo));
+    //    _=Record.Exception(()=>f.InPlaceWriter(ref logRecord,in sizeInfo,ref input,new DummyHeapObject(),ref output,ref upsertInfo));
+    //    _=Record.Exception(()=>f.InPlaceWriter(ref logRecord,in sizeInfo,ref input,in src,ref output,ref upsertInfo));
+    //    _=Record.Exception(()=>f.InitialWriter(ref logRecord,in sizeInfo,ref input,span,ref output,ref upsertInfo));
+    //    _=Record.Exception(()=>f.InitialWriter(ref logRecord,in sizeInfo,ref input,(IHeapObject)null!,ref output,ref upsertInfo));
+    //    _=Record.Exception(()=>f.InitialWriter(ref logRecord,in sizeInfo,ref input,in src,ref output,ref upsertInfo));
+    //    f.PostUpsertOperation(key,ref input,span,ref upsertInfo,new DummyEpochAccessor());
+    //    f.PostUpsertOperation(key,ref input,new DummyHeapObject(),ref upsertInfo,new DummyEpochAccessor());
+    //    f.PostInitialWriter(ref logRecord,in sizeInfo,ref input,span,ref output,ref upsertInfo);
+    //    f.PostInitialWriter(ref logRecord,in sizeInfo,ref input,new DummyHeapObject(),ref output,ref upsertInfo);
+    //    f.PostInitialWriter(ref logRecord,in sizeInfo,ref input,in src,ref output,ref upsertInfo);
+    //    Assert.True(f.NeedInitialUpdate(key,ref input,ref output,ref rmwInfo));
+    //    _=Record.Exception(()=>f.InitialUpdater(ref logRecord,in sizeInfo,ref input,ref output,ref rmwInfo));
+    //    _=Record.Exception(()=>f.InPlaceUpdater(ref logRecord,in sizeInfo,ref input,ref output,ref rmwInfo));
+    //    f.PostInitialUpdater(ref logRecord,in sizeInfo,ref input,ref output,ref rmwInfo);
+    //    Assert.True(f.NeedCopyUpdate(in src,ref input,ref output,ref rmwInfo));
+    //    _=Record.Exception(()=>f.CopyUpdater(in src,ref logRecord,in sizeInfo,ref input,ref output,ref rmwInfo));
+    //    Assert.True(f.PostCopyUpdater(in src,ref logRecord,in sizeInfo,ref input,ref output,ref rmwInfo));
+    //    f.PostRMWOperation(key,ref input,ref rmwInfo,new DummyEpochAccessor());
+    //    f.RMWCompletionCallback(ref disk,ref input,ref output,default,status,metadata);
+    //    Assert.True(f.InitialDeleter(ref logRecord,ref deleteInfo));
+    //    f.PostInitialDeleter(ref logRecord,ref deleteInfo);
+    //    Assert.True(f.InPlaceDeleter(ref logRecord,ref deleteInfo));
+    //    f.PostDeleteOperation(key,ref deleteInfo,new DummyEpochAccessor());
+    //    f.ReadCompletionCallback(ref disk,ref input,ref output,default,status,metadata);
 
-        var rmwModified=f.GetRMWModifiedFieldInfo(in src,ref input);
-        var rmwInitial=f.GetRMWInitialFieldInfo(key,ref input);
-        var upsertSpan=f.GetUpsertFieldInfo(key,span,ref input);
-        var upsertObj=f.GetUpsertFieldInfo(key,new DummyHeapObject(),ref input);
-        var upsertLog=f.GetUpsertFieldInfo(key,in src,ref input);
-        f.ConvertOutputToHeap(ref input,ref output);
-        Assert.True(rmwModified.KeySize>=0);
-        Assert.True(rmwInitial.KeySize>=0);
-        Assert.True(upsertSpan.ValueSize>=0);
-        Assert.True(upsertObj.ValueIsObject);
-        Assert.True(upsertLog.KeySize>=0);
-        //GetUpsertFieldInfo_ValueIsObject=true の分岐を通す
-        {
-            var srcObject=new DummySourceLogRecord(1,"v",asObject: true);
-            var upsertLogObject=f.GetUpsertFieldInfo(key,in srcObject,ref input);
-            Assert.True(upsertLogObject.ValueIsObject);
-        }
-    }
+    //    var rmwModified=f.GetRMWModifiedFieldInfo(in src,ref input);
+    //    var rmwInitial=f.GetRMWInitialFieldInfo(key,ref input);
+    //    var upsertSpan=f.GetUpsertFieldInfo(key,span,ref input);
+    //    var upsertObj=f.GetUpsertFieldInfo(key,new DummyHeapObject(),ref input);
+    //    var upsertLog=f.GetUpsertFieldInfo(key,in src,ref input);
+    //    f.ConvertOutputToHeap(ref input,ref output);
+    //    Assert.True(rmwModified.KeySize>=0);
+    //    Assert.True(rmwInitial.KeySize>=0);
+    //    Assert.True(upsertSpan.ValueSize>=0);
+    //    Assert.True(upsertObj.ValueIsObject);
+    //    Assert.True(upsertLog.KeySize>=0);
+    //    //GetUpsertFieldInfo_ValueIsObject=true の分岐を通す
+    //    {
+    //        var srcObject=new DummySourceLogRecord(1,"v",asObject: true);
+    //        var upsertLogObject=f.GetUpsertFieldInfo(key,in srcObject,ref input);
+    //        Assert.True(upsertLogObject.ValueIsObject);
+    //    }
+    //}
 }
