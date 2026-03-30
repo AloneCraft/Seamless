@@ -1,9 +1,9 @@
 ﻿Read
     GetUpsertFieldInfo//サイズ見積もり
     if(FoundMutable){
-        ConcurrentReader
+        ConcurrentReader/Reader
     }else if(FoundReadOnly){
-        SingleReader
+        SingleReader/Reader
     }else{
         Debug.Assert(FoundDisk);
         NeedDiskRead          //ディスクI/Oを発行するかどうかの最終確認。
@@ -37,15 +37,20 @@ RMW
         GetRMWModifiedFieldInfo//サイズ見積もり
         InPlaceUpdater//ExpireAndStopすると論理削除
     }else if(FoundReadOnly || FoundDisk){
-        NeedCopyUpdate//コピー更新を許可するか
-        GetRMWModifiedFieldInfo//サイズ見積もり
-        CopyUpdater   //コピー更新時に呼ばれる。ここでも ExpireAndStop を設定する。
-        PostCopyUpdater
+        if(NeedCopyUpdate){//コピー更新を許可するか
+            GetRMWModifiedFieldInfo//サイズ見積もり
+            CopyUpdater   //コピー更新時に呼ばれる。ここでも ExpireAndStop を設定する。
+            PostCopyUpdater
+        }
     }else{
-        NeedInitialUpdate     //ここでfalseを返すとRMWはNotFoundを返す
-        GetRMWInitialFieldInfo//サイズ見積もり
-        InitialUpdater        //RMW の未存在分岐で呼ばれる(この実装では削除対象なしとして false)。
-        PostInitialUpdater    //InitialUpdater 直後に呼ばれる。
+        if(NeedInitialUpdate){
+            GetRMWInitialFieldInfo//サイズ見積もり
+            InitialUpdater        //RMW の未存在分岐で呼ばれる(この実装では削除対象なしとして false)。
+            PostInitialUpdater    //InitialUpdater 直後に呼ばれる。
+            Status=NotFound|Created
+        }else{
+            Status=NotFound
+        }
     }
     PostRMWOperation//RMW 確定後に呼ばれる。
     RMW Async

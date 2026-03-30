@@ -1,7 +1,7 @@
 using Xunit;
 namespace Seamless.Collections.Tests;
 
-[Collection("Sequential")]
+
 public partial class KeyValueEnumerable {
     [Fact, Trait("Category","Coverage")]
     public void GetEnumerator() {

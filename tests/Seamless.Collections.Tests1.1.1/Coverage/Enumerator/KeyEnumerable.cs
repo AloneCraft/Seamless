@@ -1,5 +1,4 @@
 using System.Collections;
-using Xunit;
 using SF    = global::Seamless.Collections.AddSessionFunctions<int, global::Seamless.Collections.Empty>;
 using Store = global::Tsavorite.core.StoreFunctions<global::Tsavorite.core.SpanByte, global::Tsavorite.core.SpanByte, global::Tsavorite.core.SpanByteComparer, global::Tsavorite.core.SpanByteRecordDisposer>;
 using Alloc = global::Tsavorite.core.SpanByteAllocator<global::Tsavorite.core.StoreFunctions<global::Tsavorite.core.SpanByte, global::Tsavorite.core.SpanByte, global::Tsavorite.core.SpanByteComparer, global::Tsavorite.core.SpanByteRecordDisposer>>;

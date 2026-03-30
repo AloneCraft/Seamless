@@ -2,10 +2,9 @@ using Common;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using Tsavorite.core;
-using Xunit;
 namespace Seamless.Collections.Tests;
 
-[Collection("Sequential")]
+
 public partial class Dictionary {
     [Fact, Trait("Category","Coverage")]
     public void IsReadOnly_偽を返す() {

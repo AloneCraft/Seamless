@@ -1,9 +1,9 @@
+using Seamless.SessionFunctions;
 namespace Seamless.Collections;
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Tsavorite.core;
-
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ Dictionary。
 /// <see cref="IDictionary{TKey,TValue}"/> を実装し、利用者に Tsavorite の詳細を見せない。
@@ -14,11 +14,11 @@ using Tsavorite.core;
 public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey, TValue>
 	where TKey :IEquatable<TKey>
 	where TValue : IEquatable<TValue> {
-	private readonly TRemove_TKey_TValue_ClientSession Remove_TKey_TValue_ClientSession;
-	private readonly TRemove_KeyValuePair_ClientSession Remove_KeyValuePair_ClientSession;
+	private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Remove_TKey_TValue_ClientSession;
+	private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Remove_KeyValuePair_ClientSession;
 	internal Dictionary(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
-		this.Remove_TKey_TValue_ClientSession=Store.NewSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue_SessionFunctions>(new ());
-		this.Remove_KeyValuePair_ClientSession=Store.NewSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair_SessionFunctions>(new ());
+		this.Remove_TKey_TValue_ClientSession=Store.NewSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue>(new ());
+		this.Remove_KeyValuePair_ClientSession=Store.NewSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair>(new ());
 	}
 	public bool IsReadOnly => false;
     public bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {

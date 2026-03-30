@@ -1,12 +1,12 @@
 using Common;
 using Garnet.common;
 using MemoryPack;
+using Seamless.Collections;
 using Tsavorite.core;
-using Xunit;
-namespace Seamless.Collections.Tests;
+namespace Seamless.SessionFunctions.Tests;
 
-[Collection("Sequential")]
-public class DeleteSessionFunctions {
+
+public class Delete {
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize = Const.MinObjectLogCapacity;
     private static FixedSpanByteKey MakeKey(int value) => (FixedSpanByteKey)(ReadOnlySpan<byte>)MemoryPackSerializer.Serialize(value);
@@ -51,6 +51,4 @@ public class DeleteSessionFunctions {
     [Fact,Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo_TSourceLogRecord_PinnedSpanByte()=>this.ConvertOutputToHeap();
     [Fact,Trait("Category","Coverage")]public void InPlaceUpdater_LogRecord_RecordSizeInfo_PinnedSpanByte_SpanByteAndMemory_RMWInfo()=>this.ConvertOutputToHeap();
     [Fact,Trait("Category","Coverage")]public void PostRMWOperation()=>this.ConvertOutputToHeap();
-    [Fact, Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo_TKey_PinnedSpanByte() {
-    }
 }

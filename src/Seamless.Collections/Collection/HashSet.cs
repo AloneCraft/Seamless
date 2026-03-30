@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Diagnostics;
 using Garnet.common;
+using Seamless.SessionFunctions;
 using Tsavorite.core;
 namespace Seamless.Collections;
 //public static class Extensions0{
@@ -18,12 +19,12 @@ namespace Seamless.Collections;
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
 public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable<T> {
 	private readonly byte[] EmptyBytes;
-	private readonly TIntersect_ClientSession Intersect_ClientSession;
-	private readonly TSymmetricExcept_ClientSession SymmetricExcept_ClientSession;
+	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Intersect          ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Intersect_ClientSession;
+	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExcept    ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>SymmetricExcept_ClientSession;
 	internal HashSet(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
 		this.EmptyBytes=Serialize(Empty.Default);
-		this.Intersect_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Intersect_SessionFunctions>(new Intersect_SessionFunctions());
-		this.SymmetricExcept_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExcept_SessionFunctions>(new SymmetricExcept_SessionFunctions());
+		this.Intersect_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Intersect>(new Intersect());
+		this.SymmetricExcept_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExcept>(new SymmetricExcept());
 	}
 	public bool IsReadOnly => false;
 	public bool Add(T item) {
@@ -66,8 +67,9 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 			}
 			var KeyBytes = Serialize(Key);
 			var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-			SpanByteAndMemory output = default;
-			var _=Session.BasicContext.RMW(FixedKey,ref Input,ref output);
+			SpanByteAndMemory Output = default;
+			Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
+
 		}
         Session.BasicContext.CompletePending(true);
     }

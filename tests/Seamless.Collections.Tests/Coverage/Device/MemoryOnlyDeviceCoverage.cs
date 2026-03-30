@@ -3,7 +3,7 @@ using Tsavorite.core;
 using Xunit;
 namespace Seamless.Collections.Tests;
 
-[Collection("Sequential")]
+
 public class MemoryOnlyDevice {
     [Fact, Trait("Category","Coverage")]
     public void ctor_正常に生成できる() {

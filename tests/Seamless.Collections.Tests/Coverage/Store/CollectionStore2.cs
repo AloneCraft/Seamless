@@ -1,12 +1,11 @@
 using Common;
 using Tsavorite.core;
-using Xunit;
 namespace Seamless.Collections.Tests;
 /// <summary>
 /// src/Seamless.Collections/Store/CollectionStore`2.cs の全分岐をカバーする。
 /// 既存テスト(CoverInternals等)でカバーしていない分岐に注力する。
 /// </summary>
-[Collection("Sequential")]
+
 public class CollectionStore2 {
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize = Const.MinObjectLogCapacity;

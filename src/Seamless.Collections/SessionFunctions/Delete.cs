@@ -1,8 +1,8 @@
-namespace Seamless.Collections;
+namespace Seamless.SessionFunctions;
 using System.Diagnostics.CodeAnalysis;
 
 using Tsavorite.core;
-public struct Delete_SessionFunctions:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
+public struct Delete:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Collections.Empty>{
     [ExcludeFromCodeCoverage]public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
         throw new NotSupportedException("RMWは呼ばれない");
@@ -80,7 +80,7 @@ public struct Delete_SessionFunctions:ISessionFunctions<PinnedSpanByte,SpanByteA
     }
     public void PostRMWOperation<TKey, TEpochAccessor>(TKey key,ref PinnedSpanByte input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)where TKey : IKey, allows ref struct where TEpochAccessor : IEpochAccessor {
     }
-    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Empty ctx,Status status,RecordMetadata recordMetadata) { 
+    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata) { 
         //pending完了時に呼ばれる
     }
 
@@ -98,7 +98,7 @@ public struct Delete_SessionFunctions:ISessionFunctions<PinnedSpanByte,SpanByteA
     }
 
 
-    [ExcludeFromCodeCoverage]public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Empty ctx,Status status,RecordMetadata recordMetadata){
+    [ExcludeFromCodeCoverage]public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
         throw new NotSupportedException("RMWは呼ばれない");
     }
 

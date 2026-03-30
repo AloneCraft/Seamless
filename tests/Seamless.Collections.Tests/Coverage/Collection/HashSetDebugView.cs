@@ -1,7 +1,4 @@
-using Xunit;
 namespace Seamless.Collections.Tests;
-
-[Collection("Sequential")]
 public class HashSetDebugView {
     [Fact, Trait("Category","Coverage")]
     public void Items_全エントリを返す() {

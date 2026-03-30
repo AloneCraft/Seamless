@@ -1,10 +1,10 @@
-namespace Seamless.Collections;
+namespace Seamless.SessionFunctions;
 
 using System;
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using Tsavorite.core;
-internal readonly struct DefaultSessionFunctions():ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty> {
+internal readonly struct Default():ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Collections.Empty> {
     private readonly MemoryPool<byte> memoryPool = MemoryPool<byte>.Shared;
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
@@ -103,7 +103,7 @@ internal readonly struct DefaultSessionFunctions():ISessionFunctions<PinnedSpanB
         where TEpochAccessor : IEpochAccessor {
     }
 
-    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Empty ctx,Status status,RecordMetadata recordMetadata) { }
+    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata) { }
     public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
         return true;
     }
@@ -118,7 +118,7 @@ internal readonly struct DefaultSessionFunctions():ISessionFunctions<PinnedSpanB
         where TEpochAccessor : IEpochAccessor { }
 
 
-    public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Empty ctx,Status status,RecordMetadata recordMetadata) { }
+    public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata) { }
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input)
         where TSourceLogRecord : ISourceLogRecord {
         return new() { KeySize=srcLogRecord.Key.Length,ValueSize=Math.Max(srcLogRecord.ValueSpan.Length,input.Length) };

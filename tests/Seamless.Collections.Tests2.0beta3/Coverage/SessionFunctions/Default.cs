@@ -1,16 +1,12 @@
+using Tsavorite.core;
 using Common;
 using Garnet.common;
 using MemoryPack;
-using Tsavorite.core;
-using Xunit;
-namespace Seamless.Collections.Tests;
+using Seamless.Collections;
+namespace Seamless.SessionFunctions.Tests;
 
-[Collection("Sequential")]
-public class DefaultSessionFunctions {
-    private readonly struct DummyEpochAccessor:IEpochAccessor {
-        public void Resume() { }
-        public bool TrySuspend()=>true;
-    }
+
+public class Default {
     private static string CreateFolder()=>Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize=Const.MinObjectLogCapacity;
     private static byte[] SerInt(int v)=>MemoryPackSerializer.Serialize(v);
@@ -19,7 +15,7 @@ public class DefaultSessionFunctions {
     [Fact,Trait("Category","Coverage")]
     public void DefaultSessionFunctions_通常パス() {
         using var store=new DictionaryStore<int,string>();
-        using var session=store.Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Seamless.Collections.Empty,Seamless.Collections.DefaultSessionFunctions>(new Seamless.Collections.DefaultSessionFunctions());
+        using var session= store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Seamless.Collections.Empty, SessionFunctions.Default>(new SessionFunctions.Default());
         var bc=session.BasicContext;
 
         {
@@ -90,7 +86,7 @@ public class DefaultSessionFunctions {
         using var logDevice=new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice=new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var store=new DictionaryStore<int,string>(logDevice,objDevice,MemorySize: TestMemorySize,MutableFraction: 0);
-        using var session=store.Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Seamless.Collections.Empty,Seamless.Collections.DefaultSessionFunctions>(new Seamless.Collections.DefaultSessionFunctions());
+        using var session= store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Seamless.Collections.Empty, SessionFunctions.Default>(new SessionFunctions.Default());
         var bc=session.BasicContext;
 
         for(var a=0; a<300; a++) {

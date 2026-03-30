@@ -1,7 +1,6 @@
-using Xunit;
 namespace Seamless.Collections.Tests;
 
-[Collection("Sequential")]
+
 public class Empty {
     [Fact, Trait("Category","Coverage")]
     public void opEqual() {

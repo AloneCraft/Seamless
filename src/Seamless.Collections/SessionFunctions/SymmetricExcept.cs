@@ -1,10 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
-namespace Seamless.Collections;
+namespace Seamless.SessionFunctions;
 
 using Tsavorite.core;
 
-internal readonly struct Intersect_SessionFunctions:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty> {
-	[ExcludeFromCodeCoverage]public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref ReadInfo readInfo)
+internal readonly struct SymmetricExcept:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Collections.Empty> {
+    [ExcludeFromCodeCoverage]public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref ReadInfo readInfo)
 		where TSourceLogRecord : ISourceLogRecord {
 		throw new NotSupportedException();
 	}
@@ -21,10 +21,10 @@ internal readonly struct Intersect_SessionFunctions:ISessionFunctions<PinnedSpan
     [ExcludeFromCodeCoverage]public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ReadOnlySpan<byte> srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo) {
 		throw new NotSupportedException();
 	}
-    [ExcludeFromCodeCoverage]public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,IHeapObject srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo) {
+	[ExcludeFromCodeCoverage]public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,IHeapObject srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo) {
 		throw new NotSupportedException();
 	}
-    [ExcludeFromCodeCoverage]public bool InitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,in TSourceLogRecord inputLogRecord,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo)
+	[ExcludeFromCodeCoverage]public bool InitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,in TSourceLogRecord inputLogRecord,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo)
 		where TSourceLogRecord : ISourceLogRecord {
 		throw new NotSupportedException();
 	}
@@ -48,31 +48,26 @@ internal readonly struct Intersect_SessionFunctions:ISessionFunctions<PinnedSpan
         where TSourceLogRecord:ISourceLogRecord{
         throw new NotSupportedException();
     }
-	[ExcludeFromCodeCoverage]public bool NeedInitialUpdate<TKey>(TKey key,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)
+	public bool NeedInitialUpdate<TKey>(TKey key,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)
 		where TKey : IKey, allows ref struct {
-        throw new NotSupportedException();
-		return false;
+		return true;
 	}
-	[ExcludeFromCodeCoverage]public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) {
-        throw new NotSupportedException();
-		return false;
+	public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) {
+		return dstLogRecord.TrySetValueSpanAndPrepareOptionals(input.ReadOnlySpan,in sizeInfo);
 	}
 	public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) {
 		rmwInfo.Action=RMWAction.ExpireAndStop;
 		return false;
 	}
-    public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo){
-        throw new NotSupportedException();
+    [ExcludeFromCodeCoverage]public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo){
     }
 	public bool NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)
 		where TSourceLogRecord : ISourceLogRecord {
-        throw new NotSupportedException();
 		return true;
 	}
 	public bool CopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)
 		where TSourceLogRecord : ISourceLogRecord {
 		rmwInfo.Action=RMWAction.ExpireAndStop;
-        throw new NotSupportedException();
 		return false;
 	}
     [ExcludeFromCodeCoverage]public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)
@@ -83,23 +78,26 @@ internal readonly struct Intersect_SessionFunctions:ISessionFunctions<PinnedSpan
 		where TKey : IKey, allows ref struct
 		where TEpochAccessor : IEpochAccessor {
 	}
-	public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Empty ctx,Status status,RecordMetadata recordMetadata) { throw new NotSupportedException(); }
+	public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
+		//CompletePendingWithOutputs
+	}
     [ExcludeFromCodeCoverage]public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
-		throw new NotSupportedException();
+        throw new NotSupportedException("SymmetricExceptWith");
 	}
     [ExcludeFromCodeCoverage]public void PostInitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo){
-        throw new NotSupportedException();
+        throw new NotSupportedException("SymmetricExceptWith");
     }
     [ExcludeFromCodeCoverage]public bool InPlaceDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
-        throw new NotSupportedException();
-		return true;
+        throw new NotSupportedException("SymmetricExceptWith");
 	}
     [ExcludeFromCodeCoverage]public void PostDeleteOperation<TKey, TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
 		where TKey : IKey, allows ref struct
 		where TEpochAccessor : IEpochAccessor {
 		throw new NotSupportedException();
 	}
-	public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Empty ctx,Status status,RecordMetadata recordMetadata) { throw new NotSupportedException(); }
+    [ExcludeFromCodeCoverage]public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
+        throw new NotSupportedException("Read非同期で呼ばれる");
+    }
 	public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input)
 		where TSourceLogRecord : ISourceLogRecord {
 		return new() { KeySize=srcLogRecord.Key.Length,ValueSize=input.Length };

@@ -35,12 +35,14 @@
     <Compile Include="Coverage\Enumerator\KeyEnumerable.cs" />
     <Compile Include="Coverage\Enumerator\KeyValueEnumerable.cs" />
     <Compile Include="Coverage\Enumerator\ValueEnumerable.cs" />
-    <Compile Include="Coverage\SessionFunctions\AddSessionFunctions.cs" />
-    <Compile Include="Coverage\SessionFunctions\DefaultSessionFunctions.cs" />
-    <Compile Include="Coverage\SessionFunctions\DeleteSessionFunctions.cs" />
-    <Compile Include="Coverage\SessionFunctions\IntersectSessionFunctions.cs" />
+    <Compile Include="Coverage\SessionFunctions\Add.cs" />
+    <Compile Include="Coverage\SessionFunctions\Default.cs" />
+    <Compile Include="Coverage\SessionFunctions\Delete.cs" />
+    <Compile Include="Coverage\SessionFunctions\Intersect.cs" />
+    <Compile Include="Coverage\SessionFunctions\Remove_TKey_TValue.cs" />
+    <Compile Include="Coverage\SessionFunctions\Remove_KeyValuePair.cs" />
     <Compile Include="Coverage\SessionFunctions\SessionFunctionTestDummies.cs" />
-    <Compile Include="Coverage\SessionFunctions\SymmetricExceptSessionFunctions.cs" />
+    <Compile Include="Coverage\SessionFunctions\SymmetricExcept.cs" />
   </ItemGroup>
 
   <ItemGroup>

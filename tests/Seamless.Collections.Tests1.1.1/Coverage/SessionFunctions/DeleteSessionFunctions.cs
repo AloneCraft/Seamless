@@ -1,15 +1,8 @@
 using Common;
-using Tsavorite.core;
-using Xunit;
-using SSessionFunctions = Tsavorite.core.ISessionFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteAndMemory,Seamless.Collections.Empty>;
 namespace Seamless.Collections.Tests;
 
 [Collection("Sequential")]
 public class DeleteSessionFunctions{
-    private readonly struct DummyEpochAccessor:IEpochAccessor{
-        public void Resume(){}
-        public bool TrySuspend()=>true;
-    }
     private static string CreateFolder()=>Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize=Const.MinObjectLogCapacity;
 
