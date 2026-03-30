@@ -14,22 +14,22 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
     internal readonly TsavoriteKV<TStoreFunctions,TAllocator> Store;
     private protected readonly long LogMemorySize;
     private protected readonly double MutableFraction;
-    private protected readonly TSessionFunctions SessionFunctions=new();
+    private protected readonly Add_SessionFunctions SessionFunctions=new();
     public TClientSession ClientSession;
     private protected readonly TDeleteClientSession DeleteClientSession;
     protected Collection(TsavoriteKV<TStoreFunctions,TAllocator> Store,long LogMemorySize=0,double MutableFraction=1.0){
         this.Store=Store;
         this.LogMemorySize=LogMemorySize;
         this.MutableFraction=MutableFraction;
-        this.ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions>(this.SessionFunctions);
-        this.DeleteClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,DeleteSessionFunctions>(new ());
+        this.ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Add_SessionFunctions>(this.SessionFunctions);
+        this.DeleteClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Delete_SessionFunctions>(new ());
     }
     public void Clear(){
         var Session=this.ClientSession;
         Session.BasicContext.CompletePending(wait:true);
         Session.Dispose();
         this.Store.Reset();
-        this.ClientSession=this.Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions>(this.SessionFunctions);
+        this.ClientSession=this.Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Add_SessionFunctions>(this.SessionFunctions);
     }
 
 
@@ -40,9 +40,9 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
 
 
 
-    private protected KeyEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetKeyEnumerable()=>new(this.ClientSession);
-    private protected ValueEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetValueEnumerable()=>new(this.ClientSession);
-    private protected KeyValueEnumerable<TKey,TValue,TSessionFunctions,TStoreFunctions,TAllocator> GetKeyValueEnumerable()=>new(this.ClientSession);
+    private protected KeyEnumerable<TKey,TValue,Add_SessionFunctions,TStoreFunctions,TAllocator> GetKeyEnumerable()=>new(this.ClientSession);
+    private protected ValueEnumerable<TKey,TValue,Add_SessionFunctions,TStoreFunctions,TAllocator> GetValueEnumerable()=>new(this.ClientSession);
+    private protected KeyValueEnumerable<TKey,TValue,Add_SessionFunctions,TStoreFunctions,TAllocator> GetKeyValueEnumerable()=>new(this.ClientSession);
     private protected OutOfMemoryException ThrowLogFull() {
         var Log = this.Store.Log;
         return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
@@ -106,17 +106,17 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
     //    }
     //    return Status;
     //}
-    private protected static Status Pending(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions,TStoreFunctions,TAllocator>Session,Status Status,ref SpanByteAndMemory Output){
-        if(Status.IsPending) {
-            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-            CompletedOutputs.Next();
-            Status=CompletedOutputs.Current.Status;
-            Output=CompletedOutputs.Current.Output;
-            CompletedOutputs.Dispose();
-        } else {
-        }
-        return Status;
-    }
+    //private protected static Status Pending(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions,TStoreFunctions,TAllocator>Session,Status Status,ref SpanByteAndMemory Output){
+    //    if(Status.IsPending) {
+    //        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
+    //        CompletedOutputs.Next();
+    //        Status=CompletedOutputs.Current.Status;
+    //        Output=CompletedOutputs.Current.Output;
+    //        CompletedOutputs.Dispose();
+    //    } else {
+    //    }
+    //    return Status;
+    //}
     private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions,TAllocator>Session,Status Status,ref SpanByteAndMemory Output)
         where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
         if(Status.IsPending) {

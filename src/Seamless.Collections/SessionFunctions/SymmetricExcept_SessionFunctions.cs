@@ -2,7 +2,7 @@ namespace Seamless.Collections;
 
 using Tsavorite.core;
 
-internal readonly struct IntersectSessionFunctions:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty> {
+internal readonly struct SymmetricExcept_SessionFunctions:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty> {
 	public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref ReadInfo readInfo)
 		where TSourceLogRecord : ISourceLogRecord {
 		throw new NotSupportedException();
@@ -39,10 +39,10 @@ internal readonly struct IntersectSessionFunctions:ISessionFunctions<PinnedSpanB
 		where TSourceLogRecord : ISourceLogRecord { }
 	public bool NeedInitialUpdate<TKey>(TKey key,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)
 		where TKey : IKey, allows ref struct {
-		return false;
+		return true;
 	}
 	public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) {
-		return false;
+		return dstLogRecord.TrySetValueSpanAndPrepareOptionals(input.ReadOnlySpan,in sizeInfo);
 	}
 	public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) {
 		rmwInfo.Action=RMWAction.ExpireAndStop;

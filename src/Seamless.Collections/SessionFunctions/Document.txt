@@ -1,0 +1,55 @@
+﻿Read
+    GetUpsertFieldInfo//サイズ見積もり
+    if(FoundMutable){
+        ConcurrentReader
+    }else if(FoundReadOnly){
+        SingleReader
+    }else{
+        Debug.Assert(FoundDisk);
+        NeedDiskRead          //ディスクI/Oを発行するかどうかの最終確認。
+        ReadCompletionCallback//非同期I/Oが完了し、ページがメモリにロードされた後に呼び出される
+    }
+    PostReadOperation//Read 確定後（成功・失敗問わず）のクリーンアップや統計処理。
+Upsert
+    GetUpsertFieldInfo//サイズ見積もり
+    if(FoundMutable){
+        InPlaceWriter
+    }else{
+        InitialWriter
+        PostUpsertOperation
+    }
+    PostUpsertOperation//事後処理
+    出力のヒープ化
+        ConvertOutputToHeap
+Delete
+    GetUpsertFieldInfo//サイズ見積もり
+    if(FoundMutable){
+        InPlaceDeleter
+    }else{
+        InitialDeleter
+        PostInitialDeleter
+    }
+    PostDeleteOperation
+    出力のヒープ化
+        ConvertOutputToHeap
+RMW
+    if(FoundMutable){
+        GetRMWModifiedFieldInfo//サイズ見積もり
+        InPlaceUpdater//ExpireAndStopすると論理削除
+    }else if(FoundReadOnly || FoundDisk){
+        NeedCopyUpdate//コピー更新を許可するか
+        GetRMWModifiedFieldInfo//サイズ見積もり
+        CopyUpdater   //コピー更新時に呼ばれる。ここでも ExpireAndStop を設定する。
+        PostCopyUpdater
+    }else{
+        NeedInitialUpdate     //ここでfalseを返すとRMWはNotFoundを返す
+        GetRMWInitialFieldInfo//サイズ見積もり
+        InitialUpdater        //RMW の未存在分岐で呼ばれる(この実装では削除対象なしとして false)。
+        PostInitialUpdater    //InitialUpdater 直後に呼ばれる。
+    }
+    PostRMWOperation//RMW 確定後に呼ばれる。
+    RMW Async
+        RMWCompletionCallback //RMW の非同期I/O完了時に呼ばれる。
+        ReadCompletionCallback//Read の非同期I/O完了時に呼ばれる。
+    出力のヒープ化
+        ConvertOutputToHeap

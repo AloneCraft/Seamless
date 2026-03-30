@@ -4,32 +4,6 @@ using System;
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using Tsavorite.core;
-/// <summary>
-/// ISessionFunctions      :の呼び出しタイミング一覧(DefaultSessionFunctions)。
-/// Reader                 :Read/ReadAtAddress/ReadModifyWrite 内部の読み取りで呼ばれる。
-/// InPlaceWriter          :(全オーバーロード): Upsert で既存レコードを同一エントリ内で更新できる場合に呼ばれる。
-/// InitialWriter          :(全オーバーロード): Upsert で対象キーが未存在、または新規レコード作成が必要な場合に呼ばれる。
-/// PostUpsertOperation    :(全オーバーロード): Upsert の書き込み確定後に呼ばれる。
-/// PostInitialWriter      :(全オーバーロード): InitialWriter 実行直後に呼ばれる。
-/// NeedInitialUpdate      :RMW で対象キーが未存在側の分岐判定時に呼ばれる。
-/// InitialUpdater         :RMW の未存在分岐で新規値を作る際に呼ばれる。
-/// InPlaceUpdater         :RMW で既存レコードをその場更新できる場合に呼ばれる。
-/// PostInitialUpdater     :InitialUpdater 実行直後に呼ばれる。
-/// NeedCopyUpdate         :RMW でコピー更新(新レコード作成)が必要か判定するときに呼ばれる。
-/// CopyUpdater            :RMW のコピー更新実行時に呼ばれる。
-/// PostCopyUpdater        :CopyUpdater 実行直後に呼ばれる。
-/// PostRMWOperation       :RMW の最終確定後に呼ばれる。
-/// RMWCompletionCallback  :RMW が非同期I/O完了(ディスクフェッチ完了)したときに呼ばれる。
-/// InitialDeleter         :Delete でキー未存在側の初期削除パスに入ったときに呼ばれる。
-/// PostInitialDeleter     :InitialDeleter 実行直後に呼ばれる。
-/// InPlaceDeleter         :Delete で既存レコードをその場削除(トゥームストーン化)するときに呼ばれる。
-/// PostDeleteOperation    :Delete の最終確定後に呼ばれる。
-/// ReadCompletionCallback :Read が非同期I/O完了(ディスクフェッチ完了)したときに呼ばれる。
-/// GetRMWModifiedFieldInfo:RMW のコピー更新時、更新後レコードのサイズ見積もりで呼ばれる。
-/// GetRMWInitialFieldInfo :RMW の未存在分岐で新規レコードサイズ見積もり時に呼ばれる。
-/// GetUpsertFieldInfo     :(全オーバーロード): Upsert の書き込み前にレコードサイズ見積もりで呼ばれる。
-/// ConvertOutputToHeap    :出力をヒープに昇格/固定化する必要があるときに呼ばれる。
-/// </summary>
 internal readonly struct DefaultSessionFunctions():ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty> {
     private readonly MemoryPool<byte> memoryPool = MemoryPool<byte>.Shared;
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref ReadInfo readInfo)

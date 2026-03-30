@@ -18,12 +18,12 @@ namespace Seamless.Collections;
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
 public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable<T> {
 	private readonly byte[] EmptyBytes;
-	private readonly SIntersectClientSession IntersectSession;
-	private readonly SSymmetricExceptIntersectClientSession SymmetricExceptSession;
+	private readonly TIntersect_ClientSession Intersect_ClientSession;
+	private readonly TSymmetricExcept_ClientSession SymmetricExcept_ClientSession;
 	internal HashSet(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
 		this.EmptyBytes=Serialize(Empty.Default);
-		this.IntersectSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectSessionFunctions>(new IntersectSessionFunctions());
-		this.SymmetricExceptSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptSessionFunctions>(new SymmetricExceptSessionFunctions());
+		this.Intersect_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Intersect_SessionFunctions>(new Intersect_SessionFunctions());
+		this.SymmetricExcept_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExcept_SessionFunctions>(new SymmetricExcept_SessionFunctions());
 	}
 	public bool IsReadOnly => false;
 	public bool Add(T item) {
@@ -59,7 +59,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	public void IntersectWith(HashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		var Input = PinnedSpanByte.FromPinnedSpan(this.EmptyBytes);
-		var Session = this.IntersectSession;
+		var Session = this.Intersect_ClientSession;
 		foreach(var Key in this.GetKeyEnumerable()) {
 			if(other.Contains(Key)) {
 				continue;
@@ -134,7 +134,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	public void SymmetricExceptWith(HashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		var Input = PinnedSpanByte.FromPinnedSpan(this.EmptyBytes);
-		var Session = this.SymmetricExceptSession;
+		var Session = this.SymmetricExcept_ClientSession;
 		foreach(var item in other) {
 			var KeyBytes = Serialize(item);
 			var Key = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
@@ -154,8 +154,8 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	protected override void Dispose(bool disposing) {
         if(this.disposed) return;
         if(disposing){
-            this.IntersectSession.Dispose();
-            this.SymmetricExceptSession.Dispose();
+            this.Intersect_ClientSession.Dispose();
+            this.SymmetricExcept_ClientSession.Dispose();
         }else{
 
         }

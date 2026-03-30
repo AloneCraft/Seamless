@@ -17,9 +17,9 @@ using Tsavorite.core;
 ///         NeedInitialUpdate → false（キー未存在なので何もしない）
 ///     }
 /// </summary>
-public struct TryGetValueRemoveSessionFunctions:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
+public readonly struct Remove_TKey_TValue_SessionFunctions:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
 	private readonly MemoryPool<byte> memoryPool = MemoryPool<byte>.Shared;
-	public TryGetValueRemoveSessionFunctions(){}
+	public Remove_TKey_TValue_SessionFunctions(){}
 	public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref ReadInfo readInfo)
 		where TSourceLogRecord : ISourceLogRecord {
 		throw new NotSupportedException();

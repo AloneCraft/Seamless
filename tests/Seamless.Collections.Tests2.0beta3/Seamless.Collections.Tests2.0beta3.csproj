@@ -39,7 +39,6 @@
     <Compile Include="Coverage\SessionFunctions\DefaultSessionFunctions.cs" />
     <Compile Include="Coverage\SessionFunctions\DeleteSessionFunctions.cs" />
     <Compile Include="Coverage\SessionFunctions\IntersectSessionFunctions.cs" />
-    <Compile Include="Coverage\SessionFunctions\SessionFunctions.cs" />
     <Compile Include="Coverage\SessionFunctions\SessionFunctionTestDummies.cs" />
     <Compile Include="Coverage\SessionFunctions\SymmetricExceptSessionFunctions.cs" />
   </ItemGroup>
