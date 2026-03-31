@@ -1,5 +1,5 @@
 using Common;
-namespace Test.Seamless.Collections;
+namespace Test.Seamless.SessionFunctions;
 
 [Collection("Sequential")]
 public class DeleteSessionFunctions{

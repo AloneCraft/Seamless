@@ -1,6 +1,6 @@
 ﻿using Seamless.Collections;
 using Tsavorite.core;
-namespace Test.Seamless.Collections;
+namespace Test.Seamless.SessionFunctions;
 
 [Collection("Sequential")]
 public class Add {

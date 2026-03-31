@@ -7,7 +7,7 @@ using MemoryPack;
 using Seamless.Collections;
 using Tsavorite.core;
 
-using OA = Tsavorite.core.ObjectAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>>;
+using OA = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>>;
 using StoreFunc = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>;
 namespace Test.Seamless.SessionFunctions;
 
@@ -100,16 +100,32 @@ public class Add {
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(500));
-        // 新規キー → GetUpsertFieldInfo(IHeapObject), InitialWriter(IHeapObject), PostInitialWriter(IHeapObject)
+        // 新規キー → GetUpsertFieldInfo(IHeapObject), InitialWriter(IHeapObject)
+        // SpanByteAllocatorではInitialWriter(IHeapObject)がfalseを返すためPostInitialWriter(IHeapObject)は呼ばれない
         bc.Upsert(key,(IHeapObject)new DummyHeapObject());
-        // 既存キー → GetUpsertFieldInfo(IHeapObject), InPlaceWriter(IHeapObject), PostUpsertOperation(IHeapObject)
+        // PostUpsertOperation(IHeapObject) → finallyブロックで常に呼ばれる
         bc.Upsert(key,(IHeapObject)new DummyHeapObject());
+        // スパン値で事前登録→IHeapObjectでUpsert → 既存レコード発見→InPlaceWriter(IHeapObject)が呼ばれる
+        // SpanByteAllocatorはValueIsObjectビットをクリアするためInPlaceWriterはfalseを返す
+        var key2 = MakeKey(SerInt(502));
+        bc.Upsert(key2,SerStr("seed"));
+        bc.Upsert(key2,(IHeapObject)new DummyHeapObject());
+        // PostInitialWriter(IHeapObject)はSpanByteAllocatorでは到達しないため直接呼び出す（bodyが空なのでdefault引数で安全）
+        {
+            var f = new global::Seamless.SessionFunctions.Add();
+            var lr = default(LogRecord);
+            var si = default(RecordSizeInfo);
+            var inp = default(PinnedSpanByte);
+            var outp = default(SpanByteAndMemory);
+            var ui = default(UpsertInfo);
+            f.PostInitialWriter(ref lr,in si,ref inp,(IHeapObject)new DummyHeapObject(),ref outp,ref ui);
+        }
     }
     [Fact,Trait("Category","Coverage")]public void GetUpsertFieldInfo_TKey_IHeapObject_PInnedSpanByte()=>this.UpsertHeapObject();
     [Fact,Trait("Category","Coverage")]public void InitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
-    //public void PostUpsertOperation<TKey,TEpochAccessor>(TKey key,ref PinnedSpanByte input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
     [Fact,Trait("Category","Coverage")]public void PostUpsertOperation_TKey_PinnedSpanByte_IHeapObject_UpsertInfo_TEpochAccessor()=>this.UpsertHeapObject();
     [Fact,Trait("Category","Coverage")]public void InPlaceWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
+    [Fact,Trait("Category","Coverage")]public void PostInitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
 
     private sealed class ScanAndUpsertFunctions(
         ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add,StoreFunc,OA> session,
