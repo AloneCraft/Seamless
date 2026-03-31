@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>f485746b-4005-416a-8e23-c2a691d7f41d</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Seamless.Collections.Tests</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)AdventureWorks2008R2\AdventureWorks2008R2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Collection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Dictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\DictionaryDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\DictionaryIReadOnly.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Empty.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSetDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Enumerators\Enumerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Enumerators\KeyEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Enumerators\KeyValueEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Enumerators\ValueEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\CounterIterator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ScanIteratorFunctions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Stores\CollectionStore2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Test.cs" />
+  </ItemGroup>
+</Project>

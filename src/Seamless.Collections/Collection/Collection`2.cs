@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using Garnet.common;
 using MemoryPack;
+using Seamless.Collections.Enumerators;
+using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Tsavorite.core;
 namespace Seamless.Collections;
@@ -12,13 +14,13 @@ namespace Seamless.Collections;
 //public abstract class Collection<TKey,TValue>:Collectionx<TKey,TValue,AddSessionFunctions,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjecSAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>where TKey:IEquatable<TKey>where TValue:IEquatable<TValue>{
 public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<TKey>where TValue:IEquatable<TValue>{
     private protected const int RecordOverheadBytes=128;
-    internal readonly TsavoriteKV<GStoreFunctions,SAllocator> Store;
+    internal readonly TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store;
     private protected readonly long LogMemorySize;
     private protected readonly double MutableFraction;
     private protected readonly Add SessionFunctions=new();
     public ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Add                ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> ClientSession;
     private protected readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Delete             ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>DeleteClientSession;
-    protected Collection(TsavoriteKV<GStoreFunctions,SAllocator> Store,long LogMemorySize=0,double MutableFraction=1.0){
+    protected Collection(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize=0,double MutableFraction=1.0){
         this.Store=Store;
         this.LogMemorySize=LogMemorySize;
         this.MutableFraction=MutableFraction;
@@ -41,9 +43,9 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
 
 
 
-    private protected KeyEnumerable<TKey,TValue,Add,GStoreFunctions,SAllocator> GetKeyEnumerable()=>new(this.ClientSession);
-    private protected ValueEnumerable<TKey,TValue,Add,GStoreFunctions,SAllocator> GetValueEnumerable()=>new(this.ClientSession);
-    private protected KeyValueEnumerable<TKey,TValue,Add,GStoreFunctions,SAllocator> GetKeyValueEnumerable()=>new(this.ClientSession);
+    //private protected KeyEnumerable2<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> GetKeyEnumerable()=>new(this.ClientSession);
+    //private protected ValueEnumerable<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> GetValueEnumerable()=>new(this.ClientSession);
+    //private protected KeyValueEnumerable<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> GetKeyValueEnumerable()=>new(this.ClientSession);
     private protected OutOfMemoryException ThrowLogFull() {
         var Log = this.Store.Log;
         return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
@@ -83,7 +85,7 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
     
     
     
-    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions,SAllocator>Session,Status Status)
+    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Session,Status Status)
         where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
@@ -95,7 +97,7 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
     }
     //private protected static Status Pending<TSessionFunctions0,GStoreFunctions0,SAllocator0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions0,SAllocator0>Session,Status Status)
     //    where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
-    //    where GStoreFunctions0  :SStoreFunctions
+    //    where GStoreFunctions0  :Tsavorite.core.IStoreFunctions
     //    where SAllocator0 : IAllocator<GStoreFunctions0>{
     //    if(Status.IsPending) {
     //        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
@@ -117,7 +119,7 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
     //    }
     //    return Status;
     //}
-    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions,SAllocator>Session,Status Status,ref SpanByteAndMemory Output)
+    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Session,Status Status,ref SpanByteAndMemory Output)
         where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
@@ -130,7 +132,7 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
     }
     //private protected static Status Pending<TSessionFunctions0,GStoreFunctions0,SAllocator0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions0,SAllocator0>Session,Status Status,ref SpanByteAndMemory Output)
     //    where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
-    //    where GStoreFunctions0  :SStoreFunctions
+    //    where GStoreFunctions0  :Tsavorite.core.IStoreFunctions
     //    where SAllocator0 : IAllocator<GStoreFunctions0>{
     //    if(Status.IsPending) {
     //        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);

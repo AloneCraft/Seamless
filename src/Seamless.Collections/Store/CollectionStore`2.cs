@@ -2,6 +2,7 @@ using Common;
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using Seamless.Devices;
 using Tsavorite.core;
 
 namespace Seamless.Collections;

@@ -1,6 +1,6 @@
 using System.Numerics;
 using MemoryPack;
-namespace Seamless.Collections.Tests;
+namespace Test.Seamless.Collections;
 public struct UnmanagedStruct:IEquatable<UnmanagedStruct>,IEqualityOperators<UnmanagedStruct,UnmanagedStruct,bool>,IComparable<UnmanagedStruct>{
 	public int Value;
 	public bool Equals(UnmanagedStruct other)=>this.Value==other.Value;
