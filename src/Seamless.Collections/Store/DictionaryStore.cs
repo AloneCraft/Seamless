@@ -1,5 +1,5 @@
 namespace Seamless.Collections;
-using global::Common;
+using Common;
 
 using Tsavorite.core;
 /// <summary>

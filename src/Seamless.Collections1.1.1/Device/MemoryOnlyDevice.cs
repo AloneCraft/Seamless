@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using Tsavorite.core;
-namespace Seamless.Collections;
+namespace Seamless.Devices;
 /// <summary>
 /// ディスクI/Oを行わず、退避ページをヒープ上のバイト配列に保持するデバイス。
 /// </summary>
@@ -35,6 +35,6 @@ public sealed class MemoryOnlyDevice : StorageDeviceBase{
     /// <param name="callback"></param>
     /// <param name="result"></param>
     public override void RemoveSegmentAsync(int segment,AsyncCallback callback,IAsyncResult result){
-        Trace.WriteLine(nameof(RemoveSegmentAsync));
+        Trace.WriteLine(nameof(this.RemoveSegmentAsync));
     }
 }

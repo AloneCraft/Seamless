@@ -1,2 +1,2 @@
 using System.Runtime.CompilerServices;
-[assembly:InternalsVisibleTo("Seamless.Collections.Tests2.0beta3")]
+[assembly:InternalsVisibleTo("Test.Seamless.Collections.2.0beta3")]

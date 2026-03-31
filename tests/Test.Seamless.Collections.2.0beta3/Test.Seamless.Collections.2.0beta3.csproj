@@ -1,0 +1,61 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Seamless.CollectionsTests2._0beta3</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Collections\**" />
+    <Compile Remove="Function\**" />
+    <Compile Remove="IDevice\**" />
+    <Compile Remove="動作確認\**" />
+    <EmbeddedResource Remove="Collections\**" />
+    <EmbeddedResource Remove="Function\**" />
+    <EmbeddedResource Remove="IDevice\**" />
+    <EmbeddedResource Remove="動作確認\**" />
+    <None Remove="Collections\**" />
+    <None Remove="Function\**" />
+    <None Remove="IDevice\**" />
+    <None Remove="動作確認\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Common.cs" />
+    <Compile Remove="TestKeyComparer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="8.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="MemoryPack" Version="1.*" />
+    <PackageReference Include="Microsoft.Garnet" Version="2.0.0-beta.3" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Seamless.Collections\Seamless.Collections.csproj" />
+    <ProjectReference Include="..\TestCommon\TestCommon.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Collections\Enumerators\" />
+  </ItemGroup>
+
+  <Import Project="..\Test.Seamless.Collections\Test.Seamless.Collections.projitems" Label="Shared" />
+
+
+</Project>

@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Diagnostics;
 using Garnet.common;
+using Seamless.Collections.Enumerators;
+using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Tsavorite.core;
 namespace Seamless.Collections;
@@ -19,12 +21,12 @@ namespace Seamless.Collections;
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
 public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable<T> {
 	private readonly byte[] EmptyBytes;
-	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Intersect          ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Intersect_ClientSession;
-	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExcept    ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>SymmetricExcept_ClientSession;
+	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith          ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Intersect_ClientSession;
+	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith    ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>SymmetricExcept_ClientSession;
 	internal HashSet(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
 		this.EmptyBytes=Serialize(Empty.Default);
-		this.Intersect_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Intersect>(new Intersect());
-		this.SymmetricExcept_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExcept>(new SymmetricExcept());
+		this.Intersect_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith>(new IntersectWith());
+		this.SymmetricExcept_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new SymmetricExceptWith());
 	}
 	public bool IsReadOnly => false;
 	public bool Add(T item) {
@@ -56,12 +58,13 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 		}
 	}
 	IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
-	public IEnumerator<T> GetEnumerator() => this.GetKeyEnumerable().GetEnumerator();
-	public void IntersectWith(HashSet<T> other) {
+	IEnumerator<T> IEnumerable<T>.GetEnumerator() => this.GetEnumerator();
+    public Enumerator<T,Empty,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyIterator<T>,T> GetEnumerator()=>new (this.ClientSession,new());
+    public void IntersectWith(HashSet<T> other){
 		ArgumentNullException.ThrowIfNull(other);
 		var Input = PinnedSpanByte.FromPinnedSpan(this.EmptyBytes);
 		var Session = this.Intersect_ClientSession;
-		foreach(var Key in this.GetKeyEnumerable()) {
+		foreach(var Key in this){
 			if(other.Contains(Key)) {
 				continue;
 			}
@@ -77,7 +80,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 		ArgumentNullException.ThrowIfNull(other);
 		if(this.GetLongCount()>=other.GetLongCount())
 			return false;
-		foreach(var Key in this.GetKeyEnumerable()) {
+		foreach(var Key in this) {
 			if(!other.Contains(Key)) {
 				return false;
 			}
@@ -97,7 +100,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	}
 	public bool IsSubsetOf(HashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
-		foreach(var Key in this.GetKeyEnumerable()) {
+		foreach(var Key in this) {
 			if(!other.Contains(Key)) {
 				return false;
 			}
@@ -126,7 +129,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 		ArgumentNullException.ThrowIfNull(other);
 		if(this.GetLongCount()!=other.GetLongCount())
 			return false;
-		foreach(var Key in this.GetKeyEnumerable()) {
+		foreach(var Key in this) {
 			if(!other.Contains(Key)) {
 				return false;
 			}
