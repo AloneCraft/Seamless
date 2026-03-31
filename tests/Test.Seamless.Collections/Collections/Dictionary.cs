@@ -341,4 +341,18 @@ public partial class Dictionary {
         store.Store.Log.FlushAndEvict(true);
         Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(0,"other"));
     }
+    [Fact, Trait("Category","Coverage")]public void Keys() {
+        using var store = new DictionaryStore<int,string>();
+        using var dict = store.Create();
+        dict.Add(1,"a");
+        dict.Add(2,"b");
+        Assert.Equal([1,2], dict.Keys);
+    }
+    [Fact, Trait("Category","Coverage")]public void Values() {
+        using var store = new DictionaryStore<int,string>();
+        using var dict = store.Create();
+        dict.Add(1,"a");
+        dict.Add(2,"b");
+        Assert.Equal(["a","b"], dict.Values);
+    }
 }

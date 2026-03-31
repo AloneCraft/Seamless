@@ -1,7 +1,10 @@
 namespace Seamless.Collections;
+using Seamless.SessionFunctions;
+
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+
 using Tsavorite.core;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ Dictionary。
@@ -77,12 +80,51 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 		}
 	}
 	IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
-	public IEnumerator<KeyValuePair<TKey,TValue>> GetEnumerator() => this.GetKeyValueEnumerable().GetEnumerator();
-	public List<KeyValuePair<TKey,TValue>> ToList() => [.. this.GetKeyValueEnumerable()];
-	public ICollection<TKey> Keys => new List<TKey>(this.GetKeyEnumerable());
-	public ICollection<TValue> Values => new List<TValue>(this.GetValueEnumerable());
-	IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Keys;
-	IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Values;
+	IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
+    //public Enumerator<T,Empty,Add,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
+    //SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,
+    //KeyIterator<T>,T> GetEnumerator()=>new(this.ClientSession,new());
+
+	public Enumerator<TKey,TValue,Add,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
+	public List<KeyValuePair<TKey,TValue>> ToList(){
+        using var Enumerator=this.GetEnumerator();
+        var List=new List<KeyValuePair<TKey,TValue>>();
+        while(Enumerator.MoveNext()){
+            List.Add(Enumerator.Current);
+        }
+        return List;
+    }
+    private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
+        // Tsavoriteのセッションから列挙を開始
+        // 列挙数が不明なため、Listの初期容量はデフォルトに任せる
+        var Collection = new List<T>();
+        using var Enumerator = new Enumerator<
+            TKey, TValue, Add,
+            StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
+            SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,
+            TIterator, T
+        >(this.ClientSession, Iterator);
+        while (Enumerator.MoveNext()){
+            Collection.Add(Enumerator.Current);
+        }
+
+        return Collection;
+    }    
+    public ICollection<TKey> Keys=>this.CreateCollection<KeyIterator<TKey>,TKey>(new());
+    public ICollection<TValue> Values=>this.CreateCollection<ValueIterator<TValue>,TValue>(new());
+    private IEnumerable<T> Enumerate<TIterator,T>(TIterator Iterator)
+        where TIterator:ScanIteratorFunctions<T>{
+        using var e=new Enumerator<
+            TKey,TValue,Add,
+            StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
+            SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,
+            TIterator,T
+        >(this.ClientSession,Iterator);
+        while(e.MoveNext())
+            yield return e.Current;
+    }
+    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys=>this.Enumerate<KeyIterator<TKey>,TKey>(new());
+    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values=>this.Enumerate<ValueIterator<TValue>,TValue>(new());
 	public TValue this[TKey Key] {
 		get {
 			var KeyBytes = Serialize(Key);

@@ -19,10 +19,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSetDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\Enumerators\Enumerator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\Enumerators\KeyEnumerable.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\Enumerators\KeyValueEnumerable.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\Enumerators\ValueEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Enumerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ScanIteratorFunctions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Stores\CollectionStore2.cs" />

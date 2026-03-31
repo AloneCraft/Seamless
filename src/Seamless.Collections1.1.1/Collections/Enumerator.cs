@@ -1,5 +1,5 @@
 using Common;
-namespace Seamless.Collections.Enumerators;
+namespace Seamless.Collections;
 
 using System.Collections;
 using System.Diagnostics;
