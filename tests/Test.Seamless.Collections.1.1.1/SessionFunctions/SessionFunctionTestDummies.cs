@@ -1,1 +1,1 @@
-namespace Test.Seamless.Collections;
+namespace Test.Seamless.SessionFunctions;

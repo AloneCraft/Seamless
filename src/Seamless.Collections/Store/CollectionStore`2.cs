@@ -12,7 +12,7 @@ namespace Seamless.Collections;
 /// </summary>
 public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable where TKey : IEquatable<TKey> {
 	private protected readonly KVSettings Settings;
-	public readonly TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store;
+	public readonly TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store;
 	public long LogMemorySize { get; }
 	public double MutableFraction { get; }
 	private bool Disposed;
@@ -54,11 +54,11 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 		this.MutableFraction=MutableFraction;
 		//MemoryOnlyDevice使用時はシリアライザ不要。ページデータはヒープ上で保持されるためインライン格納で十分。
 		var StoreFunctions = new StoreFunctions<SpanByteComparer,DefaultRecordDisposer>(new SpanByteComparer(),NullSerializer,new DefaultRecordDisposer());
-		this.Store=new TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>(
+		this.Store=new TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>(
 			Settings,
 			StoreFunctions,
 			static (AllocSettings,StoreFuncs) => {
-				var a = new ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>(
+				var a = new SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>(
 					AllocSettings,
 					StoreFuncs
 				);

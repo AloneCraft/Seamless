@@ -20,9 +20,9 @@ namespace Seamless.Collections;
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
 public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable<T> {
 	private readonly byte[] EmptyBytes;
-	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith          ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Intersect_ClientSession;
-	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith    ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>SymmetricExcept_ClientSession;
-	internal HashSet(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
+	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith          ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Intersect_ClientSession;
+	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith    ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>SymmetricExcept_ClientSession;
+	internal HashSet(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
 		this.EmptyBytes=Serialize(Empty.Default);
 		this.Intersect_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith>(new IntersectWith());
 		this.SymmetricExcept_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new SymmetricExceptWith());
@@ -58,7 +58,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	}
 	IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 	IEnumerator<T> IEnumerable<T>.GetEnumerator() => this.GetEnumerator();
-    public Enumerator<T,Empty,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyIterator<T>,T> GetEnumerator()=>new (this.ClientSession,new());
+	public Enumerator<T,Empty,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyIterator<T>,T> GetEnumerator()=>new (this.ClientSession,new());
     public void IntersectWith(HashSet<T> other){
 		ArgumentNullException.ThrowIfNull(other);
 		var Input = PinnedSpanByte.FromPinnedSpan(this.EmptyBytes);

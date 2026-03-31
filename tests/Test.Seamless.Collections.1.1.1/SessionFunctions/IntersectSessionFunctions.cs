@@ -2,7 +2,7 @@ using Common;
 using Seamless.Collections;
 using Tsavorite.core;
 using SSessionFunctions = Tsavorite.core.ISessionFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteAndMemory,Seamless.Collections.Empty>;
-namespace Test.Seamless.Collections;
+namespace Test.Seamless.SessionFunctions;
 
 [Collection("Sequential")]
 public class IntersectSessionFunctions {
