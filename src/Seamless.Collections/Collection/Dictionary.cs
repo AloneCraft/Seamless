@@ -1,4 +1,3 @@
-using Seamless.Collections.Enumerators;
 using Seamless.SessionFunctions;
 namespace Seamless.Collections;
 using ScanIteratorFunctions;
@@ -115,9 +114,7 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 	}
 	IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 	IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
-	//public IEnumerator<KeyValuePair<TKey,TValue>> GetEnumerator() => this.GetKeyValueEnumerable().GetEnumerator();
 	public Enumerator<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
-
 	public List<KeyValuePair<TKey,TValue>> ToList(){
         using var Enumerator=this.GetEnumerator();
         var List=new List<KeyValuePair<TKey,TValue>>();

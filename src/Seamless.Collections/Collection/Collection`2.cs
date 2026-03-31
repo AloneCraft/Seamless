@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using Garnet.common;
 using MemoryPack;
-using Seamless.Collections.Enumerators;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Tsavorite.core;
@@ -43,9 +42,6 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
 
 
 
-    //private protected KeyEnumerable2<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> GetKeyEnumerable()=>new(this.ClientSession);
-    //private protected ValueEnumerable<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> GetValueEnumerable()=>new(this.ClientSession);
-    //private protected KeyValueEnumerable<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> GetKeyValueEnumerable()=>new(this.ClientSession);
     private protected OutOfMemoryException ThrowLogFull() {
         var Log = this.Store.Log;
         return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");

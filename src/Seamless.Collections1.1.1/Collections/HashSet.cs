@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Diagnostics;
-using Seamless.Collections.Enumerators;
 using Seamless.SessionFunctions;
 using Tsavorite.core;
 namespace Seamless.Collections;
@@ -51,31 +50,18 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	}
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     IEnumerator<T> IEnumerable<T>.GetEnumerator() => this.GetEnumerator();
+    //public Enumerator<T,Empty,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyIterator<T>,T> GetEnumerator()=>new (this.ClientSession,new());
     //global using Tsavorite.core.ISessionFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteAndMemory,Seamless.Collections.Empty>            =Tsavorite.core.ISessionFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteAndMemory,Seamless.Collections.Empty>;
     //global using Tsavorite.core.IStoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte>              =Tsavorite.core.IStoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte>;
     //global using TStoreFunctions  =Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
     //global using TAllocator       =Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
 
-	public Enumerator<
-		T,
-		Empty,
-		Add,
-		StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
-		SpanByteAllocator<
-			StoreFunctions<
-				SpanByte,SpanByte,
-				SpanByteComparer,
-				SpanByteRecordDisposer
-			>
-		>,
-		KeyIterator<T>,
-		T
-	> GetEnumerator()=>this.GetKeyEnumerable().GetEnumerator();
+	public Enumerator<T,Empty,Add,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,KeyIterator<T>,T> GetEnumerator()=>new(this.ClientSession,new());
 	public void IntersectWith(HashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		var InputBytes = this.EmptyBytes;
 		var Session = this.IntersectClientSession;
-		foreach(var Key0 in this.GetKeyEnumerable()) {
+		foreach(var Key0 in this) {
 			if(other.Contains(Key0)) {
 				continue;
 			}
@@ -96,7 +82,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 		ArgumentNullException.ThrowIfNull(other);
 		if(this.GetLongCount()>=other.GetLongCount())
 			return false;
-		foreach(var Key in this.GetKeyEnumerable()) {
+		foreach(var Key in this) {
 			if(!other.Contains(Key)) {
 				return false;
 			}
@@ -116,7 +102,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	}
 	public bool IsSubsetOf(HashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
-		foreach(var Key in this.GetKeyEnumerable()) {
+		foreach(var Key in this){
 			if(!other.Contains(Key)) {
 				return false;
 			}
@@ -145,7 +131,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 		ArgumentNullException.ThrowIfNull(other);
 		if(this.GetLongCount()!=other.GetLongCount())
 			return false;
-		foreach(var Key in this.GetKeyEnumerable()) {
+		foreach(var Key in this) {
 			if(!other.Contains(Key)) {
 				return false;
 			}

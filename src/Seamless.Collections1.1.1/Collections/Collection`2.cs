@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using MemoryPack;
-using Seamless.Collections.Enumerators;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Tsavorite.core;
@@ -163,9 +162,6 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         this.Store.Reset();
         this.ClientSession=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Add>(this.SessionFunctions);
     }
-    private protected KeyEnumerable<TKey,TValue,Add,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> GetKeyEnumerable() => new(this.ClientSession);
-    private protected ValueEnumerable<TKey,TValue,Add,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> GetValueEnumerable() => new(this.ClientSession);
-    private protected KeyValueEnumerable<TKey,TValue,Add,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte, SpanByte, SpanByteComparer, SpanByteRecordDisposer>>> GetKeyValueEnumerable() => new(this.ClientSession);
     public void Dispose() {
         this.Dispose(true);
         GC.SuppressFinalize(this);
