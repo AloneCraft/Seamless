@@ -32,8 +32,6 @@
     <PackageReference Include="Microsoft.Garnet" Version="1.1.1" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Common\Common.csproj" />
-  </ItemGroup>
+  <Import Project="..\Seamless.Collections\Seamless.Collections.projitems" Label="Shared" />
 
 </Project>

@@ -1,4 +1,4 @@
-namespace Seamless.Collections;
+﻿namespace Seamless.Collections;
 using Seamless.SessionFunctions;
 
 using System.Collections;
@@ -16,7 +16,7 @@ using Tsavorite.core;
 public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionary<TKey,TValue>, IReadOnlyDictionary<TKey,TValue>
 	where TKey : IEquatable<TKey>
 	where TValue : IEquatable<TValue> {
-	internal Dictionary(TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) { }
+	internal Dictionary(TsavoriteKV<SpanByte,SpanByte,GStoreFunctions,GAllocator> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) { }
 	public bool IsReadOnly => false;
     public bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
         var Status = this.Read(Key,out var Output);
@@ -81,11 +81,11 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 	}
 	IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 	IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
-    //public Enumerator<T,Empty,Add,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
-    //SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,
+    //public Enumerator<T,Empty,Add,GStoreFunctions,
+    //GAllocator,
     //KeyIterator<T>,T> GetEnumerator()=>new(this.ClientSession,new());
 
-	public Enumerator<TKey,TValue,Add,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
+	public Enumerator<TKey,TValue,Add,GStoreFunctions,GAllocator,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
 	public List<KeyValuePair<TKey,TValue>> ToList(){
         using var Enumerator=this.GetEnumerator();
         var List=new List<KeyValuePair<TKey,TValue>>();
@@ -100,8 +100,8 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
         var Collection = new List<T>();
         using var Enumerator = new Enumerator<
             TKey, TValue, Add,
-            StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
-            SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,
+            GStoreFunctions,
+            GAllocator,
             TIterator, T
         >(this.ClientSession, Iterator);
         while (Enumerator.MoveNext()){
@@ -116,8 +116,8 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
         where TIterator:ScanIteratorFunctions<T>{
         using var e=new Enumerator<
             TKey,TValue,Add,
-            StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
-            SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,
+            GStoreFunctions,
+            GAllocator,
             TIterator,T
         >(this.ClientSession,Iterator);
         while(e.MoveNext())

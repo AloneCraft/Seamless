@@ -1,4 +1,4 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 namespace Test.Seamless.ScanIteratorFunctions;
 
 public partial class ScanIteratorFunctions {
@@ -7,3 +7,4 @@ public partial class ScanIteratorFunctions {
         iter.OnException(new Exception("test"),0);
     }
 }
+

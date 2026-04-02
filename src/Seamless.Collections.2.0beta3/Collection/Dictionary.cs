@@ -1,4 +1,4 @@
-using Seamless.SessionFunctions;
+﻿using Seamless.SessionFunctions;
 namespace Seamless.Collections;
 using ScanIteratorFunctions;
 
@@ -17,9 +17,9 @@ using Tsavorite.core;
 public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey, TValue>
 	where TKey :IEquatable<TKey>
 	where TValue : IEquatable<TValue> {
-	private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Remove_TKey_TValue_ClientSession;
-	private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Remove_KeyValuePair_ClientSession;
-	internal Dictionary(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
+	private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue ,GStoreFunctions,GAllocator>Remove_TKey_TValue_ClientSession;
+	private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair ,GStoreFunctions,GAllocator>Remove_KeyValuePair_ClientSession;
+	internal Dictionary(TsavoriteKV<GStoreFunctions,GAllocator> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
 		this.Remove_TKey_TValue_ClientSession=Store.NewSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue>(new ());
 		this.Remove_KeyValuePair_ClientSession=Store.NewSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair>(new ());
 	}
@@ -98,7 +98,7 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 	}
 	IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 	IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
-	public Enumerator<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
+	public Enumerator<TKey,TValue,Add,GStoreFunctions,GAllocator,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
 	public List<KeyValuePair<TKey,TValue>> ToList(){
         using var Enumerator=this.GetEnumerator();
         var List=new List<KeyValuePair<TKey,TValue>>();
@@ -129,8 +129,8 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
         where TIterator:ScanIteratorFunctions<T>{
         using var e=new Enumerator<
             TKey,TValue,Add,
-            StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,
-            SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,
+            GStoreFunctions,
+            GAllocator,
             TIterator,T
         >(this.ClientSession,Iterator);
         while(e.MoveNext())

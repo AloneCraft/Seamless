@@ -1,16 +1,14 @@
-using Common;
+﻿using Common;
 
 using Seamless.Devices;
 
 using System.Diagnostics;
-using System.Runtime;
-
 using Tsavorite.core;
 
 namespace Seamless.Collections;
 public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable where TKey : IEquatable<TKey> {
 	private protected readonly KVSettings<SpanByte,SpanByte> Settings;
-	public readonly TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store;
+	public readonly TsavoriteKV<SpanByte,SpanByte,GStoreFunctions,GAllocator> Store;
 	public long LogMemorySize { get; }
 	public double MutableFraction { get; }
 	private readonly long SegmentSize;
@@ -51,16 +49,16 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 		this.SegmentSize=SegmentSize;
 		this.LogMemorySize=MemorySize;
 		this.MutableFraction=MutableFraction;
-		var StoreFunctions = new StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>(
+		var StoreFunctions = new GStoreFunctions(
 			new SpanByteComparer(),
 			() => null,
 			() => null,
 			new SpanByteRecordDisposer()
 		);
-		this.Store=new TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>(
+		this.Store=new TsavoriteKV<SpanByte,SpanByte,GStoreFunctions,GAllocator>(
 			Settings,
 			StoreFunctions,
-			static (AllocSettings,StoreFuncs) => new SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>(AllocSettings,StoreFuncs));
+			static (AllocSettings,StoreFuncs) => new GAllocator(AllocSettings,StoreFuncs));
 	}
     public async ValueTask<(bool success,Guid token)> SaveAsync(CheckpointType CheckpointType=CheckpointType.Snapshot,CancellationToken ct=default){
         if(string.IsNullOrEmpty(this.Settings.CheckpointDir))

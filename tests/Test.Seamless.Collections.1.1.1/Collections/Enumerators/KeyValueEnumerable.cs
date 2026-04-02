@@ -1,13 +1,17 @@
-using System.Collections;
+﻿using System.Collections;
 using Store = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte, Tsavorite.core.SpanByte, Tsavorite.core.SpanByteComparer, Tsavorite.core.SpanByteRecordDisposer>;
-using Alloc = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte, Tsavorite.core.SpanByte, Tsavorite.core.SpanByteComparer, Tsavorite.core.SpanByteRecordDisposer>>;
+
+using GAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
+using GStoreFunctions = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
 namespace Seamless.Collections.Tests;
 
 public class KeyValueEnumerable {
     [Fact, Trait("Category","Coverage")]
     public void GetEnumerator_IEnumerableT() {
         using var store = new DictionaryStore<int,string>();
-        using var dict = store.Create();
+        
+using GAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
+using GStoreFunctions = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
         dict.Add(1,"a");
         var kve = new Enumerators.KeyValueEnumerable<int, string, Seamless.SessionFunctions.Add, Store, Alloc>(dict.ClientSession);
         IEnumerable<KeyValuePair<int,string>> ie = kve;
@@ -16,7 +20,9 @@ public class KeyValueEnumerable {
     [Fact, Trait("Category","Coverage")]
     public void GetEnumerator_IEnumerable() {
         using var store = new DictionaryStore<int,string>();
-        using var dict = store.Create();
+        
+using GAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
+using GStoreFunctions = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
         dict.Add(1,"a");
         var kve = new Enumerators.KeyValueEnumerable<int, string, Seamless.SessionFunctions.Add, Store, Alloc>(dict.ClientSession);
         IEnumerable ie = kve;
@@ -26,3 +32,4 @@ public class KeyValueEnumerable {
         Assert.Equal(1,count);
     }
 }
+

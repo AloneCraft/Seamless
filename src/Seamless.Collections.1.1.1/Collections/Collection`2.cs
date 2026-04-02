@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using MemoryPack;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
@@ -10,16 +10,16 @@ namespace Seamless.Collections;
 /// <see cref="IDictionary{TKey,TValue}"/> を実装し、利用者に Tsavorite の詳細を見せない。
 /// 静的ポリモーフィズムにより仮想ディスパッチを回避する。
 /// </summary>
-//public abstract class Collection<TKey, TValue>:Collection<TKey,TValue,AddSessionFunctions<TKey,TValue>,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>where TKey : IEquatable<TKey>where TValue : IEquatable<TValue>{
+//public abstract class Collection<TKey, TValue>:Collection<TKey,TValue,AddSessionFunctions<TKey,TValue>,GStoreFunctions,GAllocator>where TKey : IEquatable<TKey>where TValue : IEquatable<TValue>{
 public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<TKey>where TValue:IEquatable<TValue>{
     private protected const int RecordOverheadBytes = 128;
-    private protected readonly TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store;
+    private protected readonly TsavoriteKV<SpanByte,SpanByte,GStoreFunctions,GAllocator> Store;
     private protected readonly long LogMemorySize;
     private protected readonly double MutableFraction;
     private protected readonly Add SessionFunctions;
-    public                     ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Add,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> ClientSession;
-    private protected readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Delete,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> DeleteClientSession;
-    protected Collection(TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store,long LogMemorySize=0,double MutableFraction=1.0){
+    public                     ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Add,GStoreFunctions,GAllocator> ClientSession;
+    private protected readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Delete,GStoreFunctions,GAllocator> DeleteClientSession;
+    protected Collection(TsavoriteKV<SpanByte,SpanByte,GStoreFunctions,GAllocator> Store,long LogMemorySize=0,double MutableFraction=1.0){
         //:base(Store,new AddSessionFunctions<TKey,TValue>(),LogMemorySize,MutableFraction){
         this.Store=Store;
         this.LogMemorySize=LogMemorySize;
@@ -80,7 +80,7 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
     //    }
     //    return Status;
     //}
-    private protected static Status Pending<TSessionFunctions0>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>Session,Status Status)
+    private protected static Status Pending<TSessionFunctions0>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions,GAllocator>Session,Status Status)
         where TSessionFunctions0:Tsavorite.core.ISessionFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteAndMemory,Seamless.Collections.Empty>{
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);

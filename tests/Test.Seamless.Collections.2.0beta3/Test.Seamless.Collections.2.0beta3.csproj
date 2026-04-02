@@ -43,7 +43,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Seamless.Collections\Seamless.Collections.csproj" />
+    <ProjectReference Include="..\..\src\Seamless.Collections.2.0beta3\Seamless.Collections.2.0beta3.csproj" />
     <ProjectReference Include="..\TestCommon\TestCommon.csproj" />
   </ItemGroup>
 

@@ -1,13 +1,17 @@
-using System.Collections;
+﻿using System.Collections;
 using Store = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte, Tsavorite.core.SpanByte, Tsavorite.core.SpanByteComparer, Tsavorite.core.SpanByteRecordDisposer>;
-using Alloc = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte, Tsavorite.core.SpanByte, Tsavorite.core.SpanByteComparer, Tsavorite.core.SpanByteRecordDisposer>>;
+
+using GAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
+using GStoreFunctions = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
 namespace Seamless.Collections.Tests;
 
 public class KeyEnumerable {
     [Fact, Trait("Category","Coverage")]
     public void GetEnumerator_IEnumerable() {
         using var store = new HashSetStore<int>();
-        using var set = store.Create();
+        
+using GAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
+using GStoreFunctions = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
         set.Add(1);
         var ke = new Enumerators.KeyEnumerable<int, global::Seamless.Collections.Empty, Seamless.SessionFunctions.Add, Store, Alloc>(set.ClientSession);
         IEnumerable ie = ke;
@@ -17,3 +21,4 @@ public class KeyEnumerable {
         Assert.Equal(1,count);
     }
 }
+

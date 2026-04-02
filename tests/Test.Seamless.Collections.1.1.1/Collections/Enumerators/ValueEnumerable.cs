@@ -1,13 +1,17 @@
-using System.Collections;
+﻿using System.Collections;
 using Store = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte, Tsavorite.core.SpanByte, Tsavorite.core.SpanByteComparer, Tsavorite.core.SpanByteRecordDisposer>;
-using Alloc = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte, Tsavorite.core.SpanByte, Tsavorite.core.SpanByteComparer, Tsavorite.core.SpanByteRecordDisposer>>;
+
+using GAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
+using GStoreFunctions = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
 namespace Seamless.Collections.Tests;
 
 public class ValueEnumerable {
     [Fact, Trait("Category","Coverage")]
     public void GetEnumerator() {
         using var store = new DictionaryStore<int,string>();
-        using var dict = store.Create();
+        
+using GAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
+using GStoreFunctions = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
         dict.Add(1,"a");
         var ve = new Enumerators.ValueEnumerable<int, string, Seamless.SessionFunctions.Add, Store, Alloc>(dict.ClientSession);
         var count = 0;
@@ -17,7 +21,9 @@ public class ValueEnumerable {
     [Fact, Trait("Category","Coverage")]
     public void GetEnumerator_IEnumerable() {
         using var store = new DictionaryStore<int,string>();
-        using var dict = store.Create();
+        
+using GAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
+using GStoreFunctions = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
         dict.Add(1,"a");
         var ve = new Enumerators.ValueEnumerable<int, string, Seamless.SessionFunctions.Add, Store, Alloc>(dict.ClientSession);
         IEnumerable ie = ve;
@@ -27,3 +33,4 @@ public class ValueEnumerable {
         Assert.Equal(1,count);
     }
 }
+
