@@ -10,21 +10,49 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Collection\**" />
+    <Compile Remove="Devices\**" />
     <Compile Remove="RelationalDatabase\**" />
     <Compile Remove="Serializer\**" />
+    <Compile Remove="SessionFunctions\**" />
+    <Compile Remove="Store\**" />
+    <EmbeddedResource Remove="Collection\**" />
+    <EmbeddedResource Remove="Devices\**" />
     <EmbeddedResource Remove="RelationalDatabase\**" />
     <EmbeddedResource Remove="Serializer\**" />
+    <EmbeddedResource Remove="SessionFunctions\**" />
+    <EmbeddedResource Remove="Store\**" />
+    <None Remove="Collection\**" />
+    <None Remove="Devices\**" />
     <None Remove="RelationalDatabase\**" />
     <None Remove="Serializer\**" />
+    <None Remove="SessionFunctions\**" />
+    <None Remove="Store\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Collection\Collection`5.cs" />
     <Compile Remove="IRelation.cs" />
     <Compile Remove="KeyComparer.cs" />
     <Compile Remove="Relation.cs" />
-    <Compile Remove="Store\Relation.cs" />
     <Compile Remove="Tuple.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Collection\Collection`2.cs" />
+    <Compile Include="Collection\Dictionary.cs" />
+    <Compile Include="Collection\DictionaryDebugView.cs" />
+    <Compile Include="Collection\Empty.cs" />
+    <Compile Include="Collection\Enumerator.cs" />
+    <Compile Include="Collection\HashSet.cs" />
+    <Compile Include="Collection\HashSetDebugView.cs" />
+    <Compile Include="Collection\ISet.cs" />
+    <Compile Include="SessionFunctions\Add.cs" />
+    <Compile Include="SessionFunctions\Delete.cs" />
+    <Compile Include="SessionFunctions\IntersectWith.cs" />
+    <Compile Include="SessionFunctions\Remove_KeyValuePair.cs" />
+    <Compile Include="SessionFunctions\Remove_TKey_TValue.cs" />
+    <Compile Include="SessionFunctions\SymmetricExceptWith.cs" />
+    <Compile Include="Store\CollectionStore`2.cs" />
   </ItemGroup>
 
   <ItemGroup>

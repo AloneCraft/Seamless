@@ -1,11 +1,11 @@
-namespace Seamless.SessionFunctions;
-
+﻿namespace Seamless.SessionFunctions;
+using Empty=Collections.Empty;
 using Tsavorite.core;
 
-internal readonly struct IntersectWith:Tsavorite.core.ISessionFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteAndMemory,Seamless.Collections.Empty> {
+internal readonly struct IntersectWith:ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty> {
 	public bool SingleReader(ref SpanByte Key,ref SpanByte Input,ref SpanByte Value,ref SpanByteAndMemory Dst,ref ReadInfo ReadInfo) => true;
 	public bool ConcurrentReader(ref SpanByte Key,ref SpanByte Input,ref SpanByte Value,ref SpanByteAndMemory Dst,ref ReadInfo ReadInfo,ref RecordInfo RecordInfo) => true;
-	public void ReadCompletionCallback(ref SpanByte Key,ref SpanByte Input,ref SpanByteAndMemory Output,Collections.Empty Ctx,Status Status,RecordMetadata RecordMetadata) { }
+	public void ReadCompletionCallback(ref SpanByte Key,ref SpanByte Input,ref SpanByteAndMemory Output,Empty Ctx,Status Status,RecordMetadata RecordMetadata) { }
 	public bool SingleWriter(ref SpanByte Key,ref SpanByte Input,ref SpanByte Src,ref SpanByte Dst,ref SpanByteAndMemory Output,ref UpsertInfo UpsertInfo,WriteReason Reason,ref RecordInfo RecordInfo) {
 		Src.CopyTo(ref Dst);
 		return true;
@@ -15,7 +15,7 @@ internal readonly struct IntersectWith:Tsavorite.core.ISessionFunctions<Tsavorit
 		Src.CopyTo(ref Dst);
 		return true;
 	}
-	void Tsavorite.core.ISessionFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteAndMemory,Seamless.Collections.Empty>.PostUpsertOperation<TEpochAccessor>(ref SpanByte Key,ref SpanByte Input,ref SpanByte Src,ref UpsertInfo UpsertInfo,TEpochAccessor Epoch) { }
+	void ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>.PostUpsertOperation<TEpochAccessor>(ref SpanByte Key,ref SpanByte Input,ref SpanByte Src,ref UpsertInfo UpsertInfo,TEpochAccessor Epoch) { }
 	public bool NeedInitialUpdate(ref SpanByte Key,ref SpanByte Input,ref SpanByteAndMemory Output,ref RMWInfo RmwInfo) => false;
 	public bool InitialUpdater(ref SpanByte Key,ref SpanByte Input,ref SpanByte Value,ref SpanByteAndMemory Output,ref RMWInfo RmwInfo,ref RecordInfo RecordInfo) {
 		return false;
@@ -34,11 +34,11 @@ internal readonly struct IntersectWith:Tsavorite.core.ISessionFunctions<Tsavorit
 	public int GetRMWModifiedValueLength(ref SpanByte Value,ref SpanByte Input) => Value.Length;
 	public int GetRMWInitialValueLength(ref SpanByte Input) => Input.Length+4;
 	public int GetUpsertValueLength(ref SpanByte Value,ref SpanByte Input) => Value.Length+4;
-	void Tsavorite.core.ISessionFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteAndMemory,Seamless.Collections.Empty>.PostRMWOperation<TEpochAccessor>(ref SpanByte Key,ref SpanByte Input,ref RMWInfo RmwInfo,TEpochAccessor Epoch) { }
-	public void RMWCompletionCallback(ref SpanByte Key,ref SpanByte Input,ref SpanByteAndMemory Output,Collections.Empty Ctx,Status Status,RecordMetadata RecordMetadata) { }
+	void ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>.PostRMWOperation<TEpochAccessor>(ref SpanByte Key,ref SpanByte Input,ref RMWInfo RmwInfo,TEpochAccessor Epoch) { }
+	public void RMWCompletionCallback(ref SpanByte Key,ref SpanByte Input,ref SpanByteAndMemory Output,Empty Ctx,Status Status,RecordMetadata RecordMetadata) { }
 	public bool SingleDeleter(ref SpanByte Key,ref SpanByte Value,ref DeleteInfo DeleteInfo,ref RecordInfo RecordInfo) => true;
 	public void PostSingleDeleter(ref SpanByte Key,ref DeleteInfo DeleteInfo) { }
 	public bool ConcurrentDeleter(ref SpanByte Key,ref SpanByte Value,ref DeleteInfo DeleteInfo,ref RecordInfo RecordInfo) => true;
-	void Tsavorite.core.ISessionFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteAndMemory,Seamless.Collections.Empty>.PostDeleteOperation<TEpochAccessor>(ref SpanByte Key,ref DeleteInfo DeleteInfo,TEpochAccessor Epoch) { }
+	void ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>.PostDeleteOperation<TEpochAccessor>(ref SpanByte Key,ref DeleteInfo DeleteInfo,TEpochAccessor Epoch) { }
 	public void ConvertOutputToHeap(ref SpanByte Input,ref SpanByteAndMemory Output) { }
 }

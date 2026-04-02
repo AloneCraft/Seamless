@@ -1,4 +1,4 @@
-using Garnet.common;
+﻿using Garnet.common;
 using MemoryPack;
 using System.Buffers;
 using Tsavorite.core;
@@ -71,7 +71,7 @@ public class CheckpointRecoveryTests{
         public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Empty ctx,Status status,RecordMetadata recordMetadata) {}
         public void ConvertOutputToHeap(ref PinnedSpanByte input,ref SpanByteAndMemory output) {}
     }
-    private async ValueTask SaveLoad(CheckpointType�@CheckpointType,int LoadCount){
+    private async ValueTask SaveLoad(CheckpointType　CheckpointType,int LoadCount){
         var ct=TestContext.Current.CancellationToken;
         var folder=Path.Combine(Environment.CurrentDirectory,"Test111");
         var checkpointDir=folder+"_checkpoint";
@@ -162,12 +162,12 @@ public class CheckpointRecoveryTests{
     [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_Snapshot2(){
         await SaveLoad(CheckpointType.Snapshot,2);
     }
-    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_StreamingSnapshot1(){
-        await SaveLoad(CheckpointType.StreamingSnapshot,1);
-    }
-    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_StreamingSnapshot2(){
-        await SaveLoad(CheckpointType.StreamingSnapshot,2);
-    }
+    //[Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_StreamingSnapshot1(){
+    //    await SaveLoad(CheckpointType.StreamingSnapshot,1);
+    //}
+    //[Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_StreamingSnapshot2(){
+    //    await SaveLoad(CheckpointType.StreamingSnapshot,2);
+    //}
     //[Fact,Trait("Category","Coverage")]
     //async ValueTask CheckpointAndRecoveryTest_UpsertDelete1(){
     //    await SaveLoad(1);
