@@ -1,7 +1,10 @@
 using Common;
 
-using System.Diagnostics;
 using Seamless.Devices;
+
+using System.Diagnostics;
+using System.Runtime;
+
 using Tsavorite.core;
 
 namespace Seamless.Collections;
@@ -59,19 +62,27 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 			StoreFunctions,
 			static (AllocSettings,StoreFuncs) => new SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>(AllocSettings,StoreFuncs));
 	}
-	//TFunctions : ISessionFunctions<TKey, TValue, TInput, TOutput, TContext>
-	public async ValueTask SaveAsync(CancellationToken ct=default){
-		if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
-			throw new InvalidOperationException($"{nameof(KVSettings<SpanByte,SpanByte>.CheckpointDir)} is not set.");
-		var (success,_)=await this.Store.TakeFullCheckpointAsync(CheckpointType.Snapshot,ct);
-		if(!success) throw new InvalidOperationException("Checkpoint failed.");
-		await this.Store.CompleteCheckpointAsync(ct);
-	}
-	public async ValueTask LoadAsync(CancellationToken ct=default){
-		if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
-			throw new InvalidOperationException($"{nameof(KVSettings<SpanByte,SpanByte>.CheckpointDir)} is not set.");
-		await this.Store.RecoverAsync(numPagesToPreload: -1,undoNextVersion: false,cancellationToken: ct);
-	}
+    public async ValueTask<(bool success,Guid token)> SaveAsync(CheckpointType CheckpointType=CheckpointType.Snapshot,CancellationToken ct=default){
+        if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
+            throw new InvalidOperationException($"{nameof(this.Settings.CheckpointDir)} is not set.");
+        var(success,token)=await this.Store.TakeFullCheckpointAsync(CheckpointType,ct);
+        await this.Store.CompleteCheckpointAsync(ct);
+        if(!success) throw new InvalidOperationException("Checkpoint failed.");
+        return(success,token);
+    }
+    public Guid Save(CheckpointType CheckpointType=CheckpointType.Snapshot){
+        var(success,token)=this.SaveAsync(CheckpointType).GetAwaiter().GetResult();
+        return token;
+    }
+    public async ValueTask LoadAsync(Guid token,CheckpointType CheckpointType=CheckpointType.Snapshot,CancellationToken ct=default){
+        if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
+            throw new InvalidOperationException($"{nameof(this.Settings.CheckpointDir)} is not set.");
+        await this.Store.RecoverAsync(Guid.Empty,token,cancellationToken:ct);
+    }
+    public void Load(Guid token,CheckpointType CheckpointType=CheckpointType.Snapshot){
+        var ct=CancellationToken.None;
+        this.LoadAsync(token,CheckpointType,ct).GetAwaiter().GetResult();
+    }
 	public void CompactWithLookup() {
 		var Store = this.Store;
 		// 1. 【境界の取得】

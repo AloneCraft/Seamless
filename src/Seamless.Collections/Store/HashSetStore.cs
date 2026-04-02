@@ -6,10 +6,10 @@ using Tsavorite.core;
 /// </summary>
 public sealed class HashSetStore<T>:CollectionStore<T,Empty> where T:IEquatable<T>{
     internal HashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir,bool recoverDevice):
-        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,CheckpointDir,recoverDevice){
+        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,CheckpointDir){
 	}
     internal HashSetStore(IDevice LogDevice,IDevice ObjectLogDevice,long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir,bool recoverDevice):
-        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,CheckpointDir,recoverDevice,LogDevice,ObjectLogDevice){
+        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,CheckpointDir,LogDevice,ObjectLogDevice){
 	}
 	public HashSet<T> Create()=>new(this.Store,this.LogMemorySize,this.MutableFraction);
 }

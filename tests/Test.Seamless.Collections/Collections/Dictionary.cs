@@ -355,11 +355,36 @@ public partial class Dictionary {
         dict.Add(2,"b");
         Assert.Equal(["a","b"], dict.Values);
     }
-    [Fact, Trait("Category","Coverage")]public void SaveLoad() {
-        using var store = Store.Create<int,string>();
-        using var dict = store.Create();
-        dict.Add(1,"a");
-        dict.Add(2,"b");
-        Assert.Equal(["a","b"], dict.Values);
+    [Fact, Trait("Category","Coverage")]
+    public void SaveLoad() {
+        var folder = Path.Combine(Path.GetTempPath(),"SeamlessTest");
+        var checkpointDir = folder+"_checkpoint";
+        Guid token;
+        {
+            using var LogDevice = new ManagedLocalStorageDevice(folder);
+            using var LogObjDevice = new ManagedLocalStorageDevice(folder+"_obj");
+            using var store = Store.Create<int,int>(CheckpointDir:checkpointDir,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
+            using var set = store.Create();
+            set[1] = 11;
+            set[2] = 22;
+            set[3] = 33;
+            Assert.True(set.Contains(1));
+            token=store.Save();
+            Assert.True(set.Contains(1));
+        }
+        {
+            using var LogDevice = new ManagedLocalStorageDevice(folder);
+            using var LogObjDevice = new ManagedLocalStorageDevice(folder+"_obj");
+            using var store = Store.Create<int,int>(CheckpointDir:checkpointDir,recoverDevice:true,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
+            store.Load(token);
+            var (begin2,head2,ro2,tail2) = store.Address;
+            using var set = store.Create();
+            var l=set.ToArray();
+            var r=set.Contains(1);
+            Assert.True(set.Contains(1),$"Contains(1) failed. EntryCount={set.EntryCount}, Count(iter)={set.Count}, Addr=({begin2},{head2},{ro2},{tail2})");
+            Assert.True(set.Contains(2));
+            Assert.True(set.Contains(3));
+            Assert.False(set.Contains(99));
+        }
     }
 }

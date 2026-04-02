@@ -2,6 +2,7 @@ using Common;
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using Seamless.Devices;
 using Tsavorite.core;
 
@@ -17,7 +18,7 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 	public double MutableFraction { get; }
 	private bool Disposed;
 	private readonly long ObjectLogSegmentSize;
-	private CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,bool このクラスでDeviceをDisposeするべきか,string? CheckpointDir=null) {
+	private CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) {
 		AssertIsPowerOfTwo(IndexSize,nameof(IndexSize));
 		AssertIsPowerOfTwo(PageSize,nameof(PageSize));
 		AssertIsPowerOfTwo(SegmentSize,nameof(SegmentSize));
@@ -66,40 +67,94 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 				return a;
 			});
 	}
-	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir,bool recoverDevice) : 
-        this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),true,CheckpointDir) {
+	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir) : 
+        this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),CheckpointDir) {
 	}
 	[ExcludeFromCodeCoverage]
 	private static IObjectSerializer<IHeapObject>? NullSerializer() => null;
-	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir,bool recoverDevice,IDevice LogDevice,IDevice ObjectLogDevice) : 
-        this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,false,CheckpointDir) {
+	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir,IDevice LogDevice,IDevice ObjectLogDevice) : 
+        this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir) {
 	}
-	public async ValueTask SaveAsync(CancellationToken ct=default){
-		if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
-			throw new InvalidOperationException($"{nameof(KVSettings.CheckpointDir)} is not set.");
-        var (success,_)=await this.Store.TakeFullCheckpointAsync(CheckpointType.Snapshot,ct);
-		if(!success) throw new InvalidOperationException("Checkpoint failed.");
-       await this.Store.CompleteCheckpointAsync(ct);
-	}
-    public Guid Save(){
+    public void AssertCheckpointDir(){
         if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
-            throw new InvalidOperationException($"{nameof(KVSettings.CheckpointDir)} is not set.");
-        var(success,token)=this.Store.TakeFullCheckpointAsync(CheckpointType.Snapshot).AsTask().GetAwaiter().GetResult();
-        if(!success) throw new InvalidOperationException("Checkpoint failed.");
-        return token;
+            throw new InvalidOperationException($"{nameof(this.Settings.CheckpointDir)} is not set.");
     }
-	public async ValueTask LoadAsync(CancellationToken ct=default){
-		if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
-			throw new InvalidOperationException($"{nameof(KVSettings.CheckpointDir)} is not set.");
-		// 1st call: IndexCheckpointInfo.startLogicalAddress > beginAddress → RecoverFuzzyIndexAsync called (sets recoveryCountdown), TailAddress → finalLogicalAddress
-		// 2nd call: TailAddress > firstValidAddress → internal Reset() + recoveryCountdown != null → recoveredICInfo = default → recoverFromAddress = beginAddress → ProcessReadSnapshotPage called for all pages
-		await this.Store.RecoverAsync(numPagesToPreload: -1,undoNextVersion: false,recoverTo: -1,cancellationToken: ct);
-		await this.Store.RecoverAsync(numPagesToPreload: -1,undoNextVersion: false,recoverTo: -1,cancellationToken: ct);
+    /// <summary>
+	/// データベース全体の完全なバックアップ（Full Checkpoint）
+	/// </summary>
+	/// <param name="CheckpointType"></param>
+	/// <param name="ct"></param>
+	/// <returns></returns>
+	/// <exception cref="InvalidOperationException"></exception>
+	public async ValueTask<Guid> SaveAsync(CheckpointType CheckpointType=CheckpointType.Snapshot,CancellationToken ct=default){
+        this.AssertCheckpointDir();
+        var(success,token)=await this.Store.TakeFullCheckpointAsync(CheckpointType,ct);
+        await this.Store.CompleteCheckpointAsync(ct);
+        if(success) 
+            return token;
+        throw new InvalidOperationException("Checkpoint failed.");
+    }
+	/// <summary>
+	/// データベース全体の完全なバックアップ（Full Checkpoint）
+	/// </summary>
+	/// <param name="CheckpointType"></param>
+	/// <returns></returns>
+    public Guid Save(CheckpointType CheckpointType=CheckpointType.Snapshot)=>this.SaveAsync(CheckpointType).GetAwaiter().GetResult();
+    /// <summary>
+    /// データ（ログ）部分のみのバックアップ（Incremental/Log Checkpoint）
+    /// インデックスは復元せず、ログを先頭から再生してインデックスを再構築するリカバリー。
+    /// インデックスチェックポイントが存在しない場合や、インデックスチェックポイントが破損している場合の復旧に使用する。
+    /// </summary>
+    /// <param name="CheckpointType"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    public async ValueTask<Guid> SaveLogOnlyAsync(CheckpointType CheckpointType=CheckpointType.Snapshot,CancellationToken ct=default){
+        this.AssertCheckpointDir();
+		var(success,token)=await this.Store.TakeHybridLogCheckpointAsync(CheckpointType,cancellationToken:ct);
+		await this.Store.CompleteCheckpointAsync(ct);
+        if(success) 
+            return token;
+		throw new InvalidOperationException($"{nameof(this.SaveLogOnly)}Checkpoint failed.");
 	}
+    /// <summary>
+    /// データ（ログ）部分のみのバックアップ（Incremental/Log Checkpoint）
+    /// インデックスは復元せず、ログを先頭から再生してインデックスを再構築するリカバリー。
+    /// インデックスチェックポイントが存在しない場合や、インデックスチェックポイントが破損している場合の復旧に使用する。
+    /// </summary>
+    /// <param name="CheckpointType"></param>
+    /// <returns></returns>
+    public Guid SaveLogOnly(CheckpointType CheckpointType=CheckpointType.Snapshot)=>this.SaveLogOnlyAsync(CheckpointType).GetAwaiter().GetResult();
+    /// <summary>
+    /// 最新のデータに復元
+    /// </summary>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException"></exception>
+    public async ValueTask LoadAsync(CancellationToken ct=default){
+        this.AssertCheckpointDir();
+		await this.Store.RecoverAsync(cancellationToken:ct);
+	}
+    /// <summary>
+    /// 最新のデータに復元
+    /// </summary>
+    public void Load()=>this.LoadAsync().GetAwaiter().GetResult();
+    /// <summary>
+    /// 指定した過去地点(token)へのピンポイント復元
+    /// </summary>
+    /// <param name="token"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    public async ValueTask LoadAsync(Guid token,CancellationToken ct=default){
+        this.AssertCheckpointDir();
+        await this.Store.RecoverAsync(Guid.Empty,token,cancellationToken:ct);
+    }
+    /// <summary>
+    /// 指定した過去地点(token)へのピンポイント復元
+    /// </summary>
+    /// <param name="token"></param>
     public void Load(Guid token){
-        if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
-            throw new InvalidOperationException($"{nameof(KVSettings.CheckpointDir)} is not set.");
-        long xx=this.Store.RecoverAsync(fullCheckpointToken:token).AsTask().GetAwaiter().GetResult();
+        var ct=CancellationToken.None;
+        this.LoadAsync(token,ct).GetAwaiter().GetResult();
     }
 	public void CompactWithLookup() {
 		var Store = this.Store;
