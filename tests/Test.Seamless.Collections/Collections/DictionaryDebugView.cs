@@ -5,7 +5,7 @@ namespace Test.Seamless.Collections;
 public class DictionaryDebugView {
     [Fact, Trait("Category","Coverage")]
     public void Items_全エントリを返す() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict.Add(2,"b");
         dict.Add(1,"a");

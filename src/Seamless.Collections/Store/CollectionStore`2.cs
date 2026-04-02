@@ -17,7 +17,7 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 	public double MutableFraction { get; }
 	private bool Disposed;
 	private readonly long ObjectLogSegmentSize;
-	private CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,bool このクラスでDeviceをDisposeするべきか) {
+	private CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,bool このクラスでDeviceをDisposeするべきか,string? CheckpointDir=null) {
 		AssertIsPowerOfTwo(IndexSize,nameof(IndexSize));
 		AssertIsPowerOfTwo(PageSize,nameof(PageSize));
 		AssertIsPowerOfTwo(SegmentSize,nameof(SegmentSize));
@@ -47,6 +47,7 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 			LogDevice=LogDevice,
 			ObjectLogDevice=ObjectLogDevice,
 			ObjectLogSegmentSize=ObjectLogSegmentSize,
+			CheckpointDir=CheckpointDir,
 		};
 		//Const.MinObjectLogCapacity
 		this.Settings=Settings;
@@ -65,12 +66,41 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 				return a;
 			});
 	}
-	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction) : this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),true) {
+	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir,bool recoverDevice) : 
+        this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),true,CheckpointDir) {
 	}
 	[ExcludeFromCodeCoverage]
 	private static IObjectSerializer<IHeapObject>? NullSerializer() => null;
-	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice) : this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,false) {
+	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir,bool recoverDevice,IDevice LogDevice,IDevice ObjectLogDevice) : 
+        this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,false,CheckpointDir) {
 	}
+	public async ValueTask SaveAsync(CancellationToken ct=default){
+		if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
+			throw new InvalidOperationException($"{nameof(KVSettings.CheckpointDir)} is not set.");
+        var (success,_)=await this.Store.TakeFullCheckpointAsync(CheckpointType.Snapshot,ct);
+		if(!success) throw new InvalidOperationException("Checkpoint failed.");
+       await this.Store.CompleteCheckpointAsync(ct);
+	}
+    public Guid Save(){
+        if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
+            throw new InvalidOperationException($"{nameof(KVSettings.CheckpointDir)} is not set.");
+        var(success,Guid)=this.Store.TakeFullCheckpointAsync(CheckpointType.Snapshot).AsTask().GetAwaiter().GetResult();
+        if(!success) throw new InvalidOperationException("Checkpoint failed.");
+        return Guid;
+    }
+	public async ValueTask LoadAsync(CancellationToken ct=default){
+		if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
+			throw new InvalidOperationException($"{nameof(KVSettings.CheckpointDir)} is not set.");
+		// 1st call: IndexCheckpointInfo.startLogicalAddress > beginAddress → RecoverFuzzyIndexAsync called (sets recoveryCountdown), TailAddress → finalLogicalAddress
+		// 2nd call: TailAddress > firstValidAddress → internal Reset() + recoveryCountdown != null → recoveredICInfo = default → recoverFromAddress = beginAddress → ProcessReadSnapshotPage called for all pages
+		await this.Store.RecoverAsync(numPagesToPreload: -1,undoNextVersion: false,recoverTo: -1,cancellationToken: ct);
+		await this.Store.RecoverAsync(numPagesToPreload: -1,undoNextVersion: false,recoverTo: -1,cancellationToken: ct);
+	}
+    public void Load(Guid token){
+        if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
+            throw new InvalidOperationException($"{nameof(KVSettings.CheckpointDir)} is not set.");
+        long xx=this.Store.RecoverAsync(fullCheckpointToken:token).AsTask().GetAwaiter().GetResult();
+    }
 	public void CompactWithLookup() {
 		var Store = this.Store;
 		var BeginAddress = Store.Log.BeginAddress;

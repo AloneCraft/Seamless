@@ -13,7 +13,7 @@ public class Delete {
 
     [Fact, Trait("Category","Coverage")]
     public void NeedInitialUpdate() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
 
         dict[1]="one";
@@ -25,7 +25,7 @@ public class Delete {
         var folder = CreateFolder();
         using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = new DictionaryStore<int,string>(logDevice,objDevice,MemorySize: TestMemorySize,MutableFraction: 0);
+        using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0,LogDevice:logDevice,ObjectLogDevice:objDevice);
         using var dict = store.Create();
 
         for(var a = 0; a<300; a++) {
@@ -40,7 +40,7 @@ public class Delete {
         var folder = CreateFolder();
         using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store = new DictionaryStore<int,string>(LogDevice,ObjDevice,MemorySize: Const.MinObjectLogCapacity);
+        using var store = Store.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         dict.Add(0,"target");
         // 全レコードをディスクに追い出す → 次のRMWでIsPending=true

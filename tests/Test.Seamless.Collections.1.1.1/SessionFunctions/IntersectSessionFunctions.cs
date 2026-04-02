@@ -15,8 +15,8 @@ public class IntersectSessionFunctions {
 
     [Fact, Trait("Category","Coverage")]
     public void IntersectSessionFunctions_IntersectWithで共通要素だけ残る() {
-        using var storeA = new HashSetStore<int>();
-        using var storeB = new HashSetStore<int>();
+        using var storeA = Store.Create<int>();
+        using var storeB = Store.Create<int>();
         using var setA = storeA.Create();
         using var setB = storeB.Create();
         setA.Add(1);
@@ -43,8 +43,8 @@ public class IntersectSessionFunctions {
         using var objDeviceA = new ManagedLocalStorageDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var logDeviceB = new ManagedLocalStorageDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDeviceB = new ManagedLocalStorageDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var storeA = new HashSetStore<int>(logDeviceA,objDeviceA,MemorySize: TestMemorySize,MutableFraction: 0);
-        using var storeB = new HashSetStore<int>(logDeviceB,objDeviceB,MemorySize: TestMemorySize,MutableFraction: 0);
+        using var storeA = Store.Create<int>(MemorySize:TestMemorySize,MutableFraction:0,LogDevice:logDeviceA,ObjectLogDevice:objDeviceA);
+        using var storeB = Store.Create<int>(MemorySize:TestMemorySize,MutableFraction:0,LogDevice:logDeviceB,ObjectLogDevice:objDeviceB);
         using var setA = storeA.Create();
         using var setB = storeB.Create();
 

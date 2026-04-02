@@ -12,8 +12,6 @@ namespace Seamless.Collections;
 /// </summary>
 public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<TKey>where TValue:IEquatable<TValue>{
     private protected const int RecordOverheadBytes=128;
-    //private protected readoly TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store;
-    //private protected radoly TsavoriteKV<SpanByte,SpanByte                                                     ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store;
     private protected readonly TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store;
     private protected readonly long LogMemorySize;
     private protected readonly double MutableFraction;
@@ -86,9 +84,10 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-            CompletedOutputs.Next();
-            Status=CompletedOutputs.Current.Status;
-            CompletedOutputs.Dispose();
+            using(CompletedOutputs){
+                if(CompletedOutputs.Next())
+                    Status=CompletedOutputs.Current.Status;
+            }
         }
         return Status;
     }
@@ -120,10 +119,12 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-            CompletedOutputs.Next();
-            Status=CompletedOutputs.Current.Status;
-            Output=CompletedOutputs.Current.Output;
-            CompletedOutputs.Dispose();
+            using(CompletedOutputs){
+                if(CompletedOutputs.Next()){
+                    Status=CompletedOutputs.Current.Status;
+                    Output=CompletedOutputs.Current.Output;
+                }
+            }
         }
         return Status;
     }

@@ -13,7 +13,7 @@ public class Remove_KeyValuePair {
     // ----------------------------------------------------------------
 
     private void Remove() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict[1]="one";
         Assert.True(dict.Remove(new KeyValuePair<int,string>(1,"one")));
@@ -24,7 +24,7 @@ public class Remove_KeyValuePair {
 /*
     [Fact,Trait("Category","Coverage")]
     public void Remove_KeyValuePair_InPlaceUpdater_値不一致() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict[1]="one";
         Assert.False(dict.Remove(new KeyValuePair<int,string>(1,"wrong")));
@@ -32,7 +32,7 @@ public class Remove_KeyValuePair {
 */
     [Fact,Trait("Category","Coverage")]
     public void NeedInitialUpdate() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         Assert.False(dict.Remove(new KeyValuePair<int,string>(999,"v")));
     }
@@ -40,7 +40,7 @@ public class Remove_KeyValuePair {
         var folder = CreateFolder();
         using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = new DictionaryStore<int,string>(logDevice,objDevice,MemorySize: TestMemorySize,MutableFraction: 0);
+        using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0,LogDevice:logDevice,ObjectLogDevice:objDevice);
         using var dict = store.Create();
         for(var a = 0; a<300; a++) {
             dict[a]=$"v{a}";
@@ -67,7 +67,7 @@ public class Remove_KeyValuePair {
         var folder = CreateFolder();
         using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = new DictionaryStore<int,string>(logDevice,objDevice,MemorySize: TestMemorySize,MutableFraction: 0);
+        using var store = Store.Create<int,string>(logDevice,objDevice,MemorySize: TestMemorySize,MutableFraction: 0);
         using var dict = store.Create();
         for(var a = 0; a<300; a++) {
             dict[a]=$"v{a}";
@@ -83,7 +83,7 @@ public class Remove_KeyValuePair {
         var folder = CreateFolder();
         using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = new DictionaryStore<int,string>(logDevice,objDevice,MemorySize: TestMemorySize);
+        using var store = Store.Create<int,string>(logDevice,objDevice,MemorySize: TestMemorySize);
         using var dict = store.Create();
         dict[0]="target";
         // 全レコードをディスクに追い出す → 次の Remove で IsPending=true → ConvertOutputToHeap が呼ばれる
@@ -99,7 +99,7 @@ public class Remove_KeyValuePair {
     // ----------------------------------------------------------------
 
     private void RemoveTKeyTValue_InPlaceUpdater() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict[1]="one";
         Assert.True(dict.Remove(1,out var value));
@@ -111,7 +111,7 @@ public class Remove_KeyValuePair {
 
     [Fact,Trait("Category","Coverage")]
     public void Remove_TKey_TValue_NeedInitialUpdate_キー未存在() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         Assert.False(dict.Remove(999,out _));
     }
@@ -121,7 +121,7 @@ public class Remove_KeyValuePair {
         var folder = CreateFolder();
         using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = new DictionaryStore<int,string>(logDevice,objDevice,MemorySize: TestMemorySize,MutableFraction: 0);
+        using var store = Store.Create<int,string>(logDevice,objDevice,MemorySize: TestMemorySize,MutableFraction: 0);
         using var dict = store.Create();
         for(var a = 0; a<300; a++) {
             dict[a]=$"v{a}";
@@ -151,7 +151,7 @@ public class Remove_KeyValuePair {
         var folder = CreateFolder();
         using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = new DictionaryStore<int,string>(logDevice,objDevice,MemorySize: TestMemorySize);
+        using var store = Store.Create<int,string>(MemorySize:TestMemorySize,LogDevice:logDevice,ObjectLogDevice:objDevice);
         using var dict = store.Create();
         dict[0]="target";
         // 全レコードをディスクに追い出す → 次の Remove で IsPending=true → ConvertOutputToHeap が呼ばれる

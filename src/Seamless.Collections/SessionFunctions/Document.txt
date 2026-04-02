@@ -58,3 +58,27 @@ RMW
         ReadCompletionCallback//Read の非同期I/O完了時に呼ばれる。
     出力のヒープ化
         ConvertOutputToHeap
+
+public async ValueTask LoadAsync(CancellationToken ct=default){
+	if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
+		throw new InvalidOperationException($"{nameof(KVSettings.CheckpointDir)} is not set.");
+	// 1st call: IndexCheckpointInfo.startLogicalAddress > beginAddress → RecoverFuzzyIndexAsync called (sets recoveryCountdown), TailAddress → finalLogicalAddress
+	// 2nd call: TailAddress > firstValidAddress → internal Reset() + recoveryCountdown != null → recoveredICInfo = default → recoverFromAddress = beginAddress → ProcessReadSnapshotPage called for all pages
+	await this.Store.RecoverAsync(numPagesToPreload: -1,undoNextVersion: false,recoverTo: -1,cancellationToken: ct);
+	await this.Store.RecoverAsync(numPagesToPreload: -1,undoNextVersion: false,recoverTo: -1,cancellationToken: ct);
+}
+2回RecoverAsyncしないとリカバーしない
+// 1回目: RecoverFuzzyIndexAsync → recoveryCountdownを設定 + TailAddress = T
+await this.Store.RecoverAsync(...);
+// 2回目: TailAddress = T > 64 → 内部Reset → recoveredICInfo = default → 正常パスへ
+await this.Store.RecoverAsync(...);
+呼び出し	TailAddress	内部Reset	recoverFromAddress	ProcessReadSnapshotPage
+1回目（新規ストア）	64 = firstValid	呼ばれない	startLogicalAddress ≈ finalLogicalAddress	N < N = false → スキップ
+2回目	T > 64	呼ばれる	beginAddress = 64	64 < endLogical = true → 実行
+バグの本質: インデックスチェックポイントstartLogicalAddress = チェックポイント開始時のTailAddress = finalLogicalAddressのため、スナップショットページをメモリに展開するためのProcessReadSnapshotPageが一度も呼ばれない。ハッシュテーブルはファイルからロードされるが、スナップショットのページデータは正しくセットアップされずReadがすべてNotFoundになる。
+Tsavoriteの想定使用パターン（コメントより）:
+"Make sure store is quiesced before calling Recover on a running store"
+Tsavoriteは「稼働中のストアへのリカバリ」を想定しており、TailAddress > firstValidAddressの状態が前提。新規作成ストアでの初回リカバリというユースケースがバグを踏む。
+現在の回避策（LoadAsync(CancellationToken)）:
+Tsavoriteのissueとして報告する価値があります。
+

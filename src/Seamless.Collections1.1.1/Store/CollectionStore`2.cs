@@ -5,7 +5,6 @@ using Seamless.Devices;
 using Tsavorite.core;
 
 namespace Seamless.Collections;
-
 public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable where TKey : IEquatable<TKey> {
 	private protected readonly KVSettings<SpanByte,SpanByte> Settings;
 	public readonly TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store;
@@ -13,14 +12,18 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 	public double MutableFraction { get; }
 	private readonly long SegmentSize;
 
-	/// <param name="IndexSize"></param>
-	/// <param name="PageSize"></param>
-	/// <param name="SegmentSize"></param>
-	/// <param name="MemorySize"></param>
-	/// <param name="MutableFraction"></param>
-	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction) : this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity)) {
-	}
-	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice) {
+    /// <param name="IndexSize"></param>
+    /// <param name="PageSize"></param>
+    /// <param name="SegmentSize"></param>
+    /// <param name="MemorySize"></param>
+    /// <param name="MutableFraction"></param>
+    private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir,bool recoverDevice):
+        this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,CheckpointDir,recoverDevice,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity)){
+
+    }
+    //private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir=null) 
+ //       : this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),CheckpointDir) {}
+	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir,bool recoverDevice,IDevice LogDevice,IDevice ObjectLogDevice) {
 		AssertIsPowerOfTwo(IndexSize,nameof(IndexSize));
 		AssertIsPowerOfTwo(PageSize,nameof(PageSize));
 		AssertIsPowerOfTwo(SegmentSize,nameof(SegmentSize));
@@ -36,10 +39,10 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 			MemorySize=MemorySize,
 			PageSize=PageSize,
 			SegmentSize=SegmentSize,
-
 			MutableFraction=MutableFraction,
 			LogDevice=LogDevice,
 			ObjectLogDevice=ObjectLogDevice,
+			CheckpointDir=CheckpointDir,
 		};
 		this.Settings=Settings;
 		this.SegmentSize=SegmentSize;
@@ -57,6 +60,18 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 			static (AllocSettings,StoreFuncs) => new SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>(AllocSettings,StoreFuncs));
 	}
 	//TFunctions : ISessionFunctions<TKey, TValue, TInput, TOutput, TContext>
+	public async ValueTask SaveAsync(CancellationToken ct=default){
+		if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
+			throw new InvalidOperationException($"{nameof(KVSettings<SpanByte,SpanByte>.CheckpointDir)} is not set.");
+		var (success,_)=await this.Store.TakeFullCheckpointAsync(CheckpointType.Snapshot,ct);
+		if(!success) throw new InvalidOperationException("Checkpoint failed.");
+		await this.Store.CompleteCheckpointAsync(ct);
+	}
+	public async ValueTask LoadAsync(CancellationToken ct=default){
+		if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
+			throw new InvalidOperationException($"{nameof(KVSettings<SpanByte,SpanByte>.CheckpointDir)} is not set.");
+		await this.Store.RecoverAsync(numPagesToPreload: -1,undoNextVersion: false,cancellationToken: ct);
+	}
 	public void CompactWithLookup() {
 		var Store = this.Store;
 		// 1. 【境界の取得】

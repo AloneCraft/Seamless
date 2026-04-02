@@ -7,7 +7,7 @@ public class Enumerator {
     // Enumerator.MoveNext: 空コレクション → false
     [Fact, Trait("Category","Coverage")]
     public void MoveNext_空コレクション() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         using var e = dict.GetEnumerator();
         Assert.False(e.MoveNext());
@@ -15,7 +15,7 @@ public class Enumerator {
     // Enumerator.MoveNext: Chunk_Length=2 要素でチャンク内パス (Index < Count)
     [Fact, Trait("Category","Coverage")]
     public void MoveNext_チャンク内パス_2要素() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");
         dict.Add(2,"b");
@@ -26,7 +26,7 @@ public class Enumerator {
     // Enumerator.MoveNext: 3要素で複数チャンク (1チャンク目2件+2チャンク目1件)
     [Fact, Trait("Category","Coverage")]
     public void MoveNext_複数チャンク_3要素() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");
         dict.Add(2,"b");
@@ -38,7 +38,7 @@ public class Enumerator {
     // Enumerator.Current の値確認
     [Fact, Trait("Category","Coverage")]
     public void Current_値が正しい() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict.Add(42,"hello");
         using var e = dict.GetEnumerator();
@@ -50,7 +50,7 @@ public class Enumerator {
     // IEnumerator.Current (object 版)
     [Fact, Trait("Category","Coverage")]
     public void Current_IEnumerator_オブジェクト版() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict.Add(7,"x");
         using var e = dict.GetEnumerator();
@@ -61,7 +61,7 @@ public class Enumerator {
     // Enumerator.Reset 後に先頭から再列挙できる
     [Fact, Trait("Category","Coverage")]
     public void Reset_先頭から再列挙() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");
         dict.Add(2,"b");
@@ -75,7 +75,7 @@ public class Enumerator {
     // Enumerator.Dispose は安全に呼び出せる
     [Fact, Trait("Category","Coverage")]
     public void Dispose_安全() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");
         var e = dict.GetEnumerator();
@@ -85,7 +85,7 @@ public class Enumerator {
     // HashSet による KeyEnumerable struct GetEnumerator() パス
     [Fact, Trait("Category","Coverage")]
     public void MoveNext_HashSet_複数チャンク_3要素() {
-        using var store = new HashSetStore<int>();
+        using var store = Store.Create<int>();
         using var set = store.Create();
         set.Add(1);
         set.Add(2);
