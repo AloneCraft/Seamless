@@ -10,28 +10,33 @@ namespace Seamless.Collections;
 /// <see cref="IDictionary{TKey,TValue}"/> を実装し、利用者に Tsavorite の詳細を見せない。
 /// 静的ポリモーフィズムにより仮想ディスパッチを回避する。
 /// </summary>
-public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<TKey>where TValue:IEquatable<TValue>{
-    private protected const int RecordOverheadBytes=128;
-    private protected readonly TsavoriteKV<GStoreFunctions,GAllocator> Store;
-    private protected readonly long LogMemorySize;
-    private protected readonly double MutableFraction;
-    private protected readonly Add SessionFunctions=new();
-    public ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Add                ,GStoreFunctions,GAllocator> ClientSession;
-    private protected readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Delete             ,GStoreFunctions,GAllocator>DeleteClientSession;
-    protected Collection(TsavoriteKV<GStoreFunctions,GAllocator> Store,long LogMemorySize=0,double MutableFraction=1.0){
-        this.Store=Store;
-        this.LogMemorySize=LogMemorySize;
-        this.MutableFraction=MutableFraction;
-        this.ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Add>(this.SessionFunctions);
-        this.DeleteClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Delete>(new ());
+public abstract partial class Collection<TKey,TValue> where TKey:IEquatable<TKey>where TValue:IEquatable<TValue>{
+    //private protected const int RecordOverheadBytes=128;
+    //private protected readonly TsavoriteKV<GStoreFunctions,GAllocator> Store;
+    //private protected readonly long LogMemorySize;
+    //private protected readonly double MutableFraction;
+    //private protected readonly Add SessionFunctions=new();
+    //public ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Add                ,GStoreFunctions,GAllocator> ClientSession;
+    //private protected readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Delete             ,GStoreFunctions,GAllocator>DeleteClientSession;
+    private partial void Initialize(){
+        var Store=this.Store;
+        this.ClientSession      =Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Empty, Add>(new());
+        this.DeleteClientSession=Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Empty, Delete>(new());
     }
-    public void Clear(){
-        var Session=this.ClientSession;
-        Session.BasicContext.CompletePending(wait:true);
-        Session.Dispose();
-        this.Store.Reset();
-        this.ClientSession=this.Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Add>(this.SessionFunctions);
-    }
+    //protected Collection(TsavoriteKV<GStoreFunctions,GAllocator> Store,long LogMemorySize=0,double MutableFraction=1.0){
+    //    this.Store=Store;
+    //    this.LogMemorySize=LogMemorySize;
+    //    this.MutableFraction=MutableFraction;
+    //    this.ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Add>(this.SessionFunctions);
+    //    this.DeleteClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Delete>(new ());
+    //}
+    //public void Clear(){
+    //    var Session=this.ClientSession;
+    //    Session.BasicContext.CompletePending(wait:true);
+    //    Session.Dispose();
+    //    this.Store.Reset();
+    //    this.ClientSession=this.Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Add>(this.SessionFunctions);
+    //}
 
 
 
@@ -41,34 +46,35 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
 
 
 
-    private protected OutOfMemoryException ThrowLogFull() {
-        var Log = this.Store.Log;
-        return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
-    }
-    private protected bool WouldOverflowMutable(int KeyLength,int ValueLength){
-        if(this.LogMemorySize<=0) {
-            return false;
-        }
-        var MutableBytes = (long)(this.LogMemorySize*this.MutableFraction);
-        if(MutableBytes<=0) {
-            MutableBytes=this.LogMemorySize;
-        }
-        var Log = this.Store.Log;
-        var Used = Log.TailAddress-Log.BeginAddress;
-        var Required = (long)KeyLength+ValueLength+RecordOverheadBytes;
-        return Used+Required>MutableBytes;
-    }
-    private protected static byte[] Serialize<T>(T value) => MemoryPackSerializer.Serialize(value);
-    private protected static T Deserialize<T>(ReadOnlySpan<byte> bytes) => MemoryPackSerializer.Deserialize<T>(bytes)!;
-    public long GetLongCount() {
-        var Iterator = new CounterIterator();
-        long Cursor = 0;
-        this.ClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-        return Iterator.Counter;
-    }
-    public int Count => (int)this.GetLongCount();
-    public long EntryCount => this.Store.EntryCount;
-    private protected Status Read(TKey Key,ref SpanByteAndMemory Output) {
+    //private protected OutOfMemoryException ThrowLogFull() {
+    //    var Log = this.Store.Log;
+    //    return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
+    //}
+    //private protected bool WouldOverflowMutable(int KeyLength,int ValueLength){
+    //    if(this.LogMemorySize<=0) {
+    //        return false;
+    //    }
+    //    var MutableBytes = (long)(this.LogMemorySize*this.MutableFraction);
+    //    if(MutableBytes<=0) {
+    //        MutableBytes=this.LogMemorySize;
+    //    }
+    //    var Log = this.Store.Log;
+    //    var Used = Log.TailAddress-Log.BeginAddress;
+    //    var Required = (long)KeyLength+ValueLength+RecordOverheadBytes;
+    //    return Used+Required>MutableBytes;
+    //}
+    //private protected static byte[] Serialize<T>(T value) => MemoryPackSerializer.Serialize(value);
+    //private protected static T Deserialize<T>(ReadOnlySpan<byte> bytes) => MemoryPackSerializer.Deserialize<T>(bytes)!;
+    //public long GetLongCount() {
+    //    var Iterator = new CounterIterator();
+    //    long Cursor = 0;
+    //    this.ClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+    //    return Iterator.Counter;
+    //}
+    //public int Count => (int)this.GetLongCount();
+    //public long EntryCount => this.Store.EntryCount;
+    private protected partial Status Read(TKey Key,out SpanByteAndMemory Output) {
+        Output=default;
         var Session=this.ClientSession;
         var KeyBytes = Serialize(Key);
         var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
@@ -91,30 +97,30 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         }
         return Status;
     }
-    //private protected static Status Pending<TSessionFunctions0,GStoreFunctions0,SAllocator0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions0,SAllocator0>Session,Status Status)
-    //    where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
-    //    where GStoreFunctions0  :Tsavorite.core.IStoreFunctions
-    //    where SAllocator0 : IAllocator<GStoreFunctions0>{
-    //    if(Status.IsPending) {
-    //        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-    //        CompletedOutputs.Next();
-    //        Status=CompletedOutputs.Current.Status;
-    //        CompletedOutputs.Dispose();
-    //    } else {
-    //    }
-    //    return Status;
-    //}
-    //private protected static Status Pending(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions,GStoreFunctions,SAllocator>Session,Status Status,ref SpanByteAndMemory Output){
-    //    if(Status.IsPending) {
-    //        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-    //        CompletedOutputs.Next();
-    //        Status=CompletedOutputs.Current.Status;
-    //        Output=CompletedOutputs.Current.Output;
-    //        CompletedOutputs.Dispose();
-    //    } else {
-    //    }
-    //    return Status;
-    //}
+    ////private protected static Status Pending<TSessionFunctions0,GStoreFunctions0,SAllocator0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions0,SAllocator0>Session,Status Status)
+    ////    where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
+    ////    where GStoreFunctions0  :Tsavorite.core.IStoreFunctions
+    ////    where SAllocator0 : IAllocator<GStoreFunctions0>{
+    ////    if(Status.IsPending) {
+    ////        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
+    ////        CompletedOutputs.Next();
+    ////        Status=CompletedOutputs.Current.Status;
+    ////        CompletedOutputs.Dispose();
+    ////    } else {
+    ////    }
+    ////    return Status;
+    ////}
+    ////private protected static Status Pending(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions,GStoreFunctions,SAllocator>Session,Status Status,ref SpanByteAndMemory Output){
+    ////    if(Status.IsPending) {
+    ////        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
+    ////        CompletedOutputs.Next();
+    ////        Status=CompletedOutputs.Current.Status;
+    ////        Output=CompletedOutputs.Current.Output;
+    ////        CompletedOutputs.Dispose();
+    ////    } else {
+    ////    }
+    ////    return Status;
+    ////}
     private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions,GAllocator>Session,Status Status,ref SpanByteAndMemory Output)
         where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
         if(Status.IsPending) {
@@ -128,21 +134,21 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         }
         return Status;
     }
-    //private protected static Status Pending<TSessionFunctions0,GStoreFunctions0,SAllocator0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions0,SAllocator0>Session,Status Status,ref SpanByteAndMemory Output)
-    //    where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
-    //    where GStoreFunctions0  :Tsavorite.core.IStoreFunctions
-    //    where SAllocator0 : IAllocator<GStoreFunctions0>{
-    //    if(Status.IsPending) {
-    //        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-    //        CompletedOutputs.Next();
-    //        Status=CompletedOutputs.Current.Status;
-    //        Output=CompletedOutputs.Current.Output;
-    //        CompletedOutputs.Dispose();
-    //    } else {
-    //    }
-    //    return Status;
-    //}
-    private protected TryAddResult PrivateTryAdd(TKey Key,TValue Value){
+    ////private protected static Status Pending<TSessionFunctions0,GStoreFunctions0,SAllocator0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions0,SAllocator0>Session,Status Status,ref SpanByteAndMemory Output)
+    ////    where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
+    ////    where GStoreFunctions0  :Tsavorite.core.IStoreFunctions
+    ////    where SAllocator0 : IAllocator<GStoreFunctions0>{
+    ////    if(Status.IsPending) {
+    ////        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
+    ////        CompletedOutputs.Next();
+    ////        Status=CompletedOutputs.Current.Status;
+    ////        Output=CompletedOutputs.Current.Output;
+    ////        CompletedOutputs.Dispose();
+    ////    } else {
+    ////    }
+    ////    return Status;
+    ////}
+    private protected partial TryAddResult PrivateTryAdd(TKey Key,TValue Value){
         var KeyBytes = Serialize(Key);
         var ValueBytes = Serialize(Value);
         if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length)) {
@@ -163,37 +169,37 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
     }
 
 
-    public bool Contains(TKey Key) {
-        SpanByteAndMemory Output = default;
-        var Status = this.Read(Key,ref Output);
-        Debug.Assert(Status.Found==!Status.NotFound);
-        return Status.Found;
-    }
-    public bool Remove(TKey key) {
+    //public bool Contains(TKey Key) {
+    //    SpanByteAndMemory Output = default;
+    //    var Status = this.Read(Key,ref Output);
+    //    Debug.Assert(Status.Found==!Status.NotFound);
+    //    return Status.Found;
+    //}
+    public partial bool Remove(TKey key) {
         var DeleteClientSession = this.DeleteClientSession;
         var KeyBytes = Serialize(key);
         var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Input = default(PinnedSpanByte);
-        SpanByteAndMemory Output = default;
+        var Output = default(SpanByteAndMemory);
         var Status = DeleteClientSession.BasicContext.RMW(FixedKey, ref Input,ref Output);
         Status=Pending(DeleteClientSession,Status);
         Debug.Assert(Status.Found!=Status.NotFound);
         return Status.Found;
     }
-    public abstract bool IsDisposed{get;}
-    private bool disposed;
-    public void Dispose(){
-        this.Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-    protected virtual void Dispose(bool disposing){
-        if(this.disposed) return;
-        if(disposing){
-            //マネージドリソースの解放
-            this.ClientSession.Dispose();
-        }
-        //アンマネージドリソースの解放（必要なければ省略可）
-        this.disposed=true;
-    }
-    ~Collection()=>this.Dispose(false);
+    //public abstract bool IsDisposed{get;}
+    //private bool disposed;
+    //public void Dispose(){
+    //    this.Dispose(true);
+    //    GC.SuppressFinalize(this);
+    //}
+    //protected virtual void Dispose(bool disposing){
+    //    if(this.disposed) return;
+    //    if(disposing){
+    //        //マネージドリソースの解放
+    //        this.ClientSession.Dispose();
+    //    }
+    //    //アンマネージドリソースの解放（必要なければ省略可）
+    //    this.disposed=true;
+    //}
+    //~Collection()=>this.Dispose(false);
 }

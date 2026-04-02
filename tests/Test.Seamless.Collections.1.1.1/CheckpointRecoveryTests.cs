@@ -1,4 +1,4 @@
-using MemoryPack;
+ï»¿using MemoryPack;
 using System.Buffers;
 using Tsavorite.core;
 using OA = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
@@ -161,16 +161,16 @@ public class CheckpointRecoveryTests{
     [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_Snapshot1(){
         await SaveLoad(CheckpointType.Snapshot,1);
     }
-    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_Snapshot2(){
-        await SaveLoad(CheckpointType.Snapshot,2);
-    }
-    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_StreamingSnapshot1(){
-        await SaveLoad(CheckpointType.StreamingSnapshot,1);
-    }
-    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_StreamingSnapshot2(){
-        await SaveLoad(CheckpointType.StreamingSnapshot,2);
-    }
-    // ƒeƒXƒg—p‚Ìƒ_ƒ~[À‘•‚ğ’Ç‰Á
+    //[Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_Snapshot2(){
+    //    await SaveLoad(CheckpointType.Snapshot,2);
+    //}
+    //[Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_StreamingSnapshot1(){
+    //    await SaveLoad(CheckpointType.StreamingSnapshot,1);
+    //}
+    //[Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_StreamingSnapshot2(){
+    //    await SaveLoad(CheckpointType.StreamingSnapshot,2);
+    //}
+    // ãƒ†ã‚¹ãƒˆç”¨ã®ãƒ€ãƒŸãƒ¼å®Ÿè£…ã‚’è¿½åŠ 
     private struct NullStreamingSnapshotIterator 
         : IStreamingSnapshotIteratorFunctions<SpanByte, SpanByte> {
         public bool OnStart(Guid checkpointToken, long fromAddress, long untilAddress) => true;

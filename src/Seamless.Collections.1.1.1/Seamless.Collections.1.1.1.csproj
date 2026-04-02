@@ -10,21 +10,57 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Collections\**" />
+    <Compile Remove="Device\**" />
     <Compile Remove="RelationalDatabase\**" />
+    <Compile Remove="ScanIteratorFunctions\**" />
     <Compile Remove="Serializer\**" />
+    <Compile Remove="SessionFunctions\**" />
+    <Compile Remove="Store\**" />
+    <EmbeddedResource Remove="Collections\**" />
+    <EmbeddedResource Remove="Device\**" />
     <EmbeddedResource Remove="RelationalDatabase\**" />
+    <EmbeddedResource Remove="ScanIteratorFunctions\**" />
     <EmbeddedResource Remove="Serializer\**" />
+    <EmbeddedResource Remove="SessionFunctions\**" />
+    <EmbeddedResource Remove="Store\**" />
+    <None Remove="Collections\**" />
+    <None Remove="Device\**" />
     <None Remove="RelationalDatabase\**" />
+    <None Remove="ScanIteratorFunctions\**" />
     <None Remove="Serializer\**" />
+    <None Remove="SessionFunctions\**" />
+    <None Remove="Store\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Collections\Collection`5.cs" />
     <Compile Remove="IRelation.cs" />
     <Compile Remove="KeyComparer.cs" />
     <Compile Remove="Relation.cs" />
-    <Compile Remove="Store\Relation.cs" />
     <Compile Remove="Tuple.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Collections\Collection`2.cs" />
+    <Compile Include="Collections\Dictionary.cs" />
+    <Compile Include="Collections\DictionaryDebugView.cs" />
+    <Compile Include="Collections\Empty.cs" />
+    <Compile Include="Collections\Enumerator.cs" />
+    <Compile Include="Collections\HashSet.cs" />
+    <Compile Include="Collections\HashSetDebugView.cs" />
+    <Compile Include="Collections\ISet.cs" />
+    <Compile Include="ScanIteratorFunctions\CounterIterator.cs" />
+    <Compile Include="ScanIteratorFunctions\IScanChunkIteratorFunctions.cs" />
+    <Compile Include="ScanIteratorFunctions\KeyIterator.cs" />
+    <Compile Include="ScanIteratorFunctions\KeyValueIterator.cs" />
+    <Compile Include="ScanIteratorFunctions\ScanIteratorFunctions.cs" />
+    <Compile Include="ScanIteratorFunctions\ValueIterator.cs" />
+    <Compile Include="SessionFunctions\Add.cs" />
+    <Compile Include="SessionFunctions\Delete.cs" />
+    <Compile Include="SessionFunctions\IntersectWith.cs" />
+    <Compile Include="SessionFunctions\Remove_KeyValuePair.cs" />
+    <Compile Include="SessionFunctions\SymmetricExceptWith.cs" />
+    <Compile Include="Store\CollectionStore`2.cs" />
   </ItemGroup>
 
   <ItemGroup>

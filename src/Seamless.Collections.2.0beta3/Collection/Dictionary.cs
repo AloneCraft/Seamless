@@ -25,8 +25,7 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 	}
 	public bool IsReadOnly => false;
     public bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
-        SpanByteAndMemory Output = default;
-        var Status = this.Read(Key,ref Output);
+        var Status = this.Read(Key,out var Output);
         if(Status.NotFound) {
             Value=default;
             return false;
@@ -46,8 +45,7 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 	}
 	public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
     bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item) {
-        SpanByteAndMemory Output = default;
-        var Status = this.Read(item.Key,ref Output);
+        var Status = this.Read(item.Key,out _);
         Debug.Assert(Status.Found==!Status.NotFound);
         return Status.Found;
     }

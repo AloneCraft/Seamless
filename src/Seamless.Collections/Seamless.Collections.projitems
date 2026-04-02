@@ -9,6 +9,20 @@
     <Import_RootNamespace>Seamless.Collections</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\Collection`2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\TryAddResult.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Const.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore`2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\DictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\HashSetStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\Store.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)SessionFunctions\Document.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\" />
   </ItemGroup>
 </Project>
