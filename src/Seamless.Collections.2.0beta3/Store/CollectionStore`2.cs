@@ -1,8 +1,6 @@
 ﻿using Common;
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using Seamless.Devices;
 using Tsavorite.core;
 
 namespace Seamless.Collections;
@@ -32,11 +30,11 @@ public abstract partial class CollectionStore<TKey, TValue>where TKey : IEquatab
             CheckpointDir=CheckpointDir,
         };
     }
-	private static partial GStoreFunctions GetStoreFunctions(){
-        return new GStoreFunctions(new SpanByteComparer(),NullSerializer,new DefaultRecordDisposer());
-        [ExcludeFromCodeCoverage]
-        static IObjectSerializer<IHeapObject>? NullSerializer() => null;
-    }
+	//private static partial GStoreFunctions GetStoreFunctions(){
+ //       return new GStoreFunctions(new SpanByteComparer(),NullSerializer,new DefaultRecordDisposer());
+ //       [ExcludeFromCodeCoverage]
+ //       static IObjectSerializer<IHeapObject>? NullSerializer() => null;
+ //   }
 	//private protected readonly KVSettings Settings;
 	//public readonly TsavoriteKV<GStoreFunctions,GAllocator> Store;
 	//public long LogMemorySize { get; }

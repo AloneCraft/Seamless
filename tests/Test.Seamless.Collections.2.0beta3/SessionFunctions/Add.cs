@@ -1,4 +1,4 @@
-using Common;
+ï»¿using Common;
 
 using Garnet.common;
 
@@ -48,7 +48,7 @@ public class Add {
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
-        //InitialWriter(ReadOnlySpan<byte>)‚Ìclosing}‚ğ’Ê‚·
+        //InitialWriter(ReadOnlySpan<byte>)ã®closing}ã‚’é€šã™
         {
             var status = bc.Upsert(key,SerStr("new"));
             if(status.IsPending) {
@@ -67,7 +67,7 @@ public class Add {
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
-        //InitialWriter(ReadOnlySpan<byte>)‚Ìclosing}‚ğ’Ê‚·
+        //InitialWriter(ReadOnlySpan<byte>)ã®closing}ã‚’é€šã™
         {
             var status = bc.Upsert(key,SerStr("new"));
             if(status.IsPending) {
@@ -75,7 +75,7 @@ public class Add {
                 completed.Dispose();
             }
         }
-        //InPlaceWriter(ReadOnlySpan<byte>)‚Ìclosing}‚ğ’Ê‚·
+        //InPlaceWriter(ReadOnlySpan<byte>)ã®closing}ã‚’é€šã™
         {
             var status = bc.Upsert(key,SerStr("updated"));
             if(status.IsPending) {
@@ -100,17 +100,17 @@ public class Add {
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(500));
-        // V‹KƒL[ ¨ GetUpsertFieldInfo(IHeapObject), InitialWriter(IHeapObject)
-        // SpanByteAllocator‚Å‚ÍInitialWriter(IHeapObject)‚ªfalse‚ğ•Ô‚·‚½‚ßPostInitialWriter(IHeapObject)‚ÍŒÄ‚Î‚ê‚È‚¢
+        // æ–°è¦ã‚­ãƒ¼ â†’ GetUpsertFieldInfo(IHeapObject), InitialWriter(IHeapObject)
+        // SpanByteAllocatorã§ã¯InitialWriter(IHeapObject)ãŒfalseã‚’è¿”ã™ãŸã‚PostInitialWriter(IHeapObject)ã¯å‘¼ã°ã‚Œãªã„
         bc.Upsert(key,(IHeapObject)new DummyHeapObject());
-        // PostUpsertOperation(IHeapObject) ¨ finallyƒuƒƒbƒN‚Åí‚ÉŒÄ‚Î‚ê‚é
+        // PostUpsertOperation(IHeapObject) â†’ finallyãƒ–ãƒ­ãƒƒã‚¯ã§å¸¸ã«å‘¼ã°ã‚Œã‚‹
         bc.Upsert(key,(IHeapObject)new DummyHeapObject());
-        // ƒXƒpƒ“’l‚Å–‘O“o˜^¨IHeapObject‚ÅUpsert ¨ Šù‘¶ƒŒƒR[ƒh”­Œ©¨InPlaceWriter(IHeapObject)‚ªŒÄ‚Î‚ê‚é
-        // SpanByteAllocator‚ÍValueIsObjectƒrƒbƒg‚ğƒNƒŠƒA‚·‚é‚½‚ßInPlaceWriter‚Ífalse‚ğ•Ô‚·
+        // ã‚¹ãƒ‘ãƒ³å€¤ã§äº‹å‰ç™»éŒ²â†’IHeapObjectã§Upsert â†’ æ—¢å­˜ãƒ¬ã‚³ãƒ¼ãƒ‰ç™ºè¦‹â†’InPlaceWriter(IHeapObject)ãŒå‘¼ã°ã‚Œã‚‹
+        // SpanByteAllocatorã¯ValueIsObjectãƒ“ãƒƒãƒˆã‚’ã‚¯ãƒªã‚¢ã™ã‚‹ãŸã‚InPlaceWriterã¯falseã‚’è¿”ã™
         var key2 = MakeKey(SerInt(502));
         bc.Upsert(key2,SerStr("seed"));
         bc.Upsert(key2,(IHeapObject)new DummyHeapObject());
-        // PostInitialWriter(IHeapObject)‚ÍSpanByteAllocator‚Å‚Í“’B‚µ‚È‚¢‚½‚ß’¼ÚŒÄ‚Ño‚·ibody‚ª‹ó‚È‚Ì‚Ådefaultˆø”‚ÅˆÀ‘Sj
+        // PostInitialWriter(IHeapObject)ã¯SpanByteAllocatorã§ã¯åˆ°é”ã—ãªã„ãŸã‚ç›´æ¥å‘¼ã³å‡ºã™ï¼ˆbodyãŒç©ºãªã®ã§defaultå¼•æ•°ã§å®‰å…¨ï¼‰
         {
             var f = new global::Seamless.SessionFunctions.Add();
             var lr = default(LogRecord);
@@ -140,7 +140,7 @@ public class Add {
             var output = default(SpanByteAndMemory);
             var options = default(UpsertOptions);
             if(externalKeyBytes is not null) {
-                var extKey = Add.MakeKey(externalKeyBytes);
+                var extKey = MakeKey(externalKeyBytes);
                 bc.Upsert<FixedSpanByteKey,TSourceLogRecord>(extKey,ref input,in logRecord,ref output,ref options);
             } else {
                 bc.Upsert<TSourceLogRecord>(ref input,in logRecord,ref output,ref options);
@@ -158,10 +158,10 @@ public class Add {
         var addr1 = store.Store.Log.TailAddress;
         session.BasicContext.Upsert(MakeKey(SerInt(600)),SerStr("log"));
         var addr2 = store.Store.Log.TailAddress;
-        // V‹KƒL[(9999) ¨ GetUpsertFieldInfo<TKey,TSourceLogRecord>, InitialWriter<TSourceLogRecord>, PostInitialWriter<TSourceLogRecord>
+        // æ–°è¦ã‚­ãƒ¼(9999) â†’ GetUpsertFieldInfo<TKey,TSourceLogRecord>, InitialWriter<TSourceLogRecord>, PostInitialWriter<TSourceLogRecord>
         var initFuncs = new ScanAndUpsertFunctions(session,SerInt(9999));
         store.Store.Log.Scan(ref initFuncs,addr1,addr2,DiskScanBufferingMode.NoBuffering);
-        // Šù‘¶ƒL[(600) ¨ GetUpsertFieldInfo<TSourceLogRecord,TSourceLogRecord>, InPlaceWriter<TSourceLogRecord>
+        // æ—¢å­˜ã‚­ãƒ¼(600) â†’ GetUpsertFieldInfo<TSourceLogRecord,TSourceLogRecord>, InPlaceWriter<TSourceLogRecord>
         var inplaceFuncs = new ScanAndUpsertFunctions(session,null);
         store.Store.Log.Scan(ref inplaceFuncs,addr1,addr2,DiskScanBufferingMode.NoBuffering);
     }
@@ -209,8 +209,8 @@ public class Add {
         using var store = Store.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         dict.Add(0,"target");
-        // ‘SƒŒƒR[ƒh‚ğƒfƒBƒXƒN‚É’Ç‚¢o‚· ¨ Ÿ‚ÌRMW‚ÅIsPending=true
-        // TryAdd on existing key: AddSessionFunctions‚ÌRMW‚ªPENDING ¨ Pending(Session,Status) IsPending=true •ªŠò‚ğ’Ê‚·
+        // å…¨ãƒ¬ã‚³ãƒ¼ãƒ‰ã‚’ãƒ‡ã‚£ã‚¹ã‚¯ã«è¿½ã„å‡ºã™ â†’ æ¬¡ã®RMWã§IsPending=true
+        // TryAdd on existing key: AddSessionFunctionsã®RMWãŒPENDING â†’ Pending(Session,Status) IsPending=true åˆ†å²ã‚’é€šã™
         store.Store.Log.FlushAndEvict(true);
         Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(0,"other"));
     }
@@ -221,7 +221,7 @@ public class Add {
         using var store = Store.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         dict[0]="target";
-        // ‘SƒŒƒR[ƒh‚ğƒfƒBƒXƒN‚É’Ç‚¢o‚· ¨ Ÿ‚ÌRead‚ÅIsPending=true
+        // å…¨ãƒ¬ã‚³ãƒ¼ãƒ‰ã‚’ãƒ‡ã‚£ã‚¹ã‚¯ã«è¿½ã„å‡ºã™ â†’ æ¬¡ã®Readã§IsPending=true
         store.Store.Log.FlushAndEvict(true);
         Assert.True(dict.TryGetValue(0,out var v));
         Assert.Equal("target",v);
@@ -233,8 +233,8 @@ public class Add {
         using var store = Store.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         dict.Add(0,"target");
-        // ‘SƒŒƒR[ƒh‚ğƒfƒBƒXƒN‚É’Ç‚¢o‚· ¨ Ÿ‚ÌRMW‚ÅIsPending=true
-        // TryAdd on existing key: AddSessionFunctions‚ÌRMW‚ªPENDING ¨ Pending(Session,Status) IsPending=true •ªŠò‚ğ’Ê‚·
+        // å…¨ãƒ¬ã‚³ãƒ¼ãƒ‰ã‚’ãƒ‡ã‚£ã‚¹ã‚¯ã«è¿½ã„å‡ºã™ â†’ æ¬¡ã®RMWã§IsPending=true
+        // TryAdd on existing key: AddSessionFunctionsã®RMWãŒPENDING â†’ Pending(Session,Status) IsPending=true åˆ†å²ã‚’é€šã™
         store.Store.Log.FlushAndEvict(true);
         Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(0,"other"));
     }

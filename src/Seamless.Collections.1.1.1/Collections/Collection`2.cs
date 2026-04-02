@@ -92,31 +92,31 @@ public abstract partial class Collection<TKey,TValue>where TKey:IEquatable<TKey>
     ////    }
     ////    return Status;
     ////}
-    private protected static Status Pending<TSessionFunctions0>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions,GAllocator>Session,Status Status)
-        where TSessionFunctions0:ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>{
-        if(Status.IsPending) {
-            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-            CompletedOutputs.Next();
-            Status=CompletedOutputs.Current.Status;
-            CompletedOutputs.Dispose();
-        } else {
-        }
-        return Status;
-    }
-    private protected static Status Pending<TSessionFunctions0,TStoreFunctions0,TAllocator0>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions0,TAllocator0>Session,Status Status,ref SpanByteAndMemory Output)
-        where TSessionFunctions0:ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>
-        where TStoreFunctions0  :IStoreFunctions<SpanByte,SpanByte>
-        where TAllocator0 : IAllocator<SpanByte,SpanByte,TStoreFunctions0>{
-        if(Status.IsPending) {
-            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-            CompletedOutputs.Next();
-            Status=CompletedOutputs.Current.Status;
-            Output=CompletedOutputs.Current.Output;
-            CompletedOutputs.Dispose();
-        } else {
-        }
-        return Status;
-    }
+    //private protected static Status Pending<TSessionFunctions0>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions,GAllocator>Session,Status Status)
+    //    where TSessionFunctions0:ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>{
+    //    if(Status.IsPending) {
+    //        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
+    //        CompletedOutputs.Next();
+    //        Status=CompletedOutputs.Current.Status;
+    //        CompletedOutputs.Dispose();
+    //    } else {
+    //    }
+    //    return Status;
+    //}
+    //private protected static Status Pending<TSessionFunctions0,TStoreFunctions0,TAllocator0>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions0,TAllocator0>Session,Status Status,ref SpanByteAndMemory Output)
+    //    where TSessionFunctions0:ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>
+    //    where TStoreFunctions0  :IStoreFunctions<SpanByte,SpanByte>
+    //    where TAllocator0 : IAllocator<SpanByte,SpanByte,TStoreFunctions0>{
+    //    if(Status.IsPending) {
+    //        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
+    //        CompletedOutputs.Next();
+    //        Status=CompletedOutputs.Current.Status;
+    //        Output=CompletedOutputs.Current.Output;
+    //        CompletedOutputs.Dispose();
+    //    } else {
+    //    }
+    //    return Status;
+    //}
     private protected partial TryAddResult PrivateTryAdd(TKey Key,TValue Value){
         var KeyBytes = Serialize(Key);
         var ValueBytes = Serialize(Value);

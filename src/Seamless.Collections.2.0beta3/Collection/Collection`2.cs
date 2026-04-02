@@ -97,30 +97,6 @@ public abstract partial class Collection<TKey,TValue> where TKey:IEquatable<TKey
         }
         return Status;
     }
-    ////private protected static Status Pending<TSessionFunctions0,GStoreFunctions0,SAllocator0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions0,SAllocator0>Session,Status Status)
-    ////    where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
-    ////    where GStoreFunctions0  :Tsavorite.core.IStoreFunctions
-    ////    where SAllocator0 : IAllocator<GStoreFunctions0>{
-    ////    if(Status.IsPending) {
-    ////        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-    ////        CompletedOutputs.Next();
-    ////        Status=CompletedOutputs.Current.Status;
-    ////        CompletedOutputs.Dispose();
-    ////    } else {
-    ////    }
-    ////    return Status;
-    ////}
-    ////private protected static Status Pending(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions,GStoreFunctions,SAllocator>Session,Status Status,ref SpanByteAndMemory Output){
-    ////    if(Status.IsPending) {
-    ////        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-    ////        CompletedOutputs.Next();
-    ////        Status=CompletedOutputs.Current.Status;
-    ////        Output=CompletedOutputs.Current.Output;
-    ////        CompletedOutputs.Dispose();
-    ////    } else {
-    ////    }
-    ////    return Status;
-    ////}
     private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions,GAllocator>Session,Status Status,ref SpanByteAndMemory Output)
         where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
         if(Status.IsPending) {

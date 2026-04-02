@@ -1,8 +1,9 @@
 ﻿using Common;
 
+using Seamless.Devices;
+
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using Seamless.Devices;
 using Tsavorite.core;
 
 namespace Seamless.Collections;
@@ -12,13 +13,17 @@ namespace Seamless.Collections;
 /// </summary>
 public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDisposable where TKey : IEquatable<TKey> {
     //private protected readonly GKVSettings Settings;
-    private protected GKVSettings Settings{get;private set;}
-	public readonly GTsavoriteKV Store;
+#if TSAVORITE2_0BETA3
+    private protected KVSettings Settings{get;private set;}
+	public readonly TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store;
+#elif TSAVORITE1_1_1
+    private protected KVSettings<SpanByte,SpanByte> Settings{get;private set;}
+    public readonly TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store;
+#endif
 	public long LogMemorySize { get; }
 	public double MutableFraction { get; }
 	private bool Disposed;
 	private partial void Initialize(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir);
-    private static partial GStoreFunctions GetStoreFunctions();
 
     private CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) {
 		AssertIsPowerOfTwo(IndexSize,nameof(IndexSize));
@@ -58,14 +63,35 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
 		this.LogMemorySize=MemorySize;
 		this.MutableFraction=MutableFraction;
 		//MemoryOnlyDevice使用時はシリアライザ不要。ページデータはヒープ上で保持されるためインライン格納で十分。
-		var StoreFunctions = GetStoreFunctions();
-		this.Store=new GTsavoriteKV(
+#if TSAVORITE2_0BETA3
+        var StoreFunctions =new StoreFunctions<SpanByteComparer,DefaultRecordDisposer>(new SpanByteComparer(),NullSerializer,new DefaultRecordDisposer());
+		this.Store=new TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>(
 			this.Settings,
 			StoreFunctions,
-			static (AllocSettings,StoreFuncs) =>new GAllocator(
+			static (AllocSettings,StoreFuncs) =>new SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>(
+                AllocSettings,
+                StoreFuncs
+            )
+        );
+        [ExcludeFromCodeCoverage]
+        static IObjectSerializer<IHeapObject>? NullSerializer() => null;
+#elif TSAVORITE1_1_1
+        var StoreFunctions = new StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>(
+            new SpanByteComparer(),
+            NullSerializer,
+            NullSerializer,
+            new SpanByteRecordDisposer()
+        );
+        this.Store=new TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>(
+            this.Settings,
+            StoreFunctions,
+            static (AllocSettings,StoreFuncs) =>new SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>(
                 AllocSettings,
                 StoreFuncs
             ));
+        [ExcludeFromCodeCoverage]
+		static IObjectSerializer<SpanByte>? NullSerializer() => null;
+#endif
 	}
 	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir) : 
         this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),CheckpointDir) {

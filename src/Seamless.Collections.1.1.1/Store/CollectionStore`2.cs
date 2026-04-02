@@ -1,10 +1,4 @@
-﻿using Common;
-
-using Seamless.Devices;
-
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using Tsavorite.core;
+﻿using Tsavorite.core;
 
 namespace Seamless.Collections;
 public abstract partial class CollectionStore<TKey, TValue>where TKey : IEquatable<TKey> {
@@ -22,17 +16,6 @@ public abstract partial class CollectionStore<TKey, TValue>where TKey : IEquatab
             CheckpointDir=CheckpointDir,
         };
 	}
-
-    private static partial GStoreFunctions GetStoreFunctions(){
-        return new GStoreFunctions(
-            new SpanByteComparer(),
-            NullSerializer,
-            NullSerializer,
-            new SpanByteRecordDisposer()
-        );
-        [ExcludeFromCodeCoverage]
-		static IObjectSerializer<SpanByte>? NullSerializer() => null;
-    }
     //private protected readonly KVSettings<SpanByte,SpanByte> Settings;
     //public readonly TsavoriteKV<SpanByte,SpanByte,GStoreFunctions,GAllocator> Store;
     //public long LogMemorySize { get; }

@@ -1,4 +1,5 @@
-﻿using Seamless.SessionFunctions;
+﻿using Garnet.common;
+using Seamless.SessionFunctions;
 namespace Seamless.Collections;
 using ScanIteratorFunctions;
 
@@ -14,19 +15,26 @@ using Tsavorite.core;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(DictionaryDebugView<,>))]
-public sealed partial class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey, TValue>
+public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey, TValue>
 	where TKey :IEquatable<TKey>
 	where TValue : IEquatable<TValue> {
 	//private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue ,GStoreFunctions,GAllocator>Remove_TKey_TValue_ClientSession;
 	//private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair ,GStoreFunctions,GAllocator>Remove_KeyValuePair_ClientSession;
-    private GRemove_TKey_TValue_ClientSession Remove_TKey_TValue_ClientSession{get;set;}
-    private GRemove_KeyValuePair_ClientSession Remove_KeyValuePair_ClientSession{get;set;}
-    private partial void Initialize();
-	internal Dictionary(GTsavoriteKV Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
-        this.Initialize();
-  //      this.Remove_TKey_TValue_ClientSession=Store.NewSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue>(new ());
-		//this.Remove_KeyValuePair_ClientSession=Store.NewSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair>(new ());
-	}
+#if TSAVORITE2_0BETA3
+    private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
+    private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Remove_KeyValuePair_ClientSession{get;set;}
+	internal Dictionary(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
+        this.Remove_TKey_TValue_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue>(new ());
+        this.Remove_KeyValuePair_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair>(new ());
+    }
+#elif TSAVORITE1_1_1
+    private ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
+    private ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair   ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>Remove_KeyValuePair_ClientSession{get;set;}
+	internal Dictionary(TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) { 
+        this.Remove_TKey_TValue_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue>(new ());
+        this.Remove_KeyValuePair_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair>(new ());
+    }
+#endif
 	public bool IsReadOnly => false;
     public bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
         var Status = this.Read(Key,out var Output);
@@ -64,36 +72,118 @@ public sealed partial class Dictionary<TKey, TValue>:Collection<TKey,TValue>, ID
     /// </summary>
     /// <param name="item"></param>
     /// <returns></returns>
-    public partial bool Remove(KeyValuePair<TKey,TValue> item);
-    //{
-    //    var Session = this.Remove_KeyValuePair_ClientSession;
-    //    var KeyBytes = Serialize(item.Key);
-    //    var ValueBytes = Serialize(item.Value);
-    //    var FixedKey=GetFixedKey(KeyBytes);//(Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-    //    var Input=GetFixedInput(ValueBytes);//PinnedSpanByte.FromPinnedSpan(ValueBytes);
-    //    SpanByteAndMemory Output = default;
-    //    var Status = Session.BasicContext.RMW(FixedKey, ref Input, ref Output);
-    //    Status = Pending(Session, Status, ref Output);
-    //    return GetReadOnlySpan(Output).IsEmpty;
-    //}
-    public partial bool Remove(TKey key,[MaybeNullWhen(false)]out TValue value);
-    //{
-    //    var Session = this.Remove_TKey_TValue_ClientSession;
-    //    var KeyBytes = Serialize(key);
-    //    //var FixedKey = (Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-    //    //var Input = default(PinnedSpanByte);
-    //    var FixedKey =GetFixedKey(KeyBytes);
-    //    var Input = GetDefaultInput();
-    //    SpanByteAndMemory Output = default;
-    //    var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
-    //    Status=Pending(Session,Status,ref Output);
-    //    if(Status.Found) {
-    //        value=Deserialize<TValue>(GetReadOnlySpan(Output));
-    //        return true;
-    //    }
-    //    value=default;
-    //    return false;
-    //}
+#if TSAVORITE2_0BETA3
+    public bool Remove(KeyValuePair<TKey,TValue> item) {
+        var Session = this.Remove_KeyValuePair_ClientSession;
+        var KeyBytes = Serialize(item.Key);
+        var ValueBytes = Serialize(item.Value);
+        var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
+        var Input = PinnedSpanByte.FromPinnedSpan(ValueBytes);
+        var Output = default(SpanByteAndMemory);
+        var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
+        Status=Pending(Session,Status,ref Output);
+        ReadOnlySpan<byte> x=Output.ReadOnlySpan;
+        return !Output.ReadOnlySpan.IsEmpty;
+    }
+    public bool Remove(TKey key,out TValue value) {
+        var Session = this.Remove_TKey_TValue_ClientSession;
+        var KeyBytes = Serialize(key);
+        var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
+        var Input = default(PinnedSpanByte);
+        SpanByteAndMemory Output = default;
+        var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
+        Status=Pending(Session,Status,ref Output);
+        if(Status.Found) {
+            value=Deserialize<TValue>(Output.ReadOnlySpan);
+            return true;
+        }
+        value=default;
+        return false;
+    }
+    public Enumerator<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
+    private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
+        // Tsavoriteのセッションから列挙を開始
+        // 列挙数が不明なため、Listの初期容量はデフォルトに任せる
+        var Collection = new List<T>();
+        using var Enumerator = new Enumerator<
+            TKey, TValue, Add,
+            StoreFunctions<SpanByteComparer, DefaultRecordDisposer>,
+            SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>,
+            TIterator, T
+        >(this.ClientSession, Iterator);
+        while (Enumerator.MoveNext()){
+            Collection.Add(Enumerator.Current);
+        }
+
+        return Collection;
+    }    
+    private IEnumerable<T> Enumerate<TIterator,T>(TIterator Iterator)
+        where TIterator:ScanIteratorFunctions<T>{
+        using var e=new Enumerator<
+            TKey,TValue,Add,
+            StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,
+            SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,
+            TIterator,T
+        >(this.ClientSession,Iterator);
+        while(e.MoveNext())
+            yield return e.Current;
+    }
+#elif TSAVORITE1_1_1
+    public bool Remove(KeyValuePair<TKey,TValue> item) {
+        var Session = this.Remove_KeyValuePair_ClientSession;
+        var KeyBytes = Serialize(item.Key);
+        var ValueBytes = Serialize(item.Value);
+        var FixedKey =SpanByte.FromPinnedSpan(KeyBytes);
+        var Input =SpanByte.FromPinnedSpan(ValueBytes);
+        var Status = Session.BasicContext.RMW(FixedKey,Input,out var Output);
+        Status=Pending(Session,Status,ref Output);
+        return !Output.AsReadOnlySpan().IsEmpty;
+    }
+    public bool Remove(TKey key,out TValue value) {
+        var Session = this.Remove_TKey_TValue_ClientSession;
+        var KeyBytes = Serialize(key);
+        var FixedKey =SpanByte.FromPinnedSpan(KeyBytes);
+        var Input = default(SpanByte);
+        var Status = Session.BasicContext.RMW(FixedKey,Input,out var Output);
+        Status=Pending(Session,Status,ref Output);
+        if(Status.Found) {
+            value=Deserialize<TValue>(Output.AsReadOnlySpan());
+            return true;
+        }
+        value=default;
+        return false;
+    }
+    public Enumerator<TKey,TValue,Add,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
+    private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
+        // Tsavoriteのセッションから列挙を開始
+        // 列挙数が不明なため、Listの初期容量はデフォルトに任せる
+        var Collection = new List<T>();
+        using var Enumerator = new Enumerator<
+            TKey, TValue, Add,
+            StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
+            SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,
+            //StoreFunctions<SpanByteComparer, DefaultRecordDisposer>,
+            //SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>,
+            TIterator, T
+        >(this.ClientSession, Iterator);
+        while (Enumerator.MoveNext()){
+            Collection.Add(Enumerator.Current);
+        }
+
+        return Collection;
+    }    
+    private IEnumerable<T> Enumerate<TIterator,T>(TIterator Iterator)
+        where TIterator:ScanIteratorFunctions<T>{
+        using var e=new Enumerator<
+            TKey,TValue,Add,
+            StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
+            SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,
+            TIterator,T
+        >(this.ClientSession,Iterator);
+        while(e.MoveNext())
+            yield return e.Current;
+    }
+#endif
     public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex){
         ArgumentNullException.ThrowIfNull(array);
 		ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
@@ -105,7 +195,6 @@ public sealed partial class Dictionary<TKey, TValue>:Collection<TKey,TValue>, ID
 	}
 	IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 	IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
-	public Enumerator<TKey,TValue,Add,GStoreFunctions,GAllocator,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
 	public List<KeyValuePair<TKey,TValue>> ToList(){
         using var Enumerator=this.GetEnumerator();
         var List=new List<KeyValuePair<TKey,TValue>>();
@@ -114,40 +203,10 @@ public sealed partial class Dictionary<TKey, TValue>:Collection<TKey,TValue>, ID
         }
         return List;
     }
-    private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
-        // Tsavoriteのセッションから列挙を開始
-        // 列挙数が不明なため、Listの初期容量はデフォルトに任せる
-        var Collection = new List<T>();
-        using var Enumerator = new Enumerator<
-            TKey, TValue, Add,
-            GStoreFunctions,
-            GAllocator,
-            //StoreFunctions<SpanByteComparer, DefaultRecordDisposer>,
-            //SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>,
-            TIterator, T
-        >(this.ClientSession, Iterator);
-        while (Enumerator.MoveNext()){
-            Collection.Add(Enumerator.Current);
-        }
-
-        return Collection;
-    }    
     public ICollection<TKey> Keys=>this.CreateCollection<KeyIterator<TKey>,TKey>(new());
     public ICollection<TValue> Values=>this.CreateCollection<ValueIterator<TValue>,TValue>(new());
-    private IEnumerable<T> Enumerate<TIterator,T>(TIterator Iterator)
-        where TIterator:ScanIteratorFunctions<T>{
-        using var e=new Enumerator<
-            TKey,TValue,Add,
-            GStoreFunctions,
-            GAllocator,
-            TIterator,T
-        >(this.ClientSession,Iterator);
-        while(e.MoveNext())
-            yield return e.Current;
-    }
     IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys=>this.Enumerate<KeyIterator<TKey>,TKey>(new());
     IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values=>this.Enumerate<ValueIterator<TValue>,TValue>(new());
-    private partial void set_Item(byte[]KeyBytes,byte[]ValueBytes);
     public TValue this[TKey Key] {
         get {
             if(this.TryGetValue(Key,out var Value)) {
@@ -163,7 +222,16 @@ public sealed partial class Dictionary<TKey, TValue>:Collection<TKey,TValue>, ID
                 throw this.ThrowLogFull();
             } else {
             }
-            this.set_Item(KeyBytes,ValueBytes);
+            var Session=this.ClientSession;
+#if TSAVORITE2_0BETA3
+            var FixedKey=(Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
+            var Input=ValueBytes;
+#elif TSAVORITE1_1_1
+            var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
+            var Input = SpanByte.FromPinnedSpan(ValueBytes);
+#endif
+            var Status = Session.BasicContext.Upsert(FixedKey,Input);
+            Status=Pending(Session,Status);
             //var FixedKey = (Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
             //var Session=this.ClientSession;
             //var Status = Session.BasicContext.Upsert(FixedKey,ValueBytes);

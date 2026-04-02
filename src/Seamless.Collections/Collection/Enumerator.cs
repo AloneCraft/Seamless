@@ -6,11 +6,17 @@ using System.Collections;
 using System.Diagnostics;
 
 using Tsavorite.core;
-public struct Enumerator<TKey, TValue, TSessionFunctions, TStoreFunctions, TAllocator, TIterator, T>(GAddClientSession Session,TIterator Iterator):IEnumerator<T>
+public struct Enumerator<TKey, TValue, TSessionFunctions, TStoreFunctions, TAllocator, TIterator, T>(
+#if TSAVORITE2_0BETA3
+    ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SessionFunctions.Add                ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Session,
+#elif TSAVORITE1_1_1
+    ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,SessionFunctions.Add                ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Session,
+#endif
+    TIterator Iterator):IEnumerator<T>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue>
 #if TSAVORITE2_0BETA3
-    where TSessionFunctions : ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Collections.Empty>
+    where TSessionFunctions : ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
     where TStoreFunctions : IStoreFunctions
     where TAllocator : IAllocator<TStoreFunctions>
 #elif TSAVORITE1_1_1
