@@ -6,9 +6,11 @@ using Tsavorite.core;
 /// 複数の HashSet インスタンスで同じストアを共有できる。
 /// </summary>
 public sealed class HashSetStore<T>:CollectionStore<T,Empty> where T:IEquatable<T>{
-	public HashSetStore(long IndexSize=Const.IndexSize,long PageSize=Const.PageSize,long SegmentSize=Const.SegmentSize,long MemorySize=Const.LogMemorySize,double MutableFraction=1.0):base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction){
-	}
-	public HashSetStore(IDevice LogDevice,IDevice ObjectLogDevice,long IndexSize=Const.IndexSize,long PageSize=Const.PageSize,long SegmentSize=Const.SegmentSize,long MemorySize=Const.LogMemorySize,double MutableFraction=1.0):base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice){
-	}
-	public HashSet<T> Create()=>new(this.Store,this.LogMemorySize,this.MutableFraction);
+    internal HashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir,bool recoverDevice):
+        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,CheckpointDir,recoverDevice){
+    }
+    internal HashSetStore(IDevice LogDevice,IDevice ObjectLogDevice,long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir,bool recoverDevice):
+        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,CheckpointDir,recoverDevice,LogDevice,ObjectLogDevice){
+    }
+    public HashSet<T> Create()=>new(this.Store,this.LogMemorySize,this.MutableFraction);
 }

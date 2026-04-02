@@ -87,22 +87,6 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
         value=default;
         return false;
     }
-    //public bool Remove(TKey key) {
-    //    var KeyBytes = Serialize(key);
-    //    var FixedKey = (FixedSpanByteKey)KeyBytes;
-    //    var Input = default(PinnedSpanByte);
-    //    SpanByteAndMemory Output = default;
-    //    var DeleteSession = this.DeleteSession;
-    //    var Status = DeleteSession.BasicContext.RMW(FixedKey,ref Input,ref Output);
-    //    if(Status.IsPending) {
-    //        DeleteSession.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-    //        CompletedOutputs.Next();
-    //        Status=CompletedOutputs.Current.Status;
-    //        CompletedOutputs.Dispose();
-    //    } else {
-    //    }
-    //    return !Status.NotFound;
-    //}
     public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex){
         ArgumentNullException.ThrowIfNull(array);
 		ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);

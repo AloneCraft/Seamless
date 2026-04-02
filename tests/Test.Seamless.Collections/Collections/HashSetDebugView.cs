@@ -3,7 +3,7 @@ namespace Test.Seamless.Collections;
 public class HashSetDebugView {
     [Fact, Trait("Category","Coverage")]
     public void Items_全エントリを返す() {
-        using var store = new HashSetStore<int>();
+        using var store = Store.Create<int>();
         using var set = store.Create();
         set.Add(10);
         set.Add(20);

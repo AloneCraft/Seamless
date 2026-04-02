@@ -4,7 +4,7 @@ namespace Test.Seamless.Collections;
 public partial class Dictionary {
     [Fact, Trait("Category","Coverage")]
     public void Keys_IReadOnlyDictionary() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");
         dict.Add(2,"b");
@@ -16,7 +16,7 @@ public partial class Dictionary {
     }
     [Fact, Trait("Category","Coverage")]
     public void Values_IReadOnlyDictionary() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");
         dict.Add(2,"b");

@@ -25,7 +25,7 @@ public class Add {
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize = Const.MinObjectLogCapacity;
     private void Add_TKey_TValue(){
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict.Add(1,"one");
         Assert.True(dict.TryGetValue(1,out var value));
@@ -36,7 +36,7 @@ public class Add {
     [Fact,Trait("Category","Coverage")]public void PostInitialUpdater()=>this.Add_TKey_TValue();
     [Fact,Trait("Category","Coverage")]public void PostRMWOperation()=>this.Add_TKey_TValue();
     [Fact, Trait("Category","Coverage")]public void Reader() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict.Add(1,"one");
         Assert.True(dict.TryGetValue(1,out var value));
@@ -44,7 +44,7 @@ public class Add {
         Assert.False(dict.TryGetValue(99,out _));
     }
     private void Upsert() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
@@ -63,7 +63,7 @@ public class Add {
     [Fact,Trait("Category","Coverage")]public void PostUpsertOperation_TKey_PinnedSpanByte_ReadOnlySpan_UpsertInfo_TEpochAccessor()=>this.Upsert();
 
     [Fact, Trait("Category","Coverage")]public void InPlaceWriter() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
@@ -96,7 +96,7 @@ public class Add {
         public void Dispose() { }
     }    [Fact, Trait("Category","Coverage")]
     public void UpsertHeapObject() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(500));
@@ -153,7 +153,7 @@ public class Add {
 
     [Fact, Trait("Category","Coverage")]
     public void TSourceLogRecord() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
         var addr1 = store.Store.Log.TailAddress;
         session.BasicContext.Upsert(MakeKey(SerInt(600)),SerStr("log"));
@@ -171,7 +171,7 @@ public class Add {
 
     [Fact, Trait("Category","Coverage")]
     public void RMW() {
-        using var store = new DictionaryStore<int,string>();
+        using var store = Store.Create<int,string>();
         var key = MakeKey(SerInt(1));
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
         var bc = session.BasicContext;
@@ -206,7 +206,7 @@ public class Add {
         var folder = CreateDiskFolder();
         using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store = new DictionaryStore<int,string>(LogDevice,ObjDevice,MemorySize: Const.MinObjectLogCapacity);
+        using var store = Store.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         dict.Add(0,"target");
         // 全レコードをディスクに追い出す → 次のRMWでIsPending=true
@@ -218,7 +218,7 @@ public class Add {
         var folder = CreateDiskFolder();
         using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store = new DictionaryStore<int,string>(LogDevice,ObjDevice,MemorySize: Const.MinObjectLogCapacity);
+        using var store = Store.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         dict[0]="target";
         // 全レコードをディスクに追い出す → 次のReadでIsPending=true
@@ -230,7 +230,7 @@ public class Add {
         var folder = CreateDiskFolder();
         using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store = new DictionaryStore<int,string>(LogDevice,ObjDevice,MemorySize: Const.MinObjectLogCapacity);
+        using var store = Store.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         dict.Add(0,"target");
         // 全レコードをディスクに追い出す → 次のRMWでIsPending=true

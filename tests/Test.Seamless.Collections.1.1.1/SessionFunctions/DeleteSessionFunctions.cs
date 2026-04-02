@@ -8,7 +8,7 @@ public class DeleteSessionFunctions{
 
     //[Fact, Trait("Category","Coverage")]
     //public void DeleteSessionFunctions_Removeで既存と未存在を判定できる()
-    //    using var store = new DictionaryStore<int,string>();
+    //    using var store = Store.Create<int,string>();
     //    using var dict = store.Create();
 
     //    dict[1]="one";
@@ -23,7 +23,7 @@ public class DeleteSessionFunctions{
     //    var folder = CreateFolder();
     //    using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
     //    using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-    //    using var store = new DictionaryStore<int,string>(logDevice,objDevice,MemorySize: TestMemorySize,MutableFraction: 0);
+    //    using var store = Store.Create<int,string>(logDevice,objDevice,MemorySize: TestMemorySize,MutableFraction: 0);
     //    using var dict = store.Create();
 
     //    for(var a = 0; a<500; a++) {

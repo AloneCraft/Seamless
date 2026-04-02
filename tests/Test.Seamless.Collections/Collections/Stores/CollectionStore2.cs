@@ -20,7 +20,7 @@ public class CollectionStore2 {
         //Capacityを指定しないとデフォルト=-1になる(Capacity<0分岐を通す)
         using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true);
         //Capacity<0 → ObjectLogSegmentSize=Const.MinObjectLogCapacity として正常に構築されること
-        using var store = new DictionaryStore<int,string>(LogDevice,ObjDevice,MemorySize: TestMemorySize);
+        using var store = Store.Create<int,string>(MemorySize:TestMemorySize,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         dict.Add(1,"a");
         Assert.Equal("a",dict[1]);
@@ -33,7 +33,7 @@ public class CollectionStore2 {
         var folder = CreateFolder();
         using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store = new DictionaryStore<int,string>(LogDevice,ObjDevice,MemorySize: TestMemorySize,MutableFraction: 0.1);
+        using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0.1,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         //データを書き込んでCompactWithLookupを実行
         for(var a = 0; a<1000; a++) {
@@ -66,7 +66,7 @@ public class CollectionStore2 {
         using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         //MutableFraction=0で全データを即時読み取り専用にする
-        using var store = new DictionaryStore<int,string>(LogDevice,ObjDevice,MemorySize: TestMemorySize,MutableFraction: 0);
+        using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         //少量のデータを追加してSafeReadOnlyAddressがSegmentSize以下になる状況を作る
         dict.Add(1,"a");
@@ -79,14 +79,14 @@ public class CollectionStore2 {
     }
     [Fact, Trait("Category","Coverage")]
     public void Dispose_二重呼び出し_冪等() {
-        var store = new HashSetStore<int>();
+        var store = Store.Create<int>();
         store.Dispose();
         store.Dispose();
     }
     [Fact, Trait("Category","Coverage")]
     public void Finalize_GCによる非同期破棄() {
         static void CreateOrphan() {
-            _ = new DictionaryStore<int,string>();
+            _ = Store.Create<int,string>();
         }
         CreateOrphan();
         GC.Collect(GC.MaxGeneration,GCCollectionMode.Forced,blocking: true);
