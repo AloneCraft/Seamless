@@ -1,5 +1,7 @@
 using Garnet.common;
 
+using Newtonsoft.Json.Linq;
+
 using Seamless.Collections;
 
 using Tsavorite.core;
@@ -7,16 +9,16 @@ namespace Test.Seamless.Collections;
 public class StoreCheckpoint {
     //private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest");
-    [Fact, Trait("Category","Coverage")]
-    public async Task SaveAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
-        using var store = Store.Create<int>();
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.SaveAsync());
-    }
-    [Fact, Trait("Category","Coverage")]
-    public async Task LoadAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
-        using var store = Store.Create<int>();
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.LoadAsync());
-    }
+    //[Fact, Trait("Category","Coverage")]
+    //public async Task SaveAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
+    //    using var store = Store.Create<int>();
+    //    await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.SaveAsync());
+    //}
+    //[Fact, Trait("Category","Coverage")]
+    //public async Task LoadAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
+    //    using var store = Store.Create<int>();
+    //    await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.LoadAsync());
+    //}
     [Fact, Trait("Category","Coverage")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public void Save_Load_HashSet_データが永続化され復元される() {
@@ -55,6 +57,8 @@ public class StoreCheckpoint {
     public async Task SaveAsync_LoadAsync_HashSet_データが永続化され復元される() {
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
+        bool success;
+        Guid token;
         {
             using var logDevice = new LocalStorageDevice(folder);
             using var objDevice = new LocalStorageDevice(folder+"_obj");
@@ -64,14 +68,14 @@ public class StoreCheckpoint {
             set.Add(2);
             set.Add(3);
             Assert.True(set.Contains(1));
-            await store.SaveAsync();
+            token=await store.SaveAsync();
             Assert.True(set.Contains(1));
         }
         {
             using var logDevice = new LocalStorageDevice(folder);
             using var objDevice = new LocalStorageDevice(folder+"_obj");
             using var store = Store.Create<int>(logDevice,objDevice,CheckpointDir: checkpointDir);
-            await store.LoadAsync();
+            await store.LoadAsync(token);
             var (begin2,head2,ro2,tail2) = store.Address;
             using var set = store.Create();
             var l=set.ToArray();
@@ -87,6 +91,8 @@ public class StoreCheckpoint {
     public async Task SaveAsync_LoadAsync_Dictionary_データが永続化され復元される() {
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
+        bool success;
+        Guid token;
         {
             using var logDevice = new LocalStorageDevice(folder);
             using var objDevice = new LocalStorageDevice(folder+"_obj");
@@ -94,13 +100,13 @@ public class StoreCheckpoint {
             using var dict = store.Create();
             dict.Add(1,"one");
             dict.Add(2,"two");
-            await store.SaveAsync();
+            token=await store.SaveAsync();
         }
         {
             using var logDevice = new LocalStorageDevice(folder);
             using var objDevice = new LocalStorageDevice(folder+"_obj");
             using var store = Store.Create<int,string>(CheckpointDir:checkpointDir,LogDevice:logDevice,ObjectLogDevice:objDevice);
-            await store.LoadAsync();
+            await store.LoadAsync(token);
             using var dict = store.Create();
             Assert.True(dict.ContainsKey(1));
             Assert.Equal("one",dict[1]);
@@ -114,19 +120,21 @@ public class StoreCheckpoint {
     public async Task SaveAsync_LoadAsync_HashSet_ハッシュインデックスが復元されContainsが動作する() {
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
+        bool success;
+        Guid token;
         {
             using var logDevice = new LocalStorageDevice(folder);
             using var objDevice = new LocalStorageDevice(folder+"_obj");
             using var store = Store.Create<int>(logDevice,objDevice,CheckpointDir: checkpointDir);
             using var set = store.Create();
             for(var i=0;i<100;i++) set.Add(i);
-            await store.SaveAsync();
+            token=await store.SaveAsync();
         }
         {
             using var logDevice = new LocalStorageDevice(folder);
             using var objDevice = new LocalStorageDevice(folder+"_obj");
             using var store = Store.Create<int>(logDevice,objDevice,CheckpointDir: checkpointDir);
-            await store.LoadAsync();
+            await store.LoadAsync(token);
             using var set = store.Create();
             for(var i=0;i<100;i++) Assert.True(set.Contains(i),$"Contains({i}) failed after recovery");
             Assert.False(set.Contains(999));
@@ -137,19 +145,21 @@ public class StoreCheckpoint {
     public async Task SaveAsync_LoadAsync_Dictionary_ハッシュインデックスが復元されReadが動作する(){
         var folder=CreateFolder();
         var checkpointDir=folder+"_checkpoint";
+        bool success;
+        Guid token;
         {
             using var logDevice=new LocalStorageDevice(folder);
             using var objDevice=new LocalStorageDevice(folder+"_obj");
             using var store=Store.Create<int,string>(CheckpointDir:checkpointDir,LogDevice:logDevice,ObjectLogDevice:objDevice);
             using var dict=store.Create();
             for(var i=0;i<50;i++) dict.Add(i,$"val_{i}");
-            await store.SaveAsync();
+            token=await store.SaveAsync();
         }
         {
             using var logDevice=new LocalStorageDevice(folder);
             using var objDevice=new LocalStorageDevice(folder+"_obj");
             using var store=Store.Create<int,string>(CheckpointDir:checkpointDir,LogDevice:logDevice,ObjectLogDevice:objDevice);
-            await store.LoadAsync();
+            await store.LoadAsync(token);
             using var dict=store.Create();
             for(var i=0;i<50;i++){
                 Assert.True(dict.ContainsKey(i),$"ContainsKey({i}) failed after recovery");

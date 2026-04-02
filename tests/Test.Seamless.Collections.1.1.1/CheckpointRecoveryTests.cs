@@ -1,4 +1,3 @@
-
 using MemoryPack;
 using System.Buffers;
 using Tsavorite.core;
@@ -71,7 +70,7 @@ public class CheckpointRecoveryTests{
     
     
     
-    private async ValueTask SaveLoad(int LoadCount){
+    private async ValueTask SaveLoad(CheckpointType CheckpointType,int LoadCount){
         var ct=TestContext.Current.CancellationToken;
         var folder=Path.Combine(Environment.CurrentDirectory,"Test111");
         var checkpointDir=folder+"_checkpoint";
@@ -98,14 +97,18 @@ public class CheckpointRecoveryTests{
                 var result=Session.BasicContext.CompletePending(true);
             }
             Read(Store);
-            (_, token)=await Store.TakeFullCheckpointAsync(CheckpointType.FoldOver);
+            (_, token)=await Store.TakeFullCheckpointAsync(CheckpointType);
+            //(_, token) = Store.TakeFullCheckpointAsync(CheckpointType).GetAwaiter().GetResult();
+            //(_, token) = Store.TakeFullCheckpointAsync(CheckpointType, default, new NullStreamingSnapshotIterator()).GetAwaiter().GetResult();
         }
         {
-            using var LogDevice1=new ManagedLocalStorageDevice(folder);
-            using var ObjectLogDevice1=new ManagedLocalStorageDevice(folder+"_obj");
+            using var LogDevice1=new ManagedLocalStorageDevice(folder,recoverDevice:false);
+            using var ObjectLogDevice1=new ManagedLocalStorageDevice(folder+"_obj",recoverDevice:false);
             using var Store1=CreateStore(folder,checkpointDir,LogDevice1,ObjectLogDevice1);
             for(var a=0;a<LoadCount;a++){
-                await Store1.RecoverAsync(default,token,cancellationToken:ct);
+                //await Store1.RecoverAsync(token,cancellationToken:ct);
+                Store1.Recover(Guid.Empty,token);
+                //Store1.Recover(token,-1,false);
             }
             Read(Store1);
         }
@@ -149,12 +152,30 @@ public class CheckpointRecoveryTests{
             Assert.Equal(expected,actual);
         }
     }
-    [Fact,Trait("Category","Coverage")]
-    async ValueTask CheckpointAndRecoveryTest_UpsertDelete1(){
-        await SaveLoad(1);
+    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_FoldOver1(){
+        await SaveLoad(CheckpointType.FoldOver,1);
     }
-    [Fact,Trait("Category","Coverage")]
-    async ValueTask CheckpointAndRecoveryTest_UpsertDelete2(){
-        await SaveLoad(2);
+    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_FoldOver2(){
+        await SaveLoad(CheckpointType.FoldOver,2);
+    }
+    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_Snapshot1(){
+        await SaveLoad(CheckpointType.Snapshot,1);
+    }
+    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_Snapshot2(){
+        await SaveLoad(CheckpointType.Snapshot,2);
+    }
+    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_StreamingSnapshot1(){
+        await SaveLoad(CheckpointType.StreamingSnapshot,1);
+    }
+    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_StreamingSnapshot2(){
+        await SaveLoad(CheckpointType.StreamingSnapshot,2);
+    }
+    // テスト用のダミー実装を追加
+    private struct NullStreamingSnapshotIterator 
+        : IStreamingSnapshotIteratorFunctions<SpanByte, SpanByte> {
+        public bool OnStart(Guid checkpointToken, long fromAddress, long untilAddress) => true;
+        public bool Reader(ref SpanByte key, ref SpanByte value, RecordMetadata recordMetadata, long numberOfRecords) => true;
+        public void OnStop(bool completed, long numberOfRecords) { }
+        public void OnException(Exception exception, long numberOfRecords) { }
     }
 }
