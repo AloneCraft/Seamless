@@ -3,9 +3,6 @@ using Garnet.common;
 using Seamless.Collections;
 
 using Tsavorite.core;
-
-using static Microsoft.ApplicationInsights.MetricDimensionNames.TelemetryContext;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace Test.Seamless.Collections;
 public class StoreCheckpoint {
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
