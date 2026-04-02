@@ -20,12 +20,22 @@ namespace Seamless.Collections;
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
 public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable<T> {
 	private readonly byte[] EmptyBytes;
-	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith          ,GStoreFunctions,GAllocator>Intersect_ClientSession;
-	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith    ,GStoreFunctions,GAllocator>SymmetricExcept_ClientSession;
-	internal HashSet(TsavoriteKV<GStoreFunctions,GAllocator> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
+#if TSAVORITE2_0BETA3
+	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith          ,GStoreFunctions,GAllocator>IntersectWith_ClientSession;
+	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith    ,GStoreFunctions,GAllocator>SymmetricExceptWith_ClientSession;
+#elif TSAVORITE1_1_1
+    private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,IntersectWith,GStoreFunctions,GAllocator> IntersectWith_ClientSession;
+    private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith,GStoreFunctions,GAllocator> SymmetricExceptWith_ClientSession;
+#endif
+	internal HashSet(GTsavoriteKV Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
 		this.EmptyBytes=Serialize(Empty.Default);
-		this.Intersect_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith>(new IntersectWith());
-		this.SymmetricExcept_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new SymmetricExceptWith());
+#if TSAVORITE2_0BETA3
+        this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith>(new());
+		this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new());
+#elif TSAVORITE1_1_1
+        this.IntersectWith_ClientSession=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,IntersectWith>(new IntersectWith());
+        this.SymmetricExceptWith_ClientSession=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new SymmetricExceptWith());
+#endif
 	}
 	public bool IsReadOnly => false;
 	public bool Add(T item) {
@@ -61,8 +71,10 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	public Enumerator<T,Empty,Add,GStoreFunctions,GAllocator,KeyIterator<T>,T> GetEnumerator()=>new (this.ClientSession,new());
     public void IntersectWith(HashSet<T> other){
 		ArgumentNullException.ThrowIfNull(other);
+        //var Session2 = this.Intersect_ClientSession;
+        var Session = this.IntersectWith_ClientSession;
+#if TSAVORITE2_0BETA3
 		var Input = PinnedSpanByte.FromPinnedSpan(this.EmptyBytes);
-		var Session = this.Intersect_ClientSession;
 		foreach(var Key in this){
 			if(other.Contains(Key)) {
 				continue;
@@ -74,6 +86,30 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 
 		}
         Session.BasicContext.CompletePending(true);
+#elif TSAVORITE1_1_1
+        var InputBytes = this.EmptyBytes;
+        foreach(var Key0 in this) {
+            if(other.Contains(Key0)) {
+                continue;
+            }
+            var KeyBytes = Serialize(Key0);
+            var Key = SpanByte.FromPinnedSpan(KeyBytes);
+            var Input = SpanByte.FromPinnedSpan(InputBytes);
+            var Output = default(SpanByteAndMemory);
+            var Status = Session.BasicContext.RMW(ref Key,ref Input,ref Output);
+            //unsafe {
+            //    fixed(byte* PKey = KeyBytes, PInput = InputBytes) {
+            //        var Key = SpanByte.FromPinnedPointer(PKey,KeyBytes.Length);
+            //        var Input = SpanByte.FromPinnedPointer(PInput,InputBytes.Length);
+            //        SpanByteAndMemory Output = default;
+            //        var Status = Session.BasicContext.RMW(ref Key,ref Input,ref Output);
+
+            //    }
+            //}
+        }
+        Session.BasicContext.CompletePending(wait: true);
+#endif
+
     }
 	public bool IsProperSubsetOf(HashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
@@ -137,14 +173,33 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	}
 	public void SymmetricExceptWith(HashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
+        var Session = this.SymmetricExceptWith_ClientSession;
+#if TSAVORITE2_0BETA3
 		var Input = PinnedSpanByte.FromPinnedSpan(this.EmptyBytes);
-		var Session = this.SymmetricExcept_ClientSession;
 		foreach(var item in other) {
 			var KeyBytes = Serialize(item);
 			var Key = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
 			SpanByteAndMemory Output = default;
 			var _=Session.BasicContext.RMW(Key,ref Input,ref Output);
 		}
+#elif TSAVORITE1_1_1
+        var InputBytes = this.EmptyBytes;
+        foreach(var Item in other) {
+            var KeyBytes = Serialize(Item);
+            var Key = SpanByte.FromPinnedSpan(KeyBytes);
+            var Input = SpanByte.FromPinnedSpan(InputBytes);
+            SpanByteAndMemory Output = default;
+            Session.BasicContext.RMW(ref Key,ref Input,ref Output);
+            //unsafe {
+            //    fixed(byte* PKey = KeyBytes, PInput = InputBytes) {
+            //        var Key = SpanByte.FromPinnedPointer(PKey,KeyBytes.Length);
+            //        var Input = SpanByte.FromPinnedPointer(PInput,InputBytes.Length);
+            //        SpanByteAndMemory Output = default;
+            //        Session.BasicContext.RMW(ref Key,ref Input,ref Output);
+            //    }
+            //}
+        }
+#endif
         Session.BasicContext.CompletePending(wait: true);
 	}
 	public void UnionWith(HashSet<T> other) {
@@ -158,8 +213,8 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 	protected override void Dispose(bool disposing) {
         if(this.disposed) return;
         if(disposing){
-            this.Intersect_ClientSession.Dispose();
-            this.SymmetricExcept_ClientSession.Dispose();
+            this.IntersectWith_ClientSession.Dispose();
+            this.SymmetricExceptWith_ClientSession.Dispose();
         }else{
 
         }

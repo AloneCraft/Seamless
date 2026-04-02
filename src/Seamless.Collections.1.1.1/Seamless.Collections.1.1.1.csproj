@@ -45,9 +45,6 @@
     <Compile Include="Collections\Collection`2.cs" />
     <Compile Include="Collections\Dictionary.cs" />
     <Compile Include="Collections\DictionaryDebugView.cs" />
-    <Compile Include="Collections\Empty.cs" />
-    <Compile Include="Collections\Enumerator.cs" />
-    <Compile Include="Collections\HashSet.cs" />
     <Compile Include="Collections\HashSetDebugView.cs" />
     <Compile Include="Collections\ISet.cs" />
     <Compile Include="ScanIteratorFunctions\CounterIterator.cs" />
