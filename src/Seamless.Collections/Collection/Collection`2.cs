@@ -80,6 +80,12 @@ public abstract partial class Collection<TKey,TValue>:IDisposable where TKey:IEq
     }
     private protected static byte[] Serialize<T>(T value) => MemoryPackSerializer.Serialize(value);
     private protected static T Deserialize<T>(ReadOnlySpan<byte> bytes) => MemoryPackSerializer.Deserialize<T>(bytes)!;
+#if TSAVORITE1_1_1
+    private protected static ReadOnlySpan<byte> GetReadOnlySpan(SpanByteAndMemory a) => a.AsReadOnlySpan();
+#elif TSAVORITE2_0BETA3
+    private protected static ReadOnlySpan<byte> GetReadOnlySpan(SpanByteAndMemory a) => a.ReadOnlySpan;
+#endif
+
     public long GetLongCount() {
         var Iterator = new CounterIterator();
         long Cursor = 0;

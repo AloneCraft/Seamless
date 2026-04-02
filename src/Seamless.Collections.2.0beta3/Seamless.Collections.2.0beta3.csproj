@@ -7,6 +7,7 @@
     <RootNamespace>Seamless.Collections</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ServerGarbageCollection>true</ServerGarbageCollection>
+	  <DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

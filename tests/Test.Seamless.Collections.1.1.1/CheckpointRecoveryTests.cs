@@ -171,11 +171,4 @@ public class CheckpointRecoveryTests{
     //    await SaveLoad(CheckpointType.StreamingSnapshot,2);
     //}
     // テスト用のダミー実装を追加
-    private struct NullStreamingSnapshotIterator 
-        : IStreamingSnapshotIteratorFunctions<SpanByte, SpanByte> {
-        public bool OnStart(Guid checkpointToken, long fromAddress, long untilAddress) => true;
-        public bool Reader(ref SpanByte key, ref SpanByte value, RecordMetadata recordMetadata, long numberOfRecords) => true;
-        public void OnStop(bool completed, long numberOfRecords) { }
-        public void OnException(Exception exception, long numberOfRecords) { }
-    }
 }
