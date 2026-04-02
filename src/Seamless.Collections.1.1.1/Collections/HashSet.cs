@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Diagnostics;
 using Seamless.SessionFunctions;
 using Tsavorite.core;
@@ -12,9 +12,9 @@ namespace Seamless.Collections;
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
 public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable<T> {
 	private readonly byte[] EmptyBytes;
-	private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,IntersectWith,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> IntersectClientSession;
-	private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> SymmetricExceptClientSession;
-	internal HashSet(TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
+	private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,IntersectWith,GStoreFunctions,GAllocator> IntersectClientSession;
+	private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith,GStoreFunctions,GAllocator> SymmetricExceptClientSession;
+	internal HashSet(TsavoriteKV<SpanByte,SpanByte,GStoreFunctions,GAllocator> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
 		this.EmptyBytes=Serialize(default(Empty));
 		this.IntersectClientSession=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,IntersectWith>(new IntersectWith());
 		this.SymmetricExceptClientSession=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new SymmetricExceptWith());
@@ -56,7 +56,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
     //global using TStoreFunctions  =Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
     //global using TAllocator       =Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
 
-	public Enumerator<T,Empty,Add,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,KeyIterator<T>,T> GetEnumerator()=>new(this.ClientSession,new());
+	public Enumerator<T,Empty,Add,GStoreFunctions,GAllocator,KeyIterator<T>,T> GetEnumerator()=>new(this.ClientSession,new());
 	public void IntersectWith(HashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		var InputBytes = this.EmptyBytes;

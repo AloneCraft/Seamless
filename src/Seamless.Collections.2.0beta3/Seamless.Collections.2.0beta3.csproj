@@ -32,8 +32,6 @@
     <PackageReference Include="Microsoft.Garnet" Version="2.0.0-beta.3" />    <PackageReference Include="ZLinq" Version="1.*" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Common\Common.csproj" />
-  </ItemGroup>
+  <Import Project="..\Seamless.Collections\Seamless.Collections.projitems" Label="Shared" />
 
 </Project>

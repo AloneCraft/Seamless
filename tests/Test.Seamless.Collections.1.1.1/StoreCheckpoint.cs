@@ -1,5 +1,4 @@
-using Seamless.Collections;
-using Tsavorite.core;
+﻿using Seamless.Collections;
 namespace Test.Seamless.Collections111;
 public class StoreCheckpoint {
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest111_"+Guid.NewGuid().ToString("N"));
