@@ -20,6 +20,7 @@ public abstract partial class Collection<TKey,TValue>where TKey:IEquatable<TKey>
     //public                     ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Add,GStoreFunctions,GAllocator> ClientSession;
     //private protected readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Delete,GStoreFunctions,GAllocator> DeleteClientSession;
     private partial void Initialize(){
+        var Store=this.Store;
         this.ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Add>(new());
         this.DeleteClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Delete>(new());
     }

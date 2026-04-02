@@ -7,6 +7,7 @@
     <RootNamespace>Seamless.Collections11</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ServerGarbageCollection>true</ServerGarbageCollection>
+    <DefineConstants>$(DefineConstants);TSAVORITE1_1_1</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -59,6 +60,7 @@
     <Compile Include="SessionFunctions\Delete.cs" />
     <Compile Include="SessionFunctions\IntersectWith.cs" />
     <Compile Include="SessionFunctions\Remove_KeyValuePair.cs" />
+    <Compile Include="SessionFunctions\Remove_TKey_TValue.cs" />
     <Compile Include="SessionFunctions\SymmetricExceptWith.cs" />
     <Compile Include="Store\CollectionStore`2.cs" />
   </ItemGroup>

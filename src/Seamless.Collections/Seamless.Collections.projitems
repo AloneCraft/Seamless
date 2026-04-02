@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Collection`2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\Dictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\TryAddResult.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Const.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />

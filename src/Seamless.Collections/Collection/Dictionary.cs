@@ -14,24 +14,27 @@ using Tsavorite.core;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(DictionaryDebugView<,>))]
-public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey, TValue>
+public sealed partial class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey, TValue>
 	where TKey :IEquatable<TKey>
 	where TValue : IEquatable<TValue> {
-	private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue ,GStoreFunctions,GAllocator>Remove_TKey_TValue_ClientSession;
-	private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair ,GStoreFunctions,GAllocator>Remove_KeyValuePair_ClientSession;
-	internal Dictionary(TsavoriteKV<GStoreFunctions,GAllocator> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
-		this.Remove_TKey_TValue_ClientSession=Store.NewSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue>(new ());
-		this.Remove_KeyValuePair_ClientSession=Store.NewSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair>(new ());
+	//private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue ,GStoreFunctions,GAllocator>Remove_TKey_TValue_ClientSession;
+	//private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair ,GStoreFunctions,GAllocator>Remove_KeyValuePair_ClientSession;
+    private GRemove_TKey_TValue_ClientSession Remove_TKey_TValue_ClientSession{get;set;}
+    private GRemove_KeyValuePair_ClientSession Remove_KeyValuePair_ClientSession{get;set;}
+    private partial void Initialize();
+	internal Dictionary(GTsavoriteKV Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
+        this.Initialize();
+  //      this.Remove_TKey_TValue_ClientSession=Store.NewSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue>(new ());
+		//this.Remove_KeyValuePair_ClientSession=Store.NewSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair>(new ());
 	}
 	public bool IsReadOnly => false;
     public bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
-        SpanByteAndMemory Output = default;
-        var Status = this.Read(Key,ref Output);
+        var Status = this.Read(Key,out var Output);
         if(Status.NotFound) {
             Value=default;
             return false;
         }
-        Value=Deserialize<TValue>(Output.ReadOnlySpan);
+        Value=Deserialize<TValue>(GetReadOnlySpan(Output));
         return true;
     }
 	public TryAddResult TryAdd(TKey Key,TValue Value) =>
@@ -46,8 +49,7 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 	}
 	public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
     bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item) {
-        SpanByteAndMemory Output = default;
-        var Status = this.Read(item.Key,ref Output);
+        var Status = this.Read(item.Key,out _);
         Debug.Assert(Status.Found==!Status.NotFound);
         return Status.Found;
     }
@@ -56,37 +58,42 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
 
 	public bool ContainsKey(TKey Key)=>
 		this.Contains(Key);
+
     /// <summary>
     /// Key,Value両方が一致するエントリを削除する。Keyのみが存在する場合は削除しない。
     /// </summary>
     /// <param name="item"></param>
     /// <returns></returns>
-    public bool Remove(KeyValuePair<TKey,TValue> item) {
-        var Session = this.Remove_KeyValuePair_ClientSession;
-        var KeyBytes = Serialize(item.Key);
-        var ValueBytes = Serialize(item.Value);
-        var FixedKey = (Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-        var Input = PinnedSpanByte.FromPinnedSpan(ValueBytes);
-        SpanByteAndMemory Output = default;
-        var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
-        Status=Pending(Session,Status,ref Output);
-        return !Output.ReadOnlySpan.IsEmpty;
-    }
-    public bool Remove(TKey key,[MaybeNullWhen(false)]out TValue value) {
-        var Session = this.Remove_TKey_TValue_ClientSession;
-        var KeyBytes = Serialize(key);
-        var FixedKey = (Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-        var Input = default(PinnedSpanByte);
-        SpanByteAndMemory Output = default;
-        var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
-        Status=Pending(Session,Status,ref Output);
-        if(Status.Found) {
-            value=Deserialize<TValue>(Output.ReadOnlySpan);
-            return true;
-        }
-        value=default;
-        return false;
-    }
+    public partial bool Remove(KeyValuePair<TKey,TValue> item);
+    //{
+    //    var Session = this.Remove_KeyValuePair_ClientSession;
+    //    var KeyBytes = Serialize(item.Key);
+    //    var ValueBytes = Serialize(item.Value);
+    //    var FixedKey=GetFixedKey(KeyBytes);//(Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
+    //    var Input=GetFixedInput(ValueBytes);//PinnedSpanByte.FromPinnedSpan(ValueBytes);
+    //    SpanByteAndMemory Output = default;
+    //    var Status = Session.BasicContext.RMW(FixedKey, ref Input, ref Output);
+    //    Status = Pending(Session, Status, ref Output);
+    //    return GetReadOnlySpan(Output).IsEmpty;
+    //}
+    public partial bool Remove(TKey key,[MaybeNullWhen(false)]out TValue value);
+    //{
+    //    var Session = this.Remove_TKey_TValue_ClientSession;
+    //    var KeyBytes = Serialize(key);
+    //    //var FixedKey = (Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
+    //    //var Input = default(PinnedSpanByte);
+    //    var FixedKey =GetFixedKey(KeyBytes);
+    //    var Input = GetDefaultInput();
+    //    SpanByteAndMemory Output = default;
+    //    var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
+    //    Status=Pending(Session,Status,ref Output);
+    //    if(Status.Found) {
+    //        value=Deserialize<TValue>(GetReadOnlySpan(Output));
+    //        return true;
+    //    }
+    //    value=default;
+    //    return false;
+    //}
     public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex){
         ArgumentNullException.ThrowIfNull(array);
 		ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
@@ -113,8 +120,10 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
         var Collection = new List<T>();
         using var Enumerator = new Enumerator<
             TKey, TValue, Add,
-            StoreFunctions<SpanByteComparer, DefaultRecordDisposer>,
-            SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>,
+            GStoreFunctions,
+            GAllocator,
+            //StoreFunctions<SpanByteComparer, DefaultRecordDisposer>,
+            //SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>,
             TIterator, T
         >(this.ClientSession, Iterator);
         while (Enumerator.MoveNext()){
@@ -138,6 +147,7 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
     }
     IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys=>this.Enumerate<KeyIterator<TKey>,TKey>(new());
     IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values=>this.Enumerate<ValueIterator<TValue>,TValue>(new());
+    private partial void set_Item(byte[]KeyBytes,byte[]ValueBytes);
     public TValue this[TKey Key] {
         get {
             if(this.TryGetValue(Key,out var Value)) {
@@ -153,10 +163,11 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
                 throw this.ThrowLogFull();
             } else {
             }
-            var FixedKey = (Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-            var Session=this.ClientSession;
-            var Status = Session.BasicContext.Upsert(FixedKey,ValueBytes);
-            Pending(Session,Status);
+            this.set_Item(KeyBytes,ValueBytes);
+            //var FixedKey = (Garnet.common.FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
+            //var Session=this.ClientSession;
+            //var Status = Session.BasicContext.Upsert(FixedKey,ValueBytes);
+            //Pending(Session,Status);
         }
     }
 	public override bool IsDisposed=>this.disposed;
