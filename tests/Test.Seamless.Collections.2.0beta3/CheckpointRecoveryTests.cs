@@ -77,6 +77,7 @@ public class CheckpointRecoveryTests{
         var checkpointDir=folder+"_checkpoint";
         const int Key=999;
         const int expected=111;
+        Guid token;
         {
             var dir=Path.GetDirectoryName(folder)!;
             var name=Path.GetFileName(folder);
@@ -85,7 +86,7 @@ public class CheckpointRecoveryTests{
             if(Directory.Exists(checkpointDir)) Directory.Delete(checkpointDir,true);
             using var LogDevice=new ManagedLocalStorageDevice(folder);
             using var ObjectLogDevice=new ManagedLocalStorageDevice(folder+"_obj");
-            var Store=CreateStore(folder,checkpointDir,LogDevice,ObjectLogDevice);
+            using var Store=CreateStore(folder,checkpointDir,LogDevice,ObjectLogDevice);
             {
                 var KeyBytes=MemoryPackSerializer.Serialize(Key);
                 var ValueBytes=MemoryPackSerializer.Serialize(expected);
@@ -94,17 +95,17 @@ public class CheckpointRecoveryTests{
                 var Status=Session.BasicContext.Upsert(FixedKey,ValueBytes);
                 var result=Session.BasicContext.CompletePending(true);
             }
-            
-            
+
+
             Read(Store);
-            await Store.TakeFullCheckpointAsync(CheckpointType.FoldOver);
+            (_, token)=await Store.TakeFullCheckpointAsync(CheckpointType.FoldOver);
         }
         {
             using var LogDevice1=new ManagedLocalStorageDevice(folder);
             using var ObjectLogDevice1=new ManagedLocalStorageDevice(folder+"_obj");
-            var Store1=CreateStore(folder,checkpointDir,LogDevice1,ObjectLogDevice1);
+            using var Store1=CreateStore(folder,checkpointDir,LogDevice1,ObjectLogDevice1);
             for(var a=0;a<LoadCount;a++){
-                await Store1.RecoverAsync(numPagesToPreload:-1,undoNextVersion:false,cancellationToken:ct);
+                await Store1.RecoverAsync(default,token,cancellationToken:ct);
             }
             Read(Store1);
         }
@@ -136,7 +137,13 @@ public class CheckpointRecoveryTests{
             var FixedKey=(FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
             SpanByteAndMemory Value=default;
             var Status=Session.BasicContext.Read(FixedKey,ref Value);
-            if(Status.IsPending) Session.BasicContext.CompletePending(true);
+            if(Status.IsPending){
+                Session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait:true);
+                completedOutputs.Next();
+                (Status,Value)=(completedOutputs.Current.Status,completedOutputs.Current.Output);
+                completedOutputs.Dispose();
+            }
+            Assert.True(Status.Found);
             var actual=MemoryPackSerializer.Deserialize<int>(Value.ReadOnlySpan);
             Assert.Equal(expected,actual);
         }

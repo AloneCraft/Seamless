@@ -84,9 +84,9 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
     public Guid Save(){
         if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
             throw new InvalidOperationException($"{nameof(KVSettings.CheckpointDir)} is not set.");
-        var(success,Guid)=this.Store.TakeFullCheckpointAsync(CheckpointType.Snapshot).AsTask().GetAwaiter().GetResult();
+        var(success,token)=this.Store.TakeFullCheckpointAsync(CheckpointType.Snapshot).AsTask().GetAwaiter().GetResult();
         if(!success) throw new InvalidOperationException("Checkpoint failed.");
-        return Guid;
+        return token;
     }
 	public async ValueTask LoadAsync(CancellationToken ct=default){
 		if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
