@@ -4,10 +4,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>Seamless.Collections11</RootNamespace>
+    <RootNamespace>Seamless.Collections</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ServerGarbageCollection>true</ServerGarbageCollection>
-    <DefineConstants>$(DefineConstants);TSAVORITE1_1_1</DefineConstants>
+	  <DefineConstants>$(DefineConstants);TSAVORITE1_1_1</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -35,6 +35,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Global.cs" />
     <Compile Remove="IRelation.cs" />
     <Compile Remove="KeyComparer.cs" />
     <Compile Remove="Relation.cs" />
@@ -42,11 +43,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="Collections\Collection`2.cs" />
-    <Compile Include="Collections\Dictionary.cs" />
-    <Compile Include="Collections\DictionaryDebugView.cs" />
-    <Compile Include="Collections\HashSetDebugView.cs" />
-    <Compile Include="Collections\ISet.cs" />
     <Compile Include="ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Include="ScanIteratorFunctions\IScanChunkIteratorFunctions.cs" />
     <Compile Include="ScanIteratorFunctions\KeyIterator.cs" />
@@ -65,6 +61,10 @@
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="Microsoft.Garnet" Version="1.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Collections\" />
   </ItemGroup>
 
   <Import Project="..\Seamless.Collections\Seamless.Collections.projitems" Label="Shared" />

@@ -69,39 +69,39 @@ public sealed partial class Dictionary<TKey, TValue>
 	/// </summary>
 	/// <param name="item"></param>
 	/// <returns></returns>
-	public partial bool Remove(KeyValuePair<TKey,TValue> item) {
-        var Session = this.Remove_KeyValuePair_ClientSession;
-        var KeyBytes = Serialize(item.Key);
-        var ValueBytes = Serialize(item.Value);
-        var FixedKey =SpanByte.FromPinnedSpan(KeyBytes);
-        var Input =SpanByte.FromPinnedSpan(ValueBytes);
-        var Status = Session.BasicContext.RMW(FixedKey,Input,out var Output);
-		Status=Pending(Session,Status,ref Output);
-		return !Output.AsReadOnlySpan().IsEmpty;
-        //var DeleteSession = this.DeleteClientSession;
-        //var KeyBytes = Serialize(Key);
-        //var Input = default(SpanByte);
-        //var Output = default(SpanByteAndMemory);
-        //var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
-        //var Status = DeleteSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output);
-        //Status=Pending(DeleteSession,Status);
-        //Debug.Assert(Status.Found!=Status.NotFound);
-        //return Status.Found||Status.Record.Created||Status.Record.InPlaceUpdated;
-    }
-    public partial bool Remove(TKey key,out TValue value) {
-        var Session = this.Remove_TKey_TValue_ClientSession;
-        var KeyBytes = Serialize(key);
-        var FixedKey =SpanByte.FromPinnedSpan(KeyBytes);
-        var Input = default(SpanByte);
-        var Status = Session.BasicContext.RMW(FixedKey,Input,out var Output);
-        Status=Pending(Session,Status,ref Output);
-        if(Status.Found) {
-            value=Deserialize<TValue>(Output.AsReadOnlySpan());
-            return true;
-        }
-        value=default;
-        return false;
-    }
+	//public partial bool Remove(KeyValuePair<TKey,TValue> item) {
+ //       var Session = this.Remove_KeyValuePair_ClientSession;
+ //       var KeyBytes = Serialize(item.Key);
+ //       var ValueBytes = Serialize(item.Value);
+ //       var FixedKey =SpanByte.FromPinnedSpan(KeyBytes);
+ //       var Input =SpanByte.FromPinnedSpan(ValueBytes);
+ //       var Status = Session.BasicContext.RMW(FixedKey,Input,out var Output);
+	//	Status=Pending(Session,Status,ref Output);
+	//	return !Output.AsReadOnlySpan().IsEmpty;
+ //       //var DeleteSession = this.DeleteClientSession;
+ //       //var KeyBytes = Serialize(Key);
+ //       //var Input = default(SpanByte);
+ //       //var Output = default(SpanByteAndMemory);
+ //       //var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
+ //       //var Status = DeleteSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output);
+ //       //Status=Pending(DeleteSession,Status);
+ //       //Debug.Assert(Status.Found!=Status.NotFound);
+ //       //return Status.Found||Status.Record.Created||Status.Record.InPlaceUpdated;
+ //   }
+ //   public partial bool Remove(TKey key,out TValue value) {
+ //       var Session = this.Remove_TKey_TValue_ClientSession;
+ //       var KeyBytes = Serialize(key);
+ //       var FixedKey =SpanByte.FromPinnedSpan(KeyBytes);
+ //       var Input = default(SpanByte);
+ //       var Status = Session.BasicContext.RMW(FixedKey,Input,out var Output);
+ //       Status=Pending(Session,Status,ref Output);
+ //       if(Status.Found) {
+ //           value=Deserialize<TValue>(Output.AsReadOnlySpan());
+ //           return true;
+ //       }
+ //       value=default;
+ //       return false;
+ //   }
 	//public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex) {
 	//	ArgumentNullException.ThrowIfNull(array);
 	//	ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);

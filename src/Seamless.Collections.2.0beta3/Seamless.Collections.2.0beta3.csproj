@@ -32,6 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Global.cs" />
     <Compile Remove="IRelation.cs" />
     <Compile Remove="KeyComparer.cs" />
     <Compile Remove="Relation.cs" />
@@ -39,11 +40,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="Collection\Collection`2.cs" />
-    <Compile Include="Collection\Dictionary.cs" />
-    <Compile Include="Collection\DictionaryDebugView.cs" />
-    <Compile Include="Collection\HashSetDebugView.cs" />
-    <Compile Include="Collection\ISet.cs" />
     <Compile Include="SessionFunctions\Add.cs" />
     <Compile Include="SessionFunctions\Delete.cs" />
     <Compile Include="SessionFunctions\IntersectWith.cs" />
