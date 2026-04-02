@@ -42,9 +42,6 @@
     <Compile Include="Collection\Collection`2.cs" />
     <Compile Include="Collection\Dictionary.cs" />
     <Compile Include="Collection\DictionaryDebugView.cs" />
-    <Compile Include="Collection\Empty.cs" />
-    <Compile Include="Collection\Enumerator.cs" />
-    <Compile Include="Collection\HashSet.cs" />
     <Compile Include="Collection\HashSetDebugView.cs" />
     <Compile Include="Collection\ISet.cs" />
     <Compile Include="SessionFunctions\Add.cs" />

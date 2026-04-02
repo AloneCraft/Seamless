@@ -1,15 +1,15 @@
-using Common;
+﻿using Common;
 namespace Seamless.Collections;
 
 using System.Collections;
 using System.Diagnostics;
 
 using Tsavorite.core;
-public struct Enumerator<TKey, TValue, TSessionFunctions, TStoreFunctions, TAllocator, TIterator, T>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Collections.Empty,TSessionFunctions,TStoreFunctions,TAllocator> Session,TIterator Iterator):IEnumerator<T>
+public struct Enumerator<TKey, TValue, TSessionFunctions, TStoreFunctions, TAllocator, TIterator, T>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions,TStoreFunctions,TAllocator> Session,TIterator Iterator):IEnumerator<T>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue>
-    where TSessionFunctions : Tsavorite.core.ISessionFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteAndMemory,Seamless.Collections.Empty>
-    where TStoreFunctions : Tsavorite.core.IStoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte>
+    where TSessionFunctions : ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>
+    where TStoreFunctions : IStoreFunctions<SpanByte,SpanByte>
     where TAllocator : IAllocator<SpanByte,SpanByte,TStoreFunctions>
     where TIterator : ScanIteratorFunctions<T> {
     private TIterator Iterator = Iterator;

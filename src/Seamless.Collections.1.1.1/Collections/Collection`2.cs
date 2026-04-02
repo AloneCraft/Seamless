@@ -93,7 +93,7 @@ public abstract partial class Collection<TKey,TValue>where TKey:IEquatable<TKey>
     ////    return Status;
     ////}
     private protected static Status Pending<TSessionFunctions0>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions,GAllocator>Session,Status Status)
-        where TSessionFunctions0:Tsavorite.core.ISessionFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteAndMemory,Seamless.Collections.Empty>{
+        where TSessionFunctions0:ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>{
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
             CompletedOutputs.Next();
@@ -104,8 +104,8 @@ public abstract partial class Collection<TKey,TValue>where TKey:IEquatable<TKey>
         return Status;
     }
     private protected static Status Pending<TSessionFunctions0,TStoreFunctions0,TAllocator0>(ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,TStoreFunctions0,TAllocator0>Session,Status Status,ref SpanByteAndMemory Output)
-        where TSessionFunctions0:Tsavorite.core.ISessionFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteAndMemory,Seamless.Collections.Empty>
-        where TStoreFunctions0  :Tsavorite.core.IStoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte>
+        where TSessionFunctions0:ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>
+        where TStoreFunctions0  :IStoreFunctions<SpanByte,SpanByte>
         where TAllocator0 : IAllocator<SpanByte,SpanByte,TStoreFunctions0>{
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);

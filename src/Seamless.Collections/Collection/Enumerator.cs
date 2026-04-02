@@ -1,4 +1,4 @@
-using Common;
+﻿using Common;
 using Seamless.ScanIteratorFunctions;
 namespace Seamless.Collections;
 
@@ -6,12 +6,18 @@ using System.Collections;
 using System.Diagnostics;
 
 using Tsavorite.core;
-public struct Enumerator<TKey, TValue, TSessionFunctions, TStoreFunctions, TAllocator, TIterator, T>(ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Collections.Empty,TSessionFunctions,TStoreFunctions,TAllocator> Session,TIterator Iterator):IEnumerator<T>
+public struct Enumerator<TKey, TValue, TSessionFunctions, TStoreFunctions, TAllocator, TIterator, T>(GAddClientSession Session,TIterator Iterator):IEnumerator<T>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue>
+#if TSAVORITE2_0BETA3
     where TSessionFunctions : ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Collections.Empty>
     where TStoreFunctions : IStoreFunctions
     where TAllocator : IAllocator<TStoreFunctions>
+#elif TSAVORITE1_1_1
+    where TSessionFunctions : ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>
+    where TStoreFunctions : IStoreFunctions<SpanByte,SpanByte>
+    where TAllocator : IAllocator<SpanByte,SpanByte,TStoreFunctions>
+#endif
     where TIterator : ScanIteratorFunctions<T> {
     private TIterator Iterator = Iterator;
     private long Cursor = 0, Count;

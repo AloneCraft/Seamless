@@ -1,6 +1,6 @@
 ﻿using Seamless.ScanIteratorFunctions;
 namespace Seamless.Collections;
-using Seamless.SessionFunctions;
+using SessionFunctions;
 
 using System.Collections;
 using System.Diagnostics;
