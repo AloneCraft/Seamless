@@ -5,7 +5,8 @@ using Seamless.Collections;
 using Tsavorite.core;
 namespace Test.Seamless.Collections;
 public class StoreCheckpoint {
-    private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    //private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest");
     [Fact, Trait("Category","Coverage")]
     public async Task SaveAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
         using var store = Store.Create<int>();
@@ -23,56 +24,24 @@ public class StoreCheckpoint {
         var checkpointDir = folder+"_checkpoint";
         Guid token;
         {
-            using var logDevice = new ManagedLocalStorageDevice(folder);
-            using var objDevice = new ManagedLocalStorageDevice(folder+"_obj");
-            using var store = Store.Create<int,int>(CheckpointDir:checkpointDir,LogDevice:logDevice,ObjectLogDevice:objDevice);
+            using var LogDevice = new ManagedLocalStorageDevice(folder);
+            using var LogObjDevice = new ManagedLocalStorageDevice(folder+"_obj");
+            using var store = Store.Create<int,int>(CheckpointDir:checkpointDir,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
             using var set = store.Create();
-            {
-                int Key=1;
-                var KeyBytes=MemoryPack.MemoryPackSerializer.Serialize(Key);
-                var Value=11;
-                var ValueBytes=MemoryPack.MemoryPackSerializer.Serialize(Value);
-                // ④ SpanByte → FixedSpanByteKey、PinnedSpanByte → SpanByteAndMemory に修正
-                var FixedKey=(FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-                var Session=set.ClientSession;
-                var status=Session.BasicContext.Upsert(FixedKey,ValueBytes);
-                if(status.IsPending){
-                    Session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait:true);
-                } else {
-                }
-            }
-            //set[1]=11;
-            //set[2]=22;
-            //set[3]=33;
+            set[1] = 11;
+            set[2] = 22;
+            set[3] = 33;
             Assert.True(set.Contains(1));
             token=store.Save();
             Assert.True(set.Contains(1));
         }
         {
-            using var logDevice = new ManagedLocalStorageDevice(folder);
-            using var objDevice = new ManagedLocalStorageDevice(folder+"_obj");
-            using var store = Store.Create<int,int>(CheckpointDir:checkpointDir,recoverDevice:true,LogDevice:logDevice,ObjectLogDevice:objDevice);
+            using var LogDevice = new ManagedLocalStorageDevice(folder);
+            using var LogObjDevice = new ManagedLocalStorageDevice(folder+"_obj");
+            using var store = Store.Create<int,int>(CheckpointDir:checkpointDir,recoverDevice:true,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
             store.Load(token);
             var (begin2,head2,ro2,tail2) = store.Address;
             using var set = store.Create();
-            {
-                int Key=1;
-                var KeyBytes=MemoryPack.MemoryPackSerializer.Serialize(Key);
-                // ④ SpanByte → FixedSpanByteKey、PinnedSpanByte → SpanByteAndMemory に修正
-                var FixedKey=(FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-                SpanByteAndMemory Value0=default;
-                var Session=set.ClientSession;
-                var status=Session.BasicContext.Read(FixedKey,ref Value0);
-                if(status.IsPending){
-                    Session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait:true);
-                    using(completedOutputs){
-                        Assert.True(completedOutputs.Next(),$"キー {Key} の非同期Readが完了しませんでした");
-                        Assert.True(completedOutputs.Current.Status.Found,$"キー {Key} はリカバリー後に見つかるはずです");
-                    }
-                } else {
-                    Assert.True(status.Found,$"キー {Key} はリカバリー後に見つかるはずです");
-                }
-            }
             var l=set.ToArray();
             var r=set.Contains(1);
             Assert.True(set.Contains(1),$"Contains(1) failed. EntryCount={set.EntryCount}, Count(iter)={set.Count}, Addr=({begin2},{head2},{ro2},{tail2})");
