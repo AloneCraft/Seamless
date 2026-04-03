@@ -1,4 +1,5 @@
 ﻿using Seamless.Collections;
+using Seamless.ScanIteratorFunctions;
 namespace Test.Seamless.ScanIteratorFunctions;
 
 public partial class ScanIteratorFunctions {
