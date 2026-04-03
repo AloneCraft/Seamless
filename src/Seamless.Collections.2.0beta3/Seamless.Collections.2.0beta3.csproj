@@ -41,7 +41,6 @@
 
   <ItemGroup>
     <Compile Include="SessionFunctions\Add.cs" />
-    <Compile Include="SessionFunctions\Delete.cs" />
     <Compile Include="SessionFunctions\IntersectWith.cs" />
     <Compile Include="SessionFunctions\Remove_KeyValuePair.cs" />
     <Compile Include="SessionFunctions\Remove_TKey_TValue.cs" />

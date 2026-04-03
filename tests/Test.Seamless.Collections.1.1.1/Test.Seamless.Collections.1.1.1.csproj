@@ -12,6 +12,8 @@
 	  <Compile Remove="ScanIteratorFunctions\CounterIterator.cs" />
 	  <Compile Remove="ScanIteratorFunctions\ScanIteratorFunctions.cs" />
 	  <Compile Remove="SessionFunctions\Add.cs" />
+	  <Compile Remove="SessionFunctions\DeleteSessionFunctions.cs" />
+	  <Compile Remove="SessionFunctions\IntersectSessionFunctions.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

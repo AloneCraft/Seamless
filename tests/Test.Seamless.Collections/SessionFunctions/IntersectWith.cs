@@ -1,18 +1,18 @@
-using Common;
+﻿using Common;
 using Seamless.Collections;
 
 using Tsavorite.core;
 namespace Test.Seamless.SessionFunctions;
 
 
-public class Intersect {
+public class IntersectWith {
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize = Const.MinObjectLogCapacity;
 
     // ── In-memory (Mutable key) ──────────────────────────────────────
     // setA={1,2,3}, setB={2,3,4} → IntersectWith → setA={2,3}
     // key 1 は setB に無い → RMW → GetRMWModifiedFieldInfo → InPlaceUpdater(ExpireAndStop) → PostRMWOperation
-    private void IntersectWith() {
+    private void Mutable() {
         using var storeA = Store.Create<int>();
         using var storeB = Store.Create<int>();
         using var setA = storeA.Create();
@@ -31,15 +31,15 @@ public class Intersect {
         Assert.Contains(3,setA);
         Assert.DoesNotContain(4,setA);
     }
-    [Fact,Trait("Category","Coverage")]public void InPlaceUpdater()=>this.IntersectWith();
-    [Fact,Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo()=>this.IntersectWith();
-    [Fact,Trait("Category","Coverage")]public void PostRMWOperation()=>this.IntersectWith();
+    [Fact,Trait("Category","Coverage")]public void InPlaceUpdater()=>this.Mutable();
+    [Fact,Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo()=>this.Mutable();
+    [Fact,Trait("Category","Coverage")]public void PostRMWOperation()=>this.Mutable();
 
     // ── ReadOnly in-memory (ShiftReadOnlyAddress でログ全体を ReadOnly に) ─
     // ShiftReadOnlyAddress(TailAddress, wait:true) で全レコードを ReadOnly 領域に移動してから
     // IntersectWith を呼ぶと RMW → NeedCopyUpdate → CopyUpdater(ExpireAndStop) が通る
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    private void IntersectWith_ReadOnly() {
+    private void ReadOnly() {
         var folder = CreateFolder();
         using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
@@ -64,8 +64,8 @@ public class Intersect {
         Assert.Contains(3,setA);
         Assert.DoesNotContain(4,setA);
     }
-    [Fact,Trait("Category","Coverage")]public void NeedCopyUpdate()=>this.IntersectWith_ReadOnly();
-    [Fact,Trait("Category","Coverage")]public void CopyUpdater()=>this.IntersectWith_ReadOnly();
+    [Fact,Trait("Category","Coverage")]public void NeedCopyUpdate()=>this.ReadOnly();
+    [Fact,Trait("Category","Coverage")]public void CopyUpdater()=>this.ReadOnly();
 
     // ── Disk (IsPending path: 両ストアともディスク) ─────────────────
     [Fact,Trait("Category","Coverage")]

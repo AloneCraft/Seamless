@@ -32,6 +32,8 @@
     <Compile Remove="ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Remove="ScanIteratorFunctions\ScanIteratorFunctions.cs" />
     <Compile Remove="SessionFunctions\Add.cs" />
+    <Compile Remove="SessionFunctions\Delete.cs" />
+    <Compile Remove="SessionFunctions\Intersect.cs" />
     <Compile Remove="TestKeyComparer.cs" />
   </ItemGroup>
 
