@@ -16,6 +16,8 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
 #if TSAVORITE2_0BETA3
     private protected KVSettings Settings{get;private set;}
 	public readonly TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store;
+    private void Initialize(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir){
+    }
 #elif TSAVORITE1_1_1
     private protected KVSettings<SpanByte,SpanByte> Settings{get;private set;}
     public readonly TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store;
@@ -23,7 +25,6 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
 	public long LogMemorySize { get; }
 	public double MutableFraction { get; }
 	private bool Disposed;
-	private partial void Initialize(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir);
 
     private CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) {
 		AssertIsPowerOfTwo(IndexSize,nameof(IndexSize));
@@ -37,33 +38,29 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
 		Debug.Assert(MemorySize>=2*PageSize,$"{nameof(MemorySize)} must be >= 2*{nameof(PageSize)}");
 		Debug.Assert(SegmentSize<=1L<<62,$"{nameof(SegmentSize)} must be <= 1L<<62");
 		Debug.Assert(ObjectLogDevice.Capacity is >=Const.MinObjectLogCapacity and <=Const.MaxObjectLogCapacity or -1);
-		this.Initialize(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir);
-  //      long ObjectLogSegmentSize;
-		//if(ObjectLogDevice.Capacity<0) {
-		//	ObjectLogSegmentSize=Const.MinObjectLogCapacity;
-		//} else {
-		//	Debug.Assert(ObjectLogDevice.Capacity%SegmentSize==0,$"ObjectLogDevice.Capacity must be a multiple of SegmentSize ({SegmentSize}), but was {ObjectLogDevice.Capacity}");
-		//	ObjectLogSegmentSize=ObjectLogDevice.Capacity;
-		//}
-		//this.ObjectLogSegmentSize=ObjectLogSegmentSize;
-		//var Settings = new KVSettings {
-		//	IndexSize=IndexSize,
-		//	LogMemorySize=MemorySize,
-		//	PageSize=PageSize,
-		//	SegmentSize=SegmentSize,
-
-		//	MutableFraction=MutableFraction,
-		//	LogDevice=LogDevice,
-		//	ObjectLogDevice=ObjectLogDevice,
-		//	ObjectLogSegmentSize=ObjectLogSegmentSize,
-		//	CheckpointDir=CheckpointDir,
-		//};
-		////Const.MinObjectLogCapacity
-		//this.Settings=Settings;
 		this.LogMemorySize=MemorySize;
 		this.MutableFraction=MutableFraction;
 		//MemoryOnlyDevice使用時はシリアライザ不要。ページデータはヒープ上で保持されるためインライン格納で十分。
 #if TSAVORITE2_0BETA3
+        long ObjectLogSegmentSize;
+        if(ObjectLogDevice.Capacity<0) {
+            ObjectLogSegmentSize=Const.MinObjectLogCapacity;
+        } else {
+            Debug.Assert(ObjectLogDevice.Capacity%SegmentSize==0,$"ObjectLogDevice.Capacity must be a multiple of SegmentSize ({SegmentSize}), but was {ObjectLogDevice.Capacity}");
+            ObjectLogSegmentSize=ObjectLogDevice.Capacity;
+        }
+        this.Settings=new(){
+            IndexSize=IndexSize,
+            LogMemorySize=MemorySize,
+            PageSize=PageSize,
+            SegmentSize=SegmentSize,
+
+            MutableFraction=MutableFraction,
+            LogDevice=LogDevice,
+            ObjectLogDevice=ObjectLogDevice,
+            ObjectLogSegmentSize=ObjectLogSegmentSize,
+            CheckpointDir=CheckpointDir,
+        };
         var StoreFunctions =new StoreFunctions<SpanByteComparer,DefaultRecordDisposer>(new SpanByteComparer(),NullSerializer,new DefaultRecordDisposer());
 		this.Store=new TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>(
 			this.Settings,
@@ -76,6 +73,18 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
         [ExcludeFromCodeCoverage]
         static IObjectSerializer<IHeapObject>? NullSerializer() => null;
 #elif TSAVORITE1_1_1
+        this.Settings = new(){
+            IndexSize=IndexSize,
+            MemorySize=MemorySize,
+            PageSize=PageSize,
+            SegmentSize=SegmentSize,
+
+            MutableFraction=MutableFraction,
+            LogDevice=LogDevice,
+            ObjectLogDevice=ObjectLogDevice,
+
+            CheckpointDir=CheckpointDir,
+        };
         var StoreFunctions = new StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>(
             new SpanByteComparer(),
             NullSerializer,
@@ -182,7 +191,6 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
         var ct=CancellationToken.None;
         this.LoadAsync(token,ct).GetAwaiter().GetResult();
     }
-    private partial long Compact(long CompactUntil);
 	public void CompactWithLookup() {
 		var Store = this.Store;
 		var BeginAddress = Store.Log.BeginAddress;
@@ -196,8 +204,19 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
 		}
 
 		if(CompactUntil<=BeginAddress) return;
-		var untilAddress = this.Compact(CompactUntil);
-		Store.Log.ShiftBeginAddress(untilAddress,true,true);
+#if TSAVORITE2_0BETA3
+    var UntilAddress=this.Store.Log.Compact<TKey,TValue,Empty>(
+        CompactUntil,
+        CompactionType.Lookup
+    );
+#elif TSAVORITE1_1_1
+        var UntilAddress = this.Store.Log.Compact<SpanByte,SpanByteAndMemory,Empty,SpanByteFunctions<Empty>>(
+            new(),
+            CompactUntil,
+            CompactionType.Lookup
+        );
+#endif
+		Store.Log.ShiftBeginAddress(UntilAddress,true,true);
 	}
 	public (long BeginAddress,long HeadAddress,long ReadOnlyAddress,long TailAddress) Address {
 		get {

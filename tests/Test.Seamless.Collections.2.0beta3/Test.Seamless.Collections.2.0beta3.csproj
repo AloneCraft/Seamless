@@ -13,12 +13,15 @@
 	    </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Collections\Enumerators\**" />
     <Compile Remove="Function\**" />
     <Compile Remove="IDevice\**" />
     <Compile Remove="動作確認\**" />
+    <EmbeddedResource Remove="Collections\Enumerators\**" />
     <EmbeddedResource Remove="Function\**" />
     <EmbeddedResource Remove="IDevice\**" />
     <EmbeddedResource Remove="動作確認\**" />
+    <None Remove="Collections\Enumerators\**" />
     <None Remove="Function\**" />
     <None Remove="IDevice\**" />
     <None Remove="動作確認\**" />
@@ -26,6 +29,9 @@
 
   <ItemGroup>
     <Compile Remove="Common.cs" />
+    <Compile Remove="ScanIteratorFunctions\CounterIterator.cs" />
+    <Compile Remove="ScanIteratorFunctions\ScanIteratorFunctions.cs" />
+    <Compile Remove="SessionFunctions\Add.cs" />
     <Compile Remove="TestKeyComparer.cs" />
   </ItemGroup>
 
@@ -47,6 +53,11 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Collections\" />
+    <Folder Include="ScanIteratorFunctions\" />
   </ItemGroup>
 
   <Import Project="..\Test.Seamless.Collections\Test.Seamless.Collections.projitems" Label="Shared" />

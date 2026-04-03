@@ -1,4 +1,4 @@
-using Common;
+﻿using Common;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Collections;
@@ -6,9 +6,9 @@ using Tsavorite.core;
 namespace Test.Seamless.Collections;
 
 
-public partial class Dictionary {
+public class Dictionary {
     [Fact, Trait("Category","Coverage")]
-    public void IsReadOnly_偽を返す() {
+    public void IsReadOnly_偽を返す(){
         using var store = Store.Create<int,string>();
         using var dict = store.Create();
         Assert.False(dict.IsReadOnly);

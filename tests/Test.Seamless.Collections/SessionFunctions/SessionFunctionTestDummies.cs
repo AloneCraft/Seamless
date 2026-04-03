@@ -1,0 +1,2 @@
+namespace Test.Seamless.SessionFunctions;
+
