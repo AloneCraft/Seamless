@@ -5,16 +5,21 @@ namespace Test.Seamless.Collections;
 public class StoreCheckpoint {
     //private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest");
-    //[Fact, Trait("Category","Coverage")]
-    //public async Task SaveAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
-    //    using var store = Store.Create<int>();
-    //    await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.SaveAsync());
-    //}
-    //[Fact, Trait("Category","Coverage")]
-    //public async Task LoadAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
-    //    using var store = Store.Create<int>();
-    //    await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.LoadAsync());
-    //}
+    [Fact, Trait("Category","Coverage")]
+    public async Task SaveAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
+        using var store = Store.Create<int>();
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.SaveAsync());
+    }
+    [Fact, Trait("Category","Coverage")]
+    public async Task LoadAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
+        using var store = Store.Create<int>();
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.LoadAsync());
+    }
+    [Fact, Trait("Category","Coverage")]
+    public async Task SaveLogOnlyAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
+        using var store = Store.Create<int>();
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.SaveLogOnlyAsync());
+    }
     [Fact, Trait("Category","Coverage")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public void Save_Load_HashSet_データが永続化され復元される() {
@@ -162,6 +167,96 @@ public class StoreCheckpoint {
                 Assert.Equal($"val_{i}",dict[i]);
             }
             Assert.False(dict.ContainsKey(999));
+        }
+    }
+    [Fact, Trait("Category","Coverage")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
+    public async Task SaveAsync_CheckpointFailed_InvalidOperationExceptionをスロー() {
+        var folder = CreateFolder();
+        var checkpointDir = folder+"_checkpoint";
+        using var logDevice = new LocalStorageDevice(folder);
+        using var objDevice = new LocalStorageDevice(folder+"_obj");
+        using var store = Store.Create<int>(logDevice,objDevice,CheckpointDir: checkpointDir);
+        using var set = store.Create();
+        set.Add(1);
+        // TryInitiateFullCheckpoint が同期的にフラグをセットしてから非同期 I/O を待機するため、
+        // await せずタスクを保持しておくことでフラグが設定された状態を維持できる
+        var ongoingCheckpoint = store.Store.TakeFullCheckpointAsync(CheckpointType.Snapshot).AsTask();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveAsync().AsTask());
+        await ongoingCheckpoint;
+    }
+    [Fact, Trait("Category","Coverage")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
+    public async Task SaveLogOnlyAsync_CheckpointFailed_InvalidOperationExceptionをスロー() {
+        var folder = CreateFolder();
+        var checkpointDir = folder+"_checkpoint";
+        using var logDevice = new LocalStorageDevice(folder);
+        using var objDevice = new LocalStorageDevice(folder+"_obj");
+        using var store = Store.Create<int>(logDevice,objDevice,CheckpointDir: checkpointDir);
+        using var set = store.Create();
+        set.Add(1);
+        // TryInitiateHybridLogCheckpoint が同期的にフラグをセットしてから非同期 I/O を待機するため、
+        // await せずタスクを保持しておくことでフラグが設定された状態を維持できる
+        var ongoingCheckpoint = store.Store.TakeHybridLogCheckpointAsync(CheckpointType.Snapshot).AsTask();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveLogOnlyAsync().AsTask());
+        await ongoingCheckpoint;
+    }
+    [Fact, Trait("Category","Coverage")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
+    public async Task SaveLogOnlyAsync_LoadAsync_HashSet_データが永続化され復元される() {
+        var folder = CreateFolder();
+        var checkpointDir = folder+"_checkpoint";
+        Guid token;
+        {
+            using var logDevice = new LocalStorageDevice(folder);
+            using var objDevice = new LocalStorageDevice(folder+"_obj");
+            using var store = Store.Create<int>(logDevice,objDevice,CheckpointDir: checkpointDir);
+            using var set = store.Create();
+            set.Add(1);
+            set.Add(2);
+            set.Add(3);
+            Assert.True(set.Contains(1));
+            token = await store.SaveLogOnlyAsync();
+            Assert.True(set.Contains(1));
+        }
+        {
+            using var logDevice = new LocalStorageDevice(folder);
+            using var objDevice = new LocalStorageDevice(folder+"_obj");
+            using var store = Store.Create<int>(logDevice,objDevice,CheckpointDir: checkpointDir);
+            await store.LoadAsync(token);
+            using var set = store.Create();
+            Assert.True(set.Contains(1));
+            Assert.True(set.Contains(2));
+            Assert.True(set.Contains(3));
+            Assert.False(set.Contains(99));
+        }
+    }
+    [Fact, Trait("Category","Coverage")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
+    public async Task SaveLogOnlyAsync_LoadAsync_Dictionary_データが永続化され復元される() {
+        var folder = CreateFolder();
+        var checkpointDir = folder+"_checkpoint";
+        Guid token;
+        {
+            using var logDevice = new LocalStorageDevice(folder);
+            using var objDevice = new LocalStorageDevice(folder+"_obj");
+            using var store = Store.Create<int,string>(CheckpointDir:checkpointDir,LogDevice:logDevice,ObjectLogDevice:objDevice);
+            using var dict = store.Create();
+            dict.Add(1,"one");
+            dict.Add(2,"two");
+            token = await store.SaveLogOnlyAsync();
+        }
+        {
+            using var logDevice = new LocalStorageDevice(folder);
+            using var objDevice = new LocalStorageDevice(folder+"_obj");
+            using var store = Store.Create<int,string>(CheckpointDir:checkpointDir,LogDevice:logDevice,ObjectLogDevice:objDevice);
+            await store.LoadAsync(token);
+            using var dict = store.Create();
+            Assert.True(dict.ContainsKey(1));
+            Assert.Equal("one",dict[1]);
+            Assert.True(dict.ContainsKey(2));
+            Assert.Equal("two",dict[2]);
+            Assert.False(dict.ContainsKey(99));
         }
     }
 }
