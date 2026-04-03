@@ -5,7 +5,6 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Seamless.Collections</RootNamespace>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ServerGarbageCollection>true</ServerGarbageCollection>
 	<DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
   </PropertyGroup>
@@ -40,7 +39,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="SessionFunctions\Add.cs" />
     <Compile Include="SessionFunctions\IntersectWith.cs" />
     <Compile Include="SessionFunctions\Remove_KeyValuePair.cs" />
     <Compile Include="SessionFunctions\Remove_TKey_TValue.cs" />

@@ -23,6 +23,7 @@ Upsert
         ConvertOutputToHeap
 Delete
     GetUpsertFieldInfo//サイズ見積もり
+    GetUpsertValueLength(1.0)
     if(FoundMutable){
         InPlaceDeleter
     }else{

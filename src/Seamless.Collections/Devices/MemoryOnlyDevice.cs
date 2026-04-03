@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Tsavorite.core;
 namespace Seamless.Devices;
 /// <summary>
@@ -8,7 +8,7 @@ public sealed class MemoryOnlyDevice : StorageDeviceBase{
     private const string DeviceName="memory-only";
     private const uint DefaultSectorSize=512;
     public MemoryOnlyDevice(long Capacity):base(DeviceName,DefaultSectorSize,Capacity){}
-    public override unsafe void ReadAsync(int segmentId,ulong sourceAddress,IntPtr destinationAddress,uint readLength,DeviceIOCompletionCallback callback,object context){
+    public override void ReadAsync(int segmentId,ulong sourceAddress,IntPtr destinationAddress,uint readLength,DeviceIOCompletionCallback callback,object context){
         throw new IOException(nameof(ReadAsync));
     }
     public override void Dispose(){
@@ -23,7 +23,7 @@ public sealed class MemoryOnlyDevice : StorageDeviceBase{
     /// <param name="callback"></param>
     /// <param name="context"></param>
     /// <exception cref="IOException"></exception>
-    public override unsafe void WriteAsync(IntPtr sourceAddress,int segmentId,ulong destinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object context){
+    public override void WriteAsync(IntPtr sourceAddress,int segmentId,ulong destinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object context){
         throw new IOException(nameof(WriteAsync));
     }
     /// <summary>
