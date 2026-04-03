@@ -236,31 +236,6 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         return Status.Found||Status.Record.Created||Status.Record.InPlaceUpdated;
     }
 #endif
-
-    //private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions,GAllocator>Session,Status Status)
-    //    where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
-    //    if(Status.IsPending) {
-    //        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-    //        using(CompletedOutputs){
-    //            if(CompletedOutputs.Next())
-    //                Status=CompletedOutputs.Current.Status;
-    //        }
-    //    }
-    //    return Status;
-    //}
-    //private protected static Status Pending<TSessionFunctions0>( ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,TSessionFunctions0,GStoreFunctions,GAllocator>Session,Status Status,ref SpanByteAndMemory Output)
-    //    where TSessionFunctions0:ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>{
-    //    if(Status.IsPending) {
-    //        Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-    //        using(CompletedOutputs){
-    //            if(CompletedOutputs.Next()){
-    //                Status=CompletedOutputs.Current.Status;
-    //                Output=CompletedOutputs.Current.Output;
-    //            }
-    //        }
-    //    }
-    //    return Status;
-    //}
     public bool Contains(TKey Key) {
         var Status = this.Read(Key,out _);
         Debug.Assert(Status.Found==!Status.NotFound);

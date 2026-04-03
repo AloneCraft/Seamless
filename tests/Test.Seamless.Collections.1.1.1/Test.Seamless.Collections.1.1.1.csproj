@@ -8,6 +8,11 @@
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<DefineConstants>$(DefineConstants);TSAVORITE1_1_1</DefineConstants>
 	</PropertyGroup>
+	<ItemGroup>
+	  <Compile Remove="ScanIteratorFunctions\CounterIterator.cs" />
+	  <Compile Remove="ScanIteratorFunctions\ScanIteratorFunctions.cs" />
+	  <Compile Remove="SessionFunctions\Add.cs" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="coverlet.collector" Version="8.0.1">
@@ -27,6 +32,10 @@
 
 	<ItemGroup>
 		<Using Include="Xunit" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="ScanIteratorFunctions\" />
 	</ItemGroup>
 
 	<Import Project="..\Test.Seamless.Collections\Test.Seamless.Collections.projitems" Label="Shared" />

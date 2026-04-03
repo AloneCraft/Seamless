@@ -1,7 +1,7 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 namespace Test.Seamless.Collections;
 
-public partial class Dictionary {
+public class DictionaryIReadOnly {
     [Fact, Trait("Category","Coverage")]
     public void Keys_IReadOnlyDictionary() {
         using var store = Store.Create<int,string>();

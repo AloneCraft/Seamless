@@ -46,7 +46,6 @@
     <Compile Include="SessionFunctions\Remove_KeyValuePair.cs" />
     <Compile Include="SessionFunctions\Remove_TKey_TValue.cs" />
     <Compile Include="SessionFunctions\SymmetricExceptWith.cs" />
-    <Compile Include="Store\CollectionStore`2.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -56,6 +55,7 @@
 
   <ItemGroup>
     <Folder Include="Collections\" />
+    <Folder Include="Store\" />
   </ItemGroup>
 
   <Import Project="..\Seamless.Collections\Seamless.Collections.projitems" Label="Shared" />

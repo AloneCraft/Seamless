@@ -46,12 +46,15 @@
     <Compile Include="SessionFunctions\Remove_KeyValuePair.cs" />
     <Compile Include="SessionFunctions\Remove_TKey_TValue.cs" />
     <Compile Include="SessionFunctions\SymmetricExceptWith.cs" />
-    <Compile Include="Store\CollectionStore`2.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="Microsoft.Garnet" Version="2.0.0-beta.3" />    <PackageReference Include="ZLinq" Version="1.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Store\" />
   </ItemGroup>
 
   <Import Project="..\Seamless.Collections\Seamless.Collections.projitems" Label="Shared" />
