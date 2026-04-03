@@ -33,9 +33,6 @@ public struct Delete:
     [ExcludeFromCodeCoverage]public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ReadOnlySpan<byte> srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo) {
         throw new NotSupportedException("Upsertで呼ばれる");
     }
-#elif TSAVORITE1_1_1
-#endif
-#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,IHeapObject srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo) {
         throw new NotSupportedException("Upsertで呼ばれる");
     }
