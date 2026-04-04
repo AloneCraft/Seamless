@@ -50,7 +50,7 @@ internal readonly struct Remove_TKey_TValue():ISessionFunctions<SpanByte,SpanByt
 	}
 	// キー存在時（Mutable）は値をOutputにコピーしてからExpireAndStopで論理削除
 	public bool InPlaceUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref SpanByteAndMemory output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo){
-		output.CopyFrom(value.AsReadOnlySpan(),this.memoryPool);
+		output.CopyFrom(value.AsReadOnlySpan(),this.memoryPool);//RemoveなのでoldValueをコピー
 		rmwInfo.Action=RMWAction.ExpireAndStop;
 		return false;
 	}
@@ -59,8 +59,8 @@ internal readonly struct Remove_TKey_TValue():ISessionFunctions<SpanByte,SpanByt
 		return true;
 	}
 	public bool CopyUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte oldValue,ref SpanByte newValue,ref SpanByteAndMemory output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo){
-		output.CopyFrom(oldValue.AsReadOnlySpan(),this.memoryPool);
-		rmwInfo.Action=RMWAction.ExpireAndStop;
+		output.CopyFrom(oldValue.AsReadOnlySpan(),this.memoryPool);//RemoveなのでoldValueをコピー
+        rmwInfo.Action=RMWAction.ExpireAndStop;
 		return false;
 	}
 	public int GetRMWModifiedValueLength(ref SpanByte value,ref SpanByte input) => value.Length;

@@ -34,6 +34,9 @@
     <Compile Remove="SessionFunctions\Add.cs" />
     <Compile Remove="SessionFunctions\Delete.cs" />
     <Compile Remove="SessionFunctions\Intersect.cs" />
+    <Compile Remove="SessionFunctions\Remove_KeyValuePair.cs" />
+    <Compile Remove="SessionFunctions\Remove_TKey_TValue.cs" />
+    <Compile Remove="SessionFunctions\SymmetricExcept.cs" />
     <Compile Remove="TestKeyComparer.cs" />
   </ItemGroup>
 

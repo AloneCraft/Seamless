@@ -285,4 +285,71 @@ public class Add {
         store.Store.Log.FlushAndEvict(true);
         Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(0,"other"));
     }
+    [Fact,Trait("Category","Coverage")]
+    public void ConcurrentWriter() {
+#if TSAVORITE1_1_1
+        // 長い値で初回Upsert後、短い値で再Upsert → src.Length<=dst.Length → in-place コピー分岐を通す
+        using var store = Store.Create<int,string>();
+        using var session = store.Store.NewSession<SpanByte,SpanByteAndMemory,global::Seamless.Collections.Empty,global::Seamless.SessionFunctions.Add>(new());
+        var bc = session.BasicContext;
+        var key = MakeKey(SerInt(300));
+        var valLong = MakeKey(SerStr("hello_world_test"));
+        bc.Upsert(ref key,ref valLong);
+        var valShort = MakeKey(SerStr("hi"));
+        var status = bc.Upsert(ref key,ref valShort);
+        if(status.IsPending) {
+            bc.CompletePendingWithOutputs(out var c,wait: true);
+            c.Dispose();
+        }
+#endif
+    }
+    [Fact,Trait("Category","Coverage")]
+    public void SingleReader() {
+#if TSAVORITE1_1_1
+        // ShiftReadOnlyAddress はページフラッシュを伴うため ManagedLocalStorageDevice が必要
+        var folder = CreateDiskFolder();
+        using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var store = Store.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
+        using var session = store.Store.NewSession<SpanByte,SpanByteAndMemory,global::Seamless.Collections.Empty,global::Seamless.SessionFunctions.Add>(new());
+        var bc = session.BasicContext;
+        var key1 = MakeKey(SerInt(400));
+        var val1 = MakeKey(SerStr("single"));
+        bc.Upsert(ref key1,ref val1);
+        // ReadOnlyAddress をTailAddressまで進める → 書いたレコードが in-memory read-only 領域へ → SingleReader が呼ばれる
+        store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
+        var status1 = bc.Read(key1,out var output1);
+        if(status1.IsPending) {
+            bc.CompletePendingWithOutputs(out var c1,wait: true);
+            c1.Dispose();
+        }
+        Assert.True(status1.Found);
+        output1.Memory?.Dispose();
+        // IsEmpty 分岐: 空値を read-only 領域に置いて Read → Span.IsEmpty=true パスを通す
+        var key2 = MakeKey(SerInt(401));
+        var empty = default(SpanByte);
+        bc.Upsert(ref key2,ref empty);
+        store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
+        var status2 = bc.Read(key2,out _);
+        if(status2.IsPending) {
+            bc.CompletePendingWithOutputs(out var c2,wait: true);
+            c2.Dispose();
+        }
+        Assert.True(status2.Found);
+#endif
+    }
+    [Fact,Trait("Category","Coverage")]
+    public void ConcurrentReader_Empty() {
+#if TSAVORITE1_1_1
+        // mutable 領域に空値を置いて Read → ConcurrentReader の Span.IsEmpty=true 分岐を通す
+        using var store = Store.Create<int,string>();
+        using var session = store.Store.NewSession<SpanByte,SpanByteAndMemory,global::Seamless.Collections.Empty,global::Seamless.SessionFunctions.Add>(new());
+        var bc = session.BasicContext;
+        var key = MakeKey(SerInt(500));
+        var empty = default(SpanByte);
+        bc.Upsert(ref key,ref empty);
+        var status = bc.Read(key,out _);
+        Assert.True(status.Found);
+#endif
+    }
 }

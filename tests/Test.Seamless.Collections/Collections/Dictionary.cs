@@ -76,6 +76,9 @@ public class Dictionary {
         using var dict = store.Create();
         dict.Add(1,"a");
         var removed = dict.Remove(new KeyValuePair<int,string>(1,"a"));
+        foreach(var a in dict){
+
+        }
         Assert.True(removed);
         Assert.False(dict.ContainsKey(1));
     }
