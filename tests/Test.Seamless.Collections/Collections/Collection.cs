@@ -1,4 +1,4 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Tsavorite.core;
 namespace Test.Seamless.Collections;
 
@@ -15,7 +15,7 @@ public class Collection {
             this.disposed=true;
         }
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void EntryCount_追加後に増加する() {
         using var store = Store.Create<int>();
         using var writer = store.Create();
@@ -23,13 +23,13 @@ public class Collection {
         writer.Add(1);
         Assert.True(subject.EntryCount>=1);
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void GetLongCount_空の場合ゼロを返す() {
         using var store = Store.Create<int>();
         using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
         Assert.Equal(0L,subject.GetLongCount());
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Count_GetLongCountと一致する() {
         using var store = Store.Create<int>();
         using var writer = store.Create();
@@ -38,7 +38,7 @@ public class Collection {
         writer.Add(2);
         Assert.Equal((int)subject.GetLongCount(),subject.Count);
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Contains_存在するキー_真を返す() {
         using var store = Store.Create<int>();
         using var writer = store.Create();
@@ -46,13 +46,13 @@ public class Collection {
         writer.Add(1);
         Assert.True(subject.Contains(1));
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Contains_存在しないキー_偽を返す() {
         using var store = Store.Create<int>();
         using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
         Assert.False(subject.Contains(99));
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Remove_存在するキー_真を返す() {
         using var store = Store.Create<int>();
         using var writer = store.Create();
@@ -60,7 +60,7 @@ public class Collection {
         writer.Add(1);
         Assert.True(subject.Remove(1));
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Remove_存在しないキー_偽を返す() {
         using var store = Store.Create<int>();
         using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
@@ -69,7 +69,7 @@ public class Collection {
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
 
     // WouldOverflowMutable: LogMemorySize = 0 → if(LogMemorySize<=0) return false の分岐
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void WouldOverflowMutable_LogMemorySizeZero_早期リターンFalse() {
         using var store = Store.Create<int>();
         // 内部コンストラクタで LogMemorySize=0 を指定 → WouldOverflowMutable は常に false を返す
@@ -78,7 +78,7 @@ public class Collection {
     }
 
     // WouldOverflowMutable: MutableFraction=0 → MutableBytes=0 → if(MutableBytes<=0) MutableBytes=LogMemorySize の分岐
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void WouldOverflowMutable_MutableFractionZero_MutableBytesはLogMemorySize() {
         using var store = Store.Create<int>(MutableFraction: 0.0);
         using var set = store.Create();
@@ -88,7 +88,7 @@ public class Collection {
 
     // Pending(Session, Status, ref Output) の IsPending 分岐 → Contains(Read) がディスク上レコードを参照
     // Pending(Session, Status)             の IsPending 分岐 → Remove/Add(RMW) がディスク上レコードを参照
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public void Pending_IsPending分岐_ディスクスピル経由() {
         var folder = CreateFolder();
@@ -108,7 +108,7 @@ public class Collection {
         // Add → Session.RMW → Pending(Session, Status) の IsPending 分岐
         Assert.True(set.Add(0));
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void IsDisposed_Dictionary_Dispose前後() {
         var store = Store.Create<int,string>();
         var dict = store.Create();
@@ -117,7 +117,7 @@ public class Collection {
         Assert.True(dict.IsDisposed);
         store.Dispose();
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void IsDisposed_HashSet_Dispose前後() {
         var store = Store.Create<int>();
         var set = store.Create();
@@ -126,7 +126,7 @@ public class Collection {
         Assert.True(set.IsDisposed);
         store.Dispose();
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Dispose_Dictionary_二重呼び出し_冪等() {
         var store = Store.Create<int,string>();
         var dict = store.Create();
@@ -135,7 +135,7 @@ public class Collection {
         Assert.True(dict.IsDisposed);
         store.Dispose();
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Dispose_HashSet_二重呼び出し_冪等() {
         var store = Store.Create<int>();
         var set = store.Create();
@@ -144,7 +144,7 @@ public class Collection {
         Assert.True(set.IsDisposed);
         store.Dispose();
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Dispose_TestCollection_二重呼び出し_Collection5早期リターン() {
         var store = Store.Create<int>();
         var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);

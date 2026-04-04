@@ -18,11 +18,11 @@ public class Remove_KeyValuePair {
         dict[1]="one";
         Assert.True(dict.Remove(new KeyValuePair<int,string>(1,"one")));
     }
-    [Fact,Trait("Category","Coverage")]public void InPlaceUpdater()=>this.Remove();
-    [Fact,Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo()=>this.Remove();
-    [Fact,Trait("Category","Coverage")]public void PostRMWOperation()=>this.Remove();
+    [Fact,Trait("Category",Unit)]public void InPlaceUpdater()=>this.Remove();
+    [Fact,Trait("Category",Unit)]public void GetRMWModifiedFieldInfo()=>this.Remove();
+    [Fact,Trait("Category",Unit)]public void PostRMWOperation()=>this.Remove();
 /*
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     public void Remove_KeyValuePair_InPlaceUpdater_値不一致() {
         using var store = Store.Create<int,string>();
         using var dict = store.Create();
@@ -30,7 +30,7 @@ public class Remove_KeyValuePair {
         Assert.False(dict.Remove(new KeyValuePair<int,string>(1,"wrong")));
     }
 */
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     public void NeedInitialUpdate() {
         using var store = Store.Create<int,string>();
         using var dict = store.Create();
@@ -48,20 +48,20 @@ public class Remove_KeyValuePair {
         Assert.True(dict.Remove(new KeyValuePair<int,string>(0,"v0")));
 
     }
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void NeedCopyUpdate()=>this.Remove_Disk();
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void CopyUpdater()=>this.Remove_Disk();
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void RMWCompletionCallback()=>this.Remove_Disk();
-    //[Fact,Trait("Category","Coverage")]
+    //[Fact,Trait("Category",Unit)]
     //[System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     //public void GetRMWModifiedFieldInfo_TSourceLogRecord_PinnedSpanByte()=>this.Remove_Disk();
 /*
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void Remove_KeyValuePair_NeedCopyUpdate_値不一致() {
         var folder = CreateFolder();
@@ -90,7 +90,7 @@ public class Remove_KeyValuePair {
         store.Store.Log.FlushAndEvict(true);
         Assert.True(dict.Remove(new KeyValuePair<int,string>(0,"target")));
     }
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void Remove_KeyValuePair_ConvertOutputToHeap()=>this.RemoveKvp_FlushAndEvict();
 
@@ -105,11 +105,11 @@ public class Remove_KeyValuePair {
         Assert.True(dict.Remove(1,out var value));
         Assert.Equal("one",value);
     }
-    [Fact,Trait("Category","Coverage")]public void Remove_TKey_TValue_InPlaceUpdater()=>this.RemoveTKeyTValue_InPlaceUpdater();
-    [Fact,Trait("Category","Coverage")]public void Remove_TKey_TValue_GetRMWModifiedFieldInfo()=>this.RemoveTKeyTValue_InPlaceUpdater();
-    [Fact,Trait("Category","Coverage")]public void Remove_TKey_TValue_PostRMWOperation()=>this.RemoveTKeyTValue_InPlaceUpdater();
+    [Fact,Trait("Category",Unit)]public void Remove_TKey_TValue_InPlaceUpdater()=>this.RemoveTKeyTValue_InPlaceUpdater();
+    [Fact,Trait("Category",Unit)]public void Remove_TKey_TValue_GetRMWModifiedFieldInfo()=>this.RemoveTKeyTValue_InPlaceUpdater();
+    [Fact,Trait("Category",Unit)]public void Remove_TKey_TValue_PostRMWOperation()=>this.RemoveTKeyTValue_InPlaceUpdater();
 
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     public void Remove_TKey_TValue_NeedInitialUpdate_キー未存在() {
         using var store = Store.Create<int,string>();
         using var dict = store.Create();
@@ -129,23 +129,23 @@ public class Remove_KeyValuePair {
         Assert.True(dict.Remove(0,out var value));
         Assert.Equal("v0",value);
     }
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void Remove_TKey_TValue_CopyUpdater()=>this.RemoveTKeyTValue_CopyUpdater();
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void Remove_TKey_TValue_NeedCopyUpdate()=>this.RemoveTKeyTValue_CopyUpdater();
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void Remove_TKey_TValue_RMWCompletionCallback()=>this.RemoveTKeyTValue_CopyUpdater();
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void Remove_TKey_TValue_GetRMWModifiedFieldInfo_TSourceLogRecord_PinnedSpanByte()=>this.RemoveTKeyTValue_CopyUpdater();
 */
     // ── FlushAndEvict (ConvertOutputToHeap path) ──────────────────────
     // 1件書き込み後に FlushAndEvict → 次の Remove で IsPending=true
     // Tsavorite が Output をヒープに退避するために ConvertOutputToHeap が呼ばれる
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void Remove_TKey_TValue_ConvertOutputToHeap(){
         var folder = CreateFolder();

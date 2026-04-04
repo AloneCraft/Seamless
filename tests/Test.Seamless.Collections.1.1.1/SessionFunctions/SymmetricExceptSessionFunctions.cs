@@ -13,7 +13,7 @@ public class SymmetricExceptSessionFunctions {
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize = Const.MinObjectLogCapacity;
 
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void SymmetricExceptSessionFunctions_SymmetricExceptWithで排他的論理和になる() {
         using var storeA = Store.Create<int>();
         using var storeB = Store.Create<int>();
@@ -33,7 +33,7 @@ public class SymmetricExceptSessionFunctions {
         Assert.Contains(4,setA);
     }
 
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public void SymmetricExceptSessionFunctions_IsPending経路でも動作する() {
         var folderA = CreateFolder();
@@ -60,7 +60,7 @@ public class SymmetricExceptSessionFunctions {
         Assert.Contains(1,setA);
     }
 
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void SymmetricExceptSessionFunctions_ConvertOutputToHeapはnoopである() {
         var f = new global::Seamless.SessionFunctions.SymmetricExceptWith();
         var input = default(SpanByte);
@@ -68,7 +68,7 @@ public class SymmetricExceptSessionFunctions {
         f.ConvertOutputToHeap(ref input,ref output);
     }
 
-    //[Fact, Trait("Category","Coverage")]
+    //[Fact, Trait("Category",Unit)]
     //public void SymmetricExceptSessionFunctions_24メソッドを直接実行する() {
     //    var f = new global::Seamless.SessionFunctions.SymmetricExceptWith();
     //    SSessionFunctions fi = f;

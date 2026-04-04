@@ -1,9 +1,9 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 namespace Test.Seamless.Collections;
 
 
 public class DictionaryDebugView {
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Items_全エントリを返す() {
         using var store = Store.Create<int,string>();
         using var dict = store.Create();
@@ -15,7 +15,7 @@ public class DictionaryDebugView {
         Assert.Contains(items,x => x.Key==1&&x.Value=="a");
         Assert.Contains(items,x => x.Key==2&&x.Value=="b");
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void ctor_null_例外() {
         Assert.Throws<ArgumentNullException>(() => new DictionaryDebugView<int,string>(null!));
     }

@@ -5,22 +5,22 @@ namespace Test.Seamless.Collections;
 public class StoreCheckpoint {
     //private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest");
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public async Task SaveAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
         using var store = Store.Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.SaveAsync());
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public async Task LoadAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
         using var store = Store.Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.LoadAsync());
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public async Task SaveLogOnlyAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
         using var store = Store.Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.SaveLogOnlyAsync());
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public void Save_Load_HashSet_データが永続化され復元される() {
         var folder = CreateFolder();
@@ -53,7 +53,7 @@ public class StoreCheckpoint {
             Assert.False(set.Contains(99));
         }
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public async Task SaveAsync_LoadAsync_HashSet_データが永続化され復元される() {
         var folder = CreateFolder();
@@ -87,7 +87,7 @@ public class StoreCheckpoint {
             Assert.False(set.Contains(99));
         }
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public async Task SaveAsync_LoadAsync_Dictionary_データが永続化され復元される() {
         var folder = CreateFolder();
@@ -116,7 +116,7 @@ public class StoreCheckpoint {
             Assert.False(dict.ContainsKey(99));
         }
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public async Task SaveAsync_LoadAsync_HashSet_ハッシュインデックスが復元されContainsが動作する() {
         var folder = CreateFolder();
@@ -141,7 +141,7 @@ public class StoreCheckpoint {
             Assert.False(set.Contains(999));
         }
     }
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public async Task SaveAsync_LoadAsync_Dictionary_ハッシュインデックスが復元されReadが動作する(){
         var folder=CreateFolder();
@@ -169,7 +169,7 @@ public class StoreCheckpoint {
             Assert.False(dict.ContainsKey(999));
         }
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public async Task SaveAsync_CheckpointFailed_InvalidOperationExceptionをスロー() {
         var folder = CreateFolder();
@@ -185,7 +185,7 @@ public class StoreCheckpoint {
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveAsync().AsTask());
         await ongoingCheckpoint;
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public async Task SaveLogOnlyAsync_CheckpointFailed_InvalidOperationExceptionをスロー() {
         var folder = CreateFolder();
@@ -201,7 +201,7 @@ public class StoreCheckpoint {
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveLogOnlyAsync().AsTask());
         await ongoingCheckpoint;
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public async Task SaveLogOnlyAsync_LoadAsync_HashSet_データが永続化され復元される() {
         var folder = CreateFolder();
@@ -231,7 +231,7 @@ public class StoreCheckpoint {
             Assert.False(set.Contains(99));
         }
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public async Task SaveLogOnlyAsync_LoadAsync_Dictionary_データが永続化され復元される() {
         var folder = CreateFolder();

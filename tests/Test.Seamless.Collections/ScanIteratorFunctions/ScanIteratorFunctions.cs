@@ -13,10 +13,10 @@ public class ScanIteratorFunctions{
         }
         Assert.Equal(Count, h.Count);
     }
-    [Fact,Trait("Category","Coverage")]public void Reader()=>Common();
-    [Fact,Trait("Category","Coverage")]public void OnStart()=>Common();
-    [Fact,Trait("Category","Coverage")]public void OnStop()=>Common();
-    [Fact,Trait("Category","Coverage")]public void OnException(){
+    [Fact,Trait("Category",Unit)]public void Reader()=>Common();
+    [Fact,Trait("Category",Unit)]public void OnStart()=>Common();
+    [Fact,Trait("Category",Unit)]public void OnStop()=>Common();
+    [Fact,Trait("Category",Unit)]public void OnException(){
         var iter = new KeyIterator<int>();
         iter.OnException(new Exception("test"),0);
     }

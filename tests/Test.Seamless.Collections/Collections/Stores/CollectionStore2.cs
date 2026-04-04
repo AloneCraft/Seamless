@@ -1,4 +1,4 @@
-using Common;
+﻿using Common;
 using Seamless.Collections;
 using Tsavorite.core;
 namespace Test.Seamless.Collections;
@@ -12,7 +12,7 @@ public class CollectionStore2 {
     private const long TestMemorySize = Const.MinObjectLogCapacity;
     //CollectionStore コンストラクタ: ObjectLogDevice.Capacity<0 の分岐
     //Capacity=-1のデバイスを渡すとObjectLogSegmentSize=Const.MinObjectLogCapacityになる
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public void Constructor_ObjectLogCapacity_Negative() {
         var folder = CreateFolder();
@@ -27,7 +27,7 @@ public class CollectionStore2 {
     }
     //CollectionStore.CompactWithLookup: CompactUntil<=BeginAddress の早期return分岐
     //データなしまたは直後の2回目呼び出しでSafeReadOnlyAddress<CompactUntilとなる場合
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public void CompactWithLookup_EarlyReturn() {
         var folder = CreateFolder();
@@ -59,7 +59,7 @@ public class CollectionStore2 {
         store.CompactWithLookup();
     }
     //CollectionStore.CompactWithLookup: CompactUntil>SafeReadOnlyAddress でクリップされる分岐
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public void CompactWithLookup_ClipToSafeReadOnly() {
         var folder = CreateFolder();
@@ -77,13 +77,13 @@ public class CollectionStore2 {
         //例外なく完了すること
         Assert.True(store.Address.BeginAddress>=address.BeginAddress);
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Dispose_二重呼び出し_冪等() {
         var store = Store.Create<int>();
         store.Dispose();
         store.Dispose();
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Finalize_GCによる非同期破棄() {
         static void CreateOrphan() {
             _ = Store.Create<int,string>();
