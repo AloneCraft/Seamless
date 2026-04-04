@@ -34,12 +34,12 @@ public class Add {
         dict.Add(1,"one");
         Assert.True(dict.TryGetValue(1,out var value));
     }
-    [Fact,Trait("Category","Coverage")]public void NeedInitialUpdate()=>this.Add_TKey_TValue();
-    [Fact, Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo()=>this.Add_TKey_TValue();
-    [Fact,Trait("Category","Coverage")]public void InitialUpdater()=>this.Add_TKey_TValue();
-    [Fact,Trait("Category","Coverage")]public void PostInitialUpdater()=>this.Add_TKey_TValue();
-    [Fact,Trait("Category","Coverage")]public void PostRMWOperation()=>this.Add_TKey_TValue();
-    [Fact, Trait("Category","Coverage")]public void Reader() {
+    [Fact,Trait("Category",Unit)]public void NeedInitialUpdate()=>this.Add_TKey_TValue();
+    [Fact, Trait("Category",Unit)]public void GetRMWModifiedFieldInfo()=>this.Add_TKey_TValue();
+    [Fact,Trait("Category",Unit)]public void InitialUpdater()=>this.Add_TKey_TValue();
+    [Fact,Trait("Category",Unit)]public void PostInitialUpdater()=>this.Add_TKey_TValue();
+    [Fact,Trait("Category",Unit)]public void PostRMWOperation()=>this.Add_TKey_TValue();
+    [Fact, Trait("Category",Unit)]public void Reader() {
         using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict.Add(1,"one");
@@ -70,12 +70,12 @@ public class Add {
             }
         }
     }
-    [Fact,Trait("Category","Coverage")]public void GetUpsertFieldInfo_TKey_ReadOnlySpan_PInnedSpanByte()=>this.Upsert();
-    [Fact,Trait("Category","Coverage")]public void InitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_ReadOnlySpan_SpanByteAndMemory_UpsertInfo()=>this.Upsert();
-    [Fact,Trait("Category","Coverage")]public void PostInitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_ReadOnlySpan_SpanByteAndMemory_UpsertInfo()=>this.Upsert();
-    [Fact,Trait("Category","Coverage")]public void PostUpsertOperation_TKey_PinnedSpanByte_ReadOnlySpan_UpsertInfo_TEpochAccessor()=>this.Upsert();
+    [Fact,Trait("Category",Unit)]public void GetUpsertFieldInfo_TKey_ReadOnlySpan_PInnedSpanByte()=>this.Upsert();
+    [Fact,Trait("Category",Unit)]public void InitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_ReadOnlySpan_SpanByteAndMemory_UpsertInfo()=>this.Upsert();
+    [Fact,Trait("Category",Unit)]public void PostInitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_ReadOnlySpan_SpanByteAndMemory_UpsertInfo()=>this.Upsert();
+    [Fact,Trait("Category",Unit)]public void PostUpsertOperation_TKey_PinnedSpanByte_ReadOnlySpan_UpsertInfo_TEpochAccessor()=>this.Upsert();
 
-    [Fact, Trait("Category","Coverage")]public void InPlaceWriter() {
+    [Fact, Trait("Category",Unit)]public void InPlaceWriter() {
         using var store = Store.Create<int,string>();
 #if TSAVORITE2_0BETA3
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
@@ -123,7 +123,7 @@ public class Add {
         public void ClearSerializedObjectData() { }
         public void Dispose() { }
     }    
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void UpsertHeapObject() {
         using var store = Store.Create<int,string>();
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
@@ -152,11 +152,11 @@ public class Add {
     }
 #endif
 #if TSAVORITE2_0BETA3
-    [Fact,Trait("Category","Coverage")]public void GetUpsertFieldInfo_TKey_IHeapObject_PInnedSpanByte()=>this.UpsertHeapObject();
-    [Fact,Trait("Category","Coverage")]public void InitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
-    [Fact,Trait("Category","Coverage")]public void PostUpsertOperation_TKey_PinnedSpanByte_IHeapObject_UpsertInfo_TEpochAccessor()=>this.UpsertHeapObject();
-    [Fact,Trait("Category","Coverage")]public void InPlaceWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
-    [Fact,Trait("Category","Coverage")]public void PostInitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
+    [Fact,Trait("Category",Unit)]public void GetUpsertFieldInfo_TKey_IHeapObject_PInnedSpanByte()=>this.UpsertHeapObject();
+    [Fact,Trait("Category",Unit)]public void InitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
+    [Fact,Trait("Category",Unit)]public void PostUpsertOperation_TKey_PinnedSpanByte_IHeapObject_UpsertInfo_TEpochAccessor()=>this.UpsertHeapObject();
+    [Fact,Trait("Category",Unit)]public void InPlaceWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
+    [Fact,Trait("Category",Unit)]public void PostInitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
 
     private sealed class ScanAndUpsertFunctions(
         ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>
@@ -183,7 +183,7 @@ public class Add {
         public void OnException(Exception exception,long numberOfRecords) { }
     }
 
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void TSourceLogRecord() {
         using var store = Store.Create<int,string>();
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new());
@@ -197,12 +197,12 @@ public class Add {
         var inplaceFuncs = new ScanAndUpsertFunctions(session,null);
         store.Store.Log.Scan(ref inplaceFuncs,addr1,addr2,DiskScanBufferingMode.NoBuffering);
     }
-    [Fact,Trait("Category","Coverage")]public void GetUpsertFieldInfo_TKey_TSourceLogRecord_PinnedSpanByte()=>this.TSourceLogRecord();
-    [Fact,Trait("Category","Coverage")]public void InitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_TSourceLogRecord_SpanByteAndMemory_UpsertInfo()=>this.TSourceLogRecord();
-    [Fact,Trait("Category","Coverage")]public void InPlaceWrit2er_LogRecord_RecordSizeInfo_PinnedSpanByte_TSourceLogRecord_SpanByteAndMemory_UpsertInfo()=>this.TSourceLogRecord();
+    [Fact,Trait("Category",Unit)]public void GetUpsertFieldInfo_TKey_TSourceLogRecord_PinnedSpanByte()=>this.TSourceLogRecord();
+    [Fact,Trait("Category",Unit)]public void InitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_TSourceLogRecord_SpanByteAndMemory_UpsertInfo()=>this.TSourceLogRecord();
+    [Fact,Trait("Category",Unit)]public void InPlaceWrit2er_LogRecord_RecordSizeInfo_PinnedSpanByte_TSourceLogRecord_SpanByteAndMemory_UpsertInfo()=>this.TSourceLogRecord();
 #endif
 
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void RMW() {
         using var store = Store.Create<int,string>();
         var key = MakeKey(SerInt(1));
@@ -246,10 +246,10 @@ public class Add {
             Assert.False(status.NotFound);
         }
     }
-    [Fact,Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo_TSourceLogRecord_PinnedSpanByte()=>this.RMW();
-    [Fact,Trait("Category","Coverage")]public void InPlaceUpdater()=>this.RMW();
-    [Fact,Trait("Category","Coverage")]public void NeedCopyUpdate()=>this.RMW();
-    [Fact,Trait("Category","Coverage")]public void RMWCompletionCallback(){
+    [Fact,Trait("Category",Unit)]public void GetRMWModifiedFieldInfo_TSourceLogRecord_PinnedSpanByte()=>this.RMW();
+    [Fact,Trait("Category",Unit)]public void InPlaceUpdater()=>this.RMW();
+    [Fact,Trait("Category",Unit)]public void NeedCopyUpdate()=>this.RMW();
+    [Fact,Trait("Category",Unit)]public void RMWCompletionCallback(){
         var folder = CreateDiskFolder();
         using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
@@ -261,7 +261,7 @@ public class Add {
         store.Store.Log.FlushAndEvict(true);
         Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(0,"other"));
     }
-    [Fact,Trait("Category","Coverage")]public void ReadCompletionCallback(){
+    [Fact,Trait("Category",Unit)]public void ReadCompletionCallback(){
         var folder = CreateDiskFolder();
         using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
@@ -273,7 +273,7 @@ public class Add {
         Assert.True(dict.TryGetValue(0,out var v));
         Assert.Equal("target",v);
     }
-    [Fact, Trait("Category","Coverage")]public void ConvertOutputToHeap() {
+    [Fact, Trait("Category",Unit)]public void ConvertOutputToHeap() {
         var folder = CreateDiskFolder();
         using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
@@ -285,7 +285,7 @@ public class Add {
         store.Store.Log.FlushAndEvict(true);
         Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(0,"other"));
     }
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     public void ConcurrentWriter() {
 #if TSAVORITE1_1_1
         // 長い値で初回Upsert後、短い値で再Upsert → src.Length<=dst.Length → in-place コピー分岐を通す
@@ -303,7 +303,7 @@ public class Add {
         }
 #endif
     }
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     public void SingleReader() {
 #if TSAVORITE1_1_1
         // ShiftReadOnlyAddress はページフラッシュを伴うため ManagedLocalStorageDevice が必要
@@ -338,7 +338,7 @@ public class Add {
         Assert.True(status2.Found);
 #endif
     }
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     public void ConcurrentReader_Empty() {
 #if TSAVORITE1_1_1
         // mutable 領域に空値を置いて Read → ConcurrentReader の Span.IsEmpty=true 分岐を通す

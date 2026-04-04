@@ -1,7 +1,9 @@
 ﻿using Common;
-using Seamless.Collections;
 
+using Seamless.Collections;
+using Tests.Seamless;
 using Tsavorite.core;
+using static Tests.Seamless.Category;
 namespace Test.Seamless.SessionFunctions;
 
 
@@ -31,9 +33,9 @@ public class IntersectWith {
         Assert.Contains(3,setA);
         Assert.DoesNotContain(4,setA);
     }
-    [Fact,Trait("Category","Coverage")]public void InPlaceUpdater()=>this.Mutable();
-    [Fact,Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo()=>this.Mutable();
-    [Fact,Trait("Category","Coverage")]public void PostRMWOperation()=>this.Mutable();
+    [Fact,Trait("Category",Unit)]public void InPlaceUpdater()=>this.Mutable();
+    [Fact,Trait("Category",Unit)]public void GetRMWModifiedFieldInfo()=>this.Mutable();
+    [Fact,Trait("Category",Unit)]public void PostRMWOperation()=>this.Mutable();
 
     // ── ReadOnly in-memory (ShiftReadOnlyAddress でログ全体を ReadOnly に) ─
     // ShiftReadOnlyAddress(TailAddress, wait:true) で全レコードを ReadOnly 領域に移動してから
@@ -64,11 +66,11 @@ public class IntersectWith {
         Assert.Contains(3,setA);
         Assert.DoesNotContain(4,setA);
     }
-    [Fact,Trait("Category","Coverage")]public void NeedCopyUpdate()=>this.ReadOnly();
-    [Fact,Trait("Category","Coverage")]public void CopyUpdater()=>this.ReadOnly();
+    [Fact,Trait("Category",Unit)]public void NeedCopyUpdate()=>this.ReadOnly();
+    [Fact,Trait("Category",Unit)]public void CopyUpdater()=>this.ReadOnly();
 
     // ── Disk (IsPending path: 両ストアともディスク) ─────────────────
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void IsPending経路でも動作する() {
         var folderA = CreateFolder();

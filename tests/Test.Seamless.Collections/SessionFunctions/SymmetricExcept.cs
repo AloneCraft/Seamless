@@ -31,13 +31,13 @@ public class SymmetricExcept {
         Assert.DoesNotContain(3,setA);
         Assert.Contains(4,setA);
     }
-    [Fact,Trait("Category","Coverage")]public void InPlaceUpdater()=>this.SymmetricExceptWith();
-    [Fact,Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo()=>this.SymmetricExceptWith();
-    [Fact,Trait("Category","Coverage")]public void PostRMWOperation()=>this.SymmetricExceptWith();
-    [Fact,Trait("Category","Coverage")]public void NeedInitialUpdate()=>this.SymmetricExceptWith();
-    [Fact,Trait("Category","Coverage")]public void GetRMWInitialFieldInfo()=>this.SymmetricExceptWith();
-    [Fact,Trait("Category","Coverage")]public void InitialUpdater()=>this.SymmetricExceptWith();
-    [Fact,Trait("Category","Coverage")]public void PostInitialUpdater()=>this.SymmetricExceptWith();
+    [Fact,Trait("Category",Unit)]public void InPlaceUpdater()=>this.SymmetricExceptWith();
+    [Fact,Trait("Category",Unit)]public void GetRMWModifiedFieldInfo()=>this.SymmetricExceptWith();
+    [Fact,Trait("Category",Unit)]public void PostRMWOperation()=>this.SymmetricExceptWith();
+    [Fact,Trait("Category",Unit)]public void NeedInitialUpdate()=>this.SymmetricExceptWith();
+    [Fact,Trait("Category",Unit)]public void GetRMWInitialFieldInfo()=>this.SymmetricExceptWith();
+    [Fact,Trait("Category",Unit)]public void InitialUpdater()=>this.SymmetricExceptWith();
+    [Fact,Trait("Category",Unit)]public void PostInitialUpdater()=>this.SymmetricExceptWith();
 
     // ── ReadOnly in-memory (ShiftReadOnlyAddress でログ全体を ReadOnly に) ─
     // ShiftReadOnlyAddress(TailAddress, wait:true) で全レコードを ReadOnly 領域に移動してから
@@ -68,15 +68,15 @@ public class SymmetricExcept {
         Assert.DoesNotContain(3,setA);
         Assert.Contains(4,setA);
     }
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void NeedCopyUpdate()=>this.SymmetricExceptWith_ReadOnly();
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void CopyUpdater()=>this.SymmetricExceptWith_ReadOnly();
 
     // ── Disk (IsPending path: 両ストアともディスク) ─────────────────
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void IsPending経路でも動作する() {
         var folderA = CreateFolder();
@@ -130,10 +130,10 @@ public class SymmetricExcept {
         Assert.DoesNotContain(2,setA);
         Assert.DoesNotContain(3,setA);
     }
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void RMWCompletionCallback()=>this.SymmetricExceptWith_FlushAndEvict();
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void ConvertOutputToHeap()=>this.SymmetricExceptWith_FlushAndEvict();
 }

@@ -10,24 +10,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Collections\**" />
     <Compile Remove="Device\**" />
     <Compile Remove="RelationalDatabase\**" />
     <Compile Remove="Serializer\**" />
-    <Compile Remove="SessionFunctions\**" />
-    <Compile Remove="Store\**" />
-    <EmbeddedResource Remove="Collections\**" />
     <EmbeddedResource Remove="Device\**" />
     <EmbeddedResource Remove="RelationalDatabase\**" />
     <EmbeddedResource Remove="Serializer\**" />
-    <EmbeddedResource Remove="SessionFunctions\**" />
-    <EmbeddedResource Remove="Store\**" />
-    <None Remove="Collections\**" />
     <None Remove="Device\**" />
     <None Remove="RelationalDatabase\**" />
     <None Remove="Serializer\**" />
-    <None Remove="SessionFunctions\**" />
-    <None Remove="Store\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -41,12 +32,6 @@
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="Microsoft.Garnet" Version="1.1.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Collections\" />
-    <Folder Include="SessionFunctions\" />
-    <Folder Include="Store\" />
   </ItemGroup>
 
   <Import Project="..\Seamless.Collections\Seamless.Collections.projitems" Label="Shared" />

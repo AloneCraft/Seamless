@@ -12,14 +12,14 @@ public struct Delete:
 #if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        throw new NotSupportedException("Readで呼ばれる");
+        throw new NotSupportedException("Read");
     }
 #elif TSAVORITE1_1_1
     [ExcludeFromCodeCoverage]public bool SingleReader(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref SpanByteAndMemory dst,ref ReadInfo readInfo)    {
-        throw new NotSupportedException("Readで呼ばれる");
+        throw new NotSupportedException("Read");
     }
     [ExcludeFromCodeCoverage]public bool ConcurrentReader(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref SpanByteAndMemory dst,ref ReadInfo readInfo,ref RecordInfo recordInfo){
-        throw new NotSupportedException("Readで呼ばれる");
+        throw new NotSupportedException("Read");
     }
 
 #endif
@@ -170,11 +170,11 @@ public struct Delete:
     [ExcludeFromCodeCoverage]
 #if TSAVORITE2_0BETA3
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)where TSourceLogRecord : ISourceLogRecord {
-        throw new NotSupportedException("CopyUpdaterでRMWAction.ExpireAndStop&&falseが返されるので呼ばれない");
+        throw new NotSupportedException("CopyUpdaterがfalseを返すのでここは呼ばれない");
     }
 #elif TSAVORITE1_1_1
     public bool PostCopyUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte oldValue,ref SpanByte newValue,ref SpanByteAndMemory output,ref RMWInfo rmwInfo){
-        throw new NotSupportedException("CopyUpdaterでRMWAction.ExpireAndStop&&falseが返されるので呼ばれない");
+        throw new NotSupportedException("CopyUpdaterがfalseを返すのでここは呼ばれない");
     }
 #endif
 #if TSAVORITE2_0BETA3

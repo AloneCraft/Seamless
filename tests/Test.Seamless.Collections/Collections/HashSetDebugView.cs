@@ -1,7 +1,7 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 namespace Test.Seamless.Collections;
 public class HashSetDebugView {
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Items_全エントリを返す() {
         using var store = Store.Create<int>();
         using var set = store.Create();
@@ -13,7 +13,7 @@ public class HashSetDebugView {
         Assert.Contains(10,items);
         Assert.Contains(20,items);
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void ctor_null_例外() {
         Assert.Throws<ArgumentNullException>(() => new HashSetDebugView<int>(null!));
     }

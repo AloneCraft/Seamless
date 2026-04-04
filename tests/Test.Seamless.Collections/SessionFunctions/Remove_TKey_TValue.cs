@@ -18,11 +18,11 @@ public class Remove_TKey_TValue {
         Assert.True(dict.Remove(1,out var value));
         Assert.Equal("one",value);
     }
-    [Fact,Trait("Category","Coverage")]public void InPlaceUpdater()=>this.Remove();
-    [Fact,Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo()=>this.Remove();
-    [Fact,Trait("Category","Coverage")]public void PostRMWOperation()=>this.Remove();
+    [Fact,Trait("Category",Unit)]public void InPlaceUpdater()=>this.Remove();
+    [Fact,Trait("Category",Unit)]public void GetRMWModifiedFieldInfo()=>this.Remove();
+    [Fact,Trait("Category",Unit)]public void PostRMWOperation()=>this.Remove();
     // キー未存在 → NeedInitialUpdate → false → NotFound
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     public void NeedInitialUpdate() {
         using var store = Store.Create<int,string>();
         using var dict = store.Create();
@@ -47,23 +47,23 @@ public class Remove_TKey_TValue {
         Assert.True(dict.Remove(0,out var value));
         Assert.Equal("v0",value);
     }
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void NeedCopyUpdate()=>this.Remove_Disk();
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void CopyUpdater()=>this.Remove_Disk();
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void RMWCompletionCallback()=>this.Remove_Disk();
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void GetRMWModifiedFieldInfo_TSourceLogRecord_PinnedSpanByte()=>this.Remove_Disk();
 
     // ── FlushAndEvict (ConvertOutputToHeap path) ──────────────────────
     // 1件書き込み後に FlushAndEvict → 次の Remove で IsPending=true
     // Tsavorite が Output をヒープに退避するために ConvertOutputToHeap が呼ばれる
-    [Fact,Trait("Category","Coverage")]
+    [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     public void ConvertOutputToHeap(){
         var folder = CreateFolder();

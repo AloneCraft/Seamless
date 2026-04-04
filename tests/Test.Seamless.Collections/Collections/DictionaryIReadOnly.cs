@@ -2,7 +2,7 @@
 namespace Test.Seamless.Collections;
 
 public class DictionaryIReadOnly {
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Keys_IReadOnlyDictionary() {
         using var store = Store.Create<int,string>();
         using var dict = store.Create();
@@ -14,7 +14,7 @@ public class DictionaryIReadOnly {
         Assert.Contains(1,keys);
         Assert.Contains(2,keys);
     }
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void Values_IReadOnlyDictionary() {
         using var store = Store.Create<int,string>();
         using var dict = store.Create();

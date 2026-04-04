@@ -15,7 +15,7 @@ public class Delete {
     private static SpanByte MakeKey(int value) => SpanByte.FromPinnedSpan(MemoryPackSerializer.Serialize(value));
 #endif
 
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     public void NeedInitialUpdate() {
         using var store = Store.Create<int,string>();
         using var dict = store.Create();
@@ -25,7 +25,7 @@ public class Delete {
         Assert.False(dict.Remove(1));
     }
 
-    [Fact, Trait("Category","Coverage")]public void NeedCopyUpdate() {
+    [Fact, Trait("Category",Unit)]public void NeedCopyUpdate() {
         var folder = CreateFolder();
         using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
@@ -38,9 +38,9 @@ public class Delete {
         Assert.True(dict.Remove(0));
         Assert.False(dict.Remove(99999));
     }
-    [Fact,Trait("Category","Coverage")]public void CopyUpdate()=>this.NeedCopyUpdate();
+    [Fact,Trait("Category",Unit)]public void CopyUpdate()=>this.NeedCopyUpdate();
 
-    [Fact, Trait("Category","Coverage")]public void ConvertOutputToHeap() {
+    [Fact, Trait("Category",Unit)]public void ConvertOutputToHeap() {
         var folder = CreateFolder();
         using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
@@ -52,7 +52,7 @@ public class Delete {
         store.Store.Log.FlushAndEvict(true);
         dict.Remove(0);
     }
-    [Fact,Trait("Category","Coverage")]public void GetRMWModifiedFieldInfo_TSourceLogRecord_PinnedSpanByte()=>this.ConvertOutputToHeap();
-    [Fact,Trait("Category","Coverage")]public void InPlaceUpdater_LogRecord_RecordSizeInfo_PinnedSpanByte_SpanByteAndMemory_RMWInfo()=>this.ConvertOutputToHeap();
-    [Fact,Trait("Category","Coverage")]public void PostRMWOperation()=>this.ConvertOutputToHeap();
+    [Fact,Trait("Category",Unit)]public void GetRMWModifiedFieldInfo_TSourceLogRecord_PinnedSpanByte()=>this.ConvertOutputToHeap();
+    [Fact,Trait("Category",Unit)]public void InPlaceUpdater_LogRecord_RecordSizeInfo_PinnedSpanByte_SpanByteAndMemory_RMWInfo()=>this.ConvertOutputToHeap();
+    [Fact,Trait("Category",Unit)]public void PostRMWOperation()=>this.ConvertOutputToHeap();
 }

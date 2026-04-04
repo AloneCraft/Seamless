@@ -14,6 +14,6 @@ public class KeyIterator{
         foreach(var a in h.Keys) {
         }
     }
-    [Fact,Trait("Category","Coverage")]public void Reader()=>Common();
-    [Fact,Trait("Category","Coverage")]public void OnStart()=>Common();
-    [Fact,Trait("Category","Coverage")]public void OnStop()=>Common();}
+    [Fact,Trait("Category",Unit)]public void Reader()=>Common();
+    [Fact,Trait("Category",Unit)]public void OnStart()=>Common();
+    [Fact,Trait("Category",Unit)]public void OnStop()=>Common();}
