@@ -82,8 +82,9 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
         var Output = default(SpanByteAndMemory);
         var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
         Status=Pending(Session,Status,ref Output);
-        ReadOnlySpan<byte> x=Output.ReadOnlySpan;
-        return !Output.ReadOnlySpan.IsEmpty;
+        //RMWの結果がFoundかNotFoundかをOutputの長さで判定。
+        //Remove_KeyValuePairはキー存在時でも値が一致しない場合は削除しないため、Output.Length>0ならばキーと値の両方が一致して削除されたと判断できる。
+        return Output.Length>0;
     }
     public bool Remove(TKey key,out TValue value) {
         var Session = this.Remove_TKey_TValue_ClientSession;
@@ -137,9 +138,11 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
         var Input =SpanByte.FromPinnedSpan(ValueBytes);
         var Status = Session.BasicContext.RMW(FixedKey,Input,out var Output);
         Status=Pending(Session,Status,ref Output);
-        return !Output.AsReadOnlySpan().IsEmpty;
+        //RMWの結果がFoundかNotFoundかをOutputの長さで判定。
+        //Remove_KeyValuePairはキー存在時でも値が一致しない場合は削除しないため、Output.Length>0ならばキーと値の両方が一致して削除されたと判断できる。
+        return Output.Length>0;
     }
-    public bool Remove(TKey key,out TValue value) {
+    public bool Remove(TKey key,[MaybeNullWhen(false)]out TValue value) {
         var Session = this.Remove_TKey_TValue_ClientSession;
         var KeyBytes = Serialize(key);
         var FixedKey =SpanByte.FromPinnedSpan(KeyBytes);
@@ -150,7 +153,7 @@ public sealed class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDictionar
             value=Deserialize<TValue>(Output.AsReadOnlySpan());
             return true;
         }
-        value=default;
+        value =default;
         return false;
     }
     public Enumerator<TKey,TValue,Add,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());

@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 namespace Seamless.SessionFunctions;
 using System.Buffers;
 using Tsavorite.core;
@@ -18,12 +18,24 @@ using Tsavorite.core;
 ///         NeedInitialUpdate → false（キー未存在なので何もしない）
 ///     }
 /// </summary>
-internal readonly struct Remove_TKey_TValue():ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Collections.Empty>{
-	private readonly MemoryPool<byte> memoryPool = MemoryPool<byte>.Shared;
+internal readonly struct Remove_TKey_TValue():
+#if TSAVORITE2_0BETA3
+    ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Collections.Empty>
+#elif TSAVORITE1_1_1
+    ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Collections.Empty>
+#endif
+{
+    private readonly MemoryPool<byte> memoryPool = MemoryPool<byte>.Shared;
+#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref ReadInfo readInfo)
 		where TSourceLogRecord : ISourceLogRecord {
         throw new NotSupportedException("RMWは呼ばれない");
 	}
+#elif TSAVORITE1_1_1
+    public bool SingleReader(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref SpanByteAndMemory dst,ref ReadInfo readInfo)=>throw new NotSupportedException("RMWは呼ばれない");
+    public bool ConcurrentReader(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref SpanByteAndMemory dst,ref ReadInfo readInfo,ref RecordInfo recordInfo)=>throw new NotSupportedException("RMWは呼ばれない");
+#endif
+#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ReadOnlySpan<byte> srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo) {
         throw new NotSupportedException("RMWは呼ばれない");
 	}
@@ -34,6 +46,9 @@ internal readonly struct Remove_TKey_TValue():ISessionFunctions<PinnedSpanByte,S
 		where TSourceLogRecord : ISourceLogRecord {
         throw new NotSupportedException("RMWは呼ばれない");
 	}
+#elif TSAVORITE1_1_1
+#endif
+#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ReadOnlySpan<byte> srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo) {
         throw new NotSupportedException("RMWは呼ばれない");
 	}
@@ -43,6 +58,15 @@ internal readonly struct Remove_TKey_TValue():ISessionFunctions<PinnedSpanByte,S
     [ExcludeFromCodeCoverage]public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,in TSourceLogRecord inputLogRecord,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo) where TSourceLogRecord : ISourceLogRecord {
         throw new NotSupportedException("RMWは呼ばれない");
 	}
+#elif TSAVORITE1_1_1
+    public bool SingleWriter(ref SpanByte key,ref SpanByte input,ref SpanByte src,ref SpanByte dst,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo,WriteReason reason,ref RecordInfo recordInfo){
+        throw new NotSupportedException("RMWは呼ばれない");
+    }
+    public bool ConcurrentWriter(ref SpanByte key,ref SpanByte input,ref SpanByte src,ref SpanByte dst,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo,ref RecordInfo recordInfo){
+        throw new NotSupportedException("RMWは呼ばれない");
+    }
+#endif
+#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ReadOnlySpan<byte> srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo){
         throw new NotSupportedException("RMWは呼ばれない");
     }
@@ -53,6 +77,12 @@ internal readonly struct Remove_TKey_TValue():ISessionFunctions<PinnedSpanByte,S
         where TSourceLogRecord:ISourceLogRecord{
         throw new NotSupportedException("RMWは呼ばれない");
     }
+#elif TSAVORITE1_1_1
+    public void PostSingleWriter(ref SpanByte key,ref SpanByte input,ref SpanByte src,ref SpanByte dst,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo,WriteReason reason){
+        throw new NotSupportedException("RMWは呼ばれない");
+    }
+#endif
+#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public void PostUpsertOperation<TKey,TEpochAccessor>(TKey key,ref PinnedSpanByte input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
         where TKey:IKey,allows ref struct
         where TEpochAccessor:IEpochAccessor{
@@ -63,41 +93,118 @@ internal readonly struct Remove_TKey_TValue():ISessionFunctions<PinnedSpanByte,S
         where TEpochAccessor:IEpochAccessor{
         throw new NotSupportedException("RMWは呼ばれない");
     }
+#elif TSAVORITE1_1_1
+    public void PostUpsertOperation<TEpochAccessor>(ref SpanByte key,ref SpanByte input,ref SpanByte src,ref UpsertInfo upsertInfo,TEpochAccessor epoch)
+        where TEpochAccessor:IEpochAccessor{
+        throw new NotSupportedException("RMWは呼ばれない");
+    }
+#endif
+#if TSAVORITE2_0BETA3
 	// キー未存在時は新規作成しない
 	public bool NeedInitialUpdate<TKey>(TKey key,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)where TKey : IKey, allows ref struct {
 		return false;
 	}
+#elif TSAVORITE1_1_1
+    // キー未存在時は新規作成しない
+    public bool NeedInitialUpdate(ref SpanByte key,ref SpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo){
+        return false;
+    }
+#endif
+#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) {
         throw new NotSupportedException("NeedInitialUpdateがfalseを返すので呼ばれない");
 	}
+#elif TSAVORITE1_1_1
+    public bool InitialUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref SpanByteAndMemory output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo){
+        throw new NotSupportedException("NeedInitialUpdateがfalseを返すので呼ばれない");
+    }
+#endif
+#if TSAVORITE2_0BETA3
 	// キー存在時（Mutable）は値をOutputにコピーしてからExpireAndStopで論理削除
 	public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) {
 		logRecord.ValueSpan.CopyTo(ref output,this.memoryPool);
 		rmwInfo.Action=RMWAction.ExpireAndStop;
 		return false;
 	}
+#elif TSAVORITE1_1_1
+    // キー存在時（Mutable）は値をOutputにコピーしてからExpireAndStopで論理削除
+    public bool InPlaceUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref SpanByteAndMemory output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo){
+        output.CopyFrom(value.AsReadOnlySpan(),this.memoryPool);//RemoveなのでoldValueをコピー
+        rmwInfo.Action=RMWAction.ExpireAndStop;
+        return false;
+    }
+#endif
+#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo){
         throw new NotSupportedException("InitialUpdaterが呼ばれないので呼ばれない");
     }
+#elif TSAVORITE1_1_1
+    public void PostInitialUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref SpanByteAndMemory output,ref RMWInfo rmwInfo){
+        throw new NotSupportedException("InitialUpdaterが呼ばれないので呼ばれない");
+    }
+#endif
+#if TSAVORITE2_0BETA3
 	// キー存在時（ReadOnly/Disk）はコピー更新を許可して値を読み取る
 	public bool NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)where TSourceLogRecord : ISourceLogRecord {
 		return true;
 	}
+#elif TSAVORITE1_1_1
+    // キー存在時（ReadOnly/Disk）はコピー更新を許可して値を読み取る
+    public bool NeedCopyUpdate(ref SpanByte key,ref SpanByte input,ref SpanByte oldValue,ref SpanByteAndMemory output,ref RMWInfo rmwInfo){
+        return true;
+    }
+#endif
+#if TSAVORITE2_0BETA3
 	public bool CopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)where TSourceLogRecord : ISourceLogRecord {
 		srcLogRecord.ValueSpan.CopyTo(ref output,this.memoryPool);
 		rmwInfo.Action=RMWAction.ExpireAndStop;
 		return false;
 	}
+#elif TSAVORITE1_1_1
+    public bool CopyUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte oldValue,ref SpanByte newValue,ref SpanByteAndMemory output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo){
+        output.CopyFrom(oldValue.AsReadOnlySpan(),this.memoryPool);//RemoveなのでoldValueをコピー
+        rmwInfo.Action=RMWAction.ExpireAndStop;
+        return false;
+    }
+#endif
+#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)where TSourceLogRecord : ISourceLogRecord {
         throw new NotSupportedException("CopyUpdaterでRMWAction.ExpireAndStop&&falseが返されるので呼ばれない");
 	}
+#elif TSAVORITE1_1_1
+    public bool PostCopyUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte oldValue,ref SpanByte newValue,ref SpanByteAndMemory output,ref RMWInfo rmwInfo){
+        throw new NotSupportedException("CopyUpdaterでRMWAction.ExpireAndStop&&falseが返されるので呼ばれない");
+    }
+#endif
+#if TSAVORITE2_0BETA3
 	public void PostRMWOperation<TKey, TEpochAccessor>(TKey key,ref PinnedSpanByte input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)where TKey : IKey, allows ref struct where TEpochAccessor : IEpochAccessor {
         //RMW 確定後に呼ばれる。
 	}
+#elif TSAVORITE1_1_1
+    public void PostRMWOperation<TEpochAccessor>(ref SpanByte key,ref SpanByte input,ref RMWInfo rmwInfo,TEpochAccessor epoch)
+        where TEpochAccessor:IEpochAccessor{
+        //RMW 確定後に呼ばれる。
+    }
+#endif
+#if TSAVORITE2_0BETA3
     public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
         //CompletePendingWithOutputs
     }
-	//Delete (not used)
+#elif TSAVORITE1_1_1
+    public void RMWCompletionCallback(ref SpanByte key,ref SpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
+        //CompletePendingWithOutputs
+    }
+    public bool SingleDeleter(ref SpanByte key,ref SpanByte value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
+        throw new NotImplementedException();
+    }
+    public void PostSingleDeleter(ref SpanByte key,ref DeleteInfo deleteInfo){
+        throw new NotImplementedException();
+    }
+    public bool ConcurrentDeleter(ref SpanByte key,ref SpanByte value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
+        throw new NotImplementedException();
+    }
+#endif
+#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
 		throw new NotSupportedException();
 	}
@@ -107,20 +214,48 @@ internal readonly struct Remove_TKey_TValue():ISessionFunctions<PinnedSpanByte,S
     [ExcludeFromCodeCoverage]public bool InPlaceDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
 		throw new NotSupportedException();
 	}
+#elif TSAVORITE1_1_1
+#endif
+#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public void PostDeleteOperation<TKey, TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)where TKey : IKey, allows ref struct where TEpochAccessor : IEpochAccessor {
 		throw new NotSupportedException();
 	}
+#elif TSAVORITE1_1_1
+    public void PostDeleteOperation<TEpochAccessor>(ref SpanByte key,ref DeleteInfo deleteInfo,TEpochAccessor epoch)
+        where TEpochAccessor:IEpochAccessor{
+        throw new NotSupportedException();
+    }
+#endif
+#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
         throw new NotSupportedException("Read の非同期I/O完了時に呼ばれるので呼ばれない");
     }
+#elif TSAVORITE1_1_1
+    public void ReadCompletionCallback(ref SpanByte key,ref SpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
+        throw new NotSupportedException("Readの非同期I/O完了時に呼ばれるので呼ばれない");
+    }
+#endif
+#if TSAVORITE2_0BETA3
 	public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input)
 		where TSourceLogRecord : ISourceLogRecord {
 		return new() { KeySize=srcLogRecord.Key.Length,ValueSize=input.Length };
 	}
+#elif TSAVORITE1_1_1
+    public int GetRMWModifiedValueLength(ref SpanByte value,ref SpanByte input){
+        return value.Length;
+    }
+#endif
+#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref PinnedSpanByte input)
 		where TKey : IKey, allows ref struct {
         throw new NotSupportedException("NeedInitialUpdateがfalseを返すので呼ばれない");
 	}
+#elif TSAVORITE1_1_1
+    public int GetRMWInitialValueLength(ref SpanByte input){
+        throw new NotSupportedException("NeedInitialUpdateがfalseを返すので呼ばれない");
+    }
+#endif
+#if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref PinnedSpanByte input)
 		where TKey : IKey, allows ref struct {
 		throw new NotSupportedException();
@@ -134,7 +269,18 @@ internal readonly struct Remove_TKey_TValue():ISessionFunctions<PinnedSpanByte,S
 		where TSourceLogRecord : ISourceLogRecord {
 		throw new NotSupportedException();
 	}
+#elif TSAVORITE1_1_1
+    public int GetUpsertValueLength(ref SpanByte value,ref SpanByte input){
+        throw new NotImplementedException();
+    }
+#endif
+#if TSAVORITE2_0BETA3
     public void ConvertOutputToHeap(ref PinnedSpanByte input,ref SpanByteAndMemory output){
 
     }
+#elif TSAVORITE1_1_1
+    public void ConvertOutputToHeap(ref SpanByte input,ref SpanByteAndMemory output){
+
+    }
+#endif
 }

@@ -255,7 +255,9 @@ public readonly struct Add():
         return new() { KeySize=srcLogRecord.KeyBytes.Length,ValueSize=input.ReadOnlySpan.Length };
     }
 #elif TSAVORITE1_1_1
-    public int GetRMWModifiedValueLength(ref SpanByte value,ref SpanByte input) => value.Length;
+        [ExcludeFromCodeCoverage]public int GetRMWModifiedValueLength(ref SpanByte value,ref SpanByte input){
+            throw new NotSupportedException("NeedCopyUpdate() が常に false 計上デッドコード");
+        }
 #endif
 #if TSAVORITE2_0BETA3
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref PinnedSpanByte input)

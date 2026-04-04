@@ -123,12 +123,14 @@ public struct Delete:
     // キー存在時は Tombstone を挿入して削除
     public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) {
         rmwInfo.Action=RMWAction.ExpireAndStop;
+        //output.Length=1;
         return false;
     }
 #elif TSAVORITE1_1_1
     // キーが存在する場合は Tombstone を挿入して削除 → Status.Found
     public bool InPlaceUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref SpanByteAndMemory output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
         rmwInfo.Action=RMWAction.ExpireAndStop;
+        //output.Length=1;
         return false;
     }
 #endif
@@ -155,11 +157,13 @@ public struct Delete:
 #if TSAVORITE2_0BETA3
     public bool CopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)where TSourceLogRecord : ISourceLogRecord {
         rmwInfo.Action=RMWAction.ExpireAndStop;
+        //output.Length=1;
         return false;
     }
 #elif TSAVORITE1_1_1
     public bool CopyUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte oldValue,ref SpanByte newValue,ref SpanByteAndMemory output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
         rmwInfo.Action=RMWAction.ExpireAndStop;
+        //output.Length=1;
         return false;
     }
 #endif

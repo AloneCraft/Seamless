@@ -140,18 +140,18 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         }
         return TryAddResult.KeyAlreadyExists;
     }
-    public bool Remove(TKey key) {
-        var DeleteClientSession = this.DeleteClientSession;
-        var KeyBytes = Serialize(key);
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
-        var Input = default(PinnedSpanByte);
-        SpanByteAndMemory Output = default;
-        var Status = DeleteClientSession.BasicContext.RMW(FixedKey, ref Input,ref Output);
-        Status=Pending(DeleteClientSession,Status);
-        Debug.Assert(Status.Found!=Status.NotFound);
-        return Status.Found;
-
-    }
+    //public bool Remove(TKey key) {
+    //    var DeleteClientSession = this.DeleteClientSession;
+    //    var KeyBytes = Serialize(key);
+    //    var FixedKey = (FixedSpanByteKey)KeyBytes;
+    //    var Input = default(PinnedSpanByte);
+    //    SpanByteAndMemory Output = default;
+    //    var Status = DeleteClientSession.BasicContext.RMW(FixedKey, ref Input,ref Output);
+    //    Status=Pending(DeleteClientSession,Status);
+    //    Debug.Assert(Status.Found!=Status.NotFound);
+    //    Debug.Assert(Status.Found==Output.Length>0);
+    //    return Output.Length>0;
+    //}
 #elif TSAVORITE1_1_1
     private protected readonly TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store;
     public ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Add                ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> ClientSession { get;private set;}
@@ -224,18 +224,36 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         }
         return TryAddResult.KeyAlreadyExists;
     }
-    public bool Remove(TKey Key){
-        var DeleteSession = this.DeleteClientSession;
-        var KeyBytes = Serialize(Key);
-        var Input = default(SpanByte);
-        var Output = default(SpanByteAndMemory);
-        var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
-        var Status = DeleteSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output);
-        Status=Pending(DeleteSession,Status);
-        Debug.Assert(Status.Found!=Status.NotFound);
-        return Status.Found||Status.Record.Created||Status.Record.InPlaceUpdated;
-    }
+    //public bool Remove(TKey Key){
+    //    var DeleteSession = this.DeleteClientSession;
+    //    var KeyBytes = Serialize(Key);
+    //    var Input = default(SpanByte);
+    //    var Output = default(SpanByteAndMemory);
+    //    var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
+    //    var Status = DeleteSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output);
+    //    Status=Pending(DeleteSession,Status);
+    //    return Output.Length>0;
+    //    //Debug.Assert(Status.Found!=Status.NotFound);
+    //    //return Status.Found||Status.Record.Created||Status.Record.InPlaceUpdated;
+    //}
 #endif
+    public bool Remove(TKey key) {
+        var DeleteClientSession = this.DeleteClientSession;
+        var KeyBytes = Serialize(key);
+        var Output = default(SpanByteAndMemory);
+#if TSAVORITE2_0BETA3
+        var FixedKey = (FixedSpanByteKey)KeyBytes;
+        var Input = default(PinnedSpanByte);
+        var Status = DeleteClientSession.BasicContext.RMW(FixedKey, ref Input,ref Output);
+#elif TSAVORITE1_1_1
+        var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
+        var Input = default(SpanByte);
+        var Status = DeleteClientSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output);
+#endif
+        Status=Pending(DeleteClientSession,Status);
+        Debug.Assert(Status.Found!=Status.NotFound);
+        return Status.Found;
+    }
     public bool Contains(TKey Key) {
         var Status = this.Read(Key,out _);
         Debug.Assert(Status.Found==!Status.NotFound);

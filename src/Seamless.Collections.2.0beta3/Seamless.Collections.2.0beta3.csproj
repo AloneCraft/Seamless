@@ -39,18 +39,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="SessionFunctions\IntersectWith.cs" />
-    <Compile Include="SessionFunctions\Remove_KeyValuePair.cs" />
-    <Compile Include="SessionFunctions\Remove_TKey_TValue.cs" />
-    <Compile Include="SessionFunctions\SymmetricExceptWith.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="Microsoft.Garnet" Version="2.0.0-beta.3" />    <PackageReference Include="ZLinq" Version="1.*" />
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="SessionFunctions\" />
     <Folder Include="Store\" />
   </ItemGroup>
 

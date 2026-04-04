@@ -16,8 +16,6 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
 #if TSAVORITE2_0BETA3
     private protected KVSettings Settings{get;private set;}
 	public readonly TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store;
-    private void Initialize(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir){
-    }
 #elif TSAVORITE1_1_1
     private protected KVSettings<SpanByte,SpanByte> Settings{get;private set;}
     public readonly TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store;

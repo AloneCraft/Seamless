@@ -191,11 +191,11 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
         var Session = this.SymmetricExceptWith_ClientSession;
 #if TSAVORITE2_0BETA3
 		var Input = PinnedSpanByte.FromPinnedSpan(this.EmptyBytes);
-		foreach(var item in other) {
-			var KeyBytes = Serialize(item);
+		foreach(var Item in other) {
+			var KeyBytes = Serialize(Item);
 			var Key = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
 			SpanByteAndMemory Output = default;
-			var _=Session.BasicContext.RMW(Key,ref Input,ref Output);
+			var Status=Session.BasicContext.RMW(Key,ref Input,ref Output);
 		}
 #elif TSAVORITE1_1_1
         var InputBytes = this.EmptyBytes;
@@ -204,7 +204,7 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
             var Key = SpanByte.FromPinnedSpan(KeyBytes);
             var Input = SpanByte.FromPinnedSpan(InputBytes);
             SpanByteAndMemory Output = default;
-            Session.BasicContext.RMW(ref Key,ref Input,ref Output);
+            var Status=Session.BasicContext.RMW(ref Key,ref Input,ref Output);
             //unsafe {
             //    fixed(byte* PKey = KeyBytes, PInput = InputBytes) {
             //        var Key = SpanByte.FromPinnedPointer(PKey,KeyBytes.Length);
