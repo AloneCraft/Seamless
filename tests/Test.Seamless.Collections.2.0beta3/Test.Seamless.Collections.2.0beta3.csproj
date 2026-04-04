@@ -27,7 +27,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="CheckpointRecoveryTests.cs" />
     <Compile Remove="Common.cs" />
+    <Compile Remove="DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Remove="ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Remove="ScanIteratorFunctions\ScanIteratorFunctions.cs" />
     <Compile Remove="SessionFunctions\Add.cs" />
@@ -36,6 +38,7 @@
     <Compile Remove="SessionFunctions\Remove_KeyValuePair.cs" />
     <Compile Remove="SessionFunctions\Remove_TKey_TValue.cs" />
     <Compile Remove="SessionFunctions\SymmetricExcept.cs" />
+    <Compile Remove="StoreCheckpoint.cs" />
     <Compile Remove="TestKeyComparer.cs" />
   </ItemGroup>
 

@@ -11,6 +11,7 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AdventureWorks2008R2\AdventureWorks2008R2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CheckpointRecoveryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Collection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Dictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\DictionaryDebugView.cs" />
@@ -22,6 +23,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Enumerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Stores\CollectionStore2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyValueIterator.cs" />
@@ -33,6 +35,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Remove_KeyValuePair.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Remove_TKey_TValue.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\SymmetricExcept.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)StoreCheckpoint.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Test.cs" />
   </ItemGroup>
 </Project>

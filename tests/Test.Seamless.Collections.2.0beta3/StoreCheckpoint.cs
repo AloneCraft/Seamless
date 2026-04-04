@@ -179,9 +179,9 @@ public class StoreCheckpoint {
         using var store = Store.Create<int>(logDevice,objDevice,CheckpointDir: checkpointDir);
         using var set = store.Create();
         set.Add(1);
-        // TryInitiateFullCheckpoint が同期的にフラグをセットしてから非同期 I/O を待機するため、
-        // await せずタスクを保持しておくことでフラグが設定された状態を維持できる
-        var ongoingCheckpoint = store.Store.TakeFullCheckpointAsync(CheckpointType.Snapshot).AsTask();
+        // SaveAsync が同期的にロックを取得してから非同期 I/O を待機するため、
+        // await せずタスクを保持しておくことでロックが取得された状態を維持できる
+        var ongoingCheckpoint = store.SaveAsync().AsTask();
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveAsync().AsTask());
         await ongoingCheckpoint;
     }
@@ -195,11 +195,39 @@ public class StoreCheckpoint {
         using var store = Store.Create<int>(logDevice,objDevice,CheckpointDir: checkpointDir);
         using var set = store.Create();
         set.Add(1);
-        // TryInitiateHybridLogCheckpoint が同期的にフラグをセットしてから非同期 I/O を待機するため、
-        // await せずタスクを保持しておくことでフラグが設定された状態を維持できる
-        var ongoingCheckpoint = store.Store.TakeHybridLogCheckpointAsync(CheckpointType.Snapshot).AsTask();
+        // SaveLogOnlyAsync が同期的にロックを取得してから非同期 I/O を待機するため、
+        // await せずタスクを保持しておくことでロックが取得された状態を維持できる
+        var ongoingCheckpoint = store.SaveLogOnlyAsync().AsTask();
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveLogOnlyAsync().AsTask());
         await ongoingCheckpoint;
+    }
+    [Fact, Trait("Category",Unit)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
+    public async Task SaveAsync_CompleteCheckpointAsyncキャンセル_OperationCanceledExceptionをスロー() {
+        var folder = CreateFolder();
+        var checkpointDir = folder+"_checkpoint";
+        using var logDevice = new LocalStorageDevice(folder);
+        using var objDevice = new LocalStorageDevice(folder+"_obj");
+        using var store = Store.Create<int>(logDevice,objDevice,CheckpointDir: checkpointDir);
+        using var set = store.Create();
+        set.Add(1);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => store.SaveAsync(ct:cts.Token).AsTask());
+    }
+    [Fact, Trait("Category",Unit)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
+    public async Task SaveLogOnlyAsync_CompleteCheckpointAsyncキャンセル_OperationCanceledExceptionをスロー() {
+        var folder = CreateFolder();
+        var checkpointDir = folder+"_checkpoint";
+        using var logDevice = new LocalStorageDevice(folder);
+        using var objDevice = new LocalStorageDevice(folder+"_obj");
+        using var store = Store.Create<int>(logDevice,objDevice,CheckpointDir: checkpointDir);
+        using var set = store.Create();
+        set.Add(1);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => store.SaveLogOnlyAsync(ct:cts.Token).AsTask());
     }
     [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
