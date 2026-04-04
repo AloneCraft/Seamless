@@ -7,6 +7,7 @@
 		<DefineConstants>$(DefineConstants);TSAVORITE1_1_1</DefineConstants>
 	</PropertyGroup>
 	<ItemGroup>
+	  <Compile Remove="CheckpointRecoveryTests.cs" />
 	  <Compile Remove="ScanIteratorFunctions\CounterIterator.cs" />
 	  <Compile Remove="ScanIteratorFunctions\ScanIteratorFunctions.cs" />
 	  <Compile Remove="SessionFunctions\Add.cs" />

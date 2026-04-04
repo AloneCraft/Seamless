@@ -23,6 +23,7 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
 	public long LogMemorySize { get; }
 	public double MutableFraction { get; }
 	private bool Disposed;
+	private int _checkpointLock=0;
 
     private CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) {
 		AssertIsPowerOfTwo(IndexSize,nameof(IndexSize));
@@ -120,13 +121,33 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
 	/// <returns></returns>
 	/// <exception cref="InvalidOperationException"></exception>
 	public async ValueTask<Guid> SaveAsync(CheckpointType CheckpointType=CheckpointType.Snapshot,CancellationToken ct=default){
-        this.AssertCheckpointDir();
-        var(success,token)=await this.Store.TakeFullCheckpointAsync(CheckpointType,ct);
-        await this.Store.CompleteCheckpointAsync(ct);
-        if(success) 
-            return token;
-        throw new InvalidOperationException("Checkpoint failed.");
-    }
+		this.AssertCheckpointDir();
+		// Interlocked.CompareExchange: _checkpointLock が 0(未使用)のときだけ 1(使用中)に書き換える。
+		// 読み取りと書き込みを不可分(アトミック)に行うため、複数スレッドが同時に入ってもロックは必ず1つだけ獲得できる。
+		// 戻り値は交換前の値なので、0 以外 ＝ すでに他がロック中 → 例外を投げて即リターン。
+		if(Interlocked.CompareExchange(ref _checkpointLock,1,0)!=0)
+			throw new InvalidOperationException("Checkpoint failed.");
+		// try-finally: await 中に例外が発生した場合や OperationCanceledException が伝播した場合でも
+		// finally ブロックは必ず実行されるため、ロックの解放漏れを防ぐ。
+		try{
+			// Task.Yield: ここで必ず一度スレッドを手放し、継続をスレッドプールへ投稿する。
+			// TakeFullCheckpointAsync がデータ量少・高速 NVMe 等で同期完了した場合でも
+			// この yield によって呼び出し元へ制御が戻り、_checkpointLock=1 の状態が外部から観測可能になる。
+			// これにより「ロック保持中に 2 回目の SaveAsync を呼ぶ」テストが確実に機能する。
+			await Task.Yield();
+			// await: TakeFullCheckpointAsync / CompleteCheckpointAsync の I/O 完了を非同期で待機する。
+			// スレッドをブロックせず、完了コールバックで後続処理を再開する。
+			var(success,token)=await this.Store.TakeFullCheckpointAsync(CheckpointType,ct);
+			await this.Store.CompleteCheckpointAsync(ct);
+			if(success) 
+				return token;
+			throw new InvalidOperationException("Checkpoint failed.");
+		}finally{
+			// Interlocked.Exchange: _checkpointLock を無条件に 0(未使用)へ戻す。
+			// CompareExchange と同様にアトミックなので、ロック解放がスレッド間で確実に可視になる。
+			Interlocked.Exchange(ref _checkpointLock,0);
+		}
+	}
 	/// <summary>
 	/// データベース全体の完全なバックアップ（Full Checkpoint）
 	/// </summary>
@@ -141,13 +162,24 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
     /// <param name="CheckpointType"></param>
     /// <param name="ct"></param>
     /// <returns></returns>
-    public async ValueTask<Guid> SaveLogOnlyAsync(CheckpointType CheckpointType=CheckpointType.Snapshot,CancellationToken ct=default){
-        this.AssertCheckpointDir();
-		var(success,token)=await this.Store.TakeHybridLogCheckpointAsync(CheckpointType,cancellationToken:ct);
-		await this.Store.CompleteCheckpointAsync(ct);
-        if(success) 
-            return token;
-		throw new InvalidOperationException($"{nameof(this.SaveLogOnly)}Checkpoint failed.");
+	public async ValueTask<Guid> SaveLogOnlyAsync(CheckpointType CheckpointType=CheckpointType.Snapshot,CancellationToken ct=default){
+		this.AssertCheckpointDir();
+		// SaveAsync と同じロック戦略: CompareExchange でアトミックに使用中フラグを立て、
+		// 既に立っていれば即例外。try-finally でロック解放を保証する。
+		if(Interlocked.CompareExchange(ref _checkpointLock,1,0)!=0)
+			throw new InvalidOperationException($"{nameof(this.SaveLogOnly)}Checkpoint failed.");
+		try{
+			// SaveAsync と同じ理由で Task.Yield により必ずスレッドを手放す。
+			await Task.Yield();
+			// await: TakeHybridLogCheckpointAsync / CompleteCheckpointAsync の I/O を非同期で待機する。
+			var(success,token)=await this.Store.TakeHybridLogCheckpointAsync(CheckpointType,cancellationToken:ct);
+			await this.Store.CompleteCheckpointAsync(ct);
+			if(success) 
+				return token;
+			throw new InvalidOperationException($"{nameof(this.SaveLogOnly)}Checkpoint failed.");
+		}finally{
+			Interlocked.Exchange(ref _checkpointLock,0);
+		}
 	}
     /// <summary>
     /// データ（ログ）部分のみのバックアップ（Incremental/Log Checkpoint）
@@ -201,7 +233,8 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
 		} else {
 		}
 
-		if(CompactUntil<=BeginAddress) return;
+		if(CompactUntil<=BeginAddress) 
+            return;
 #if TSAVORITE2_0BETA3
     var UntilAddress=this.Store.Log.Compact<TKey,TValue,Empty>(
         CompactUntil,

@@ -86,8 +86,8 @@ internal readonly struct IntersectWith:
         throw new NotSupportedException();
     }
 #elif TSAVORITE1_1_1
-    public void PostSingleWriter(ref SpanByte Key,ref SpanByte Input,ref SpanByte Src,ref SpanByte Dst,ref SpanByteAndMemory Output,ref UpsertInfo UpsertInfo,WriteReason Reason){
-        throw new NotSupportedException();
+    [ExcludeFromCodeCoverage]public void PostSingleWriter(ref SpanByte Key,ref SpanByte Input,ref SpanByte Src,ref SpanByte Dst,ref SpanByteAndMemory Output,ref UpsertInfo UpsertInfo,WriteReason Reason){
+        throw new NotSupportedException("Upsert");
     }
 #endif
 #if TSAVORITE2_0BETA3
@@ -180,19 +180,19 @@ internal readonly struct IntersectWith:
         throw new NotSupportedException("RMW の非同期I/O完了時に呼ばれる。");
     }
 #elif TSAVORITE1_1_1
-    public void RMWCompletionCallback(ref SpanByte Key,ref SpanByte Input,ref SpanByteAndMemory Output,Collections.Empty Ctx,Status Status,RecordMetadata RecordMetadata){
+    [ExcludeFromCodeCoverage]public void RMWCompletionCallback(ref SpanByte Key,ref SpanByte Input,ref SpanByteAndMemory Output,Collections.Empty Ctx,Status Status,RecordMetadata RecordMetadata){
         throw new NotSupportedException("RMW の非同期I/O完了時に呼ばれる。");
     }
 #endif
 #if TSAVORITE2_0BETA3
 #elif TSAVORITE1_1_1
-    public bool SingleDeleter(ref SpanByte key,ref SpanByte value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
+    [ExcludeFromCodeCoverage]public bool SingleDeleter(ref SpanByte key,ref SpanByte value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
         throw new NotSupportedException("Delete");
     }
-    public void PostSingleDeleter(ref SpanByte key,ref DeleteInfo deleteInfo){
+    [ExcludeFromCodeCoverage]public void PostSingleDeleter(ref SpanByte key,ref DeleteInfo deleteInfo){
         throw new NotSupportedException("Delete");
     }
-    public bool ConcurrentDeleter(ref SpanByte key,ref SpanByte value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
+    [ExcludeFromCodeCoverage]public bool ConcurrentDeleter(ref SpanByte key,ref SpanByte value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
         throw new NotSupportedException("Delete");
     }
 #endif
@@ -248,11 +248,11 @@ internal readonly struct IntersectWith:
 #if TSAVORITE2_0BETA3
     [ExcludeFromCodeCoverage]public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref PinnedSpanByte input)
 		where TKey : IKey, allows ref struct {
-        throw new NotSupportedException("IntersectWith");
+        throw new NotSupportedException("IntersectWith RMWで新規レコードを作ることはないので、IntersectWith ではこのメソッドは呼ばれない。");
 	}
 #elif TSAVORITE1_1_1
-    public int GetRMWInitialValueLength(ref SpanByte Input){
-        throw new NotSupportedException("IntersectWith");
+    [ExcludeFromCodeCoverage]public int GetRMWInitialValueLength(ref SpanByte Input){
+        throw new NotSupportedException("IntersectWith RMWで新規レコードを作ることはないので、IntersectWith ではこのメソッドは呼ばれない。");
     }
 #endif
 #if TSAVORITE2_0BETA3

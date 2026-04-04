@@ -26,6 +26,7 @@ public class CollectionStore2 {
         Assert.Equal("a",dict[1]);
     }
     //CollectionStore.CompactWithLookup: CompactUntil<=BeginAddress の早期return分岐
+    //returnの後は2.0だとカバーできる
     //データなしまたは直後の2回目呼び出しでSafeReadOnlyAddress<CompactUntilとなる場合
     [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
@@ -36,9 +37,47 @@ public class CollectionStore2 {
         using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0.1,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         //データを書き込んでCompactWithLookupを実行
+        for(var a=0;a<1000;a++){
+            dict.Add(a,$"v{a}");
+        }
+        {
+            var before=store.Address;
+            store.CompactWithLookup();
+            var after=store.Address;
+            Assert.True(after.BeginAddress>=before.BeginAddress);
+        }
+        //2回目呼び出し: BeginAddressが進んだ後にさらに呼び出す
+        //SafeReadOnlyAddressがBeginAddress以下になるとCompactUntil<=BeginAddressの早期returnが発生する
+        {
+            var beforeSecond=store.Address;
+            store.CompactWithLookup();
+            var afterSecond=store.Address;
+            //例外が発生せず正常完了することを確認
+            Assert.True(afterSecond.BeginAddress>=beforeSecond.BeginAddress);
+        }
+        //連続呼び出し: 早期returnのelse経路をカバー (BeginAddress=CompactUntilになる場合)
+        store.CompactWithLookup();
+        store.CompactWithLookup();
+    }
+    //1.1.1CollectionStore.CompactWithLookup: CompactUntil>SafeReadOnlyAddress でクリップされる分岐
+    [Fact, Trait("Category",Unit)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
+    public void CompactWithLookup() {
+        //1.1.1の
+        var folder = CreateFolder();
+        using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
+        using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0.1,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
+        using var dict = store.Create();
+        //データを書き込んでCompactWithLookupを実行
         for(var a = 0; a<1000; a++) {
             dict.Add(a,$"v{a}");
         }
+        //1.1.1ではReadOnlyAddressの進行がバッファ容量ベースのため10000件ではSafeReadOnlyAddressが
+        //BeginAddressを超えず早期returnになる。ShiftReadOnlyAddressで強制的にTailAddressまで
+        //読み取り専用にしてSafeReadOnlyAddressを進め、CompactWithLookupが実際にコンパクションを
+        //実行できる状態にする。2.0beta3では既にReadOnlyAddressが進んでいるため冪等で無害。
+        store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress, true);
         {
             var before = store.Address;
             store.CompactWithLookup();
@@ -54,11 +93,8 @@ public class CollectionStore2 {
             //例外が発生せず正常完了することを確認
             Assert.True(afterSecond.BeginAddress>=beforeSecond.BeginAddress);
         }
-        //連続呼び出し: 早期returnのelse経路をカバー (BeginAddress=CompactUntilになる場合)
-        store.CompactWithLookup();
-        store.CompactWithLookup();
     }
-    //CollectionStore.CompactWithLookup: CompactUntil>SafeReadOnlyAddress でクリップされる分岐
+    //2.0CollectionStore.CompactWithLookup: CompactUntil>SafeReadOnlyAddress でクリップされる分岐
     [Fact, Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public void CompactWithLookup_ClipToSafeReadOnly() {
