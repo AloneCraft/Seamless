@@ -4,10 +4,11 @@ namespace Test.Seamless.Collections;
 
 
 public class Collection {
-    internal sealed class TestCollection<TKey,TValue>(CollectionStore<TKey,TValue> store)
-        :Collection<TKey,TValue>(store.Store,store.LogMemorySize,store.MutableFraction)
+    internal sealed class TestCollection<TKey,TValue>(CollectionStore<TKey,TValue> CollectionStore)
+        :Collection<TKey,TValue>(CollectionStore)
         where TKey:IEquatable<TKey>
         where TValue:IEquatable<TValue>{
+        private protected override bool WouldOverflowMutable(int KeyLength,int ValueLength)=>false;
         private bool disposed;
         public override bool IsDisposed=>this.disposed;
         protected override void Dispose(bool disposing){
@@ -68,15 +69,6 @@ public class Collection {
     }
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
 
-    // WouldOverflowMutable: LogMemorySize = 0 → if(LogMemorySize<=0) return false の分岐
-    [Fact, Trait("Category",Unit)]
-    public void WouldOverflowMutable_LogMemorySizeZero_早期リターンFalse() {
-        using var store = Store.Create<int>();
-        // 内部コンストラクタで LogMemorySize=0 を指定 → WouldOverflowMutable は常に false を返す
-        using var set = new global::Seamless.Collections.HashSet<int>(store.Store,LogMemorySize: 0);
-        Assert.True(set.Add(1));
-    }
-
     // WouldOverflowMutable: MutableFraction=0 → MutableBytes=0 → if(MutableBytes<=0) MutableBytes=LogMemorySize の分岐
     [Fact, Trait("Category",Unit)]
     public void WouldOverflowMutable_MutableFractionZero_MutableBytesはLogMemorySize() {
@@ -95,9 +87,9 @@ public class Collection {
         using var logDevice = new LocalStorageDevice(folder);
         using var objDevice = new LocalStorageDevice(folder+"_obj");
         // MutableFraction=0 でTsavorite内部が即時ReadOnly化しディスクへスピルさせる
-        using var store = Store.Create<int>(MutableFraction:0,LogDevice:logDevice,ObjectLogDevice:objDevice);
+        using var store = Store.Create<int>(LogDevice:logDevice,ObjectLogDevice:objDevice,MutableFraction:0);
         // LogMemorySize=0 でWouldOverflowMutableを無効化し、ディスクスピルを妨げない
-        using var set = new global::Seamless.Collections.HashSet<int>(store.Store,LogMemorySize: 0);
+        using var set =store.Create();
         // デフォルト MemorySize(8192 bytes) を超えるデータを追加して先頭レコードをディスクへ追い出す
         const int count = 200;
         for(var i = 0;i<count;i++) set.Add(i);

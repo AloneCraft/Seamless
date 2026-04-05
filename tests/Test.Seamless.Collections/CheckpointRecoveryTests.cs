@@ -84,8 +84,8 @@
 //            foreach(var f in Directory.GetFiles(dir,name+".*")) File.Delete(f);
 //            foreach(var f in Directory.GetFiles(dir,name+"_obj.*")) File.Delete(f);
 //            if(Directory.Exists(checkpointDir)) Directory.Delete(checkpointDir,true);
-//            using var LogDevice=new ManagedLocalStorageDevice(folder);
-//            using var ObjectLogDevice=new ManagedLocalStorageDevice(folder+"_obj");
+//            using var LogDevice=Devices.CreateLogDevice(folder);
+//            using var ObjectLogDevice=Devices.CreateLogDevice(folder+"_obj");
 //            using var Store=CreateStore(folder,checkpointDir,LogDevice,ObjectLogDevice);
 //            {
 //                var KeyBytes=MemoryPackSerializer.Serialize(Key);
@@ -102,8 +102,8 @@
 //            //(_, token)=await Store.TakeFullCheckpointAsync(CheckpointType.FoldOver);
 //        }
 //        {
-//            using var LogDevice1=new ManagedLocalStorageDevice(folder);
-//            using var ObjectLogDevice1=new ManagedLocalStorageDevice(folder+"_obj");
+//            using var LogDevice1=Devices.CreateLogDevice(folder);
+//            using var ObjectLogDevice1=Devices.CreateLogDevice(folder+"_obj");
 //            using var Store1=CreateStore(folder,checkpointDir,LogDevice1,ObjectLogDevice1);
 //            for(var a=0;a<LoadCount;a++){
 //                //await Store1.RecoverAsync(default,token,cancellationToken:ct);

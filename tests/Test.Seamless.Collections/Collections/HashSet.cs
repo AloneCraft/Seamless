@@ -324,7 +324,9 @@ public class HashSet {
         Assert.True(Record.Exception(() => {
             using var fullStore = Store.Create<int>(MutableFraction: 0.01);
             using var fullSet = fullStore.Create();
-            fullSet.Add(1);
+            for(var a=0;a<10000;a++){
+                fullSet.Add(1);
+            }
         }) is OutOfMemoryException,"TryAddResult.LogFull");
         //switch(Result) {
         //    case TryAddResult.Success:

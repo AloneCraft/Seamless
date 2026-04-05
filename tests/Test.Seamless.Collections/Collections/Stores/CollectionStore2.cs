@@ -13,12 +13,11 @@ public class CollectionStore2 {
     //CollectionStore コンストラクタ: ObjectLogDevice.Capacity<0 の分岐
     //Capacity=-1のデバイスを渡すとObjectLogSegmentSize=Const.MinObjectLogCapacityになる
     [Fact, Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
-    public void Constructor_ObjectLogCapacity_Negative() {
+        public void Constructor_ObjectLogCapacity_Negative() {
         var folder = CreateFolder();
-        using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
+        using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         //Capacityを指定しないとデフォルト=-1になる(Capacity<0分岐を通す)
-        using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true);
+        using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true);
         //Capacity<0 → ObjectLogSegmentSize=Const.MinObjectLogCapacity として正常に構築されること
         using var store = Store.Create<int,string>(MemorySize:TestMemorySize,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
@@ -29,11 +28,10 @@ public class CollectionStore2 {
     //returnの後は2.0だとカバーできる
     //データなしまたは直後の2回目呼び出しでSafeReadOnlyAddress<CompactUntilとなる場合
     [Fact, Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
-    public void CompactWithLookup_EarlyReturn() {
+        public void CompactWithLookup_EarlyReturn() {
         var folder = CreateFolder();
-        using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
+        using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0.1,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         //データを書き込んでCompactWithLookupを実行
@@ -61,12 +59,11 @@ public class CollectionStore2 {
     }
     //1.1.1CollectionStore.CompactWithLookup: CompactUntil>SafeReadOnlyAddress でクリップされる分岐
     [Fact, Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
-    public void CompactWithLookup() {
+        public void CompactWithLookup() {
         //1.1.1の
         var folder = CreateFolder();
-        using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
+        using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0.1,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         //データを書き込んでCompactWithLookupを実行
@@ -96,11 +93,10 @@ public class CollectionStore2 {
     }
     //2.0CollectionStore.CompactWithLookup: CompactUntil>SafeReadOnlyAddress でクリップされる分岐
     [Fact, Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
-    public void CompactWithLookup_ClipToSafeReadOnly() {
+        public void CompactWithLookup_ClipToSafeReadOnly() {
         var folder = CreateFolder();
-        using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
+        using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         //MutableFraction=0で全データを即時読み取り専用にする
         using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();

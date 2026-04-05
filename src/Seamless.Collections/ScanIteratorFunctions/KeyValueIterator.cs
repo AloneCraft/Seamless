@@ -1,7 +1,7 @@
 ﻿namespace Seamless.ScanIteratorFunctions;
 using MemoryPack;
 
-using Seamless.Collections;
+using Collections;
 
 using Tsavorite.core;
 #if TSAVORITE2_0BETA3

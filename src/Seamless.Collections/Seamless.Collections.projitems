@@ -10,10 +10,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Collection`2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Dictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\DictionaryDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Empty.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Enumerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\HashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\HashSetDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\ISet.cs" />
@@ -33,8 +37,10 @@
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\SymmetricExceptWith.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore`2.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\DictionaryStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\HashSetStore.cs" />
+    <Compile Include="..\Seamless.Collections\Store\StorageDictionaryStore.cs" />
+    <Compile Include="..\Seamless.Collections\Store\MemoryDictionaryStore.cs" />
+    <Compile Include="..\Seamless.Collections\Store\StorageHashSetStore.cs" />
+    <Compile Include="..\Seamless.Collections\Store\MemoryHashSetStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\Store.cs" />
   </ItemGroup>
   <ItemGroup>

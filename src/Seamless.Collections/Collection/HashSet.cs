@@ -5,12 +5,6 @@ using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Tsavorite.core;
 namespace Seamless.Collections;
-//public static class Extensions0{
-//    public static bool PrivateTryAdd0<TKey, TValue>(this Collection<TKey,TValue>Collection,TKey Key,TValue Value) where TKey : IEquatable<TKey> where TValue : IEquatable<TValue> {
-//        var KeyBytes = MemoryPack.MemoryPackSerializer.Serialize(Key);
-//        var ValueBytes = MemoryPack.MemoryPackSerializer.Serialize(Key);
-//    }
-//}
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。
 /// <see cref="ISet{T}"/> を実装し、利用者に Tsavorite の詳細を見せない。
@@ -18,13 +12,14 @@ namespace Seamless.Collections;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
-public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable<T> {
+public abstract class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable<T>{
 	private readonly byte[] EmptyBytes;
 #if TSAVORITE2_0BETA3
 	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith          ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>IntersectWith_ClientSession;
 	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith    ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>SymmetricExceptWith_ClientSession;
-	internal HashSet(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
+	internal HashSet(CollectionStore<T,Empty> CollectionStore):base(CollectionStore){
 		this.EmptyBytes=Serialize(Empty.Default);
+        var Store=CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith>(new());
 		this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new());
 	}
@@ -49,10 +44,11 @@ public sealed class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatable
 #elif TSAVORITE1_1_1
     private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,IntersectWith,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> IntersectWith_ClientSession;
     private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> SymmetricExceptWith_ClientSession;
-    internal HashSet(TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store,long LogMemorySize = 0,double MutableFraction = 1.0) : base(Store,LogMemorySize,MutableFraction) {
+    internal HashSet(CollectionStore<T,Empty> CollectionStore) : base(CollectionStore) {
         this.EmptyBytes=Serialize(Empty.Default);
-        this.IntersectWith_ClientSession=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,IntersectWith>(new IntersectWith());
-        this.SymmetricExceptWith_ClientSession=this.Store.NewSession<SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new SymmetricExceptWith());
+        var Store=CollectionStore.Store;
+        this.IntersectWith_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,IntersectWith>(new());
+        this.SymmetricExceptWith_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new());
     }
 
 	public Enumerator<

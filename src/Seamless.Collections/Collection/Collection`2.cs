@@ -1,8 +1,11 @@
-﻿using System.Diagnostics;
-using Garnet.common;
+﻿using Garnet.common;
+
 using MemoryPack;
+
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
+
+using System.Diagnostics;
 using Tsavorite.core;
 #pragma warning disable CS8618 // null 非許容のフィールドには、コンストラクターの終了時に非 null 値が入っていなければなりません。'required' 修飾子を追加するか、null 許容として宣言することを検討してください。
 namespace Seamless.Collections;
@@ -11,10 +14,38 @@ namespace Seamless.Collections;
 /// <see cref="IDictionary{TKey,TValue}"/> を実装し、利用者に Tsavorite の詳細を見せない。
 /// 静的ポリモーフィズムにより仮想ディスパッチを回避する。
 /// </summary>
-public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<TKey>where TValue:IEquatable<TValue>{
+public abstract class Collection<TKey,TValue> : IDisposable
+    where TKey : IEquatable<TKey>
+    where TValue : IEquatable<TValue>{
+    
+    private protected bool PrivateProtectedWouldOverflowMutable(int KeyLength,int ValueLength){
+        Debug.Assert(this.LogMemorySize>=8192);
+        //var MutableBytes=(long)(this.LogMemorySize*this.MutableFraction);
+        //if(MutableBytes<=0){
+        //    MutableBytes=this.LogMemorySize;
+        //} else{}
+        //var Log=this.CollectionStore.Store.Log;
+        //var Used=Log.TailAddress-Log.BeginAddress;
+        //var Required=(long)KeyLength+ValueLength+RecordOverheadBytes;
+        //return Used+Required>MutableBytes;
+        var Log = this.CollectionStore.Store.Log;
+        var Used = Log.TailAddress - Log.BeginAddress;
+        var MutableBytes = (long)(this.LogMemorySize * this.MutableFraction);
+        if(MutableBytes <= 0) {
+            MutableBytes = this.LogMemorySize;
+        }
+        var Required = (long)KeyLength + ValueLength + RecordOverheadBytes;
+        // メモリの80%を使用したらコンパクションを実行
+        if(Used + Required > MutableBytes * 0.8) {
+            this.CollectionStore.CompactWithLookup();
+        }   
+        return false; // Storage版は常にfalseを返す（エビクションで対応）
+    }
     private protected const int RecordOverheadBytes=128;
-    private protected readonly long LogMemorySize;
-    private protected readonly double MutableFraction;
+    private protected long LogMemorySize=>this.CollectionStore.LogMemorySize;
+    private protected double MutableFraction=>this.CollectionStore.MutableFraction;
+    //private protected readonly long LogMemorySize;
+    //private protected readonly double MutableFraction;
     //private protected readonly Add SessionFunctions=new();
     //private protected readonly GDeleteClientSession DeleteClientSession;
     //private void Initialize(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir){
@@ -41,22 +72,23 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
 
 
     private protected OutOfMemoryException ThrowLogFull() {
-        var Log = this.Store.Log;
+        var Log = this.CollectionStore.Store.Log;
         return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
     }
-    private protected bool WouldOverflowMutable(int KeyLength,int ValueLength){
-        if(this.LogMemorySize<=0) {
-            return false;
-        }
-        var MutableBytes = (long)(this.LogMemorySize*this.MutableFraction);
-        if(MutableBytes<=0) {
-            MutableBytes=this.LogMemorySize;
-        }
-        var Log = this.Store.Log;
-        var Used = Log.TailAddress-Log.BeginAddress;
-        var Required = (long)KeyLength+ValueLength+RecordOverheadBytes;
-        return Used+Required>MutableBytes;
-    }
+    private protected abstract bool WouldOverflowMutable(int KeyLength,int ValueLength);
+    //private protected bool WouldOverflowMutable(int KeyLength,int ValueLength){
+    //    if(this.LogMemorySize<=0) {
+    //        return false;
+    //    }
+    //    var MutableBytes = (long)(this.LogMemorySize*this.MutableFraction);
+    //    if(MutableBytes<=0) {
+    //        MutableBytes=this.LogMemorySize;
+    //    }
+    //    var Log = this.Store.Log;
+    //    var Used = Log.TailAddress-Log.BeginAddress;
+    //    var Required = (long)KeyLength+ValueLength+RecordOverheadBytes;
+    //    return Used+Required>MutableBytes;
+    //}
     private protected static byte[] Serialize<T>(T value) => MemoryPackSerializer.Serialize(value);
     private protected static T Deserialize<T>(ReadOnlySpan<byte> bytes) => MemoryPackSerializer.Deserialize<T>(bytes)!;
 
@@ -67,16 +99,15 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         return Iterator.Counter;
     }
     public int Count => (int)this.GetLongCount();
-    public long EntryCount => this.Store.EntryCount;
+    public long EntryCount => this.CollectionStore.Store.EntryCount;
 
+    private protected readonly CollectionStore<TKey,TValue>CollectionStore;
 #if TSAVORITE2_0BETA3
-    private protected readonly TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store;
     public ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Add                ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> ClientSession { get;private set;}
     private protected ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Delete             ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> DeleteClientSession{ get;private set;}
-    protected Collection(TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Store,long LogMemorySize=0,double MutableFraction=1.0){
-        this.Store = Store;
-        this.LogMemorySize=LogMemorySize;
-        this.MutableFraction=MutableFraction;
+    protected Collection(CollectionStore<TKey,TValue>CollectionStore){
+        this.CollectionStore=CollectionStore;
+        var Store=CollectionStore.Store;
         this.ClientSession      =Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Empty, Add>(new());
         this.DeleteClientSession=Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Empty, Delete>(new());
     }
@@ -84,7 +115,8 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         var Session=this.ClientSession;
         Session.BasicContext.CompletePending(wait:true);
         Session.Dispose();
-        this.Store.Reset();
+        var Store=this.CollectionStore.Store;
+        Store.Reset();
         this.ClientSession      =Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Empty, Add>(new());
         this.DeleteClientSession=Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Empty, Delete>(new());
     }
@@ -124,7 +156,8 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
     private protected TryAddResult PrivateTryAdd(TKey Key,TValue Value){
         var KeyBytes = Serialize(Key);
         var ValueBytes = Serialize(Value);
-        if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length)) {
+        var log = this.CollectionStore.Store.Log;
+        if(this.WouldOverflowMutable(KeyBytes.Length, ValueBytes.Length)) {
             return TryAddResult.LogFull;
         }
 
@@ -153,13 +186,12 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
     //    return Output.Length>0;
     //}
 #elif TSAVORITE1_1_1
-    private protected readonly TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store;
+    //private protected readonly TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store;
     public ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Add                ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> ClientSession { get;private set;}
     private protected ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Delete             ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> DeleteClientSession{ get;private set;}
-    protected Collection(TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>Store,long LogMemorySize=0,double MutableFraction=1.0){
-        this.Store= Store;
-        this.LogMemorySize=LogMemorySize;
-        this.MutableFraction=MutableFraction;
+    protected Collection(CollectionStore<TKey,TValue> CollectionStore){
+        this.CollectionStore= CollectionStore;
+        var Store= CollectionStore.Store;
         this.ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Add>(new());
         this.DeleteClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Delete>(new());
     }
@@ -167,8 +199,8 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
         var Session=this.ClientSession;
         Session.BasicContext.CompletePending(wait:true);
         Session.Dispose();
-        this.Store.Reset();
-        var Store=this.Store;
+        var Store=this.CollectionStore.Store;
+        Store.Reset();
         this.ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Add>(new());
         this.DeleteClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Delete>(new());
     }
@@ -210,7 +242,8 @@ public abstract class Collection<TKey,TValue>:IDisposable where TKey:IEquatable<
     private protected TryAddResult PrivateTryAdd(TKey Key,TValue Value){
         var KeyBytes = Serialize(Key);
         var ValueBytes = Serialize(Value);
-        if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length)) {
+        var log = this.CollectionStore.Store.Log;
+        if(this.WouldOverflowMutable(KeyBytes.Length, ValueBytes.Length)){
             return TryAddResult.LogFull;
         }
         var Session=this.ClientSession;
