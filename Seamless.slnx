@@ -10,7 +10,6 @@
     <Project Path="tests/Test.Seamless.Collections.1.1.1/Test.Seamless.Collections.1.1.1.csproj" />
     <Project Path="tests/Test.Seamless.Collections.2.0beta3/Test.Seamless.Collections.2.0beta3.csproj" />
     <Project Path="tests/Test.Seamless.Collections/Test.Seamless.Collections.shproj" Id="f485746b-4005-416a-8e23-c2a691d7f41d" />
-    <Project Path="tests/TestCommon/TestCommon.csproj" />
   </Folder>
   <Folder Name="/新しいフォルダー1/">
     <File Path="ReadMe.txt" />

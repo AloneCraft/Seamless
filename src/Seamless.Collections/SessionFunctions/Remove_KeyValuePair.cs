@@ -1,8 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 namespace Seamless.SessionFunctions;
 using System.Buffers;
-using System.Runtime.InteropServices;
-
 using Tsavorite.core;
 /// <summary>
 /// RMWでKey,Value両方が一致するエントリのみ削除するセッション関数。

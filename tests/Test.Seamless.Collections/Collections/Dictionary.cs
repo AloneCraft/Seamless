@@ -307,10 +307,8 @@ public class Dictionary {
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public void WouldOverflowMutable_OverflowDetected() {
         var folder = CreateDiskFolder();
-        using var LogDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var ObjDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         // MemorySize=8KB, MutableFraction=0.5 → MutableBytes=4KB → 少量レコードでオーバーフロー
-        using var store = Store.Create<int,string>(MemorySize:Const.LogMemorySize,MutableFraction:0.5,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
+        using var store = Store.Create<int,string>(MemorySize:Const.LogMemorySize,MutableFraction:0.5);
         using var dict = store.Create();
         Assert.Throws<OutOfMemoryException>((Action)(() => {
             for(var i = 0;;i++) dict.Add(i,"v");

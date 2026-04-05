@@ -1,5 +1,4 @@
-﻿using System.Data;
-using Seamless.Collections;
+﻿using Seamless.Collections;
 namespace Test.Seamless.ScanIteratorFunctions;
 
 public class CounterIterator{

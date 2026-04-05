@@ -1,9 +1,7 @@
 ﻿using Common;
 
 using Seamless.Collections;
-using Tests.Seamless;
 using Tsavorite.core;
-using static Tests.Seamless.Category;
 namespace Test.Seamless.SessionFunctions;
 
 
@@ -43,9 +41,9 @@ public class IntersectWith {
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
     private void ReadOnly() {
         var folder = CreateFolder();
-        using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var storeA = Store.Create<int>(logDevice,objDevice,MemorySize: TestMemorySize);
+        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
+        using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
+        using var storeA = Store.Create<int>(logDevice,objDevice,MemorySize:TestMemorySize);
         using var storeB = Store.Create<int>();
         using var setA = storeA.Create();
         using var setB = storeB.Create();
@@ -75,12 +73,12 @@ public class IntersectWith {
     public void IsPending経路でも動作する() {
         var folderA = CreateFolder();
         var folderB = CreateFolder();
-        using var logDeviceA = new ManagedLocalStorageDevice(Path.Combine(folderA,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var objDeviceA = new ManagedLocalStorageDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var logDeviceB = new ManagedLocalStorageDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var objDeviceB = new ManagedLocalStorageDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var storeA = Store.Create<int>(logDeviceA,objDeviceA,MemorySize: TestMemorySize,MutableFraction: 0);
-        using var storeB = Store.Create<int>(logDeviceB,objDeviceB,MemorySize: TestMemorySize,MutableFraction: 0);
+        using var logDeviceA = Devices.CreateLogDevice(Path.Combine(folderA,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
+        using var objDeviceA = Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
+        using var logDeviceB = Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
+        using var objDeviceB = Devices.CreateLogDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
+        using var storeA = Store.Create<int>(logDeviceA,objDeviceA,MemorySize:TestMemorySize,MutableFraction:0);
+        using var storeB = Store.Create<int>(logDeviceB,objDeviceB,MemorySize:TestMemorySize,MutableFraction:0);
         using var setA = storeA.Create();
         using var setB = storeB.Create();
 
