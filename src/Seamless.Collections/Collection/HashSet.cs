@@ -201,14 +201,6 @@ public abstract class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatab
             var Input = SpanByte.FromPinnedSpan(InputBytes);
             SpanByteAndMemory Output = default;
             var Status=Session.BasicContext.RMW(ref Key,ref Input,ref Output);
-            //unsafe {
-            //    fixed(byte* PKey = KeyBytes, PInput = InputBytes) {
-            //        var Key = SpanByte.FromPinnedPointer(PKey,KeyBytes.Length);
-            //        var Input = SpanByte.FromPinnedPointer(PInput,InputBytes.Length);
-            //        SpanByteAndMemory Output = default;
-            //        Session.BasicContext.RMW(ref Key,ref Input,ref Output);
-            //    }
-            //}
         }
 #endif
         Session.BasicContext.CompletePending(wait: true);

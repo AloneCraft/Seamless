@@ -150,29 +150,29 @@
 //            Assert.Equal(expected,actual);
 //        }
 //    }
-//    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_FoldOver1(){
+//    [Fact,Trait("Category",Unit)]async ValueTask SaveLoad_FoldOver1(){
 //        await SaveLoad(CheckpointType.FoldOver,1);
 //    }
-//    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_FoldOver2(){
+//    [Fact,Trait("Category",Unit)]async ValueTask SaveLoad_FoldOver2(){
 //        await SaveLoad(CheckpointType.FoldOver,2);
 //    }
-//    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_Snapshot1(){
+//    [Fact,Trait("Category",Unit)]async ValueTask SaveLoad_Snapshot1(){
 //        await SaveLoad(CheckpointType.Snapshot,1);
 //    }
-//    [Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_Snapshot2(){
+//    [Fact,Trait("Category",Unit)]async ValueTask SaveLoad_Snapshot2(){
 //        await SaveLoad(CheckpointType.Snapshot,2);
 //    }
-//    //[Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_StreamingSnapshot1(){
+//    //[Fact,Trait("Category",Unit)]async ValueTask SaveLoad_StreamingSnapshot1(){
 //    //    await SaveLoad(CheckpointType.StreamingSnapshot,1);
 //    //}
-//    //[Fact,Trait("Category","Coverage")]async ValueTask SaveLoad_StreamingSnapshot2(){
+//    //[Fact,Trait("Category",Unit)]async ValueTask SaveLoad_StreamingSnapshot2(){
 //    //    await SaveLoad(CheckpointType.StreamingSnapshot,2);
 //    //}
-//    //[Fact,Trait("Category","Coverage")]
+//    //[Fact,Trait("Category",Unit)]
 //    //async ValueTask CheckpointAndRecoveryTest_UpsertDelete1(){
 //    //    await SaveLoad(1);
 //    //}
-//    //[Fact,Trait("Category","Coverage")]
+//    //[Fact,Trait("Category",Unit)]
 //    //async ValueTask CheckpointAndRecoveryTest_UpsertDelete2(){
 //    //    await SaveLoad(2);
 //    //}

@@ -8,11 +8,6 @@
 	</PropertyGroup>
 	<ItemGroup>
 	  <Compile Remove="CheckpointRecoveryTests.cs" />
-	  <Compile Remove="ScanIteratorFunctions\CounterIterator.cs" />
-	  <Compile Remove="ScanIteratorFunctions\ScanIteratorFunctions.cs" />
-	  <Compile Remove="SessionFunctions\Add.cs" />
-	  <Compile Remove="SessionFunctions\DeleteSessionFunctions.cs" />
-	  <Compile Remove="SessionFunctions\IntersectSessionFunctions.cs" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -32,10 +27,6 @@
 
 	<ItemGroup>
 		<Using Include="Xunit" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <Folder Include="ScanIteratorFunctions\" />
 	</ItemGroup>
 
 	<Import Project="..\Test.Seamless.Collections\Test.Seamless.Collections.projitems" Label="Shared" />
