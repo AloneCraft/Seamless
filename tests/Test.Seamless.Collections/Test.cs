@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-namespace Test.Seamless.Collections;
+﻿namespace Test.Seamless.Collections;
 public abstract class Test<TKey,TValue>(ITestOutputHelper? output=null)
     where TKey:IEquatable<TKey> 
     where TValue:notnull{
