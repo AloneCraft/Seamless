@@ -1,12 +1,11 @@
-﻿using Common;
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Tsavorite.core;
 namespace Test.Seamless.SessionFunctions;
 
 
 public class Remove_KeyValuePair {
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
-    private const long TestMemorySize = Const.MinObjectLogCapacity;
+    private const long TestMemorySize = global::Seamless.Const.MinObjectLogCapacity;
 
     // ----------------------------------------------------------------
     // Remove_KeyValuePair

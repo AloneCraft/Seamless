@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using Common;
 namespace Seamless.ScanIteratorFunctions;
 using Tsavorite.core;
 

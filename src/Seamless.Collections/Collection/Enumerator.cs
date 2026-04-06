@@ -1,5 +1,4 @@
-﻿using Common;
-using Seamless.ScanIteratorFunctions;
+﻿using Seamless.ScanIteratorFunctions;
 namespace Seamless.Collections;
 
 using System.Collections;
