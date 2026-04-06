@@ -51,20 +51,7 @@ public abstract class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatab
         this.SymmetricExceptWith_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new());
     }
 
-	public Enumerator<
-		T,
-		Empty,
-		StoreFunctions<
-			SpanByte,
-			SpanByte,
-			SpanByteComparer,
-			SpanByteRecordDisposer
-		>,
-	    KeyIterator<T>,
-		T
-	> GetEnumerator() =>new (this.ClientSession,new());
-	//public Enumerator<T,Empty,Add,GStoreFunctions,GAllocator                                                                                                                                                                                                                                                                                                                  ,KeyIterator<T>,T> GetEnumerator()=>new(this.ClientSession,new());
-
+	public Enumerator<T,Empty,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,KeyIterator<T>,T> GetEnumerator() =>new (this.ClientSession,new());
     public void IntersectWith(HashSet<T> other){
 		ArgumentNullException.ThrowIfNull(other);
         //var Session2 = this.Intersect_ClientSession;
@@ -129,10 +116,11 @@ public abstract class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatab
 		ArgumentNullException.ThrowIfNull(other);
 		if(this.GetLongCount()<=other.GetLongCount())
 			return false;
-		foreach(var item in other) {
-            if(this.Contains(item))
-                continue;
-            return false;
+		foreach(var item in other){
+            if(!this.Contains(item)){
+                return false;
+            } else{
+            }
         }
         return true;
 	}
@@ -141,6 +129,7 @@ public abstract class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatab
 		foreach(var Key in this) {
 			if(!other.Contains(Key)) {
 				return false;
+            } else{
 			}
 		}
 		return true;
@@ -150,6 +139,7 @@ public abstract class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatab
 		foreach(var item in other) {
 			if(!this.Contains(item)) {
 				return false;
+            } else{
 			}
 		}
 		return true;
@@ -159,6 +149,7 @@ public abstract class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatab
 		foreach(var item in other) {
 			if(this.Contains(item)) {
 				return true;
+            } else{
 			}
 		}
 		return false;
@@ -170,6 +161,7 @@ public abstract class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatab
 		foreach(var Key in this) {
 			if(!other.Contains(Key)) {
 				return false;
+            } else{
 			}
 		}
 		return true;

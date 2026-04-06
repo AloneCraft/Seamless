@@ -11,6 +11,9 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AdventureWorks2008R2\AdventureWorks2008R2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\Benchmark.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\BenchmarkDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\BenchmarkHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\HashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CheckpointRecoveryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Collection.cs" />

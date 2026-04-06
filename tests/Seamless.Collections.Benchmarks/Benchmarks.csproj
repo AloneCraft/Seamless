@@ -17,22 +17,16 @@
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="Microsoft.Garnet" Version="2.0.0-beta.3" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
-    <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\Seamless.Collections\Seamless.Collections.csproj" />
-    <ProjectReference Include="..\TestCommon\TestCommon.csproj" />
-  </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 
-  <Import Project="..\Seamless.Collections.Tests\Seamless.Collections.Tests.projitems" Label="Shared" />
 
 </Project>

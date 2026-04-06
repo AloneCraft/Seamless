@@ -21,8 +21,6 @@ public class Add {
 #if TSAVORITE2_0BETA3
     private static FixedSpanByteKey MakeKey(byte[] b) => (FixedSpanByteKey)(ReadOnlySpan<byte>)b;
 #elif TSAVORITE1_1_1
-    //private static SpanByte SerInt(int v) => SpanByte.FromPinnedSpan(MemoryPackSerializer.Serialize(v);
-    //private static SpanByte SerStr(string v) => SpanByte.FromPinnedSpan(MemoryPackSerializer.Serialize(v));
     private static SpanByte MakeKey(byte[] b) =>SpanByte.FromPinnedSpan(b);
 #endif
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
