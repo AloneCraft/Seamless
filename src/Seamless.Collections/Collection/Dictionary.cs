@@ -103,17 +103,12 @@ public abstract class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDiction
         value=default;
         return false;
     }
-    public Enumerator<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
+    public Enumerator<TKey,TValue,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
     private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
         // Tsavoriteのセッションから列挙を開始
         // 列挙数が不明なため、Listの初期容量はデフォルトに任せる
         var Collection = new List<T>();
-        using var Enumerator = new Enumerator<
-            TKey, TValue, Add,
-            StoreFunctions<SpanByteComparer, DefaultRecordDisposer>,
-            SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>,
-            TIterator, T
-        >(this.ClientSession, Iterator);
+        using var Enumerator = new Enumerator<TKey,TValue,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,TIterator,T>(this.ClientSession, Iterator);
         while (Enumerator.MoveNext()){
             Collection.Add(Enumerator.Current);
         }
@@ -122,12 +117,7 @@ public abstract class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDiction
     }    
     private IEnumerable<T> Enumerate<TIterator,T>(TIterator Iterator)
         where TIterator:ScanIteratorFunctions<T>{
-        using var e=new Enumerator<
-            TKey,TValue,Add,
-            StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,
-            SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,
-            TIterator,T
-        >(this.ClientSession,Iterator);
+        using var e=new Enumerator<TKey,TValue,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,TIterator,T>(this.ClientSession,Iterator);
         while(e.MoveNext())
             yield return e.Current;
     }
@@ -158,19 +148,12 @@ public abstract class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDiction
         value =default;
         return false;
     }
-    public Enumerator<TKey,TValue,Add,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
+    public Enumerator<TKey,TValue,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,KeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
     private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
         // Tsavoriteのセッションから列挙を開始
         // 列挙数が不明なため、Listの初期容量はデフォルトに任せる
         var Collection = new List<T>();
-        using var Enumerator = new Enumerator<
-            TKey, TValue, Add,
-            StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
-            SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,
-            //StoreFunctions<SpanByteComparer, DefaultRecordDisposer>,
-            //SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>,
-            TIterator, T
-        >(this.ClientSession, Iterator);
+        using var Enumerator = new Enumerator<TKey, TValue,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,TIterator,T>(this.ClientSession, Iterator);
         while (Enumerator.MoveNext()){
             Collection.Add(Enumerator.Current);
         }
@@ -179,14 +162,10 @@ public abstract class Dictionary<TKey, TValue>:Collection<TKey,TValue>, IDiction
     }    
     private IEnumerable<T> Enumerate<TIterator,T>(TIterator Iterator)
         where TIterator:ScanIteratorFunctions<T>{
-        using var e=new Enumerator<
-            TKey,TValue,Add,
-            StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
-            SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,
-            TIterator,T
-        >(this.ClientSession,Iterator);
-        while(e.MoveNext())
+        using var e=new Enumerator<TKey,TValue,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,TIterator,T>(this.ClientSession,Iterator);
+        while(e.MoveNext()){
             yield return e.Current;
+        }
     }
 #endif
     public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex){

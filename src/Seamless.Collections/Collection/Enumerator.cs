@@ -6,7 +6,7 @@ using System.Collections;
 using System.Diagnostics;
 
 using Tsavorite.core;
-public struct Enumerator<TKey, TValue, TSessionFunctions, TStoreFunctions, TAllocator, TIterator, T>(
+public struct Enumerator<TKey, TValue, TStoreFunctions, TIterator, T>(
 #if TSAVORITE2_0BETA3
     ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SessionFunctions.Add                ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Session,
 #elif TSAVORITE1_1_1
@@ -16,13 +16,9 @@ public struct Enumerator<TKey, TValue, TSessionFunctions, TStoreFunctions, TAllo
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue>
 #if TSAVORITE2_0BETA3
-    where TSessionFunctions : ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
     where TStoreFunctions : IStoreFunctions
-    where TAllocator : IAllocator<TStoreFunctions>
 #elif TSAVORITE1_1_1
-    where TSessionFunctions : ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>
     where TStoreFunctions : IStoreFunctions<SpanByte,SpanByte>
-    where TAllocator : IAllocator<SpanByte,SpanByte,TStoreFunctions>
 #endif
     where TIterator : ScanIteratorFunctions<T> {
     private TIterator Iterator = Iterator;
