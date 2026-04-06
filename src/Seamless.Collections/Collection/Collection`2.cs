@@ -20,26 +20,26 @@ public abstract class Collection<TKey,TValue> : IDisposable
     
     private protected bool PrivateProtectedWouldOverflowMutable(int KeyLength,int ValueLength){
         Debug.Assert(this.LogMemorySize>=8192);
-        //var MutableBytes=(long)(this.LogMemorySize*this.MutableFraction);
-        //if(MutableBytes<=0){
-        //    MutableBytes=this.LogMemorySize;
-        //} else{}
-        //var Log=this.CollectionStore.Store.Log;
-        //var Used=Log.TailAddress-Log.BeginAddress;
-        //var Required=(long)KeyLength+ValueLength+RecordOverheadBytes;
-        //return Used+Required>MutableBytes;
-        var Log = this.CollectionStore.Store.Log;
-        var Used = Log.TailAddress - Log.BeginAddress;
-        var MutableBytes = (long)(this.LogMemorySize * this.MutableFraction);
-        if(MutableBytes <= 0) {
-            MutableBytes = this.LogMemorySize;
-        }
-        var Required = (long)KeyLength + ValueLength + RecordOverheadBytes;
-        // メモリの80%を使用したらコンパクションを実行
-        if(Used + Required > MutableBytes * 0.8) {
-            this.CollectionStore.CompactWithLookup();
-        }   
-        return false; // Storage版は常にfalseを返す（エビクションで対応）
+        var MutableBytes=(long)(this.LogMemorySize*this.MutableFraction);
+        if(MutableBytes<=0){
+            MutableBytes=this.LogMemorySize;
+        } else{}
+        var Log=this.CollectionStore.Store.Log;
+        var Used=Log.TailAddress-Log.BeginAddress;
+        var Required=(long)KeyLength+ValueLength+RecordOverheadBytes;
+        return Used+Required>MutableBytes;
+        //var Log = this.CollectionStore.Store.Log;
+        //var Used = Log.TailAddress - Log.BeginAddress;
+        //var MutableBytes = (long)(this.LogMemorySize * this.MutableFraction);
+        //if(MutableBytes <= 0) {
+        //    MutableBytes = this.LogMemorySize;
+        //}
+        //var Required = (long)KeyLength + ValueLength + RecordOverheadBytes;
+        //// メモリの80%を使用したらコンパクションを実行
+        //if(Used + Required > MutableBytes * 0.8) {
+        //    this.CollectionStore.CompactWithLookup();
+        //}   
+        //return false; // Storage版は常にfalseを返す（エビクションで対応）
     }
     private protected const int RecordOverheadBytes=128;
     private protected long LogMemorySize=>this.CollectionStore.LogMemorySize;

@@ -24,7 +24,7 @@ namespace Test.Seamless.Collections;
 public class DictionaryGuidEmptyRecoveryTests {
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
 
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public void SaveLogOnly_Loadで指定検出() {
         // TakeHybridLogCheckpointAsync はログのみ保存（インデックスチェックポイントは作られない）
@@ -56,7 +56,7 @@ public class DictionaryGuidEmptyRecoveryTests {
         }
     }
 
-    [Fact, Trait("Category","Coverage")]
+    [Fact, Trait("Category",Unit)]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public void SaveLogOnly_Load自動検出() {
         // SaveLogOnly → LoadLatest: インデックスチェックポイントが無い場合、
