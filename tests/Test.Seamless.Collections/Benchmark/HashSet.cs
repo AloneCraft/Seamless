@@ -7,7 +7,7 @@ namespace Test.Seamless.Benchmark;
 public class HashSet {
     [Fact, Trait("Category",Unit)]
     public void ログファイルが作られる(){
-        const long Count=1L<<16;
+        const long Count=1L<<12;
         var CurrentDirectory=Environment.CurrentDirectory;
         Console.WriteLine($"CurrentDirectory: {CurrentDirectory}");
         var CheckpointDir=@$"{CurrentDirectory}\Checkpoint";

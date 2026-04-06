@@ -23,7 +23,7 @@ public abstract class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatab
         this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith>(new());
 		this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new());
 	}
-    public Enumerator<T,Empty,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyIterator<T>,T> GetEnumerator()=>new (this.ClientSession,new());
+    public Enumerator<T,Empty,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,KeyIterator<T>,T> GetEnumerator()=>new (this.ClientSession,new());
     public void IntersectWith(HashSet<T> other){
         ArgumentNullException.ThrowIfNull(other);
         //var Session2 = this.Intersect_ClientSession;
@@ -54,20 +54,12 @@ public abstract class HashSet<T>:Collection<T,Empty>, ISet<T> where T : IEquatab
 	public Enumerator<
 		T,
 		Empty,
-		Add,StoreFunctions<
+		StoreFunctions<
 			SpanByte,
 			SpanByte,
 			SpanByteComparer,
 			SpanByteRecordDisposer
 		>,
-		SpanByteAllocator<
-			StoreFunctions<
-				SpanByte,
-				SpanByte,
-				SpanByteComparer,
-				SpanByteRecordDisposer
-			>
-	    >,
 	    KeyIterator<T>,
 		T
 	> GetEnumerator() =>new (this.ClientSession,new());
