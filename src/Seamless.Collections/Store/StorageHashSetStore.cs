@@ -8,6 +8,6 @@ public sealed class StorageHashSetStore<T>:HashSetStore<T> where T:IEquatable<T>
     internal StorageHashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir):
         base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir){
 	}
-	public override HashSet<T> Create()=>new StorageHashSet<T>(this);
+	public override VariableHashSet<T> Create()=>new StorageVariableHashSet<T>(this);
 }
 

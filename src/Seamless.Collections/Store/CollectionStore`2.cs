@@ -10,7 +10,7 @@ namespace Seamless.Collections;
 /// Tsavorite ストアを管理する抽象基底クラス。
 /// DictionaryStore および HashSetStore の共通実装を提供する。
 /// </summary>
-public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDisposable where TKey : IEquatable<TKey> {
+public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable where TKey : IEquatable<TKey> {
     //private protected readonly GKVSettings Settings;
 #if TSAVORITE2_0BETA3
     private protected KVSettings Settings{get;private set;}

@@ -14,9 +14,10 @@ namespace Seamless.Collections;
 /// <see cref="IDictionary{TKey,TValue}"/> を実装し、利用者に Tsavorite の詳細を見せない。
 /// 静的ポリモーフィズムにより仮想ディスパッチを回避する。
 /// </summary>
-public abstract class Collection<TKey,TValue> : IDisposable
+public abstract class VariableCollection<TKey,TValue> : IDisposable
     where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>{
+    where TValue : IEquatable<TValue>
+{
     
     private protected bool PrivateProtectedWouldOverflowMutable(int KeyLength,int ValueLength){
         Debug.Assert(this.LogMemorySize>=8192);
@@ -105,7 +106,7 @@ public abstract class Collection<TKey,TValue> : IDisposable
 #if TSAVORITE2_0BETA3
     public ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Add                ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> ClientSession { get;private set;}
     private protected ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Delete             ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> DeleteClientSession{ get;private set;}
-    protected Collection(CollectionStore<TKey,TValue>CollectionStore){
+    protected VariableCollection(CollectionStore<TKey,TValue>CollectionStore){
         this.CollectionStore=CollectionStore;
         var Store=CollectionStore.Store;
         this.ClientSession      =Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Empty, Add>(new());
@@ -189,7 +190,7 @@ public abstract class Collection<TKey,TValue> : IDisposable
     //private protected readonly TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store;
     public ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Add                ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> ClientSession { get;private set;}
     private protected ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Delete             ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> DeleteClientSession{ get;private set;}
-    protected Collection(CollectionStore<TKey,TValue> CollectionStore){
+    protected VariableCollection(CollectionStore<TKey,TValue> CollectionStore){
         this.CollectionStore= CollectionStore;
         var Store= CollectionStore.Store;
         this.ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Add>(new());
@@ -307,5 +308,5 @@ public abstract class Collection<TKey,TValue> : IDisposable
         //アンマネージドリソースの解放（必要なければ省略可）
         this.disposed=true;
     }
-    ~Collection()=>this.Dispose(false);
+    ~VariableCollection()=>this.Dispose(false);
 }
