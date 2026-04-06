@@ -1,6 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using Azure.Core;
 using Seamless.Collections;
 using Test.Seamless.Collections;
 namespace Benchmarks;

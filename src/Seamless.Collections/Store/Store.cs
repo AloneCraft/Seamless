@@ -10,6 +10,14 @@ public static class Store{
         where TKey:IEquatable<TKey>
         where TValue:IEquatable<TValue> =>
         new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir);
+    public static MemoryUnmanagedDictionaryStore<TKey,TValue>CreateUnmanaged<TKey,TValue>(long IndexSize=Const.IndexSize,long PageSize=Const.PageSize,long SegmentSize=Const.SegmentSize,long MemorySize=Const.LogMemorySize,double MutableFraction=1.0)
+        where TKey:unmanaged,IEquatable<TKey>
+        where TValue:unmanaged,IEquatable<TValue> =>
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction);
+    public static StorageUnmanagedDictionaryStore<TKey,TValue>CreateUnmanaged<TKey,TValue>(IDevice LogDevice,IDevice ObjectLogDevice,long IndexSize=Const.IndexSize,long PageSize=Const.PageSize,long SegmentSize=Const.SegmentSize,long MemorySize=Const.LogMemorySize,double MutableFraction=1.0,string? CheckpointDir=null)
+        where TKey:unmanaged,IEquatable<TKey>
+        where TValue:unmanaged,IEquatable<TValue> =>
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir);
     public static MemoryHashSetStore   <T          >Create<T          >(long IndexSize=Const.IndexSize,long PageSize=Const.PageSize,long SegmentSize=Const.SegmentSize,long MemorySize=Const.LogMemorySize,double MutableFraction=1.0,string? CheckpointDir=null,bool recoverDevice=false)
         where T:IEquatable<T> =>
         new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction);

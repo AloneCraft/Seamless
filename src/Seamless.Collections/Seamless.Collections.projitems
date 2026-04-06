@@ -11,6 +11,7 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Collection`2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryUnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Dictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\DictionaryDebugView.cs" />
@@ -21,13 +22,19 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collection\HashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\HashSetDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\ISet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageUnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\TryAddResult.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Const.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyValueIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ScanIteratorFunctions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\UnmanagedKeyIterator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\UnmanagedKeyValueIterator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\UnmanagedValueIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ValueIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Add.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Delete.cs" />
@@ -37,6 +44,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\SymmetricExceptWith.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore`2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedDictionaryStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\StorageDictionaryStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\MemoryDictionaryStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\StorageHashSetStore.cs" />
