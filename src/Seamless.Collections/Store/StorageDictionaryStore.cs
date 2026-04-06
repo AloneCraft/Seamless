@@ -4,10 +4,11 @@ using Tsavorite.core;
 /// Tsavorite ストアを管理し、Dictionary インスタンスを作成するためのストアクラス。
 /// 複数の Dictionary インスタンスで同じストアを共有できる。
 /// </summary>
-public sealed class StorageDictionaryStore<TKey,TValue>:DictionaryStore<TKey,TValue> 
+public sealed class StorageDictionaryStore<TKey,TValue>:VariableDictionaryStore<TKey,TValue> 
     where TKey:IEquatable<TKey>
     where TValue:IEquatable<TValue>{
 	internal StorageDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string CheckpointDir):
         base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir){}
-	public override Dictionary<TKey,TValue> Create()=>new StorageDictionary<TKey,TValue>(this);
+	public override VariableDictionary<TKey,TValue> Create()=>new StorageVariableDictionary<TKey,TValue>(this);
+
 }
