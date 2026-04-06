@@ -24,7 +24,7 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
 	public double MutableFraction { get; }
 	private bool Disposed;
     /// <summary>テスト専用シーム: TakeCheckpointAsync 完了後・CompleteCheckpointAsync 前に呼び出されるコールバック。</summary>
-    private CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) {
+    private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) {
 		AssertIsPowerOfTwo(IndexSize,nameof(IndexSize));
 		AssertIsPowerOfTwo(PageSize,nameof(PageSize));
 		AssertIsPowerOfTwo(SegmentSize,nameof(SegmentSize));
@@ -105,9 +105,9 @@ public abstract partial class CollectionStore<TKey, TValue>:CollectionStore, IDi
 	}
 	//[ExcludeFromCodeCoverage]
 	//private static IObjectSerializer<IHeapObject>? NullSerializer() => null;
-	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,string? CheckpointDir,IDevice LogDevice,IDevice ObjectLogDevice) : 
-        this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir) {
-	}
+	//private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) : 
+ //       this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir) {
+	//}
     public void AssertCheckpointDir(){
         if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
             throw new InvalidOperationException($"{nameof(this.Settings.CheckpointDir)} is not set.");
