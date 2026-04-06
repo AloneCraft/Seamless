@@ -1,4 +1,4 @@
-﻿namespace Common;
+﻿namespace Seamless;
 public static class Const{
     public const int Chunk_Length=2;
     public const int IndexSizeBits = 6; 

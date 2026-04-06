@@ -1,5 +1,4 @@
-﻿using Common;
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Tsavorite.core;
 namespace Test.Seamless.Collections;
 /// <summary>
@@ -9,7 +8,7 @@ namespace Test.Seamless.Collections;
 
 public class CollectionStore2 {
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
-    private const long TestMemorySize = Const.MinObjectLogCapacity;
+    private const long TestMemorySize = global::Seamless.Const.MinObjectLogCapacity;
     //CollectionStore コンストラクタ: ObjectLogDevice.Capacity<0 の分岐
     //Capacity=-1のデバイスを渡すとObjectLogSegmentSize=Const.MinObjectLogCapacityになる
     [Fact, Trait("Category",Unit)]
@@ -31,7 +30,7 @@ public class CollectionStore2 {
         public void CompactWithLookup_EarlyReturn() {
         var folder = CreateFolder();
         using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Const.MinObjectLogCapacity);
         using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0.1,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         //データを書き込んでCompactWithLookupを実行
@@ -63,7 +62,7 @@ public class CollectionStore2 {
         //1.1.1の
         var folder = CreateFolder();
         using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Const.MinObjectLogCapacity);
         using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0.1,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         //データを書き込んでCompactWithLookupを実行
@@ -96,7 +95,7 @@ public class CollectionStore2 {
         public void CompactWithLookup_ClipToSafeReadOnly() {
         var folder = CreateFolder();
         using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Const.MinObjectLogCapacity);
         //MutableFraction=0で全データを即時読み取り専用にする
         using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();

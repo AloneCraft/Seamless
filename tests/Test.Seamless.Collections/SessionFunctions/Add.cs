@@ -1,9 +1,10 @@
-﻿using Common;
-
+﻿
 using Garnet.common;
 
 using MemoryPack;
+using Seamless;
 using Seamless.Collections;
+using Test.Seamless.Collections;
 using Tsavorite.core;
 
 namespace Test.Seamless.SessionFunctions;
