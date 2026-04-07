@@ -15,56 +15,61 @@ namespace Seamless.Collections;
 public abstract class ManagedHashSet<T>:ManagedCollection<T,Empty>, ISet<T> where T : IEquatable<T>{
 	private readonly byte[] EmptyBytes;
 #if TSAVORITE2_0BETA3
-	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith          ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>IntersectWith_ClientSession;
+	private readonly ClientSession<FixedSpanByteKey,Empty,Empty,Empty,IntersectWith          ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>IntersectWith_ClientSession;
 	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith    ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>SymmetricExceptWith_ClientSession;
-	internal ManagedHashSet(CollectionStore<T,Empty> CollectionStore):base(CollectionStore){
-		this.EmptyBytes=Serialize(Empty.Default);
+	internal ManagedHashSet(ManagedCollectionStore<T,Empty> CollectionStore):base(CollectionStore){
+		this.EmptyBytes=Serialize(Empty.Default).ToArray();
         var Store=CollectionStore.Store;
-        this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith>(new());
+        this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,Empty,Empty,Empty,IntersectWith>(new());
 		this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new());
 	}
     public Enumerator<T,Empty,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,KeyIterator<T>,T> GetEnumerator()=>new (this.ClientSession,new());
     public void IntersectWith(ManagedHashSet<T> other){
         ArgumentNullException.ThrowIfNull(other);
-        //var Session2 = this.Intersect_ClientSession;
         var Session = this.IntersectWith_ClientSession;
-        var Input = PinnedSpanByte.FromPinnedSpan(this.EmptyBytes);
+        Empty Input = default;
+        Empty Output = default;
         foreach(var Key in this){
             if(other.Contains(Key)) {
                 continue;
             }
             var KeyBytes = Serialize(Key);
             var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-            SpanByteAndMemory Output = default;
             Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
-
         }
         Session.BasicContext.CompletePending(true);
     }
 #elif TSAVORITE1_1_1
-    private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,IntersectWith,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> IntersectWith_ClientSession;
-    private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> SymmetricExceptWith_ClientSession;
-    internal ManagedHashSet(CollectionStore<T,Empty> CollectionStore) : base(CollectionStore) {
-        this.EmptyBytes=Serialize(Empty.Default);
+    private readonly ClientSession<
+        SpanByte,SpanByte,Empty,Empty,Empty,IntersectWith,
+        StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
+        SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>
+        >
+    > IntersectWith_ClientSession;
+    private readonly ClientSession<
+        SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith,
+        StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
+        SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>
+    > SymmetricExceptWith_ClientSession;
+    internal ManagedHashSet(ManagedCollectionStore<T,Empty> CollectionStore) : base(CollectionStore) {
+        this.EmptyBytes=Serialize(Empty.Default).ToArray();
         var Store=CollectionStore.Store;
-        this.IntersectWith_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,IntersectWith>(new());
+        this.IntersectWith_ClientSession=Store.NewSession<Empty,Empty,Empty,IntersectWith>(new());
         this.SymmetricExceptWith_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new());
     }
 
 	public Enumerator<T,Empty,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,KeyIterator<T>,T> GetEnumerator() =>new (this.ClientSession,new());
     public void IntersectWith(ManagedHashSet<T> other){
 		ArgumentNullException.ThrowIfNull(other);
-        //var Session2 = this.Intersect_ClientSession;
         var Session = this.IntersectWith_ClientSession;
-        var InputBytes = this.EmptyBytes;
+        Empty Input = default;
+        Empty Output = default;
         foreach(var Key0 in this) {
             if(other.Contains(Key0)) {
                 continue;
             }
             var KeyBytes = Serialize(Key0);
             var Key = SpanByte.FromPinnedSpan(KeyBytes);
-            var Input = SpanByte.FromPinnedSpan(InputBytes);
-            var Output = default(SpanByteAndMemory);
             var Status = Session.BasicContext.RMW(ref Key,ref Input,ref Output);
         }
         Session.BasicContext.CompletePending(wait: true);

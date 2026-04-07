@@ -1,10 +1,9 @@
-﻿
-using Seamless.Devices;
+﻿using Seamless.Devices;
 
 using Tsavorite.core;
 
 namespace Seamless.Collections;
-public abstract class HashSetStore<T>:CollectionStore<T,Empty>where T:IEquatable<T>{
+public abstract class HashSetStore<T>:ManagedCollectionStore<T,Empty>where T:IEquatable<T>{
     private protected HashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir):
         base                      (     IndexSize,     PageSize,     SegmentSize,     MemorySize,       MutableFraction,        LogDevice,        ObjectLogDevice,        CheckpointDir){}
     public abstract ManagedHashSet<T> Create();
