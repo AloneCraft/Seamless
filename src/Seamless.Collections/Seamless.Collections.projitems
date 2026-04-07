@@ -9,18 +9,18 @@
     <Import_RootNamespace>Seamless.Collections</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\VariableCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedCollection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\VariableDictionaryStore.cs" />
     <Compile Include="..\Seamless.Collections\Collection\MemoryVariableDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryUnmanagedDictionary.cs" />
     <Compile Include="..\Seamless.Collections\Collection\StorageVariableDictionary.cs" />
-    <Compile Include="..\Seamless.Collections\Collection\VariableDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\DictionaryDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Empty.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Enumerator.cs" />
     <Compile Include="..\Seamless.Collections\Collection\StorageVariableHashSet.cs" />
     <Compile Include="..\Seamless.Collections\Collection\MemoryVariableHashSet.cs" />
-    <Compile Include="..\Seamless.Collections\Collection\VariableHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\HashSetDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\ISet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageUnmanagedDictionary.cs" />

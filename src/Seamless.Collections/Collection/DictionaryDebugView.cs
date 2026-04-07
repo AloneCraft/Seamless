@@ -1,8 +1,8 @@
 ﻿namespace Seamless.Collections;
 using System.Diagnostics;
 internal sealed class DictionaryDebugView<TKey,TValue>where TKey:IEquatable<TKey>where TValue:IEquatable<TValue>{
-	private readonly VariableDictionary<TKey,TValue> _dictionary;
-	public DictionaryDebugView(VariableDictionary<TKey,TValue> dictionary){
+	private readonly ManagedDictionary<TKey,TValue> _dictionary;
+	public DictionaryDebugView(ManagedDictionary<TKey,TValue> dictionary){
 		ArgumentNullException.ThrowIfNull(dictionary);
 		this._dictionary=dictionary;
 	}

@@ -1,14 +1,14 @@
 ﻿namespace Seamless.Collections;
 public interface ISet<T> : ICollection<T>where T: IEquatable<T> {
     new bool Add(T item);
-    void UnionWith(VariableHashSet<T> other);
-    void IntersectWith(VariableHashSet<T> other);
-    void ExceptWith(VariableHashSet<T> other);
-    void SymmetricExceptWith(VariableHashSet<T> other);
-    bool IsSubsetOf(VariableHashSet<T> other);
-    bool IsSupersetOf(VariableHashSet<T> other);
-    bool IsProperSupersetOf(VariableHashSet<T> other);
-    bool IsProperSubsetOf(VariableHashSet<T> other);
-    bool Overlaps(VariableHashSet<T> other);
-    bool SetEquals(VariableHashSet<T> other);
+    void UnionWith(ManagedHashSet<T> other);
+    void IntersectWith(ManagedHashSet<T> other);
+    void ExceptWith(ManagedHashSet<T> other);
+    void SymmetricExceptWith(ManagedHashSet<T> other);
+    bool IsSubsetOf(ManagedHashSet<T> other);
+    bool IsSupersetOf(ManagedHashSet<T> other);
+    bool IsProperSupersetOf(ManagedHashSet<T> other);
+    bool IsProperSubsetOf(ManagedHashSet<T> other);
+    bool Overlaps(ManagedHashSet<T> other);
+    bool SetEquals(ManagedHashSet<T> other);
 }
