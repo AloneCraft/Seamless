@@ -5,7 +5,7 @@ namespace Test.Seamless.Collections;
 
 public class Collection {
     internal sealed class TestCollection<TKey,TValue>(CollectionStore<TKey,TValue> CollectionStore)
-        :VariableCollection<TKey,TValue>(CollectionStore)
+        :ManagedCollection<TKey,TValue>(CollectionStore)
         where TKey:IEquatable<TKey>
         where TValue:IEquatable<TValue>{
         private protected override bool WouldOverflowMutable(int KeyLength,int ValueLength)=>false;

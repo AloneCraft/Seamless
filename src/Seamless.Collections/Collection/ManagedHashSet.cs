@@ -12,19 +12,19 @@ namespace Seamless.Collections;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
-public abstract class VariableHashSet<T>:VariableCollection<T,Empty>, ISet<T> where T : IEquatable<T>{
+public abstract class ManagedHashSet<T>:ManagedCollection<T,Empty>, ISet<T> where T : IEquatable<T>{
 	private readonly byte[] EmptyBytes;
 #if TSAVORITE2_0BETA3
 	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith          ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>IntersectWith_ClientSession;
 	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith    ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>SymmetricExceptWith_ClientSession;
-	internal VariableHashSet(CollectionStore<T,Empty> CollectionStore):base(CollectionStore){
+	internal ManagedHashSet(CollectionStore<T,Empty> CollectionStore):base(CollectionStore){
 		this.EmptyBytes=Serialize(Empty.Default);
         var Store=CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,IntersectWith>(new());
 		this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new());
 	}
     public Enumerator<T,Empty,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,KeyIterator<T>,T> GetEnumerator()=>new (this.ClientSession,new());
-    public void IntersectWith(VariableHashSet<T> other){
+    public void IntersectWith(ManagedHashSet<T> other){
         ArgumentNullException.ThrowIfNull(other);
         //var Session2 = this.Intersect_ClientSession;
         var Session = this.IntersectWith_ClientSession;
@@ -44,7 +44,7 @@ public abstract class VariableHashSet<T>:VariableCollection<T,Empty>, ISet<T> wh
 #elif TSAVORITE1_1_1
     private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,IntersectWith,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> IntersectWith_ClientSession;
     private readonly ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> SymmetricExceptWith_ClientSession;
-    internal VariableHashSet(CollectionStore<T,Empty> CollectionStore) : base(CollectionStore) {
+    internal ManagedHashSet(CollectionStore<T,Empty> CollectionStore) : base(CollectionStore) {
         this.EmptyBytes=Serialize(Empty.Default);
         var Store=CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,IntersectWith>(new());
@@ -52,7 +52,7 @@ public abstract class VariableHashSet<T>:VariableCollection<T,Empty>, ISet<T> wh
     }
 
 	public Enumerator<T,Empty,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,KeyIterator<T>,T> GetEnumerator() =>new (this.ClientSession,new());
-    public void IntersectWith(VariableHashSet<T> other){
+    public void IntersectWith(ManagedHashSet<T> other){
 		ArgumentNullException.ThrowIfNull(other);
         //var Session2 = this.Intersect_ClientSession;
         var Session = this.IntersectWith_ClientSession;
@@ -93,7 +93,7 @@ public abstract class VariableHashSet<T>:VariableCollection<T,Empty>, ISet<T> wh
 			array[arrayIndex++]=item;
 		}
 	}
-	public void ExceptWith(VariableHashSet<T> other) {
+	public void ExceptWith(ManagedHashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		foreach(var item in other) {
 			this.Remove(item);
@@ -101,7 +101,7 @@ public abstract class VariableHashSet<T>:VariableCollection<T,Empty>, ISet<T> wh
 	}
 	IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 	IEnumerator<T> IEnumerable<T>.GetEnumerator() => this.GetEnumerator();
-	public bool IsProperSubsetOf(VariableHashSet<T> other) {
+	public bool IsProperSubsetOf(ManagedHashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		if(this.GetLongCount()>=other.GetLongCount())
 			return false;
@@ -112,7 +112,7 @@ public abstract class VariableHashSet<T>:VariableCollection<T,Empty>, ISet<T> wh
 		}
 		return true;
 	}
-	public bool IsProperSupersetOf(VariableHashSet<T> other) {
+	public bool IsProperSupersetOf(ManagedHashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		if(this.GetLongCount()<=other.GetLongCount())
 			return false;
@@ -124,7 +124,7 @@ public abstract class VariableHashSet<T>:VariableCollection<T,Empty>, ISet<T> wh
         }
         return true;
 	}
-	public bool IsSubsetOf(VariableHashSet<T> other) {
+	public bool IsSubsetOf(ManagedHashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		foreach(var Key in this) {
 			if(!other.Contains(Key)) {
@@ -134,7 +134,7 @@ public abstract class VariableHashSet<T>:VariableCollection<T,Empty>, ISet<T> wh
 		}
 		return true;
 	}
-	public bool IsSupersetOf(VariableHashSet<T> other) {
+	public bool IsSupersetOf(ManagedHashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		foreach(var item in other) {
 			if(!this.Contains(item)) {
@@ -144,7 +144,7 @@ public abstract class VariableHashSet<T>:VariableCollection<T,Empty>, ISet<T> wh
 		}
 		return true;
 	}
-	public bool Overlaps(VariableHashSet<T> other) {
+	public bool Overlaps(ManagedHashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		foreach(var item in other) {
 			if(this.Contains(item)) {
@@ -154,7 +154,7 @@ public abstract class VariableHashSet<T>:VariableCollection<T,Empty>, ISet<T> wh
 		}
 		return false;
 	}
-	public bool SetEquals(VariableHashSet<T> other) {
+	public bool SetEquals(ManagedHashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		if(this.GetLongCount()!=other.GetLongCount())
 			return false;
@@ -166,7 +166,7 @@ public abstract class VariableHashSet<T>:VariableCollection<T,Empty>, ISet<T> wh
 		}
 		return true;
 	}
-	public void SymmetricExceptWith(VariableHashSet<T> other) {
+	public void SymmetricExceptWith(ManagedHashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
         var Session = this.SymmetricExceptWith_ClientSession;
 #if TSAVORITE2_0BETA3
@@ -189,7 +189,7 @@ public abstract class VariableHashSet<T>:VariableCollection<T,Empty>, ISet<T> wh
 #endif
         Session.BasicContext.CompletePending(wait: true);
 	}
-	public void UnionWith(VariableHashSet<T> other) {
+	public void UnionWith(ManagedHashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		foreach(var item in other) {
 			this.Add(item);

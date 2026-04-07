@@ -1,8 +1,8 @@
 ﻿using System.Diagnostics;
 namespace Seamless.Collections;
 internal sealed class HashSetDebugView<T> where T : IEquatable<T> {
-	private readonly VariableHashSet<T> HashSet;
-	public HashSetDebugView(VariableHashSet<T> set) {
+	private readonly ManagedHashSet<T> HashSet;
+	public HashSetDebugView(ManagedHashSet<T> set) {
 		ArgumentNullException.ThrowIfNull(set);
 		this.HashSet=set;
 	}

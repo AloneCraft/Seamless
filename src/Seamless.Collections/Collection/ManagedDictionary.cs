@@ -15,7 +15,7 @@ using Tsavorite.core;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(DictionaryDebugView<,>))]
-public abstract class VariableDictionary<TKey, TValue>:VariableCollection<TKey,TValue>, IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey, TValue>
+public abstract class ManagedDictionary<TKey, TValue>:ManagedCollection<TKey,TValue>, IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey, TValue>
 	where TKey :IEquatable<TKey>
 	where TValue : IEquatable<TValue> 
 {
@@ -24,7 +24,7 @@ public abstract class VariableDictionary<TKey, TValue>:VariableCollection<TKey,T
 #if TSAVORITE2_0BETA3
     private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
     private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Remove_KeyValuePair_ClientSession{get;set;}
-	internal VariableDictionary(CollectionStore<TKey,TValue>CollectionStore) : base(CollectionStore) {
+	internal ManagedDictionary(CollectionStore<TKey,TValue>CollectionStore) : base(CollectionStore) {
         var Store=CollectionStore.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue>(new ());
         this.Remove_KeyValuePair_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair>(new ());
@@ -32,7 +32,7 @@ public abstract class VariableDictionary<TKey, TValue>:VariableCollection<TKey,T
 #elif TSAVORITE1_1_1
     private ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
     private ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair   ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>Remove_KeyValuePair_ClientSession{get;set;}
-	internal VariableDictionary(CollectionStore<TKey,TValue>CollectionStore) : base(CollectionStore) { 
+	internal ManagedDictionary(CollectionStore<TKey,TValue>CollectionStore) : base(CollectionStore) { 
         var Store=CollectionStore.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue>(new ());
         this.Remove_KeyValuePair_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair>(new ());
