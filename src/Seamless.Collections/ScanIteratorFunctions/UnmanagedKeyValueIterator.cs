@@ -2,7 +2,12 @@
 using System.Runtime.InteropServices;
 using Tsavorite.core;
 namespace Seamless.ScanIteratorFunctions;
-public sealed class UnmanagedKeyValueIterator<TKey, TValue> : ScanIteratorFunctions<KeyValuePair<TKey, TValue>>
+public sealed class UnmanagedKeyValueIterator<TKey, TValue> :
+#if TSAVORITE2_0BETA3
+    ScanIteratorFunctions<KeyValuePair<TKey, TValue>>
+#elif TSAVORITE1_1_1
+    UnmanagedScanIteratorFunctions<TKey, TValue, KeyValuePair<TKey, TValue>>
+#endif
     where TKey : unmanaged
     where TValue : unmanaged{
 #if TSAVORITE2_0BETA3
@@ -18,18 +23,6 @@ public sealed class UnmanagedKeyValueIterator<TKey, TValue> : ScanIteratorFuncti
         return new(key, value);
     }
 #elif TSAVORITE1_1_1
-    private protected override KeyValuePair<TKey, TValue> Deserialize(ref SpanByte key, ref SpanByte value) {
-        var keyBytes = key.AsReadOnlySpan();
-        var valueBytes = value.AsReadOnlySpan();
-        if(keyBytes.Length != Unsafe.SizeOf<TKey>()) {
-            throw new InvalidOperationException($"Invalid key length for {typeof(TKey).Name}. Expected {Unsafe.SizeOf<TKey>()}, actual {keyBytes.Length}.");
-        }
-        if(valueBytes.Length != Unsafe.SizeOf<TValue>()) {
-            throw new InvalidOperationException($"Invalid value length for {typeof(TValue).Name}. Expected {Unsafe.SizeOf<TValue>()}, actual {valueBytes.Length}.");
-        }
-        var keyValue = MemoryMarshal.Read<TKey>(keyBytes);
-        var valueValue = MemoryMarshal.Read<TValue>(valueBytes);
-        return new(keyValue, valueValue);
-    }
+    private protected override KeyValuePair<TKey, TValue> Deserialize(ref TKey key, ref TValue value) => new(key, value);
 #endif
 }

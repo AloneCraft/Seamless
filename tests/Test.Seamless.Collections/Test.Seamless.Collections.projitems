@@ -9,7 +9,6 @@
     <Import_RootNamespace>Seamless.Collections.Tests</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)AdventureWorks2008R2\AdventureWorks2008R2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\Benchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\Dictionary.cs" />
@@ -44,6 +43,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)TestTypes.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="$(MSBuildThisFileDirectory)AdventureWorks2008R2\" />
     <Folder Include="$(MSBuildThisFileDirectory)Tsavorite\" />
   </ItemGroup>
 </Project>

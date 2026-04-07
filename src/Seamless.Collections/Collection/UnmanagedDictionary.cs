@@ -4,6 +4,7 @@ using Seamless.ScanIteratorFunctions;
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using Tsavorite.core;
 
 namespace Seamless.Collections;
@@ -18,25 +19,26 @@ public abstract class UnmanagedDictionary<TKey, TValue> : UnmanagedCollection<TK
     private ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Empty, Remove_TKey_TValue, StoreFunctions<SpanByteComparer, DefaultRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>> Remove_TKey_TValue_ClientSession { get; set; }
     private ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Empty, Remove_KeyValuePair, StoreFunctions<SpanByteComparer, DefaultRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>> Remove_KeyValuePair_ClientSession { get; set; }
 
-    internal UnmanagedDictionary(CollectionStore<TKey, TValue> CollectionStore) : base(CollectionStore) {
+    internal UnmanagedDictionary(UnmanagedCollectionStore<TKey, TValue> CollectionStore) : base(CollectionStore) {
         var Store = CollectionStore.Store;
         this.Remove_TKey_TValue_ClientSession = Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Empty, Remove_TKey_TValue>(new());
         this.Remove_KeyValuePair_ClientSession = Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Empty, Remove_KeyValuePair>(new());
     }
 #elif TSAVORITE1_1_1
-    private ClientSession<SpanByte, SpanByte, SpanByte, SpanByteAndMemory, Empty, Remove_TKey_TValue, StoreFunctions<SpanByte, SpanByte, SpanByteComparer, SpanByteRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByte, SpanByte, SpanByteComparer, SpanByteRecordDisposer>>> Remove_TKey_TValue_ClientSession { get; set; }
-    private ClientSession<SpanByte, SpanByte, SpanByte, SpanByteAndMemory, Empty, Remove_KeyValuePair, StoreFunctions<SpanByte, SpanByte, SpanByteComparer, SpanByteRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByte, SpanByte, SpanByteComparer, SpanByteRecordDisposer>>> Remove_KeyValuePair_ClientSession { get; set; }
+    private ClientSession<TKey, TValue, TValue, TValue, Empty, UnmanagedRemove_TKey_TValue<TKey, TValue>, StoreFunctions<TKey, TValue, UnmanagedKeyComparer<TKey>, DefaultRecordDisposer<TKey, TValue>>, BlittableAllocator<TKey, TValue, StoreFunctions<TKey, TValue, UnmanagedKeyComparer<TKey>, DefaultRecordDisposer<TKey, TValue>>>> Remove_TKey_TValue_ClientSession { get; set; }
+    private ClientSession<TKey, TValue, TValue, bool, Empty, UnmanagedRemove_KeyValuePair<TKey, TValue>, StoreFunctions<TKey, TValue, UnmanagedKeyComparer<TKey>, DefaultRecordDisposer<TKey, TValue>>, BlittableAllocator<TKey, TValue, StoreFunctions<TKey, TValue, UnmanagedKeyComparer<TKey>, DefaultRecordDisposer<TKey, TValue>>>> Remove_KeyValuePair_ClientSession { get; set; }
 
-    internal UnmanagedDictionary(CollectionStore<TKey, TValue> CollectionStore) : base(CollectionStore) {
+    internal UnmanagedDictionary(UnmanagedCollectionStore<TKey, TValue> CollectionStore) : base(CollectionStore) {
         var Store = CollectionStore.Store;
-        this.Remove_TKey_TValue_ClientSession = Store.NewSession<SpanByte, SpanByteAndMemory, Empty, Remove_TKey_TValue>(new());
-        this.Remove_KeyValuePair_ClientSession = Store.NewSession<SpanByte, SpanByteAndMemory, Empty, Remove_KeyValuePair>(new());
+        this.Remove_TKey_TValue_ClientSession = Store.NewSession<TValue, TValue, Empty, UnmanagedRemove_TKey_TValue<TKey, TValue>>(new());
+        this.Remove_KeyValuePair_ClientSession = Store.NewSession<TValue, bool, Empty, UnmanagedRemove_KeyValuePair<TKey, TValue>>(new());
     }
 #endif
 
     public bool IsReadOnly => false;
 
     public bool TryGetValue(TKey Key, [MaybeNullWhen(false)] out TValue Value) {
+#if TSAVORITE2_0BETA3
         var Status = this.Read(Key, out var Output);
         if(Status.NotFound) {
             Value = default;
@@ -44,6 +46,14 @@ public abstract class UnmanagedDictionary<TKey, TValue> : UnmanagedCollection<TK
         }
         Value = Deserialize<TValue>(GetReadOnlySpan(Output));
         return true;
+#elif TSAVORITE1_1_1
+        var Status = this.Read(Key, out Value);
+        if(Status.NotFound) {
+            Value = default;
+            return false;
+        }
+        return true;
+#endif
     }
 
     public TryAddResult TryAdd(TKey Key, TValue Value) =>
@@ -111,35 +121,40 @@ public abstract class UnmanagedDictionary<TKey, TValue> : UnmanagedCollection<TK
 #elif TSAVORITE1_1_1
     public bool Remove(KeyValuePair<TKey, TValue> item) {
         var Session = this.Remove_KeyValuePair_ClientSession;
-        var KeyBytes = Serialize(item.Key);
-        var ValueBytes = Serialize(item.Value);
-        var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
-        var Input = SpanByte.FromPinnedSpan(ValueBytes);
-        var Status = Session.BasicContext.RMW(FixedKey, Input, out var Output);
-        Status = Pending(Session, Status, ref Output);
-        return Output.Length > 0;
+        var key = item.Key;
+        var expectedValue = item.Value;
+        bool Output = false;
+        var Status = Session.BasicContext.RMW(ref key, ref expectedValue, ref Output, default(Empty));
+        Status = PendingBool(Session, Status, ref Output);
+        return Output;
     }
 
     public bool Remove(TKey key, [MaybeNullWhen(false)] out TValue value) {
         var Session = this.Remove_TKey_TValue_ClientSession;
-        var KeyBytes = Serialize(key);
-        var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
-        var Input = default(SpanByte);
-        var Status = Session.BasicContext.RMW(FixedKey, Input, out var Output);
-        Status = Pending(Session, Status, ref Output);
+        TValue Output = default;
+        var Input = default(TValue);
+        var Status = Session.BasicContext.RMW(ref key, ref Input, ref Output, default(Empty));
+        Status = PendingValue(Session, Status, ref Output);
         if(Status.Found) {
-            value = Deserialize<TValue>(Output.AsReadOnlySpan());
+            value = Output;
             return true;
         }
         value = default;
         return false;
     }
 
-    public Enumerator<TKey, TValue, StoreFunctions<SpanByte, SpanByte, SpanByteComparer, SpanByteRecordDisposer>, UnmanagedKeyValueIterator<TKey, TValue>, KeyValuePair<TKey, TValue>> GetEnumerator() => new(this.ClientSession, new());
+    public UnmanagedEnumerator<TKey, TValue,
+        StoreFunctions<TKey, TValue, UnmanagedKeyComparer<TKey>, DefaultRecordDisposer<TKey, TValue>>,
+        BlittableAllocator<TKey, TValue, StoreFunctions<TKey, TValue, UnmanagedKeyComparer<TKey>, DefaultRecordDisposer<TKey, TValue>>>,
+        UnmanagedKeyValueIterator<TKey, TValue>, KeyValuePair<TKey, TValue>> GetEnumerator()
+        => new(this.ClientSession, new());
 
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator Iterator)
-        where TIterator : ScanIteratorFunctions<T> {
-        using var e = new Enumerator<TKey, TValue, StoreFunctions<SpanByte, SpanByte, SpanByteComparer, SpanByteRecordDisposer>, TIterator, T>(this.ClientSession, Iterator);
+        where TIterator : UnmanagedScanIteratorFunctions<TKey, TValue, T> {
+        using var e = new UnmanagedEnumerator<TKey, TValue,
+            StoreFunctions<TKey, TValue, UnmanagedKeyComparer<TKey>, DefaultRecordDisposer<TKey, TValue>>,
+            BlittableAllocator<TKey, TValue, StoreFunctions<TKey, TValue, UnmanagedKeyComparer<TKey>, DefaultRecordDisposer<TKey, TValue>>>,
+            TIterator, T>(this.ClientSession, Iterator);
         while(e.MoveNext()) {
             yield return e.Current;
         }
@@ -163,8 +178,13 @@ public abstract class UnmanagedDictionary<TKey, TValue> : UnmanagedCollection<TK
     public ICollection<TKey> Keys => new KeyCollection(this);
     public ICollection<TValue> Values => new ValueCollection(this);
 
+#if TSAVORITE2_0BETA3
     IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys => this.Enumerate<UnmanagedKeyIterator<TKey>, TKey>(new());
     IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values => this.Enumerate<UnmanagedValueIterator<TValue>, TValue>(new());
+#elif TSAVORITE1_1_1
+    IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys => this.Enumerate<UnmanagedKeyIterator<TKey, TValue>, TKey>(new());
+    IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values => this.Enumerate<UnmanagedValueIterator<TKey, TValue>, TValue>(new());
+#endif
 
     public TValue this[TKey Key] {
         get {
@@ -174,22 +194,25 @@ public abstract class UnmanagedDictionary<TKey, TValue> : UnmanagedCollection<TK
             throw new KeyNotFoundException();
         }
         set {
+#if TSAVORITE2_0BETA3
             var KeyBytes = Serialize(Key);
             var ValueBytes = Serialize(value);
             if(this.WouldOverflowMutable(KeyBytes.Length, ValueBytes.Length)) {
                 throw this.ThrowLogFull();
             }
-
             var Session = this.ClientSession;
-#if TSAVORITE2_0BETA3
             var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
             var Input = ValueBytes;
-#elif TSAVORITE1_1_1
-            var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
-            var Input = SpanByte.FromPinnedSpan(ValueBytes);
-#endif
             var Status = Session.BasicContext.Upsert(FixedKey, Input);
             Status = Pending(Session, Status);
+#elif TSAVORITE1_1_1
+            if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>())) {
+                throw this.ThrowLogFull();
+            }
+            var Status = this.ClientSession.BasicContext.Upsert(ref Key, ref value, default(Empty));
+            TValue dummy = default;
+            PendingValue(this.ClientSession, Status, ref dummy);
+#endif
         }
     }
 

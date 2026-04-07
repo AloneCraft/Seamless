@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
@@ -9,7 +9,14 @@
     <Import_RootNamespace>Seamless.Collections</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\Collection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedEnumerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\UnmanagedScanIteratorFunctions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedAdd.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedKeyComparer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedRemove_KeyValuePair.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedRemove_TKey_TValue.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\VariableDictionaryStore.cs" />
     <Compile Include="..\Seamless.Collections\Collection\MemoryVariableDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryUnmanagedDictionary.cs" />

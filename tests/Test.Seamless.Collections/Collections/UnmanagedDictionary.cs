@@ -30,4 +30,41 @@ public class UnmanagedDictionary {
         Assert.True(subject.Remove(new KeyValuePair<int, int>(1, 10)));
         Assert.False(subject.ContainsKey(1));
     }
+
+    [Fact, Trait("Category", Unit)]
+    public void Add_int_int_同一件数追加時はUnmanagedのログ消費がManaged以下() {
+        const int count = 200;
+
+        var unmanagedUsed = MeasureTailGrowthUnmanaged(count);
+        var managedUsed = MeasureTailGrowthManaged(count);
+
+        Assert.True(
+            unmanagedUsed <= managedUsed,
+            $"unmanagedUsed: {unmanagedUsed}, managedUsed: {managedUsed}"
+        );
+    }
+
+    private static long MeasureTailGrowthUnmanaged(int count) {
+        using var store = Store.CreateUnmanaged<int, int>();
+        using var subject = store.Create();
+
+        var before = store.Address.TailAddress;
+        for(var i = 0; i < count; i++) {
+            subject.Add(i, i);
+        }
+        var after = store.Address.TailAddress;
+        return after - before;
+    }
+
+    private static long MeasureTailGrowthManaged(int count) {
+        using var store = Store.Create<int, int>();
+        using var subject = store.Create();
+
+        var before = store.Address.TailAddress;
+        for(var i = 0; i < count; i++) {
+            subject.Add(i, i);
+        }
+        var after = store.Address.TailAddress;
+        return after - before;
+    }
 }

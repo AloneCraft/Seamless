@@ -24,7 +24,7 @@ public abstract class ManagedDictionary<TKey, TValue>:ManagedCollection<TKey,TVa
 #if TSAVORITE2_0BETA3
     private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
     private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Remove_KeyValuePair_ClientSession{get;set;}
-	internal ManagedDictionary(CollectionStore<TKey,TValue>CollectionStore) : base(CollectionStore) {
+	internal ManagedDictionary(ManagedCollectionStore<TKey,TValue>CollectionStore) : base(CollectionStore) {
         var Store=CollectionStore.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue>(new ());
         this.Remove_KeyValuePair_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair>(new ());
@@ -32,7 +32,7 @@ public abstract class ManagedDictionary<TKey, TValue>:ManagedCollection<TKey,TVa
 #elif TSAVORITE1_1_1
     private ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
     private ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair   ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>Remove_KeyValuePair_ClientSession{get;set;}
-	internal ManagedDictionary(CollectionStore<TKey,TValue>CollectionStore) : base(CollectionStore) { 
+	internal ManagedDictionary(ManagedCollectionStore<TKey,TValue>CollectionStore) : base(CollectionStore) { 
         var Store=CollectionStore.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue>(new ());
         this.Remove_KeyValuePair_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair>(new ());
@@ -51,7 +51,7 @@ public abstract class ManagedDictionary<TKey, TValue>:ManagedCollection<TKey,TVa
 	public TryAddResult TryAdd(TKey Key,TValue Value) =>
 		this.PrivateTryAdd(Key,Value);
 	public void Add(TKey Key,TValue Value) {
-		var Result = this.TryAdd(Key,Value);
+        var Result = this.TryAdd(Key,Value);
 		switch(Result) {
 			case TryAddResult.LogFull:
 				throw this.ThrowLogFull();
