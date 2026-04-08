@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Diagnostics;
+using Garnet.common;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Tsavorite.core;
@@ -22,7 +23,7 @@ public abstract class ManagedHashSet<T>:ManagedCollection<T,Empty,ManagedSeriali
 		this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,Empty,Empty,Empty,IntersectWith>(new());
 		this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new());
 	}
-	public Enumerator<T,Empty,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,KeyIterator<T,ManagedSerializer<T>>,T> GetEnumerator()=>new (this.ClientSession,new());
+	public Enumerator<T,Empty,SessionFunctions.Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyIterator<T,ManagedSerializer<T>>,T> GetEnumerator()=>new (this.ClientSession,new());
     public void IntersectWith(ManagedHashSet<T> other){
         ArgumentNullException.ThrowIfNull(other);
         var Session = this.IntersectWith_ClientSession;

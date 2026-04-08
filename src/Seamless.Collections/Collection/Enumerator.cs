@@ -2,13 +2,14 @@
 namespace Seamless.Collections;
 
 using System.Collections;
-using System.Diagnostics;
-
+#if TSAVORITE2_0BETA3
+using Garnet.common;
+#endif
 using Tsavorite.core;
 using core_Empty=Tsavorite.core.Empty;
 public struct Enumerator<TKey, TValue,TFunctions,TStoreFunctions,TAllocator,TIterator,T>(
 #if TSAVORITE2_0BETA3
-    ClientSession<TKey,TValue,core_Empty,T,core_Empty,TFunctions,TStoreFunctions,TAllocator> Session,
+    ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,TFunctions,TStoreFunctions,TAllocator> Session,
 #elif TSAVORITE1_1_1
     ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,core_Empty,TFunctions,TStoreFunctions,TAllocator> Session,
 #endif
@@ -16,8 +17,10 @@ public struct Enumerator<TKey, TValue,TFunctions,TStoreFunctions,TAllocator,TIte
     where TKey : IEquatable<TKey>
 #if TSAVORITE2_0BETA3
     where TValue : IEquatable<TValue>
+    where TFunctions : ISessionFunctions<PinnedSpanByte, SpanByteAndMemory, core_Empty>
     where TStoreFunctions : IStoreFunctions
-    where TIterator : ScanIteratorFunctions<T,TKey,TValue> {
+    where TAllocator : IAllocator<TStoreFunctions>
+    where TIterator : ScanIteratorFunctions<T> {
 #elif TSAVORITE1_1_1
     where TFunctions : ISessionFunctions<SpanByte, SpanByte, SpanByte, SpanByteAndMemory, core_Empty>
     where TStoreFunctions : IStoreFunctions<SpanByte, SpanByte>

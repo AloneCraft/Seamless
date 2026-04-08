@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿#if TSAVORITE1_1_1
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 using Tsavorite.core;
@@ -113,3 +114,4 @@ public readonly struct UnmanagedRemove_TKey_TValue<TKey,TValue>:
     public void ConvertOutputToHeap(ref TValue input,ref TValue output) {
     }
 }
+#endif

@@ -20,7 +20,7 @@ using Tsavorite.core;
 /// </summary>
 internal readonly struct Remove_TKey_TValue():
 #if TSAVORITE2_0BETA3
-    ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Collections.Empty>
+    ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
 #elif TSAVORITE1_1_1
     ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>
 #endif
@@ -190,7 +190,7 @@ internal readonly struct Remove_TKey_TValue():
     }
 #endif
 #if TSAVORITE2_0BETA3
-    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
+    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Empty ctx,Status status,RecordMetadata recordMetadata){
         //CompletePendingWithOutputs
     }
 #elif TSAVORITE1_1_1
@@ -233,7 +233,7 @@ internal readonly struct Remove_TKey_TValue():
     }
 #endif
 #if TSAVORITE2_0BETA3
-    [ExcludeFromCodeCoverage]public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
+    [ExcludeFromCodeCoverage]public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Empty ctx,Status status,RecordMetadata recordMetadata){
         throw new NotSupportedException("Read の非同期I/O完了時に呼ばれるので呼ばれない");
     }
 #elif TSAVORITE1_1_1

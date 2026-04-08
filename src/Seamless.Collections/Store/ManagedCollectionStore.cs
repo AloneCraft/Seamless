@@ -4,7 +4,7 @@ namespace Seamless.Collections;
 
 #if TSAVORITE2_0BETA3
 public abstract class ManagedCollectionStore<TKey,TValue>:CollectionStore<TKey,TValue,
-    SpanByte,SpanByte,
+    PinnedSpanByte,SpanByteAndMemory,
     StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,
     SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>
     where TKey:IEquatable<TKey>

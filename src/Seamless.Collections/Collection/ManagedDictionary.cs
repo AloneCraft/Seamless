@@ -6,7 +6,9 @@ using ScanIteratorFunctions;
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-
+#if TSAVORITE2_0BETA3
+using Garnet.common;
+#endif
 using Tsavorite.core;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ Dictionary。
@@ -23,12 +25,12 @@ public abstract class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeri
 	//private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue ,GStoreFunctions,GAllocator>Remove_TKey_TValue_ClientSession;
 	//private readonly ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair ,GStoreFunctions,GAllocator>Remove_KeyValuePair_ClientSession;
 #if TSAVORITE2_0BETA3
-    private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
-    private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Remove_KeyValuePair_ClientSession{get;set;}
+    private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,Remove_TKey_TValue ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
+    private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,Remove_KeyValuePair ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Remove_KeyValuePair_ClientSession{get;set;}
 	internal ManagedDictionary(ManagedCollectionStore<TKey,TValue>CollectionStore) : base(CollectionStore) {
         var Store=CollectionStore.Store;
-        this.Remove_TKey_TValue_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_TKey_TValue>(new ());
-        this.Remove_KeyValuePair_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,Remove_KeyValuePair>(new ());
+        this.Remove_TKey_TValue_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,Remove_TKey_TValue>(new ());
+        this.Remove_KeyValuePair_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,Remove_KeyValuePair>(new ());
     }
 #elif TSAVORITE1_1_1
 	private ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,core_Empty,Remove_TKey_TValue,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
@@ -92,7 +94,7 @@ public abstract class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeri
         //Remove_KeyValuePairはキー存在時でも値が一致しない場合は削除しないため、Output.Length>0ならばキーと値の両方が一致して削除されたと判断できる。
         return Output.Length>0;
     }
-    public bool Remove(TKey key,out TValue value) {
+    public bool Remove(TKey key,[MaybeNullWhen(false)]out TValue value) {
         var Session = this.Remove_TKey_TValue_ClientSession;
         var KeyBytes = SerializeKey(ref key);
         var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
@@ -107,12 +109,12 @@ public abstract class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeri
         value=default;
         return false;
     }
-    public Enumerator<TKey,TValue,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,KeyValueIterator<TKey,TValue,TKeySerializer,TValueSerializer>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
+    public Enumerator<TKey,TValue,SessionFunctions.Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyValueIterator<TKey,TValue,TKeySerializer,TValueSerializer>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
     private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
         // Tsavoriteのセッションから列挙を開始
         // 列挙数が不明なため、Listの初期容量はデフォルトに任せる
         var Collection = new List<T>();
-        using var Enumerator = new Enumerator<TKey,TValue,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,TIterator,T>(this.ClientSession, Iterator);
+        using var Enumerator = new Enumerator<TKey,TValue,SessionFunctions.Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,TIterator,T>(this.ClientSession, Iterator);
         while (Enumerator.MoveNext()){
             Collection.Add(Enumerator.Current);
         }
@@ -121,7 +123,7 @@ public abstract class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeri
     }    
     private IEnumerable<T> Enumerate<TIterator,T>(TIterator Iterator)
         where TIterator:ScanIteratorFunctions<T>{
-        using var e=new Enumerator<TKey,TValue,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,TIterator,T>(this.ClientSession,Iterator);
+        using var e=new Enumerator<TKey,TValue,SessionFunctions.Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,TIterator,T>(this.ClientSession,Iterator);
         while(e.MoveNext())
             yield return e.Current;
     }
