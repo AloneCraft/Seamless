@@ -16,8 +16,6 @@ public sealed class KeyIterator<T,TKey,TValue>:ScanIteratorFunctions<T,TKey,TVal
 #if TSAVORITE2_0BETA3
     private protected override T Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)=>
         MemoryPack.MemoryPackSerializer.Deserialize<T>(logRecord.Key)!;
-    private protected T Deseriggalize<TSourceLogRecord>(in TSourceLogRecord logRecord)=>
-        MemoryPack.MemoryPackSerializer.Deserialize<T>(logRecord.Key)!;
 #elif TSAVORITE1_1_1
     private protected override T Deserialize(ref TKey key,ref TValue value) =>
         Unsafe.As<TKey, T>(ref key);

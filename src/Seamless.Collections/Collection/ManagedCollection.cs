@@ -2,6 +2,7 @@
 using Seamless.SessionFunctions;
 
 using System.Diagnostics;
+using Garnet.common;
 using Tsavorite.core;
 
 namespace Seamless.Collections;

@@ -1,5 +1,4 @@
-﻿using MemoryPack;
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Store;
 using Tsavorite.core;

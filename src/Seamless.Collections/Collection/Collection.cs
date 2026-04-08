@@ -1,6 +1,11 @@
 ﻿using MemoryPack;
+using Seamless.SessionFunctions;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using Seamless.ScanIteratorFunctions;
+#if TSAVORITE2_0BETA3
+using Garnet.common;
+#endif
 using Tsavorite.core;
 namespace Seamless.Collections;
 using core_Empty=Tsavorite.core.Empty;
@@ -8,8 +13,8 @@ using core_Empty=Tsavorite.core.Empty;
 public abstract class Collection<TKey,TValue,TSessionKey,TSessionValue,TInput,TOutput,TAddFunctions,TDeleteFunctions,TStoreFunctions,TAllocator> : IDisposable
 #if TSAVORITE2_0BETA3
     where TKey : IEquatable<TKey>
-    where TAddFunctions : ISessionFunctions<TInput, TOutput, Tsavorite.core.Empty>
-    where TDeleteFunctions : ISessionFunctions<TInput, TOutput, Tsavorite.core.Empty>
+    where TAddFunctions : ISessionFunctions<TInput, TOutput, core_Empty>
+    where TDeleteFunctions : ISessionFunctions<TInput, TOutput, core_Empty>
     where TStoreFunctions : IStoreFunctions
     where TAllocator : IAllocator<TStoreFunctions>
 #elif TSAVORITE1_1_1
@@ -101,8 +106,8 @@ public abstract class Collection<TKey,TValue,TSessionKey,TSessionValue,TInput,TO
     }
 
 
-    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Empty, TSessionFunctions0, StoreFunctions<SpanByteComparer, DefaultRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>> Session, Status Status)
-        where TSessionFunctions0 : ISessionFunctions<PinnedSpanByte, SpanByteAndMemory, Empty> {
+    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, core_Empty, TSessionFunctions0, StoreFunctions<SpanByteComparer, DefaultRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>> Session, Status Status)
+        where TSessionFunctions0 : ISessionFunctions<PinnedSpanByte, SpanByteAndMemory, core_Empty> {
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs, wait: true);
             using(CompletedOutputs) {
@@ -114,8 +119,8 @@ public abstract class Collection<TKey,TValue,TSessionKey,TSessionValue,TInput,TO
         return Status;
     }
 
-    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, Empty, TSessionFunctions0, StoreFunctions<SpanByteComparer, DefaultRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>> Session, Status Status, ref SpanByteAndMemory Output)
-        where TSessionFunctions0 : ISessionFunctions<PinnedSpanByte, SpanByteAndMemory, Empty> {
+    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, core_Empty, TSessionFunctions0, StoreFunctions<SpanByteComparer, DefaultRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>> Session, Status Status, ref SpanByteAndMemory Output)
+        where TSessionFunctions0 : ISessionFunctions<PinnedSpanByte, SpanByteAndMemory, core_Empty> {
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs, wait: true);
             using(CompletedOutputs) {

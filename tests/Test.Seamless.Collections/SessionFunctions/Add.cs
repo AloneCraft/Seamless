@@ -1,4 +1,5 @@
-ï»¿using MemoryPack;
+using Garnet.common;
+using MemoryPack;
 using Seamless;
 using Seamless.Collections;
 using Seamless.Store;
@@ -36,13 +37,13 @@ public sealed class ManagedAdd : AddTests<int,string> {
     protected override void DoUpsert() {
         using var store = Factory.Create<int,string>();
 #if TSAVORITE2_0BETA3
-        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
+        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Tsavorite.core.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
 #elif TSAVORITE1_1_1
         using var session = store.Store.NewSession<SpanByte, SpanByteAndMemory, Tsavorite.core.Empty, global::Seamless.SessionFunctions.Add>(new());
 #endif
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
-        //InitialWriter(ReadOnlySpan<byte>)ã®closing}ã‚’é€šã™
+        //InitialWriter(ReadOnlySpan<byte>)‚Ìclosing}‚ğ’Ê‚·
         {
 #if TSAVORITE2_0BETA3
             var status = bc.Upsert(key,SerStr("new"));
@@ -59,13 +60,13 @@ public sealed class ManagedAdd : AddTests<int,string> {
     protected override void DoInPlaceWriter() {
         using var store = Factory.Create<int,string>();
 #if TSAVORITE2_0BETA3
-        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
+        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Tsavorite.core.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
 #elif TSAVORITE1_1_1
         using var session = store.Store.NewSession<SpanByte, SpanByteAndMemory, Tsavorite.core.Empty, global::Seamless.SessionFunctions.Add>(new());
 #endif
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
-        //InitialWriter(ReadOnlySpan<byte>)ã®closing}ã‚’é€šã™
+        //InitialWriter(ReadOnlySpan<byte>)‚Ìclosing}‚ğ’Ê‚·
         {
 #if TSAVORITE2_0BETA3
             var status = bc.Upsert(key,SerStr("new"));
@@ -78,7 +79,7 @@ public sealed class ManagedAdd : AddTests<int,string> {
                 completed.Dispose();
             }
         }
-        //InPlaceWriter(ReadOnlySpan<byte>)ã®closing}ã‚’é€šã™
+        //InPlaceWriter(ReadOnlySpan<byte>)‚Ìclosing}‚ğ’Ê‚·
         {
 #if TSAVORITE2_0BETA3
             var status = bc.Upsert(key,SerStr("updated"));
@@ -106,21 +107,21 @@ public sealed class ManagedAdd : AddTests<int,string> {
     }    
     [Fact, Trait("Category",Unit)]
     public void UpsertHeapObject() {
-        using var store = Store.Create<int,string>();
-        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
+        using var store = Factory.Create<int,string>();
+        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Tsavorite.core.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(500));
-        // æ–°è¦ã‚­ãƒ¼ â†’ GetUpsertFieldInfo(IHeapObject), InitialWriter(IHeapObject)
-        // SpanByteAllocatorã§ã¯InitialWriter(IHeapObject)ãŒfalseã‚’è¿”ã™ãŸã‚PostInitialWriter(IHeapObject)ã¯å‘¼ã°ã‚Œãªã„
+        // V‹KƒL[ ¨ GetUpsertFieldInfo(IHeapObject), InitialWriter(IHeapObject)
+        // SpanByteAllocator‚Å‚ÍInitialWriter(IHeapObject)‚ªfalse‚ğ•Ô‚·‚½‚ßPostInitialWriter(IHeapObject)‚ÍŒÄ‚Î‚ê‚È‚¢
         bc.Upsert(key,(IHeapObject)new DummyHeapObject());
-        // PostUpsertOperation(IHeapObject) â†’ finallyãƒ–ãƒ­ãƒƒã‚¯ã§å¸¸ã«å‘¼ã°ã‚Œã‚‹
+        // PostUpsertOperation(IHeapObject) ¨ finallyƒuƒƒbƒN‚Åí‚ÉŒÄ‚Î‚ê‚é
         bc.Upsert(key,(IHeapObject)new DummyHeapObject());
-        // ã‚¹ãƒ‘ãƒ³å€¤ã§äº‹å‰ç™»éŒ²â†’IHeapObjectã§Upsert â†’ æ—¢å­˜ãƒ¬ã‚³ãƒ¼ãƒ‰ç™ºè¦‹â†’InPlaceWriter(IHeapObject)ãŒå‘¼ã°ã‚Œã‚‹
-        // SpanByteAllocatorã¯ValueIsObjectãƒ“ãƒƒãƒˆã‚’ã‚¯ãƒªã‚¢ã™ã‚‹ãŸã‚InPlaceWriterã¯falseã‚’è¿”ã™
+        // ƒXƒpƒ“’l‚Å–‘O“o˜^¨IHeapObject‚ÅUpsert ¨ Šù‘¶ƒŒƒR[ƒh”­Œ©¨InPlaceWriter(IHeapObject)‚ªŒÄ‚Î‚ê‚é
+        // SpanByteAllocator‚ÍValueIsObjectƒrƒbƒg‚ğƒNƒŠƒA‚·‚é‚½‚ßInPlaceWriter‚Ífalse‚ğ•Ô‚·
         var key2 = MakeKey(SerInt(502));
         bc.Upsert(key2,SerStr("seed"));
         bc.Upsert(key2,(IHeapObject)new DummyHeapObject());
-        // PostInitialWriter(IHeapObject)ã¯SpanByteAllocatorã§ã¯åˆ°é”ã—ãªã„ãŸã‚ç›´æ¥å‘¼ã³å‡ºã™ï¼ˆbodyãŒç©ºãªã®ã§defaultå¼•æ•°ã§å®‰å…¨ï¼‰
+        // PostInitialWriter(IHeapObject)‚ÍSpanByteAllocator‚Å‚Í“’B‚µ‚È‚¢‚½‚ß’¼ÚŒÄ‚Ño‚·ibody‚ª‹ó‚È‚Ì‚Ådefaultˆø”‚ÅˆÀ‘Sj
         {
             var f = new global::Seamless.SessionFunctions.Add();
             var lr = default(LogRecord);
@@ -140,7 +141,7 @@ public sealed class ManagedAdd : AddTests<int,string> {
     [Fact,Trait("Category",Unit)]public void PostInitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
 
     private sealed class ScanAndUpsertFunctions(
-        ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>
+        ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,global::Tsavorite.core.Empty, global::Seamless.SessionFunctions.Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>
         session,
         byte[]? externalKeyBytes
     ) : IScanIteratorFunctions {
@@ -166,15 +167,15 @@ public sealed class ManagedAdd : AddTests<int,string> {
 
     [Fact, Trait("Category",Unit)]
     public void TSourceLogRecord() {
-        using var store = Store.Create<int,string>();
-        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new());
+        using var store = Factory.Create<int,string>();
+        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Tsavorite.core.Empty, global::Seamless.SessionFunctions.Add>(new());
         var addr1 = store.Store.Log.TailAddress;
         session.BasicContext.Upsert(MakeKey(SerInt(600)),SerStr("log"));
         var addr2 = store.Store.Log.TailAddress;
-        // æ–°è¦ã‚­ãƒ¼(9999) â†’ GetUpsertFieldInfo<TKey,TSourceLogRecord>, InitialWriter<TSourceLogRecord>, PostInitialWriter<TSourceLogRecord>
+        // V‹KƒL[(9999) ¨ GetUpsertFieldInfo<TKey,TSourceLogRecord>, InitialWriter<TSourceLogRecord>, PostInitialWriter<TSourceLogRecord>
         var initFuncs = new ScanAndUpsertFunctions(session,SerInt(9999));
         store.Store.Log.Scan(ref initFuncs,addr1,addr2,DiskScanBufferingMode.NoBuffering);
-        // æ—¢å­˜ã‚­ãƒ¼(600) â†’ GetUpsertFieldInfo<TSourceLogRecord,TSourceLogRecord>, InPlaceWriter<TSourceLogRecord>
+        // Šù‘¶ƒL[(600) ¨ GetUpsertFieldInfo<TSourceLogRecord,TSourceLogRecord>, InPlaceWriter<TSourceLogRecord>
         var inplaceFuncs = new ScanAndUpsertFunctions(session,null);
         store.Store.Log.Scan(ref inplaceFuncs,addr1,addr2,DiskScanBufferingMode.NoBuffering);
     }
@@ -187,7 +188,7 @@ public sealed class ManagedAdd : AddTests<int,string> {
         using var store = Factory.Create<int,string>();
         var key = MakeKey(SerInt(1));
 #if TSAVORITE2_0BETA3
-        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new());
+        using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Tsavorite.core.Empty, global::Seamless.SessionFunctions.Add>(new());
         var input0 = PinnedSpanByte.FromPinnedSpan(SerStr("v1"));
         var input1 = PinnedSpanByte.FromPinnedSpan(SerStr("v2"));
 #elif TSAVORITE1_1_1
@@ -259,7 +260,7 @@ public sealed class ManagedAdd : AddTests<int,string> {
     }
     protected override void DoConcurrentWriter() {
 #if TSAVORITE1_1_1
-        // é•·ã„å€¤ã§åˆå›Upsertå¾Œã€çŸ­ã„å€¤ã§å†Upsert â†’ src.Length<=dst.Length â†’ in-place ã‚³ãƒ”ãƒ¼åˆ†å²ã‚’é€šã™
+        // ’·‚¢’l‚Å‰‰ñUpsertŒãA’Z‚¢’l‚ÅÄUpsert ¨ src.Length<=dst.Length ¨ in-place ƒRƒs[•ªŠò‚ğ’Ê‚·
         using var store = Factory.Create<int,string>();
         using var session = store.Store.NewSession<SpanByte,SpanByteAndMemory,Tsavorite.core.Empty,global::Seamless.SessionFunctions.Add>(new());
         var bc = session.BasicContext;
@@ -276,7 +277,7 @@ public sealed class ManagedAdd : AddTests<int,string> {
     }
     protected override void DoSingleReader() {
 #if TSAVORITE1_1_1
-        // ShiftReadOnlyAddress ã¯ãƒšãƒ¼ã‚¸ãƒ•ãƒ©ãƒƒã‚·ãƒ¥ã‚’ä¼´ã†ãŸã‚ ManagedLocalStorageDevice ãŒå¿…è¦
+        // ShiftReadOnlyAddress ‚Íƒy[ƒWƒtƒ‰ƒbƒVƒ…‚ğ”º‚¤‚½‚ß ManagedLocalStorageDevice ‚ª•K—v
         var folder = CreateDiskFolder();
         using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
@@ -286,7 +287,7 @@ public sealed class ManagedAdd : AddTests<int,string> {
         var key1 = MakeKey(SerInt(400));
         var val1 = MakeKey(SerStr("single"));
         bc.Upsert(ref key1,ref val1);
-        // ReadOnlyAddress ã‚’TailAddressã¾ã§é€²ã‚ã‚‹ â†’ æ›¸ã„ãŸãƒ¬ã‚³ãƒ¼ãƒ‰ãŒ in-memory read-only é ˜åŸŸã¸ â†’ SingleReader ãŒå‘¼ã°ã‚Œã‚‹
+        // ReadOnlyAddress ‚ğTailAddress‚Ü‚Åi‚ß‚é ¨ ‘‚¢‚½ƒŒƒR[ƒh‚ª in-memory read-only —Ìˆæ‚Ö ¨ SingleReader ‚ªŒÄ‚Î‚ê‚é
         store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
         var status1 = bc.Read(key1,out var output1);
         if(status1.IsPending) {
@@ -295,7 +296,7 @@ public sealed class ManagedAdd : AddTests<int,string> {
         }
         Assert.True(status1.Found);
         output1.Memory?.Dispose();
-        // IsEmpty åˆ†å²: ç©ºå€¤ã‚’ read-only é ˜åŸŸã«ç½®ã„ã¦ Read â†’ Span.IsEmpty=true ãƒ‘ã‚¹ã‚’é€šã™
+        // IsEmpty •ªŠò: ‹ó’l‚ğ read-only —Ìˆæ‚É’u‚¢‚Ä Read ¨ Span.IsEmpty=true ƒpƒX‚ğ’Ê‚·
         var key2 = MakeKey(SerInt(401));
         var empty = default(SpanByte);
         bc.Upsert(ref key2,ref empty);
@@ -310,7 +311,7 @@ public sealed class ManagedAdd : AddTests<int,string> {
     }
     protected override void DoConcurrentReaderEmpty() {
 #if TSAVORITE1_1_1
-        // mutable é ˜åŸŸã«ç©ºå€¤ã‚’ç½®ã„ã¦ Read â†’ ConcurrentReader ã® Span.IsEmpty=true åˆ†å²ã‚’é€šã™
+        // mutable —Ìˆæ‚É‹ó’l‚ğ’u‚¢‚Ä Read ¨ ConcurrentReader ‚Ì Span.IsEmpty=true •ªŠò‚ğ’Ê‚·
         using var store = Factory.Create<int,string>();
         using var session = store.Store.NewSession<SpanByte,SpanByteAndMemory,Tsavorite.core.Empty,global::Seamless.SessionFunctions.Add>(new());
         var bc = session.BasicContext;

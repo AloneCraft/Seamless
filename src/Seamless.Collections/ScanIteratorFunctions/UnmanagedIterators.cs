@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿#if TSAVORITE1_1_1
+using System.Diagnostics;
 using Tsavorite.core;
 namespace Seamless.ScanIteratorFunctions;
 
@@ -40,3 +41,4 @@ internal sealed class UnmanagedKeyValueIterator<TKey,TValue>:ScanIteratorFunctio
     where TValue:unmanaged,IEquatable<TValue> {
     private protected override KeyValuePair<TKey,TValue> Deserialize(ref TKey key,ref TValue value) => new(key,value);
 }
+#endif
