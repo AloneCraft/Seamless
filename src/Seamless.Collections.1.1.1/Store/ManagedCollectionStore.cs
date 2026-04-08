@@ -12,23 +12,26 @@ public abstract class ManagedCollectionStore<TKey,TValue>:CollectionStore<TKey,T
             static (allocSettings,storeFuncs) => new SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>(allocSettings,storeFuncs),
             IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir){}
 
-    public override void CompactWithLookup() {
-        var Store = this.Store;
-        var BeginAddress = Store.Log.BeginAddress;
-        var SegmentSize = this.Settings.SegmentSize;
-        var NextSegmentStart = (BeginAddress/SegmentSize+1)*SegmentSize;
-        var CompactUntil = NextSegmentStart;
-        var SafeReadOnlyAddress = Store.Log.SafeReadOnlyAddress;
-        if(CompactUntil>SafeReadOnlyAddress) {
-            CompactUntil=SafeReadOnlyAddress;
-        }
-        if(CompactUntil<=BeginAddress)
-            return;
-        var UntilAddress = Store.Log.Compact<SpanByte, SpanByteAndMemory, Tsavorite.core.Empty, SessionFunctions.Add>(
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    protected override long CompactLog(long compactUntil) =>
+        this.Store.Log.Compact<SpanByte,SpanByteAndMemory,Tsavorite.core.Empty,SessionFunctions.Add>(
             new(),
-            CompactUntil,
+            compactUntil,
             CompactionType.Lookup
         );
-        Store.Log.ShiftBeginAddress(UntilAddress,true,true);
-    }
 }

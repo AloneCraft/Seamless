@@ -38,7 +38,7 @@ public class UnmanagedDictionary {
         var managedUsed = Managed(count);
 
         Assert.True(
-            unmanagedUsed <= managedUsed,
+            unmanagedUsed < managedUsed,
             $"unmanagedUsed: {unmanagedUsed}, managedUsed: {managedUsed}"
         );
     }

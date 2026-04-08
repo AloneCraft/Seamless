@@ -28,24 +28,10 @@ public abstract class UnmanagedCollectionStore<TKey,TValue>:CollectionStore<
             CheckpointDir) {
     }
 
-    public override void CompactWithLookup() {
-        var store = this.Store;
-        var beginAddress = store.Log.BeginAddress;
-        var segmentSize = this.Settings.SegmentSize;
-        var nextSegmentStart = (beginAddress/segmentSize+1)*segmentSize;
-        var compactUntil = nextSegmentStart;
-        var safeReadOnlyAddress = store.Log.SafeReadOnlyAddress;
-        if(compactUntil>safeReadOnlyAddress) {
-            compactUntil=safeReadOnlyAddress;
-        }
-        if(compactUntil<=beginAddress) {
-            return;
-        }
-        var untilAddress = store.Log.Compact<TValue,TValue,Tsavorite.core.Empty,Seamless.SessionFunctions.UnmanagedAdd<TKey,TValue>>(
+    protected override long CompactLog(long compactUntil) =>
+        this.Store.Log.Compact<TValue,TValue,Tsavorite.core.Empty,SessionFunctions.UnmanagedAdd<TKey,TValue>>(
             new(),
             compactUntil,
             CompactionType.Lookup
         );
-        store.Log.ShiftBeginAddress(untilAddress,true,true);
-    }
 }

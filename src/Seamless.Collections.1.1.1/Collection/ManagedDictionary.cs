@@ -39,7 +39,7 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
     public Enumerator<
 		TKey,
 		TValue,
-		SessionFunctions.Add,
+		Add,
 		StoreFunctions<
 			SpanByte,
 			SpanByte,
@@ -62,7 +62,7 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
         using var e = new Enumerator<
             TKey, 
             TValue,
-            SessionFunctions.Add,
+            Add,
             StoreFunctions<
                 SpanByte,
                 SpanByte,
@@ -90,7 +90,7 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
         using var e=new Enumerator<
             TKey,
             TValue,
-            SessionFunctions.Add,
+            Add,
             StoreFunctions<
                 SpanByte,
                 SpanByte,
