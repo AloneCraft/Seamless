@@ -26,15 +26,21 @@ public struct Enumerator<TKey, TValue,TFunctions,TStoreFunctions,TAllocator,TIte
 #endif
     private TIterator Iterator = Iterator;
     private long Cursor = 0, Count;
-    private int Index = Const.Chunk_Length-1;
+    private int Index = -1;
+    private bool _done;
     public T Current => this.Iterator.Chunk[this.Index];
     object? IEnumerator.Current => this.Current;
     public bool MoveNext() {
         if(++this.Index<this.Count) return true;
+        if(_done) {
+           this.Index = -1;
+           return false;
+        }
+        this.Iterator.Count = 0;
         var r = Session.IterateLookup(ref this.Iterator,ref this.Cursor,resetCursor: false);
-        Debug.Assert(!r);
         var Count = this.Iterator.Count;
         this.Count=Count;
+        if(!r) _done = true;
         if(Count>0) {
             this.Index=0;
             return true;
@@ -44,7 +50,9 @@ public struct Enumerator<TKey, TValue,TFunctions,TStoreFunctions,TAllocator,TIte
     }
     public void Reset() {
         this.Cursor=0;
-        this.Index=Const.Chunk_Length-1;
+       this.Count=0;
+        this.Index=-1;
+       _done = false;
     }
     public void Dispose() {
     }

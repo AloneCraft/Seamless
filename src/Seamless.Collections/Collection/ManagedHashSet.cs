@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using System.Diagnostics;
-using Garnet.common;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Tsavorite.core;

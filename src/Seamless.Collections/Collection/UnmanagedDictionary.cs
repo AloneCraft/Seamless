@@ -12,7 +12,7 @@ namespace Seamless.Collections;
 using core_Empty=Tsavorite.core.Empty;
 
 [DebuggerDisplay("Count = {Count}")]
-public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,TValue>, IDictionary<TKey,TValue>, IReadOnlyDictionary<TKey,TValue>
+public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,TValue>, IDictionary<TKey,TValue>, IReadOnlyDictionary<TKey,TValue>, ISeamlessDictionary<TKey,TValue>
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue> {
 

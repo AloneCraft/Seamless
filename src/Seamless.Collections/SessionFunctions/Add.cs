@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-namespace Seamless.SessionFunctions;
+﻿namespace Seamless.SessionFunctions;
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using Tsavorite.core;

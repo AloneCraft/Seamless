@@ -1,13 +1,10 @@
 ﻿
 using Seamless.Devices;
-using Seamless.SessionFunctions;
-
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Tsavorite.core;
 
 namespace Seamless.Collections;
-using core_Empty=Tsavorite.core.Empty;
 /// <summary>
 /// Tsavorite ストアを管理する抽象基底クラス。
 /// DictionaryStore および HashSetStore の共通実装を提供する。

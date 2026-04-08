@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Collection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\ISeamlessDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedCollection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryUnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Serializer.cs" />
@@ -60,13 +61,12 @@
     <Compile Include="..\Seamless.Collections\Store\MemoryManagedDictionaryStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\StorageHashSetStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\MemoryManagedHashSetStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\Store.cs" />
+    <Compile Include="..\Seamless.Collections\Store\Factory.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="$(MSBuildThisFileDirectory)SessionFunctions\Document.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="$(MSBuildThisFileDirectory)Serializer\" />
     <Folder Include="$(MSBuildThisFileDirectory)SessionFunctions\Managed\" />
     <Folder Include="$(MSBuildThisFileDirectory)SessionFunctions\Unmanaged\" />
     <Folder Include="$(MSBuildThisFileDirectory)Store\Managed\" />
