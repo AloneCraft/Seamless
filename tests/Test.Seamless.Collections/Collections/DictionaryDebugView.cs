@@ -1,15 +1,14 @@
 ﻿using Seamless.Collections;
 namespace Test.Seamless.Collections;
 
-
-public class DictionaryDebugView {
+public class DictionaryDebugViewTests {
     [Fact, Trait("Category",Unit)]
     public void Items_全エントリを返す() {
         using var store = Store.Create<int,string>();
         using var dict = store.Create();
         dict.Add(2,"b");
         dict.Add(1,"a");
-        var view = new DictionaryDebugView<int,string>(dict);
+        var view = new global::Seamless.Collections.DictionaryDebugView<int,string,ManagedSerializer<int>,ManagedSerializer<string>>(dict);
         var items = view.Items;
         Assert.Equal(2,items.Length);
         Assert.Contains(items,x => x.Key==1&&x.Value=="a");
@@ -17,6 +16,6 @@ public class DictionaryDebugView {
     }
     [Fact, Trait("Category",Unit)]
     public void ctor_null_例外() {
-        Assert.Throws<ArgumentNullException>(() => new DictionaryDebugView<int,string>(null!));
+        Assert.Throws<ArgumentNullException>(() => new global::Seamless.Collections.DictionaryDebugView<int,string,ManagedSerializer<int>,ManagedSerializer<string>>(null!));
     }
 }

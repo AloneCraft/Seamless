@@ -8,7 +8,7 @@ using Empty=Seamless.Collections.Empty;
 namespace Benchmarks;
 public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,Empty>(output) where T:IEquatable<T>{
 	protected override Empty CreateValue(int seed)=>default;
-    protected HashSetStore<T> CreateStore(){
+    protected ManagedHashSetStore<T> CreateStore(){
         var MemorySize=Seamless.Const.LogMemorySize<<10;
         return Store.Create<T>(IndexSize:IndexSize,MemorySize:MemorySize);
     }

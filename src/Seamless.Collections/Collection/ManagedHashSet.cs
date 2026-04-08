@@ -12,18 +12,18 @@ namespace Seamless.Collections;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
-public abstract class ManagedHashSet<T>:ManagedCollection<T,Empty>, ISet<T> where T : IEquatable<T>{
+public abstract class ManagedHashSet<T>:ManagedCollection<T,Empty,ManagedSerializer<T>,ManagedSerializer<Empty>>, ISet<T> where T : IEquatable<T>{
 	private readonly byte[] EmptyBytes;
 #if TSAVORITE2_0BETA3
 	private readonly ClientSession<FixedSpanByteKey,Empty,Empty,Empty,IntersectWith          ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>IntersectWith_ClientSession;
 	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith    ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>SymmetricExceptWith_ClientSession;
 	internal ManagedHashSet(ManagedCollectionStore<T,Empty> CollectionStore):base(CollectionStore){
 		this.EmptyBytes=Serialize(Empty.Default).ToArray();
-        var Store=CollectionStore.Store;
-        this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,Empty,Empty,Empty,IntersectWith>(new());
+		var Store=CollectionStore.Store;
+		this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,Empty,Empty,Empty,IntersectWith>(new());
 		this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new());
 	}
-    public Enumerator<T,Empty,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,KeyIterator<T>,T> GetEnumerator()=>new (this.ClientSession,new());
+	public Enumerator<T,Empty,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,KeyIterator<T,ManagedSerializer<T>>,T> GetEnumerator()=>new (this.ClientSession,new());
     public void IntersectWith(ManagedHashSet<T> other){
         ArgumentNullException.ThrowIfNull(other);
         var Session = this.IntersectWith_ClientSession;
@@ -58,7 +58,27 @@ public abstract class ManagedHashSet<T>:ManagedCollection<T,Empty>, ISet<T> wher
         this.SymmetricExceptWith_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new());
     }
 
-	public Enumerator<T,Empty,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,KeyIterator<T>,T> GetEnumerator() =>new (this.ClientSession,new());
+	public Enumerator<
+		T,
+		core_Empty,
+		SessionFunctions.Add,
+		StoreFunctions<
+			SpanByte,
+			SpanByte,
+			SpanByteComparer,
+			SpanByteRecordDisposer
+		>,
+		SpanByteAllocator<
+			StoreFunctions<
+				SpanByte,
+				SpanByte,
+				SpanByteComparer,
+				SpanByteRecordDisposer
+			>
+		>,
+		KeyIterator<T,ManagedSerializer<T>>,
+		T
+	> GetEnumerator() =>new (this.ClientSession,new());
     public void IntersectWith(ManagedHashSet<T> other){
 		ArgumentNullException.ThrowIfNull(other);
         var Session = this.IntersectWith_ClientSession;

@@ -9,9 +9,7 @@ using Tsavorite.core;
 namespace Test.Seamless.SessionFunctions;
 
 
-public class Add {
-    private static string CreateDiskFolder() =>
-        Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+public sealed class ManagedAdd : AddTests<int,string> {
     private readonly struct DummyEpochAccessor:IEpochAccessor {
         public void Resume() { }
         public bool TrySuspend() => true;
@@ -23,33 +21,26 @@ public class Add {
 #elif TSAVORITE1_1_1
     private static SpanByte MakeKey(byte[] b) =>SpanByte.FromPinnedSpan(b);
 #endif
-    private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
-    private const long TestMemorySize = Const.MinObjectLogCapacity;
-    private void Add_TKey_TValue(){
-        using var store = Store.Create<int,string>();
-        using var dict = store.Create();
-        dict.Add(1,"one");
-        Assert.True(dict.TryGetValue(1,out var value));
+    protected override int Key(int seed) => seed;
+    protected override string Value(int seed) => $"v{seed}";
+    protected override (IDictionary<int,string> Dict,IDisposable Store) CreateMemory() {
+        var store = Store.Create<int,string>();
+        return (store.Create(),store);
     }
-    [Fact,Trait("Category",Unit)]public void NeedInitialUpdate()=>this.Add_TKey_TValue();
-    [Fact, Trait("Category",Unit)]public void GetRMWModifiedFieldInfo()=>this.Add_TKey_TValue();
-    [Fact,Trait("Category",Unit)]public void InitialUpdater()=>this.Add_TKey_TValue();
-    [Fact,Trait("Category",Unit)]public void PostInitialUpdater()=>this.Add_TKey_TValue();
-    [Fact,Trait("Category",Unit)]public void PostRMWOperation()=>this.Add_TKey_TValue();
-    [Fact, Trait("Category",Unit)]public void Reader() {
-        using var store = Store.Create<int,string>();
-        using var dict = store.Create();
-        dict.Add(1,"one");
-        Assert.True(dict.TryGetValue(1,out var value));
-        Assert.Equal("one",value);
-        Assert.False(dict.TryGetValue(99,out _));
+    protected override (IDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
+        var store = Store.Create<int,string>(logDevice,objDevice,MemorySize:Const.MinObjectLogCapacity);
+        return (store.Create(),store);
     }
-    private void Upsert() {
+    protected override void FlushAndEvict(IDisposable store) =>
+        ((ManagedCollectionStore<int,string>)store).Store.Log.FlushAndEvict(true);
+    protected override TryAddResult TryAdd(IDictionary<int,string> dict,int key,string value) =>
+        ((ManagedDictionary<int,string,ManagedSerializer<int>,ManagedSerializer<string>>)dict).TryAdd(key,value);
+    protected override void DoUpsert() {
         using var store = Store.Create<int,string>();
 #if TSAVORITE2_0BETA3
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
 #elif TSAVORITE1_1_1
-        using var session = store.Store.NewSession<SpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new());
+        using var session = store.Store.NewSession<SpanByte, SpanByteAndMemory, Tsavorite.core.Empty, global::Seamless.SessionFunctions.Add>(new());
 #endif
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
@@ -67,17 +58,12 @@ public class Add {
             }
         }
     }
-    [Fact,Trait("Category",Unit)]public void GetUpsertFieldInfo_TKey_ReadOnlySpan_PInnedSpanByte()=>this.Upsert();
-    [Fact,Trait("Category",Unit)]public void InitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_ReadOnlySpan_SpanByteAndMemory_UpsertInfo()=>this.Upsert();
-    [Fact,Trait("Category",Unit)]public void PostInitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_ReadOnlySpan_SpanByteAndMemory_UpsertInfo()=>this.Upsert();
-    [Fact,Trait("Category",Unit)]public void PostUpsertOperation_TKey_PinnedSpanByte_ReadOnlySpan_UpsertInfo_TEpochAccessor()=>this.Upsert();
-
-    [Fact, Trait("Category",Unit)]public void InPlaceWriter() {
+    protected override void DoInPlaceWriter() {
         using var store = Store.Create<int,string>();
 #if TSAVORITE2_0BETA3
         using var session = store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new global::Seamless.SessionFunctions.Add());
 #elif TSAVORITE1_1_1
-        using var session = store.Store.NewSession<SpanByte, SpanByteAndMemory, global::Seamless.Collections.Empty, global::Seamless.SessionFunctions.Add>(new());
+        using var session = store.Store.NewSession<SpanByte, SpanByteAndMemory, Tsavorite.core.Empty, global::Seamless.SessionFunctions.Add>(new());
 #endif
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
@@ -199,8 +185,7 @@ public class Add {
     [Fact,Trait("Category",Unit)]public void InPlaceWrit2er_LogRecord_RecordSizeInfo_PinnedSpanByte_TSourceLogRecord_SpanByteAndMemory_UpsertInfo()=>this.TSourceLogRecord();
 #endif
 
-    [Fact, Trait("Category",Unit)]
-    public void RMW() {
+    protected override void DoRMW() {
         using var store = Store.Create<int,string>();
         var key = MakeKey(SerInt(1));
 #if TSAVORITE2_0BETA3
@@ -208,7 +193,7 @@ public class Add {
         var input0 = PinnedSpanByte.FromPinnedSpan(SerStr("v1"));
         var input1 = PinnedSpanByte.FromPinnedSpan(SerStr("v2"));
 #elif TSAVORITE1_1_1
-        using var session = store.Store.NewSession<SpanByte,SpanByteAndMemory,global::Seamless.Collections.Empty,global::Seamless.SessionFunctions.Add>(new());
+        using var session = store.Store.NewSession<SpanByte,SpanByteAndMemory,Tsavorite.core.Empty,global::Seamless.SessionFunctions.Add>(new());
         var input0 = SpanByte.FromPinnedSpan(SerStr("v1"));
         var input1 = SpanByte.FromPinnedSpan(SerStr("v2"));
 #endif
@@ -243,51 +228,42 @@ public class Add {
             Assert.False(status.NotFound);
         }
     }
-    [Fact,Trait("Category",Unit)]public void GetRMWModifiedFieldInfo_TSourceLogRecord_PinnedSpanByte()=>this.RMW();
-    [Fact,Trait("Category",Unit)]public void InPlaceUpdater()=>this.RMW();
-    [Fact,Trait("Category",Unit)]public void NeedCopyUpdate()=>this.RMW();
-    [Fact,Trait("Category",Unit)]public void RMWCompletionCallback(){
+    [Fact,Trait("Category",Unit)]public void RMWCompletionCallback_Managed(){
         var folder = CreateDiskFolder();
         using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store = Store.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
+        using var store = Store.Create<int,string>(LogDevice,ObjDevice,MemorySize:Const.MinObjectLogCapacity);
         using var dict = store.Create();
         dict.Add(0,"target");
-        // 全レコードをディスクに追い出す → 次のRMWでIsPending=true
-        // TryAdd on existing key: AddSessionFunctionsのRMWがPENDING → Pending(Session,Status) IsPending=true 分岐を通す
         store.Store.Log.FlushAndEvict(true);
         Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(0,"other"));
     }
-    [Fact,Trait("Category",Unit)]public void ReadCompletionCallback(){
+    [Fact,Trait("Category",Unit)]public void ReadCompletionCallback_Managed(){
         var folder = CreateDiskFolder();
         using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store = Store.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
+        using var store = Store.Create<int,string>(LogDevice,ObjDevice,MemorySize:Const.MinObjectLogCapacity);
         using var dict = store.Create();
         dict[0]="target";
-        // 全レコードをディスクに追い出す → 次のReadでIsPending=true
         store.Store.Log.FlushAndEvict(true);
         Assert.True(dict.TryGetValue(0,out var v));
         Assert.Equal("target",v);
     }
-    [Fact, Trait("Category",Unit)]public void ConvertOutputToHeap() {
+    [Fact, Trait("Category",Unit)]public void ConvertOutputToHeap_Managed() {
         var folder = CreateDiskFolder();
         using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store = Store.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
+        using var store = Store.Create<int,string>(LogDevice,ObjDevice,MemorySize:Const.MinObjectLogCapacity);
         using var dict = store.Create();
         dict.Add(0,"target");
-        // 全レコードをディスクに追い出す → 次のRMWでIsPending=true
-        // TryAdd on existing key: AddSessionFunctionsのRMWがPENDING → Pending(Session,Status) IsPending=true 分岐を通す
         store.Store.Log.FlushAndEvict(true);
         Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(0,"other"));
     }
-    [Fact,Trait("Category",Unit)]
-    public void ConcurrentWriter() {
+    protected override void DoConcurrentWriter() {
 #if TSAVORITE1_1_1
         // 長い値で初回Upsert後、短い値で再Upsert → src.Length<=dst.Length → in-place コピー分岐を通す
         using var store = Store.Create<int,string>();
-        using var session = store.Store.NewSession<SpanByte,SpanByteAndMemory,global::Seamless.Collections.Empty,global::Seamless.SessionFunctions.Add>(new());
+        using var session = store.Store.NewSession<SpanByte,SpanByteAndMemory,Tsavorite.core.Empty,global::Seamless.SessionFunctions.Add>(new());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(300));
         var valLong = MakeKey(SerStr("hello_world_test"));
@@ -300,15 +276,14 @@ public class Add {
         }
 #endif
     }
-    [Fact,Trait("Category",Unit)]
-    public void SingleReader() {
+    protected override void DoSingleReader() {
 #if TSAVORITE1_1_1
         // ShiftReadOnlyAddress はページフラッシュを伴うため ManagedLocalStorageDevice が必要
         var folder = CreateDiskFolder();
         using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store = Store.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
-        using var session = store.Store.NewSession<SpanByte,SpanByteAndMemory,global::Seamless.Collections.Empty,global::Seamless.SessionFunctions.Add>(new());
+        using var store = Store.Create<int,string>(LogDevice,ObjDevice,MemorySize:Const.MinObjectLogCapacity);
+        using var session = store.Store.NewSession<SpanByte,SpanByteAndMemory,Tsavorite.core.Empty,global::Seamless.SessionFunctions.Add>(new());
         var bc = session.BasicContext;
         var key1 = MakeKey(SerInt(400));
         var val1 = MakeKey(SerStr("single"));
@@ -335,12 +310,11 @@ public class Add {
         Assert.True(status2.Found);
 #endif
     }
-    [Fact,Trait("Category",Unit)]
-    public void ConcurrentReader_Empty() {
+    protected override void DoConcurrentReaderEmpty() {
 #if TSAVORITE1_1_1
         // mutable 領域に空値を置いて Read → ConcurrentReader の Span.IsEmpty=true 分岐を通す
         using var store = Store.Create<int,string>();
-        using var session = store.Store.NewSession<SpanByte,SpanByteAndMemory,global::Seamless.Collections.Empty,global::Seamless.SessionFunctions.Add>(new());
+        using var session = store.Store.NewSession<SpanByte,SpanByteAndMemory,Tsavorite.core.Empty,global::Seamless.SessionFunctions.Add>(new());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(500));
         var empty = default(SpanByte);

@@ -1,11 +1,10 @@
 ﻿namespace Seamless.Collections;
 
-public sealed class MemoryUnmanagedDictionary<TKey, TValue> : UnmanagedDictionary<TKey, TValue>
-    where TKey : unmanaged, IEquatable<TKey>
-    where TValue : unmanaged, IEquatable<TValue> {
+public sealed class MemoryUnmanagedDictionary<TKey,TValue>:UnmanagedDictionary<TKey,TValue>
+    where TKey:unmanaged,IEquatable<TKey>
+    where TValue:unmanaged,IEquatable<TValue> {
+    internal MemoryUnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> collectionStore):base(collectionStore) {
+    }
 
-    internal MemoryUnmanagedDictionary(MemoryUnmanagedDictionaryStore<TKey, TValue> CollectionStore) : base(CollectionStore) { }
-
-    private protected override bool WouldOverflowMutable(int KeyLength, int ValueLength) =>
-        this.PrivateProtectedWouldOverflowMutable(KeyLength, ValueLength);
+    private protected override bool WouldOverflowMutable(int keyLength,int valueLength) => this.PrivateProtectedWouldOverflowMutable(keyLength,valueLength);
 }

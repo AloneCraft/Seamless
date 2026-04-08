@@ -3,11 +3,13 @@ namespace Seamless.SessionFunctions;
 using System.Diagnostics.CodeAnalysis;
 
 using Tsavorite.core;
+using core_Empty = Tsavorite.core.Empty;
+
 public struct Delete:
 #if TSAVORITE2_0BETA3
-    ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Collections.Empty>
+    ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,core_Empty>
 #elif TSAVORITE1_1_1
-    ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Seamless.Collections.Empty>
+    ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,core_Empty>
 #endif
     { 
 #if TSAVORITE2_0BETA3
@@ -186,11 +188,11 @@ public struct Delete:
     }
 #endif
 #if TSAVORITE2_0BETA3
-    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata) { 
+    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,core_Empty ctx,Status status,RecordMetadata recordMetadata) { 
         //pending完了時に呼ばれる
     }
 #elif TSAVORITE1_1_1
-    public void RMWCompletionCallback(ref SpanByte key,ref SpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata) { 
+    public void RMWCompletionCallback(ref SpanByte key,ref SpanByte input,ref SpanByteAndMemory output,core_Empty ctx,Status status,RecordMetadata recordMetadata) { 
         //pending完了時に呼ばれる
     }
     [ExcludeFromCodeCoverage]public bool SingleDeleter(ref SpanByte key,ref SpanByte value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
@@ -233,11 +235,11 @@ public struct Delete:
 #endif
     [ExcludeFromCodeCoverage]
 #if TSAVORITE2_0BETA3
-    public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
+    public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,core_Empty ctx,Status status,RecordMetadata recordMetadata){
         throw new NotSupportedException("RMWは呼ばれない");
     }
 #elif TSAVORITE1_1_1
-    public void ReadCompletionCallback(ref SpanByte key,ref SpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata) { 
+    public void ReadCompletionCallback(ref SpanByte key,ref SpanByte input,ref SpanByteAndMemory output,core_Empty ctx,Status status,RecordMetadata recordMetadata) { 
         throw new NotSupportedException("RMWは呼ばれない");
     }
 #endif
@@ -297,7 +299,7 @@ public struct Delete<TKey,TValue>:
     ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Empty>
     where TKey:unmanaged,IEquatable<TKey>, allows ref struct
 #elif TSAVORITE1_1_1
-    ISessionFunctions<TKey,TValue>
+    ISessionFunctions<TKey,TValue,TValue,TValue,Empty>
     where TKey:unmanaged,IEquatable<TKey>
 #endif
     { 

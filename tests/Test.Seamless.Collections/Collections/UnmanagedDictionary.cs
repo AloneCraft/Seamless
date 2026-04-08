@@ -35,8 +35,8 @@ public class UnmanagedDictionary {
     public void Add_int_int_同一件数追加時はUnmanagedのログ消費がManaged以下() {
         const int count = 200;
 
-        var unmanagedUsed = MeasureTailGrowthUnmanaged(count);
-        var managedUsed = MeasureTailGrowthManaged(count);
+        var unmanagedUsed = Unmanaged(count);
+        var managedUsed = Managed(count);
 
         Assert.True(
             unmanagedUsed <= managedUsed,
@@ -44,7 +44,7 @@ public class UnmanagedDictionary {
         );
     }
 
-    private static long MeasureTailGrowthUnmanaged(int count) {
+    private static long Unmanaged(int count) {
         using var store = Store.CreateUnmanaged<int, int>();
         using var subject = store.Create();
 
@@ -56,7 +56,7 @@ public class UnmanagedDictionary {
         return after - before;
     }
 
-    private static long MeasureTailGrowthManaged(int count) {
+    private static long Managed(int count) {
         using var store = Store.Create<int, int>();
         using var subject = store.Create();
 

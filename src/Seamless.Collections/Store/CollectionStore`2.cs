@@ -1,29 +1,44 @@
 ﻿
 using Seamless.Devices;
+using Seamless.SessionFunctions;
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Tsavorite.core;
 
 namespace Seamless.Collections;
+using core_Empty=Tsavorite.core.Empty;
 /// <summary>
 /// Tsavorite ストアを管理する抽象基底クラス。
 /// DictionaryStore および HashSetStore の共通実装を提供する。
 /// </summary>
-public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable where TKey : IEquatable<TKey> {
+public abstract class CollectionStore<TKey,TValue,TSessionKey,TSessionValue,TStoreFunctions,TAllocator>:CollectionStore, IDisposable 
+    where TKey : IEquatable<TKey> 
+#if TSAVORITE2_0BETA3
+    where TStoreFunctions : IStoreFunctions
+    where TAllocator : IAllocator<TStoreFunctions>
+#elif TSAVORITE1_1_1
+    where TStoreFunctions : IStoreFunctions<TSessionKey,TSessionValue>
+    where TAllocator : IAllocator<TSessionKey,TSessionValue, TStoreFunctions>
+#endif
+
+{
     //private protected readonly GKVSettings Settings;
 #if TSAVORITE2_0BETA3
     private protected KVSettings Settings{get;private set;}
 	public readonly TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store;
 #elif TSAVORITE1_1_1
-    private protected KVSettings<SpanByte,SpanByte> Settings{get;private set;}
-    public readonly TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Store;
+    private protected KVSettings<TSessionKey,TSessionValue> Settings{get;private set;}
+    public readonly TsavoriteKV<TSessionKey,TSessionValue,TStoreFunctions,TAllocator> Store;
 #endif
 	public long LogMemorySize { get; }
 	public double MutableFraction { get; }
 	private bool Disposed;
     /// <summary>テスト専用シーム: TakeCheckpointAsync 完了後・CompleteCheckpointAsync 前に呼び出されるコールバック。</summary>
-    private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) {
+    private protected CollectionStore(
+        TStoreFunctions StoreFunctions,
+        Func<AllocatorSettings, TStoreFunctions, TAllocator> allocatorFactory,
+        long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) {
 		AssertIsPowerOfTwo(IndexSize,nameof(IndexSize));
 		AssertIsPowerOfTwo(PageSize,nameof(PageSize));
 		AssertIsPowerOfTwo(SegmentSize,nameof(SegmentSize));
@@ -58,10 +73,10 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
             ObjectLogSegmentSize=ObjectLogSegmentSize,
             CheckpointDir=CheckpointDir,
         };
-        var StoreFunctions =new StoreFunctions<SpanByteComparer,DefaultRecordDisposer>(new SpanByteComparer(),NullSerializer,new DefaultRecordDisposer());
+        var storeFunctions =new StoreFunctions<SpanByteComparer,DefaultRecordDisposer>(new SpanByteComparer(),NullSerializer,new DefaultRecordDisposer());
 		this.Store=new TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>(
 			this.Settings,
-			StoreFunctions,
+			storeFunctions,
 			static (AllocSettings,StoreFuncs) =>new SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>(
                 AllocSettings,
                 StoreFuncs
@@ -82,25 +97,27 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
 
             CheckpointDir=CheckpointDir,
         };
-        var StoreFunctions = new StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>(
-            new SpanByteComparer(),
-            NullSerializer,
-            NullSerializer,
-            new SpanByteRecordDisposer()
-        );
-        this.Store=new TsavoriteKV<SpanByte,SpanByte,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>(
+
+        //var StoreFunctions = new StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>(
+        //    new SpanByteComparer(),
+        //    NullSerializer,
+        //    NullSerializer,
+        //    new SpanByteRecordDisposer()
+        //);
+        this.Store=new TsavoriteKV<TSessionKey,TSessionValue,TStoreFunctions,TAllocator>(
             this.Settings,
             StoreFunctions,
-            static (AllocSettings,StoreFuncs) =>new SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>(
-                AllocSettings,
-                StoreFuncs
-            ));
+            allocatorFactory
+        );
         [ExcludeFromCodeCoverage]
 		static IObjectSerializer<SpanByte>? NullSerializer() => null;
 #endif
 	}
-	private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction): 
-        this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null){
+	private protected CollectionStore(
+        TStoreFunctions StoreFunctions,
+        Func<AllocatorSettings, TStoreFunctions, TAllocator> allocatorFactory,
+        long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction): 
+        this(StoreFunctions,allocatorFactory,IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null){
 	}
 	//[ExcludeFromCodeCoverage]
 	//private static IObjectSerializer<IHeapObject>? NullSerializer() => null;
@@ -239,34 +256,30 @@ public abstract class CollectionStore<TKey, TValue>:CollectionStore, IDisposable
         var ct=CancellationToken.None;
         this.LoadAsync(token,ct).GetAwaiter().GetResult();
     }
-	public void CompactWithLookup() {
-		var Store = this.Store;
-		var BeginAddress = Store.Log.BeginAddress;
-		var SegmentSize = this.Settings.SegmentSize;
-		var NextSegmentStart = (BeginAddress/SegmentSize+1)*SegmentSize;
-		var CompactUntil = NextSegmentStart;
-		var SafeReadOnlyAddress = Store.Log.SafeReadOnlyAddress;
-		if(CompactUntil>SafeReadOnlyAddress) {
-			CompactUntil=SafeReadOnlyAddress;
-		} else {
-		}
+	#if TSAVORITE2_0BETA3
+		public virtual void CompactWithLookup() {
+			var Store = this.Store;
+			var BeginAddress = Store.Log.BeginAddress;
+			var SegmentSize = this.Settings.SegmentSize;
+			var NextSegmentStart = (BeginAddress/SegmentSize+1)*SegmentSize;
+			var CompactUntil = NextSegmentStart;
+			var SafeReadOnlyAddress = Store.Log.SafeReadOnlyAddress;
+			if(CompactUntil>SafeReadOnlyAddress) {
+				CompactUntil=SafeReadOnlyAddress;
+			} else {
+			}
 
-		if(CompactUntil<=BeginAddress) 
-            return;
-#if TSAVORITE2_0BETA3
-    var UntilAddress=this.Store.Log.Compact<TKey,TValue,Empty>(
-        CompactUntil,
-        CompactionType.Lookup
-    );
-#elif TSAVORITE1_1_1
-        var UntilAddress = this.Store.Log.Compact<SpanByte,SpanByteAndMemory,Empty,SpanByteFunctions<Empty>>(
-            new(),
-            CompactUntil,
-            CompactionType.Lookup
-        );
-#endif
-		Store.Log.ShiftBeginAddress(UntilAddress,true,true);
-	}
+			if(CompactUntil<=BeginAddress) 
+				return;
+		var UntilAddress=this.Store.Log.Compact<TKey,TValue,Empty>(
+			CompactUntil,
+			CompactionType.Lookup
+		);
+			Store.Log.ShiftBeginAddress(UntilAddress,true,true);
+		}
+	#elif TSAVORITE1_1_1
+		public abstract void CompactWithLookup();
+	#endif
 	public (long BeginAddress,long HeadAddress,long ReadOnlyAddress,long TailAddress) Address {
 		get {
 			var Log = this.Store.Log;

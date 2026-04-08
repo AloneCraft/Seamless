@@ -1,4 +1,6 @@
-﻿namespace Seamless;
+﻿global using core_Empty=Tsavorite.core.Empty;
+namespace Seamless;
+
 public static class Const{
     public const int Chunk_Length=2;
     public const int IndexSizeBits = 6; 
