@@ -50,5 +50,19 @@ public abstract partial class CollectionStore<TKey,TValue,TSessionKey,TSessionVa
         [ExcludeFromCodeCoverage]
 		static IObjectSerializer<SpanByte>? NullSerializer() => null;
 	}
-	public abstract void CompactWithLookup();
+	public void CompactWithLookup() {
+		var store = this.Store;
+		var beginAddress = store.Log.BeginAddress;
+		var segmentSize = this.Settings.SegmentSize;
+		var nextSegmentStart = (beginAddress/segmentSize+1)*segmentSize;
+		var compactUntil = nextSegmentStart;
+		var safeReadOnlyAddress = store.Log.SafeReadOnlyAddress;
+		if(compactUntil>safeReadOnlyAddress)
+			compactUntil=safeReadOnlyAddress;
+		if(compactUntil<=beginAddress)
+			return;
+		var untilAddress = CompactLog(compactUntil);
+		store.Log.ShiftBeginAddress(untilAddress,true,true);
+	}
+	protected abstract long CompactLog(long compactUntil);
 }

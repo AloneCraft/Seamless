@@ -38,10 +38,10 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
         value=default;
         return false;
     }
-    public Enumerator<TKey,TValue,SessionFunctions.Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyValueIterator<TKey,TValue,TKeySerializer,TValueSerializer>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
+    public Enumerator<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyValueIterator<TKey,TValue,TKeySerializer,TValueSerializer>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
     private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
         var Collection = new List<T>();
-        using var Enumerator = new Enumerator<TKey,TValue,SessionFunctions.Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,TIterator,T>(this.ClientSession, Iterator);
+        using var Enumerator = new Enumerator<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,TIterator,T>(this.ClientSession, Iterator);
         while (Enumerator.MoveNext()){
             Collection.Add(Enumerator.Current);
         }
@@ -49,7 +49,7 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
     }    
     private IEnumerable<T> Enumerate<TIterator,T>(TIterator Iterator)
         where TIterator:ScanIteratorFunctions<T>{
-        using var e=new Enumerator<TKey,TValue,SessionFunctions.Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,TIterator,T>(this.ClientSession,Iterator);
+        using var e=new Enumerator<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,TIterator,T>(this.ClientSession,Iterator);
         while(e.MoveNext())
             yield return e.Current;
     }
