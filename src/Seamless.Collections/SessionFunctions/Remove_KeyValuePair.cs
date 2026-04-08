@@ -21,7 +21,7 @@ internal readonly struct Remove_KeyValuePair():
 #if TSAVORITE2_0BETA3
     ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Collections.Empty>
 #elif TSAVORITE1_1_1
-    ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Collections.Empty>
+    ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty>
 #endif
     {
 	private readonly MemoryPool<byte> MemoryPool = MemoryPool<byte>.Shared;
@@ -193,7 +193,7 @@ internal readonly struct Remove_KeyValuePair():
         //CompletePendingWithOutputs
     }
 #elif TSAVORITE1_1_1
-	public void RMWCompletionCallback(ref SpanByte key,ref SpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
+	public void RMWCompletionCallback(ref SpanByte key,ref SpanByte input,ref SpanByteAndMemory output,Empty ctx,Status status,RecordMetadata recordMetadata){
 		//CompletePendingWithOutputs
 	}
 #endif
@@ -236,7 +236,7 @@ internal readonly struct Remove_KeyValuePair():
         throw new NotSupportedException("Read の非同期I/O完了時に呼ばれるので呼ばれない");
     }
 #elif TSAVORITE1_1_1
-    [ExcludeFromCodeCoverage]public void ReadCompletionCallback(ref SpanByte key,ref SpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
+    [ExcludeFromCodeCoverage]public void ReadCompletionCallback(ref SpanByte key,ref SpanByte input,ref SpanByteAndMemory output,Empty ctx,Status status,RecordMetadata recordMetadata){
 		throw new NotSupportedException("Readの非同期I/O完了時に呼ばれるので呼ばれない");
 	}
 #endif

@@ -11,38 +11,38 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Collection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryUnmanagedDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\Serializer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageManagedDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageUnmanagedDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedEnumerator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\UnmanagedScanIteratorFunctions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedKeyComparer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\UnmanagedIterators.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedAdd.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedKeyComparer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedDelete.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedRemove_KeyValuePair.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedRemove_TKey_TValue.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\VariableDictionaryStore.cs" />
-    <Compile Include="..\Seamless.Collections\Collection\MemoryVariableDictionary.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryUnmanagedDictionary.cs" />
-    <Compile Include="..\Seamless.Collections\Collection\StorageVariableDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\ManagedCollectionStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\ManagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\DictionaryDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Empty.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Enumerator.cs" />
-    <Compile Include="..\Seamless.Collections\Collection\StorageVariableHashSet.cs" />
-    <Compile Include="..\Seamless.Collections\Collection\MemoryVariableHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageManagedHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryManagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\HashSetDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\ISet.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageUnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\TryAddResult.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedCollection.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Const.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyValueIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ScanIteratorFunctions.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\UnmanagedKeyIterator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\UnmanagedKeyValueIterator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\UnmanagedValueIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ValueIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Add.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Delete.cs" />
@@ -52,14 +52,24 @@
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\SymmetricExceptWith.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore`2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\MemoryUnmanagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\StorageUnmanagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedCollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedDictionaryStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\StorageDictionaryStore.cs" />
-    <Compile Include="..\Seamless.Collections\Store\MemoryDictionaryStore.cs" />
+    <Compile Include="..\Seamless.Collections\Store\MemoryManagedDictionaryStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\StorageHashSetStore.cs" />
-    <Compile Include="..\Seamless.Collections\Store\MemoryHashSetStore.cs" />
+    <Compile Include="..\Seamless.Collections\Store\MemoryManagedHashSetStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\Store.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="$(MSBuildThisFileDirectory)SessionFunctions\Document.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="$(MSBuildThisFileDirectory)Serializer\" />
+    <Folder Include="$(MSBuildThisFileDirectory)SessionFunctions\Managed\" />
+    <Folder Include="$(MSBuildThisFileDirectory)SessionFunctions\Unmanaged\" />
+    <Folder Include="$(MSBuildThisFileDirectory)Store\Managed\" />
+    <Folder Include="$(MSBuildThisFileDirectory)Store\Unmanaged\" />
   </ItemGroup>
 </Project>

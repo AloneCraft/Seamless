@@ -5,7 +5,7 @@ namespace Benchmarks;
 public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmark<TKey,TValue>(output) 
     where TKey:IEquatable<TKey>
     where TValue:IEquatable<TValue>{
-    private protected MemoryDictionaryStore<TKey,TValue> CreateStore(){
+    private protected MemoryManagedDictionaryStore<TKey,TValue,ManagedSerializer<TKey>,ManagedSerializer<TValue>> CreateStore(){
         var MemorySize=Seamless.Const.LogMemorySize<<11;
         return Store.Create<TKey,TValue>(IndexSize:IndexSize,MemorySize:MemorySize);
     }

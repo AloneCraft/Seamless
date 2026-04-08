@@ -22,6 +22,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSetDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Category.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Enumerator.cs" />
@@ -33,11 +34,13 @@
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ScanIteratorFunctions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ValueIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Add.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\AddTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Delete.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\IntersectWith.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Remove_KeyValuePair.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Remove_TKey_TValue.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\SymmetricExcept.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedAdd.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)StoreCheckpoint.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Test.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestTypes.cs" />

@@ -5,21 +5,25 @@ using System.Collections;
 using System.Diagnostics;
 
 using Tsavorite.core;
-public struct Enumerator<TKey, TValue, TStoreFunctions, TIterator, T>(
+using core_Empty=Tsavorite.core.Empty;
+public struct Enumerator<TKey, TValue,TFunctions,TStoreFunctions,TAllocator,TIterator,T>(
 #if TSAVORITE2_0BETA3
-    ClientSession<Garnet.common.FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SessionFunctions.Add                ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Session,
+    ClientSession<TKey,TValue,core_Empty,T,core_Empty,TFunctions,TStoreFunctions,TAllocator> Session,
 #elif TSAVORITE1_1_1
-    ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,SessionFunctions.Add                ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Session,
+    ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,core_Empty,TFunctions,TStoreFunctions,TAllocator> Session,
 #endif
     TIterator Iterator):IEnumerator<T>
     where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>
 #if TSAVORITE2_0BETA3
+    where TValue : IEquatable<TValue>
     where TStoreFunctions : IStoreFunctions
+    where TIterator : ScanIteratorFunctions<T,TKey,TValue> {
 #elif TSAVORITE1_1_1
-    where TStoreFunctions : IStoreFunctions<SpanByte,SpanByte>
-#endif
+    where TFunctions : ISessionFunctions<SpanByte, SpanByte, SpanByte, SpanByteAndMemory, core_Empty>
+    where TStoreFunctions : IStoreFunctions<SpanByte, SpanByte>
+    where TAllocator : IAllocator<SpanByte, SpanByte, TStoreFunctions>
     where TIterator : ScanIteratorFunctions<T> {
+#endif
     private TIterator Iterator = Iterator;
     private long Cursor = 0, Count;
     private int Index = Const.Chunk_Length-1;

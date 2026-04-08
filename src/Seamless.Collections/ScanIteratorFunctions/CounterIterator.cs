@@ -43,22 +43,4 @@ public class CounterIterator:IScanIteratorFunctions<SpanByte,SpanByte> {
         Debug.Assert(this.Counter0==numberOfRecords);
     }
 }
-
-/** 固定長 BlittableAllocator 用カウンタイテレータ（TSAVORITE1_1_1 専用） */
-public class CounterIterator<TKey, TValue> : IScanIteratorFunctions<TKey, TValue>
-    where TKey : unmanaged
-    where TValue : unmanaged
-{
-    public long Counter;
-    public bool SingleReader(ref TKey key, ref TValue value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult)
-    {
-        cursorRecordResult = CursorRecordResult.Accept;
-        return true;
-    }
-    public bool ConcurrentReader(ref TKey key, ref TValue value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult)
-        => this.SingleReader(ref key, ref value, recordMetadata, numberOfRecords, out cursorRecordResult);
-    public bool OnStart(long beginAddress, long endAddress) => true;
-    public void OnException(Exception exception, long numberOfRecords) { }
-    public void OnStop(bool completed, long numberOfRecords) { this.Counter = numberOfRecords; }
-}
 #endif
