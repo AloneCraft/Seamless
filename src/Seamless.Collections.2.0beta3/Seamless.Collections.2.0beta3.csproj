@@ -33,6 +33,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="Collection\Collection.cs" />
+    <Compile Include="Collection\Enumerator.cs" />
+    <Compile Include="Collection\ManagedCollection.cs" />
+    <Compile Include="Collection\ManagedDictionary.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="Microsoft.Garnet" Version="2.0.0-beta.3" />    <PackageReference Include="ZLinq" Version="1.*" />
   </ItemGroup>

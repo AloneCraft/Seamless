@@ -1,10 +1,8 @@
-﻿using Garnet.common;
-using Seamless.ScanIteratorFunctions;
+﻿using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Tsavorite.core;
 
 namespace Seamless.Collections;
 public abstract class Collection<TKey,TValue,TSessionKey,TSessionValue>:IDisposable

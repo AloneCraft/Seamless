@@ -1,5 +1,4 @@
-﻿using Tsavorite.core;
-
+﻿
 namespace Seamless.Collections;
 
 public abstract class ManagedDictionaryStore<TKey,TValue,TKeySerializer,TValueSerializer>:ManagedCollectionStore<TKey,TValue>

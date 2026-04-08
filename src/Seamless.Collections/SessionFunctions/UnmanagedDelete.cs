@@ -2,10 +2,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
-using Tsavorite.core;
 
 namespace Seamless.SessionFunctions;
-using core_Empty=Tsavorite.core.Empty;
 
 public readonly struct UnmanagedDelete<TKey,TValue>:
     ISessionFunctions<TKey,TValue,TValue,TValue,core_Empty>

@@ -1,5 +1,4 @@
-﻿using Tsavorite.core;
-
+﻿
 namespace Seamless.Collections;
 
 public abstract class UnmanagedDictionaryStore<TKey,TValue>:UnmanagedCollectionStore<TKey,TValue>

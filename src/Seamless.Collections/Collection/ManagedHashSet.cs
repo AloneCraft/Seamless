@@ -1,9 +1,7 @@
 ﻿using System.Collections;
 using System.Diagnostics;
-using Garnet.common;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
-using Tsavorite.core;
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。

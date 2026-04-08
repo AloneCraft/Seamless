@@ -1,6 +1,5 @@
 ﻿using Seamless.Devices;
 
-using Tsavorite.core;
 
 namespace Seamless.Collections;
 public abstract class ManagedHashSetStore<T>:ManagedCollectionStore<T,Empty>where T:IEquatable<T>{

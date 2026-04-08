@@ -1,5 +1,4 @@
 ﻿namespace Seamless.Collections;
-using Tsavorite.core;
 /// <summary>
 /// Tsavorite ストアを管理し、HashSet インスタンスを作成するためのストアクラス。
 /// 複数の HashSet インスタンスで同じストアを共有できる。

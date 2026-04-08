@@ -34,24 +34,6 @@
     <PackageReference Include="Microsoft.Garnet" Version="1.1.1" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="..\Seamless.Collections\Collection\UnmanagedKeyComparer.cs" />
-    <Compile Include="..\Seamless.Collections\Collection\UnmanagedCollection.cs" />
-    <Compile Include="..\Seamless.Collections\Collection\UnmanagedDictionary.cs" />
-    <Compile Include="..\Seamless.Collections\Collection\MemoryUnmanagedDictionary.cs" />
-    <Compile Include="..\Seamless.Collections\Collection\StorageUnmanagedDictionary.cs" />
-    <Compile Include="..\Seamless.Collections\Collection\UnmanagedEnumerator.cs" />
-    <Compile Include="..\Seamless.Collections\Store\UnmanagedCollectionStore.cs" />
-    <Compile Include="..\Seamless.Collections\Store\UnmanagedDictionaryStore.cs" />
-    <Compile Include="..\Seamless.Collections\Store\MemoryUnmanagedDictionaryStore.cs" />
-    <Compile Include="..\Seamless.Collections\Store\StorageUnmanagedDictionaryStore.cs" />
-    <Compile Include="..\Seamless.Collections\ScanIteratorFunctions\UnmanagedIterators.cs" />
-    <Compile Include="..\Seamless.Collections\SessionFunctions\UnmanagedAdd.cs" />
-    <Compile Include="..\Seamless.Collections\SessionFunctions\UnmanagedDelete.cs" />
-    <Compile Include="..\Seamless.Collections\SessionFunctions\UnmanagedRemove_TKey_TValue.cs" />
-    <Compile Include="..\Seamless.Collections\SessionFunctions\UnmanagedRemove_KeyValuePair.cs" />
-  </ItemGroup>
-
   <Import Project="..\Seamless.Collections\Seamless.Collections.projitems" Label="Shared" />
 
 </Project>
