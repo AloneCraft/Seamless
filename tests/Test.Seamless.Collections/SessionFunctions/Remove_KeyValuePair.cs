@@ -1,160 +1,111 @@
-﻿using Seamless.Store;
+﻿using Seamless;
+using Seamless.Collections;
+using Seamless.Store;
 using Tsavorite.core;
 namespace Test.Seamless.SessionFunctions;
 
+public abstract class RemoveKeyValuePairTests<TKey,TValue>
+    where TKey:IEquatable<TKey>
+    where TValue:IEquatable<TValue> {
+    protected abstract TKey Key(int seed);
+    protected abstract TValue Value(int seed);
+    protected abstract (IDictionary<TKey,TValue> Dict,IDisposable Store) CreateMemory();
+    protected abstract (IDictionary<TKey,TValue> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice);
+    protected abstract (IDictionary<TKey,TValue> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice);
+    protected abstract void FlushAndEvict(IDisposable store);
 
-public class Remove_KeyValuePair {
-    private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
-    private const long TestMemorySize = global::Seamless.Const.MinObjectLogCapacity;
+    protected static string CreateDiskFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    private const long TestMemorySize = Const.MinObjectLogCapacity;
 
-    // ----------------------------------------------------------------
-    // Remove_KeyValuePair
-    // ----------------------------------------------------------------
-
-    private void Remove() {
-        using var store = Factory.Create<int,string>();
-        using var dict = store.Create();
-        dict[1]="one";
-        Assert.True(dict.Remove(new KeyValuePair<int,string>(1,"one")));
+    private void InMemory() {
+        var (dict,store) = this.CreateMemory();
+        using var _store = store;
+        using var _dict = (IDisposable)dict;
+        dict[Key(1)] = Value(1);
+        Assert.True(dict.Remove(new KeyValuePair<TKey,TValue>(Key(1),Value(1))));
     }
-    [Fact,Trait("Category",Unit)]public void InPlaceUpdater()=>this.Remove();
-    [Fact,Trait("Category",Unit)]public void GetRMWModifiedFieldInfo()=>this.Remove();
-    [Fact,Trait("Category",Unit)]public void PostRMWOperation()=>this.Remove();
-/*
-    [Fact,Trait("Category",Unit)]
-    public void Remove_KeyValuePair_InPlaceUpdater_値不一致() {
-        using var store = Store.Create<int,string>();
-        using var dict = store.Create();
-        dict[1]="one";
-        Assert.False(dict.Remove(new KeyValuePair<int,string>(1,"wrong")));
-    }
-*/
+    [Fact,Trait("Category",Unit)] public void InPlaceUpdater() => this.InMemory();
+    [Fact,Trait("Category",Unit)] public void GetRMWModifiedFieldInfo() => this.InMemory();
+    [Fact,Trait("Category",Unit)] public void PostRMWOperation() => this.InMemory();
+
     [Fact,Trait("Category",Unit)]
     public void NeedInitialUpdate() {
-        using var store = Factory.Create<int,string>();
-        using var dict = store.Create();
-        Assert.False(dict.Remove(new KeyValuePair<int,string>(999,"v")));
-    }
-    private void Remove_Disk() {
-        var folder = CreateFolder();
-        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = Factory.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0,LogDevice:logDevice,ObjectLogDevice:objDevice);
-        using var dict = store.Create();
-        for(var a = 0; a<300; a++) {
-            dict[a]=$"v{a}";
-        }
-        Assert.True(dict.Remove(new KeyValuePair<int,string>(0,"v0")));
-
-    }
-    [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    public void NeedCopyUpdate()=>this.Remove_Disk();
-    [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    public void CopyUpdater()=>this.Remove_Disk();
-    [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    public void RMWCompletionCallback()=>this.Remove_Disk();
-    //[Fact,Trait("Category",Unit)]
-    //[System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    //public void GetRMWModifiedFieldInfo_TSourceLogRecord_PinnedSpanByte()=>this.Remove_Disk();
-/*
-    [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    public void Remove_KeyValuePair_NeedCopyUpdate_値不一致() {
-        var folder = CreateFolder();
-        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = Store.Create<int,string>(logDevice,objDevice,MemorySize: TestMemorySize,MutableFraction: 0);
-        using var dict = store.Create();
-        for(var a = 0; a<300; a++) {
-            dict[a]=$"v{a}";
-        }
-        Assert.False(dict.Remove(new KeyValuePair<int,string>(0,"wrong")));
+        var (dict,store) = this.CreateMemory();
+        using var _store = store;
+        using var _dict = (IDisposable)dict;
+        Assert.False(dict.Remove(new KeyValuePair<TKey,TValue>(Key(999),Value(1))));
     }
 
-    // ── FlushAndEvict (ConvertOutputToHeap path) ──────────────────────
-    // 1件書き込み後に FlushAndEvict → 次の Remove で IsPending=true
-    // Tsavorite が Output をヒープに退避するために ConvertOutputToHeap が呼ばれる
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    private void RemoveKvp_FlushAndEvict() {
-        var folder = CreateFolder();
-        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = Store.Create<int,string>(logDevice,objDevice,MemorySize: TestMemorySize);
-        using var dict = store.Create();
-        dict[0]="target";
-        // 全レコードをディスクに追い出す → 次の Remove で IsPending=true → ConvertOutputToHeap が呼ばれる
-        store.Store.Log.FlushAndEvict(true);
-        Assert.True(dict.Remove(new KeyValuePair<int,string>(0,"target")));
+    private void DiskSpill() {
+        var folder = CreateDiskFolder();
+        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose:true,capacity:TestMemorySize);
+        using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose:true,capacity:TestMemorySize);
+        var (dict,store) = this.CreateDiskSpill(logDevice,objDevice);
+        using var _store = store;
+        using var _dict = (IDisposable)dict;
+        for(var a = 0;a<300;a++) dict[Key(a)] = Value(a);
+        Assert.True(dict.Remove(new KeyValuePair<TKey,TValue>(Key(0),Value(0))));
     }
     [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    public void Remove_KeyValuePair_ConvertOutputToHeap()=>this.RemoveKvp_FlushAndEvict();
+    public void NeedCopyUpdate() => this.DiskSpill();
+    [Fact,Trait("Category",Unit)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
+    public void CopyUpdater() => this.DiskSpill();
+    [Fact,Trait("Category",Unit)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
+    public void RMWCompletionCallback() => this.DiskSpill();
 
-    // ----------------------------------------------------------------
-    // Remove_TKey_TValue
-    // ----------------------------------------------------------------
+    private void FlushAndEvictPath() {
+        var folder = CreateDiskFolder();
+        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose:true,capacity:TestMemorySize);
+        using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose:true,capacity:TestMemorySize);
+        var (dict,store) = this.CreateDisk(logDevice,objDevice);
+        using var _store = store;
+        using var _dict = (IDisposable)dict;
+        dict[Key(0)] = Value(0);
+        this.FlushAndEvict(store);
+        Assert.True(dict.Remove(new KeyValuePair<TKey,TValue>(Key(0),Value(0))));
+    }
+    [Fact,Trait("Category",Unit)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
+    public void ConvertOutputToHeap() => this.FlushAndEvictPath();
+}
 
-    private void RemoveTKeyTValue_InPlaceUpdater() {
-        using var store = Store.Create<int,string>();
-        using var dict = store.Create();
-        dict[1]="one";
-        Assert.True(dict.Remove(1,out var value));
-        Assert.Equal("one",value);
+public sealed class ManagedRemoveKeyValuePair : RemoveKeyValuePairTests<int,string> {
+    protected override int Key(int seed) => seed;
+    protected override string Value(int seed) => $"v{seed}";
+    protected override (IDictionary<int,string> Dict,IDisposable Store) CreateMemory() {
+        var store = Factory.Create<int,string>();
+        return (store.Create(),store);
     }
-    [Fact,Trait("Category",Unit)]public void Remove_TKey_TValue_InPlaceUpdater()=>this.RemoveTKeyTValue_InPlaceUpdater();
-    [Fact,Trait("Category",Unit)]public void Remove_TKey_TValue_GetRMWModifiedFieldInfo()=>this.RemoveTKeyTValue_InPlaceUpdater();
-    [Fact,Trait("Category",Unit)]public void Remove_TKey_TValue_PostRMWOperation()=>this.RemoveTKeyTValue_InPlaceUpdater();
+    protected override (IDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
+        var store = Factory.Create<int,string>(logDevice,objDevice,MemorySize:Const.MinObjectLogCapacity);
+        return (store.Create(),store);
+    }
+    protected override (IDictionary<int,string> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
+        var store = Factory.Create<int,string>(logDevice,objDevice,MemorySize:Const.MinObjectLogCapacity,MutableFraction:0);
+        return (store.Create(),store);
+    }
+    protected override void FlushAndEvict(IDisposable store) =>
+        ((ManagedCollectionStore<int,string>)store).Store.Log.FlushAndEvict(true);
+}
 
-    [Fact,Trait("Category",Unit)]
-    public void Remove_TKey_TValue_NeedInitialUpdate_キー未存在() {
-        using var store = Store.Create<int,string>();
-        using var dict = store.Create();
-        Assert.False(dict.Remove(999,out _));
+public sealed class UnmanagedRemoveKeyValuePair : RemoveKeyValuePairTests<int,long> {
+    protected override int Key(int seed) => seed;
+    protected override long Value(int seed) => (long)seed*100L;
+    protected override (IDictionary<int,long> Dict,IDisposable Store) CreateMemory() {
+        var store = Factory.CreateUnmanaged<int,long>();
+        return (store.Create(),store);
     }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    private void RemoveTKeyTValue_CopyUpdater() {
-        var folder = CreateFolder();
-        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = Store.Create<int,string>(logDevice,objDevice,MemorySize: TestMemorySize,MutableFraction: 0);
-        using var dict = store.Create();
-        for(var a = 0; a<300; a++) {
-            dict[a]=$"v{a}";
-        }
-        Assert.True(dict.Remove(0,out var value));
-        Assert.Equal("v0",value);
+    protected override (IDictionary<int,long> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
+        var store = Factory.CreateUnmanaged<int,long>(logDevice,objDevice,MemorySize:Const.MinObjectLogCapacity);
+        return (store.Create(),store);
     }
-    [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    public void Remove_TKey_TValue_CopyUpdater()=>this.RemoveTKeyTValue_CopyUpdater();
-    [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    public void Remove_TKey_TValue_NeedCopyUpdate()=>this.RemoveTKeyTValue_CopyUpdater();
-    [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    public void Remove_TKey_TValue_RMWCompletionCallback()=>this.RemoveTKeyTValue_CopyUpdater();
-    [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    public void Remove_TKey_TValue_GetRMWModifiedFieldInfo_TSourceLogRecord_PinnedSpanByte()=>this.RemoveTKeyTValue_CopyUpdater();
-*/
-    // ── FlushAndEvict (ConvertOutputToHeap path) ──────────────────────
-    // 1件書き込み後に FlushAndEvict → 次の Remove で IsPending=true
-    // Tsavorite が Output をヒープに退避するために ConvertOutputToHeap が呼ばれる
-    [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    public void Remove_TKey_TValue_ConvertOutputToHeap(){
-        var folder = CreateFolder();
-        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = Factory.Create<int,string>(MemorySize:TestMemorySize,LogDevice:logDevice,ObjectLogDevice:objDevice);
-        using var dict = store.Create();
-        dict[0]="target";
-        // 全レコードをディスクに追い出す → 次の Remove で IsPending=true → ConvertOutputToHeap が呼ばれる
-        store.Store.Log.FlushAndEvict(true);
-        Assert.True(dict.Remove(new KeyValuePair<int,string>(0,"target")));
+    protected override (IDictionary<int,long> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
+        var store = Factory.CreateUnmanaged<int,long>(logDevice,objDevice,MemorySize:Const.MinObjectLogCapacity,MutableFraction:0);
+        return (store.Create(),store);
     }
+    protected override void FlushAndEvict(IDisposable store) =>
+        ((UnmanagedCollectionStore<int,long>)store).Store.Log.FlushAndEvict(true);
 }
