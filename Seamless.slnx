@@ -18,4 +18,5 @@
   </Project>
   <Project Path="Seamless.RelationStudio/Seamless.RelationStudio/Seamless.RelationStudio.csproj" Id="ef7af892-31ef-4e55-99dd-3dd3e59bf993" />
   <Project Path="Seamless.StorageCollections/Seamless.StorageCollections.csproj" Id="74a30f83-c4d0-41d6-8253-3e8e2d06c601" />
+  <Project Path="Seamless.StorageCollections.Test/Seamless.StorageCollections.Test.csproj" />
 </Solution>
