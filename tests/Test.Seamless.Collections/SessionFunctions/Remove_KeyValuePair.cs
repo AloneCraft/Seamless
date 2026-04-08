@@ -1,4 +1,4 @@
-﻿using Seamless.Collections;
+﻿using Seamless.Store;
 using Tsavorite.core;
 namespace Test.Seamless.SessionFunctions;
 
@@ -12,7 +12,7 @@ public class Remove_KeyValuePair {
     // ----------------------------------------------------------------
 
     private void Remove() {
-        using var store = Store.Create<int,string>();
+        using var store = Factory.Create<int,string>();
         using var dict = store.Create();
         dict[1]="one";
         Assert.True(dict.Remove(new KeyValuePair<int,string>(1,"one")));
@@ -31,7 +31,7 @@ public class Remove_KeyValuePair {
 */
     [Fact,Trait("Category",Unit)]
     public void NeedInitialUpdate() {
-        using var store = Store.Create<int,string>();
+        using var store = Factory.Create<int,string>();
         using var dict = store.Create();
         Assert.False(dict.Remove(new KeyValuePair<int,string>(999,"v")));
     }
@@ -39,7 +39,7 @@ public class Remove_KeyValuePair {
         var folder = CreateFolder();
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0,LogDevice:logDevice,ObjectLogDevice:objDevice);
+        using var store = Factory.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0,LogDevice:logDevice,ObjectLogDevice:objDevice);
         using var dict = store.Create();
         for(var a = 0; a<300; a++) {
             dict[a]=$"v{a}";
@@ -150,7 +150,7 @@ public class Remove_KeyValuePair {
         var folder = CreateFolder();
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = Store.Create<int,string>(MemorySize:TestMemorySize,LogDevice:logDevice,ObjectLogDevice:objDevice);
+        using var store = Factory.Create<int,string>(MemorySize:TestMemorySize,LogDevice:logDevice,ObjectLogDevice:objDevice);
         using var dict = store.Create();
         dict[0]="target";
         // 全レコードをディスクに追い出す → 次の Remove で IsPending=true → ConvertOutputToHeap が呼ばれる

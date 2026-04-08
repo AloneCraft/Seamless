@@ -1,11 +1,7 @@
-﻿using Garnet.common;
-
-using Seamless.ScanIteratorFunctions;
+﻿using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
-
 using Tsavorite.core;
 
 namespace Seamless.Collections;

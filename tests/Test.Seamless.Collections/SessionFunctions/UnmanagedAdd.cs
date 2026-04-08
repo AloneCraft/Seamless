@@ -1,5 +1,6 @@
 ﻿using Seamless;
 using Seamless.Collections;
+using Seamless.Store;
 using Tsavorite.core;
 
 namespace Test.Seamless.SessionFunctions;
@@ -8,11 +9,11 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
     protected override int Key(int seed) => seed;
     protected override long Value(int seed) => (long)seed * 100L;
     protected override (IDictionary<int, long> Dict, IDisposable Store) CreateMemory() {
-        var store = Store.CreateUnmanaged<int, long>();
+        var store = Factory.CreateUnmanaged<int, long>();
         return (store.Create(), store);
     }
     protected override (IDictionary<int, long> Dict, IDisposable Store) CreateDisk(IDevice logDevice, IDevice objDevice) {
-        var store = Store.CreateUnmanaged<int, long>(logDevice, objDevice, MemorySize: Const.MinObjectLogCapacity);
+        var store = Factory.CreateUnmanaged<int, long>(logDevice, objDevice, MemorySize: Const.MinObjectLogCapacity);
         return (store.Create(), store);
     }
     protected override void FlushAndEvict(IDisposable store) =>
@@ -22,7 +23,7 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
 
     protected override void DoUpsert() {
 #if TSAVORITE1_1_1
-        using var store = Store.CreateUnmanaged<int, long>();
+        using var store = Factory.CreateUnmanaged<int, long>();
         using var session = store.Store.NewSession<long, long, Tsavorite.core.Empty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
         var bc = session.BasicContext;
         var key = 200;
@@ -37,7 +38,7 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
 
     protected override void DoInPlaceWriter() {
 #if TSAVORITE1_1_1
-        using var store = Store.CreateUnmanaged<int, long>();
+        using var store = Factory.CreateUnmanaged<int, long>();
         using var session = store.Store.NewSession<long, long, Tsavorite.core.Empty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
         var bc = session.BasicContext;
         var key = 200;
@@ -58,7 +59,7 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
 
     protected override void DoRMW() {
 #if TSAVORITE1_1_1
-        using var store = Store.CreateUnmanaged<int, long>();
+        using var store = Factory.CreateUnmanaged<int, long>();
         using var session = store.Store.NewSession<long, long, Tsavorite.core.Empty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
         var key = 1;
         var input0 = 100L;
@@ -89,7 +90,7 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
 
     protected override void DoConcurrentWriter() {
 #if TSAVORITE1_1_1
-        using var store = Store.CreateUnmanaged<int, long>();
+        using var store = Factory.CreateUnmanaged<int, long>();
         using var session = store.Store.NewSession<long, long, Tsavorite.core.Empty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
         var bc = session.BasicContext;
         var key = 300;
@@ -109,7 +110,7 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
         var folder = CreateDiskFolder();
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder, "log.data"), deleteOnClose: true, capacity: Const.MinObjectLogCapacity);
         using var objDevice = Devices.CreateLogDevice(Path.Combine(folder + "_obj", "obj.data"), deleteOnClose: true, capacity: Const.MinObjectLogCapacity);
-        using var store = Store.CreateUnmanaged<int, long>(logDevice, objDevice, MemorySize: Const.MinObjectLogCapacity);
+        using var store = Factory.CreateUnmanaged<int, long>(logDevice, objDevice, MemorySize: Const.MinObjectLogCapacity);
         using var session = store.Store.NewSession<long, long, Tsavorite.core.Empty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
         var bc = session.BasicContext;
         var key1 = 400;
@@ -128,7 +129,7 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
 
     protected override void DoConcurrentReaderEmpty() {
 #if TSAVORITE1_1_1
-        using var store = Store.CreateUnmanaged<int, long>();
+        using var store = Factory.CreateUnmanaged<int, long>();
         using var session = store.Store.NewSession<long, long, Tsavorite.core.Empty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
         var bc = session.BasicContext;
         var key = 500;

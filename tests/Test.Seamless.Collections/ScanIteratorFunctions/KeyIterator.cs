@@ -1,10 +1,10 @@
-﻿using Seamless.Collections;
+﻿using Seamless.Store;
 namespace Test.Seamless.ScanIteratorFunctions;
 
 public class KeyIterator{
     private static void Common(){
         const int Count=300;
-        using var s=Store.Create<int,int>();
+        using var s=Factory.Create<int,int>();
         using var h=s.Create();
         for(var a=0;a<Count;a++){
             h.Add(a,a);

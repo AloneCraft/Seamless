@@ -1,11 +1,10 @@
-﻿using Seamless.Collections;
-
+﻿using Seamless.Store;
 namespace Test.Seamless.Collections;
 
 public class UnmanagedDictionary {
     [Fact, Trait("Category", Unit)]
     public void AddTryGet_Remove_動作する() {
-        using var store = Store.CreateUnmanaged<int, long>();
+        using var store = Factory.CreateUnmanaged<int, long>();
         using var subject = store.Create();
 
         subject.Add(1, 100);
@@ -19,7 +18,7 @@ public class UnmanagedDictionary {
 
     [Fact, Trait("Category", Unit)]
     public void Remove_KeyValuePair_値一致時のみ削除される() {
-        using var store = Store.CreateUnmanaged<int, int>();
+        using var store = Factory.CreateUnmanaged<int, int>();
         using var subject = store.Create();
 
         subject.Add(1, 10);
@@ -45,7 +44,7 @@ public class UnmanagedDictionary {
     }
 
     private static long Unmanaged(int count) {
-        using var store = Store.CreateUnmanaged<int, int>();
+        using var store = Factory.CreateUnmanaged<int, int>();
         using var subject = store.Create();
 
         var before = store.Address.TailAddress;
@@ -57,7 +56,7 @@ public class UnmanagedDictionary {
     }
 
     private static long Managed(int count) {
-        using var store = Store.Create<int, int>();
+        using var store = Factory.Create<int, int>();
         using var subject = store.Create();
 
         var before = store.Address.TailAddress;

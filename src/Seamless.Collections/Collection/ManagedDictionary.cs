@@ -1,5 +1,4 @@
-﻿using Garnet.common;
-using Seamless.SessionFunctions;
+﻿using Seamless.SessionFunctions;
 namespace Seamless.Collections;
 using core_Empty = Tsavorite.core.Empty;
 using ScanIteratorFunctions;
@@ -15,7 +14,7 @@ using Tsavorite.core;
 /// 静的ポリモーフィズムにより仮想ディスパッチを回避する。
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
-public abstract class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer>:ManagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>, IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey, TValue>
+public abstract class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer>:ManagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>, IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey, TValue>, ISeamlessDictionary<TKey,TValue>
 	where TKey :IEquatable<TKey>
 	where TValue : IEquatable<TValue>
 	where TKeySerializer : ISerializer<TKey>

@@ -25,7 +25,8 @@ internal struct UnmanagedEnumerator<TKey,TValue,TIterator,T>(
 
     private TIterator Iterator = iterator;
     private long Cursor = 0, Count;
-    private int Index = Const.Chunk_Length-1;
+    private int Index = -1;
+    private bool _done;
 
     public T Current => this.Iterator.Chunk[this.Index];
     object? IEnumerator.Current => this.Current;
@@ -33,11 +34,16 @@ internal struct UnmanagedEnumerator<TKey,TValue,TIterator,T>(
     public bool MoveNext() {
         if(++this.Index<this.Count) {
             return true;
+        } 
+        if(_done) {
+           this.Index = -1;
+           return false;
         }
+        this.Iterator.Count = 0;
         var result = session.IterateLookup(ref this.Iterator,ref this.Cursor,resetCursor: false);
-        Debug.Assert(!result);
         var count = this.Iterator.Count;
         this.Count = count;
+        if(!result) _done = true;
         if(count>0) {
             this.Index = 0;
             return true;
@@ -48,7 +54,9 @@ internal struct UnmanagedEnumerator<TKey,TValue,TIterator,T>(
 
     public void Reset() {
         this.Cursor = 0;
-        this.Index = Const.Chunk_Length-1;
+       this.Count = 0;
+        this.Index = -1;
+       _done = false;
     }
 
     public void Dispose() {

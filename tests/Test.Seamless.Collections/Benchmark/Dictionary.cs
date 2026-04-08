@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using Seamless.Collections;
+using Seamless.Store;
 using Test.Seamless.Collections;
 namespace Benchmarks;
 public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmark<TKey,TValue>(output) 
@@ -7,7 +8,7 @@ public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmar
     where TValue:IEquatable<TValue>{
     private protected MemoryManagedDictionaryStore<TKey,TValue,ManagedSerializer<TKey>,ManagedSerializer<TValue>> CreateStore(){
         var MemorySize=Seamless.Const.LogMemorySize<<11;
-        return Store.Create<TKey,TValue>(IndexSize:IndexSize,MemorySize:MemorySize);
+        return Factory.Create<TKey,TValue>(IndexSize:IndexSize,MemorySize:MemorySize);
     }
     [Fact]
 	[Trait("Category","")]

@@ -1,7 +1,6 @@
-﻿using Garnet.common;
-using MemoryPack;
+﻿using MemoryPack;
 using Seamless;
-using Seamless.Collections;
+using Seamless.Store;
 using Tsavorite.core;
 namespace Test.Seamless.SessionFunctions;
 
@@ -17,7 +16,7 @@ public class Delete {
 
     [Fact, Trait("Category",Unit)]
     public void NeedInitialUpdate() {
-        using var store = Store.Create<int,string>();
+        using var store = Factory.Create<int,string>();
         using var dict = store.Create();
 
         dict[1]="one";
@@ -29,7 +28,7 @@ public class Delete {
         var folder = CreateFolder();
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var store = Store.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0,LogDevice:logDevice,ObjectLogDevice:objDevice);
+        using var store = Factory.Create<int,string>(MemorySize:TestMemorySize,MutableFraction:0,LogDevice:logDevice,ObjectLogDevice:objDevice);
         using var dict = store.Create();
 
         for(var a = 0; a<300; a++) {
@@ -44,7 +43,7 @@ public class Delete {
         var folder = CreateFolder();
         using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store = Store.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
+        using var store = Factory.Create<int,string>(MemorySize:Const.MinObjectLogCapacity,LogDevice:LogDevice,ObjectLogDevice:ObjDevice);
         using var dict = store.Create();
         dict.Add(0,"target");
         // 全レコードをディスクに追い出す → 次のRMWでIsPending=true

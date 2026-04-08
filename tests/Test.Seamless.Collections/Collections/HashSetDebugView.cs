@@ -1,9 +1,10 @@
 ﻿using Seamless.Collections;
+using Seamless.Store;
 namespace Test.Seamless.Collections;
 public class HashSetDebugView {
     [Fact, Trait("Category",Unit)]
     public void Items_全エントリを返す() {
-        using var store = Store.Create<int>();
+        using var store = Factory.Create<int>();
         using var set = store.Create();
         set.Add(10);
         set.Add(20);

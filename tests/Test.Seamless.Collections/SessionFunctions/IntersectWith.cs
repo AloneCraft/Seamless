@@ -1,5 +1,5 @@
 ﻿using Seamless;
-using Seamless.Collections;
+using Seamless.Store;
 using Tsavorite.core;
 namespace Test.Seamless.SessionFunctions;
 
@@ -12,8 +12,8 @@ public class IntersectWith {
     // setA={1,2,3}, setB={2,3,4} → IntersectWith → setA={2,3}
     // key 1 は setB に無い → RMW → GetRMWModifiedFieldInfo → InPlaceUpdater(ExpireAndStop) → PostRMWOperation
     private void Mutable() {
-        using var storeA = Store.Create<int>();
-        using var storeB = Store.Create<int>();
+        using var storeA = Factory.Create<int>();
+        using var storeB = Factory.Create<int>();
         using var setA = storeA.Create();
         using var setB = storeB.Create();
         setA.Add(1);
@@ -42,8 +42,8 @@ public class IntersectWith {
         var folder = CreateFolder();
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var storeA = Store.Create<int>(logDevice,objDevice,MemorySize:TestMemorySize);
-        using var storeB = Store.Create<int>();
+        using var storeA = Factory.Create<int>(logDevice,objDevice,MemorySize:TestMemorySize);
+        using var storeB = Factory.Create<int>();
         using var setA = storeA.Create();
         using var setB = storeB.Create();
         setA.Add(1);
@@ -76,8 +76,8 @@ public class IntersectWith {
         using var objDeviceA = Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var logDeviceB = Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDeviceB = Devices.CreateLogDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var storeA = Store.Create<int>(logDeviceA,objDeviceA,MemorySize:TestMemorySize,MutableFraction:0);
-        using var storeB = Store.Create<int>(logDeviceB,objDeviceB,MemorySize:TestMemorySize,MutableFraction:0);
+        using var storeA = Factory.Create<int>(logDeviceA,objDeviceA,MemorySize:TestMemorySize,MutableFraction:0);
+        using var storeB = Factory.Create<int>(logDeviceB,objDeviceB,MemorySize:TestMemorySize,MutableFraction:0);
         using var setA = storeA.Create();
         using var setB = storeB.Create();
 

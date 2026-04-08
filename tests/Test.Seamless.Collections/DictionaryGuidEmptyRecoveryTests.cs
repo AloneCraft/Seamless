@@ -1,6 +1,6 @@
-﻿using Seamless.Collections;
-using Tsavorite.core;
+﻿using Tsavorite.core;
 using System.Diagnostics.CodeAnalysis;
+using Seamless.Store;
 namespace Test.Seamless.Collections;
 
 /// <summary>
@@ -36,7 +36,7 @@ public class DictionaryGuidEmptyRecoveryTests {
         {
             using var LogDevice = Devices.CreateLogDevice(folder);
             using var LogObjDevice = Devices.CreateLogDevice(folder+"_obj");
-            using var store = Store.Create<int,int>(CheckpointDir:checkpointDir,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
+            using var store = Factory.Create<int,int>(CheckpointDir:checkpointDir,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
             using var dict = store.Create();
             dict[1] = 11;
             dict[2] = 22;
@@ -46,7 +46,7 @@ public class DictionaryGuidEmptyRecoveryTests {
         {
             using var LogDevice = Devices.CreateLogDevice(folder);
             using var LogObjDevice = Devices.CreateLogDevice(folder+"_obj");
-            using var store = Store.Create<int,int>(CheckpointDir:checkpointDir,recoverDevice:true,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
+            using var store = Factory.Create<int,int>(CheckpointDir:checkpointDir,recoverDevice:true,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
             store.Load(logToken);
             using var dict = store.Create();
             Assert.True(dict.Contains(1));
@@ -67,7 +67,7 @@ public class DictionaryGuidEmptyRecoveryTests {
         {
             using var LogDevice = Devices.CreateLogDevice(folder);
             using var LogObjDevice = Devices.CreateLogDevice(folder+"_obj");
-            using var store = Store.Create<int,int>(CheckpointDir:checkpointDir,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
+            using var store = Factory.Create<int,int>(CheckpointDir:checkpointDir,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
             using var dict = store.Create();
             dict[10] = 1000;
             dict[20] = 2000;
@@ -76,7 +76,7 @@ public class DictionaryGuidEmptyRecoveryTests {
         {
             using var LogDevice = Devices.CreateLogDevice(folder);
             using var LogObjDevice = Devices.CreateLogDevice(folder+"_obj");
-            using var store = Store.Create<int,int>(CheckpointDir:checkpointDir,recoverDevice:true,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
+            using var store = Factory.Create<int,int>(CheckpointDir:checkpointDir,recoverDevice:true,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
             // トークンを指定せず自動検出で復元
             // インデックスチェックポイントが無いのでログから再構築（Guid.Emptyと同等）
             store.Load();

@@ -1,6 +1,4 @@
-﻿using Seamless.Devices;
-
-using Tsavorite.core;
+﻿using Tsavorite.core;
 
 namespace Seamless.Collections;
 

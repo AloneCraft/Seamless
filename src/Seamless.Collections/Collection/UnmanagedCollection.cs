@@ -41,7 +41,7 @@ public abstract class UnmanagedCollection<TKey,TValue>:Collection<
     public override long GetLongCount() {
         var iterator = new UnmanagedCounterIterator<TKey,TValue>();
         long cursor = 0;
-        this.ClientSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+        this.ClientSession.IterateLookup(ref iterator,ref cursor,resetCursor:false);
         return iterator.Counter;
     }
 

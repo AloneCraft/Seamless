@@ -1,5 +1,5 @@
 ﻿using Seamless;
-using Seamless.Collections;
+using Seamless.Store;
 using Tsavorite.core;
 namespace Test.Seamless.SessionFunctions;
 
@@ -13,8 +13,8 @@ public class SymmetricExcept {
     // key 2,3 は両方にある → RMW → GetRMWModifiedFieldInfo → InPlaceUpdater(ExpireAndStop) → PostRMWOperation
     // key 4 は setA に無い → RMW → NeedInitialUpdate → InitialUpdater → PostInitialUpdater → PostRMWOperation
     private void SymmetricExceptWith() {
-        using var storeA = Store.Create<int>();
-        using var storeB = Store.Create<int>();
+        using var storeA = Factory.Create<int>();
+        using var storeB = Factory.Create<int>();
         using var setA = storeA.Create();
         using var setB = storeB.Create();
         setA.Add(1);
@@ -47,8 +47,8 @@ public class SymmetricExcept {
         var folder = CreateFolder();
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var storeA = Store.Create<int>(logDevice,objDevice,MemorySize:TestMemorySize);
-        using var storeB = Store.Create<int>();
+        using var storeA = Factory.Create<int>(logDevice,objDevice,MemorySize:TestMemorySize);
+        using var storeB = Factory.Create<int>();
         using var setA = storeA.Create();
         using var setB = storeB.Create();
         setA.Add(1);
@@ -85,8 +85,8 @@ public class SymmetricExcept {
         using var objDeviceA = Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var logDeviceB = Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDeviceB = Devices.CreateLogDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var storeA = Store.Create<int>(logDeviceA,objDeviceA,MemorySize:TestMemorySize,MutableFraction:0);
-        using var storeB = Store.Create<int>(logDeviceB,objDeviceB,MemorySize:TestMemorySize,MutableFraction:0);
+        using var storeA = Factory.Create<int>(logDeviceA,objDeviceA,MemorySize:TestMemorySize,MutableFraction:0);
+        using var storeB = Factory.Create<int>(logDeviceB,objDeviceB,MemorySize:TestMemorySize,MutableFraction:0);
         using var setA = storeA.Create();
         using var setB = storeB.Create();
 
@@ -111,8 +111,8 @@ public class SymmetricExcept {
         var folder = CreateFolder();
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var storeA = Store.Create<int>(logDevice,objDevice,MemorySize:TestMemorySize);
-        using var storeB = Store.Create<int>();
+        using var storeA = Factory.Create<int>(logDevice,objDevice,MemorySize:TestMemorySize);
+        using var storeB = Factory.Create<int>();
         using var setA = storeA.Create();
         using var setB = storeB.Create();
         setA.Add(1);

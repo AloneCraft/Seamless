@@ -1,10 +1,11 @@
 ﻿using Seamless.Collections;
+using Seamless.Store;
 namespace Test.Seamless.Collections;
 
 public class DictionaryDebugViewTests {
     [Fact, Trait("Category",Unit)]
     public void Items_全エントリを返す() {
-        using var store = Store.Create<int,string>();
+        using var store = Factory.Create<int,string>();
         using var dict = store.Create();
         dict.Add(2,"b");
         dict.Add(1,"a");

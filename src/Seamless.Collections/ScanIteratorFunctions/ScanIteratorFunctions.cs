@@ -15,7 +15,7 @@ public abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions{
         this.Count=Count;
         if(Count==Const.Chunk_Length){
             cursorRecordResult=CursorRecordResult.EndBatch;
-            return false;
+            return true;
         }else{
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -42,7 +42,7 @@ public abstract class ScanIteratorFunctions<T,TSessionKey,TSessionValue>:IScanIt
         this.Count=Count;
         if(Count==Const.Chunk_Length){
             cursorRecordResult=CursorRecordResult.EndBatch;
-            return false;
+            return true;
         }else{
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -70,7 +70,7 @@ public abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions<SpanByte, 
         this.Count=Count;
         if(Count==Const.Chunk_Length){
             cursorRecordResult=CursorRecordResult.EndBatch;
-            return false;
+            return true;
         } else{
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -100,7 +100,7 @@ public abstract class ScanIteratorFunctions<T,TSessionKey,TSessionValue>:IScanIt
         this.Count=Count;
         if(Count==Const.Chunk_Length){
             cursorRecordResult=CursorRecordResult.EndBatch;
-            return false;
+            return true;
         } else{
             cursorRecordResult=CursorRecordResult.Accept;
             return true;

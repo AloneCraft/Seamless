@@ -1,11 +1,15 @@
-﻿using Seamless.Collections;
-
+﻿using Seamless.Store;
+using Tsavorite.core;
+ 
 namespace Test.Seamless.Collections;
-
+ 
 public class ManagedDictionary {
+    private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    private const long TestMemorySize = global::Seamless.Const.MinObjectLogCapacity;
+
     [Fact, Trait("Category", Unit)]
     public void AddTryGet_Remove_動作する() {
-        using var store = Store.Create<int, long>();
+        using var store = Factory.Create<int, long>();
         using var subject = store.Create();
 
         subject.Add(1, 100);
@@ -19,7 +23,7 @@ public class ManagedDictionary {
 
     [Fact, Trait("Category", Unit)]
     public void Remove_KeyValuePair_値一致時のみ削除される() {
-        using var store = Store.Create<int, int>();
+        using var store = Factory.Create<int, int>();
         using var subject = store.Create();
 
         subject.Add(1, 10);
@@ -45,7 +49,7 @@ public class ManagedDictionary {
     }
 
     private static long Managed(int count) {
-        using var store = Store.Create<int, int>();
+        using var store = Factory.Create<int, int>();
         using var subject = store.Create();
 
         var before = store.Address.TailAddress;
@@ -57,7 +61,7 @@ public class ManagedDictionary {
     }
 
     private static long Unmanaged(int count) {
-        using var store = Store.CreateUnmanaged<int, int>();
+        using var store = Factory.CreateUnmanaged<int, int>();
         using var subject = store.Create();
 
         var before = store.Address.TailAddress;
@@ -66,5 +70,67 @@ public class ManagedDictionary {
         }
         var after = store.Address.TailAddress;
         return after - before;
+    }
+
+    [Fact, Trait("Category", Unit)]
+    public void CreateUnmanagedKey_AddTryGet_Remove_動作する() {
+        using var store = Factory.CreateUnmanagedKey<int, string>();
+        using var subject = store.Create();
+
+        subject.Add(1, "a");
+
+        Assert.True(subject.TryGetValue(1, out var value));
+        Assert.Equal("a", value);
+
+        Assert.True(subject.Remove(1));
+        Assert.False(subject.TryGetValue(1, out _));
+    }
+
+    [Fact, Trait("Category", Unit)]
+    public void CreateUnmanagedValue_AddTryGet_Remove_動作する() {
+        using var store = Factory.CreateUnmanagedValue<string, int>();
+        using var subject = store.Create();
+
+        subject.Add("a", 1);
+
+        Assert.True(subject.TryGetValue("a", out var value));
+        Assert.Equal(1, value);
+
+        Assert.True(subject.Remove("a"));
+        Assert.False(subject.TryGetValue("a", out _));
+    }
+
+    [Fact, Trait("Category", Unit)]
+    public void CreateUnmanagedKey_Storage_AddTryGet_Remove_動作する() {
+        var folder = CreateFolder();
+        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder, "log.data"), deleteOnClose: true, capacity: TestMemorySize);
+        using var objectLogDevice = Devices.CreateLogDevice(Path.Combine(folder + "_obj", "obj.data"), deleteOnClose: true, capacity: global::Seamless.Const.MinObjectLogCapacity);
+        using var store = Factory.CreateUnmanagedKey<int, string>(logDevice, objectLogDevice, MemorySize: TestMemorySize, CheckpointDir: folder);
+        using var subject = store.Create();
+
+        subject.Add(1, "a");
+
+        Assert.True(subject.TryGetValue(1, out var value));
+        Assert.Equal("a", value);
+
+        Assert.True(subject.Remove(1));
+        Assert.False(subject.TryGetValue(1, out _));
+    }
+
+    [Fact, Trait("Category", Unit)]
+    public void CreateUnmanagedValue_Storage_AddTryGet_Remove_動作する() {
+        var folder = CreateFolder();
+        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder, "log.data"), deleteOnClose: true, capacity: TestMemorySize);
+        using var objectLogDevice = Devices.CreateLogDevice(Path.Combine(folder + "_obj", "obj.data"), deleteOnClose: true, capacity: global::Seamless.Const.MinObjectLogCapacity);
+        using var store = Factory.CreateUnmanagedValue<string, int>(logDevice, objectLogDevice, MemorySize: TestMemorySize, CheckpointDir: folder);
+        using var subject = store.Create();
+
+        subject.Add("a", 1);
+
+        Assert.True(subject.TryGetValue("a", out var value));
+        Assert.Equal(1, value);
+
+        Assert.True(subject.Remove("a"));
+        Assert.False(subject.TryGetValue("a", out _));
     }
 }
