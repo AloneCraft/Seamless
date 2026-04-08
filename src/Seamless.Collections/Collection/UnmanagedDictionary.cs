@@ -5,13 +5,8 @@ using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-#if TSAVORITE2_0BETA3
-using Garnet.common;
-#endif
-using Tsavorite.core;
 
 namespace Seamless.Collections;
-using core_Empty=Tsavorite.core.Empty;
 
 [DebuggerDisplay("Count = {Count}")]
 public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,TValue>, IDictionary<TKey,TValue>, IReadOnlyDictionary<TKey,TValue>, ISeamlessDictionary<TKey,TValue>

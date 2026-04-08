@@ -1,10 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using Garnet.common;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
-
-using Tsavorite.core;
 
 namespace Seamless.Collections;
 #if TSAVORITE2_0BETA3

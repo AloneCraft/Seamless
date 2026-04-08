@@ -1,6 +1,5 @@
 ﻿#if TSAVORITE1_1_1
 using System.Diagnostics;
-using Tsavorite.core;
 namespace Seamless.ScanIteratorFunctions;
 
 internal sealed class UnmanagedCounterIterator<TKey,TValue> : IScanIteratorFunctions<TKey,TValue>

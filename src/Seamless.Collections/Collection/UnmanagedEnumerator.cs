@@ -4,10 +4,8 @@ using Seamless.ScanIteratorFunctions;
 using System.Collections;
 using System.Diagnostics;
 
-using Tsavorite.core;
 
 namespace Seamless.Collections;
-using core_Empty=Tsavorite.core.Empty;
 
 internal struct UnmanagedEnumerator<TKey,TValue,TIterator,T>(
     ClientSession<

@@ -1,5 +1,4 @@
 ﻿#if TSAVORITE1_1_1
-using Tsavorite.core;
 
 namespace Seamless.Collections;
 

@@ -1,5 +1,4 @@
 ﻿namespace Seamless.Collections;
-using Tsavorite.core;
 /// <summary>
 /// Tsavorite ストアを管理し、Dictionary インスタンスを作成するためのストアクラス。
 /// 複数の Dictionary インスタンスで同じストアを共有できる。
