@@ -1,6 +1,7 @@
-﻿using Seamless.Devices;
+﻿using Seamless.Collections;
+using Seamless.Devices;
 
-namespace Seamless.Collections;
+namespace Seamless.Store;
 
 public sealed class MemoryUnmanagedDictionaryStore<TKey,TValue>:UnmanagedDictionaryStore<TKey,TValue>
     where TKey:unmanaged,IEquatable<TKey>

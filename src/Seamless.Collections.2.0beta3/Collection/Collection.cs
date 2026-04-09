@@ -1,5 +1,6 @@
 ﻿using Seamless.SessionFunctions;
 using Seamless.ScanIteratorFunctions;
+using Seamless.Store;
 namespace Seamless.Collections;
 public abstract partial class Collection<TKey,TValue,TSessionKey,TSessionValue,TInput,TOutput,TAddFunctions,TDeleteFunctions,TStoreFunctions,TAllocator>
     where TKey : IEquatable<TKey>
@@ -17,8 +18,8 @@ public abstract partial class Collection<TKey,TValue,TSessionKey,TSessionValue,T
 
     private protected static ReadOnlySpan<byte> GetReadOnlySpan(SpanByteAndMemory a) => a.ReadOnlySpan;
 
-    public ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, core_Empty, Add, StoreFunctions<SpanByteComparer, DefaultRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>> ClientSession { get; private set; }
-    private protected ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, core_Empty, Delete, StoreFunctions<SpanByteComparer, DefaultRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>> DeleteClientSession { get; private set; }
+    public ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, core_Empty, Add, TStoreFunctions, TAllocator> ClientSession { get; private set; }
+    private protected ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, core_Empty, Delete, TStoreFunctions, TAllocator> DeleteClientSession { get; private set; }
 
     protected Collection(CollectionStore<TKey, TValue, TSessionKey, TSessionValue, TStoreFunctions, TAllocator> CollectionStore) {
         this.CollectionStore = CollectionStore;
@@ -46,7 +47,7 @@ public abstract partial class Collection<TKey,TValue,TSessionKey,TSessionValue,T
         return Pending(Session, Status, ref Output);
     }
 
-    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, core_Empty, TSessionFunctions0, StoreFunctions<SpanByteComparer, DefaultRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>> Session, Status Status)
+    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, core_Empty, TSessionFunctions0, TStoreFunctions, TAllocator> Session, Status Status)
         where TSessionFunctions0 : ISessionFunctions<PinnedSpanByte, SpanByteAndMemory, core_Empty> {
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs, wait: true);
@@ -59,7 +60,7 @@ public abstract partial class Collection<TKey,TValue,TSessionKey,TSessionValue,T
         return Status;
     }
 
-    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, core_Empty, TSessionFunctions0, StoreFunctions<SpanByteComparer, DefaultRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>> Session, Status Status, ref SpanByteAndMemory Output)
+    private protected static Status Pending<TSessionFunctions0>(ClientSession<FixedSpanByteKey, PinnedSpanByte, SpanByteAndMemory, core_Empty, TSessionFunctions0, TStoreFunctions, TAllocator> Session, Status Status, ref SpanByteAndMemory Output)
         where TSessionFunctions0 : ISessionFunctions<PinnedSpanByte, SpanByteAndMemory, core_Empty> {
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs, wait: true);

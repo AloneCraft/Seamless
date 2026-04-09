@@ -1,4 +1,4 @@
-﻿namespace Seamless.Collections;
+﻿namespace Seamless.Store;
 
 public abstract class ManagedCollectionStore<TKey,TValue>:CollectionStore<TKey,TValue,
     SpanByte,SpanByte,

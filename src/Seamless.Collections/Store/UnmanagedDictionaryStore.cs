@@ -1,5 +1,6 @@
 ﻿
-namespace Seamless.Collections;
+using Seamless.Collections;
+namespace Seamless.Store;
 
 public abstract class UnmanagedDictionaryStore<TKey,TValue>:UnmanagedCollectionStore<TKey,TValue>
     where TKey:unmanaged,IEquatable<TKey>

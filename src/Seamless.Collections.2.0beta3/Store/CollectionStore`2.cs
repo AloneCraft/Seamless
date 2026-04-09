@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Seamless.Collections;
+namespace Seamless.Store;
 
 public abstract partial class CollectionStore<TKey,TValue,TSessionKey,TSessionValue,TStoreFunctions,TAllocator>
 	where TKey : IEquatable<TKey>
@@ -10,7 +10,7 @@ public abstract partial class CollectionStore<TKey,TValue,TSessionKey,TSessionVa
 	where TAllocator : IAllocator<TStoreFunctions>
 {
     private protected KVSettings Settings{get;private set;}
-	public readonly TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store;
+	public readonly TsavoriteKV<TStoreFunctions,TAllocator> Store;
     /// <summary>テスト専用シーム: TakeCheckpointAsync 完了後・CompleteCheckpointAsync 前に呼び出されるコールバック。</summary>
     private protected CollectionStore(
         TStoreFunctions StoreFunctions,
@@ -49,17 +49,11 @@ public abstract partial class CollectionStore<TKey,TValue,TSessionKey,TSessionVa
             ObjectLogSegmentSize=ObjectLogSegmentSize,
             CheckpointDir=CheckpointDir,
         };
-        var storeFunctions =new StoreFunctions<SpanByteComparer,DefaultRecordDisposer>(new SpanByteComparer(),NullSerializer,new DefaultRecordDisposer());
-		this.Store=new TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>(
+		this.Store=new TsavoriteKV<TStoreFunctions,TAllocator>(
 			this.Settings,
-			storeFunctions,
-			static (AllocSettings,StoreFuncs) =>new SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>(
-                AllocSettings,
-                StoreFuncs
-            )
-        );
-        [ExcludeFromCodeCoverage]
-        static IObjectSerializer<IHeapObject>? NullSerializer() => null;
+			StoreFunctions,
+			allocatorFactory
+		);
 	}
 	public virtual void CompactWithLookup() {
 		var Store = this.Store;

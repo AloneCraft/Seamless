@@ -2,7 +2,7 @@
 using Seamless.SessionFunctions;
 
 using System.Diagnostics;
-
+using Seamless.Store;
 namespace Seamless.Collections;
 public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>
     where TKey : IEquatable<TKey>
