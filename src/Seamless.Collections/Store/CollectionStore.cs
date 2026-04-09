@@ -1,5 +1,5 @@
-using System.Diagnostics;
-namespace Seamless.Collections;
+﻿using System.Diagnostics;
+namespace Seamless.Store;
 public abstract class CollectionStore {
 	/// <summary>2の累乗かどうかを確認する</summary>
 	[Conditional("DEBUG")]

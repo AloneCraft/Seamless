@@ -48,9 +48,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)Store\StorageUnmanagedDictionaryStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedCollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedDictionaryStore.cs" />
-    <Compile Include="..\Seamless.Collections\Store\StorageDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\StorageManagedDictionaryStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\MemoryManagedDictionaryStore.cs" />
-    <Compile Include="..\Seamless.Collections\Store\StorageHashSetStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\StorageManagedHashSetStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\MemoryManagedHashSetStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\Factory.cs" />
   </ItemGroup>

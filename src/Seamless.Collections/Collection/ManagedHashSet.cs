@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
+using Seamless.Store;
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。
@@ -49,7 +50,7 @@ public abstract class ManagedHashSet<T>:ManagedCollection<T,Empty,ManagedSeriali
         StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
         SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>
     > SymmetricExceptWith_ClientSession;
-    internal ManagedHashSet(ManagedCollectionStore<T,Empty> CollectionStore) : base(CollectionStore) {
+	internal ManagedHashSet(ManagedCollectionStore<T,Empty> CollectionStore) : base(CollectionStore) {
         this.EmptyBytes=Serialize(Empty.Default).ToArray();
         var Store=CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<Empty,Empty,Empty,IntersectWith>(new());

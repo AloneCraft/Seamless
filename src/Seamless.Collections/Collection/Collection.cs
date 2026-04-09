@@ -3,6 +3,7 @@ using Seamless.SessionFunctions;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Seamless.ScanIteratorFunctions;
+using Seamless.Store;
 namespace Seamless.Collections;
 #pragma warning disable CS8618
 public abstract partial class Collection<TKey,TValue,TSessionKey,TSessionValue,TInput,TOutput,TAddFunctions,TDeleteFunctions,TStoreFunctions,TAllocator> : IDisposable

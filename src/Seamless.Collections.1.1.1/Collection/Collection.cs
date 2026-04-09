@@ -1,6 +1,7 @@
 ﻿using Seamless.SessionFunctions;
 using Seamless.ScanIteratorFunctions;
 using System.Diagnostics.CodeAnalysis;
+using Seamless.Store;
 namespace Seamless.Collections;
 public abstract partial class Collection<TKey,TValue,TSessionKey,TSessionValue,TInput,TOutput,TAddFunctions,TDeleteFunctions,TStoreFunctions,TAllocator>
     where TKey : IEquatable<TKey>

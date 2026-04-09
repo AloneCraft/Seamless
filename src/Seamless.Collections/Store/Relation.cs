@@ -1,4 +1,4 @@
-namespace Seamless.Collections;
+﻿namespace Seamless.Store;
 using global::Common;
 
 using Tsavorite.core;

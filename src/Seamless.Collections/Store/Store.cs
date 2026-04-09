@@ -1,4 +1,4 @@
-﻿namespace Seamless.Collections;
+﻿namespace Seamless.Store;
 
 public static class Store{
     public static MemoryManagedDictionaryStore<TKey,TValue,ManagedSerializer<TKey>,ManagedSerializer<TValue>>Create<TKey,TValue>(long IndexSize=Const.IndexSize,long PageSize=Const.PageSize,long SegmentSize=Const.SegmentSize,long MemorySize=Const.LogMemorySize,double MutableFraction=1.0,string? CheckpointDir=null,bool recoverDevice=false)

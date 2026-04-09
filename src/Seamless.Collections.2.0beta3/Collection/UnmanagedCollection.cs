@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
-
+using Seamless.Store;
 namespace Seamless.Collections;
 
 public abstract class UnmanagedCollection<TKey,TValue>:Collection<
@@ -14,13 +14,12 @@ public abstract class UnmanagedCollection<TKey,TValue>:Collection<
     SpanByteAndMemory,
     Add,
     Delete,
-    StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,
-    SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>
+    StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,
+    SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>>
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue> {
 
     protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> collectionStore):base(collectionStore) {
-        BlittableAllocator<TKey,TValue,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>.AssertBlittable();
     }
 
     private protected override ReadOnlySpan<byte> SerializeKey(ref TKey key) => UnmanagedSerializer<TKey>.Serialize(ref key);

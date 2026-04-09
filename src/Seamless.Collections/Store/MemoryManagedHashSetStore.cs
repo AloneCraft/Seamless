@@ -1,8 +1,9 @@
-﻿using Seamless.Devices;
+﻿using Seamless.Collections;
+using Seamless.Devices;
 
 
-namespace Seamless.Collections;
-public abstract class ManagedHashSetStore<T>:ManagedCollectionStore<T,Empty>where T:IEquatable<T>{
+namespace Seamless.Store;
+public abstract class ManagedHashSetStore<T>:ManagedCollectionStore<T,Seamless.Collections.Empty>where T:IEquatable<T>{
     private protected ManagedHashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir):
         base                      (     IndexSize,     PageSize,     SegmentSize,     MemorySize,       MutableFraction,        LogDevice,        ObjectLogDevice,        CheckpointDir){}
     public abstract ManagedHashSet<T> Create();

@@ -3,7 +3,7 @@ using Seamless.Devices;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Seamless.Collections;
+namespace Seamless.Store;
 /// <summary>
 /// Tsavorite ストアを管理する抽象基底クラス。
 /// DictionaryStore および HashSetStore の共通実装を提供する。
