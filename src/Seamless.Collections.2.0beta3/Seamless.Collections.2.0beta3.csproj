@@ -37,6 +37,8 @@
     <Compile Include="Collection\Enumerator.cs" />
     <Compile Include="Collection\ManagedCollection.cs" />
     <Compile Include="Collection\ManagedDictionary.cs" />
+    <Compile Include="Collection\UnmanagedCollection.cs" />
+    <Compile Include="Collection\UnmanagedDictionary.cs" />
   </ItemGroup>
 
   <ItemGroup>
