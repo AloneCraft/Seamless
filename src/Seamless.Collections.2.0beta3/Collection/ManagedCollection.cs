@@ -2,19 +2,7 @@
 using Seamless.SessionFunctions;
 using System.Diagnostics;
 namespace Seamless.Collections;
-public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer> :
-    Collection<
-        TKey,
-        TValue,
-        PinnedSpanByte,
-        SpanByteAndMemory,
-        PinnedSpanByte,
-        SpanByteAndMemory,
-        Add,
-        Delete,
-        StoreFunctions<SpanByteComparer, DefaultRecordDisposer>,
-        SpanByteAllocator<StoreFunctions<SpanByteComparer, DefaultRecordDisposer>>
-    > {
+public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer> {
     public override bool Remove(TKey key){
         var DeleteClientSession = this.DeleteClientSession;
         var KeyBytes = this.SerializeKey(ref key);

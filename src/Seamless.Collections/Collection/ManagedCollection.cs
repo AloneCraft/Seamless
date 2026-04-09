@@ -5,6 +5,11 @@ using System.Diagnostics;
 using Seamless.Store;
 namespace Seamless.Collections;
 public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>
+    : Collection<TKey, TValue,
+        ManagedSessionKey, ManagedSessionValue,
+        ManagedSessionKey, ManagedOutput,
+        Add, Delete,
+        ManagedStoreFunctions, ManagedAllocator>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue>
     where TKeySerializer : ISerializer<TKey>

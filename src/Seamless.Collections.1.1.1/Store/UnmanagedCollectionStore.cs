@@ -1,7 +1,7 @@
 ﻿using Seamless.Collections;
 namespace Seamless.Store;
 
-public abstract class UnmanagedCollectionStore<TKey,TValue>:CollectionStore<
+public abstract partial class UnmanagedCollectionStore<TKey,TValue>:CollectionStore<
     TKey,
     TValue,
     TKey,
