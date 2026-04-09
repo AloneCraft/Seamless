@@ -36,7 +36,7 @@ public struct ManagedDictStrategy : IDictTestStrategy<int, string>
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0)
     {
-        var store = Factory.Create<int, string>(MemorySize: memorySize, MutableFraction: mutableFraction);
+        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).Create<int, string>();
         return new StoreHandle<int, string>(store, () => store.Create(),
             wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
@@ -49,15 +49,14 @@ public struct ManagedDictStrategy : IDictTestStrategy<int, string>
         string? checkpointDir = null,
         bool recoverDevice = false)
     {
-        var store = Factory.Create<int, string>(logDevice, objDevice,
-            MemorySize: memorySize, MutableFraction: mutableFraction, CheckpointDir: checkpointDir);
+        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction, CheckpointDir: checkpointDir).Create<int, string>(logDevice, objDevice);
         return new StoreHandle<int, string>(store, () => store.Create(),
             wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
     }
 }
 
-/// <summary>TKey=int, TValue=int, Factory.CreateUnmanaged (両アンマネージド)</summary>
+/// <summary>TKey=int, TValue=int, Factory.Create
 public struct UnmanagedDictStrategy : IDictTestStrategy<int, int>
 {
     public static int K(int i) => i;
@@ -68,7 +67,7 @@ public struct UnmanagedDictStrategy : IDictTestStrategy<int, int>
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0)
     {
-        var store = Factory.CreateUnmanaged<int, int>(MemorySize: memorySize, MutableFraction: mutableFraction);
+        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).Create<int, int>();
         return new StoreHandle<int, int>(store, () => store.Create(),
             wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
@@ -81,16 +80,15 @@ public struct UnmanagedDictStrategy : IDictTestStrategy<int, int>
         string? checkpointDir = null,
         bool recoverDevice = false)
     {
-        // Factory.CreateUnmanaged ストレージ版は recoverDevice パラメータなし
-        var store = Factory.CreateUnmanaged<int, int>(logDevice, objDevice,
-            MemorySize: memorySize, MutableFraction: mutableFraction, CheckpointDir: checkpointDir);
+        // Factory.Create
+        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction, CheckpointDir: checkpointDir).Create<int, int>(logDevice, objDevice);
         return new StoreHandle<int, int>(store, () => store.Create(),
             wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
     }
 }
 
-/// <summary>TKey=int (unmanaged), TValue=string (managed), Factory.CreateUnmanagedKey</summary>
+/// <summary>TKey=int (unmanaged), TValue=string (managed), Factory.Create</summary>
 public struct UnmanagedKeyDictStrategy : IDictTestStrategy<int, string>
 {
     public static int K(int i) => i;
@@ -101,7 +99,7 @@ public struct UnmanagedKeyDictStrategy : IDictTestStrategy<int, string>
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0)
     {
-        var store = Factory.CreateUnmanagedKey<int, string>(MemorySize: memorySize, MutableFraction: mutableFraction);
+        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).Create<int, string>();
         return new StoreHandle<int, string>(store, () => store.Create(),
             wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
@@ -114,15 +112,14 @@ public struct UnmanagedKeyDictStrategy : IDictTestStrategy<int, string>
         string? checkpointDir = null,
         bool recoverDevice = false)
     {
-        var store = Factory.CreateUnmanagedKey<int, string>(logDevice, objDevice,
-            MemorySize: memorySize, MutableFraction: mutableFraction, CheckpointDir: checkpointDir);
+        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction, CheckpointDir: checkpointDir).Create<int, string>(logDevice, objDevice);
         return new StoreHandle<int, string>(store, () => store.Create(),
             wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
     }
 }
 
-/// <summary>TKey=string (managed), TValue=int (unmanaged), Factory.CreateUnmanagedValue</summary>
+/// <summary>TKey=string (managed), TValue=int (unmanaged), Factory.Create
 public struct UnmanagedValueDictStrategy : IDictTestStrategy<string, int>
 {
     public static string K(int i) => i.ToString();
@@ -133,7 +130,7 @@ public struct UnmanagedValueDictStrategy : IDictTestStrategy<string, int>
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0)
     {
-        var store = Factory.CreateUnmanagedValue<string, int>(MemorySize: memorySize, MutableFraction: mutableFraction);
+        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).Create<string, int>();
         return new StoreHandle<string, int>(store, () => store.Create(),
             wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
@@ -146,8 +143,7 @@ public struct UnmanagedValueDictStrategy : IDictTestStrategy<string, int>
         string? checkpointDir = null,
         bool recoverDevice = false)
     {
-        var store = Factory.CreateUnmanagedValue<string, int>(logDevice, objDevice,
-            MemorySize: memorySize, MutableFraction: mutableFraction, CheckpointDir: checkpointDir);
+        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction, CheckpointDir: checkpointDir).Create<string, int>(logDevice, objDevice);
         return new StoreHandle<string, int>(store, () => store.Create(),
             wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);

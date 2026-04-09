@@ -1,4 +1,4 @@
-﻿using Seamless.Store;
+using Seamless.Store;
 using Tsavorite.core;
 namespace Test.Seamless.Collections;
 public class StoreCheckpoint{
@@ -6,17 +6,17 @@ public class StoreCheckpoint{
     private static string CreateFolder()=>Path.Combine(Path.GetTempPath(),"SeamlessTest");
     [Fact,Trait("Category",Unit)]
     public async Task SaveAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー(){
-        using var store=Factory.Create<int>();
+        using var store=Factory.Create().Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async ()=>await store.SaveAsync());
     }
     [Fact,Trait("Category",Unit)]
     public async Task LoadAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー(){
-        using var store=Factory.Create<int>();
+        using var store=Factory.Create().Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async ()=>await store.LoadAsync());
     }
     [Fact,Trait("Category",Unit)]
     public async Task SaveLogOnlyAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー(){
-        using var store=Factory.Create<int>();
+        using var store=Factory.Create().Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async ()=>await store.SaveLogOnlyAsync());
     }
     [Fact,Trait("Category",Unit)]
@@ -27,7 +27,7 @@ public class StoreCheckpoint{
         {
             using var LogDevice=Devices.CreateLogDevice(folder);
             using var LogObjDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int,int>(CheckpointDir:checkpointDir,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
             using var set=store.Create();
             set[1]=11;
             set[2]=22;
@@ -39,7 +39,7 @@ public class StoreCheckpoint{
         {
             using var LogDevice=Devices.CreateLogDevice(folder);
             using var LogObjDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int,int>(CheckpointDir:checkpointDir,recoverDevice:true,LogDevice:LogDevice,ObjectLogDevice:LogObjDevice);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
             store.Load(token);
             var (begin2,head2,ro2,tail2)=store.Address;
             using var set=store.Create();
@@ -60,7 +60,7 @@ public class StoreCheckpoint{
         {
             using var logDevice=Devices.CreateLogDevice(folder);
             using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int>(logDevice,objDevice,CheckpointDir:checkpointDir);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int>(logDevice,objDevice);
             using var set=store.Create();
             set.Add(1);
             set.Add(2);
@@ -72,7 +72,7 @@ public class StoreCheckpoint{
         {
             using var logDevice=Devices.CreateLogDevice(folder);
             using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int>(logDevice,objDevice,CheckpointDir:checkpointDir);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int>(logDevice,objDevice);
             await store.LoadAsync(token);
             var (begin2,head2,ro2,tail2)=store.Address;
             using var set=store.Create();
@@ -93,7 +93,7 @@ public class StoreCheckpoint{
         {
             using var logDevice=Devices.CreateLogDevice(folder);
             using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int,string>(CheckpointDir:checkpointDir,LogDevice:logDevice,ObjectLogDevice:objDevice);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int,string>(logDevice,objDevice);
             using var dict=store.Create();
             dict.Add(1,"one");
             dict.Add(2,"two");
@@ -102,7 +102,7 @@ public class StoreCheckpoint{
         {
             using var logDevice=Devices.CreateLogDevice(folder);
             using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int,string>(CheckpointDir:checkpointDir,LogDevice:logDevice,ObjectLogDevice:objDevice);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int,string>(logDevice,objDevice);
             await store.LoadAsync(token);
             using var dict=store.Create();
             Assert.True(dict.ContainsKey(1));
@@ -121,7 +121,7 @@ public class StoreCheckpoint{
         {
             using var logDevice=Devices.CreateLogDevice(folder);
             using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int>(logDevice,objDevice,CheckpointDir:checkpointDir);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int>(logDevice,objDevice);
             using var set=store.Create();
             for(var i=0;i<100;i++) set.Add(i);
             token=await store.SaveAsync();
@@ -129,7 +129,7 @@ public class StoreCheckpoint{
         {
             using var logDevice=Devices.CreateLogDevice(folder);
             using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int>(logDevice,objDevice,CheckpointDir:checkpointDir);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int>(logDevice,objDevice);
             await store.LoadAsync(token);
             using var set=store.Create();
             for(var i=0;i<100;i++) Assert.True(set.Contains(i),$"Contains({i}) failed after recovery");
@@ -146,7 +146,7 @@ public class StoreCheckpoint{
         {
             using var logDevice=Devices.CreateLogDevice(folder);
             using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int,string>(CheckpointDir:checkpointDir,LogDevice:logDevice,ObjectLogDevice:objDevice);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int,string>(logDevice,objDevice);
             using var dict=store.Create();
             for(var i=0;i<50;i++) dict.Add(i,$"val_{i}");
             token=await store.SaveAsync();
@@ -154,7 +154,7 @@ public class StoreCheckpoint{
         {
             using var logDevice=Devices.CreateLogDevice(folder);
             using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int,string>(CheckpointDir:checkpointDir,LogDevice:logDevice,ObjectLogDevice:objDevice);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int,string>(logDevice,objDevice);
             await store.LoadAsync(token);
             using var dict=store.Create();
             for(var i=0;i<50;i++){
@@ -170,7 +170,7 @@ public class StoreCheckpoint{
         var checkpointDir=folder+"_checkpoint";
         using var logDevice=Devices.CreateLogDevice(folder);
         using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-        using var store=Factory.Create<int>(logDevice,objDevice,CheckpointDir:checkpointDir);
+        using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int>(logDevice,objDevice);
         using var set=store.Create();
         set.Add(1);
         // SaveAsync が同期的にロックを取得してから非同期 I/O を待機するため、
@@ -185,7 +185,7 @@ public class StoreCheckpoint{
         var checkpointDir=folder+"_checkpoint";
         using var logDevice=Devices.CreateLogDevice(folder);
         using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-        using var store=Factory.Create<int>(logDevice,objDevice,CheckpointDir:checkpointDir);
+        using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int>(logDevice,objDevice);
         using var set=store.Create();
         set.Add(1);
         // SaveLogOnlyAsync が同期的にロックを取得してから非同期 I/O を待機するため、
@@ -200,7 +200,7 @@ public class StoreCheckpoint{
         var checkpointDir=folder+"_checkpoint";
         using var logDevice=Devices.CreateLogDevice(folder);
         using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-        using var store=Factory.Create<int>(logDevice,objDevice,CheckpointDir:checkpointDir);
+        using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int>(logDevice,objDevice);
         using var set=store.Create();
         set.Add(1);
         using var cts=new CancellationTokenSource();
@@ -254,7 +254,7 @@ public class StoreCheckpoint{
         {
             using var logDevice=Devices.CreateLogDevice(folder);
             using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int>(logDevice,objDevice,CheckpointDir:checkpointDir);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int>(logDevice,objDevice);
             using var set=store.Create();
             set.Add(1);
             set.Add(2);
@@ -266,7 +266,7 @@ public class StoreCheckpoint{
         {
             using var logDevice=Devices.CreateLogDevice(folder);
             using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int>(logDevice,objDevice,CheckpointDir:checkpointDir);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int>(logDevice,objDevice);
             await store.LoadAsync(token);
             using var set=store.Create();
             Assert.True(set.Contains(1));
@@ -283,7 +283,7 @@ public class StoreCheckpoint{
         {
             using var logDevice=Devices.CreateLogDevice(folder);
             using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int,string>(CheckpointDir:checkpointDir,LogDevice:logDevice,ObjectLogDevice:objDevice);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int,string>(logDevice,objDevice);
             using var dict=store.Create();
             dict.Add(1,"one");
             dict.Add(2,"two");
@@ -292,7 +292,7 @@ public class StoreCheckpoint{
         {
             using var logDevice=Devices.CreateLogDevice(folder);
             using var objDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create<int,string>(CheckpointDir:checkpointDir,LogDevice:logDevice,ObjectLogDevice:objDevice);
+            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int,string>(logDevice,objDevice);
             await store.LoadAsync(token);
             using var dict=store.Create();
             Assert.True(dict.ContainsKey(1));

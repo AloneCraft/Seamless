@@ -10,7 +10,7 @@ public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,Empty>(ou
 	protected override Empty CreateValue(int seed)=>default;
     protected ManagedHashSetStore<T> CreateStore(){
         var MemorySize=Seamless.Const.LogMemorySize<<10;
-        return Factory.Create<T>(IndexSize:IndexSize,MemorySize:MemorySize);
+		return Factory.Create(IndexSize:IndexSize,MemorySize:MemorySize).Create<T>();
     }
     [Fact, Trait("Category",Unit)]
     public void ログファイルが作られる(){
@@ -26,7 +26,7 @@ public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,Empty>(ou
         using var ObjectLogDevice=Devices.CreateLogDevice(ObjectLog,DeviceType.Default,false,false,-1,false,false,true,false);
         const int PageSize=4096,MemorySize=8192;
         const double MutableFraction=(double)PageSize/MemorySize;
-        using var store = Factory.Create<int>(LogDevice:LogDevice,ObjectLogDevice:ObjectLogDevice,CheckpointDir:CheckpointDir,MutableFraction:MutableFraction,IndexSize:Count,PageSize:PageSize,MemorySize:MemorySize);
+		using var store = Factory.Create(CheckpointDir:CheckpointDir,MutableFraction:MutableFraction,IndexSize:Count,PageSize:PageSize,MemorySize:MemorySize).Create<int>(LogDevice,ObjectLogDevice);
         //$$\text{MutableFraction} = \frac{\text{PageSize}}{\text{LogMemorySize}}$$/
         using var h= store.Create();
         var s=Stopwatch.StartNew();

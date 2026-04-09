@@ -45,6 +45,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\SymmetricExcept.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedAdd.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)StoreCheckpoint.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\Factory.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Test.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestTypes.cs" />
   </ItemGroup>
