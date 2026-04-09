@@ -1,7 +1,4 @@
 ﻿using Seamless.Collections;
-
-using Tsavorite.core;
-
 namespace Test.Seamless.Collections;
 
 /// <summary>
@@ -27,18 +24,24 @@ public sealed class StoreHandle<TKey, TValue> : IDisposable
         Action<Guid> load,
         Func<(long, long, long, long)> getAddress)
     {
-        _store = store;
-        _createDict = createDict;
-        _flushAndEvict = flushAndEvict;
-        _save = save;
-        _load = load;
-        _getAddress = getAddress;
+        this._store = store;
+        this._createDict = createDict;
+        this._flushAndEvict = flushAndEvict;
+        this._save = save;
+        this._load = load;
+        this._getAddress = getAddress;
     }
 
-    public ISeamlessDictionary<TKey, TValue> NewDict() => _createDict();
-    public void FlushAndEvict(bool wait = true) => _flushAndEvict(wait);
-    public Guid Save() => _save();
-    public void Load(Guid token) => _load(token);
-    public (long Begin, long Head, long Ro, long Tail) Address => _getAddress();
-    public void Dispose() => _store.Dispose();
+    public ISeamlessDictionary<TKey, TValue> NewDict() =>
+        this._createDict();
+    public void FlushAndEvict(bool wait = true) =>
+        this._flushAndEvict(wait);
+    public Guid Save() =>
+        this._save();
+    public void Load(Guid token) =>
+        this._load(token);
+    public (long Begin, long Head, long Ro, long Tail) Address =>
+        this._getAddress();
+    public void Dispose() =>
+        this._store.Dispose();
 }

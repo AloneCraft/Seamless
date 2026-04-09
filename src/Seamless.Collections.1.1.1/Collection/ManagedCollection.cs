@@ -1,5 +1,4 @@
 ﻿using Seamless.ScanIteratorFunctions;
-using Seamless.SessionFunctions;
 using System.Diagnostics;
 namespace Seamless.Collections;
 public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer> {

@@ -1,6 +1,4 @@
-﻿using Seamless.Collections;
-
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Seamless.Store;
 using Test.Seamless.Collections;
 using Tsavorite.core;
@@ -10,7 +8,7 @@ public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,Empty>(ou
 	protected override Empty CreateValue(int seed)=>default;
     protected ManagedHashSetStore<T> CreateStore(){
         var MemorySize=Seamless.Const.LogMemorySize<<10;
-		return Factory.Create(IndexSize:IndexSize,MemorySize:MemorySize).Create<T>();
+		return Factory.Create(IndexSize:this.IndexSize,MemorySize:MemorySize).Create<T>();
     }
     [Fact, Trait("Category",Unit)]
     public void ログファイルが作られる(){

@@ -1,5 +1,4 @@
-﻿using Seamless.SessionFunctions;
-namespace Seamless.Collections;
+﻿namespace Seamless.Collections;
 using ScanIteratorFunctions;
 
 using System.Collections;

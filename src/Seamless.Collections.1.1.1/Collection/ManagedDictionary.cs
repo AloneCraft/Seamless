@@ -15,8 +15,8 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
         var Session = this.Remove_KeyValuePair_ClientSession;
         var Key0 = item.Key;
         var Value0 = item.Value;
-        var KeyBytes = SerializeKey(ref Key0);
-        var ValueBytes = SerializeValue(ref Value0);
+        var KeyBytes =this.SerializeKey(ref Key0);
+        var ValueBytes =this.SerializeValue(ref Value0);
         var FixedKey =SpanByte.FromPinnedSpan(KeyBytes);
         var Input =SpanByte.FromPinnedSpan(ValueBytes);
         var Status = Session.BasicContext.RMW(FixedKey,Input,out var Output);
@@ -25,7 +25,7 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
     }
     public bool Remove(TKey key,[MaybeNullWhen(false)]out TValue value) {
         var Session = this.Remove_TKey_TValue_ClientSession;
-        var KeyBytes = SerializeKey(ref key);
+        var KeyBytes =this.SerializeKey(ref key);
         var FixedKey =SpanByte.FromPinnedSpan(KeyBytes);
         var Input = default(SpanByte);
         var Status = Session.BasicContext.RMW(FixedKey,Input,out var Output);
@@ -122,8 +122,8 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
             }
         }
         set {
-            var KeyBytes = SerializeKey(ref Key);
-            var ValueBytes = SerializeValue(ref value);
+            var KeyBytes =this.SerializeKey(ref Key);
+            var ValueBytes =this.SerializeValue(ref value);
             if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length)) {
                 throw this.ThrowLogFull();
             } else {

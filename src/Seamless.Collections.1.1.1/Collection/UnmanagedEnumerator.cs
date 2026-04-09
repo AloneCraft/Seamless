@@ -1,9 +1,6 @@
 ﻿using Seamless.ScanIteratorFunctions;
 
 using System.Collections;
-using System.Diagnostics;
-
-
 namespace Seamless.Collections;
 
 internal struct UnmanagedEnumerator<TKey,TValue,TIterator,T>(
@@ -33,7 +30,7 @@ internal struct UnmanagedEnumerator<TKey,TValue,TIterator,T>(
         if(++this.Index<this.Count) {
             return true;
         } 
-        if(_done) {
+        if(this._done) {
            this.Index = -1;
            return false;
         }
@@ -41,7 +38,8 @@ internal struct UnmanagedEnumerator<TKey,TValue,TIterator,T>(
         var result = session.IterateLookup(ref this.Iterator,ref this.Cursor,resetCursor: false);
         var count = this.Iterator.Count;
         this.Count = count;
-        if(!result) _done = true;
+        if(!result)
+            this._done = true;
         if(count>0) {
             this.Index = 0;
             return true;
@@ -54,7 +52,7 @@ internal struct UnmanagedEnumerator<TKey,TValue,TIterator,T>(
         this.Cursor = 0;
        this.Count = 0;
         this.Index = -1;
-       _done = false;
+        this._done = false;
     }
 
     public void Dispose() {
