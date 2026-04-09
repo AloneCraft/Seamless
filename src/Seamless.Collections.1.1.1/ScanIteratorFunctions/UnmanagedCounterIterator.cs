@@ -21,21 +21,3 @@ internal sealed class UnmanagedCounterIterator<TKey,TValue> : IScanIteratorFunct
         Debug.Assert(this.Counter0 == numberOfRecords);
     }
 }
-
-internal sealed class UnmanagedKeyIterator<TKey,TValue>:ScanIteratorFunctions<TKey,TKey,TValue>
-    where TKey:unmanaged,IEquatable<TKey>
-    where TValue:unmanaged,IEquatable<TValue> {
-    private protected override TKey Deserialize(ref TKey key,ref TValue value) => key;
-}
-
-internal sealed class UnmanagedValueIterator<TKey,TValue>:ScanIteratorFunctions<TValue,TKey,TValue>
-    where TKey:unmanaged,IEquatable<TKey>
-    where TValue:unmanaged,IEquatable<TValue> {
-    private protected override TValue Deserialize(ref TKey key,ref TValue value) => value;
-}
-
-internal sealed class UnmanagedKeyValueIterator<TKey,TValue>:ScanIteratorFunctions<KeyValuePair<TKey,TValue>,TKey,TValue>
-    where TKey:unmanaged,IEquatable<TKey>
-    where TValue:unmanaged,IEquatable<TValue> {
-    private protected override KeyValuePair<TKey,TValue> Deserialize(ref TKey key,ref TValue value) => new(key,value);
-}
