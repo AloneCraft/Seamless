@@ -16,15 +16,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collection\Serializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageUnmanagedDictionary.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedCollection.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedDictionary.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedEnumerator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedKeyComparer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\UnmanagedIterators.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedAdd.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedDelete.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedRemove_KeyValuePair.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedRemove_TKey_TValue.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\ManagedCollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\ManagedDictionaryStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryManagedDictionary.cs" />

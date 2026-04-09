@@ -1,5 +1,4 @@
-﻿#if TSAVORITE1_1_1
-using Seamless.ScanIteratorFunctions;
+﻿using Seamless.ScanIteratorFunctions;
 
 using System.Collections;
 using System.Diagnostics;
@@ -61,4 +60,3 @@ internal struct UnmanagedEnumerator<TKey,TValue,TIterator,T>(
     public void Dispose() {
     }
 }
-#endif

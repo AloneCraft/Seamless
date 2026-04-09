@@ -1,42 +1,41 @@
-﻿#if TSAVORITE1_1_1
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 
 namespace Seamless.SessionFunctions;
 
-public readonly struct UnmanagedDelete<TKey,TValue>:
-    ISessionFunctions<TKey,TValue,TValue,TValue,core_Empty>
+public readonly struct UnmanagedRemove_KeyValuePair<TKey,TValue>:
+    ISessionFunctions<TKey,TValue,TValue,bool,core_Empty>
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue> {
 
     [ExcludeFromCodeCoverage]
-    public bool SingleReader(ref TKey key,ref TValue input,ref TValue value,ref TValue dst,ref ReadInfo readInfo) {
+    public bool SingleReader(ref TKey key,ref TValue input,ref TValue value,ref bool dst,ref ReadInfo readInfo) {
         throw new NotSupportedException("Read");
     }
 
     [ExcludeFromCodeCoverage]
-    public bool ConcurrentReader(ref TKey key,ref TValue input,ref TValue value,ref TValue dst,ref ReadInfo readInfo,ref RecordInfo recordInfo) {
+    public bool ConcurrentReader(ref TKey key,ref TValue input,ref TValue value,ref bool dst,ref ReadInfo readInfo,ref RecordInfo recordInfo) {
         throw new NotSupportedException("Read");
     }
 
     [ExcludeFromCodeCoverage]
-    public void ReadCompletionCallback(ref TKey key,ref TValue input,ref TValue output,core_Empty ctx,Status status,RecordMetadata recordMetadata) {
+    public void ReadCompletionCallback(ref TKey key,ref TValue input,ref bool output,core_Empty ctx,Status status,RecordMetadata recordMetadata) {
         throw new NotSupportedException("Read");
     }
 
     [ExcludeFromCodeCoverage]
-    public bool SingleWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref TValue output,ref UpsertInfo upsertInfo,WriteReason reason,ref RecordInfo recordInfo) {
+    public bool SingleWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,WriteReason reason,ref RecordInfo recordInfo) {
         throw new NotSupportedException("Upsert");
     }
 
     [ExcludeFromCodeCoverage]
-    public void PostSingleWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref TValue output,ref UpsertInfo upsertInfo,WriteReason reason) {
+    public void PostSingleWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,WriteReason reason) {
         throw new NotSupportedException("Upsert");
     }
 
     [ExcludeFromCodeCoverage]
-    public bool ConcurrentWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref TValue output,ref UpsertInfo upsertInfo,ref RecordInfo recordInfo) {
+    public bool ConcurrentWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,ref RecordInfo recordInfo) {
         throw new NotSupportedException("Upsert");
     }
 
@@ -46,32 +45,36 @@ public readonly struct UnmanagedDelete<TKey,TValue>:
         throw new NotSupportedException("Upsert");
     }
 
-    public bool NeedInitialUpdate(ref TKey key,ref TValue input,ref TValue output,ref RMWInfo rmwInfo) => false;
+    public bool NeedInitialUpdate(ref TKey key,ref TValue input,ref bool output,ref RMWInfo rmwInfo) => false;
 
     [ExcludeFromCodeCoverage]
-    public bool InitialUpdater(ref TKey key,ref TValue input,ref TValue value,ref TValue output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
+    public bool InitialUpdater(ref TKey key,ref TValue input,ref TValue value,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
         throw new NotSupportedException("NeedInitialUpdate が false を返すので呼ばれない");
     }
 
     [ExcludeFromCodeCoverage]
-    public void PostInitialUpdater(ref TKey key,ref TValue input,ref TValue value,ref TValue output,ref RMWInfo rmwInfo) {
+    public void PostInitialUpdater(ref TKey key,ref TValue input,ref TValue value,ref bool output,ref RMWInfo rmwInfo) {
         throw new NotSupportedException("InitialUpdater が呼ばれないので呼ばれない");
     }
 
-    public bool NeedCopyUpdate(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue output,ref RMWInfo rmwInfo) => true;
+    public bool NeedCopyUpdate(ref TKey key,ref TValue input,ref TValue oldValue,ref bool output,ref RMWInfo rmwInfo) => oldValue.Equals(input);
 
-    public bool CopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref TValue output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
+    public bool CopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
+        output = true;
         rmwInfo.Action = RMWAction.ExpireAndStop;
         return false;
     }
 
     [ExcludeFromCodeCoverage]
-    public bool PostCopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref TValue output,ref RMWInfo rmwInfo) {
+    public bool PostCopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo) {
         throw new NotSupportedException("CopyUpdater が false を返すのでここは呼ばれない");
     }
 
-    public bool InPlaceUpdater(ref TKey key,ref TValue input,ref TValue value,ref TValue output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
-        rmwInfo.Action = RMWAction.ExpireAndStop;
+    public bool InPlaceUpdater(ref TKey key,ref TValue input,ref TValue value,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
+        if(value.Equals(input)) {
+            output = true;
+            rmwInfo.Action = RMWAction.ExpireAndStop;
+        }
         return false;
     }
 
@@ -83,7 +86,7 @@ public readonly struct UnmanagedDelete<TKey,TValue>:
         where TEpochAccessor:IEpochAccessor {
     }
 
-    public void RMWCompletionCallback(ref TKey key,ref TValue input,ref TValue output,core_Empty ctx,Status status,RecordMetadata recordMetadata) {
+    public void RMWCompletionCallback(ref TKey key,ref TValue input,ref bool output,core_Empty ctx,Status status,RecordMetadata recordMetadata) {
     }
 
     [ExcludeFromCodeCoverage]
@@ -107,7 +110,6 @@ public readonly struct UnmanagedDelete<TKey,TValue>:
         throw new NotSupportedException("Delete");
     }
 
-    public void ConvertOutputToHeap(ref TValue input,ref TValue output) {
+    public void ConvertOutputToHeap(ref TValue input,ref bool output) {
     }
 }
-#endif
