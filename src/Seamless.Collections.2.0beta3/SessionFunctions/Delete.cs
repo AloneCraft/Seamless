@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-namespace Seamless.SessionFunctions;
+﻿namespace Seamless.SessionFunctions;
 using System.Diagnostics.CodeAnalysis;
 
 public struct Delete:

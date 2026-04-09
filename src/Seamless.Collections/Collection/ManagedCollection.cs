@@ -1,13 +1,12 @@
-﻿using Seamless.ScanIteratorFunctions;
-using Seamless.SessionFunctions;
-
-using System.Diagnostics;
+﻿using Seamless.SessionFunctions;
 using Seamless.Store;
 namespace Seamless.Collections;
 public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>
     : Collection<TKey, TValue,
+#if TSAVORITE1_1_1
         ManagedSessionKey, ManagedSessionValue,
         ManagedSessionKey, ManagedOutput,
+#endif
         Add, Delete,
         ManagedStoreFunctions, ManagedAllocator>
     where TKey : IEquatable<TKey>

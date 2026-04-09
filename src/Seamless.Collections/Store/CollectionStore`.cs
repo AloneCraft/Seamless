@@ -1,15 +1,21 @@
 ﻿
 using Seamless.Devices;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-
 namespace Seamless.Store;
 /// <summary>
 /// Tsavorite ストアを管理する抽象基底クラス。
 /// DictionaryStore および HashSetStore の共通実装を提供する。
 /// </summary>
-public abstract partial class CollectionStore<TKey,TValue,TSessionKey,TSessionValue,TStoreFunctions,TAllocator>:CollectionStore, IDisposable 
-{
+public abstract partial class CollectionStore<
+    TKey,
+    TValue,
+#if TSAVORITE2_0BETA3
+#elif TSAVORITE1_1_1
+    TSessionKey,
+    TSessionValue,
+#endif
+    TStoreFunctions,
+    TAllocator
+>:CollectionStore, IDisposable{
 	public long LogMemorySize { get; }
 	public double MutableFraction { get; }
 	private bool Disposed;

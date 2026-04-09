@@ -1,7 +1,5 @@
 ﻿using Seamless.ScanIteratorFunctions;
 namespace Seamless.Collections;
-
-using System.Collections;
 public partial struct Enumerator<TKey, TValue,TFunctions,TStoreFunctions,TAllocator,TIterator,T>(
     ClientSession<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,core_Empty,TFunctions,TStoreFunctions,TAllocator> Session,
     TIterator Iterator)

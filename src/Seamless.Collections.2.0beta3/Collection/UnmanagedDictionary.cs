@@ -4,7 +4,6 @@ using Seamless.SessionFunctions;
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 using Seamless.Store;
 namespace Seamless.Collections;
 
@@ -13,23 +12,13 @@ public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue> {
 
-    private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,Remove_TKey_TValue,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>> Remove_TKey_TValue_ClientSession { get; set; }
-    private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,Remove_KeyValuePair,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>> Remove_KeyValuePair_ClientSession { get; set; }
+    private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,UnmanagedRemove_TKey_TValue<TKey,TValue>,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>> Remove_TKey_TValue_ClientSession { get; set; }
+    private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,UnmanagedRemove_KeyValuePair<TKey,TValue>,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>> Remove_KeyValuePair_ClientSession { get; set; }
 
     internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> collectionStore):base(collectionStore) {
         var store = collectionStore.Store;
-        this.Remove_TKey_TValue_ClientSession = store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,Remove_TKey_TValue>(new());
-        this.Remove_KeyValuePair_ClientSession = store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,Remove_KeyValuePair>(new());
-    }
-
-    public bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
-        var Status = this.Read(Key,out var Output);
-        if(Status.NotFound) {
-            Value=default;
-            return false;
-        }
-        Value=UnmanagedSerializer<TValue>.Deserialize(GetReadOnlySpan(Output));
-        return true;
+        this.Remove_TKey_TValue_ClientSession = store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,UnmanagedRemove_TKey_TValue<TKey,TValue>>(new());
+        this.Remove_KeyValuePair_ClientSession = store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,UnmanagedRemove_KeyValuePair<TKey,TValue>>(new());
     }
 
     public bool IsReadOnly => false;
@@ -61,9 +50,9 @@ public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,
         var Session = this.Remove_KeyValuePair_ClientSession;
         var Key0 = item.Key;
         var Value0 = item.Value;
-        var KeyBytes = SerializeKey(ref Key0);
-        var ValueBytes = SerializeValue(ref Value0);
-        var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
+        var KeyBytes =this.SerializeKey(ref Key0);
+        var ValueBytes =this.SerializeValue(ref Value0);
+        var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Input = PinnedSpanByte.FromPinnedSpan(ValueBytes);
         var Output = default(SpanByteAndMemory);
         var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
@@ -73,8 +62,8 @@ public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,
 
     public bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value) {
         var Session = this.Remove_TKey_TValue_ClientSession;
-        var KeyBytes = SerializeKey(ref key);
-        var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
+        var KeyBytes =this.SerializeKey(ref key);
+        var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Input = default(PinnedSpanByte);
         SpanByteAndMemory Output = default;
         var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
@@ -87,12 +76,12 @@ public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,
         return false;
     }
 
-    public Enumerator<TKey,TValue,Add,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>,KeyValueIterator<TKey,TValue,UnmanagedSerializer<TKey>,UnmanagedSerializer<TValue>>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new(this.ClientSession,new());
+    public UnmanagedEnumerator<TKey,TValue,UnmanagedKeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new(this.ClientSession,new());
 
     private List<T> CreateCollection<TIterator,T>(TIterator iterator)
         where TIterator:ScanIteratorFunctions<T> {
         var collection = new List<T>();
-        using var e = new Enumerator<TKey,TValue,Add,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>,TIterator,T>(this.ClientSession,iterator);
+        using var e = new UnmanagedEnumerator<TKey,TValue,TIterator,T>(this.ClientSession,iterator);
         while(e.MoveNext()) {
             collection.Add(e.Current);
         }
@@ -101,7 +90,7 @@ public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,
 
     private IEnumerable<T> Enumerate<TIterator,T>(TIterator iterator)
         where TIterator:ScanIteratorFunctions<T> {
-        using var e = new Enumerator<TKey,TValue,Add,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>,TIterator,T>(this.ClientSession,iterator);
+        using var e = new UnmanagedEnumerator<TKey,TValue,TIterator,T>(this.ClientSession,iterator);
         while(e.MoveNext()) {
             yield return e.Current;
         }
@@ -145,10 +134,10 @@ public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,
         return list;
     }
 
-    public ICollection<TKey> Keys => this.CreateCollection<KeyIterator<TKey,UnmanagedSerializer<TKey>>,TKey>(new());
-    public ICollection<TValue> Values => this.CreateCollection<ValueIterator<TValue,UnmanagedSerializer<TValue>>,TValue>(new());
-    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Enumerate<KeyIterator<TKey,UnmanagedSerializer<TKey>>,TKey>(new());
-    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<ValueIterator<TValue,UnmanagedSerializer<TValue>>,TValue>(new());
+    public ICollection<TKey> Keys => this.CreateCollection<UnmanagedKeyIterator<TKey,TValue>,TKey>(new());
+    public ICollection<TValue> Values => this.CreateCollection<UnmanagedValueIterator<TKey,TValue>,TValue>(new());
+    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Enumerate<UnmanagedKeyIterator<TKey,TValue>,TKey>(new());
+    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<UnmanagedValueIterator<TKey,TValue>,TValue>(new());
 
     public TValue this[TKey key] {
         get {
@@ -158,13 +147,13 @@ public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,
             throw new KeyNotFoundException();
         }
         set {
-            var KeyBytes = SerializeKey(ref key);
-            var ValueBytes = SerializeValue(ref value);
+            var KeyBytes =this.SerializeKey(ref key);
+            var ValueBytes =this.SerializeValue(ref value);
             if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length)) {
                 throw this.ThrowLogFull();
             }
             var Session = this.ClientSession;
-            var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
+            var FixedKey = (FixedSpanByteKey)KeyBytes;
             var Input = ValueBytes;
             var Status = Session.BasicContext.Upsert(FixedKey,Input);
             Status = Pending(Session,Status);

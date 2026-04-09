@@ -1,5 +1,4 @@
-﻿using Seamless.ScanIteratorFunctions;
-namespace Seamless.Collections;
+﻿namespace Seamless.Collections;
 
 using System.Collections;
 public partial struct Enumerator<TKey, TValue,TFunctions,TStoreFunctions,TAllocator,TIterator,T>:IEnumerator<T> {
@@ -11,7 +10,7 @@ public partial struct Enumerator<TKey, TValue,TFunctions,TStoreFunctions,TAlloca
     object? IEnumerator.Current => this.Current;
     public bool MoveNext() {
         if(++this.Index<this.Count) return true;
-        if(_done) {
+        if(this._done) {
            this.Index = -1;
            return false;
         }
@@ -19,7 +18,8 @@ public partial struct Enumerator<TKey, TValue,TFunctions,TStoreFunctions,TAlloca
         var r = Session.IterateLookup(ref this.Iterator,ref this.Cursor,resetCursor: false);
         var Count = this.Iterator.Count;
         this.Count=Count;
-        if(!r) _done = true;
+        if(!r)
+            this._done = true;
         if(Count>0) {
             this.Index=0;
             return true;
@@ -31,7 +31,7 @@ public partial struct Enumerator<TKey, TValue,TFunctions,TStoreFunctions,TAlloca
         this.Cursor=0;
        this.Count=0;
         this.Index=-1;
-       _done = false;
+        this._done = false;
     }
     public void Dispose() {
     }

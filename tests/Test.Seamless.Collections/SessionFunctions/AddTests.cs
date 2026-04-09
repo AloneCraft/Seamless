@@ -29,8 +29,8 @@ public abstract class AddTests<TKey, TValue>
         var (dict, store) = this.CreateMemory();
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        dict.Add(Key(1), Value(1));
-        Assert.True(dict.TryGetValue(Key(1), out _));
+        dict.Add(this.Key(1),this.Value(1));
+        Assert.True(dict.TryGetValue(this.Key(1), out _));
     }
 
     [Fact, Trait("Category", Unit)] public void NeedInitialUpdate() => this.AddAndGet();
@@ -44,10 +44,10 @@ public abstract class AddTests<TKey, TValue>
         var (dict, store) = this.CreateMemory();
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        dict.Add(Key(1), Value(1));
-        Assert.True(dict.TryGetValue(Key(1), out var value));
-        Assert.Equal(Value(1), value);
-        Assert.False(dict.TryGetValue(Key(99), out _));
+        dict.Add(this.Key(1),this.Value(1));
+        Assert.True(dict.TryGetValue(this.Key(1), out var value));
+        Assert.Equal(this.Value(1), value);
+        Assert.False(dict.TryGetValue(this.Key(99), out _));
     }
 
     [Fact, Trait("Category", Unit)] public void GetUpsertFieldInfo_TKey_ReadOnlySpan_PInnedSpanByte() => this.DoUpsert();
@@ -69,9 +69,9 @@ public abstract class AddTests<TKey, TValue>
         var (dict, store) = this.CreateDisk(logDevice, objDevice);
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        dict.Add(Key(0), Value(0));
+        dict.Add(this.Key(0),this.Value(0));
         this.FlushAndEvict(store);
-        Assert.Equal(TryAddResult.KeyAlreadyExists, this.TryAdd(dict, Key(0), Value(1)));
+        Assert.Equal(TryAddResult.KeyAlreadyExists, this.TryAdd(dict,this.Key(0),this.Value(1)));
     }
 
     [Fact, Trait("Category", Unit)]
@@ -82,10 +82,10 @@ public abstract class AddTests<TKey, TValue>
         var (dict, store) = this.CreateDisk(logDevice, objDevice);
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        dict[Key(0)] = Value(0);
+        dict[this.Key(0)] =this.Value(0);
         this.FlushAndEvict(store);
-        Assert.True(dict.TryGetValue(Key(0), out var v));
-        Assert.Equal(Value(0), v);
+        Assert.True(dict.TryGetValue(this.Key(0), out var v));
+        Assert.Equal(this.Value(0), v);
     }
 
     [Fact, Trait("Category", Unit)]
@@ -96,9 +96,9 @@ public abstract class AddTests<TKey, TValue>
         var (dict, store) = this.CreateDisk(logDevice, objDevice);
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        dict.Add(Key(0), Value(0));
+        dict.Add(this.Key(0),this.Value(0));
         this.FlushAndEvict(store);
-        Assert.Equal(TryAddResult.KeyAlreadyExists, this.TryAdd(dict, Key(0), Value(1)));
+        Assert.Equal(TryAddResult.KeyAlreadyExists, this.TryAdd(dict,this.Key(0),this.Value(1)));
     }
 
     [Fact, Trait("Category", Unit)] public void ConcurrentWriter() => this.DoConcurrentWriter();

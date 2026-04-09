@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Store;
 using Tsavorite.core;
@@ -23,13 +23,13 @@ public abstract class IntersectWithTests<TKey>
         using var _storeB = storeB;
         using var _setA = setA;
         using var _setB = setB;
-        setA.Add(Key(1)); setA.Add(Key(2)); setA.Add(Key(3));
-        setB.Add(Key(2)); setB.Add(Key(3)); setB.Add(Key(4));
+        setA.Add(this.Key(1)); setA.Add(this.Key(2)); setA.Add(this.Key(3));
+        setB.Add(this.Key(2)); setB.Add(this.Key(3)); setB.Add(this.Key(4));
         setA.IntersectWith(setB);
-        Assert.DoesNotContain(Key(1),setA);
-        Assert.Contains(Key(2),setA);
-        Assert.Contains(Key(3),setA);
-        Assert.DoesNotContain(Key(4),setA);
+        Assert.DoesNotContain(this.Key(1),setA);
+        Assert.Contains(this.Key(2),setA);
+        Assert.Contains(this.Key(3),setA);
+        Assert.DoesNotContain(this.Key(4),setA);
     }
     [Fact,Trait("Category",Unit)] public void InPlaceUpdater() => this.Mutable();
     [Fact,Trait("Category",Unit)] public void GetRMWModifiedFieldInfo() => this.Mutable();
@@ -46,14 +46,14 @@ public abstract class IntersectWithTests<TKey>
         using var _storeB = storeB;
         using var _setA = setA;
         using var _setB = setB;
-        setA.Add(Key(1)); setA.Add(Key(2)); setA.Add(Key(3));
-        setB.Add(Key(2)); setB.Add(Key(3)); setB.Add(Key(4));
+        setA.Add(this.Key(1)); setA.Add(this.Key(2)); setA.Add(this.Key(3));
+        setB.Add(this.Key(2)); setB.Add(this.Key(3)); setB.Add(this.Key(4));
         this.ShiftReadOnly(storeA);
         setA.IntersectWith(setB);
-        Assert.DoesNotContain(Key(1),setA);
-        Assert.Contains(Key(2),setA);
-        Assert.Contains(Key(3),setA);
-        Assert.DoesNotContain(Key(4),setA);
+        Assert.DoesNotContain(this.Key(1),setA);
+        Assert.Contains(this.Key(2),setA);
+        Assert.Contains(this.Key(3),setA);
+        Assert.DoesNotContain(this.Key(4),setA);
     }
     [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
@@ -79,12 +79,12 @@ public abstract class IntersectWithTests<TKey>
         using var _setA = setA;
         using var _setB = setB;
         for(var a = 0;a<300;a++) {
-            setA.Add(Key(a));
-            if(a%2==0) setB.Add(Key(a));
+            setA.Add(this.Key(a));
+            if(a%2==0) setB.Add(this.Key(a));
         }
         setA.IntersectWith(setB);
-        Assert.Contains(Key(100),setA);
-        Assert.DoesNotContain(Key(101),setA);
+        Assert.Contains(this.Key(100),setA);
+        Assert.DoesNotContain(this.Key(101),setA);
     }
 }
 

@@ -43,7 +43,7 @@
     <Compile Include="..\Seamless.Collections\SessionFunctions\Remove_TKey_TValue.cs" />
     <Compile Include="..\Seamless.Collections\SessionFunctions\SymmetricExceptWith.cs" />
     <Compile Include="..\Seamless.Collections\Store\CollectionStore.cs" />
-    <Compile Include="..\Seamless.Collections\Store\CollectionStore`2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore`.cs" />
     <Compile Include="..\Seamless.Collections\Store\MemoryUnmanagedDictionaryStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\StorageUnmanagedDictionaryStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\UnmanagedCollectionStore.cs" />

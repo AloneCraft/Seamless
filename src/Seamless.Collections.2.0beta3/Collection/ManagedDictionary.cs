@@ -15,9 +15,9 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
         var Session = this.Remove_KeyValuePair_ClientSession;
         var Key0 = item.Key;
         var Value0 = item.Value;
-        var KeyBytes = SerializeKey(ref Key0);
-        var ValueBytes = SerializeValue(ref Value0);
-        var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
+        var KeyBytes =this.SerializeKey(ref Key0);
+        var ValueBytes =this.SerializeValue(ref Value0);
+        var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Input = PinnedSpanByte.FromPinnedSpan(ValueBytes);
         var Output = default(SpanByteAndMemory);
         var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
@@ -26,8 +26,8 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
     }
     public bool Remove(TKey key,[MaybeNullWhen(false)]out TValue value) {
         var Session = this.Remove_TKey_TValue_ClientSession;
-        var KeyBytes = SerializeKey(ref key);
-        var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
+        var KeyBytes =this.SerializeKey(ref key);
+        var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Input = default(PinnedSpanByte);
         SpanByteAndMemory Output = default;
         var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
@@ -63,14 +63,14 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
             }
         }
         set {
-            var KeyBytes = SerializeKey(ref Key);
-            var ValueBytes = SerializeValue(ref value);
+            var KeyBytes =this.SerializeKey(ref Key);
+            var ValueBytes =this.SerializeValue(ref value);
             if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length)) {
                 throw this.ThrowLogFull();
             } else {
             }
             var Session=this.ClientSession;
-            var FixedKey=(FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
+            var FixedKey=(FixedSpanByteKey)KeyBytes;
             var Input=ValueBytes;
             var Status = Session.BasicContext.Upsert(FixedKey,Input);
             Status=Pending(Session,Status);

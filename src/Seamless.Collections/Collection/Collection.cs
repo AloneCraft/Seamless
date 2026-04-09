@@ -1,13 +1,22 @@
 ﻿using MemoryPack;
-using Seamless.SessionFunctions;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using Seamless.ScanIteratorFunctions;
 using Seamless.Store;
 namespace Seamless.Collections;
 #pragma warning disable CS8618
-public abstract partial class Collection<TKey,TValue,TSessionKey,TSessionValue,TInput,TOutput,TAddFunctions,TDeleteFunctions,TStoreFunctions,TAllocator> : IDisposable
-    {
+public abstract partial class Collection<
+    TKey,
+    TValue,
+#if TSAVORITE1_1_1
+    TSessionKey,
+    TSessionValue,
+    TInput,
+    TOutput,
+#endif
+    TAddFunctions,
+    TDeleteFunctions,
+    TStoreFunctions,
+    TAllocator
+>:IDisposable{
     private protected static ReadOnlySpan<byte>Serialize<T>(T value) => MemoryPackSerializer.Serialize(value);
     private protected static T Deserialize<T>(ReadOnlySpan<byte> bytes) => MemoryPackSerializer.Deserialize<T>(bytes)!;
     private protected abstract ReadOnlySpan<byte>SerializeKey(ref TKey key);
@@ -39,7 +48,11 @@ public abstract partial class Collection<TKey,TValue,TSessionKey,TSessionValue,T
     public int Count => (int)this.GetLongCount();
     public long EntryCount => this.CollectionStore.Store.EntryCount;
 
-    private protected readonly CollectionStore<TKey, TValue,TSessionKey,TSessionValue,TStoreFunctions,TAllocator> CollectionStore;
+    #if TSAVORITE1_1_1
+        private protected readonly CollectionStore<TKey, TValue, TSessionKey, TSessionValue, TStoreFunctions, TAllocator> CollectionStore;
+    #else
+        private protected readonly CollectionStore<TKey, TValue, TStoreFunctions, TAllocator> CollectionStore;
+    #endif
 
     public abstract bool Remove(TKey key);
 

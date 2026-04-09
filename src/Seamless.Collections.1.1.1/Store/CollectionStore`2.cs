@@ -1,5 +1,4 @@
-﻿using Seamless.Devices;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Seamless.Store;
@@ -61,7 +60,7 @@ public abstract partial class CollectionStore<TKey,TValue,TSessionKey,TSessionVa
 			compactUntil=safeReadOnlyAddress;
 		if(compactUntil<=beginAddress)
 			return;
-		var untilAddress = CompactLog(compactUntil);
+		var untilAddress =this.CompactLog(compactUntil);
 		store.Log.ShiftBeginAddress(untilAddress,true,true);
 	}
 	protected abstract long CompactLog(long compactUntil);

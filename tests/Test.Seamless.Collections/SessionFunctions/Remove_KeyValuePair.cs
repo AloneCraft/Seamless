@@ -1,5 +1,4 @@
-using Seamless;
-using Seamless.Collections;
+﻿using Seamless;
 using Seamless.Store;
 using Tsavorite.core;
 namespace Test.Seamless.SessionFunctions;
@@ -21,8 +20,8 @@ public abstract class RemoveKeyValuePairTests<TKey,TValue>
         var (dict,store) = this.CreateMemory();
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        dict[Key(1)] = Value(1);
-        Assert.True(dict.Remove(new KeyValuePair<TKey,TValue>(Key(1),Value(1))));
+        dict[this.Key(1)] =this.Value(1);
+        Assert.True(dict.Remove(new KeyValuePair<TKey,TValue>(this.Key(1),this.Value(1))));
     }
     [Fact,Trait("Category",Unit)] public void InPlaceUpdater() => this.InMemory();
     [Fact,Trait("Category",Unit)] public void GetRMWModifiedFieldInfo() => this.InMemory();
@@ -33,7 +32,7 @@ public abstract class RemoveKeyValuePairTests<TKey,TValue>
         var (dict,store) = this.CreateMemory();
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        Assert.False(dict.Remove(new KeyValuePair<TKey,TValue>(Key(999),Value(1))));
+        Assert.False(dict.Remove(new KeyValuePair<TKey,TValue>(this.Key(999),this.Value(1))));
     }
 
     private void DiskSpill() {
@@ -43,8 +42,8 @@ public abstract class RemoveKeyValuePairTests<TKey,TValue>
         var (dict,store) = this.CreateDiskSpill(logDevice,objDevice);
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        for(var a = 0;a<300;a++) dict[Key(a)] = Value(a);
-        Assert.True(dict.Remove(new KeyValuePair<TKey,TValue>(Key(0),Value(0))));
+        for(var a = 0;a<300;a++) dict[this.Key(a)] =this.Value(a);
+        Assert.True(dict.Remove(new KeyValuePair<TKey,TValue>(this.Key(0),this.Value(0))));
     }
     [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification="<�ۗ���>")]
@@ -63,9 +62,9 @@ public abstract class RemoveKeyValuePairTests<TKey,TValue>
         var (dict,store) = this.CreateDisk(logDevice,objDevice);
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        dict[Key(0)] = Value(0);
+        dict[this.Key(0)] =this.Value(0);
         this.FlushAndEvict(store);
-        Assert.True(dict.Remove(new KeyValuePair<TKey,TValue>(Key(0),Value(0))));
+        Assert.True(dict.Remove(new KeyValuePair<TKey,TValue>(this.Key(0),this.Value(0))));
     }
     [Fact,Trait("Category",Unit)]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification="<�ۗ���>")]

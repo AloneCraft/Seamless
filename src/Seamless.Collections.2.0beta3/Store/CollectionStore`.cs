@@ -1,10 +1,12 @@
-﻿using Seamless.Devices;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-
+﻿using System.Diagnostics;
 namespace Seamless.Store;
 
-public abstract partial class CollectionStore<TKey,TValue,TSessionKey,TSessionValue,TStoreFunctions,TAllocator>
+public abstract partial class CollectionStore<
+    TKey,
+    TValue,
+    TStoreFunctions,
+    TAllocator
+>
 	where TKey : IEquatable<TKey>
 	where TStoreFunctions : IStoreFunctions
 	where TAllocator : IAllocator<TStoreFunctions>
