@@ -1,7 +1,7 @@
 ﻿using Seamless.Collections;
 namespace Seamless.Store;
 
-public abstract class UnmanagedCollectionStore<TKey,TValue>:CollectionStore<TKey,TValue,
+public abstract partial class UnmanagedCollectionStore<TKey,TValue>:CollectionStore<TKey,TValue,
     PinnedSpanByte,SpanByteAndMemory,
     StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,
     SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>>

@@ -2,19 +2,7 @@
 using Seamless.SessionFunctions;
 using System.Diagnostics;
 namespace Seamless.Collections;
-public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer> :
-    Collection<
-        TKey,
-        TValue,
-        SpanByte,
-        SpanByte,
-        SpanByte,
-        SpanByteAndMemory,
-        Add,
-        Delete,
-        StoreFunctions<SpanByte, SpanByte, SpanByteComparer, SpanByteRecordDisposer>,
-        SpanByteAllocator<StoreFunctions<SpanByte, SpanByte, SpanByteComparer, SpanByteRecordDisposer>>
-    > {
+public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer> {
     private protected override Status Read(TKey Key,out SpanByteAndMemory Output){
         var KeyBytes = this.SerializeKey(ref Key);
         var Session = this.ClientSession;
