@@ -1,4 +1,4 @@
-﻿using Seamless;
+using Seamless;
 using Seamless.Collections;
 using Seamless.Store;
 using Tsavorite.core;
@@ -122,15 +122,15 @@ public abstract class SymmetricExceptTests<TKey>
 public sealed class ManagedSymmetricExcept : SymmetricExceptTests<int> {
     protected override int Key(int seed) => seed;
     protected override (ManagedHashSet<int> Set,IDisposable Store) CreateMemory() {
-        var store = Factory.Create<int>();
+        var store = Factory.Create().Create<int>();
         return (store.Create(),store);
     }
     protected override (ManagedHashSet<int> Set,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
-        var store = Factory.Create<int>(logDevice,objDevice,MemorySize:Const.MinObjectLogCapacity);
+        var store = Factory.Create(MemorySize:Const.MinObjectLogCapacity).Create<int>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override (ManagedHashSet<int> Set,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
-        var store = Factory.Create<int>(logDevice,objDevice,MemorySize:Const.MinObjectLogCapacity,MutableFraction:0);
+        var store = Factory.Create(MemorySize:Const.MinObjectLogCapacity,MutableFraction:0).Create<int>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override void ShiftReadOnly(IDisposable store) {

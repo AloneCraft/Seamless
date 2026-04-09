@@ -1,8 +1,11 @@
 ﻿using Seamless.Collections;
 namespace Seamless.Store;
 
-public abstract partial class UnmanagedCollectionStore<TKey,TValue>:CollectionStore<TKey,TValue,
-    PinnedSpanByte,SpanByteAndMemory,
+public abstract partial class UnmanagedCollectionStore<TKey,TValue>:CollectionStore<
+    TKey,
+    TValue,
+    PinnedSpanByte,
+    SpanByteAndMemory,
     StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,
     SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>>
     where TKey:unmanaged,IEquatable<TKey>

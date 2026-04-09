@@ -9,7 +9,7 @@ public class ManagedDictionary {
 
     [Fact, Trait("Category", Unit)]
     public void AddTryGet_Remove_動作する() {
-        using var store = Factory.Create<int, long>();
+        using var store = Factory.Create().Create<int, long>();
         using var subject = store.Create();
 
         subject.Add(1, 100);
@@ -23,7 +23,7 @@ public class ManagedDictionary {
 
     [Fact, Trait("Category", Unit)]
     public void Remove_KeyValuePair_値一致時のみ削除される() {
-        using var store = Factory.Create<int, int>();
+        using var store = Factory.Create().Create<int, int>();
         using var subject = store.Create();
 
         subject.Add(1, 10);
@@ -49,7 +49,7 @@ public class ManagedDictionary {
     }
 
     private static long Managed(int count) {
-        using var store = Factory.Create<int, int>();
+        using var store = Factory.Create().Create<int, int>(new ManagedTag(), new ManagedTag());
         using var subject = store.Create();
 
         var before = store.Address.TailAddress;
@@ -61,7 +61,7 @@ public class ManagedDictionary {
     }
 
     private static long Unmanaged(int count) {
-        using var store = Factory.CreateUnmanaged<int, int>();
+        using var store = Factory.Create().Create<int, int>();
         using var subject = store.Create();
 
         var before = store.Address.TailAddress;
@@ -74,7 +74,7 @@ public class ManagedDictionary {
 
     [Fact, Trait("Category", Unit)]
     public void CreateUnmanagedKey_AddTryGet_Remove_動作する() {
-        using var store = Factory.CreateUnmanagedKey<int, string>();
+        using var store = Factory.Create().Create<int, string>();
         using var subject = store.Create();
 
         subject.Add(1, "a");
@@ -88,7 +88,7 @@ public class ManagedDictionary {
 
     [Fact, Trait("Category", Unit)]
     public void CreateUnmanagedValue_AddTryGet_Remove_動作する() {
-        using var store = Factory.CreateUnmanagedValue<string, int>();
+        using var store = Factory.Create().Create<string, int>();
         using var subject = store.Create();
 
         subject.Add("a", 1);
@@ -105,7 +105,7 @@ public class ManagedDictionary {
         var folder = CreateFolder();
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder, "log.data"), deleteOnClose: true, capacity: TestMemorySize);
         using var objectLogDevice = Devices.CreateLogDevice(Path.Combine(folder + "_obj", "obj.data"), deleteOnClose: true, capacity: global::Seamless.Const.MinObjectLogCapacity);
-        using var store = Factory.CreateUnmanagedKey<int, string>(logDevice, objectLogDevice, MemorySize: TestMemorySize, CheckpointDir: folder);
+        using var store = Factory.Create(MemorySize: TestMemorySize, CheckpointDir: folder).Create<int, string>(logDevice,objectLogDevice);
         using var subject = store.Create();
 
         subject.Add(1, "a");
@@ -122,7 +122,7 @@ public class ManagedDictionary {
         var folder = CreateFolder();
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder, "log.data"), deleteOnClose: true, capacity: TestMemorySize);
         using var objectLogDevice = Devices.CreateLogDevice(Path.Combine(folder + "_obj", "obj.data"), deleteOnClose: true, capacity: global::Seamless.Const.MinObjectLogCapacity);
-        using var store = Factory.CreateUnmanagedValue<string, int>(logDevice, objectLogDevice, MemorySize: TestMemorySize, CheckpointDir: folder);
+        using var store = Factory.Create(MemorySize: TestMemorySize, CheckpointDir: folder).Create<string, int>(logDevice,objectLogDevice);
         using var subject = store.Create();
 
         subject.Add("a", 1);

@@ -9,58 +9,58 @@
     <Import_RootNamespace>Seamless.Collections</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\Collection.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\ISeamlessDictionary.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedCollection.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryUnmanagedDictionary.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\Serializer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageManagedDictionary.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageUnmanagedDictionary.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\ManagedCollectionStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\ManagedDictionaryStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryManagedDictionary.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedDictionary.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\DictionaryDebugView.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\Empty.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\Enumerator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\StorageManagedHashSet.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryManagedHashSet.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedHashSet.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\HashSetDebugView.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\ISet.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collection\TryAddResult.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Const.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\CounterIterator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyIterator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyValueIterator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ScanIteratorFunctions.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ValueIterator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Add.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Delete.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\IntersectWith.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Remove_KeyValuePair.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\Remove_TKey_TValue.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\SymmetricExceptWith.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore`2.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\MemoryUnmanagedDictionaryStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\StorageUnmanagedDictionaryStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedCollectionStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedDictionaryStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\StorageManagedDictionaryStore.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\Collection.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\ISeamlessDictionary.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\ManagedCollection.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\MemoryUnmanagedDictionary.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\Serializer.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\StorageManagedDictionary.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\StorageUnmanagedDictionary.cs" />
+    <Compile Include="..\Seamless.Collections\Store\ManagedCollectionStore.cs" />
+    <Compile Include="..\Seamless.Collections\Store\ManagedDictionaryStore.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\MemoryManagedDictionary.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\ManagedDictionary.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\DictionaryDebugView.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\Empty.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\Enumerator.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\StorageManagedHashSet.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\MemoryManagedHashSet.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\ManagedHashSet.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\HashSetDebugView.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\ISet.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\TryAddResult.cs" />
+    <Compile Include="..\Seamless.Collections\Const.cs" />
+    <Compile Include="..\Seamless.Collections\Devices\MemoryOnlyDevice.cs" />
+    <Compile Include="..\Seamless.Collections\ScanIteratorFunctions\CounterIterator.cs" />
+    <Compile Include="..\Seamless.Collections\ScanIteratorFunctions\KeyIterator.cs" />
+    <Compile Include="..\Seamless.Collections\ScanIteratorFunctions\KeyValueIterator.cs" />
+    <Compile Include="..\Seamless.Collections\ScanIteratorFunctions\ScanIteratorFunctions.cs" />
+    <Compile Include="..\Seamless.Collections\ScanIteratorFunctions\ValueIterator.cs" />
+    <Compile Include="..\Seamless.Collections\SessionFunctions\Add.cs" />
+    <Compile Include="..\Seamless.Collections\SessionFunctions\Delete.cs" />
+    <Compile Include="..\Seamless.Collections\SessionFunctions\IntersectWith.cs" />
+    <Compile Include="..\Seamless.Collections\SessionFunctions\Remove_KeyValuePair.cs" />
+    <Compile Include="..\Seamless.Collections\SessionFunctions\Remove_TKey_TValue.cs" />
+    <Compile Include="..\Seamless.Collections\SessionFunctions\SymmetricExceptWith.cs" />
+    <Compile Include="..\Seamless.Collections\Store\CollectionStore.cs" />
+    <Compile Include="..\Seamless.Collections\Store\CollectionStore`2.cs" />
+    <Compile Include="..\Seamless.Collections\Store\MemoryUnmanagedDictionaryStore.cs" />
+    <Compile Include="..\Seamless.Collections\Store\StorageUnmanagedDictionaryStore.cs" />
+    <Compile Include="..\Seamless.Collections\Store\UnmanagedCollectionStore.cs" />
+    <Compile Include="..\Seamless.Collections\Store\UnmanagedDictionaryStore.cs" />
+    <Compile Include="..\Seamless.Collections\Store\StorageManagedDictionaryStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\MemoryManagedDictionaryStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\StorageManagedHashSetStore.cs" />
+    <Compile Include="..\Seamless.Collections\Store\StorageManagedHashSetStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\MemoryManagedHashSetStore.cs" />
     <Compile Include="..\Seamless.Collections\Store\Factory.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="$(MSBuildThisFileDirectory)SessionFunctions\Document.txt" />
+    <Content Include="..\Seamless.Collections\SessionFunctions\Document.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="$(MSBuildThisFileDirectory)SessionFunctions\Managed\" />
-    <Folder Include="$(MSBuildThisFileDirectory)SessionFunctions\Unmanaged\" />
-    <Folder Include="$(MSBuildThisFileDirectory)Store\Managed\" />
-    <Folder Include="$(MSBuildThisFileDirectory)Store\Unmanaged\" />
+    <Folder Include="..\Seamless.Collections\SessionFunctions\Managed\" />
+    <Folder Include="..\Seamless.Collections\SessionFunctions\Unmanaged\" />
+    <Folder Include="..\Seamless.Collections\Store\Managed\" />
+    <Folder Include="..\Seamless.Collections\Store\Unmanaged\" />
   </ItemGroup>
 </Project>

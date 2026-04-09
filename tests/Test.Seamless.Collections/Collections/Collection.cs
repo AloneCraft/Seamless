@@ -19,7 +19,7 @@ public class Collection {
     }
     [Fact, Trait("Category",Unit)]
     public void EntryCount_追加後に増加する() {
-        using var store = Factory.Create<int>();
+        using var store = Factory.Create().Create<int>();
         using var writer = store.Create();
         using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
         writer.Add(1);
@@ -27,13 +27,13 @@ public class Collection {
     }
     [Fact, Trait("Category",Unit)]
     public void GetLongCount_空の場合ゼロを返す() {
-        using var store = Factory.Create<int>();
+        using var store = Factory.Create().Create<int>();
         using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
         Assert.Equal(0L,subject.GetLongCount());
     }
     [Fact, Trait("Category",Unit)]
     public void Count_GetLongCountと一致する() {
-        using var store = Factory.Create<int>();
+        using var store = Factory.Create().Create<int>();
         using var writer = store.Create();
         using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
         writer.Add(1);
@@ -42,7 +42,7 @@ public class Collection {
     }
     [Fact, Trait("Category",Unit)]
     public void Contains_存在するキー_真を返す() {
-        using var store = Factory.Create<int>();
+        using var store = Factory.Create().Create<int>();
         using var writer = store.Create();
         using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
         writer.Add(1);
@@ -50,13 +50,13 @@ public class Collection {
     }
     [Fact, Trait("Category",Unit)]
     public void Contains_存在しないキー_偽を返す() {
-        using var store = Factory.Create<int>();
+        using var store = Factory.Create().Create<int>();
         using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
         Assert.False(subject.Contains(99));
     }
     [Fact, Trait("Category",Unit)]
     public void Remove_存在するキー_真を返す() {
-        using var store = Factory.Create<int>();
+        using var store = Factory.Create().Create<int>();
         using var writer = store.Create();
         using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
         writer.Add(1);
@@ -64,7 +64,7 @@ public class Collection {
     }
     [Fact, Trait("Category",Unit)]
     public void Remove_存在しないキー_偽を返す() {
-        using var store = Factory.Create<int>();
+        using var store = Factory.Create().Create<int>();
         using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
         Assert.False(subject.Remove(99));
     }
@@ -73,7 +73,7 @@ public class Collection {
     // WouldOverflowMutable: MutableFraction=0 → MutableBytes=0 → if(MutableBytes<=0) MutableBytes=LogMemorySize の分岐
     [Fact, Trait("Category",Unit)]
     public void WouldOverflowMutable_MutableFractionZero_MutableBytesはLogMemorySize() {
-        using var store = Factory.Create<int>(MutableFraction: 0.0);
+        using var store = Factory.Create(MutableFraction: 0.0).Create<int>();
         using var set = store.Create();
         // MutableBytes = (long)(LogMemorySize * 0.0) = 0 → LogMemorySize で上書き → 溢れずに追加できる
         Assert.True(set.Add(1));
@@ -88,7 +88,7 @@ public class Collection {
         using var logDevice = new LocalStorageDevice(folder);
         using var objDevice = new LocalStorageDevice(folder+"_obj");
         // MutableFraction=0 でTsavorite内部が即時ReadOnly化しディスクへスピルさせる
-        using var store = Factory.Create<int>(LogDevice:logDevice,ObjectLogDevice:objDevice,MutableFraction:0);
+        using var store = Factory.Create(MutableFraction:0).Create<int>(logDevice,objDevice);
         // LogMemorySize=0 でWouldOverflowMutableを無効化し、ディスクスピルを妨げない
         using var set =store.Create();
         // デフォルト MemorySize(8192 bytes) を超えるデータを追加して先頭レコードをディスクへ追い出す
@@ -103,7 +103,7 @@ public class Collection {
     }
     [Fact, Trait("Category",Unit)]
     public void IsDisposed_Dictionary_Dispose前後() {
-        var store = Factory.Create<int,string>();
+        var store = Factory.Create().Create<int,string>();
         var dict = store.Create();
         Assert.False(dict.IsDisposed);
         dict.Dispose();
@@ -112,7 +112,7 @@ public class Collection {
     }
     [Fact, Trait("Category",Unit)]
     public void IsDisposed_HashSet_Dispose前後() {
-        var store = Factory.Create<int>();
+        var store = Factory.Create().Create<int>();
         var set = store.Create();
         Assert.False(set.IsDisposed);
         set.Dispose();
@@ -121,7 +121,7 @@ public class Collection {
     }
     [Fact, Trait("Category",Unit)]
     public void Dispose_Dictionary_二重呼び出し_冪等() {
-        var store = Factory.Create<int,string>();
+        var store = Factory.Create().Create<int,string>();
         var dict = store.Create();
         dict.Dispose();
         dict.Dispose();
@@ -130,7 +130,7 @@ public class Collection {
     }
     [Fact, Trait("Category",Unit)]
     public void Dispose_HashSet_二重呼び出し_冪等() {
-        var store = Factory.Create<int>();
+        var store = Factory.Create().Create<int>();
         var set = store.Create();
         set.Dispose();
         set.Dispose();
@@ -139,7 +139,7 @@ public class Collection {
     }
     [Fact, Trait("Category",Unit)]
     public void Dispose_TestCollection_二重呼び出し_Collection5早期リターン() {
-        var store = Factory.Create<int>();
+        var store = Factory.Create().Create<int>();
         var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
         subject.Dispose();
         subject.Dispose();

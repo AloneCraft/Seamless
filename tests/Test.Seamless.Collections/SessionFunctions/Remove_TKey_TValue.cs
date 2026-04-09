@@ -1,4 +1,4 @@
-﻿using Seamless;
+using Seamless;
 using Seamless.Collections;
 using Seamless.Store;
 using Tsavorite.core;
@@ -49,16 +49,16 @@ public abstract class RemoveTKeyTValueTests<TKey,TValue>
         Assert.Equal(Value(0),value);
     }
     [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification="<�ۗ���>")]
     public void NeedCopyUpdate() => this.DiskSpill();
     [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification="<�ۗ���>")]
     public void CopyUpdater() => this.DiskSpill();
     [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification="<�ۗ���>")]
     public void RMWCompletionCallback() => this.DiskSpill();
     [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification="<�ۗ���>")]
     public void GetRMWModifiedFieldInfo_TSourceLogRecord_PinnedSpanByte() => this.DiskSpill();
 
     private void FlushAndEvictPath() {
@@ -74,7 +74,7 @@ public abstract class RemoveTKeyTValueTests<TKey,TValue>
         Assert.Equal(Value(0),value);
     }
     [Fact,Trait("Category",Unit)]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification="<�ۗ���>")]
     public void ConvertOutputToHeap() => this.FlushAndEvictPath();
 }
 
@@ -82,15 +82,15 @@ public sealed class ManagedRemoveTKeyTValue : RemoveTKeyTValueTests<int,string> 
     protected override int Key(int seed) => seed;
     protected override string Value(int seed) => $"v{seed}";
     protected override (ISeamlessDictionary<int,string> Dict,IDisposable Store) CreateMemory() {
-        var store = Factory.Create<int,string>();
+        var store = Factory.Create().Create<int,string>();
         return (store.Create(),store);
     }
     protected override (ISeamlessDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
-        var store = Factory.Create<int,string>(logDevice,objDevice,MemorySize:Const.MinObjectLogCapacity);
+        var store = Factory.Create(MemorySize:Const.MinObjectLogCapacity).Create<int,string>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override (ISeamlessDictionary<int,string> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
-        var store = Factory.Create<int,string>(logDevice,objDevice,MemorySize:Const.MinObjectLogCapacity,MutableFraction:0);
+        var store = Factory.Create(MemorySize:Const.MinObjectLogCapacity,MutableFraction:0).Create<int,string>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store) =>
@@ -101,15 +101,15 @@ public sealed class UnmanagedRemoveTKeyTValue : RemoveTKeyTValueTests<int,long> 
     protected override int Key(int seed) => seed;
     protected override long Value(int seed) => (long)seed*100L;
     protected override (ISeamlessDictionary<int,long> Dict,IDisposable Store) CreateMemory() {
-        var store = Factory.CreateUnmanaged<int,long>();
+        var store = Factory.Create().Create<int,long>();
         return (store.Create(),store);
     }
     protected override (ISeamlessDictionary<int,long> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
-        var store = Factory.CreateUnmanaged<int,long>(logDevice,objDevice,MemorySize:Const.MinObjectLogCapacity);
+        var store = Factory.Create(MemorySize:Const.MinObjectLogCapacity).Create<int,long>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override (ISeamlessDictionary<int,long> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
-        var store = Factory.CreateUnmanaged<int,long>(logDevice,objDevice,MemorySize:Const.MinObjectLogCapacity,MutableFraction:0);
+        var store = Factory.Create(MemorySize:Const.MinObjectLogCapacity,MutableFraction:0).Create<int,long>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store) =>
