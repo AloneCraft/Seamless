@@ -1,4 +1,4 @@
-﻿using Seamless.Store;
+﻿using Seamless.Stores;
 namespace Seamless.Collections;
 
 public sealed class StorageUnmanagedDictionary<TKey,TValue>:UnmanagedDictionary<TKey,TValue,UnmanagedSerializer<TKey>,UnmanagedSerializer<TValue>>

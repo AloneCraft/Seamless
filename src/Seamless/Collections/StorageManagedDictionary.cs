@@ -1,4 +1,4 @@
-﻿using Seamless.Store;
+﻿using Seamless.Stores;
 namespace Seamless.Collections;
 public sealed class StorageManagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>:ManagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
     where TKey:IEquatable<TKey>where TValue:IEquatable<TValue>

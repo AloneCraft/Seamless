@@ -1,6 +1,6 @@
 ﻿using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
-using Seamless.Store;
+using Seamless.Stores;
 namespace Seamless.Collections;
 
 public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>

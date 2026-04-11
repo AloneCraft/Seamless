@@ -1,4 +1,4 @@
-﻿namespace Seamless.Store;
+﻿namespace Seamless.Stores;
 
 public abstract partial class ManagedCollectionStore<TKey,TValue> {
     private protected ManagedCollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir):

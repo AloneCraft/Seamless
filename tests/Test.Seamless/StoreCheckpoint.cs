@@ -1,4 +1,4 @@
-﻿using Seamless.Store;
+﻿using Seamless.Stores;
 using Tsavorite.core;
 namespace Test.Seamless.Collections;
 public class StoreCheckpoint{

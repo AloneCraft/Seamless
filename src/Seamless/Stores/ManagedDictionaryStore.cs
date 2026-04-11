@@ -1,6 +1,6 @@
 ﻿
 using Seamless.Collections;
-namespace Seamless.Store;
+namespace Seamless.Stores;
 
 public abstract class ManagedDictionaryStore<TKey,TValue,TKeySerializer,TValueSerializer>:ManagedCollectionStore<TKey,TValue>
     where TKey:IEquatable<TKey>

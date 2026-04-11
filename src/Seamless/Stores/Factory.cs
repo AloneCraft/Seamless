@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using Seamless.Collections;
-namespace Seamless.Store;
+namespace Seamless.Stores;
 
 /// <summary>Managed/Unmanaged オーバーロード解決用タグ。</summary>
 public readonly struct ManagedTag;

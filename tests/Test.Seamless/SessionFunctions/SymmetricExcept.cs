@@ -1,6 +1,6 @@
 ﻿using Seamless;
 using Seamless.Collections;
-using Seamless.Store;
+using Seamless.Stores;
 using Tsavorite.core;
 namespace Test.Seamless.SessionFunctions;
 

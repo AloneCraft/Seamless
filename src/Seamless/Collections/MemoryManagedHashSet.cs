@@ -1,4 +1,4 @@
-﻿using Seamless.Store;
+﻿using Seamless.Stores;
 namespace Seamless.Collections;
 public sealed class MemoryManagedHashSet<T>:ManagedHashSet<T>where T:IEquatable<T>{
     internal MemoryManagedHashSet(MemoryManagedHashSetStore<T>CollectionStore):base(CollectionStore){}

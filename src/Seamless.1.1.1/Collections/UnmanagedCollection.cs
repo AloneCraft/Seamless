@@ -1,8 +1,10 @@
-﻿using System.Diagnostics;
+﻿using System.Collections;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
-using Seamless.Store;
+using Seamless.Stores;
 namespace Seamless.Collections;
 
 public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>:Collection<
@@ -20,7 +22,56 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue>
     where TKeySerializer:ISerializer<TKey>
-    where TValueSerializer:ISerializer<TValue> {
+    where TValueSerializer:ISerializer<TValue>{
+    [StructLayout(LayoutKind.Auto)]
+    public struct Enumerator<TIterator,T>(
+        ClientSession<
+            TKey,
+            TValue,
+            EqualityEmpty,
+            TValue,
+            EqualityEmpty,
+            UnmanagedRead<TKey,TValue>,
+            StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,TValue>>,
+            BlittableAllocator<TKey,TValue,StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,TValue>>>> session,
+        TIterator iterator):IEnumerator<T>
+        where TIterator:ScanIteratorFunctions<T,TKey,TValue> {
+        private TIterator Iterator = iterator;
+        private long Cursor = 0, Count;
+        private int Index = -1;
+        private bool _done;
+        public T Current => this.Iterator.Chunk[this.Index];
+        object? IEnumerator.Current => this.Current;
+        public bool MoveNext() {
+            if(++this.Index<this.Count) {
+                return true;
+            } 
+            if(this._done) {
+                this.Index = -1;
+                return false;
+            }
+            this.Iterator.Count = 0;
+            var result = session.IterateLookup(ref this.Iterator,ref this.Cursor,resetCursor: false);
+            var count = this.Iterator.Count;
+            this.Count = count;
+            if(!result)
+                this._done = true;
+            if(count>0) {
+                this.Index = 0;
+                return true;
+            }
+            this.Index = -1;
+            return false;
+        }
+        public void Reset() {
+            this.Cursor = 0;
+            this.Count = 0;
+            this.Index = -1;
+            this._done = false;
+        }
+        public void Dispose() {
+        }
+    }
 
     //protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> collectionStore):base(collectionStore) {
     //}

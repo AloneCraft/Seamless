@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
-using Seamless.Store;
+using Seamless.Stores;
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。

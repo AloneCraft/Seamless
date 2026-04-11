@@ -1,7 +1,7 @@
 ﻿using Seamless.SessionFunctions;
 using Seamless.ScanIteratorFunctions;
 using System.Diagnostics.CodeAnalysis;
-using Seamless.Store;
+using Seamless.Stores;
 namespace Seamless.Collections;
 public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer> {
 	private ClientSession<SpanByte,SpanByte,EqualityEmpty,SpanByteAndMemory,EqualityEmpty,ManagedRemove_TKey_TValue,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
