@@ -141,7 +141,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>
         using var sh = TStrategy.CreateMemoryStore();
         using var dict = sh.NewDict();
         dict.Add(TStrategy.K(1), TStrategy.V(1));
-        dict.Add(TStrategy.K(2), TStrategy.V(2));
+        dict.Add(TStrategy.K(10), TStrategy.V(10));
         var array = new KeyValuePair<TKey, TValue>[2];
         dict.CopyTo(array, 0);
         Assert.Equal(2, array.Length);

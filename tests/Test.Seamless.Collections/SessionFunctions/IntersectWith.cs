@@ -112,15 +112,19 @@ public sealed class ManagedIntersectWith : IntersectWithTests<int> {
 /// UnmanagedHashSet.IntersectWith のテスト。メモリのみ（ストレージバリアントなし）。
 /// </summary>
 public sealed class UnmanagedIntersectWith {
-    private static UnmanagedHashSet<int> CreateSet() {
+    private static (UnmanagedHashSet<int> Set,IDisposable Store) CreateSet() {
         var store = Factory.Create().CreateUnmanagedHashSet<int>();
-        return store.Create();
+        return (store.Create(),store);
     }
 
     [Fact,Trait("Category",Unit)]
     public void IntersectWith_共通要素のみ残る() {
-        using var setA = CreateSet();
-        using var setB = CreateSet();
+        var (setA,storeA) = CreateSet();
+        var (setB,storeB) = CreateSet();
+        using var _storeA = storeA;
+        using var _storeB = storeB;
+        using var _setA = setA;
+        using var _setB = setB;
         setA.Add(1); setA.Add(2); setA.Add(3);
         setB.Add(2); setB.Add(3); setB.Add(4);
         setA.IntersectWith(setB);
@@ -132,8 +136,12 @@ public sealed class UnmanagedIntersectWith {
 
     [Fact,Trait("Category",Unit)]
     public void IntersectWith_空集合_全削除() {
-        using var setA = CreateSet();
-        using var setB = CreateSet();
+        var (setA,storeA) = CreateSet();
+        var (setB,storeB) = CreateSet();
+        using var _storeA = storeA;
+        using var _storeB = storeB;
+        using var _setA = setA;
+        using var _setB = setB;
         setA.Add(1); setA.Add(2);
         setA.IntersectWith(setB);
         Assert.Equal(0,setA.Count);
@@ -141,8 +149,12 @@ public sealed class UnmanagedIntersectWith {
 
     [Fact,Trait("Category",Unit)]
     public void IntersectWith_自身が空_変化なし() {
-        using var setA = CreateSet();
-        using var setB = CreateSet();
+        var (setA,storeA) = CreateSet();
+        var (setB,storeB) = CreateSet();
+        using var _storeA = storeA;
+        using var _storeB = storeB;
+        using var _setA = setA;
+        using var _setB = setB;
         setB.Add(1);
         setA.IntersectWith(setB);
         Assert.Equal(0,setA.Count);
@@ -150,14 +162,20 @@ public sealed class UnmanagedIntersectWith {
 
     [Fact,Trait("Category",Unit)]
     public void IntersectWith_null_例外() {
-        using var set = CreateSet();
+        var (set,store) = CreateSet();
+        using var _store = store;
+        using var _set = set;
         Assert.Throws<ArgumentNullException>(() => set.IntersectWith(null!));
     }
 
     [Fact,Trait("Category",Unit)]
     public void IntersectWith_完全一致_全残る() {
-        using var setA = CreateSet();
-        using var setB = CreateSet();
+        var (setA,storeA) = CreateSet();
+        var (setB,storeB) = CreateSet();
+        using var _storeA = storeA;
+        using var _storeB = storeB;
+        using var _setA = setA;
+        using var _setB = setB;
         setA.Add(1); setA.Add(2);
         setB.Add(1); setB.Add(2);
         setA.IntersectWith(setB);
