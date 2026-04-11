@@ -10,4 +10,8 @@
     <PackageReference Include="Microsoft.Garnet" Version="2.0.0-beta.3" />
   </ItemGroup>
 
+  <Import Project="..\..\tests\Test.Seamless\Test.Seamless.projitems" Label="Shared" />
+
+  <Import Project="..\..\SharedProject1\SharedProject1.projitems" Label="Shared" />
+
 </Project>
