@@ -1,15 +1,15 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/Seamless.Collections.1.1.1/Seamless.Collections.1.1.1.csproj" />
-    <Project Path="src/Seamless.Collections.2.0beta3/Seamless.Collections.2.0beta3.csproj" />
-    <Project Path="src/Seamless.Collections/Seamless.Collections.shproj" Id="d44340ba-6972-46d3-a092-3ccb4c79df64" />
+    <Project Path="src/Seamless.Collections.1.1.1/Seamless.1.1.1.csproj" />
+    <Project Path="src/Seamless.Collections.2.0beta3/Seamless.2.0beta3.csproj" />
+    <Project Path="src/Seamless.Collections/Seamless.shproj" Id="d44340ba-6972-46d3-a092-3ccb4c79df64" />
     <Project Path="src/Seamless.Data/Seamless.Data.csproj" Id="aef61b8a-9d5b-4de7-98c4-29679ad643eb" />
     <Project Path="src/Seamless.Reasoning/Seamless.Reasoning.csproj" />
   </Folder>
   <Folder Name="/test/">
-    <Project Path="tests/Test.Seamless.Collections.1.1.1/Test.Seamless.Collections.1.1.1.csproj" />
-    <Project Path="tests/Test.Seamless.Collections.2.0beta3/Test.Seamless.Collections.2.0beta3.csproj" />
-    <Project Path="tests/Test.Seamless.Collections/Test.Seamless.Collections.shproj" Id="f485746b-4005-416a-8e23-c2a691d7f41d" />
+    <Project Path="tests/Test.Seamless.Collections.1.1.1/Test.Seamless.1.1.1.csproj" />
+    <Project Path="tests/Test.Seamless.Collections.2.0beta3/Test.Seamless.2.0beta3.csproj" />
+    <Project Path="tests/Test.Seamless.Collections/Test.Seamless.shproj" Id="f485746b-4005-416a-8e23-c2a691d7f41d" />
   </Folder>
   <Folder Name="/新しいフォルダー1/">
     <File Path="ReadMe.txt" />
