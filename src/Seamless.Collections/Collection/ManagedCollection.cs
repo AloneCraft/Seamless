@@ -6,8 +6,8 @@ public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TV
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
 
-    private protected override ReadOnlySpan<byte> SerializeKey(ref TKey key) =>TKeySerializer.Serialize(ref key);
-    private protected override ReadOnlySpan<byte> SerializeValue(ref TValue value) => TValueSerializer.Serialize(ref value);
+    private protected ReadOnlySpan<byte> SerializeKey(ref TKey key) =>TKeySerializer.Serialize(ref key);
+    private protected ReadOnlySpan<byte> SerializeValue(ref TValue value) => TValueSerializer.Serialize(ref value);
 
     private protected ManagedCollection(ManagedCollectionStore<TKey, TValue> CollectionStore) : base(CollectionStore) {
         //this.InitializeAddClientSession();

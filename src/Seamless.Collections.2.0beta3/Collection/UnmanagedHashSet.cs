@@ -16,15 +16,21 @@ public abstract partial class UnmanagedHashSet<TKey>:UnmanagedCollection<TKey,Eq
         this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith>(new());
         this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith>(new());
     }
-    public UnmanagedEnumerator<
+    public UnmanagedCollection<
         TKey,
         EqualityEmpty,
+        UnmanagedSerializer<TKey>,
+        UnmanagedSerializer<EqualityEmpty>
+    >.Enumerator<
         KeyIterator,
         TKey
     > GetEnumerator()=>new(this.ReadClientSession,new());
-    internal UnmanagedEnumerator<
+    internal UnmanagedCollection<
         TKey,
         EqualityEmpty,
+        UnmanagedSerializer<TKey>,
+        UnmanagedSerializer<EqualityEmpty>
+    >.Enumerator<
         SpanByteKeyIterator,
         byte[]
     > GetSpanByteEnumerator()=>new(this.ReadClientSession,new());

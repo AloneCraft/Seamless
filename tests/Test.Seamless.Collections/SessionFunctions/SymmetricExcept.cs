@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Store;
 using Tsavorite.core;
@@ -139,4 +139,79 @@ public sealed class ManagedSymmetricExcept : SymmetricExceptTests<int> {
     }
     protected override void FlushAndEvict(IDisposable store) =>
         ((ManagedHashSetStore<int>)store).Store.Log.FlushAndEvict(true);
+}
+
+/// <summary>
+/// UnmanagedHashSet.SymmetricExceptWith のテスト。メモリのみ（ストレージバリアントなし）。
+/// </summary>
+public sealed class UnmanagedSymmetricExcept {
+    private static UnmanagedHashSet<int> CreateSet() {
+        var store = Factory.Create().CreateUnmanagedHashSet<int>();
+        return store.Create();
+    }
+
+    [Fact,Trait("Category",Unit)]
+    public void SymmetricExceptWith_対称差のみ残る() {
+        using var setA = CreateSet();
+        using var setB = CreateSet();
+        setA.Add(1); setA.Add(2); setA.Add(3);
+        setB.Add(2); setB.Add(3); setB.Add(4);
+        setA.SymmetricExceptWith(setB);
+        Assert.True(setA.Contains(1));
+        Assert.False(setA.Contains(2));
+        Assert.False(setA.Contains(3));
+        Assert.True(setA.Contains(4));
+    }
+
+    [Fact,Trait("Category",Unit)]
+    public void SymmetricExceptWith_空集合_変化なし() {
+        using var setA = CreateSet();
+        using var setB = CreateSet();
+        setA.Add(1); setA.Add(2);
+        setA.SymmetricExceptWith(setB);
+        Assert.Equal(2,setA.Count);
+        Assert.True(setA.Contains(1));
+        Assert.True(setA.Contains(2));
+    }
+
+    [Fact,Trait("Category",Unit)]
+    public void SymmetricExceptWith_自身が空_他方の全要素追加() {
+        using var setA = CreateSet();
+        using var setB = CreateSet();
+        setB.Add(1); setB.Add(2);
+        setA.SymmetricExceptWith(setB);
+        Assert.Equal(2,setA.Count);
+        Assert.True(setA.Contains(1));
+        Assert.True(setA.Contains(2));
+    }
+
+    [Fact,Trait("Category",Unit)]
+    public void SymmetricExceptWith_完全一致_空になる() {
+        using var setA = CreateSet();
+        using var setB = CreateSet();
+        setA.Add(1); setA.Add(2);
+        setB.Add(1); setB.Add(2);
+        setA.SymmetricExceptWith(setB);
+        Assert.Equal(0,setA.Count);
+    }
+
+    [Fact,Trait("Category",Unit)]
+    public void SymmetricExceptWith_null_例外() {
+        using var set = CreateSet();
+        Assert.Throws<ArgumentNullException>(() => set.SymmetricExceptWith(null!));
+    }
+
+    [Fact,Trait("Category",Unit)]
+    public void SymmetricExceptWith_共通要素なし_両方の全要素() {
+        using var setA = CreateSet();
+        using var setB = CreateSet();
+        setA.Add(1); setA.Add(2);
+        setB.Add(3); setB.Add(4);
+        setA.SymmetricExceptWith(setB);
+        Assert.Equal(4,setA.Count);
+        Assert.True(setA.Contains(1));
+        Assert.True(setA.Contains(2));
+        Assert.True(setA.Contains(3));
+        Assert.True(setA.Contains(4));
+    }
 }

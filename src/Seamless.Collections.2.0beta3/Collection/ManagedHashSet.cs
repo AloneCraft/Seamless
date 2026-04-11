@@ -19,40 +19,21 @@ public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpt
 		this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith>(new());
 		this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith>(new());
 	}
-	public ManagedEnumerator<
+	public ManagedCollection<
 		T,
 		EqualityEmpty,
-		ManagedRead,
-		StoreFunctions<
-			SpanByteComparer,
-			DefaultRecordDisposer
-		>,
-		SpanByteAllocator<
-			StoreFunctions<
-				SpanByteComparer,
-				DefaultRecordDisposer
-			>
-		>,
-		KeyIterator<
-			T,
-			ManagedSerializer<T>
-		>,
+		ManagedSerializer<T>,
+		ManagedSerializer<EqualityEmpty>
+	>.Enumerator<
+		KeyIterator<T,ManagedSerializer<T>>,
 		T
 	> GetEnumerator()=>new (this.ReadClientSession,new());
-	internal ManagedEnumerator<
+	internal ManagedCollection<
 		T,
 		EqualityEmpty,
-		ManagedRead,
-		StoreFunctions<
-			SpanByteComparer,
-			DefaultRecordDisposer
-		>,
-		SpanByteAllocator<
-			StoreFunctions<
-				SpanByteComparer,
-				DefaultRecordDisposer
-			>
-		>,
+		ManagedSerializer<T>,
+		ManagedSerializer<EqualityEmpty>
+	>.Enumerator<
 		SpanByteKeyIterator,
 		byte[]
 	> GetSpanByteEnumerator()=>new (this.ReadClientSession,new());

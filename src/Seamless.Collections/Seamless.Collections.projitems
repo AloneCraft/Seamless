@@ -13,7 +13,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedEnumerator.ctor.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryUnmanagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedDictionaryDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedHashSetDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ScanIteratorFunctions.impl.cs" />

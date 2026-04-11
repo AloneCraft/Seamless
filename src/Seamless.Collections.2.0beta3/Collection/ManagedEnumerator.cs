@@ -1,20 +1,17 @@
-﻿using System.Runtime.InteropServices;
-using Seamless.ScanIteratorFunctions;
+﻿using Seamless.ScanIteratorFunctions;
+using Seamless.SessionFunctions;
 namespace Seamless.Collections;
-public partial struct ManagedEnumerator<TKey, TValue,TReadFunctions,TStoreFunctions,TAllocator,TIterator,T>(
-    ClientSession<
-        FixedSpanByteKey,//TKey
-        EqualityEmpty,//TInput
-        SpanByteAndMemory,//TOutput
-        EqualityEmpty,//TContext
-        TReadFunctions,
-        TStoreFunctions,
-        TAllocator
-    > Session,
-    TIterator Iterator)
-    where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>
-    where TReadFunctions : ISessionFunctions<EqualityEmpty, SpanByteAndMemory, EqualityEmpty>
-    where TStoreFunctions : IStoreFunctions
-    where TAllocator : IAllocator<TStoreFunctions>
-    where TIterator : ScanIteratorFunctions<T>;
+public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer> {
+    public partial struct Enumerator<TIterator,T>(
+        ClientSession<
+            FixedSpanByteKey,//TKey
+            EqualityEmpty,//TInput
+            SpanByteAndMemory,//TOutput
+            EqualityEmpty,//TContext
+            ManagedRead,
+            ManagedStoreFunctions,
+            ManagedAllocator
+        > Session,
+        TIterator Iterator)
+        where TIterator : ScanIteratorFunctions<T>;
+}
