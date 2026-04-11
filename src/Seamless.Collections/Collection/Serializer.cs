@@ -12,11 +12,17 @@ public interface ISerializer<T> {
 
 public readonly struct ManagedSerializer<T> : ISerializer<T> {
     public static ReadOnlySpan<byte> Serialize(ref T value) => MemoryPackSerializer.Serialize(value);
-    public static T Deserialize(ReadOnlySpan<byte> bytes) => MemoryPackSerializer.Deserialize<T>(bytes)!;
+    public static T Deserialize(ReadOnlySpan<byte> bytes) {
+        if (bytes.IsEmpty) return default!;
+        return MemoryPackSerializer.Deserialize<T>(bytes)!;
+    }
 }
 
 public readonly struct UnmanagedSerializer<T> : ISerializer<T> where T : unmanaged {
     public static ReadOnlySpan<byte> Serialize(ref T value) =>
         MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<T, byte>(ref value), Unsafe.SizeOf<T>());
-    public static T Deserialize(ReadOnlySpan<byte> bytes) => MemoryMarshal.Read<T>(bytes);
+    public static T Deserialize(ReadOnlySpan<byte> bytes) {
+        if (bytes.IsEmpty) return default;
+        return MemoryMarshal.Read<T>(bytes);
+    }
 }

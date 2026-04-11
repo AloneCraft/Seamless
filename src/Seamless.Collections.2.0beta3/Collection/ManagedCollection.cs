@@ -45,7 +45,7 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         return Status;
     }
 
-    private protected override TValue ConvertOutput(ref TValue output) => output;
+    //private protected override TValue ConvertOutput(ref TValue output) => output;
 
     public override long GetLongCount() {
         var Iterator = new CounterIterator();

@@ -34,7 +34,7 @@ public abstract partial class Collection<
     private protected ClientSession<FixedSpanByteKey,EqualityEmpty,TReadOutput,EqualityEmpty,TReadFunctions,TStoreFunctions,TAllocator> ReadClientSession { get; private set; }
     private protected ClientSession<FixedSpanByteKey,TAddInput,bool,EqualityEmpty,TAddFunctions,TStoreFunctions,TAllocator> AddClientSession { get; private set; }
     private protected ClientSession<FixedSpanByteKey,EqualityEmpty,bool,EqualityEmpty,TDeleteFunctions,TStoreFunctions,TAllocator> DeleteClientSession { get; private set; }
-    private protected readonly CollectionStore<TKey, TValue,TStoreFunctions, TAllocator> CollectionStore;
+    private readonly CollectionStore<TKey, TValue,TStoreFunctions, TAllocator> CollectionStore;
     protected Collection(CollectionStore<TKey, TValue, TStoreFunctions, TAllocator> CollectionStore) {
         this.CollectionStore = CollectionStore;
         var Store = CollectionStore.Store;
@@ -82,7 +82,7 @@ public abstract partial class Collection<
         }
         return Status;
     }
-    private protected abstract TValue ConvertOutput(ref TValue output);
+    //private protected abstract TValue ConvertOutput(ref TValue output);
 
     public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
         var Status = this.Read(Key,out Value);

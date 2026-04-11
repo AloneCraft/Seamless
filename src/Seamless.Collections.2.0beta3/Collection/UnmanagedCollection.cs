@@ -53,7 +53,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     }
 
 
-    private protected override TValue ConvertOutput(ref TValue output) => output;
+    //private protected override TValue ConvertOutput(ref TValue output) => output;
 
     private protected override Status Read(TKey Key,out TValue Output) {
         var Session = this.ReadClientSession;

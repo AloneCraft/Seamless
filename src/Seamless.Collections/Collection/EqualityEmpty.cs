@@ -1,5 +1,5 @@
 ﻿namespace Seamless.Collections;
-public readonly struct EqualityEmpty:IEquatable<EqualityEmpty> {
+public readonly struct EqualityEmpty:IEquatable<EqualityEmpty>{
 	/// <summary>
 	/// Default
 	/// </summary>
