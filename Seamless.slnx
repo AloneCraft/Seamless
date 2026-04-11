@@ -1,4 +1,4 @@
-<Solution>
+﻿<Solution>
   <Folder Name="/src/">
     <Project Path="src/Seamless.1.1.1/Seamless.1.1.1.csproj" />
     <Project Path="src/Seamless.2.0beta3/Seamless.2.0beta3.csproj" />
