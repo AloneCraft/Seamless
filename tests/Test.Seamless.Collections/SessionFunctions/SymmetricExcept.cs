@@ -145,15 +145,19 @@ public sealed class ManagedSymmetricExcept : SymmetricExceptTests<int> {
 /// UnmanagedHashSet.SymmetricExceptWith のテスト。メモリのみ（ストレージバリアントなし）。
 /// </summary>
 public sealed class UnmanagedSymmetricExcept {
-    private static UnmanagedHashSet<int> CreateSet() {
+    private static (UnmanagedHashSet<int> Set,IDisposable Store) CreateSet() {
         var store = Factory.Create().CreateUnmanagedHashSet<int>();
-        return store.Create();
+        return (store.Create(),store);
     }
 
     [Fact,Trait("Category",Unit)]
     public void SymmetricExceptWith_対称差のみ残る() {
-        using var setA = CreateSet();
-        using var setB = CreateSet();
+        var (setA,storeA) = CreateSet();
+        var (setB,storeB) = CreateSet();
+        using var _storeA = storeA;
+        using var _storeB = storeB;
+        using var _setA = setA;
+        using var _setB = setB;
         setA.Add(1); setA.Add(2); setA.Add(3);
         setB.Add(2); setB.Add(3); setB.Add(4);
         setA.SymmetricExceptWith(setB);
@@ -165,8 +169,12 @@ public sealed class UnmanagedSymmetricExcept {
 
     [Fact,Trait("Category",Unit)]
     public void SymmetricExceptWith_空集合_変化なし() {
-        using var setA = CreateSet();
-        using var setB = CreateSet();
+        var (setA,storeA) = CreateSet();
+        var (setB,storeB) = CreateSet();
+        using var _storeA = storeA;
+        using var _storeB = storeB;
+        using var _setA = setA;
+        using var _setB = setB;
         setA.Add(1); setA.Add(2);
         setA.SymmetricExceptWith(setB);
         Assert.Equal(2,setA.Count);
@@ -176,8 +184,12 @@ public sealed class UnmanagedSymmetricExcept {
 
     [Fact,Trait("Category",Unit)]
     public void SymmetricExceptWith_自身が空_他方の全要素追加() {
-        using var setA = CreateSet();
-        using var setB = CreateSet();
+        var (setA,storeA) = CreateSet();
+        var (setB,storeB) = CreateSet();
+        using var _storeA = storeA;
+        using var _storeB = storeB;
+        using var _setA = setA;
+        using var _setB = setB;
         setB.Add(1); setB.Add(2);
         setA.SymmetricExceptWith(setB);
         Assert.Equal(2,setA.Count);
@@ -187,8 +199,12 @@ public sealed class UnmanagedSymmetricExcept {
 
     [Fact,Trait("Category",Unit)]
     public void SymmetricExceptWith_完全一致_空になる() {
-        using var setA = CreateSet();
-        using var setB = CreateSet();
+        var (setA,storeA) = CreateSet();
+        var (setB,storeB) = CreateSet();
+        using var _storeA = storeA;
+        using var _storeB = storeB;
+        using var _setA = setA;
+        using var _setB = setB;
         setA.Add(1); setA.Add(2);
         setB.Add(1); setB.Add(2);
         setA.SymmetricExceptWith(setB);
@@ -197,14 +213,20 @@ public sealed class UnmanagedSymmetricExcept {
 
     [Fact,Trait("Category",Unit)]
     public void SymmetricExceptWith_null_例外() {
-        using var set = CreateSet();
+        var (set,store) = CreateSet();
+        using var _store = store;
+        using var _set = set;
         Assert.Throws<ArgumentNullException>(() => set.SymmetricExceptWith(null!));
     }
 
     [Fact,Trait("Category",Unit)]
     public void SymmetricExceptWith_共通要素なし_両方の全要素() {
-        using var setA = CreateSet();
-        using var setB = CreateSet();
+        var (setA,storeA) = CreateSet();
+        var (setB,storeB) = CreateSet();
+        using var _storeA = storeA;
+        using var _storeB = storeB;
+        using var _setA = setA;
+        using var _setB = setB;
         setA.Add(1); setA.Add(2);
         setB.Add(3); setB.Add(4);
         setA.SymmetricExceptWith(setB);
