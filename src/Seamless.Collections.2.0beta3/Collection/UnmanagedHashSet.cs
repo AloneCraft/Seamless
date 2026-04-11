@@ -42,12 +42,8 @@ public abstract partial class UnmanagedHashSet<TKey>:UnmanagedCollection<TKey,Eq
         var Enumerator = this.GetSpanByteEnumerator();
         while(Enumerator.MoveNext()) {
             var KeyBytes = Enumerator.Current;
-            if(other.ContainsKey(KeyBytes)) {
-                continue;
-            }
-            if(this.WouldOverflowMutable(KeyBytes.Length,1)) {
-                throw this.ThrowLogFull();
-            }
+            if(other.ContainsKey(KeyBytes)) continue;
+            if(this.WouldOverflowMutable(KeyBytes.Length,1)) throw this.ThrowLogFull();
             var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
             var Status = IntersectWith_ClientSession.BasicContext.RMW(FixedKey,ref Input,ref Output);
         }

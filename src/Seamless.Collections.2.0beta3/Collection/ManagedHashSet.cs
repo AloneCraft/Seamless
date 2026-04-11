@@ -11,8 +11,8 @@ namespace Seamless.Collections;
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
 public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpty,ManagedSerializer<T>,ManagedSerializer<EqualityEmpty>>, ISet<T> where T : IEquatable<T>{
-	private readonly ClientSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith          ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>IntersectWith_ClientSession;
-	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith    ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>SymmetricExceptWith_ClientSession;
+	private readonly ClientSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> IntersectWith_ClientSession;
+	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> SymmetricExceptWith_ClientSession;
 	internal ManagedHashSet(ManagedCollectionStore<T,EqualityEmpty> CollectionStore):base(CollectionStore){
 		//var empty = EqualityEmpty.Default;
 		var Store=CollectionStore.Store;
@@ -45,12 +45,8 @@ public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpt
 		var Enumerator = this.GetSpanByteEnumerator();
 		while(Enumerator.MoveNext()) {
 			var KeyBytes = Enumerator.Current;
-			if(other.ContainsKey(KeyBytes)) {
-				continue;
-			}
-			if(this.WouldOverflowMutable(KeyBytes.Length,1)) {
-				throw this.ThrowLogFull();
-			}
+			if(other.ContainsKey(KeyBytes)) continue;
+			if(this.WouldOverflowMutable(KeyBytes.Length,1)) throw this.ThrowLogFull();
 			var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
 			var Status = IntersectWith_ClientSession.BasicContext.RMW(FixedKey,ref Input,ref Output);
 		}

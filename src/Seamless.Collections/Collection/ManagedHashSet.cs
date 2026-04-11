@@ -118,10 +118,10 @@ public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpt
     private bool disposed;
 	protected override void Dispose(bool disposing) {
         if(this.disposed) return;
-        if(disposing){
-            this.IntersectWith_ClientSession.Dispose();
-            this.SymmetricExceptWith_ClientSession.Dispose();
-        }else{
+		if(disposing){
+			this.IntersectWith_ClientSession.Dispose();
+			this.SymmetricExceptWith_ClientSession.Dispose();
+		}else{
 
         }
         this.disposed=true;
