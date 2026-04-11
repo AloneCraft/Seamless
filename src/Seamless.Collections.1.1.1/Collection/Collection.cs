@@ -27,7 +27,7 @@ public abstract partial class Collection<
     private protected ClientSession<TSessionKey,TSessionValue,EqualityEmpty, TReadOutput, EqualityEmpty,TReadFunctions,TStoreFunctions,TAllocator> ReadClientSession { get; private set; }
     private protected ClientSession<TSessionKey,TSessionValue,TAddInput, bool, EqualityEmpty,TAddFunctions,TStoreFunctions,TAllocator> AddClientSession { get; private set; }
     private protected ClientSession<TSessionKey,TSessionValue, EqualityEmpty, bool, EqualityEmpty,TDeleteFunctions,TStoreFunctions,TAllocator> DeleteClientSession { get; private set; }
-    private protected readonly CollectionStore<TKey, TValue, TSessionKey, TSessionValue, TStoreFunctions, TAllocator> CollectionStore;
+    private readonly CollectionStore<TKey, TValue, TSessionKey, TSessionValue, TStoreFunctions, TAllocator> CollectionStore;
     protected Collection(CollectionStore<TKey,TValue,TSessionKey,TSessionValue,TStoreFunctions,TAllocator> CollectionStore) {
         this.CollectionStore = CollectionStore;
         var Store = CollectionStore.Store;

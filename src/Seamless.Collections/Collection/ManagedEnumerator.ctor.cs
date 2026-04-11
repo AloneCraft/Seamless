@@ -3,13 +3,10 @@ using Seamless.ScanIteratorFunctions;
 using Tsavorite.core;
 using Garnet.common;
 namespace Seamless.Collections;
-public partial struct ManagedEnumerator<TKey, TValue,TReadFunctions,TStoreFunctions,TAllocator,TIterator,T>(
-    ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,TReadFunctions,TStoreFunctions,TAllocator> Session,
-    TIterator Iterator)
-    where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>
-    where TReadFunctions : ISessionFunctions<PinnedSpanByte, SpanByteAndMemory, EqualityEmpty>
-    where TStoreFunctions : IStoreFunctions
-    where TAllocator : IAllocator<TStoreFunctions>
-    where TIterator : ScanIteratorFunctions<T>;
+public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer> {
+    public partial struct Enumerator<TIterator,T>(
+        ClientSession<FixedSpanByteKey,EqualityEmpty,SpanByteAndMemory,EqualityEmpty,ManagedRead,ManagedStoreFunctions,ManagedAllocator> Session,
+        TIterator Iterator)
+        where TIterator : ScanIteratorFunctions<T>;
+}
 #endif

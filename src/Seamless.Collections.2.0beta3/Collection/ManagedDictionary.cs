@@ -40,58 +40,23 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
         value=default;
         return false;
     }
-    public ManagedEnumerator<
+    public ManagedCollection<
         TKey,
         TValue,
-        ManagedRead,
-        StoreFunctions<
-            SpanByteComparer,
-            DefaultRecordDisposer
-        >,
-        SpanByteAllocator<
-            StoreFunctions<
-                SpanByteComparer,
-                DefaultRecordDisposer
-            >
-        >,
-        KeyValueIterator<
+        TKeySerializer,
+        TValueSerializer
+    >.Enumerator<
+        KeyValueIterator<TKey,TValue,TKeySerializer,TValueSerializer>,
+        KeyValuePair<TKey,TValue>
+    > GetEnumerator()=>new (this.ReadClientSession,new());
+    private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
+        var Collection = new List<T>();
+        using var Enumerator = new ManagedCollection<
             TKey,
             TValue,
             TKeySerializer,
             TValueSerializer
-        >,
-        KeyValuePair<
-            TKey,
-            TValue
-        >
-    > GetEnumerator()=>new (this.ReadClientSession,new());
-    private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
-        var Collection = new List<T>();
-        using var Enumerator = new ManagedEnumerator<
-            TKey,
-            TValue,
-            ManagedRead,
-            StoreFunctions<
-                SpanByteComparer,
-                DefaultRecordDisposer
-            >,
-            SpanByteAllocator<
-                StoreFunctions<
-                    SpanByteComparer,
-                    DefaultRecordDisposer
-                >
-            >,
-            TIterator,
-            T
-        >(this.ReadClientSession, Iterator);
-        ClientSession<
-            FixedSpanByteKey,//Key
-            EqualityEmpty,//Input
-            SpanByteAndMemory,//Output
-            EqualityEmpty,//Context
-            ManagedRead,
-            ManagedStoreFunctions,
-            ManagedAllocator> x=this.ReadClientSession;
+        >.Enumerator<TIterator, T>(this.ReadClientSession, Iterator);
         while (Enumerator.MoveNext()){
             Collection.Add(Enumerator.Current);
         }
@@ -99,23 +64,12 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
     }    
     private IEnumerable<T> Enumerate<TIterator,T>(TIterator Iterator)
         where TIterator:ScanIteratorFunctions<T>{
-        using var e=new ManagedEnumerator<
+        using var e=new ManagedCollection<
             TKey,
             TValue,
-            ManagedRead,
-            StoreFunctions<
-                SpanByteComparer,
-                DefaultRecordDisposer
-            >,
-            SpanByteAllocator<
-                StoreFunctions<
-                    SpanByteComparer,
-                    DefaultRecordDisposer
-                >
-            >,
-            TIterator,
-            T
-        >(this.ReadClientSession,Iterator);
+            TKeySerializer,
+            TValueSerializer
+        >.Enumerator<TIterator, T>(this.ReadClientSession,Iterator);
         while(e.MoveNext())
             yield return e.Current;
     }

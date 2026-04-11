@@ -12,9 +12,12 @@ public abstract partial class UnmanagedHashSet<TKey>
         this.IntersectWith_ClientSession=new();
         this.SymmetricExceptWith_ClientSession=new();
     }
-    public UnmanagedEnumerator<
+    public UnmanagedCollection<
         TKey,
         EqualityEmpty,
+        UnmanagedSerializer<TKey>,
+        UnmanagedSerializer<EqualityEmpty>
+    >.Enumerator<
         UnmanagedKeyIterator<TKey,EqualityEmpty>,
         TKey
     > GetEnumerator()=>new(this.ReadClientSession,new());

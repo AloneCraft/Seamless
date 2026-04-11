@@ -40,50 +40,23 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
         value =default;
         return false;
     }
-    public ManagedEnumerator<
+	public ManagedCollection<
 		TKey,
 		TValue,
-		ManagedRead,
-		StoreFunctions<
-			SpanByte,
-			SpanByte,
-			SpanByteComparer,
-			SpanByteRecordDisposer
-		>,
-		SpanByteAllocator<
-			StoreFunctions<
-				SpanByte,
-				SpanByte,
-				SpanByteComparer,
-				SpanByteRecordDisposer
-			>
-		>,
+		TKeySerializer,
+		TValueSerializer
+	>.Enumerator<
 		KeyValueIterator<TKey,TValue,TKeySerializer,TValueSerializer>,
 		KeyValuePair<TKey,TValue>
 	> GetEnumerator()=>new(this.ReadClientSession,new());
     private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
         var Collection = new List<T>();
-        using var e = new ManagedEnumerator<
-            TKey, 
+        using var e = new ManagedCollection<
+            TKey,
             TValue,
-            ManagedRead,
-            StoreFunctions<
-                SpanByte,
-                SpanByte,
-                SpanByteComparer,
-                SpanByteRecordDisposer
-            >,
-            SpanByteAllocator<
-                StoreFunctions<
-                    SpanByte,
-                    SpanByte,
-                    SpanByteComparer,
-                    SpanByteRecordDisposer
-                >
-            >,
-            TIterator,
-            T
-        >(this.ReadClientSession, Iterator);
+            TKeySerializer,
+            TValueSerializer
+        >.Enumerator<TIterator, T>(this.ReadClientSession, Iterator);
         while (e.MoveNext()){
             Collection.Add(e.Current);
         }
@@ -91,27 +64,12 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
     }
     private IEnumerable<T> Enumerate<TIterator,T>(TIterator Iterator)
         where TIterator:ScanIteratorFunctions<T>{
-        using var e=new ManagedEnumerator<
+        using var e=new ManagedCollection<
             TKey,
             TValue,
-            ManagedRead,
-            StoreFunctions<
-                SpanByte,
-                SpanByte,
-                SpanByteComparer,
-                SpanByteRecordDisposer
-            >,
-            SpanByteAllocator<
-                StoreFunctions<
-                    SpanByte,
-                    SpanByte,
-                    SpanByteComparer,
-                    SpanByteRecordDisposer
-                >
-            >,
-            TIterator,
-            T
-        >(this.ReadClientSession,Iterator);
+            TKeySerializer,
+            TValueSerializer
+        >.Enumerator<TIterator, T>(this.ReadClientSession,Iterator);
         while(e.MoveNext()){
             yield return e.Current;
         }

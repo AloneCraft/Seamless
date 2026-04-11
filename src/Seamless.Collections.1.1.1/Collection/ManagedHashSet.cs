@@ -10,7 +10,8 @@ namespace Seamless.Collections;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
-public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpty,ManagedSerializer<T>,ManagedSerializer<EqualityEmpty>>, ISet<T> where T : IEquatable<T>{
+public abstract partial class ManagedHashSet<T>
+    where T : IEquatable<T>{
     private readonly ClientSession<
         SpanByte,
         SpanByte,
@@ -62,24 +63,12 @@ public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpt
         this.SymmetricExceptWith_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith>(new());
     }
 
-	public ManagedEnumerator<
+	public ManagedCollection<
 		T,
 		EqualityEmpty,
-		ManagedRead,
-		StoreFunctions<
-			SpanByte,
-			SpanByte,
-			SpanByteComparer,
-			SpanByteRecordDisposer
-		>,
-		SpanByteAllocator<
-			StoreFunctions<
-				SpanByte,
-				SpanByte,
-				SpanByteComparer,
-				SpanByteRecordDisposer
-			>
-		>,
+		ManagedSerializer<T>,
+		ManagedSerializer<EqualityEmpty>
+	>.Enumerator<
 		KeyIterator<T,ManagedSerializer<T>>,
 		T
 	> GetEnumerator() =>new(this.ReadClientSession,new());

@@ -16,11 +16,6 @@ public abstract partial class Collection<
     TStoreFunctions,
     TAllocator
 >:IDisposable{
-    //private protected static partial ReadOnlySpan<byte> GetReadOnlySpan(SpanByteAndMemory a);
-    //private protected static ReadOnlySpan<byte> GetReadOnlySpan(SpanByteAndMemory a) => a.ReadOnlySpan;
-
-    private protected abstract ReadOnlySpan<byte>SerializeKey(ref TKey key);
-    private protected abstract ReadOnlySpan<byte>SerializeValue(ref TValue value);
 
     private protected bool PrivateProtectedWouldOverflowMutable(int KeyLength, int ValueLength) {
         Debug.Assert(this.LogMemorySize >= 8192);
@@ -34,9 +29,9 @@ public abstract partial class Collection<
         return Used + Required > MutableBytes;
     }
 
-    private protected const int RecordOverheadBytes = 128;
-    private protected long LogMemorySize => this.CollectionStore.LogMemorySize;
-    private protected double MutableFraction => this.CollectionStore.MutableFraction;
+    private const int RecordOverheadBytes = 128;
+    private long LogMemorySize => this.CollectionStore.LogMemorySize;
+    private double MutableFraction => this.CollectionStore.MutableFraction;
 
     private protected OutOfMemoryException ThrowLogFull() {
         var Log = this.CollectionStore.Store.Log;
