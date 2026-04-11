@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>d44340ba-6972-46d3-a092-3ccb4c79df64</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Seamless</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Collection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\DictionaryDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\EqualityEmpty.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSetDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\ICreate.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\ISet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedEnumerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedEnumerator.ctor.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryManagedDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryManagedHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryUnmanagedDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryUnmanagedHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\StorageManagedDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\StorageManagedHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\StorageUnmanagedDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\TryAddResult.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedDictionaryDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedHashSetDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Const.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\CounterIterator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyIterator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyValueIterator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ScanIteratorFunctions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ScanIteratorFunctions.impl.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ValueIterator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedAdd.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedContains.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedDelete.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedRead.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedRemove_KeyValuePair.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedRemove_TKey_TValue.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedAdd.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedDelete.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedRead.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore`.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\Factory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\ManagedCollectionStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\ManagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\MemoryManagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\MemoryManagedHashSetStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\MemoryUnmanagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\StorageManagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\StorageManagedHashSetStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\StorageUnmanagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedCollectionStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedHashSetStore.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)SessionFunctions\Document.txt" />
+  </ItemGroup>
+</Project>

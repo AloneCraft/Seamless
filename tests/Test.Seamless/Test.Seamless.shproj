@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>f485746b-4005-416a-8e23-c2a691d7f41d</ProjectGuid>
+    <MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.Common.Default.props" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.Common.props" />
+  <PropertyGroup />
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="Benchmark\Benchmark.cs" />
+    <Compile Include="Benchmark\Dictionary.cs" />
+    <Compile Include="Benchmark\HashSet.cs" />
+    <Compile Include="Category.cs" />
+    <Compile Include="CheckpointRecoveryTests.cs" />
+    <Compile Include="Collections\Collection.cs" />
+    <Compile Include="Collections\Dictionary.cs" />
+    <Compile Include="Collections\DictionaryDebugView.cs" />
+    <Compile Include="Collections\DictionaryInterface.cs" />
+    <Compile Include="Collections\DictionaryIReadOnly.cs" />
+    <Compile Include="Collections\DictionaryTestBase.cs" />
+    <Compile Include="Collections\DictTestStrategy.cs" />
+    <Compile Include="Collections\Empty.cs" />
+    <Compile Include="Collections\Enumerator.cs" />
+    <Compile Include="Collections\HashSet.cs" />
+    <Compile Include="Collections\HashSetDebugView.cs" />
+    <Compile Include="Collections\HashSetInterfaceTests.cs" />
+    <Compile Include="Collections\HashSetStrategy.cs" />
+    <Compile Include="Collections\HashSetTestBase.cs" />
+    <Compile Include="Collections\IDictionaryTestBase.cs" />
+    <Compile Include="Collections\ManagedDictionary.cs" />
+    <Compile Include="Collections\ModelBasedDictionaryTests.cs" />
+    <Compile Include="Collections\ModelBasedHashSetTests.cs" />
+    <Compile Include="Collections\StoreHandle.cs" />
+    <Compile Include="Collections\UnmanagedDictionary.cs" />
+    <Compile Include="Devices\MemoryOnlyDevice.cs" />
+    <Compile Include="DictionaryGuidEmptyRecoveryTests.cs" />
+    <Compile Include="ScanIteratorFunctions\CounterIterator.cs" />
+    <Compile Include="ScanIteratorFunctions\KeyIterator.cs" />
+    <Compile Include="ScanIteratorFunctions\KeyValueIterator.cs" />
+    <Compile Include="ScanIteratorFunctions\ScanIteratorFunctions.cs" />
+    <Compile Include="ScanIteratorFunctions\ValueIterator.cs" />
+    <Compile Include="SessionFunctions\AddTests.cs" />
+    <Compile Include="SessionFunctions\Delete.cs" />
+    <Compile Include="SessionFunctions\IntersectWith.cs" />
+    <Compile Include="SessionFunctions\ManagedAdd.cs" />
+    <Compile Include="SessionFunctions\Remove_KeyValuePair.cs" />
+    <Compile Include="SessionFunctions\Remove_TKey_TValue.cs" />
+    <Compile Include="SessionFunctions\SessionFunctionTestDummies.cs" />
+    <Compile Include="SessionFunctions\SymmetricExcept.cs" />
+    <Compile Include="SessionFunctions\UnmanagedAdd.cs" />
+    <Compile Include="StoreCheckpoint.cs" />
+    <Compile Include="Stores\CollectionStore2.cs" />
+    <Compile Include="Stores\Factory.cs" />
+    <Compile Include="Test.cs" />
+    <Compile Include="TestKeyComparer.cs" />
+    <Compile Include="TestRelation.cs" />
+    <Compile Include="TestTypes.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.CSharp.targets" />
+</Project>
