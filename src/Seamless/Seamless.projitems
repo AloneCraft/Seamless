@@ -10,10 +10,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Collection.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\DictionaryDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView\DictionaryDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\EqualityEmpty.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSetDebugView.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\ICreate.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView\HashSetDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ICreate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedCollection.cs" />
@@ -23,15 +23,17 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryManagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryUnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryUnmanagedHashSet.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializers\ManagedSerializer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializers\UnmanagedSerializer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializers\ISerializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\StorageManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\StorageManagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\StorageUnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\TryAddResult.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedCollection.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedDictionaryDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView\UnmanagedDictionaryDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedHashSet.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedHashSetDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView\UnmanagedHashSetDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Const.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings.cs" />
