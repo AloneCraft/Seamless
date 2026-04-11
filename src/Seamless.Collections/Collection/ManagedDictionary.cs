@@ -10,7 +10,7 @@ using System.Diagnostics.CodeAnalysis;
 /// 静的ポリモーフィズムにより仮想ディスパッチを回避する。
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
-public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer>:ManagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>, IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey, TValue>, ISeamlessDictionary<TKey,TValue>
+public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer>:ManagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>, ISeamlessDictionary<TKey,TValue>
 	where TKey :IEquatable<TKey>
 	where TValue : IEquatable<TValue>
 	where TKeySerializer : ISerializer<TKey>

@@ -17,6 +17,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Collection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Dictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\DictionaryDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\DictionaryInterface.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\DictionaryIReadOnly.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\DictionaryTestBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\DictTestStrategy.cs" />
@@ -24,6 +25,10 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSetDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Category.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSetInterfaceTests.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSetStrategy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSetTestBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\IDictionaryTestBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ModelBasedDictionaryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ModelBasedHashSetTests.cs" />

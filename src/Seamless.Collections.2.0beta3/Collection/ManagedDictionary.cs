@@ -40,23 +40,13 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
         value=default;
         return false;
     }
-    public ManagedCollection<
-        TKey,
-        TValue,
-        TKeySerializer,
-        TValueSerializer
-    >.Enumerator<
+    public Enumerator<
         KeyValueIterator<TKey,TValue,TKeySerializer,TValueSerializer>,
         KeyValuePair<TKey,TValue>
     > GetEnumerator()=>new (this.ReadClientSession,new());
     private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
         var Collection = new List<T>();
-        using var Enumerator = new ManagedCollection<
-            TKey,
-            TValue,
-            TKeySerializer,
-            TValueSerializer
-        >.Enumerator<TIterator, T>(this.ReadClientSession, Iterator);
+        using var Enumerator = new Enumerator<TIterator, T>(this.ReadClientSession, Iterator);
         while (Enumerator.MoveNext()){
             Collection.Add(Enumerator.Current);
         }
@@ -64,12 +54,7 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
     }    
     private IEnumerable<T> Enumerate<TIterator,T>(TIterator Iterator)
         where TIterator:ScanIteratorFunctions<T>{
-        using var e=new ManagedCollection<
-            TKey,
-            TValue,
-            TKeySerializer,
-            TValueSerializer
-        >.Enumerator<TIterator, T>(this.ReadClientSession,Iterator);
+        using var e=new Enumerator<TIterator, T>(this.ReadClientSession,Iterator);
         while(e.MoveNext())
             yield return e.Current;
     }

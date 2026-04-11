@@ -7,7 +7,7 @@ namespace Seamless.Collections;
 /// UnmanagedHashSet の 2.0beta3 固有部分。IntersectWith/SymmetricExceptWith セッションとイテレータ。
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
-public abstract partial class UnmanagedHashSet<TKey>:UnmanagedCollection<TKey,EqualityEmpty,UnmanagedSerializer<TKey>,UnmanagedSerializer<EqualityEmpty>>
+public abstract partial class UnmanagedHashSet<TKey>
     where TKey:unmanaged,IEquatable<TKey> {
     private readonly ClientSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>> IntersectWith_ClientSession;
     private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>> SymmetricExceptWith_ClientSession;
@@ -16,21 +16,11 @@ public abstract partial class UnmanagedHashSet<TKey>:UnmanagedCollection<TKey,Eq
         this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith>(new());
         this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith>(new());
     }
-    public UnmanagedCollection<
-        TKey,
-        EqualityEmpty,
-        UnmanagedSerializer<TKey>,
-        UnmanagedSerializer<EqualityEmpty>
-    >.Enumerator<
+    public Enumerator<
         KeyIterator,
         TKey
     > GetEnumerator()=>new(this.ReadClientSession,new());
-    internal UnmanagedCollection<
-        TKey,
-        EqualityEmpty,
-        UnmanagedSerializer<TKey>,
-        UnmanagedSerializer<EqualityEmpty>
-    >.Enumerator<
+    private Enumerator<
         SpanByteKeyIterator,
         byte[]
     > GetSpanByteEnumerator()=>new(this.ReadClientSession,new());

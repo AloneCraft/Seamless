@@ -1,4 +1,4 @@
 ﻿namespace Seamless.ScanIteratorFunctions;
-using Seamless.Collections;
+using Collections;
 internal sealed partial class ValueIterator<TValue,TSerializer>:ScanIteratorFunctions<TValue>
     where TSerializer:ISerializer<TValue>;
