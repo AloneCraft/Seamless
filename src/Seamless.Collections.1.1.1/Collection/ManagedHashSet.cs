@@ -72,22 +72,20 @@ public abstract partial class ManagedHashSet<T>
 		KeyIterator<T,ManagedSerializer<T>>,
 		T
 	> GetEnumerator() =>new(this.ReadClientSession,new());
-    public partial void IntersectWith(ManagedHashSet<T> other){
+	public partial void IntersectWith(ManagedHashSet<T> other){
 		ArgumentNullException.ThrowIfNull(other);
-        var Session = this.IntersectWith_ClientSession;
-        EqualityEmpty Input = default;
-        EqualityEmpty Output = default;
-        foreach(var Key in this) {
-            if(other.Contains(Key)) {
-                continue;
-            }
-            var Key0=Key;
-            var KeyBytes = this.SerializeKey(ref Key0);
-            var Key1 = SpanByte.FromPinnedSpan(KeyBytes);
-            var Status = Session.BasicContext.RMW(ref Key1,ref Input,ref Output);
-        }
-        Session.BasicContext.CompletePending(wait: true);
-    }
+		var Session = this.IntersectWith_ClientSession;
+		EqualityEmpty Input = default;
+		EqualityEmpty Output = default;
+		foreach(var Key in this) {
+			if(other.Contains(Key)) continue;
+			var Key0 = Key;
+			var KeyBytes = this.SerializeKey(ref Key0);
+			var Key1 = SpanByte.FromPinnedSpan(KeyBytes);
+			Session.BasicContext.RMW(ref Key1, ref Input, ref Output);
+		}
+		Session.BasicContext.CompletePending(wait: true);
+	}
 	public partial void SymmetricExceptWith(ManagedHashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
         var Session = this.SymmetricExceptWith_ClientSession;

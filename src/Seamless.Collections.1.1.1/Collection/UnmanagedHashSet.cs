@@ -1,4 +1,5 @@
 ﻿using Seamless.ScanIteratorFunctions;
+using Seamless.SessionFunctions;
 using Seamless.Store;
 namespace Seamless.Collections;
 /// <summary>
@@ -6,11 +7,30 @@ namespace Seamless.Collections;
 /// </summary>
 public abstract partial class UnmanagedHashSet<TKey>
     where TKey:unmanaged,IEquatable<TKey> {
-    private readonly NullDisposable IntersectWith_ClientSession;
-    private readonly NullDisposable SymmetricExceptWith_ClientSession;
+    private readonly ClientSession<
+        TKey,
+        EqualityEmpty,
+        EqualityEmpty,//TInput
+        bool,//TOutput
+        EqualityEmpty,//TContext
+        UnmanagedDelete<TKey,EqualityEmpty>,
+        StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,EqualityEmpty>>,
+        BlittableAllocator<TKey,EqualityEmpty,StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,EqualityEmpty>>>
+    > IntersectWith_ClientSession;
+    private readonly ClientSession<
+        TKey,
+        EqualityEmpty,
+        EqualityEmpty,//TInput
+        EqualityEmpty,//TOutput
+        EqualityEmpty,//TContext
+        UnmanagedSymmetricExceptWith<TKey,EqualityEmpty>,
+        StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,EqualityEmpty>>,
+        BlittableAllocator<TKey,EqualityEmpty,StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,EqualityEmpty>>>
+    > SymmetricExceptWith_ClientSession;
     internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore):base(CollectionStore){
-        this.IntersectWith_ClientSession=new();
-        this.SymmetricExceptWith_ClientSession=new();
+        var Store=CollectionStore.Store;
+        this.IntersectWith_ClientSession=Store.NewSession<EqualityEmpty,bool,EqualityEmpty,UnmanagedDelete<TKey,EqualityEmpty>>(new());
+        this.SymmetricExceptWith_ClientSession=Store.NewSession<EqualityEmpty,EqualityEmpty,EqualityEmpty,UnmanagedSymmetricExceptWith<TKey,EqualityEmpty>>(new());
     }
     public UnmanagedCollection<
         TKey,
@@ -23,35 +43,25 @@ public abstract partial class UnmanagedHashSet<TKey>
     > GetEnumerator()=>new(this.ReadClientSession,new());
     public partial void IntersectWith(UnmanagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
-        var keysToRemove = new List<TKey>();
+        var Session = this.IntersectWith_ClientSession;
+        EqualityEmpty Input = default;
+        bool Output = false;
         foreach(var key in this) {
-            if(!other.Contains(key)) {
-                keysToRemove.Add(key);
-            }
+            if(other.Contains(key)) continue;
+            var k = key;
+            Session.BasicContext.RMW(ref k, ref Input, ref Output);
         }
-        foreach(var key in keysToRemove) {
-            this.Remove(key);
-        }
+        Session.BasicContext.CompletePending(wait: true);
     }
     public partial void SymmetricExceptWith(UnmanagedHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
-        var keysToAdd = new List<TKey>();
-        var keysToRemove = new List<TKey>();
+        var Session = this.SymmetricExceptWith_ClientSession;
+        EqualityEmpty Input = default;
+        EqualityEmpty Output = default;
         foreach(var key in other) {
-            if(this.Contains(key)) {
-                keysToRemove.Add(key);
-            } else {
-                keysToAdd.Add(key);
-            }
+            var k = key;
+            var Status = Session.BasicContext.RMW(ref k, ref Input, ref Output);
         }
-        foreach(var key in keysToRemove) {
-            this.Remove(key);
-        }
-        foreach(var key in keysToAdd) {
-            this.Add(key);
-        }
-    }
-    private readonly struct NullDisposable {
-        public void Dispose() { }
+        Session.BasicContext.CompletePending(wait: true);
     }
 }
