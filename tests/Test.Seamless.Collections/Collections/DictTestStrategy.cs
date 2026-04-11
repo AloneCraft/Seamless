@@ -26,31 +26,31 @@ public interface IDictTestStrategy<TKey, TValue>
 }
 
 /// <summary>TKey=int, TValue=string, Factory.Create (両マネージド)</summary>
-public struct ManagedDictStrategy : IDictTestStrategy<int, string>
+public struct ManagedDictStrategy : IDictTestStrategy<string, string>
 {
-    public static int K(int i) => i;
+    public static string K(int i) => i.ToString();
     public static string V(int i) => i.ToString();
     public static string VWrong() => "!!";
 
-    public static StoreHandle<int, string> CreateMemoryStore(
+    public static StoreHandle<string, string> CreateMemoryStore(
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0)
     {
-        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).Create<int, string>();
-        return new StoreHandle<int, string>(store, () => store.Create(),
+        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).Create<string, string>();
+        return new StoreHandle<string, string>(store, () => store.Create(),
             wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
     }
 
-    public static StoreHandle<int, string> CreateStorageStore(
+    public static StoreHandle<string, string> CreateStorageStore(
         IDevice logDevice, IDevice objDevice,
         long memorySize = Const.MinObjectLogCapacity,
         double mutableFraction = 1.0,
         string? checkpointDir = null,
         bool recoverDevice = false)
     {
-        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction, CheckpointDir: checkpointDir).Create<int, string>(logDevice, objDevice);
-        return new StoreHandle<int, string>(store, () => store.Create(),
+        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction, CheckpointDir: checkpointDir).Create<string, string>(logDevice, objDevice);
+        return new StoreHandle<string, string>(store, () => store.Create(),
             wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
     }
