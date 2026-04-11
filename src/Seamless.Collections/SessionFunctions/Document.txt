@@ -120,3 +120,65 @@ RMW
     出力のヒープ化
         ConvertOutputToHeap
     PostRMWOperation (RMW 完了時のフック)
+
+TryGetValueなど読み出しではManagedRead,UnmanagedReadを使うべき
+
+private ClientSession<FixedSpanByteKey,FixedSpanByteKey,SpanByteAndMemory,SpanByteAndMemory,ManagedRemove_TKey_TValue ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
+TInput に SpanByte は OK
+TOutput に SpanByteAndMemory
+ClientSession                       <TKey            ,TValue          ,TInput           ,TOutput      ,TContext                 ,TFunctions  ,TStoreFunctions, TAllocator>
+将来のバージョンでTKey,TValueを組み合わせる
+ClientSession                       <FixedSpanByteKey,FixedSpanByteKey,SpanByteAndMemory,core_Empty   ,ManagedRemove_TKey_TValue,AddFunctions,TStoreFunctions,TAllocator>
+SpanByte, SpanByte, SpanByteAndMemory は標準的な可変長データの扱い
+ClientSession                       <SpanByte,SpanByte,SpanByteAndMemory,core_Empty    ,ManagedRemove_TKey_TValue,AddFunctions,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>
+ClientSession                       <SpanByte,SpanByte,SpanByteAndMemory,core_Empty    ,TContext                 ,TFunctions  ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>
+ClientSession                       <TKey,SpanByte,SpanByteAndMemory,core_Empty    ,TContext                 ,TFunctions  ,StoreFunctions<TKey,SpanByte,SpanByteComparer,SpanByteRecordDisposer>, SpanByteAllocator<StoreFunctions<TKey,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>
+ClientSession                       <TKey,SpanByte,SpanByteAndMemory,core_Empty    ,TContext                 ,TFunctions  ,StoreFunctions<TKey,SpanByte,SpanByteComparer,SpanByteRecordDisposer>, SpanByteAllocator<StoreFunctions<TKey,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>
+
+ClientSession                       <TKey            ,TValue          ,TInput           ,TOutput      ,TContext                 ,TFunctions  ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>
+StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>, SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>
+全体的なクラスを見直す。以下の設計に問題が無ければ実装して
+public interface ISerializer<T> {
+    static abstract ReadOnlySpan<byte> Serialize(in T value);
+    static abstract T Deserialize(ReadOnlySpan<byte> bytes);
+}
+[ThreadStatic]
+public readonly struct ManagedSerializer<T> : ISerializer<T> {
+    private static readonly ArrayBufferWriter<byte> t_bufferWriter=new ArrayBufferWriter<byte>(256);
+    //MemoryPackシリアライズはこれがベストとは思わない。ベストな書き方で書いてほしい
+    public static void Serialize(in T value, out ReadOnlySpan<byte> serializedData){
+        writer.Clear();  
+        MemoryPackSerializer.Serialize(writer, value);
+        serializedData = writer.WrittenSpan;
+    }
+    public static T Deserialize(ReadOnlySpan<byte> bytes) => MemoryPackSerializer.Deserialize<T>(bytes)!;
+}
+public readonly struct UnmanagedSerializer<T> : ISerializer<T> where T : unmanaged {
+    public static void Serialize(ref T value, Span<byte> destination)=>MemoryMarshal.Write(destination, ref value);
+    public static T Deserialize(ReadOnlySpan<byte> bytes)=>MemoryMarshal.Read<T>(bytes);
+}
+
+Collection                                     <TKey,TValue,TSessionKey,TSessionValue,TReadOutput      ,TAddInput,TReadFunctions,TAddFunctions,TDeleteFunctions,TStoreFunctions,TAllocator,TKeySerializer         ,TValueSerializer         >where TKey:IEquatable<TKey> where TValue:IEquatable<TValue>
+    ManagedMagedCollection                     <TKey,TValue>:Collection<TKey,TValue,SpanByte,SpanByte,SpanByteAndMemory,SpanByte,ManagedManagedReadFunctions    ,ManagedManagedDeleteFunctions    ,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,ManagedSerializer<TKey>,ManagedSerializer  <TValue>>where TKey:IEquatable<TKey> where TValue:IEquatable<TValue>
+        ManagedMagedDictionary                 <TKey,TValue>:ManagedMagedCollection<TKey,TValue>where TKey:IEquatable<TKey> where TValue:IEquatable<TValue>
+            MemoryManagedManagedDictionary     <TKey,TValue>:ManagedMagedDictionary<TKey,TValue>where TKey:IEquatable<TKey> where TValue:IEquatable<TValue>
+            StorageManagedManagedDictionary    <TKey,TValue>:ManagedMagedDictionary<TKey,TValue>where TKey:IEquatable<TKey> where TValue:IEquatable<TValue>
+        ManagedMagedHashSet                    <TKey       >:ManagedMagedCollection<TKey,core_Empty>where TKey:IEquatable<TKey>
+            MemoryManagedManagedHashSet        <TKey       >:ManagedMagedHashSet<TKey>where TKey:IEquatable<TKey>
+            StorageManagedManagedHashSet       <TKey       >:ManagedMagedHashSet<TKey>where TKey:IEquatable<TKey>
+    ManagedUnmanagedCollection                 <TKey,TValue>:Collection<TKey,TValue,SpanByte,TValue  ,TValue           ,TValue  ,ManagedUnmanagedReadFunctions  ,ManagedUnmanagedDeleteFunctions  ,StoreFunctions<SpanByte,TValue  ,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,TValue  ,SpanByteComparer,SpanByteRecordDisposer>>,ManagedSerializer<TKey>,UnmanagedSerializer<TValue>>where TKey:IEquatable<TKey> where TValue:unmanaged,IEquatable<TValue>
+        ManagedUnmanagedDictionary             <TKey,TValue>:ManagedUnmanagedCollection                 <TKey,TValue>where TKey:IEquatable<TKey> where TValue:unmanaged,IEquatable<TValue>
+            MemoryManagedUnmanagedDictionary   <TKey,TValue>:ManagedUnmanagedDictionary<TKey,TValue>where TKey:IEquatable<TKey> where TValue:unmanaged,IEquatable<TValue>
+            StorageManagedUnmanagedDictionary  <TKey,TValue>:ManagedUnmanagedDictionary<TKey,TValue>where TKey:IEquatable<TKey> where TValue:unmanaged,IEquatable<TValue>
+        ManagedHashSet                         <TKey       >:ManagedUnmanagedCollection<TKey,core_Empty>where TKey:IEquatable<TKey>
+            MemoryManagedHashSet               <TKey       >:ManagedHashSet<TKey>where TKey:IEquatable<TKey>
+            StorageManagedHashSet              <TKey       >:ManagedHashSet<TKey>where TKey:IEquatable<TKey>
+    UnmanagedManagedCollection                 <TKey,TValue>:Collection<TKey,TValue,TKey    ,SpanByte,SpanByte         ,SpanByte,UnmanagedManagedReadFunctions  ,UnmanagedManagedDeleteFunctions  ,StoreFunctions<TKey    ,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<TKey    ,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>,UnmanagedSerializer<TKey>,ManagedSerializer<TValue>>where TKey:unmanaged,IEquatable<TKey> where TValue:IEquatable<TValue>
+        UnmanagedManagedDictionary             <TKey,TValue>:UnmanagedManagedCollection<TKey,TValue>where TKey:unmanaged,IEquatable<TKey> where TValue:IEquatable<TValue>
+    UnmanagedUnmanagedCollection               <TKey,TValue>:Collection<TKey,TValue,SpanByte,SpanByte,SpanByte         ,SpanByte,UnmanagedUnmanagedReadFunctions,UnmanagedUnmanagedDeleteFunctions,StoreFunctions<TKey    ,TValue  ,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<TKey    ,TValue,SpanByteComparer,SpanByteRecordDisposer>>,UnmanagedSerializer<TKey>,UnmanagedSerializer<TValue>>where TKey:unmanaged,IEquatable<TKey> where TValue:unmanaged,IEquatable<TValue>
+        UnmanagedUnmanagedDictionary           <TKey,TValue>:UnmanagedUnmanagedCollection<TKey,TValue>where TKey:unmanaged,IEquatable<TKey> where TValue:unmanaged,IEquatable<TValue>
+        UnmanagedHashSet                       <TKey       >:UnmanagedUnmanagedCollection<TKey,core_Empty>where TKey:unmanaged,IEquatable<TKey>
+            MemoryUnmanagedHashSet             <TKey       >:UnmanagedHashSet<TKey>where TKey:unmanaged,IEquatable<TKey>
+            StorageUnmanagedHashSet            <TKey       >:UnmanagedHashSet<TKey>where TKey:unmanaged,IEquatable<TKey>
+
+

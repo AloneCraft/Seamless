@@ -4,12 +4,12 @@ using System.Diagnostics.CodeAnalysis;
 using Seamless.Store;
 namespace Seamless.Collections;
 public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer> {
-    private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,Remove_TKey_TValue ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
-    private ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,Remove_KeyValuePair ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Remove_KeyValuePair_ClientSession{get;set;}
+	private ClientSession<FixedSpanByteKey,EqualityEmpty,SpanByteAndMemory,EqualityEmpty,Remove_TKey_TValue ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
+	private ClientSession<FixedSpanByteKey,PinnedSpanByte,bool,EqualityEmpty,Remove_KeyValuePair ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Remove_KeyValuePair_ClientSession{get;set;}
 	internal ManagedDictionary(ManagedCollectionStore<TKey,TValue>CollectionStore) : base(CollectionStore) {
-        var Store=CollectionStore.Store;
-        this.Remove_TKey_TValue_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,Remove_TKey_TValue>(new ());
-        this.Remove_KeyValuePair_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,Remove_KeyValuePair>(new ());
+		var Store=CollectionStore.Store;
+		this.Remove_TKey_TValue_ClientSession=Store.NewSession<FixedSpanByteKey,EqualityEmpty,SpanByteAndMemory,EqualityEmpty,Remove_TKey_TValue>(new ());
+		this.Remove_KeyValuePair_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,bool,EqualityEmpty,Remove_KeyValuePair>(new ());
     }
     public bool Remove(KeyValuePair<TKey,TValue> item) {
         var Session = this.Remove_KeyValuePair_ClientSession;
@@ -19,30 +19,79 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
         var ValueBytes =this.SerializeValue(ref Value0);
         var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Input = PinnedSpanByte.FromPinnedSpan(ValueBytes);
-        var Output = default(SpanByteAndMemory);
+        var Output = false;
         var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
         Status=Pending(Session,Status,ref Output);
-        return Output.Length>0;
+        return Output;
     }
     public bool Remove(TKey key,[MaybeNullWhen(false)]out TValue value) {
         var Session = this.Remove_TKey_TValue_ClientSession;
         var KeyBytes =this.SerializeKey(ref key);
         var FixedKey = (FixedSpanByteKey)KeyBytes;
-        var Input = default(PinnedSpanByte);
+        var Input = default(EqualityEmpty);
         SpanByteAndMemory Output = default;
         var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
         Status=Pending(Session,Status,ref Output);
-        if(Status.Found) {
+        // output.Length>0 は InPlaceUpdater/CopyUpdater で値がコピーされた＝成功
+        if(Output.Length>0) {
             value=TValueSerializer.Deserialize(Output.ReadOnlySpan);
             return true;
         }
         value=default;
         return false;
     }
-    public Enumerator<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyValueIterator<TKey,TValue,TKeySerializer,TValueSerializer>,KeyValuePair<TKey,TValue>> GetEnumerator()=>new (this.ClientSession,new());
+    public ManagedEnumerator<
+        TKey,
+        TValue,
+        ManagedRead,
+        StoreFunctions<
+            SpanByteComparer,
+            DefaultRecordDisposer
+        >,
+        SpanByteAllocator<
+            StoreFunctions<
+                SpanByteComparer,
+                DefaultRecordDisposer
+            >
+        >,
+        KeyValueIterator<
+            TKey,
+            TValue,
+            TKeySerializer,
+            TValueSerializer
+        >,
+        KeyValuePair<
+            TKey,
+            TValue
+        >
+    > GetEnumerator()=>new (this.ReadClientSession,new());
     private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
         var Collection = new List<T>();
-        using var Enumerator = new Enumerator<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,TIterator,T>(this.ClientSession, Iterator);
+        using var Enumerator = new ManagedEnumerator<
+            TKey,
+            TValue,
+            ManagedRead,
+            StoreFunctions<
+                SpanByteComparer,
+                DefaultRecordDisposer
+            >,
+            SpanByteAllocator<
+                StoreFunctions<
+                    SpanByteComparer,
+                    DefaultRecordDisposer
+                >
+            >,
+            TIterator,
+            T
+        >(this.ReadClientSession, Iterator);
+        ClientSession<
+            FixedSpanByteKey,//Key
+            EqualityEmpty,//Input
+            SpanByteAndMemory,//Output
+            EqualityEmpty,//Context
+            ManagedRead,
+            ManagedStoreFunctions,
+            ManagedAllocator> x=this.ReadClientSession;
         while (Enumerator.MoveNext()){
             Collection.Add(Enumerator.Current);
         }
@@ -50,7 +99,23 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
     }    
     private IEnumerable<T> Enumerate<TIterator,T>(TIterator Iterator)
         where TIterator:ScanIteratorFunctions<T>{
-        using var e=new Enumerator<TKey,TValue,Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,TIterator,T>(this.ClientSession,Iterator);
+        using var e=new ManagedEnumerator<
+            TKey,
+            TValue,
+            ManagedRead,
+            StoreFunctions<
+                SpanByteComparer,
+                DefaultRecordDisposer
+            >,
+            SpanByteAllocator<
+                StoreFunctions<
+                    SpanByteComparer,
+                    DefaultRecordDisposer
+                >
+            >,
+            TIterator,
+            T
+        >(this.ReadClientSession,Iterator);
         while(e.MoveNext())
             yield return e.Current;
     }
@@ -67,12 +132,10 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
             var ValueBytes =this.SerializeValue(ref value);
             if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length)) {
                 throw this.ThrowLogFull();
-            } else {
             }
-            var Session=this.ClientSession;
+            var Session=this.AddClientSession;
             var FixedKey=(FixedSpanByteKey)KeyBytes;
-            var Input=ValueBytes;
-            var Status = Session.BasicContext.Upsert(FixedKey,Input);
+            var Status = Session.BasicContext.Upsert(FixedKey,ValueBytes);
             Status=Pending(Session,Status);
         }
     }

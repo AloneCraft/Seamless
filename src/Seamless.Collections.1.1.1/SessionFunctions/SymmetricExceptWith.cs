@@ -1,8 +1,8 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+//using EqualityEmpty=Seamless.Collections.Empty;
 namespace Seamless.SessionFunctions;
-
 internal readonly struct SymmetricExceptWith:
-	ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Seamless.Collections.Empty>
+	ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,EqualityEmpty>
 {
     [ExcludeFromCodeCoverage]public bool SingleReader(ref SpanByte Key,ref SpanByte Input,ref SpanByte Value,ref SpanByteAndMemory Dst,ref ReadInfo ReadInfo){
         throw new NotSupportedException("Read");
@@ -51,7 +51,7 @@ internal readonly struct SymmetricExceptWith:
         where TEpochAccessor:IEpochAccessor{
         //RMWが成功しても失敗しても、両方のケースで呼ばれる。SymmetricExceptWith では RMW の結果に関わらず何もしない。
     }
-    public void RMWCompletionCallback(ref SpanByte Key,ref SpanByte Input,ref SpanByteAndMemory Output,Collections.Empty Ctx,Status Status,RecordMetadata RecordMetadata){
+    public void RMWCompletionCallback(ref SpanByte Key,ref SpanByte Input,ref SpanByteAndMemory Output,EqualityEmpty Ctx,Status Status,RecordMetadata RecordMetadata){
         //CompletePendingWithOutputs
     }
     [ExcludeFromCodeCoverage]public bool SingleDeleter(ref SpanByte Key,ref SpanByte Value,ref DeleteInfo DeleteInfo,ref RecordInfo RecordInfo){
@@ -67,7 +67,7 @@ internal readonly struct SymmetricExceptWith:
         where TEpochAccessor:IEpochAccessor{
         throw new NotSupportedException("Delete");
     }
-    [ExcludeFromCodeCoverage]public void ReadCompletionCallback(ref SpanByte Key,ref SpanByte Input,ref SpanByteAndMemory Output,Collections.Empty Ctx,Status Status,RecordMetadata RecordMetadata){
+    [ExcludeFromCodeCoverage]public void ReadCompletionCallback(ref SpanByte Key,ref SpanByte Input,ref SpanByteAndMemory Output,EqualityEmpty Ctx,Status Status,RecordMetadata RecordMetadata){
         throw new NotSupportedException("Read非同期で呼ばれる");
     }
 	public int GetRMWModifiedValueLength(ref SpanByte Value,ref SpanByte Input){

@@ -34,12 +34,14 @@
 
   <ItemGroup>
     <Compile Include="Collection\Collection.cs" />
-    <Compile Include="Collection\Enumerator.cs" />
+    <Compile Include="Collection\ManagedEnumerator.cs" />
     <Compile Include="Collection\ManagedCollection.cs" />
     <Compile Include="Collection\ManagedDictionary.cs" />
+    <Compile Include="Collection\ManagedHashSet.cs" />
     <Compile Include="Collection\UnmanagedCollection.cs" />
     <Compile Include="Collection\UnmanagedDictionary.cs" />
     <Compile Include="Collection\UnmanagedEnumerator.cs" />
+    <Compile Include="Collection\UnmanagedHashSet.cs" />
     <Compile Include="Collection\UnmanagedKeyComparer.cs" />
   </ItemGroup>
 

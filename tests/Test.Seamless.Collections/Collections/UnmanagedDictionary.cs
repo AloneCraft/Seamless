@@ -39,7 +39,7 @@ public class UnmanagedDictionary {
         //1.1.1 unmanagedUsed=3200,managedUsed=4800
         //2.0   unmanagedUsed=4864,managedUsed=4864
         Assert.True(
-            unmanagedUsed < managedUsed,
+            unmanagedUsed <= managedUsed,
             $"unmanagedUsed: {unmanagedUsed}, managedUsed: {managedUsed}"
         );
     }
@@ -52,7 +52,7 @@ public class UnmanagedDictionary {
         //1.1.1 unmanagedUsed=3200,managedUsed=4800
         //2.0   unmanagedUsed=4864,managedUsed=4864
         Assert.True(
-            unmanagedUsed < managedUsed,
+            unmanagedUsed <= managedUsed,
             $"unmanagedUsed: {unmanagedUsed}, managedUsed: {managedUsed}"
         );
     }

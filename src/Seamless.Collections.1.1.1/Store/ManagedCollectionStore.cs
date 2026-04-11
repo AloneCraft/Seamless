@@ -24,8 +24,8 @@ public abstract partial class ManagedCollectionStore<TKey,TValue> {
 
 
     protected override long CompactLog(long compactUntil) =>
-        this.Store.Log.Compact<SpanByte,SpanByteAndMemory,Tsavorite.core.Empty,SessionFunctions.Add>(
-            new(),
+        this.Store.Log.Compact<SpanByte,bool,EqualityEmpty,SessionFunctions.ManagedAdd>(
+            SessionFunctions.ManagedAdd.Create(),
             compactUntil,
             CompactionType.Lookup
         );

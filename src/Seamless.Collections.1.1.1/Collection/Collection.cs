@@ -7,78 +7,77 @@ public abstract partial class Collection<
     TValue,
     TSessionKey,
     TSessionValue,
-    TInput,
-    TOutput,
+    TReadOutput,
+    TAddInput,
+    TReadFunctions,
     TAddFunctions,
     TDeleteFunctions,
     TStoreFunctions,
     TAllocator
 >
     where TKey : IEquatable<TKey>
-    where TAddFunctions   : struct, ISessionFunctions<TSessionKey,TSessionValue,TInput, TOutput, core_Empty>
-    where TDeleteFunctions: struct, ISessionFunctions<TSessionKey,TSessionValue, TInput, TOutput, core_Empty>
+    where TReadFunctions  : struct, ISessionFunctions<TSessionKey,TSessionValue,EqualityEmpty, TReadOutput, EqualityEmpty>, ICreate<TReadFunctions>
+    where TAddFunctions   : struct, ISessionFunctions<TSessionKey,TSessionValue,TAddInput, bool, EqualityEmpty>, ICreate<TAddFunctions>
+    where TDeleteFunctions: struct, ISessionFunctions<TSessionKey,TSessionValue, EqualityEmpty, bool, EqualityEmpty>, ICreate<TDeleteFunctions>
     where TStoreFunctions : IStoreFunctions<TSessionKey,TSessionValue>
     where TAllocator : IAllocator<TSessionKey,TSessionValue, TStoreFunctions>
     {
     public abstract long GetLongCount();
-
-    private protected static ReadOnlySpan<byte> GetReadOnlySpan(SpanByteAndMemory a) => a.AsReadOnlySpan();
-
-    private protected ClientSession<TSessionKey,TSessionValue,TInput, TOutput, core_Empty,TAddFunctions,TStoreFunctions,TAllocator> ClientSession { get; private set; }
-    private protected ClientSession<TSessionKey,TSessionValue, TInput, TOutput, core_Empty,TDeleteFunctions,TStoreFunctions,TAllocator> DeleteClientSession { get; private set; }
-
+    //private protected static partial ReadOnlySpan<byte> GetReadOnlySpan(SpanByteAndMemory a) => a.AsReadOnlySpan();
+    private protected ClientSession<TSessionKey,TSessionValue,EqualityEmpty, TReadOutput, EqualityEmpty,TReadFunctions,TStoreFunctions,TAllocator> ReadClientSession { get; private set; }
+    private protected ClientSession<TSessionKey,TSessionValue,TAddInput, bool, EqualityEmpty,TAddFunctions,TStoreFunctions,TAllocator> AddClientSession { get; private set; }
+    private protected ClientSession<TSessionKey,TSessionValue, EqualityEmpty, bool, EqualityEmpty,TDeleteFunctions,TStoreFunctions,TAllocator> DeleteClientSession { get; private set; }
+    private protected readonly CollectionStore<TKey, TValue, TSessionKey, TSessionValue, TStoreFunctions, TAllocator> CollectionStore;
     protected Collection(CollectionStore<TKey,TValue,TSessionKey,TSessionValue,TStoreFunctions,TAllocator> CollectionStore) {
         this.CollectionStore = CollectionStore;
         var Store = CollectionStore.Store;
-        this.ClientSession = Store.NewSession<TInput, TOutput, core_Empty, TAddFunctions>(default);
-        this.DeleteClientSession = Store.NewSession<TInput, TOutput, core_Empty, TDeleteFunctions>(default);
+        this.ReadClientSession = Store.NewSession<EqualityEmpty, TReadOutput, EqualityEmpty, TReadFunctions>(TReadFunctions.Create());
+        this.AddClientSession = Store.NewSession<TAddInput, bool, EqualityEmpty, TAddFunctions>(TAddFunctions.Create());
+        this.DeleteClientSession = Store.NewSession<EqualityEmpty, bool, EqualityEmpty, TDeleteFunctions>(TDeleteFunctions.Create());
     }
 
     public void Clear() {
-        var Session = this.ClientSession;
+        var Session = this.AddClientSession;
         Session.BasicContext.CompletePending(wait: true);
         Session.Dispose();
         var Store = this.CollectionStore.Store;
         Store.Reset();
-        this.ClientSession = Store.NewSession<TInput, TOutput, core_Empty, TAddFunctions>(default);
-        this.DeleteClientSession = Store.NewSession<TInput, TOutput, core_Empty, TDeleteFunctions>(default);
+        this.ReadClientSession = Store.NewSession<EqualityEmpty,TReadOutput, EqualityEmpty, TReadFunctions>(TReadFunctions.Create());
+        this.AddClientSession = Store.NewSession<TAddInput, bool, EqualityEmpty, TAddFunctions>(TAddFunctions.Create());
+        this.DeleteClientSession = Store.NewSession<EqualityEmpty, bool, EqualityEmpty, TDeleteFunctions>(TDeleteFunctions.Create());
     }
 
-    private protected abstract Status Read(TKey Key,out TOutput Output);
 
-    private protected static Status Pending<TSessionFunctions0>(ClientSession<TSessionKey, TSessionValue, TInput, TOutput, core_Empty, TSessionFunctions0, TStoreFunctions, TAllocator> Session,Status Status)
-        where TSessionFunctions0 : struct, ISessionFunctions<TSessionKey, TSessionValue, TInput, TOutput, core_Empty> {
-        if(Status.IsPending) {
-            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs, wait: true);
-            using(CompletedOutputs) {
-	            Debug.Assert(CompletedOutputs.Next());
-	            Status = CompletedOutputs.Current.Status;
-	        }
-        }
-        return Status;
-    }
+	private protected static Status Pending<TInput0, TOutput0, TContext0, TSessionFunctions0>(ClientSession<TSessionKey, TSessionValue, TInput0, TOutput0, TContext0, TSessionFunctions0, TStoreFunctions, TAllocator> Session,Status Status)
+		where TSessionFunctions0 : struct, ISessionFunctions<TSessionKey, TSessionValue, TInput0, TOutput0, TContext0> {
+		if(Status.IsPending) {
+			Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs, wait: true);
+			using(CompletedOutputs) {
+				Debug.Assert(CompletedOutputs.Next());
+				Status = CompletedOutputs.Current.Status;
+			}
+		}
+		return Status;
+	}
 
-    private protected static Status Pending<TSessionFunctions0>(ClientSession<TSessionKey, TSessionValue, TInput, TOutput, core_Empty, TSessionFunctions0, TStoreFunctions, TAllocator> Session, Status Status,ref TOutput Output)
-        where TSessionFunctions0 : struct, ISessionFunctions<TSessionKey, TSessionValue, TInput, TOutput, core_Empty> {
-        if(Status.IsPending) {
-            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs, wait: true);
-            using(CompletedOutputs) {
-	            Debug.Assert(CompletedOutputs.Next());
-	            Status = CompletedOutputs.Current.Status;
-                Output = CompletedOutputs.Current.Output;
-	        }
-        }
-        return Status;
-    }
-    private protected abstract TValue ConvertOutput(ref TOutput output);
-
+	private protected static Status Pending<TInput0, TOutput0, TContext0, TSessionFunctions0>(ClientSession<TSessionKey, TSessionValue, TInput0, TOutput0, TContext0, TSessionFunctions0, TStoreFunctions, TAllocator> Session, Status Status,ref TOutput0 Output)
+		where TSessionFunctions0 : struct, ISessionFunctions<TSessionKey, TSessionValue, TInput0, TOutput0, TContext0> {
+		if(Status.IsPending) {
+			Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs, wait: true);
+			using(CompletedOutputs) {
+				Debug.Assert(CompletedOutputs.Next());
+				Status = CompletedOutputs.Current.Status;
+				Output = CompletedOutputs.Current.Output;
+			}
+		}
+		return Status;
+	}
     public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
-        var Status = this.Read(Key,out var Output);
+        var Status = this.Read(Key,out Value);
         if(Status.NotFound) {
             Value=default;
             return false;
         }
-        Value=this.ConvertOutput(ref Output);
         return true;
     }
     private protected abstract TryAddResult PrivateTryAdd(TKey Key, TValue Value);

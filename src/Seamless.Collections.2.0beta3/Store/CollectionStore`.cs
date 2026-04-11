@@ -71,7 +71,7 @@ public abstract partial class CollectionStore<
 
 		if(CompactUntil<=BeginAddress) 
 			return;
-		var UntilAddress=this.Store.Log.Compact<TKey,TValue,Empty>(
+		var UntilAddress=this.Store.Log.Compact<TKey,TValue,EqualityEmpty>(
 			CompactUntil,
 			CompactionType.Lookup
 		);

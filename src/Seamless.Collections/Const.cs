@@ -1,4 +1,4 @@
-﻿global using core_Empty=Tsavorite.core.Empty;
+﻿global using EqualityEmpty=Seamless.Collections.EqualityEmpty;
 namespace Seamless;
 
 public static class Const{

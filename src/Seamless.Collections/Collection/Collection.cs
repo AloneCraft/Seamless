@@ -1,6 +1,4 @@
-﻿using MemoryPack;
-using System.Diagnostics;
-using Seamless.Store;
+﻿using System.Diagnostics;
 namespace Seamless.Collections;
 #pragma warning disable CS8618
 public abstract partial class Collection<
@@ -9,16 +7,18 @@ public abstract partial class Collection<
 #if TSAVORITE1_1_1
     TSessionKey,
     TSessionValue,
-    TInput,
-    TOutput,
 #endif
+    TReadOutput,
+    TAddInput,
+    TReadFunctions,
     TAddFunctions,
     TDeleteFunctions,
     TStoreFunctions,
     TAllocator
 >:IDisposable{
-    private protected static ReadOnlySpan<byte>Serialize<T>(T value) => MemoryPackSerializer.Serialize(value);
-    private protected static T Deserialize<T>(ReadOnlySpan<byte> bytes) => MemoryPackSerializer.Deserialize<T>(bytes)!;
+    //private protected static partial ReadOnlySpan<byte> GetReadOnlySpan(SpanByteAndMemory a);
+    //private protected static ReadOnlySpan<byte> GetReadOnlySpan(SpanByteAndMemory a) => a.ReadOnlySpan;
+
     private protected abstract ReadOnlySpan<byte>SerializeKey(ref TKey key);
     private protected abstract ReadOnlySpan<byte>SerializeValue(ref TValue value);
 
@@ -48,15 +48,11 @@ public abstract partial class Collection<
     public int Count => (int)this.GetLongCount();
     public long EntryCount => this.CollectionStore.Store.EntryCount;
 
-    #if TSAVORITE1_1_1
-        private protected readonly CollectionStore<TKey, TValue, TSessionKey, TSessionValue, TStoreFunctions, TAllocator> CollectionStore;
-    #else
-        private protected readonly CollectionStore<TKey, TValue, TStoreFunctions, TAllocator> CollectionStore;
-    #endif
+    private protected abstract Status Read(TKey Key,out TValue Output);
 
     public abstract bool Remove(TKey key);
 
-    public bool Contains(TKey Key) {
+    public virtual bool Contains(TKey Key) {
         var Status = this.Read(Key, out _);
         Debug.Assert(Status.Found == !Status.NotFound);
         return Status.Found;
@@ -76,7 +72,7 @@ public abstract partial class Collection<
             return;
         }
         if(disposing) {
-            this.ClientSession.Dispose();
+            this.AddClientSession.Dispose();
         }
         this.disposed = true;
     }

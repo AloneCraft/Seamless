@@ -1,4 +1,4 @@
-using Seamless.Store;
+﻿using Seamless.Store;
 namespace Test.Seamless.ScanIteratorFunctions;
 
 public class CounterIterator{
@@ -15,7 +15,11 @@ public class CounterIterator{
     [Fact,Trait("Category",Unit)]public void OnStart()=>Common();
     [Fact,Trait("Category",Unit)]public void OnStop()=>Common();
     [Fact,Trait("Category",Unit)]public void OnException(){
+#if TSAVORITE2_0BETA3
         var iter = new global::Seamless.ScanIteratorFunctions.CounterIterator();
+#elif TSAVORITE1_1_1
+        var iter = new global::Seamless.ScanIteratorFunctions.CounterIterator<int,int>();
+#endif
         iter.OnException(new Exception("test"),0);
     }
 }

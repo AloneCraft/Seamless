@@ -1,7 +1,8 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Store;
 using Tsavorite.core;
+using EqualityEmpty = global::Seamless.Collections.EqualityEmpty;
 
 namespace Test.Seamless.SessionFunctions;
 
@@ -19,12 +20,12 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
     protected override void FlushAndEvict(IDisposable store) =>
         ((UnmanagedCollectionStore<int, long>)store).Store.Log.FlushAndEvict(true);
     protected override TryAddResult TryAdd(IDictionary<int, long> dict, int key, long value) =>
-        ((UnmanagedDictionary<int, long>)dict).TryAdd(key, value);
+        ((ISeamlessDictionary<int, long>)dict).TryAdd(key, value);
 
     protected override void DoUpsert() {
 #if TSAVORITE1_1_1
         using var store = Factory.Create().Create<int, long>();
-        using var session = store.Store.NewSession<long, long, Tsavorite.core.Empty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
+        using var session = store.Store.NewSession<long, bool, EqualityEmpty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
         var bc = session.BasicContext;
         var key = 200;
         var val = 200L;
@@ -39,7 +40,7 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
     protected override void DoInPlaceWriter() {
 #if TSAVORITE1_1_1
         using var store = Factory.Create().Create<int, long>();
-        using var session = store.Store.NewSession<long, long, Tsavorite.core.Empty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
+        using var session = store.Store.NewSession<long, bool, EqualityEmpty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
         var bc = session.BasicContext;
         var key = 200;
         var valFirst = 200L;
@@ -60,13 +61,13 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
     protected override void DoRMW() {
 #if TSAVORITE1_1_1
         using var store = Factory.Create().Create<int, long>();
-        using var session = store.Store.NewSession<long, long, Tsavorite.core.Empty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
+        using var session = store.Store.NewSession<long, bool, EqualityEmpty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
         var key = 1;
         var input0 = 100L;
         var input1 = 200L;
         var bc = session.BasicContext;
         {
-            long output = default;
+            bool output = default;
             var status = bc.RMW(ref key, ref input0, ref output);
             if(status.IsPending) {
                 bc.CompletePendingWithOutputs(out var completed, wait: true);
@@ -75,7 +76,7 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
             Assert.True(status.NotFound);
         }
         {
-            long output = default;
+            bool output = default;
             var status = bc.RMW(ref key, ref input1, ref output);
             if(status.IsPending) {
                 bc.CompletePendingWithOutputs(out var completed, wait: true);
@@ -91,7 +92,7 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
     protected override void DoConcurrentWriter() {
 #if TSAVORITE1_1_1
         using var store = Factory.Create().Create<int, long>();
-        using var session = store.Store.NewSession<long, long, Tsavorite.core.Empty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
+        using var session = store.Store.NewSession<long, bool, EqualityEmpty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
         var bc = session.BasicContext;
         var key = 300;
         var valFirst = 300L;
@@ -111,13 +112,13 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder, "log.data"), deleteOnClose: true, capacity: Const.MinObjectLogCapacity);
         using var objDevice = Devices.CreateLogDevice(Path.Combine(folder + "_obj", "obj.data"), deleteOnClose: true, capacity: Const.MinObjectLogCapacity);
         using var store = Factory.Create(MemorySize: Const.MinObjectLogCapacity).Create<int, long>(logDevice,objDevice);
-        using var session = store.Store.NewSession<long, long, Tsavorite.core.Empty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
+        using var session = store.Store.NewSession<long, bool, EqualityEmpty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
         var bc = session.BasicContext;
         var key1 = 400;
         var val1 = 100L;
         bc.Upsert(ref key1, ref val1);
         store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress, wait: true);
-        long output1 = default;
+        bool output1 = default;
         var status1 = bc.Read(ref key1, ref output1);
         if(status1.IsPending) {
             bc.CompletePendingWithOutputs(out var c1, wait: true);
@@ -130,12 +131,12 @@ public sealed class UnmanagedAdd : AddTests<int, long> {
     protected override void DoConcurrentReaderEmpty() {
 #if TSAVORITE1_1_1
         using var store = Factory.Create().Create<int, long>();
-        using var session = store.Store.NewSession<long, long, Tsavorite.core.Empty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
+        using var session = store.Store.NewSession<long, bool, EqualityEmpty, global::Seamless.SessionFunctions.UnmanagedAdd<int, long>>(new());
         var bc = session.BasicContext;
         var key = 500;
         var val = 0L;
         bc.Upsert(ref key, ref val);
-        long output = default;
+        bool output = default;
         var status = bc.Read(ref key, ref output);
         Assert.True(status.Found);
 #endif

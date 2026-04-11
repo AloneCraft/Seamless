@@ -9,5 +9,5 @@ public sealed class StorageUnmanagedDictionaryStore<TKey,TValue>:UnmanagedDictio
         base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir) {
     }
 
-    public override UnmanagedDictionary<TKey,TValue> Create() => new StorageUnmanagedDictionary<TKey,TValue>(this);
+    public override UnmanagedDictionary<TKey,TValue,UnmanagedSerializer<TKey>,UnmanagedSerializer<TValue>> Create() => new StorageUnmanagedDictionary<TKey,TValue>(this);
 }

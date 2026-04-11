@@ -1,102 +1,18 @@
 ﻿using System.Collections;
 using System.Diagnostics;
-using Seamless.ScanIteratorFunctions;
-using Seamless.SessionFunctions;
-using Seamless.Store;
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。
 /// <see cref="ISet{T}"/> を実装し、利用者に Tsavorite の詳細を見せない。
-/// 重複を許さず、キーのみを格納する。値は Empty 構造体を使用する。
+/// 重複を許さず、キーのみを格納する。値は EqualityEmpty 構造体を使用する。
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
-public abstract class ManagedHashSet<T>:ManagedCollection<T,Empty,ManagedSerializer<T>,ManagedSerializer<Empty>>, ISet<T> where T : IEquatable<T>{
-	private readonly byte[] EmptyBytes;
-#if TSAVORITE2_0BETA3
-	private readonly ClientSession<FixedSpanByteKey,Empty,Empty,Empty,IntersectWith          ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>IntersectWith_ClientSession;
-	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith    ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>SymmetricExceptWith_ClientSession;
-	internal ManagedHashSet(ManagedCollectionStore<T,Empty> CollectionStore):base(CollectionStore){
-		this.EmptyBytes=Serialize(Empty.Default).ToArray();
-		var Store=CollectionStore.Store;
-		this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,Empty,Empty,Empty,IntersectWith>(new());
-		this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new());
-	}
-	public Enumerator<T,Empty,SessionFunctions.Add,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>,KeyIterator<T,ManagedSerializer<T>>,T> GetEnumerator()=>new (this.ClientSession,new());
-    public void IntersectWith(ManagedHashSet<T> other){
-        ArgumentNullException.ThrowIfNull(other);
-        var Session = this.IntersectWith_ClientSession;
-        Empty Input = default;
-        Empty Output = default;
-        foreach(var Key in this){
-            if(other.Contains(Key)) {
-                continue;
-            }
-            var KeyBytes = Serialize(Key);
-            var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-            Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
-        }
-        Session.BasicContext.CompletePending(true);
-    }
-#elif TSAVORITE1_1_1
-    private readonly ClientSession<
-        SpanByte,SpanByte,Empty,Empty,Empty,IntersectWith,
-        StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
-        SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>
-        >
-    > IntersectWith_ClientSession;
-    private readonly ClientSession<
-        SpanByte,SpanByte,SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith,
-        StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,
-        SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>
-    > SymmetricExceptWith_ClientSession;
-	internal ManagedHashSet(ManagedCollectionStore<T,Empty> CollectionStore) : base(CollectionStore) {
-        this.EmptyBytes=Serialize(Empty.Default).ToArray();
-        var Store=CollectionStore.Store;
-        this.IntersectWith_ClientSession=Store.NewSession<Empty,Empty,Empty,IntersectWith>(new());
-        this.SymmetricExceptWith_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,Empty,SymmetricExceptWith>(new());
-    }
-
-	public Enumerator<
-		T,
-		core_Empty,
-		SessionFunctions.Add,
-		StoreFunctions<
-			SpanByte,
-			SpanByte,
-			SpanByteComparer,
-			SpanByteRecordDisposer
-		>,
-		SpanByteAllocator<
-			StoreFunctions<
-				SpanByte,
-				SpanByte,
-				SpanByteComparer,
-				SpanByteRecordDisposer
-			>
-		>,
-		KeyIterator<T,ManagedSerializer<T>>,
-		T
-	> GetEnumerator() =>new (this.ClientSession,new());
-    public void IntersectWith(ManagedHashSet<T> other){
-		ArgumentNullException.ThrowIfNull(other);
-        var Session = this.IntersectWith_ClientSession;
-        Empty Input = default;
-        Empty Output = default;
-        foreach(var Key0 in this) {
-            if(other.Contains(Key0)) {
-                continue;
-            }
-            var KeyBytes = Serialize(Key0);
-            var Key = SpanByte.FromPinnedSpan(KeyBytes);
-            var Status = Session.BasicContext.RMW(ref Key,ref Input,ref Output);
-        }
-        Session.BasicContext.CompletePending(wait: true);
-    }
-#endif
+public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpty,ManagedSerializer<T>,ManagedSerializer<EqualityEmpty>>, ISet<T> where T : IEquatable<T>{
+	//private readonly byte[] EmptyBytes;
 	public bool IsReadOnly => false;
 	public bool Add(T item) {
-		var Result = this.PrivateTryAdd(item,Empty.Default);
+		var Result = this.PrivateTryAdd(item,EqualityEmpty.Default);
 		switch(Result) {
 			case TryAddResult.Success:
 				return true;
@@ -190,29 +106,8 @@ public abstract class ManagedHashSet<T>:ManagedCollection<T,Empty,ManagedSeriali
 		}
 		return true;
 	}
-	public void SymmetricExceptWith(ManagedHashSet<T> other) {
-		ArgumentNullException.ThrowIfNull(other);
-        var Session = this.SymmetricExceptWith_ClientSession;
-#if TSAVORITE2_0BETA3
-		var Input = PinnedSpanByte.FromPinnedSpan(this.EmptyBytes);
-		foreach(var Item in other) {
-			var KeyBytes = Serialize(Item);
-			var Key = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-			SpanByteAndMemory Output = default;
-			var Status=Session.BasicContext.RMW(Key,ref Input,ref Output);
-		}
-#elif TSAVORITE1_1_1
-        var InputBytes = this.EmptyBytes;
-        foreach(var Item in other) {
-            var KeyBytes = Serialize(Item);
-            var Key = SpanByte.FromPinnedSpan(KeyBytes);
-            var Input = SpanByte.FromPinnedSpan(InputBytes);
-            SpanByteAndMemory Output = default;
-            var Status=Session.BasicContext.RMW(ref Key,ref Input,ref Output);
-        }
-#endif
-        Session.BasicContext.CompletePending(wait: true);
-	}
+    public partial void IntersectWith(ManagedHashSet<T> other);
+    public partial void SymmetricExceptWith(ManagedHashSet<T> other);
 	public void UnionWith(ManagedHashSet<T> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		foreach(var item in other) {

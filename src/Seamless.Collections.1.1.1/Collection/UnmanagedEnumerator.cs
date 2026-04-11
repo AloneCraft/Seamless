@@ -3,16 +3,16 @@
 using System.Collections;
 namespace Seamless.Collections;
 
-internal struct UnmanagedEnumerator<TKey,TValue,TIterator,T>(
+public struct UnmanagedEnumerator<TKey,TValue,TIterator,T>(
     ClientSession<
         TKey,
         TValue,
+        EqualityEmpty,
         TValue,
-        TValue,
-        core_Empty,
-        Seamless.SessionFunctions.UnmanagedAdd<TKey,TValue>,
-        StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,TValue>>,
-        BlittableAllocator<TKey,TValue,StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,TValue>>>> session,
+        EqualityEmpty,
+        SessionFunctions.UnmanagedRead<TKey,TValue>,
+        StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,TValue>>,
+        BlittableAllocator<TKey,TValue,StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,TValue>>>> session,
     TIterator iterator):IEnumerator<T>
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue>

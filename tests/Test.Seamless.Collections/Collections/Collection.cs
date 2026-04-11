@@ -1,6 +1,7 @@
 ﻿using Seamless.Collections;
 using Seamless.Store;
 using Tsavorite.core;
+using EqualityEmpty = global::Seamless.Collections.EqualityEmpty;
 namespace Test.Seamless.Collections;
 
 
@@ -21,21 +22,21 @@ public class Collection {
     public void EntryCount_追加後に増加する() {
         using var store = Factory.Create().Create<int>();
         using var writer = store.Create();
-        using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
+        using var subject = new TestCollection<int,EqualityEmpty>(store);
         writer.Add(1);
         Assert.True(subject.EntryCount>=1);
     }
     [Fact, Trait("Category",Unit)]
     public void GetLongCount_空の場合ゼロを返す() {
         using var store = Factory.Create().Create<int>();
-        using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
+        using var subject = new TestCollection<int,EqualityEmpty>(store);
         Assert.Equal(0L,subject.GetLongCount());
     }
     [Fact, Trait("Category",Unit)]
     public void Count_GetLongCountと一致する() {
         using var store = Factory.Create().Create<int>();
         using var writer = store.Create();
-        using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
+        using var subject = new TestCollection<int,EqualityEmpty>(store);
         writer.Add(1);
         writer.Add(2);
         Assert.Equal((int)subject.GetLongCount(),subject.Count);
@@ -44,28 +45,28 @@ public class Collection {
     public void Contains_存在するキー_真を返す() {
         using var store = Factory.Create().Create<int>();
         using var writer = store.Create();
-        using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
+        using var subject = new TestCollection<int,EqualityEmpty>(store);
         writer.Add(1);
         Assert.True(subject.Contains(1));
     }
     [Fact, Trait("Category",Unit)]
     public void Contains_存在しないキー_偽を返す() {
         using var store = Factory.Create().Create<int>();
-        using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
+        using var subject = new TestCollection<int,EqualityEmpty>(store);
         Assert.False(subject.Contains(99));
     }
     [Fact, Trait("Category",Unit)]
     public void Remove_存在するキー_真を返す() {
         using var store = Factory.Create().Create<int>();
         using var writer = store.Create();
-        using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
+        using var subject = new TestCollection<int,EqualityEmpty>(store);
         writer.Add(1);
         Assert.True(subject.Remove(1));
     }
     [Fact, Trait("Category",Unit)]
     public void Remove_存在しないキー_偽を返す() {
         using var store = Factory.Create().Create<int>();
-        using var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
+        using var subject = new TestCollection<int,EqualityEmpty>(store);
         Assert.False(subject.Remove(99));
     }
     private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
@@ -140,7 +141,7 @@ public class Collection {
     [Fact, Trait("Category",Unit)]
     public void Dispose_TestCollection_二重呼び出し_Collection5早期リターン() {
         var store = Factory.Create().Create<int>();
-        var subject = new TestCollection<int,global::Seamless.Collections.Empty>(store);
+        var subject = new TestCollection<int,EqualityEmpty>(store);
         subject.Dispose();
         subject.Dispose();
         Assert.True(subject.IsDisposed);

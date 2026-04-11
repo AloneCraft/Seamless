@@ -1,12 +1,12 @@
-using Tsavorite.core;
+﻿using Tsavorite.core;
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Store;
 namespace Test.Seamless.Collections;
 
 /// <summary>
-/// indexCheckpointToken=Guid.Empty によるリカバリーのテスト。
+/// indexCheckpointToken=Guid.EqualityEmpty によるリカバリーのテスト。
 ///
-/// Tsavorite の RecoverAsync(indexToken, hybridLogToken) で indexToken=Guid.Empty を渡すと：
+/// Tsavorite の RecoverAsync(indexToken, hybridLogToken) で indexToken=Guid.EqualityEmpty を渡すと：
 /// - インデックスチェックポイントからの復元をスキップ
 /// - ログを先頭から再生してインデックス（ハッシュテーブル）を再構築
 ///
@@ -18,7 +18,7 @@ namespace Test.Seamless.Collections;
 /// 注意:
 /// - 引数なし RecoverAsync() は自動検出でインデックスチェックポイントも復元しようとするため、
 ///   フルチェックポイント後に使うとインデックス復元の問題が発生する場合がある。
-/// - 確実な復元には Load(token) を使う（内部で Guid.Empty + logToken で復元）。
+/// - 確実な復元には Load(token) を使う（内部で Guid.EqualityEmpty + logToken で復元）。
 /// - LoadLatest() はログのみチェックポイント（SaveLogOnly）との組み合わせで安全に使用可能。
 /// </summary>
 public class DictionaryGuidEmptyRecoveryTests {
@@ -28,7 +28,7 @@ public class DictionaryGuidEmptyRecoveryTests {
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
     public void SaveLogOnly_Loadで指定検出() {
         // TakeHybridLogCheckpointAsync はログのみ保存（インデックスチェックポイントは作られない）
-        // Load は内部で RecoverAsync(Guid.Empty, logToken) を呼ぶ
+        // Load は内部で RecoverAsync(Guid.EqualityEmpty, logToken) を呼ぶ
         // → インデックスチェックポイントが無いのでログを先頭から再生して再構築
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
@@ -61,7 +61,7 @@ public class DictionaryGuidEmptyRecoveryTests {
     public void SaveLogOnly_Load自動検出() {
         // SaveLogOnly → LoadLatest: インデックスチェックポイントが無い場合、
         // FindRecoveryInfo が "No index checkpoint found, recovering from beginning of log" で
-        // Guid.Empty と同等の動作（ログから再構築）を自動的に行う
+        // Guid.EqualityEmpty と同等の動作（ログから再構築）を自動的に行う
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
         {
@@ -78,7 +78,7 @@ public class DictionaryGuidEmptyRecoveryTests {
             using var LogObjDevice = Devices.CreateLogDevice(folder+"_obj");
             using var store = Factory.Create(CheckpointDir:checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
             // トークンを指定せず自動検出で復元
-            // インデックスチェックポイントが無いのでログから再構築（Guid.Emptyと同等）
+            // インデックスチェックポイントが無いのでログから再構築（Guid.EqualityEmptyと同等）
             store.Load();
             using var dict = store.Create();
             Assert.Equal(1000,dict[10]);

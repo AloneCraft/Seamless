@@ -10,5 +10,5 @@ public sealed class MemoryUnmanagedDictionaryStore<TKey,TValue>:UnmanagedDiction
         base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null) {
     }
 
-    public override UnmanagedDictionary<TKey,TValue> Create() => new MemoryUnmanagedDictionary<TKey,TValue>(this);
+    public override UnmanagedDictionary<TKey,TValue,UnmanagedSerializer<TKey>,UnmanagedSerializer<TValue>> Create() => new MemoryUnmanagedDictionary<TKey,TValue>(this);
 }

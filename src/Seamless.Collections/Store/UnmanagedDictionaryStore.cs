@@ -9,5 +9,5 @@ public abstract class UnmanagedDictionaryStore<TKey,TValue>:UnmanagedCollectionS
         base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir) {
     }
 
-    public abstract UnmanagedDictionary<TKey,TValue> Create();
+    public abstract UnmanagedDictionary<TKey,TValue,UnmanagedSerializer<TKey>,UnmanagedSerializer<TValue>> Create();
 }
