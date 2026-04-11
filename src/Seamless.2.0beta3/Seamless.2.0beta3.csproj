@@ -52,4 +52,8 @@
 
   <Import Project="..\Seamless\Seamless.projitems" Label="Shared" />
 
+  <ItemGroup>
+    <Compile Remove="G:\GitHub\Seamless\Seamless\src\Seamless\Collections\ICreate.cs" />
+  </ItemGroup>
+
 </Project>

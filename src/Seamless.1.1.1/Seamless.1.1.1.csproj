@@ -35,5 +35,8 @@
     <PackageReference Include="Microsoft.Garnet" Version="1.1.1" />
   </ItemGroup>
   <Import Project="..\Seamless\Seamless.projitems" Label="Shared" />
+  <ItemGroup>
+    <Compile Remove="G:\GitHub\Seamless\Seamless\src\Seamless\Collections\ICreate.cs" />
+  </ItemGroup>
 
 </Project>
