@@ -18,8 +18,6 @@
     <Compile Include="Collections\ISet.cs" />
     <Compile Include="Collections\ManagedCollection.cs" />
     <Compile Include="Collections\ManagedDictionary.cs" />
-    <Compile Include="Collections\ManagedEnumerator.cs" />
-    <Compile Include="Collections\ManagedEnumerator.ctor.cs" />
     <Compile Include="Collections\ManagedHashSet.cs" />
     <Compile Include="Collections\MemoryManagedDictionary.cs" />
     <Compile Include="Collections\MemoryManagedHashSet.cs" />
@@ -52,28 +50,28 @@
     <Compile Include="SessionFunctions\UnmanagedAdd.cs" />
     <Compile Include="SessionFunctions\UnmanagedDelete.cs" />
     <Compile Include="SessionFunctions\UnmanagedRead.cs" />
-    <Compile Include="Store\CollectionStore.cs" />
-    <Compile Include="Store\CollectionStore`.cs" />
-    <Compile Include="Store\Factory.cs" />
-    <Compile Include="Store\ManagedCollectionStore.cs" />
-    <Compile Include="Store\ManagedDictionaryStore.cs" />
-    <Compile Include="Store\MemoryManagedDictionaryStore.cs" />
-    <Compile Include="Store\MemoryManagedHashSetStore.cs" />
-    <Compile Include="Store\MemoryUnmanagedDictionaryStore.cs" />
-    <Compile Include="Store\StorageManagedDictionaryStore.cs" />
-    <Compile Include="Store\StorageManagedHashSetStore.cs" />
-    <Compile Include="Store\StorageUnmanagedDictionaryStore.cs" />
-    <Compile Include="Store\UnmanagedCollectionStore.cs" />
-    <Compile Include="Store\UnmanagedDictionaryStore.cs" />
-    <Compile Include="Store\UnmanagedHashSetStore.cs" />
+    <Compile Include="Stores\CollectionStore.cs" />
+    <Compile Include="Stores\CollectionStore`.cs" />
+    <Compile Include="Stores\Factory.cs" />
+    <Compile Include="Stores\ManagedCollectionStore.cs" />
+    <Compile Include="Stores\ManagedDictionaryStore.cs" />
+    <Compile Include="Stores\MemoryManagedDictionaryStore.cs" />
+    <Compile Include="Stores\MemoryManagedHashSetStore.cs" />
+    <Compile Include="Stores\MemoryUnmanagedDictionaryStore.cs" />
+    <Compile Include="Stores\StorageManagedDictionaryStore.cs" />
+    <Compile Include="Stores\StorageManagedHashSetStore.cs" />
+    <Compile Include="Stores\StorageUnmanagedDictionaryStore.cs" />
+    <Compile Include="Stores\UnmanagedCollectionStore.cs" />
+    <Compile Include="Stores\UnmanagedDictionaryStore.cs" />
+    <Compile Include="Stores\UnmanagedHashSetStore.cs" />
     <Compile Include="StructDictionaryFeature.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Collections\DebugView\" />
     <Folder Include="SessionFunctions\Managed\" />
     <Folder Include="SessionFunctions\Unmanaged\" />
-    <Folder Include="Store\Managed\" />
-    <Folder Include="Store\Unmanaged\" />
+    <Folder Include="Stores\Managed\" />
+    <Folder Include="Stores\Unmanaged\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="SessionFunctions\Document.txt" />

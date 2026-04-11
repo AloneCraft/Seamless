@@ -18,8 +18,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedCollection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedDictionary.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedEnumerator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedEnumerator.ctor.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryManagedHashSet.cs" />
@@ -52,20 +50,20 @@
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedAdd.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedDelete.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedRead.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore`.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\Factory.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\ManagedCollectionStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\ManagedDictionaryStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\MemoryManagedDictionaryStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\MemoryManagedHashSetStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\MemoryUnmanagedDictionaryStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\StorageManagedDictionaryStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\StorageManagedHashSetStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\StorageUnmanagedDictionaryStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedCollectionStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedDictionaryStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedHashSetStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\CollectionStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\CollectionStore`.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\Factory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedCollectionStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\MemoryManagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\MemoryManagedHashSetStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\MemoryUnmanagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\StorageManagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\StorageManagedHashSetStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\StorageUnmanagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedCollectionStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedHashSetStore.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="$(MSBuildThisFileDirectory)SessionFunctions\Document.txt" />

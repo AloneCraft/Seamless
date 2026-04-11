@@ -1,6 +1,6 @@
 ﻿
 using Seamless.Devices;
-namespace Seamless.Store;
+namespace Seamless.Stores;
 /// <summary>
 /// Tsavorite ストアを管理する抽象基底クラス。
 /// DictionaryStore および HashSetStore の共通実装を提供する。

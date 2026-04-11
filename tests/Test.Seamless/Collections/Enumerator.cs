@@ -1,5 +1,5 @@
 ﻿using System.Collections;
-using Seamless.Store;
+using Seamless.Stores;
 namespace Test.Seamless.Collections;
 
 

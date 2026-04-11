@@ -1,6 +1,6 @@
 ﻿using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
-using Seamless.Store;
+using Seamless.Stores;
 namespace Seamless.Collections;
 /// <summary>
 /// UnmanagedHashSet の 1.1.1 固有部分。IntersectWith/SymmetricExceptWith 実装とイテレータ。

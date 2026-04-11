@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 using Seamless.Collections;
-using Seamless.Store;
+using Seamless.Stores;
 using Test.Seamless.Collections;
 namespace Benchmarks;
 public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmark<TKey,TValue>(output) 

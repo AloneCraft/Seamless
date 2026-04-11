@@ -1,11 +1,16 @@
-﻿using Seamless.Store;
+﻿using Seamless.ScanIteratorFunctions;
+using Seamless.SessionFunctions;
+using Seamless.Stores;
+
+using System.Collections;
+using System.Runtime.InteropServices;
 namespace Seamless.Collections;
 public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue>
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-
+    [StructLayout(LayoutKind.Auto)]public partial struct Enumerator<TIterator,T>where TIterator : ScanIteratorFunctions<T>;
     private protected ReadOnlySpan<byte> SerializeKey(ref TKey key) =>TKeySerializer.Serialize(ref key);
     private protected ReadOnlySpan<byte> SerializeValue(ref TValue value) => TValueSerializer.Serialize(ref value);
 

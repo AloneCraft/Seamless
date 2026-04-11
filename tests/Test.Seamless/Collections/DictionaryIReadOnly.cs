@@ -1,4 +1,4 @@
-﻿using Seamless.Store;
+﻿using Seamless.Stores;
 namespace Test.Seamless.Collections;
 
 public class DictionaryIReadOnly {

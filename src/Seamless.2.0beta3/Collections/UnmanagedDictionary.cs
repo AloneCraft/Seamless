@@ -4,7 +4,7 @@ using Seamless.SessionFunctions;
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using Seamless.Store;
+using Seamless.Stores;
 namespace Seamless.Collections;
 
 [DebuggerDisplay("Count = {Count}")]

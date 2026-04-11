@@ -1,18 +1,15 @@
 ﻿using System.Diagnostics;
-namespace Seamless.Store;
+using System.Diagnostics.CodeAnalysis;
 
-public abstract partial class CollectionStore<
-    TKey,
-    TValue,
-    TStoreFunctions,
-    TAllocator
->
-	where TKey : IEquatable<TKey>
-	where TStoreFunctions : IStoreFunctions
-	where TAllocator : IAllocator<TStoreFunctions>
+namespace Seamless.Stores;
+
+public abstract partial class CollectionStore<TKey,TValue,TSessionKey,TSessionValue,TStoreFunctions,TAllocator>
+    where TKey : IEquatable<TKey>
+    where TStoreFunctions : IStoreFunctions<TSessionKey,TSessionValue>
+    where TAllocator : IAllocator<TSessionKey,TSessionValue, TStoreFunctions>
 {
-    private protected KVSettings Settings{get;private set;}
-	public readonly TsavoriteKV<TStoreFunctions,TAllocator> Store;
+    private protected KVSettings<TSessionKey,TSessionValue> Settings{get;private set;}
+    public readonly TsavoriteKV<TSessionKey,TSessionValue,TStoreFunctions,TAllocator> Store;
     /// <summary>テスト専用シーム: TakeCheckpointAsync 完了後・CompleteCheckpointAsync 前に呼び出されるコールバック。</summary>
     private protected CollectionStore(
         TStoreFunctions StoreFunctions,
@@ -32,49 +29,39 @@ public abstract partial class CollectionStore<
 		this.LogMemorySize=MemorySize;
 		this.MutableFraction=MutableFraction;
 		//MemoryOnlyDevice使用時はシリアライザ不要。ページデータはヒープ上で保持されるためインライン格納で十分。
-        long ObjectLogSegmentSize;
-        if(ObjectLogDevice.Capacity<0) {
-            ObjectLogSegmentSize=Const.MinObjectLogCapacity;
-        } else {
-            Debug.Assert(ObjectLogDevice.Capacity%SegmentSize==0,$"ObjectLogDevice.Capacity must be a multiple of SegmentSize ({SegmentSize}), but was {ObjectLogDevice.Capacity}");
-            ObjectLogSegmentSize=ObjectLogDevice.Capacity;
-        }
-        this.Settings=new(){
+        this.Settings = new(){
             IndexSize=IndexSize,
-            LogMemorySize=MemorySize,
+            MemorySize=MemorySize,
             PageSize=PageSize,
             SegmentSize=SegmentSize,
 
             MutableFraction=MutableFraction,
             LogDevice=LogDevice,
             ObjectLogDevice=ObjectLogDevice,
-            ObjectLogSegmentSize=ObjectLogSegmentSize,
+
             CheckpointDir=CheckpointDir,
         };
-		this.Store=new TsavoriteKV<TStoreFunctions,TAllocator>(
-			this.Settings,
-			StoreFunctions,
-			allocatorFactory
-		);
+        this.Store=new TsavoriteKV<TSessionKey,TSessionValue,TStoreFunctions,TAllocator>(
+            this.Settings,
+            StoreFunctions,
+            allocatorFactory
+        );
+        [ExcludeFromCodeCoverage]
+		static IObjectSerializer<SpanByte>? NullSerializer() => null;
 	}
-	public virtual void CompactWithLookup() {
-		var Store = this.Store;
-		var BeginAddress = Store.Log.BeginAddress;
-		var SegmentSize = this.Settings.SegmentSize;
-		var NextSegmentStart = (BeginAddress/SegmentSize+1)*SegmentSize;
-		var CompactUntil = NextSegmentStart;
-		var SafeReadOnlyAddress = Store.Log.SafeReadOnlyAddress;
-		if(CompactUntil>SafeReadOnlyAddress) {
-			CompactUntil=SafeReadOnlyAddress;
-		} else {
-		}
-
-		if(CompactUntil<=BeginAddress) 
+	public void CompactWithLookup() {
+		var store = this.Store;
+		var beginAddress = store.Log.BeginAddress;
+		var segmentSize = this.Settings.SegmentSize;
+		var nextSegmentStart = (beginAddress/segmentSize+1)*segmentSize;
+		var compactUntil = nextSegmentStart;
+		var safeReadOnlyAddress = store.Log.SafeReadOnlyAddress;
+		if(compactUntil>safeReadOnlyAddress)
+			compactUntil=safeReadOnlyAddress;
+		if(compactUntil<=beginAddress)
 			return;
-		var UntilAddress=this.Store.Log.Compact<TKey,TValue,EqualityEmpty>(
-			CompactUntil,
-			CompactionType.Lookup
-		);
-		Store.Log.ShiftBeginAddress(UntilAddress,true,true);
+		var untilAddress =this.CompactLog(compactUntil);
+		store.Log.ShiftBeginAddress(untilAddress,true,true);
 	}
+	protected abstract long CompactLog(long compactUntil);
 }

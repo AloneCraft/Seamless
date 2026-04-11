@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
-using Seamless.Store;
+using Seamless.Stores;
 namespace Seamless.Collections;
 /// <summary>
 /// UnmanagedHashSet の 2.0beta3 固有部分。IntersectWith/SymmetricExceptWith セッションとイテレータ。

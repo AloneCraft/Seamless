@@ -1,7 +1,7 @@
 ﻿using Seamless.Collections;
 using Seamless.Devices;
 
-namespace Seamless.Store;
+namespace Seamless.Stores;
 /// <summary>
 /// UnmanagedHashSet 用の Tsavorite ストア。
 /// </summary>

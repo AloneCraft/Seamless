@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using Seamless.Store;
+using Seamless.Stores;
 namespace Seamless.Collections;
 public abstract partial class Collection<
     TKey,

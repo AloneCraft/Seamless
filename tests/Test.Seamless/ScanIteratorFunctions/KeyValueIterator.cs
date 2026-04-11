@@ -1,4 +1,4 @@
-﻿using Seamless.Store;
+﻿using Seamless.Stores;
 namespace Test.Seamless.ScanIteratorFunctions;
 
 public class KeyValueIterator{

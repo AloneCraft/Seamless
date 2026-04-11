@@ -1,5 +1,5 @@
 ﻿using System.Diagnostics;
-using Seamless.Store;
+using Seamless.Stores;
 using Test.Seamless.Collections;
 using Tsavorite.core;
 using EqualityEmpty=Seamless.Collections.EqualityEmpty;
