@@ -9,7 +9,7 @@ namespace Seamless.Collections;
 
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(UnmanagedDictionaryDebugView<,,,>))]
-public abstract class UnmanagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>:UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>, IDictionary<TKey,TValue>, IReadOnlyDictionary<TKey,TValue>, ISeamlessDictionary<TKey,TValue>
+public abstract class UnmanagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>:UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>, ISeamlessDictionary<TKey,TValue>
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue>
     where TKeySerializer:ISerializer<TKey>
@@ -79,12 +79,7 @@ public abstract class UnmanagedDictionary<TKey,TValue,TKeySerializer,TValueSeria
         return false;
     }
 
-    public UnmanagedCollection<
-        TKey,
-        TValue,
-        TKeySerializer,
-        TValueSerializer
-    >.Enumerator<
+    public Enumerator<
         KeyValueIterator<
             TKey,
             TValue,
@@ -97,7 +92,7 @@ public abstract class UnmanagedDictionary<TKey,TValue,TKeySerializer,TValueSeria
     private List<T> CreateCollection<TIterator,T>(TIterator iterator)
         where TIterator:ScanIteratorFunctions<T> {
         var collection = new List<T>();
-        using var e = new UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>.Enumerator<TIterator,T>(this.ReadClientSession,iterator);
+        using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
         while(e.MoveNext()) {
             collection.Add(e.Current);
         }
@@ -106,7 +101,7 @@ public abstract class UnmanagedDictionary<TKey,TValue,TKeySerializer,TValueSeria
 
     private IEnumerable<T> Enumerate<TIterator,T>(TIterator iterator)
         where TIterator:ScanIteratorFunctions<T> {
-        using var e = new UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>.Enumerator<TIterator,T>(this.ReadClientSession,iterator);
+        using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
         while(e.MoveNext()) {
             yield return e.Current;
         }

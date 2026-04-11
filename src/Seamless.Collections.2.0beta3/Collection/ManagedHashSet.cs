@@ -10,7 +10,7 @@ namespace Seamless.Collections;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
-public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpty,ManagedSerializer<T>,ManagedSerializer<EqualityEmpty>>, ISet<T> where T : IEquatable<T>{
+public abstract partial class ManagedHashSet<T>where T : IEquatable<T>{
 	private readonly ClientSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> IntersectWith_ClientSession;
 	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> SymmetricExceptWith_ClientSession;
 	internal ManagedHashSet(ManagedCollectionStore<T,EqualityEmpty> CollectionStore):base(CollectionStore){
@@ -19,21 +19,11 @@ public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpt
 		this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith>(new());
 		this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith>(new());
 	}
-	public ManagedCollection<
-		T,
-		EqualityEmpty,
-		ManagedSerializer<T>,
-		ManagedSerializer<EqualityEmpty>
-	>.Enumerator<
+	public Enumerator<
 		KeyIterator<T,ManagedSerializer<T>>,
 		T
 	> GetEnumerator()=>new (this.ReadClientSession,new());
-	internal ManagedCollection<
-		T,
-		EqualityEmpty,
-		ManagedSerializer<T>,
-		ManagedSerializer<EqualityEmpty>
-	>.Enumerator<
+    private Enumerator<
 		SpanByteKeyIterator,
 		byte[]
 	> GetSpanByteEnumerator()=>new (this.ReadClientSession,new());

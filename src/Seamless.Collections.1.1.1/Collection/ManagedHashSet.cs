@@ -63,12 +63,7 @@ public abstract partial class ManagedHashSet<T>
         this.SymmetricExceptWith_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith>(new());
     }
 
-	public ManagedCollection<
-		T,
-		EqualityEmpty,
-		ManagedSerializer<T>,
-		ManagedSerializer<EqualityEmpty>
-	>.Enumerator<
+	public Enumerator<
 		KeyIterator<T,ManagedSerializer<T>>,
 		T
 	> GetEnumerator() =>new(this.ReadClientSession,new());
