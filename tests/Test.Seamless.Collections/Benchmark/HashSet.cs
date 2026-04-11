@@ -2,10 +2,11 @@
 using Seamless.Store;
 using Test.Seamless.Collections;
 using Tsavorite.core;
-using Empty=Seamless.Collections.Empty;
+using EqualityEmpty=Seamless.Collections.EqualityEmpty;
+using Seamless.Collections;
 namespace Benchmarks;
-public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,Empty>(output) where T:IEquatable<T>{
-	protected override Empty CreateValue(int seed)=>default;
+public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,EqualityEmpty>(output) where T:IEquatable<T>{
+	protected override EqualityEmpty CreateValue(int seed)=>default;
     protected ManagedHashSetStore<T> CreateStore(){
         var MemorySize=Seamless.Const.LogMemorySize<<10;
 		return Factory.Create(IndexSize:this.IndexSize,MemorySize:MemorySize).Create<T>();

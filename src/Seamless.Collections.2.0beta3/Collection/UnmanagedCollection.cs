@@ -1,42 +1,73 @@
-﻿using System.Diagnostics;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Seamless.Store;
 namespace Seamless.Collections;
 
-public abstract class UnmanagedCollection<TKey,TValue>:Collection<
+
+public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>:Collection<
     TKey,
     TValue,
+    TValue,//TReadOutput
+    TValue,//AddInput
+    UnmanagedRead<TKey,TValue>,
     UnmanagedAdd<TKey,TValue>,
-    UnmanagedDelete<TKey,TValue>,
+    ContainsDelete,
     StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,
     SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>>
     where TKey:unmanaged,IEquatable<TKey>
-    where TValue:unmanaged,IEquatable<TValue> {
+    where TValue:unmanaged,IEquatable<TValue>
+    where TKeySerializer:ISerializer<TKey>
+    where TValueSerializer:ISerializer<TValue> {
 
-    protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore) {
+    public sealed class KeyIterator:ScanIteratorFunctions<TKey> {
+        private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)=>
+            UnmanagedSerializer<TKey>.Deserialize(logRecord.Key);
+    }
+    internal sealed class ValueIterator:ScanIteratorFunctions<TValue> {
+        private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)=>
+            UnmanagedSerializer<TValue>.Deserialize(logRecord.ValueSpan);
+    }
+    public sealed class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
+        private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)=>
+            new(UnmanagedSerializer<TKey>.Deserialize(logRecord.Key),
+                UnmanagedSerializer<TValue>.Deserialize(logRecord.ValueSpan));
     }
 
-    private protected override ReadOnlySpan<byte> SerializeKey(ref TKey key) => UnmanagedSerializer<TKey>.Serialize(ref key);
-    private protected override ReadOnlySpan<byte> SerializeValue(ref TValue value) => UnmanagedSerializer<TValue>.Serialize(ref value);
-
-    private protected override Status Read(TKey Key,out SpanByteAndMemory Output) {
-        var Session = this.ClientSession;
+    public override bool Contains(TKey Key) {
         var KeyBytes = this.SerializeKey(ref Key);
-        Output = default;
+        return this.ContainsKey(KeyBytes);
+    }
+
+    /// <summary>
+    /// シリアライズ済みキーバイト列で直接存在判定する。
+    /// ContainsDelete の Reader が Read 時に output=true を返すことで存在判定を行う。
+    /// </summary>
+    internal bool ContainsKey(ReadOnlySpan<byte> KeyBytes) {
+        var Session = this.DeleteClientSession;
         var FixedKey = (FixedSpanByteKey)KeyBytes;
+        var Output = false;
         var Status = Session.BasicContext.Read(FixedKey, ref Output);
+        Status = Pending(Session, Status, ref Output);
+        return Status.Found;
+    }
+
+
+    private protected override TValue ConvertOutput(ref TValue output) => output;
+
+    private protected override Status Read(TKey Key,out TValue Output) {
+        var Session = this.ReadClientSession;
+        var KeySpan = this.SerializeKey(ref Key);
+        Output = default;
+        var Status = Session.BasicContext.Read((FixedSpanByteKey)KeySpan, ref Output);
         return Pending(Session, Status, ref Output);
     }
 
-    private protected override TValue ConvertOutput(ref SpanByteAndMemory output) =>
-        UnmanagedSerializer<TValue>.Deserialize(GetReadOnlySpan(output));
 
     public override long GetLongCount() {
         var Iterator = new CounterIterator();
-        long Cursor = 0;
-        this.ClientSession.IterateLookup(ref Iterator, ref Cursor, resetCursor: false);
+        var Cursor = 0L;
+        this.ReadClientSession.IterateLookup(ref Iterator, ref Cursor, resetCursor: false);
         return Iterator.Counter;
     }
 
@@ -44,26 +75,24 @@ public abstract class UnmanagedCollection<TKey,TValue>:Collection<
         if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>())) {
             return TryAddResult.LogFull;
         }
-        var Session = this.ClientSession;
         var KeyBytes = this.SerializeKey(ref Key);
-        var ValueBytes = this.SerializeValue(ref Value);
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
-        var FixedInput = PinnedSpanByte.FromPinnedSpan(ValueBytes);
-        SpanByteAndMemory Output = default;
-        var Status = Session.BasicContext.RMW(FixedKey, ref FixedInput, ref Output);
-        Status = Pending(Session, Status);
-        return Status.NotFound ? TryAddResult.Success : TryAddResult.KeyAlreadyExists;
+        var Session = this.AddClientSession;
+        var Output = false;
+        var Status = Session.BasicContext.RMW((FixedSpanByteKey)KeyBytes, ref Value, ref Output);
+        Status = Pending(Session, Status, ref Output);
+        if(Output)
+            return TryAddResult.Success;
+        else
+            return TryAddResult.KeyAlreadyExists;
     }
 
     public override bool Remove(TKey key) {
         var DeleteClientSession = this.DeleteClientSession;
         var KeyBytes = this.SerializeKey(ref key);
-        var Output = default(SpanByteAndMemory);
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
-        var Input = default(PinnedSpanByte);
-        var Status = DeleteClientSession.BasicContext.RMW(FixedKey,ref Input,ref Output);
-        Status = Pending(DeleteClientSession,Status);
-        Debug.Assert(Status.Found!=Status.NotFound);
-        return Status.Found;
+        var Input = default(EqualityEmpty);
+        var Output = false;
+        var Status = DeleteClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
+        Status = Pending(DeleteClientSession,Status,ref Output);
+        return Output;
     }
 }

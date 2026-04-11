@@ -17,13 +17,12 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
 	where TValueSerializer : ISerializer<TValue>
 {
 	public bool IsReadOnly => false;
-    public bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
-        var Status = this.Read(Key,out var Output);
+    public override bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
+        var Status = this.Read(Key,out Value);
         if(Status.NotFound) {
             Value=default;
             return false;
         }
-        Value=TValueSerializer.Deserialize(GetReadOnlySpan(Output));
         return true;
     }
 	public TryAddResult TryAdd(TKey Key,TValue Value) =>

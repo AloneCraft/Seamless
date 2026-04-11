@@ -1,24 +1,17 @@
 ﻿namespace Seamless.ScanIteratorFunctions;
-
-using System.Diagnostics;
-
-public class CounterIterator:IScanIteratorFunctions<SpanByte,SpanByte> {
-    public long Counter;
-    private long Counter0;
-    public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+/// <summary>
+/// IteratorLookup(ref CounterIterator) で使う構造体。スキャンしたレコード数を数えるだけ。
+/// refで渡しているのでstructで問題なさそうだが実際にはclassで無いとだめ。実装の問題か？
+/// </summary>
+/// <typeparam name="TKey"></typeparam>
+/// <typeparam name="TValue"></typeparam>
+public class CounterIterator<TKey,TValue>:CounterIteratorBase,IScanIteratorFunctions<TKey,TValue>{
+    public bool SingleReader(ref TKey key,ref TValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
         cursorRecordResult=CursorRecordResult.Accept;
-        this.Counter0++;
         return true;
     }
-    public bool ConcurrentReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
-        return this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
-    }
-    public bool OnStart(long beginAddress,long endAddress) {
+    public bool ConcurrentReader(ref TKey key,ref TValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        cursorRecordResult=CursorRecordResult.Accept;
         return true;
-    }
-    public void OnException(Exception exception,long numberOfRecords) { }
-    public void OnStop(bool completed,long numberOfRecords) {
-        this.Counter=numberOfRecords;
-        Debug.Assert(this.Counter0==numberOfRecords);
     }
 }

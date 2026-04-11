@@ -9,34 +9,25 @@ using Seamless.Store;
 namespace Seamless.Collections;
 
 [DebuggerDisplay("Count = {Count}")]
-public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,TValue>, IDictionary<TKey,TValue>, IReadOnlyDictionary<TKey,TValue>, ISeamlessDictionary<TKey,TValue>
+public abstract class UnmanagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>:UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>, IDictionary<TKey,TValue>, IReadOnlyDictionary<TKey,TValue>, ISeamlessDictionary<TKey,TValue>
     where TKey:unmanaged,IEquatable<TKey>
-    where TValue:unmanaged,IEquatable<TValue> {
+    where TValue:unmanaged,IEquatable<TValue>
+    where TKeySerializer:ISerializer<TKey>
+    where TValueSerializer:ISerializer<TValue> {
 
     private ClientSession<
         TKey,
         TValue,
+        EqualityEmpty,
         TValue,
-        TValue,
-        core_Empty,
+        EqualityEmpty,
         UnmanagedRemove_TKey_TValue<TKey,TValue>,
-        StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,TValue>>,
-        BlittableAllocator<TKey,TValue,StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,TValue>>>> Remove_TKey_TValue_ClientSession { get; set; }
-
-    private ClientSession<
-        TKey,
-        TValue,
-        TValue,
-        bool,
-        core_Empty,
-        UnmanagedRemove_KeyValuePair<TKey,TValue>,
-        StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,TValue>>,
-        BlittableAllocator<TKey,TValue,StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,TValue>>>> Remove_KeyValuePair_ClientSession { get; set; }
+        StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,TValue>>,
+        BlittableAllocator<TKey,TValue,StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,TValue>>>> Remove_TKey_TValue_ClientSession { get; set; }
 
     internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> collectionStore):base(collectionStore) {
         var store = collectionStore.Store;
-        this.Remove_TKey_TValue_ClientSession = store.NewSession<TValue,TValue,core_Empty,UnmanagedRemove_TKey_TValue<TKey,TValue>>(new());
-        this.Remove_KeyValuePair_ClientSession = store.NewSession<TValue,bool,core_Empty,UnmanagedRemove_KeyValuePair<TKey,TValue>>(new());
+        this.Remove_TKey_TValue_ClientSession = store.NewSession<EqualityEmpty,TValue,EqualityEmpty,UnmanagedRemove_TKey_TValue<TKey,TValue>>(new());
     }
 
     public bool IsReadOnly => false;
@@ -63,26 +54,16 @@ public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,
     public bool ContainsKey(TKey key) => this.Contains(key);
 
     public bool Remove(KeyValuePair<TKey,TValue> item) {
-        var session = this.Remove_KeyValuePair_ClientSession;
-        var key = item.Key;
-        var input = item.Value;
-        var output = false;
-        var status = session.BasicContext.RMW(ref key,ref input,ref output,default(core_Empty));
-        if(status.IsPending) {
-            session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
-            completedOutputs.Next();
-            status = completedOutputs.Current.Status;
-            output = completedOutputs.Current.Output;
-            completedOutputs.Dispose();
-        }
-        return status.Found && output;
+        if(!this.TryGetValue(item.Key, out var existing) || !existing.Equals(item.Value))
+            return false;
+        return this.Remove(item.Key);
     }
 
     public bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value) {
         var session = this.Remove_TKey_TValue_ClientSession;
-        var input = default(TValue);
+        var input = default(EqualityEmpty);
         var output = default(TValue);
-        var status = session.BasicContext.RMW(ref key,ref input,ref output,default(core_Empty));
+        var status = session.BasicContext.RMW(ref key,ref input,ref output);
         status = Pending(session,status,ref output);
         if(status.Found) {
             value = output;
@@ -91,13 +72,27 @@ public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,
         value = default;
         return false;
     }
+    public UnmanagedEnumerator<
+        TKey,
+        TValue,
+        UnmanagedKeyValueIterator<TKey,TValue>,
+        KeyValuePair<TKey,TValue>
+    > GetEnumerator()=>new(this.ReadClientSession,new());
 
-    public IEnumerator<KeyValuePair<TKey,TValue>> GetEnumerator() => new UnmanagedEnumerator<TKey,TValue,UnmanagedKeyValueIterator<TKey,TValue>,KeyValuePair<TKey,TValue>>(this.ClientSession,new());
+    //public IEnumerator<KeyValuePair<TKey,TValue>> GetEnumerator() => new UnmanagedEnumerator<
+    //    TKey,
+    //    TValue,
+    //    UnmanagedKeyValueIterator<
+    //        TKey,
+    //        TValue
+    //    >,
+    //    KeyValuePair<TKey,TValue>
+    //>(this.ReadClientSession,new());
 
     private List<T> CreateCollection<TIterator,T>(TIterator iterator)
         where TIterator:ScanIteratorFunctions<T,TKey,TValue> {
         var collection = new List<T>();
-        using var e = new UnmanagedEnumerator<TKey,TValue,TIterator,T>(this.ClientSession,iterator);
+        using var e = new UnmanagedEnumerator<TKey,TValue,TIterator,T>(this.ReadClientSession,iterator);
         while(e.MoveNext()) {
             collection.Add(e.Current);
         }
@@ -106,7 +101,7 @@ public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,
 
     private IEnumerable<T> Enumerate<TIterator,T>(TIterator iterator)
         where TIterator:ScanIteratorFunctions<T,TKey,TValue> {
-        using var e = new UnmanagedEnumerator<TKey,TValue,TIterator,T>(this.ClientSession,iterator);
+        using var e = new UnmanagedEnumerator<TKey,TValue,TIterator,T>(this.ReadClientSession,iterator);
         while(e.MoveNext()) {
             yield return e.Current;
         }
@@ -122,7 +117,6 @@ public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,
         this.disposed = true;
         if(disposing) {
             this.Remove_TKey_TValue_ClientSession.Dispose();
-            this.Remove_KeyValuePair_ClientSession.Dispose();
         }
         base.Dispose(disposing);
     }
@@ -166,7 +160,7 @@ public abstract class UnmanagedDictionary<TKey,TValue>:UnmanagedCollection<TKey,
             if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>())) {
                 throw this.ThrowLogFull();
             }
-            var session = this.ClientSession;
+            var session = this.AddClientSession;
             var status = session.BasicContext.Upsert(ref key,ref value);
             _ = Pending(session,status);
         }

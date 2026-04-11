@@ -2,7 +2,7 @@
 namespace Seamless.SessionFunctions;
 
 internal readonly struct SymmetricExceptWith:
-	ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,Collections.Empty>
+	ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>
 {
 	[ExcludeFromCodeCoverage]public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref ReadInfo readInfo)
 		where TSourceLogRecord : ISourceLogRecord {
@@ -80,7 +80,7 @@ internal readonly struct SymmetricExceptWith:
 		where TEpochAccessor : IEpochAccessor {
         //RMWが成功しても失敗しても、両方のケースで呼ばれる。SymmetricExceptWith では RMW の結果に関わらず何もしない。
 	}
-	public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
+	public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
 		//CompletePendingWithOutputs
 	}
 	[ExcludeFromCodeCoverage]public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
@@ -97,7 +97,7 @@ internal readonly struct SymmetricExceptWith:
 		where TEpochAccessor : IEpochAccessor {
         throw new NotSupportedException("Delete");
 	}
-	[ExcludeFromCodeCoverage]public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,Collections.Empty ctx,Status status,RecordMetadata recordMetadata){
+	[ExcludeFromCodeCoverage]public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
 		throw new NotSupportedException("Read非同期で呼ばれる");
 	}
 	public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input)

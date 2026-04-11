@@ -1,36 +1,43 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Seamless.Collections;
 
 
 namespace Seamless.SessionFunctions;
-
-public readonly struct UnmanagedAdd<TKey,TValue>:
-    ISessionFunctions<TKey,TValue,TValue,TValue,core_Empty>
+public enum EInput{}
+public enum EOutput{}
+/// <summary>
+/// RMW
+/// </summary>
+/// <typeparam name="TKey"></typeparam>
+/// <typeparam name="TValue"></typeparam>
+public readonly partial struct UnmanagedAdd<TKey,TValue>:
+    ISessionFunctions<TKey,TValue,TValue,bool,EqualityEmpty>,
+    ICreate<UnmanagedAdd<TKey,TValue>>
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue> {
+    public static UnmanagedAdd<TKey,TValue> Create() => new();
 
-    public bool SingleReader(ref TKey key,ref TValue input,ref TValue value,ref TValue dst,ref ReadInfo readInfo) {
-        dst = value;
+    public bool SingleReader(ref TKey key,ref TValue input,ref TValue value,ref bool dst,ref ReadInfo readInfo) {
         return true;
     }
 
-    public bool ConcurrentReader(ref TKey key,ref TValue input,ref TValue value,ref TValue dst,ref ReadInfo readInfo,ref RecordInfo recordInfo) {
-        dst = value;
+    public bool ConcurrentReader(ref TKey key,ref TValue input,ref TValue value,ref bool dst,ref ReadInfo readInfo,ref RecordInfo recordInfo) {
         return true;
     }
 
-    public void ReadCompletionCallback(ref TKey key,ref TValue input,ref TValue output,core_Empty ctx,Status status,RecordMetadata recordMetadata) {
+    public void ReadCompletionCallback(ref TKey key,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
     }
 
-    public bool SingleWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref TValue output,ref UpsertInfo upsertInfo,WriteReason reason,ref RecordInfo recordInfo) {
+    public bool SingleWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,WriteReason reason,ref RecordInfo recordInfo) {
         dst = src;
         return true;
     }
 
-    public void PostSingleWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref TValue output,ref UpsertInfo upsertInfo,WriteReason reason) {
+    public void PostSingleWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,WriteReason reason) {
     }
 
-    public bool ConcurrentWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref TValue output,ref UpsertInfo upsertInfo,ref RecordInfo recordInfo) {
+    public bool ConcurrentWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,ref RecordInfo recordInfo) {
         dst = src;
         return true;
     }
@@ -39,29 +46,30 @@ public readonly struct UnmanagedAdd<TKey,TValue>:
         where TEpochAccessor:IEpochAccessor {
     }
 
-    public bool NeedInitialUpdate(ref TKey key,ref TValue input,ref TValue output,ref RMWInfo rmwInfo) => true;
+    public bool NeedInitialUpdate(ref TKey key,ref TValue input,ref bool output,ref RMWInfo rmwInfo) => true;
 
-    public bool InitialUpdater(ref TKey key,ref TValue input,ref TValue value,ref TValue output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
+    public bool InitialUpdater(ref TKey key,ref TValue input,ref TValue value,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
         value = input;
         return true;
     }
 
-    public void PostInitialUpdater(ref TKey key,ref TValue input,ref TValue value,ref TValue output,ref RMWInfo rmwInfo) {
+    public void PostInitialUpdater(ref TKey key,ref TValue input,ref TValue value,ref bool output,ref RMWInfo rmwInfo) {
+        output = true;
     }
 
-    public bool NeedCopyUpdate(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue output,ref RMWInfo rmwInfo) => false;
+    public bool NeedCopyUpdate(ref TKey key,ref TValue input,ref TValue oldValue,ref bool output,ref RMWInfo rmwInfo) => false;
 
     [ExcludeFromCodeCoverage]
-    public bool CopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref TValue output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
+    public bool CopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
         throw new NotSupportedException("NeedCopyUpdate が false を返すので呼ばれない");
     }
 
     [ExcludeFromCodeCoverage]
-    public bool PostCopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref TValue output,ref RMWInfo rmwInfo) {
+    public bool PostCopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo) {
         throw new NotSupportedException("CopyUpdater が false を返すので呼ばれない");
     }
 
-    public bool InPlaceUpdater(ref TKey key,ref TValue input,ref TValue value,ref TValue output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) => false;
+    public bool InPlaceUpdater(ref TKey key,ref TValue input,ref TValue value,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) => false;
 
     public int GetRMWModifiedValueLength(ref TValue value,ref TValue input) => Unsafe.SizeOf<TValue>();
     public int GetRMWInitialValueLength(ref TValue input) => Unsafe.SizeOf<TValue>();
@@ -71,7 +79,7 @@ public readonly struct UnmanagedAdd<TKey,TValue>:
         where TEpochAccessor:IEpochAccessor {
     }
 
-    public void RMWCompletionCallback(ref TKey key,ref TValue input,ref TValue output,core_Empty ctx,Status status,RecordMetadata recordMetadata) {
+    public void RMWCompletionCallback(ref TKey key,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
     }
 
     [ExcludeFromCodeCoverage]
@@ -95,6 +103,6 @@ public readonly struct UnmanagedAdd<TKey,TValue>:
         throw new NotSupportedException("Add は Delete を使用しない");
     }
 
-    public void ConvertOutputToHeap(ref TValue input,ref TValue output) {
+    public void ConvertOutputToHeap(ref TValue input,ref bool output) {
     }
 }

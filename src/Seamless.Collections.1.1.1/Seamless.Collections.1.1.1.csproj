@@ -26,6 +26,7 @@
     <Compile Remove="IRelation.cs" />
     <Compile Remove="KeyComparer.cs" />
     <Compile Remove="Relation.cs" />
+    <Compile Remove="ScanIteratorFunctions\UnmanagedCounterIterator.cs" />
     <Compile Remove="Tuple.cs" />
   </ItemGroup>
 

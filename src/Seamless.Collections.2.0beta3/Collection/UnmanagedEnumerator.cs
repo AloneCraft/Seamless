@@ -1,14 +1,31 @@
 ﻿using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
-using Seamless.Store;
 using System.Collections;
 namespace Seamless.Collections;
 
 public struct UnmanagedEnumerator<TKey,TValue,TIterator,T>(
-    ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,core_Empty,UnmanagedAdd<TKey,TValue>,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>> session,
+    ClientSession<
+        FixedSpanByteKey,
+        EqualityEmpty,
+        TValue,
+        EqualityEmpty,
+        UnmanagedRead<TKey,TValue>,
+        StoreFunctions<
+            UnmanagedKeyComparer<TKey>,
+            SpanByteRecordDisposer
+        >,
+        SpanByteAllocator<
+            StoreFunctions<
+                UnmanagedKeyComparer<TKey>,
+                SpanByteRecordDisposer
+            >
+        >
+    > session,
     TIterator iterator):IEnumerator<T>
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue>
+    //where TKeySerializer:ISerializer<TKey>
+    //where TValueSerializer:ISerializer<TValue>
     where TIterator:ScanIteratorFunctions<T> {
 
     private TIterator Iterator = iterator;

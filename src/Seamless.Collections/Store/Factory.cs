@@ -66,12 +66,17 @@ public readonly struct Factory{
         where TValue:unmanaged,IEquatable<TValue> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
     // ── HashSet ────────────────────────────────────────────────────
-    /// <summary>Memory HashSet</summary>
+    /// <summary>Memory ManagedHashSet</summary>
     public MemoryManagedHashSetStore<T>Create<T>()
         where T:IEquatable<T> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
-    /// <summary>Storage HashSet</summary>
+    /// <summary>Storage ManagedHashSet</summary>
     public StorageHashSetStore<T>Create<T>(IDevice LogDevice,IDevice ObjectLogDevice)
         where T:IEquatable<T> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
+    // ── Unmanaged HashSet ──────────────────────────────────────────
+    /// <summary>Memory UnmanagedHashSet</summary>
+    public MemoryUnmanagedHashSetStore<TKey>CreateUnmanagedHashSet<TKey>()
+        where TKey:unmanaged,IEquatable<TKey> =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
 }

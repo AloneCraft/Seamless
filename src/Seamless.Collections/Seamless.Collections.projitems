@@ -9,6 +9,23 @@
     <Import_RootNamespace>Seamless.Collections</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\ICreate.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedEnumerator.ctor.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\MemoryUnmanagedHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\UnmanagedHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\CounterIterator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ScanIteratorFunctions.impl.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedContains.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedAdd.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedAdd.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedDelete.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedRead.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedRead.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedRemove_KeyValuePair.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedRemove_TKey_TValue.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Store\UnmanagedHashSetStore.cs" />
     <Compile Include="..\Seamless.Collections\Collection\Collection.cs" />
     <Compile Include="..\Seamless.Collections\Collection\ISeamlessDictionary.cs" />
     <Compile Include="..\Seamless.Collections\Collection\ManagedCollection.cs" />
@@ -21,8 +38,8 @@
     <Compile Include="..\Seamless.Collections\Collection\MemoryManagedDictionary.cs" />
     <Compile Include="..\Seamless.Collections\Collection\ManagedDictionary.cs" />
     <Compile Include="..\Seamless.Collections\Collection\DictionaryDebugView.cs" />
-    <Compile Include="..\Seamless.Collections\Collection\Empty.cs" />
-    <Compile Include="..\Seamless.Collections\Collection\Enumerator.cs" />
+    <Compile Include="..\Seamless.Collections\Collection\EqualityEmpty.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collection\ManagedEnumerator.cs" />
     <Compile Include="..\Seamless.Collections\Collection\StorageManagedHashSet.cs" />
     <Compile Include="..\Seamless.Collections\Collection\MemoryManagedHashSet.cs" />
     <Compile Include="..\Seamless.Collections\Collection\ManagedHashSet.cs" />
@@ -31,17 +48,10 @@
     <Compile Include="..\Seamless.Collections\Collection\TryAddResult.cs" />
     <Compile Include="..\Seamless.Collections\Const.cs" />
     <Compile Include="..\Seamless.Collections\Devices\MemoryOnlyDevice.cs" />
-    <Compile Include="..\Seamless.Collections\ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Include="..\Seamless.Collections\ScanIteratorFunctions\KeyIterator.cs" />
     <Compile Include="..\Seamless.Collections\ScanIteratorFunctions\KeyValueIterator.cs" />
     <Compile Include="..\Seamless.Collections\ScanIteratorFunctions\ScanIteratorFunctions.cs" />
     <Compile Include="..\Seamless.Collections\ScanIteratorFunctions\ValueIterator.cs" />
-    <Compile Include="..\Seamless.Collections\SessionFunctions\Add.cs" />
-    <Compile Include="..\Seamless.Collections\SessionFunctions\Delete.cs" />
-    <Compile Include="..\Seamless.Collections\SessionFunctions\IntersectWith.cs" />
-    <Compile Include="..\Seamless.Collections\SessionFunctions\Remove_KeyValuePair.cs" />
-    <Compile Include="..\Seamless.Collections\SessionFunctions\Remove_TKey_TValue.cs" />
-    <Compile Include="..\Seamless.Collections\SessionFunctions\SymmetricExceptWith.cs" />
     <Compile Include="..\Seamless.Collections\Store\CollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Store\CollectionStore`.cs" />
     <Compile Include="..\Seamless.Collections\Store\MemoryUnmanagedDictionaryStore.cs" />

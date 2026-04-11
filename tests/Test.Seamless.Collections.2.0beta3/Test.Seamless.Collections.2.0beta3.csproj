@@ -50,6 +50,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Garnet\" />
+  </ItemGroup>
+
   <Import Project="..\Test.Seamless.Collections\Test.Seamless.Collections.projitems" Label="Shared" />
 
 

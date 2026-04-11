@@ -1,7 +1,12 @@
 ﻿using Seamless.Store;
 namespace Seamless.Collections;
 
-public sealed class MemoryUnmanagedDictionary<TKey,TValue>:UnmanagedDictionary<TKey,TValue>
+public sealed class MemoryUnmanagedDictionary<TKey,TValue>:UnmanagedDictionary<
+    TKey,
+    TValue,
+    UnmanagedSerializer<TKey>,
+    UnmanagedSerializer<TValue>
+>
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue> {
     internal MemoryUnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> collectionStore):base(collectionStore) {
