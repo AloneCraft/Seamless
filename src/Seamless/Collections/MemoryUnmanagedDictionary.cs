@@ -1,6 +1,9 @@
 ﻿using Seamless.Stores;
+
+using System.Diagnostics;
 namespace Seamless.Collections;
 
+[DebuggerTypeProxy(typeof(DebugView<,>))]
 public sealed class MemoryUnmanagedDictionary<TKey,TValue>:UnmanagedDictionary<
     TKey,
     TValue,

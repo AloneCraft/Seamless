@@ -19,6 +19,8 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
 
     protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore) {
     }
+    //public partial bool Contains(TKey Key);
+    //internal partial bool ContainsKey(TKey Key);
 
     private protected ReadOnlySpan<byte> SerializeKey(ref TKey key) => TKeySerializer.Serialize(ref key);
     private protected ReadOnlySpan<byte> SerializeValue(ref TValue value) => TValueSerializer.Serialize(ref value);

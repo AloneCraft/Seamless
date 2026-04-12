@@ -46,12 +46,7 @@ public abstract partial class Collection<
     private protected abstract Status Read(TKey Key,out TValue Output);
 
     public abstract bool Remove(TKey key);
-
-    public virtual bool Contains(TKey Key) {
-        var Status = this.Read(Key, out _);
-        Debug.Assert(Status.Found == !Status.NotFound);
-        return Status.Found;
-    }
+    public abstract bool Contains(TKey Key);
 
     public abstract bool IsDisposed { get; }
 

@@ -3,10 +3,10 @@ using Seamless.Devices;
 
 
 namespace Seamless.Stores;
-public abstract class ManagedHashSetStore<T>:ManagedCollectionStore<T,EqualityEmpty>where T:IEquatable<T>{
+public abstract class ManagedHashSetStore<TKey>:ManagedCollectionStore<TKey,EqualityEmpty>where TKey:IEquatable<TKey>{
     private protected ManagedHashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir):
         base                      (     IndexSize,     PageSize,     SegmentSize,     MemorySize,       MutableFraction,        LogDevice,        ObjectLogDevice,        CheckpointDir){}
-    public abstract ManagedHashSet<T> Create();
+    public abstract ManagedHashSet<TKey> Create();
 }
 /// <summary>
 /// Tsavorite ストアを管理し、HashSet インスタンスを作成するためのストアクラス。
