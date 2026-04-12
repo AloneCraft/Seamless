@@ -64,7 +64,7 @@ public abstract partial class ManagedHashSet<TKey>
     }
 
 	public Enumerator<
-		KeyIterator<TKey,ManagedSerializer<TKey>>,
+		KeyIterator,
 		TKey
 	> GetEnumerator() =>new(this.ReadClientSession,new());
 	public partial void IntersectWith(ManagedHashSet<TKey> other){

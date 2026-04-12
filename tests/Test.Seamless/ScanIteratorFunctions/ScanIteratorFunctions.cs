@@ -16,7 +16,7 @@ public class ScanIteratorFunctions{
     [Fact,Trait("Category","Unit")]public void OnStart()=>Common();
     [Fact,Trait("Category","Unit")]public void OnStop()=>Common();
     [Fact,Trait("Category","Unit")]public void OnException(){
-        var iter = new global::Seamless.ScanIteratorFunctions.KeyIterator<int, ManagedSerializer<int>>();
+        var iter = new MemoryManagedDictionary<int,int,ManagedSerializer<int>,ManagedSerializer<int>>.KeyIterator();
         iter.OnException(new Exception("test"),0);
     }
 }

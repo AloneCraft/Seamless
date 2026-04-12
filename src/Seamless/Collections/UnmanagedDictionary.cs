@@ -104,12 +104,7 @@ public abstract partial class UnmanagedDictionary<
         > GetEnumerator()=>new(this.ReadClientSession,new());
     #else
         public Enumerator<
-            KeyValueIterator<
-                TKey,
-                TValue,
-                TKeySerializer,
-                TValueSerializer
-            >,
+            KeyValueIterator,
             KeyValuePair<
                 TKey,
                 TValue
@@ -179,10 +174,10 @@ public abstract partial class UnmanagedDictionary<
     IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Enumerate<UnmanagedKeyIterator<TKey,TValue>,TKey>(new());
     IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<UnmanagedValueIterator<TKey,TValue>,TValue>(new());
 #else
-    public ICollection<TKey> Keys => this.CreateCollection<KeyIterator<TKey,TKeySerializer>,TKey>(new());
-    public ICollection<TValue> Values => this.CreateCollection<ValueIterator<TValue,TValueSerializer>,TValue>(new());
-    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Enumerate<KeyIterator<TKey,TKeySerializer>,TKey>(new());
-    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<ValueIterator<TValue,TValueSerializer>,TValue>(new());
+    public ICollection<TKey> Keys => this.CreateCollection<KeyIterator,TKey>(new());
+    public ICollection<TValue> Values => this.CreateCollection<ValueIterator,TValue>(new());
+    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Enumerate<KeyIterator,TKey>(new());
+    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<ValueIterator,TValue>(new());
 #endif
     private partial void SetValue(TKey key,TValue value);
     public TValue this[TKey key] {
