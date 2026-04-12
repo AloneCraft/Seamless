@@ -114,10 +114,20 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
     }
 
     public override long GetLongCount() {
-        var Iterator = new CounterIterator<SpanByte,SpanByte>();
+        var Iterator = new CounterIterator();
         long Cursor = 0;
         this.AddClientSession.IterateLookup(ref Iterator, ref Cursor, resetCursor: false);
         return Iterator.Counter;
+    }
+    public sealed partial class CounterIterator : IScanIteratorFunctions<SpanByte, SpanByte> {
+        public bool SingleReader(ref SpanByte key, ref SpanByte value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult) {
+            cursorRecordResult = CursorRecordResult.Accept;
+            return true;
+        }
+        public bool ConcurrentReader(ref SpanByte key, ref SpanByte value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult) {
+            cursorRecordResult = CursorRecordResult.Accept;
+            return true;
+        }
     }
 
     private protected override TryAddResult PrivateTryAdd(TKey Key, TValue Value) {

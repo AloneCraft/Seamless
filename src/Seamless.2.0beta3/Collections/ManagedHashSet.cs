@@ -22,10 +22,14 @@ public abstract partial class ManagedHashSet<TKey>where TKey : IEquatable<TKey>{
 		KeyIterator,
 		TKey
 	> GetEnumerator()=>new (this.ReadClientSession,new());
-    private Enumerator<
+	private Enumerator<
 		SpanByteKeyIterator,
 		byte[]
 	> GetSpanByteEnumerator()=>new (this.ReadClientSession,new());
+	private sealed class SpanByteKeyIterator:ScanIteratorFunctions<byte[]> {
+		private protected override byte[] Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
+			logRecord.Key.ToArray();
+	}
 	public partial void IntersectWith(ManagedHashSet<TKey> other){
 		ArgumentNullException.ThrowIfNull(other);
 		var IntersectWith_ClientSession = this.IntersectWith_ClientSession;

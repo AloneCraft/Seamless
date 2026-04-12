@@ -33,7 +33,7 @@ public abstract partial class UnmanagedHashSet<TKey>
         this.SymmetricExceptWith_ClientSession=Store.NewSession<EqualityEmpty,EqualityEmpty,EqualityEmpty,UnmanagedSymmetricExceptWith<TKey,EqualityEmpty>>(new());
     }
     public Enumerator<
-        UnmanagedKeyIterator<TKey,EqualityEmpty>,
+        KeyIterator,
         TKey
     > GetEnumerator()=>new(this.ReadClientSession,new());
     public partial void IntersectWith(UnmanagedHashSet<TKey> other){

@@ -24,6 +24,10 @@ public abstract partial class UnmanagedHashSet<TKey>
         SpanByteKeyIterator,
         byte[]
     > GetSpanByteEnumerator()=>new(this.ReadClientSession,new());
+    private sealed class SpanByteKeyIterator:ScanIteratorFunctions<byte[]> {
+        private protected override byte[] Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
+            logRecord.Key.ToArray();
+    }
     public partial void IntersectWith(UnmanagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
         var IntersectWith_ClientSession = this.IntersectWith_ClientSession;

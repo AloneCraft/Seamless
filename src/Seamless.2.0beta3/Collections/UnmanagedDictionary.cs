@@ -65,31 +65,29 @@ public abstract partial class UnmanagedDictionary<
         this.Remove_TKey_TValue_ClientSession = store.NewSession<FixedSpanByteKey,EqualityEmpty,SpanByteAndMemory,EqualityEmpty,Remove_TKey_TValue>(new());
         this.Remove_KeyValuePair_ClientSession = store.NewSession<FixedSpanByteKey,PinnedSpanByte,bool,EqualityEmpty,Remove_KeyValuePair>(new());
     }
-
-    //public bool IsReadOnly => false;
-
-    //public TryAddResult TryAdd(TKey key,TValue value) => this.PrivateTryAdd(key,value);
-
-    //public void Add(TKey key,TValue value) {
-    //    var result = this.TryAdd(key,value);
-    //    switch(result) {
-    //        case TryAddResult.LogFull:
-    //            throw this.ThrowLogFull();
-    //        case TryAddResult.KeyAlreadyExists:
-    //            throw new ArgumentException($"An item with the same key has already been added. Key: {key}");
-    //    }
-    //}
-
-    //public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
-
-    //bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item) {
-    //    var status = this.Read(item.Key,out var output);
-    //    if(status.NotFound) return false;
-    //    return output.Equals(item.Value);
-    //}
-
-    //public bool ContainsKey(TKey key) => this.Contains(key);
-
+    public Enumerator<
+        KeyValueIterator,
+        KeyValuePair<
+            TKey,
+            TValue
+        >
+    > GetEnumerator()=>new(this.ReadClientSession,new());
+    private IEnumerable<T> Enumerate<TIterator,T>(TIterator iterator)
+        where TIterator:ScanIteratorFunctions<T> {
+        using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
+        while(e.MoveNext()) {
+            yield return e.Current;
+        }
+    }
+    private List<T> CreateCollection<TIterator,T>(TIterator iterator)
+        where TIterator:ScanIteratorFunctions<T> {
+        var collection = new List<T>();
+        using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
+        while(e.MoveNext()) {
+            collection.Add(e.Current);
+        }
+        return collection;
+    }
     public partial bool Remove(KeyValuePair<TKey,TValue> item) {
         var Session = this.Remove_KeyValuePair_ClientSession;
         var Key0 = item.Key;
