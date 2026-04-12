@@ -9,25 +9,24 @@ namespace Seamless.Collections;
 /// 重複を許さず、キーのみを格納する。値は EqualityEmpty 構造体を使用する。
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
-[DebuggerTypeProxy(typeof(HashSetDebugView<>))]
-public abstract partial class ManagedHashSet<T>where T : IEquatable<T>{
+public abstract partial class ManagedHashSet<TKey>where TKey : IEquatable<TKey>{
 	private readonly ClientSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> IntersectWith_ClientSession;
 	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> SymmetricExceptWith_ClientSession;
-	internal ManagedHashSet(ManagedCollectionStore<T,EqualityEmpty> CollectionStore):base(CollectionStore){
+	internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore):base(CollectionStore){
 		//var empty = EqualityEmpty.Default;
 		var Store=CollectionStore.Store;
 		this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith>(new());
 		this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith>(new());
 	}
 	public Enumerator<
-		KeyIterator<T,ManagedSerializer<T>>,
-		T
+		KeyIterator<TKey,ManagedSerializer<TKey>>,
+		TKey
 	> GetEnumerator()=>new (this.ReadClientSession,new());
     private Enumerator<
 		SpanByteKeyIterator,
 		byte[]
 	> GetSpanByteEnumerator()=>new (this.ReadClientSession,new());
-	public partial void IntersectWith(ManagedHashSet<T> other){
+	public partial void IntersectWith(ManagedHashSet<TKey> other){
 		ArgumentNullException.ThrowIfNull(other);
 		var IntersectWith_ClientSession = this.IntersectWith_ClientSession;
 		var Input = default(EqualityEmpty);
@@ -42,7 +41,7 @@ public abstract partial class ManagedHashSet<T>where T : IEquatable<T>{
 		}
 		IntersectWith_ClientSession.BasicContext.CompletePending(wait: true);
 	}
-	public partial void SymmetricExceptWith(ManagedHashSet<T> other) {
+	public partial void SymmetricExceptWith(ManagedHashSet<TKey> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		var Session = this.SymmetricExceptWith_ClientSession;
 		var Input = default(PinnedSpanByte);

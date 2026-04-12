@@ -1,46 +1,106 @@
-﻿using System.Collections;
-using System.Runtime.CompilerServices;
-using Seamless.ScanIteratorFunctions;
+﻿using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
-using Seamless.Stores;
+
+using System.Collections;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 namespace Seamless.Collections;
-
-
 public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>:Collection<
     TKey,
     TValue,
     TValue,//TReadOutput
     TValue,//AddInput
-    UnmanagedRead<TKey,TValue>,
-    UnmanagedAdd<TKey,TValue>,
+
+
+    UnmanagedRead<
+        TKey,
+        TValue
+    >,
+    UnmanagedAdd<
+        TKey,
+        TValue
+    >,
     ContainsDelete,
-    StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,
-    SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>>
+
+
+
+    StoreFunctions<
+
+
+        UnmanagedKeyComparer<
+            TKey
+        >,
+        SpanByteRecordDisposer
+
+
+
+    >,
+    SpanByteAllocator<
+
+
+        StoreFunctions<
+
+
+            UnmanagedKeyComparer<
+                TKey
+            >,
+            SpanByteRecordDisposer
+
+
+
+        >
+    >
+>
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue>
     where TKeySerializer:ISerializer<TKey>
     where TValueSerializer:ISerializer<TValue> {
+    [StructLayout(LayoutKind.Auto)]
     public struct Enumerator<TIterator,T>(
         ClientSession<
-            FixedSpanByteKey,
-            EqualityEmpty,
-            TValue,
-            EqualityEmpty,
-            UnmanagedRead<TKey,TValue>,
+            FixedSpanByteKey,//TKey
+
+            EqualityEmpty,//TInput
+            TValue,//TOutput
+            EqualityEmpty,//TContext
+            UnmanagedRead<
+                TKey,
+                TValue
+            >,//TReadFunctions
             StoreFunctions<
-                UnmanagedKeyComparer<TKey>,
+                UnmanagedKeyComparer<
+                    TKey
+                >,
                 SpanByteRecordDisposer
-            >,
+            >,//TStoreFunctions
+
+
+
+
+
             SpanByteAllocator<
+
+
                 StoreFunctions<
-                    UnmanagedKeyComparer<TKey>,
+
+
+                    UnmanagedKeyComparer<
+                        TKey
+                    >,
                     SpanByteRecordDisposer
+
+
+
                 >
-            >
+            >//TAllocator
         > session,
         TIterator iterator
     ):IEnumerator<T>
-        where TIterator:ScanIteratorFunctions<T>{
+        where TIterator:ScanIteratorFunctions<
+            T
+
+
+        >{
         private TIterator Iterator=iterator;
         private long Cursor=0,Count;
         private int Index=-1;
@@ -48,7 +108,9 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         public T Current=>this.Iterator.Chunk[this.Index];
         object? IEnumerator.Current=>this.Current;
         public bool MoveNext(){
-            if(++this.Index<this.Count) return true;
+            if(++this.Index<this.Count){
+                return true;
+            }
             if(this.Done){
                 this.Index=-1;
                 return false;
@@ -72,27 +134,28 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
             this.Index=-1;
             this.Done=false;
         }
-        public void Dispose(){}
+        public void Dispose(){
+        }
     }
     public sealed class KeyIterator:ScanIteratorFunctions<TKey> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)=>
-            UnmanagedSerializer<TKey>.Deserialize(logRecord.Key);
+            TKeySerializer.Deserialize(logRecord.Key);
     }
     internal sealed class ValueIterator:ScanIteratorFunctions<TValue> {
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)=>
-            UnmanagedSerializer<TValue>.Deserialize(logRecord.ValueSpan);
+            TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
     public sealed class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)=>
-            new(UnmanagedSerializer<TKey>.Deserialize(logRecord.Key),
-                UnmanagedSerializer<TValue>.Deserialize(logRecord.ValueSpan));
+            new(
+                TKeySerializer.Deserialize(logRecord.Key),
+                TValueSerializer.Deserialize(logRecord.ValueSpan)
+            );
     }
-
     public override bool Contains(TKey Key) {
         var KeyBytes = this.SerializeKey(ref Key);
         return this.ContainsKey(KeyBytes);
     }
-
     /// <summary>
     /// シリアライズ済みキーバイト列で直接存在判定する。
     /// ContainsDelete の Reader が Read 時に output=true を返すことで存在判定を行う。
@@ -111,9 +174,8 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
 
     private protected override Status Read(TKey Key,out TValue Output) {
         var Session = this.ReadClientSession;
-        var KeySpan = this.SerializeKey(ref Key);
         Output = default;
-        var Status = Session.BasicContext.Read((FixedSpanByteKey)KeySpan, ref Output);
+        var Status = Session.BasicContext.Read((FixedSpanByteKey)this.SerializeKey(ref Key), ref Output);
         return Pending(Session, Status, ref Output);
     }
 

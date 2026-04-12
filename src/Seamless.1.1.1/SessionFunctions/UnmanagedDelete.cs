@@ -12,19 +12,18 @@ public readonly partial struct UnmanagedDelete<TKey,TValue>:
     where TValue:unmanaged,IEquatable<TValue> {
     public static UnmanagedDelete<TKey,TValue> Create() => new();
 
-    [ExcludeFromCodeCoverage]
     public bool SingleReader(ref TKey key,ref EqualityEmpty input,ref TValue value,ref bool dst,ref ReadInfo readInfo) {
-        throw new NotSupportedException("Read");
+        dst = true;
+        return true;
     }
 
-    [ExcludeFromCodeCoverage]
     public bool ConcurrentReader(ref TKey key,ref EqualityEmpty input,ref TValue value,ref bool dst,ref ReadInfo readInfo,ref RecordInfo recordInfo) {
-        throw new NotSupportedException("Read");
+        dst = true;
+        return true;
     }
 
-    [ExcludeFromCodeCoverage]
     public void ReadCompletionCallback(ref TKey key,ref EqualityEmpty input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
-        throw new NotSupportedException("Read");
+        if(status.Found) output = true;
     }
 
     [ExcludeFromCodeCoverage]

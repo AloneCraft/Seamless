@@ -7,11 +7,11 @@ namespace Seamless.Collections;
 /// 重複を許さず、キーのみを格納する。値は EqualityEmpty 構造体を使用する。
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
-[DebuggerTypeProxy(typeof(HashSetDebugView<>))]
-public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpty,ManagedSerializer<T>,ManagedSerializer<EqualityEmpty>>, ISet<T> where T : IEquatable<T>{
+[DebuggerTypeProxy(typeof(DebugView<>))]
+public abstract partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,ManagedSerializer<TKey>,ManagedSerializer<EqualityEmpty>>, ISet<TKey> where TKey : IEquatable<TKey>{
 	//private readonly byte[] EmptyBytes;
 	public bool IsReadOnly => false;
-	public bool Add(T item) {
+	public bool Add(TKey item) {
 		var Result = this.PrivateTryAdd(item,EqualityEmpty.Default);
 		switch(Result) {
 			case TryAddResult.Success:
@@ -23,8 +23,8 @@ public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpt
                 throw this.ThrowLogFull();
 		}
 	}
-	void ICollection<T>.Add(T item) => this.Add(item);
-	public void CopyTo(T[] array,int arrayIndex) {
+	void ICollection<TKey>.Add(TKey item) => this.Add(item);
+	public void CopyTo(TKey[] array,int arrayIndex) {
 		ArgumentNullException.ThrowIfNull(array);
 		ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
 		if(array.Length-arrayIndex<this.GetLongCount())
@@ -33,15 +33,15 @@ public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpt
 			array[arrayIndex++]=item;
 		}
 	}
-	public void ExceptWith(ManagedHashSet<T> other) {
+	public void ExceptWith(ManagedHashSet<TKey> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		foreach(var item in other) {
 			this.Remove(item);
 		}
 	}
 	IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
-	IEnumerator<T> IEnumerable<T>.GetEnumerator() => this.GetEnumerator();
-	public bool IsProperSubsetOf(ManagedHashSet<T> other) {
+	IEnumerator<TKey> IEnumerable<TKey>.GetEnumerator() => this.GetEnumerator();
+	public bool IsProperSubsetOf(ManagedHashSet<TKey> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		if(this.GetLongCount()>=other.GetLongCount())
 			return false;
@@ -52,7 +52,7 @@ public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpt
 		}
 		return true;
 	}
-	public bool IsProperSupersetOf(ManagedHashSet<T> other) {
+	public bool IsProperSupersetOf(ManagedHashSet<TKey> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		if(this.GetLongCount()<=other.GetLongCount())
 			return false;
@@ -64,7 +64,7 @@ public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpt
         }
         return true;
 	}
-	public bool IsSubsetOf(ManagedHashSet<T> other) {
+	public bool IsSubsetOf(ManagedHashSet<TKey> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		foreach(var Key in this) {
 			if(!other.Contains(Key)) {
@@ -74,7 +74,7 @@ public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpt
 		}
 		return true;
 	}
-	public bool IsSupersetOf(ManagedHashSet<T> other) {
+	public bool IsSupersetOf(ManagedHashSet<TKey> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		foreach(var item in other) {
 			if(!this.Contains(item)) {
@@ -84,7 +84,7 @@ public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpt
 		}
 		return true;
 	}
-	public bool Overlaps(ManagedHashSet<T> other) {
+	public bool Overlaps(ManagedHashSet<TKey> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		foreach(var item in other) {
 			if(this.Contains(item)) {
@@ -94,7 +94,7 @@ public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpt
 		}
 		return false;
 	}
-	public bool SetEquals(ManagedHashSet<T> other) {
+	public bool SetEquals(ManagedHashSet<TKey> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		if(this.GetLongCount()!=other.GetLongCount())
 			return false;
@@ -106,9 +106,9 @@ public abstract partial class ManagedHashSet<T>:ManagedCollection<T,EqualityEmpt
 		}
 		return true;
 	}
-    public partial void IntersectWith(ManagedHashSet<T> other);
-    public partial void SymmetricExceptWith(ManagedHashSet<T> other);
-	public void UnionWith(ManagedHashSet<T> other) {
+    public partial void IntersectWith(ManagedHashSet<TKey> other);
+    public partial void SymmetricExceptWith(ManagedHashSet<TKey> other);
+	public void UnionWith(ManagedHashSet<TKey> other) {
 		ArgumentNullException.ThrowIfNull(other);
 		foreach(var item in other) {
 			this.Add(item);

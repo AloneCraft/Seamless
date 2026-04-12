@@ -65,6 +65,16 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         }
         public void Dispose(){}
     }
+    public override bool Contains(TKey Key) {
+        var KeyBytes = this.SerializeKey(ref Key);
+        var Session = this.ReadClientSession;
+        var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
+        SpanByteAndMemory Output = default;
+        var Status = Session.BasicContext.Read(ref FixedKey, ref Output);
+        Status = Pending(Session, Status, ref Output);
+        return Status.Found;
+    }
+
     private protected override Status Read(TKey Key, out TValue Output) {
         var KeyBytes = this.SerializeKey(ref Key);
         var Session = this.ReadClientSession;

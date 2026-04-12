@@ -1,16 +1,27 @@
-﻿namespace Seamless.Collections;
-using ScanIteratorFunctions;
-
-using System.Collections;
+﻿using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using Seamless.ScanIteratorFunctions;
+namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ Dictionary。
 /// <see cref="IDictionary{TKey,TValue}"/> を実装し、利用者に Tsavorite の詳細を見せない。
 /// 静的ポリモーフィズムにより仮想ディスパッチを回避する。
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
-public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer>:ManagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>, ISeamlessDictionary<TKey,TValue>
+public abstract partial class ManagedDictionary<
+    TKey,
+    TValue,
+    TKeySerializer,
+    TValueSerializer
+>
+    :ManagedCollection<
+        TKey,
+        TValue,
+        TKeySerializer,
+        TValueSerializer
+    >,
+    ISeamlessDictionary<TKey,TValue>
 	where TKey :IEquatable<TKey>
 	where TValue : IEquatable<TValue>
 	where TKeySerializer : ISerializer<TKey>

@@ -1,19 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
     <SharedGUID>d44340ba-6972-46d3-a092-3ccb4c79df64</SharedGUID>
   </PropertyGroup>
-  <PropertyGroup Label="Configuration">
-    <Import_RootNamespace>Seamless</Import_RootNamespace>
-  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(ImportingProject)' != ''" />
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Collection.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView\DictionaryDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\EqualityEmpty.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView\HashSetDebugView.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ICreate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedCollection.cs" />
@@ -23,20 +19,21 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryManagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryUnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryUnmanagedHashSet.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializers\ManagedSerializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializers\UnmanagedSerializer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializers\ManagedSerializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializers\ISerializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\StorageManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\StorageManagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\StorageUnmanagedDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\StorageUnmanagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\TryAddResult.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedCollection.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView\UnmanagedDictionaryDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedHashSet.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView\UnmanagedHashSetDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Const.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ICreate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyValueIterator.cs" />
@@ -55,6 +52,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stores\CollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\CollectionStore`.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\Factory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\ICreate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedCollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedDictionaryStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\MemoryManagedDictionaryStore.cs" />
@@ -66,6 +64,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedCollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedDictionaryStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedHashSetStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)StructDictionaryFeature.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="$(MSBuildThisFileDirectory)SessionFunctions\Document.txt" />

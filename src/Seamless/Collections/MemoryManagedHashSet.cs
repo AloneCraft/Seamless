@@ -1,6 +1,9 @@
 ﻿using Seamless.Stores;
+
+using System.Diagnostics;
 namespace Seamless.Collections;
-public sealed class MemoryManagedHashSet<T>:ManagedHashSet<T>where T:IEquatable<T>{
-    internal MemoryManagedHashSet(MemoryManagedHashSetStore<T>CollectionStore):base(CollectionStore){}
+[DebuggerTypeProxy(typeof(DebugView<>))]
+public sealed class MemoryManagedHashSet<TKey>:ManagedHashSet<TKey>where TKey:IEquatable<TKey>{
+    internal MemoryManagedHashSet(MemoryManagedHashSetStore<TKey>CollectionStore):base(CollectionStore){}
     private protected override bool WouldOverflowMutable(int KeyLength,int ValueLength)=>this.PrivateProtectedWouldOverflowMutable(KeyLength, ValueLength);
 }

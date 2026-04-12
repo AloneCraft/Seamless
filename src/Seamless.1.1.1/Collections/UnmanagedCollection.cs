@@ -4,9 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
-using Seamless.Stores;
 namespace Seamless.Collections;
-
 public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>:Collection<
     TKey,
     TValue,
@@ -14,11 +12,45 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     TValue,//TSessionValue
     TValue,//TReadOutput
     TValue,//TAddInput
-    UnmanagedRead<TKey,TValue>,
-    UnmanagedAdd<TKey,TValue>,
-    UnmanagedDelete<TKey,TValue>,
-    StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,TValue>>,
-    BlittableAllocator<TKey,TValue,StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,TValue>>>>
+    UnmanagedRead<
+        TKey,
+        TValue
+    >,
+    UnmanagedAdd<
+        TKey,
+        TValue
+    >,
+    UnmanagedDelete<
+        TKey,
+        TValue
+    >,
+    StoreFunctions<
+        TKey,
+        TValue,
+        UnmanagedKeyComparer<
+            TKey
+        >,
+        UnmanagedRecordDisposer<
+            TKey,
+            TValue
+        >
+    >,
+    BlittableAllocator<
+        TKey,
+        TValue,
+        StoreFunctions<
+            TKey,
+            TValue,
+            UnmanagedKeyComparer<
+                TKey
+            >,
+            UnmanagedRecordDisposer<
+                TKey,
+                TValue
+            >
+        >
+    >
+>
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue>
     where TKeySerializer:ISerializer<TKey>
@@ -26,27 +58,60 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     [StructLayout(LayoutKind.Auto)]
     public struct Enumerator<TIterator,T>(
         ClientSession<
+            TKey,//TKey
+            TValue,//TValue
+            EqualityEmpty,//TInput
+            TValue,//TOutput
+            EqualityEmpty,//TContext
+            UnmanagedRead<
+                TKey,
+                TValue
+            >,//TReadFunctions
+            StoreFunctions<
+                TKey,
+                TValue,
+                UnmanagedKeyComparer<
+                    TKey
+                >,
+                UnmanagedRecordDisposer<
+                    TKey,
+                    TValue
+                >
+            >,//TStoreFunctions
+            BlittableAllocator<
+                TKey,
+                TValue,
+                StoreFunctions<
+                    TKey,
+                    TValue,
+                    UnmanagedKeyComparer<
+                        TKey
+                    >,
+                    UnmanagedRecordDisposer<
+                        TKey,
+                        TValue
+                    >
+                >
+            >//TAllocator
+        > session,
+        TIterator iterator
+    ):IEnumerator<T>
+        where TIterator:ScanIteratorFunctions<
+            T,
             TKey,
-            TValue,
-            EqualityEmpty,
-            TValue,
-            EqualityEmpty,
-            UnmanagedRead<TKey,TValue>,
-            StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,TValue>>,
-            BlittableAllocator<TKey,TValue,StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,UnmanagedRecordDisposer<TKey,TValue>>>> session,
-        TIterator iterator):IEnumerator<T>
-        where TIterator:ScanIteratorFunctions<T,TKey,TValue> {
+            TValue
+        > {
         private TIterator Iterator = iterator;
         private long Cursor = 0, Count;
         private int Index = -1;
-        private bool _done;
+        private bool Done;
         public T Current => this.Iterator.Chunk[this.Index];
         object? IEnumerator.Current => this.Current;
         public bool MoveNext() {
             if(++this.Index<this.Count) {
                 return true;
             } 
-            if(this._done) {
+            if(this.Done) {
                 this.Index = -1;
                 return false;
             }
@@ -55,7 +120,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
             var count = this.Iterator.Count;
             this.Count = count;
             if(!result)
-                this._done = true;
+                this.Done = true;
             if(count>0) {
                 this.Index = 0;
                 return true;
@@ -67,17 +132,43 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
             this.Cursor = 0;
             this.Count = 0;
             this.Index = -1;
-            this._done = false;
+            this.Done = false;
         }
         public void Dispose() {
         }
     }
+    public sealed class KeyIterator:ScanIteratorFunctions<TKey> {
+        private protected override TKey Deserialize(ref SpanByte key,ref SpanByte value) =>
+            TKeySerializer.Deserialize(key.AsReadOnlySpan());
+    }
+    internal sealed class ValueIterator:ScanIteratorFunctions<TValue> {
+        private protected override TValue Deserialize(ref SpanByte key,ref SpanByte value) =>
+            TValueSerializer.Deserialize(value.AsReadOnlySpan());
+    }
+    public sealed class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
+        private protected override KeyValuePair<TKey,TValue> Deserialize(ref SpanByte key,ref SpanByte value)=>
+            new(
+                TKeySerializer.Deserialize(key.AsReadOnlySpan()),
+                TValueSerializer.Deserialize(value.AsReadOnlySpan())
+            );
+    }
+    public override bool Contains(TKey Key) {
 
-    //protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> collectionStore):base(collectionStore) {
-    //}
+        return this.ContainsKey(Key);
+    }
+    /// <summary>
+    /// シリアライズ済みキーバイト列で直接存在判定する。
+    /// ContainsDelete の Reader が Read 時に output=true を返すことで存在判定を行う。
+    /// </summary>
+    internal bool ContainsKey(TKey Key){
+        var Session = this.DeleteClientSession;
+        var Status = Session.BasicContext.Read(Key,out var output);
+        Status = Pending(Session, Status, ref output);
+        return Status.Found;
+    }
 
-    //private protected override ReadOnlySpan<byte> SerializeKey(ref TKey key) => UnmanagedSerializer<TKey>.Serialize(ref key);
-    //private protected override ReadOnlySpan<byte> SerializeValue(ref TValue value) => UnmanagedSerializer<TValue>.Serialize(ref value);
+
+
 
     private protected override Status Read(TKey Key,out TValue Output) {
         var Session = this.ReadClientSession;

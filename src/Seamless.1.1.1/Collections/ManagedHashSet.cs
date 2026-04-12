@@ -9,9 +9,9 @@ namespace Seamless.Collections;
 /// 重複を許さず、キーのみを格納する。値は EqualityEmpty 構造体を使用する。
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
-[DebuggerTypeProxy(typeof(HashSetDebugView<>))]
-public abstract partial class ManagedHashSet<T>
-    where T : IEquatable<T>{
+[DebuggerTypeProxy(typeof(DebugView<>))]
+public abstract partial class ManagedHashSet<TKey>
+    where TKey : IEquatable<TKey>{
     private readonly ClientSession<
         SpanByte,
         SpanByte,
@@ -56,7 +56,7 @@ public abstract partial class ManagedHashSet<T>
             >
         >
     > SymmetricExceptWith_ClientSession;
-	internal ManagedHashSet(ManagedCollectionStore<T,EqualityEmpty> CollectionStore) : base(CollectionStore) {
+	internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
         //this.EmptyBytes=Serialize(EqualityEmpty.Default).ToArray();
         var Store=CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith>(new());
@@ -64,10 +64,10 @@ public abstract partial class ManagedHashSet<T>
     }
 
 	public Enumerator<
-		KeyIterator<T,ManagedSerializer<T>>,
-		T
+		KeyIterator<TKey,ManagedSerializer<TKey>>,
+		TKey
 	> GetEnumerator() =>new(this.ReadClientSession,new());
-	public partial void IntersectWith(ManagedHashSet<T> other){
+	public partial void IntersectWith(ManagedHashSet<TKey> other){
 		ArgumentNullException.ThrowIfNull(other);
 		var Session = this.IntersectWith_ClientSession;
 		EqualityEmpty Input = default;
@@ -81,7 +81,7 @@ public abstract partial class ManagedHashSet<T>
 		}
 		Session.BasicContext.CompletePending(wait: true);
 	}
-	public partial void SymmetricExceptWith(ManagedHashSet<T> other) {
+	public partial void SymmetricExceptWith(ManagedHashSet<TKey> other) {
 		ArgumentNullException.ThrowIfNull(other);
         var Session = this.SymmetricExceptWith_ClientSession;
         foreach(var Item in other){

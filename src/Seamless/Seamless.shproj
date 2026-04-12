@@ -10,9 +10,8 @@
   <PropertyGroup />
   <ItemGroup>
     <Compile Include="Collections\Collection.cs" />
-    <Compile Include="Collections\DebugView\DictionaryDebugView.cs" />
+    <Compile Include="Collections\DebugView.cs" />
     <Compile Include="Collections\EqualityEmpty.cs" />
-    <Compile Include="Collections\DebugView\HashSetDebugView.cs" />
     <Compile Include="Collections\ISeamlessDictionary.cs" />
     <Compile Include="Collections\ISet.cs" />
     <Compile Include="Collections\ManagedCollection.cs" />
@@ -28,11 +27,11 @@
     <Compile Include="Collections\StorageManagedDictionary.cs" />
     <Compile Include="Collections\StorageManagedHashSet.cs" />
     <Compile Include="Collections\StorageUnmanagedDictionary.cs" />
+    <Compile Include="Collections\StorageUnmanagedHashSet.cs" />
     <Compile Include="Collections\TryAddResult.cs" />
     <Compile Include="Collections\UnmanagedCollection.cs" />
-    <Compile Include="Collections\DebugView\UnmanagedDictionaryDebugView.cs" />
+    <Compile Include="Collections\UnmanagedDictionary.cs" />
     <Compile Include="Collections\UnmanagedHashSet.cs" />
-    <Compile Include="Collections\DebugView\UnmanagedHashSetDebugView.cs" />
     <Compile Include="Const.cs" />
     <Compile Include="Devices\MemoryOnlyDevice.cs" />
     <Compile Include="GlobalUsings.cs" />
@@ -55,6 +54,7 @@
     <Compile Include="Stores\CollectionStore.cs" />
     <Compile Include="Stores\CollectionStore`.cs" />
     <Compile Include="Stores\Factory.cs" />
+    <Compile Include="Stores\ICreate.cs" />
     <Compile Include="Stores\ManagedCollectionStore.cs" />
     <Compile Include="Stores\ManagedDictionaryStore.cs" />
     <Compile Include="Stores\MemoryManagedDictionaryStore.cs" />
@@ -71,8 +71,6 @@
   <ItemGroup>
     <Folder Include="SessionFunctions\Managed\" />
     <Folder Include="SessionFunctions\Unmanaged\" />
-    <Folder Include="Stores\Managed\" />
-    <Folder Include="Stores\Unmanaged\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="SessionFunctions\Document.txt" />

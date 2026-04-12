@@ -1,5 +1,8 @@
 ﻿using Seamless.Stores;
+
+using System.Diagnostics;
 namespace Seamless.Collections;
+[DebuggerTypeProxy(typeof(DebugView<,>))]
 public sealed class StorageManagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>:ManagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
     where TKey:IEquatable<TKey>where TValue:IEquatable<TValue>
     where TKeySerializer:ISerializer<TKey>where TValueSerializer:ISerializer<TValue>{
