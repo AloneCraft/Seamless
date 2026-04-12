@@ -15,7 +15,6 @@
     <Compile Include="Collections\ISeamlessDictionary.cs" />
     <Compile Include="Collections\ISet.cs" />
     <Compile Include="Collections\ManagedCollection.cs" />
-    <Compile Include="Collections\ManagedCollection.Iterators.cs" />
     <Compile Include="Collections\ManagedDictionary.cs" />
     <Compile Include="Collections\ManagedHashSet.cs" />
     <Compile Include="Collections\MemoryManagedDictionary.cs" />

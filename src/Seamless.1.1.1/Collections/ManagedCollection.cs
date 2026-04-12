@@ -18,6 +18,21 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
     ManagedStoreFunctions, 
     ManagedAllocator
 >{
+    public sealed partial class KeyIterator {
+        private protected override TKey Deserialize(ref SpanByte key,ref SpanByte value) =>
+            TKeySerializer.Deserialize(key.AsReadOnlySpan());
+    }
+    internal sealed partial class ValueIterator {
+        private protected override TValue Deserialize(ref SpanByte key,ref SpanByte value) =>
+            TValueSerializer.Deserialize(value.AsReadOnlySpan());
+    }
+    public sealed partial class KeyValueIterator {
+        private protected override KeyValuePair<TKey,TValue> Deserialize(ref SpanByte key,ref SpanByte value) {
+            var Key=TKeySerializer.Deserialize(key.AsReadOnlySpan());
+            var Value=TValueSerializer.Deserialize(value.AsReadOnlySpan());
+            return new(Key,Value);
+        }
+    }
     public partial struct Enumerator<TIterator,T>(
         ClientSession<
             SpanByte,//TKey
