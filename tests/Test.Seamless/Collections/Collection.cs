@@ -1,8 +1,4 @@
-﻿using Seamless.Collections;
-using Seamless.Stores;
-using Tsavorite.core;
-using EqualityEmpty = Seamless.Collections.EqualityEmpty;
-namespace Test.Seamless.Collections;
+﻿namespace Test.Seamless.Collections;
 
 /// <summary>
 /// <see cref="Seamless.Collections.Collection{TKey,TValue,TReadOutput,TAddInput,TReadFunctions,TAddFunctions,TDeleteFunctions,TStoreFunctions,TAllocator}"/>

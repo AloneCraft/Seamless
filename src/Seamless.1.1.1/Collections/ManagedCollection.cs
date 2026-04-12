@@ -2,7 +2,6 @@
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 namespace Seamless.Collections;
 
 public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>:Collection<

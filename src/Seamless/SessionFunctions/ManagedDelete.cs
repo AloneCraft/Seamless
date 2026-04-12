@@ -1,5 +1,4 @@
-﻿using Seamless.Collections;
-namespace Seamless.SessionFunctions;
+﻿namespace Seamless.SessionFunctions;
 public readonly partial struct ManagedDelete:ICreate<ManagedDelete>{
     public static ManagedDelete Create()=>new();
 }

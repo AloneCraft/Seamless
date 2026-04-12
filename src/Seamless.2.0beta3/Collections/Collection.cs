@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
 public abstract partial class Collection<

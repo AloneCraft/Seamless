@@ -1,7 +1,4 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
-using Seamless.Collections;
-
 namespace Seamless.SessionFunctions;
 /// <summary>
 /// Read でキーの存在確認（Contains）、RMW で Tombstone 挿入による論理削除（Delete）を行うセッション関数。
@@ -83,7 +80,7 @@ public readonly partial struct ContainsDelete<TKey,TValue>:
         throw new NotSupportedException("CopyUpdater が false を返すのでここは呼ばれない");
     }
 
-    public int GetRMWModifiedValueLength(ref TValue value,ref EqualityEmpty input) => Unsafe.SizeOf<TValue>();
+    public int GetRMWModifiedValueLength(ref TValue value,ref EqualityEmpty input) => System.Runtime.CompilerServices.Unsafe.SizeOf<TValue>();
 
     [ExcludeFromCodeCoverage]
     public int GetRMWInitialValueLength(ref EqualityEmpty input) {

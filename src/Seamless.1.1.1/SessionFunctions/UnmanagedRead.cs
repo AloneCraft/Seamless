@@ -1,8 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using Seamless.Collections;
-
-
 namespace Seamless.SessionFunctions;
 //public readonly partial struct ManagedRead():
 //    ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,EqualityEmpty>{

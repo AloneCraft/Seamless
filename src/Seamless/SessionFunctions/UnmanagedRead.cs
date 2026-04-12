@@ -1,5 +1,4 @@
-﻿using Seamless.Collections;
-namespace Seamless.SessionFunctions;
+﻿namespace Seamless.SessionFunctions;
 /// <summary>
 /// UnmaagedCollection 用セッション関数。UnmaagedRead は Read でのみ使われる。
 /// </summary>
