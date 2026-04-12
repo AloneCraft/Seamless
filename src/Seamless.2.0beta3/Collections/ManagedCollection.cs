@@ -104,6 +104,12 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         this.ReadClientSession.IterateLookup(ref Iterator, ref Cursor, resetCursor: false);
         return Iterator.Counter;
     }
+    public sealed partial class CounterIterator : IScanIteratorFunctions {
+        public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult) where TSourceLogRecord : ISourceLogRecord {
+            cursorRecordResult = CursorRecordResult.Accept;
+            return true;
+        }
+    }
 
     private protected override TryAddResult PrivateTryAdd(TKey Key, TValue Value) {
         var KeyBytes = this.SerializeKey(ref Key);

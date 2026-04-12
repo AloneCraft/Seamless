@@ -56,87 +56,10 @@ public abstract partial class UnmanagedDictionary<
         return output.Equals(item.Value);
     }
 
-    public bool ContainsKey(TKey key) => this.Contains(key);
+    //public bool ContainsKey(TKey key) => this.Contains(key);
 
     public partial bool Remove(KeyValuePair<TKey,TValue> item);
-    //{
-    //    var Session = this.Remove_KeyValuePair_ClientSession;
-    //    var Key0 = item.Key;
-    //    var Value0 = item.Value;
-    //    var KeyBytes =this.SerializeKey(ref Key0);
-    //    var ValueBytes =this.SerializeValue(ref Value0);
-    //    var FixedKey = (FixedSpanByteKey)KeyBytes;
-    //    var Input = PinnedSpanByte.FromPinnedSpan(ValueBytes);
-    //    var Output = default(bool);
-    //    var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
-    //    Status=Pending(Session,Status,ref Output);
-    //    return Output;
-    //}
-
     public partial bool Remove(TKey key,[MaybeNullWhen(false)]out TValue value);
-    //{
-    //    var Session = this.Remove_TKey_TValue_ClientSession;
-    //    var KeyBytes =this.SerializeKey(ref key);
-    //    var FixedKey = (FixedSpanByteKey)KeyBytes;
-    //    var Input = default(EqualityEmpty);
-    //    SpanByteAndMemory Output = default;
-    //    var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
-    //    Status=Pending(Session,Status,ref Output);
-    //    // output.Length>0 は InPlaceUpdater/CopyUpdater で値がコピーされた＝成功
-    //    if(Output.Length>0) {
-    //        value=TValueSerializer.Deserialize(Output.ReadOnlySpan);
-    //        return true;
-    //    }
-    //    value=default;
-    //    return false;
-    //}
-
-    #if TSAVORITE1_1_1
-        public Enumerator<
-            UnmanagedKeyValueIterator<
-                TKey,
-                TValue
-            >,
-            KeyValuePair<
-                TKey,
-                TValue
-            >
-        > GetEnumerator()=>new(this.ReadClientSession,new());
-    #else
-        public Enumerator<
-            KeyValueIterator,
-            KeyValuePair<
-                TKey,
-                TValue
-            >
-        > GetEnumerator()=>new(this.ReadClientSession,new());
-    #endif
-
-    private List<T> CreateCollection<TIterator,T>(TIterator iterator)
-#if TSAVORITE1_1_1
-        where TIterator:ScanIteratorFunctions<T,TKey,TValue> {
-#else
-        where TIterator:ScanIteratorFunctions<T> {
-#endif
-        var collection = new List<T>();
-        using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
-        while(e.MoveNext()) {
-            collection.Add(e.Current);
-        }
-        return collection;
-    }
-
-    private IEnumerable<T> Enumerate<TIterator,T>(TIterator iterator)
-#if TSAVORITE1_1_1
-        where TIterator:ScanIteratorFunctions<T,TKey,TValue> {
-#else
-        where TIterator:ScanIteratorFunctions<T> {
-#endif
-        using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
-        while(e.MoveNext()) {
-            yield return e.Current;
-        }
-    }
 
     public override bool IsDisposed => this.disposed;
     private bool disposed;
@@ -169,10 +92,10 @@ public abstract partial class UnmanagedDictionary<
 
 
     #if TSAVORITE1_1_1
-    public ICollection<TKey> Keys => this.CreateCollection<UnmanagedKeyIterator<TKey,TValue>,TKey>(new());
-    public ICollection<TValue> Values => this.CreateCollection<UnmanagedValueIterator<TKey,TValue>,TValue>(new());
-    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Enumerate<UnmanagedKeyIterator<TKey,TValue>,TKey>(new());
-    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<UnmanagedValueIterator<TKey,TValue>,TValue>(new());
+    public ICollection<TKey> Keys => this.CreateCollection<KeyIterator,TKey>(new());
+    public ICollection<TValue> Values => this.CreateCollection<ValueIterator,TValue>(new());
+    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Enumerate<KeyIterator,TKey>(new());
+    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<ValueIterator,TValue>(new());
 #else
     public ICollection<TKey> Keys => this.CreateCollection<KeyIterator,TKey>(new());
     public ICollection<TValue> Values => this.CreateCollection<ValueIterator,TValue>(new());

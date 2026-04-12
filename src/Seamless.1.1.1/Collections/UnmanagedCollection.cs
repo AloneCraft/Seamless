@@ -137,21 +137,6 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         public void Dispose() {
         }
     }
-    public sealed class KeyIterator:ScanIteratorFunctions<TKey> {
-        private protected override TKey Deserialize(ref SpanByte key,ref SpanByte value) =>
-            TKeySerializer.Deserialize(key.AsReadOnlySpan());
-    }
-    internal sealed class ValueIterator:ScanIteratorFunctions<TValue> {
-        private protected override TValue Deserialize(ref SpanByte key,ref SpanByte value) =>
-            TValueSerializer.Deserialize(value.AsReadOnlySpan());
-    }
-    public sealed class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
-        private protected override KeyValuePair<TKey,TValue> Deserialize(ref SpanByte key,ref SpanByte value)=>
-            new(
-                TKeySerializer.Deserialize(key.AsReadOnlySpan()),
-                TValueSerializer.Deserialize(value.AsReadOnlySpan())
-            );
-    }
     public override bool Contains(TKey Key) {
 
         return this.ContainsKey(Key);
@@ -160,7 +145,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     /// シリアライズ済みキーバイト列で直接存在判定する。
     /// ContainsDelete の Reader が Read 時に output=true を返すことで存在判定を行う。
     /// </summary>
-    internal bool ContainsKey(TKey Key){
+    public bool ContainsKey(TKey Key){
         var Session = this.DeleteClientSession;
         var Status = Session.BasicContext.Read(Key,out var output);
         Status = Pending(Session, Status, ref output);
@@ -179,10 +164,29 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
 
 
     public override long GetLongCount() {
-        var iterator = new CounterIterator<TKey,TValue>();
+        var iterator = new CounterIterator();
         var Cursor = 0L;
         this.ReadClientSession.IterateLookup(ref iterator,ref Cursor,resetCursor:false);
         return iterator.Counter;
+    }
+    public sealed partial class CounterIterator : IScanIteratorFunctions<TKey, TValue> {
+        public bool SingleReader(ref TKey key, ref TValue value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult) {
+            cursorRecordResult = CursorRecordResult.Accept;
+            return true;
+        }
+        public bool ConcurrentReader(ref TKey key, ref TValue value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult) {
+            cursorRecordResult = CursorRecordResult.Accept;
+            return true;
+        }
+    }
+    public sealed class KeyIterator : ScanIteratorFunctions<TKey, TKey, TValue> {
+        private protected override TKey Deserialize(ref TKey key, ref TValue value) => key;
+    }
+    internal sealed class ValueIterator : ScanIteratorFunctions<TValue, TKey, TValue> {
+        private protected override TValue Deserialize(ref TKey key, ref TValue value) => value;
+    }
+    public sealed class KeyValueIterator : ScanIteratorFunctions<KeyValuePair<TKey, TValue>, TKey, TValue> {
+        private protected override KeyValuePair<TKey, TValue> Deserialize(ref TKey key, ref TValue value) => new(key, value);
     }
 
     private protected override TryAddResult PrivateTryAdd(TKey key,TValue value) {

@@ -19,6 +19,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
 
     protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore) {
     }
+    public sealed partial class CounterIterator : CounterIteratorBase;
     //public partial bool Contains(TKey Key);
     //internal partial bool ContainsKey(TKey Key);
 
