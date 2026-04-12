@@ -13,6 +13,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedCollection.Iterators.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryManagedDictionary.cs" />
@@ -35,11 +36,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ICreate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\CounterIterator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyIterator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\KeyValueIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ScanIteratorFunctions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ScanIteratorFunctions.impl.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\ValueIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedAdd.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedContains.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedDelete.cs" />

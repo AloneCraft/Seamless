@@ -15,6 +15,7 @@
     <Compile Include="Collections\ISeamlessDictionary.cs" />
     <Compile Include="Collections\ISet.cs" />
     <Compile Include="Collections\ManagedCollection.cs" />
+    <Compile Include="Collections\ManagedCollection.Iterators.cs" />
     <Compile Include="Collections\ManagedDictionary.cs" />
     <Compile Include="Collections\ManagedHashSet.cs" />
     <Compile Include="Collections\MemoryManagedDictionary.cs" />
@@ -37,11 +38,8 @@
     <Compile Include="GlobalUsings.cs" />
     <Compile Include="ICreate.cs" />
     <Compile Include="ScanIteratorFunctions\CounterIterator.cs" />
-    <Compile Include="ScanIteratorFunctions\KeyIterator.cs" />
-    <Compile Include="ScanIteratorFunctions\KeyValueIterator.cs" />
     <Compile Include="ScanIteratorFunctions\ScanIteratorFunctions.cs" />
     <Compile Include="ScanIteratorFunctions\ScanIteratorFunctions.impl.cs" />
-    <Compile Include="ScanIteratorFunctions\ValueIterator.cs" />
     <Compile Include="SessionFunctions\ManagedAdd.cs" />
     <Compile Include="SessionFunctions\ManagedContains.cs" />
     <Compile Include="SessionFunctions\ManagedDelete.cs" />

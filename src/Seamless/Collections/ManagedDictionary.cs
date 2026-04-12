@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using Seamless.ScanIteratorFunctions;
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ Dictionary。
@@ -74,10 +73,10 @@ public abstract partial class ManagedDictionary<
 		}
 		return List;
 	}
-	public ICollection<TKey> Keys=>this.CreateCollection<KeyIterator<TKey,TKeySerializer>,TKey>(new());
-	public ICollection<TValue> Values=>this.CreateCollection<ValueIterator<TValue,TValueSerializer>,TValue>(new());
-	IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys=>this.Enumerate<KeyIterator<TKey,TKeySerializer>,TKey>(new());
-	IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values=>this.Enumerate<ValueIterator<TValue,TValueSerializer>,TValue>(new());
+	public ICollection<TKey> Keys=>this.CreateCollection<KeyIterator,TKey>(new());
+	public ICollection<TValue> Values=>this.CreateCollection<ValueIterator,TValue>(new());
+	IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys=>this.Enumerate<KeyIterator,TKey>(new());
+	IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values=>this.Enumerate<ValueIterator,TValue>(new());
 	public override bool IsDisposed=>this.disposed;
 	private bool disposed;
 	protected override void Dispose(bool disposing) {

@@ -41,7 +41,7 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
         return false;
     }
 	public Enumerator<
-		KeyValueIterator<TKey,TValue,TKeySerializer,TValueSerializer>,
+		KeyValueIterator,
 		KeyValuePair<TKey,TValue>
 	> GetEnumerator()=>new(this.ReadClientSession,new());
     private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{

@@ -19,7 +19,7 @@ public abstract partial class ManagedHashSet<TKey>where TKey : IEquatable<TKey>{
 		this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith>(new());
 	}
 	public Enumerator<
-		KeyIterator<TKey,ManagedSerializer<TKey>>,
+		KeyIterator,
 		TKey
 	> GetEnumerator()=>new (this.ReadClientSession,new());
     private Enumerator<

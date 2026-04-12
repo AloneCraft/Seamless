@@ -1,5 +1,7 @@
-﻿namespace Seamless.ScanIteratorFunctions;
-public sealed partial class KeyIterator<T,TSerializer> {
-    private protected override T Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)=>
-        TSerializer.Deserialize(logRecord.Key);
+﻿namespace Seamless.Collections;
+public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValueSerializer> {
+    public sealed partial class KeyIterator {
+        private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
+            TKeySerializer.Deserialize(logRecord.Key);
+    }
 }
