@@ -1,5 +1,4 @@
-﻿using Seamless.Collections;
-namespace Seamless.SessionFunctions;
+﻿namespace Seamless.SessionFunctions;
 /// <summary>
 /// ManagedCollection 用セッション関数。UnmanagedAdd は RMW でのみ使われる。失敗したとき output=false で成否を返す。
 /// </summary>

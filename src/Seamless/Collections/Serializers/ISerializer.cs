@@ -1,9 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-
-using MemoryPack;
-
-namespace Seamless.Collections;
+﻿namespace Seamless.Collections;
 
 public interface ISerializer<T> {
     static abstract ReadOnlySpan<byte> Serialize(ref T value);

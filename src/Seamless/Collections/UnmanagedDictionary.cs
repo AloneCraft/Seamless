@@ -1,11 +1,6 @@
-﻿using Seamless.ScanIteratorFunctions;
-using Seamless.SessionFunctions;
-using Seamless.Stores;
-
-using System.Collections;
+﻿using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 namespace Seamless.Collections;
 
 [DebuggerDisplay("Count = {Count}")]

@@ -1,5 +1,4 @@
-﻿using Seamless.Collections;
-namespace Seamless.SessionFunctions;
+﻿namespace Seamless.SessionFunctions;
 /// <summary>
 /// ManagedCollection 用セッション関数。ManagedRead は Read でのみ使われる。
 /// </summary>

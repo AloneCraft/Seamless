@@ -1,5 +1,4 @@
-﻿using Seamless.Collections;
-namespace Seamless.Stores;
+﻿namespace Seamless.Stores;
 
 public abstract partial class UnmanagedCollectionStore<TKey,TValue>:CollectionStore<
     TKey,

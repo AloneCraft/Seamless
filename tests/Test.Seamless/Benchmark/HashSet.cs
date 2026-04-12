@@ -3,7 +3,6 @@ using Seamless.Stores;
 using Test.Seamless.Collections;
 using Tsavorite.core;
 using EqualityEmpty=Seamless.Collections.EqualityEmpty;
-using Seamless.Collections;
 namespace Benchmarks;
 public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,EqualityEmpty>(output) where T:IEquatable<T>{
 	protected override EqualityEmpty CreateValue(int seed)=>default;
