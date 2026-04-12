@@ -13,7 +13,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedCollection.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedCollection.Iterators.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\MemoryManagedDictionary.cs" />
