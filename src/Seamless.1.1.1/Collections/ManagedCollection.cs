@@ -121,9 +121,8 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
     private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value){
         var KeyBytes=TKeySerializer.Serialize(ref Key);
         var ValueBytes=TValueSerializer.Serialize(ref Value);
-        if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length)){
+        if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
             return TryAddResult.LogFull;
-        }
         var Session=this.AddClientSession;
         var FixedKey=SpanByte.FromPinnedSpan(KeyBytes);
         var FixedInput=SpanByte.FromPinnedSpan(ValueBytes);
@@ -137,9 +136,8 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
                 Output=CompletedOutputs.Current.Output;
             }
         }
-        if(Output){
+        if(Output)
             return TryAddResult.Success;
-        }
         return TryAddResult.KeyAlreadyExists;
     }
 

@@ -12,9 +12,36 @@ public abstract partial class UnmanagedHashSet<TKey>
         EqualityEmpty,//TInput
         bool,//TOutput
         EqualityEmpty,//TContext
-        UnmanagedDelete<TKey,EqualityEmpty>,
-        StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>,
-        BlittableAllocator<TKey,EqualityEmpty,StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>>
+        UnmanagedDelete<
+            TKey,
+            EqualityEmpty
+        >,
+        StoreFunctions    <
+            TKey,
+            EqualityEmpty,
+            UnmanagedKeyComparer<
+                TKey
+            >,
+            DefaultRecordDisposer<
+                TKey,
+                EqualityEmpty
+            >
+        >,
+        BlittableAllocator<
+            TKey,
+            EqualityEmpty,
+            StoreFunctions<
+                TKey
+                ,EqualityEmpty,
+                UnmanagedKeyComparer<
+                    TKey
+                >,
+                DefaultRecordDisposer<
+                    TKey,
+                    EqualityEmpty
+                >
+            >
+        >
     > IntersectWith_ClientSession;
     private readonly ClientSession<
         TKey,
@@ -22,14 +49,57 @@ public abstract partial class UnmanagedHashSet<TKey>
         EqualityEmpty,//TInput
         EqualityEmpty,//TOutput
         EqualityEmpty,//TContext
-        UnmanagedSymmetricExceptWith<TKey,EqualityEmpty>,
-        StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>,
-        BlittableAllocator<TKey,EqualityEmpty,StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>>
+        UnmanagedSymmetricExceptWith<
+            TKey,
+            EqualityEmpty
+        >,
+        StoreFunctions<
+            TKey,
+            EqualityEmpty,
+            UnmanagedKeyComparer<
+                TKey
+            >,
+            DefaultRecordDisposer<
+                TKey,
+                EqualityEmpty
+            >
+        >,
+        BlittableAllocator<
+            TKey,
+            EqualityEmpty,
+            StoreFunctions<
+                TKey,
+                EqualityEmpty,
+                UnmanagedKeyComparer<
+                    TKey
+                >,
+                DefaultRecordDisposer<
+                    TKey,
+                    EqualityEmpty
+                >
+            >
+        >
     > SymmetricExceptWith_ClientSession;
     internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore):base(CollectionStore){
         var Store=CollectionStore.Store;
-        this.IntersectWith_ClientSession=Store.NewSession<EqualityEmpty,bool,EqualityEmpty,UnmanagedDelete<TKey,EqualityEmpty>>(new());
-        this.SymmetricExceptWith_ClientSession=Store.NewSession<EqualityEmpty,EqualityEmpty,EqualityEmpty,UnmanagedSymmetricExceptWith<TKey,EqualityEmpty>>(new());
+        this.IntersectWith_ClientSession=Store.NewSession<
+            EqualityEmpty,
+            bool,
+            EqualityEmpty,
+            UnmanagedDelete<
+                TKey,
+                EqualityEmpty
+            >
+        >(new());
+        this.SymmetricExceptWith_ClientSession=Store.NewSession<
+            EqualityEmpty,
+            EqualityEmpty,
+            EqualityEmpty,
+            UnmanagedSymmetricExceptWith<
+                TKey,
+                EqualityEmpty
+            >
+        >(new());
     }
     public Enumerator<
         KeyIterator,
