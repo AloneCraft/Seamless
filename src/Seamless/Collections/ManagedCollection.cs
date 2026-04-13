@@ -16,4 +16,5 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
     private protected ManagedCollection(ManagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
         //this.InitializeAddClientSession();
     }
+    public sealed partial class CounterIterator : CounterIteratorBase;
 }

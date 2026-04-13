@@ -63,31 +63,31 @@ public abstract partial class Collection<
     ~Collection()=>this.Dispose(false);
 }
 
-#if !TSAVORITE2_0BETA3
-public class CounterIteratorBase{
-    public long Counter;
-    public bool OnStart(long beginAddress,long endAddress){
-        return true;
-    }
-    public void OnException(Exception exception,long numberOfRecords){
-    }
-    public void OnStop(bool completed,long numberOfRecords) {
-        this.Counter=numberOfRecords;
-    }
-}
-#endif
+//#if !TSAVORITE2_0BETA3
+//public class CounterIteratorBase{
+//    public long Counter;
+//    public bool OnStart(long beginAddress,long endAddress){
+//        return true;
+//    }
+//    public void OnException(Exception exception,long numberOfRecords){
+//    }
+//    public void OnStop(bool completed,long numberOfRecords) {
+//        this.Counter=numberOfRecords;
+//    }
+//}
+//#endif
 
-public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>
-    where TKey            :IEquatable<TKey>
-    where TValue          :IEquatable<TValue>
-    where TKeySerializer  :ISerializer<TKey>
-    where TValueSerializer:ISerializer<TValue>{
-    public sealed partial class CounterIterator : CounterIteratorBase;
-}
-public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>
-    where TKey            :unmanaged,IEquatable<TKey>
-    where TValue          :unmanaged,IEquatable<TValue>
-    where TKeySerializer  :ISerializer<TKey>
-    where TValueSerializer:ISerializer<TValue>{
-    public sealed partial class CounterIterator:CounterIteratorBase;
-}
+//public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>
+//    where TKey            :IEquatable<TKey>
+//    where TValue          :IEquatable<TValue>
+//    where TKeySerializer  :ISerializer<TKey>
+//    where TValueSerializer:ISerializer<TValue>{
+//    public sealed partial class CounterIterator : CounterIteratorBase;
+//}
+//public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>
+//    where TKey            :unmanaged,IEquatable<TKey>
+//    where TValue          :unmanaged,IEquatable<TValue>
+//    where TKeySerializer  :ISerializer<TKey>
+//    where TValueSerializer:ISerializer<TValue>{
+//    public sealed partial class CounterIterator:CounterIteratorBase;
+//}

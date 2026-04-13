@@ -7,5 +7,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     where TValue          :unmanaged,IEquatable<TValue>
     where TKeySerializer  :ISerializer<TKey>
     where TValueSerializer:ISerializer<TValue>{
-    protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){}
+    protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
+    }
+    public sealed partial class CounterIterator:CounterIteratorBase;
 }

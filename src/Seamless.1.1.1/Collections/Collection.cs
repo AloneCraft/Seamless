@@ -119,7 +119,17 @@ public abstract partial class Collection<
             TDeleteFunctions
         >(TDeleteFunctions.Create());
     }
-
+    public class CounterIteratorBase{
+        public long Counter;
+        public bool OnStart(long beginAddress,long endAddress){
+            return true;
+        }
+        public void OnException(Exception exception,long numberOfRecords){
+        }
+        public void OnStop(bool completed,long numberOfRecords) {
+            this.Counter=numberOfRecords;
+        }
+    }
     public void Clear(){
         var Session=this.AddClientSession;
         Session.BasicContext.CompletePending(wait:true);

@@ -106,7 +106,22 @@ public abstract partial class Collection<
             TDeleteFunctions
         >(TDeleteFunctions.Create());
     }
-
+    public class CounterIteratorBase:IScanIteratorFunctions{
+        public long Counter;
+        public bool OnStart(long beginAddress,long endAddress){
+            return true;
+        }
+        public void OnException(Exception exception,long numberOfRecords){
+        }
+        public void OnStop(bool completed,long numberOfRecords){
+            this.Counter=numberOfRecords;
+        }
+        public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+            where TSourceLogRecord:ISourceLogRecord{
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
+    }
     public virtual void Clear(){
         var Session=this.AddClientSession;
         Session.BasicContext.CompletePending(wait:true);
@@ -177,19 +192,19 @@ public abstract partial class Collection<
     }
     private protected abstract TryAddResult PrivateTryAdd(TKey Key,TValue Value);
 }
-public class CounterIteratorBase:IScanIteratorFunctions{
-    public long Counter;
-    public bool OnStart(long beginAddress,long endAddress){
-        return true;
-    }
-    public void OnException(Exception exception,long numberOfRecords){
-    }
-    public void OnStop(bool completed,long numberOfRecords){
-        this.Counter=numberOfRecords;
-    }
-    public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-        where TSourceLogRecord:ISourceLogRecord{
-        cursorRecordResult=CursorRecordResult.Accept;
-        return true;
-    }
-}
+//public class CounterIteratorBase:IScanIteratorFunctions{
+//    public long Counter;
+//    public bool OnStart(long beginAddress,long endAddress){
+//        return true;
+//    }
+//    public void OnException(Exception exception,long numberOfRecords){
+//    }
+//    public void OnStop(bool completed,long numberOfRecords){
+//        this.Counter=numberOfRecords;
+//    }
+//    public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+//        where TSourceLogRecord:ISourceLogRecord{
+//        cursorRecordResult=CursorRecordResult.Accept;
+//        return true;
+//    }
+//}
