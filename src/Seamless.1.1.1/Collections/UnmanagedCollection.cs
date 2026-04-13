@@ -159,16 +159,25 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         return Pending(Session,status,ref Output);
     }
 
-    public sealed partial class CounterIterator:IScanIteratorFunctions<TKey,TValue>{
-        public bool SingleReader(ref TKey key,ref TValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
-            cursorRecordResult=CursorRecordResult.Accept;
-            return true;
-        }
-        public bool ConcurrentReader(ref TKey key,ref TValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
-            cursorRecordResult=CursorRecordResult.Accept;
-            return true;
-        }
-    }
+    //public sealed class CounterIterator:IScanIteratorFunctions<TKey,TValue>{
+    //    public bool SingleReader(ref TKey key,ref TValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
+    //        cursorRecordResult=CursorRecordResult.Accept;
+    //        return true;
+    //    }
+    //    public bool ConcurrentReader(ref TKey key,ref TValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
+    //        cursorRecordResult=CursorRecordResult.Accept;
+    //        return true;
+    //    }
+    //    public long Counter;
+    //    public bool OnStart(long beginAddress,long endAddress){
+    //        return true;
+    //    }
+    //    public void OnException(Exception exception,long numberOfRecords){
+    //    }
+    //    public void OnStop(bool completed,long numberOfRecords) {
+    //        this.Counter=numberOfRecords;
+    //    }
+    //}
     public override long GetLongCount(){
         var iterator=new CounterIterator();
         var Cursor=0L;

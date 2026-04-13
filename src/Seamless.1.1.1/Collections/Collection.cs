@@ -119,7 +119,15 @@ public abstract partial class Collection<
             TDeleteFunctions
         >(TDeleteFunctions.Create());
     }
-    public class CounterIteratorBase{
+    public sealed partial class CounterIterator:IScanIteratorFunctions<TSessionKey,TSessionValue>{
+        public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
+        public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
         public long Counter;
         public bool OnStart(long beginAddress,long endAddress){
             return true;
@@ -130,6 +138,17 @@ public abstract partial class Collection<
             this.Counter=numberOfRecords;
         }
     }
+    //public class CounterIteratorBase{
+    //    public long Counter;
+    //    public bool OnStart(long beginAddress,long endAddress){
+    //        return true;
+    //    }
+    //    public void OnException(Exception exception,long numberOfRecords){
+    //    }
+    //    public void OnStop(bool completed,long numberOfRecords) {
+    //        this.Counter=numberOfRecords;
+    //    }
+    //}
     public void Clear(){
         var Session=this.AddClientSession;
         Session.BasicContext.CompletePending(wait:true);
