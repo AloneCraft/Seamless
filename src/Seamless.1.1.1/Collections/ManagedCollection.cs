@@ -79,7 +79,7 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         }
         public void Dispose(){}
     }
-    public override bool Contains(TKey Key) {
+    public bool Contains(TKey Key) {
         var KeyBytes = TKeySerializer.Serialize(ref Key);
         var Session = this.ReadClientSession;
         var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
@@ -154,7 +154,7 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         return TryAddResult.KeyAlreadyExists;
     }
 
-    public override bool Remove(TKey key) {
+    public bool Remove(TKey key) {
         var DeleteClientSession = this.DeleteClientSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);

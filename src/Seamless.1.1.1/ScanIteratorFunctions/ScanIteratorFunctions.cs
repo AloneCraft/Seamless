@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 namespace Seamless.ScanIteratorFunctions;
-
+//AIへの指示:ManagedCollection,ManagedDictionaryで使っている
+//1.1.1その為ManagedCollection.csに移動させる
 public abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions<SpanByte, SpanByte>{
     public readonly T[] Chunk=new T[Const.Chunk_Length];
     public int Count;
@@ -31,6 +32,8 @@ public abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions<SpanByte, 
     public void OnException(Exception exception,long numberOfRecords){
     }
 }
+//AIへの指示:UnmanagedCollection,UnmanagedDictionaryで使っている
+//1.1.1その為UnmanagedCollection.csに移動させる
 public abstract class ScanIteratorFunctions<T,TSessionKey,TSessionValue>:IScanIteratorFunctions<TSessionKey,TSessionValue>{
     public readonly T[] Chunk=new T[Const.Chunk_Length];
     public int Count;
