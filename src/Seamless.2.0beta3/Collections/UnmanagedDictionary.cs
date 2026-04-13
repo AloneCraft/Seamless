@@ -27,16 +27,8 @@ public abstract partial class UnmanagedDictionary<
         SpanByteAndMemory,
         EqualityEmpty,
         Remove_TKey_TValue,
-        StoreFunctions<
-            UnmanagedKeyComparer<TKey>,
-            SpanByteRecordDisposer
-        >,
-        SpanByteAllocator<
-            StoreFunctions<
-                UnmanagedKeyComparer<TKey>,
-                SpanByteRecordDisposer
-            >
-        >
+        UnmanagedStoreFunctions,
+        UnmanagedAllocator
     > Remove_TKey_TValue_ClientSession { get; set; }
     private ClientSession<
         FixedSpanByteKey,
@@ -44,16 +36,8 @@ public abstract partial class UnmanagedDictionary<
         bool,
         EqualityEmpty,
         Remove_KeyValuePair,
-        StoreFunctions<
-            UnmanagedKeyComparer<TKey>,
-            SpanByteRecordDisposer
-        >,
-        SpanByteAllocator<
-            StoreFunctions<
-                UnmanagedKeyComparer<TKey>,
-                SpanByteRecordDisposer
-            >
-        >
+        UnmanagedStoreFunctions,
+        UnmanagedAllocator
     > Remove_KeyValuePair_ClientSession { get; set; }
 
     internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> collectionStore):base(collectionStore) {
@@ -88,8 +72,8 @@ public abstract partial class UnmanagedDictionary<
         var Session = this.Remove_KeyValuePair_ClientSession;
         var Key0 = item.Key;
         var Value0 = item.Value;
-        var KeyBytes =this.SerializeKey(ref Key0);
-        var ValueBytes =this.SerializeValue(ref Value0);
+        var KeyBytes =TKeySerializer.Serialize(ref Key0);
+        var ValueBytes =TValueSerializer.Serialize(ref Value0);
         var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Input = PinnedSpanByte.FromPinnedSpan(ValueBytes);
         var Output = false;
@@ -100,7 +84,7 @@ public abstract partial class UnmanagedDictionary<
 
     public partial bool Remove(TKey key,out TValue value) {
         var Session = this.Remove_TKey_TValue_ClientSession;
-        var KeyBytes =this.SerializeKey(ref key);
+        var KeyBytes =TKeySerializer.Serialize(ref key);
         var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Input = default(EqualityEmpty);
         var Output = default(SpanByteAndMemory);
@@ -187,8 +171,8 @@ public abstract partial class UnmanagedDictionary<
     //IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Enumerate<KeyIterator<TKey,TKeySerializer>,TKey>(new());
     //IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<ValueIterator<TValue,TValueSerializer>,TValue>(new());
     private partial void SetValue(TKey key,TValue value){
-        var keyBytes =this.SerializeKey(ref key);
-        var valueBytes =this.SerializeValue(ref value);
+        var keyBytes =TKeySerializer.Serialize(ref key);
+        var valueBytes =TValueSerializer.Serialize(ref value);
         if(this.WouldOverflowMutable(keyBytes.Length,valueBytes.Length)) {
             throw this.ThrowLogFull();
         }

@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using Seamless.ScanIteratorFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
 public abstract partial class Collection<
@@ -23,7 +24,21 @@ public abstract partial class Collection<
     where TStoreFunctions : IStoreFunctions
     where TAllocator : IAllocator<TStoreFunctions>
     {
-    public abstract long GetLongCount();
+    public long GetLongCount() {
+        var Iterator = new CounterIteratorBase();
+        var Cursor = 0L;
+        this.ReadClientSession.IterateLookup(ref Iterator, ref Cursor, resetCursor: false);
+        return Iterator.Counter;
+    }
+
+    internal bool ContainsKey(ReadOnlySpan<byte> KeyBytes) {
+        var Session = this.DeleteClientSession;
+        var FixedKey = (FixedSpanByteKey)KeyBytes;
+        var Output = false;
+        var Status = Session.BasicContext.Read(FixedKey, ref Output);
+        Status = Pending(Session, Status, ref Output);
+        return Status.Found;
+    }
 
     //private protected static ReadOnlySpan<byte> GetReadOnlySpan(SpanByteAndMemory a) => a.ReadOnlySpan;
     //private protected ClientSession<FixedSpanByteKey, PinnedSpanByte, TReadOutput, EqualityEmpty, TReadFunctions, TStoreFunctions, TAllocator> ReadClientSession { get; private set; }

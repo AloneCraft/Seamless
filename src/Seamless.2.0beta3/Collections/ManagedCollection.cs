@@ -63,24 +63,8 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         public void Dispose() {
         }
     }
-    public override bool Contains(TKey Key) {
-        var KeyBytes = this.SerializeKey(ref Key);
-        return this.ContainsKey(KeyBytes);
-    }
-
-    /// <summary>
-    /// シリアライズ済みキーバイト列で直接存在判定する。
-    /// </summary>
-    internal bool ContainsKey(ReadOnlySpan<byte> KeyBytes) {
-        var Session = this.DeleteClientSession;
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
-        var Output = false;
-        var Status = Session.BasicContext.Read(FixedKey, ref Output);
-        Status = Pending(Session, Status, ref Output);
-        return Status.Found;
-    }
     private protected override Status Read(TKey Key,out TValue Value){
-        var KeyBytes = this.SerializeKey(ref Key);
+        var KeyBytes = TKeySerializer.Serialize(ref Key);
         var Session = this.ReadClientSession;
         var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Output = default(SpanByteAndMemory);
@@ -89,30 +73,26 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         if(Status.Found){
             Value=TValueSerializer.Deserialize(Output.ReadOnlySpan);
         } else{
-            //Unsafe.SkipInit(out Value);
             Value =default!;
         }
         return Status;
     }
 
-    //private protected override TValue ConvertOutput(ref TValue output) => output;
+    public bool Contains(TKey Key) => this.ContainsKey(TKeySerializer.Serialize(ref Key));
 
-    public override long GetLongCount() {
-        var Iterator = new CounterIterator();
-        long Cursor = 0;
-        this.ReadClientSession.IterateLookup(ref Iterator, ref Cursor, resetCursor: false);
-        return Iterator.Counter;
-    }
-    public sealed partial class CounterIterator : IScanIteratorFunctions {
-        public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult) where TSourceLogRecord : ISourceLogRecord {
-            cursorRecordResult = CursorRecordResult.Accept;
-            return true;
-        }
+    public bool Remove(TKey key) {
+        var DeleteClientSession = this.DeleteClientSession;
+        var KeyBytes = TKeySerializer.Serialize(ref key);
+        var Input = default(EqualityEmpty);
+        var Output = false;
+        var Status = DeleteClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes, ref Input, ref Output);
+        Status = Pending(DeleteClientSession, Status, ref Output);
+        return Output;
     }
 
     private protected override TryAddResult PrivateTryAdd(TKey Key, TValue Value) {
-        var KeyBytes = this.SerializeKey(ref Key);
-        var ValueBytes = this.SerializeValue(ref Value);
+        var KeyBytes = TKeySerializer.Serialize(ref Key);
+        var ValueBytes = TValueSerializer.Serialize(ref Value);
         if(this.WouldOverflowMutable(KeyBytes.Length, ValueBytes.Length)) {
             return TryAddResult.LogFull;
         }
@@ -124,16 +104,4 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         Status = Pending(Session, Status, ref Output);
         return Output ? TryAddResult.Success : TryAddResult.KeyAlreadyExists;
     }
-
-    public override bool Remove(TKey key){
-        var DeleteClientSession = this.DeleteClientSession;
-        var KeyBytes = this.SerializeKey(ref key);
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
-        var Input = default(EqualityEmpty);
-        var Output = false;
-        var Status = DeleteClientSession.BasicContext.RMW(FixedKey, ref Input, ref Output);
-        Status = Pending(DeleteClientSession, Status, ref Output);
-        return Output;
-    }
-
-    }
+}

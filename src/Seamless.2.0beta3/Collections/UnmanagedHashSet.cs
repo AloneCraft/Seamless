@@ -9,8 +9,8 @@ namespace Seamless.Collections;
 [DebuggerDisplay("Count = {Count}")]
 public abstract partial class UnmanagedHashSet<TKey>
     where TKey:unmanaged,IEquatable<TKey> {
-    private readonly ClientSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>> IntersectWith_ClientSession;
-    private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>> SymmetricExceptWith_ClientSession;
+    private readonly ClientSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith,UnmanagedStoreFunctions,UnmanagedAllocator> IntersectWith_ClientSession;
+    private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith,UnmanagedStoreFunctions,UnmanagedAllocator> SymmetricExceptWith_ClientSession;
     internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore):base(CollectionStore){
         var Store=CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith>(new());

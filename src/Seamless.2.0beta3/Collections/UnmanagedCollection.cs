@@ -10,46 +10,11 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     TValue,
     TValue,//TReadOutput
     TValue,//AddInput
-
-
-    UnmanagedRead<
-        TKey,
-        TValue
-    >,
-    UnmanagedAdd<
-        TKey,
-        TValue
-    >,
+    UnmanagedRead<TKey,TValue>,
+    UnmanagedAdd<TKey,TValue>,
     ContainsDelete,
-
-
-
-    StoreFunctions<
-
-
-        UnmanagedKeyComparer<
-            TKey
-        >,
-        SpanByteRecordDisposer
-
-
-
-    >,
-    SpanByteAllocator<
-
-
-        StoreFunctions<
-
-
-            UnmanagedKeyComparer<
-                TKey
-            >,
-            SpanByteRecordDisposer
-
-
-
-        >
-    >
+    UnmanagedStoreFunctions,
+    UnmanagedAllocator
 >
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue>
@@ -73,49 +38,17 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     [StructLayout(LayoutKind.Auto)]
     public struct Enumerator<TIterator,T>(
         ClientSession<
-            FixedSpanByteKey,//TKey
-
-            EqualityEmpty,//TInput
-            TValue,//TOutput
-            EqualityEmpty,//TContext
-            UnmanagedRead<
-                TKey,
-                TValue
-            >,//TReadFunctions
-            StoreFunctions<
-                UnmanagedKeyComparer<
-                    TKey
-                >,
-                SpanByteRecordDisposer
-            >,//TStoreFunctions
-
-
-
-
-
-            SpanByteAllocator<
-
-
-                StoreFunctions<
-
-
-                    UnmanagedKeyComparer<
-                        TKey
-                    >,
-                    SpanByteRecordDisposer
-
-
-
-                >
-            >//TAllocator
+            FixedSpanByteKey,
+            EqualityEmpty,
+            TValue,
+            EqualityEmpty,
+            UnmanagedRead<TKey,TValue>,
+            UnmanagedStoreFunctions,
+            UnmanagedAllocator
         > session,
         TIterator iterator
     ):IEnumerator<T>
-        where TIterator:ScanIteratorFunctions<
-            T
-
-
-        >{
+        where TIterator:ScanIteratorFunctions<T> {
         private TIterator Iterator=iterator;
         private long Cursor=0,Count;
         private int Index=-1;
@@ -152,53 +85,35 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         public void Dispose(){
         }
     }
-    public override bool Contains(TKey Key)=>this.ContainsKey(this.SerializeKey(ref Key));
-    /// <summary>
-    /// シリアライズ済みキーバイト列で直接存在判定する。
-    /// ContainsDelete の Reader が Read 時に output=true を返すことで存在判定を行う。
-    /// </summary>
-    internal bool ContainsKey(ReadOnlySpan<byte> KeyBytes) {
-        var Session = this.DeleteClientSession;
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
-        var Output = false;
-        var Status = Session.BasicContext.Read(FixedKey, ref Output);
-        Status = Pending(Session, Status, ref Output);
-        return Status.Found;
-    }
     /// <summary>
     /// キー値で存在判定する。
     /// </summary>
-    public bool ContainsKey(TKey Key)=>this.ContainsKey(this.SerializeKey(ref Key));
+    public bool ContainsKey(TKey Key) => this.ContainsKey(TKeySerializer.Serialize(ref Key));
 
+    public bool Contains(TKey Key) => this.ContainsKey(TKeySerializer.Serialize(ref Key));
 
-    //private protected override TValue ConvertOutput(ref TValue output) => output;
+    public bool Remove(TKey key) {
+        var DeleteClientSession = this.DeleteClientSession;
+        var KeyBytes = TKeySerializer.Serialize(ref key);
+        var Input = default(EqualityEmpty);
+        var Output = false;
+        var Status = DeleteClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes, ref Input, ref Output);
+        Status = Pending(DeleteClientSession, Status, ref Output);
+        return Output;
+    }
 
     private protected override Status Read(TKey Key,out TValue Output) {
         var Session = this.ReadClientSession;
         Output = default;
-        var Status = Session.BasicContext.Read((FixedSpanByteKey)this.SerializeKey(ref Key), ref Output);
+        var Status = Session.BasicContext.Read((FixedSpanByteKey)TKeySerializer.Serialize(ref Key), ref Output);
         return Pending(Session, Status, ref Output);
-    }
-
-
-    public override long GetLongCount() {
-        var Iterator = new CounterIterator();
-        var Cursor = 0L;
-        this.ReadClientSession.IterateLookup(ref Iterator, ref Cursor, resetCursor: false);
-        return Iterator.Counter;
-    }
-    public sealed partial class CounterIterator : IScanIteratorFunctions {
-        public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult) where TSourceLogRecord : ISourceLogRecord {
-            cursorRecordResult = CursorRecordResult.Accept;
-            return true;
-        }
     }
 
     private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value) {
         if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>())) {
             return TryAddResult.LogFull;
         }
-        var KeyBytes = this.SerializeKey(ref Key);
+        var KeyBytes = TKeySerializer.Serialize(ref Key);
         var Session = this.AddClientSession;
         var Output = false;
         var Status = Session.BasicContext.RMW((FixedSpanByteKey)KeyBytes, ref Value, ref Output);
@@ -207,15 +122,5 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
             return TryAddResult.Success;
         else
             return TryAddResult.KeyAlreadyExists;
-    }
-
-    public override bool Remove(TKey key) {
-        var DeleteClientSession = this.DeleteClientSession;
-        var KeyBytes = this.SerializeKey(ref key);
-        var Input = default(EqualityEmpty);
-        var Output = false;
-        var Status = DeleteClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
-        Status = Pending(DeleteClientSession,Status,ref Output);
-        return Output;
     }
 }

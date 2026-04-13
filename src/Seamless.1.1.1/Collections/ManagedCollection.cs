@@ -80,7 +80,7 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         public void Dispose(){}
     }
     public override bool Contains(TKey Key) {
-        var KeyBytes = this.SerializeKey(ref Key);
+        var KeyBytes = TKeySerializer.Serialize(ref Key);
         var Session = this.ReadClientSession;
         var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
         SpanByteAndMemory Output = default;
@@ -90,7 +90,7 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
     }
 
     private protected override Status Read(TKey Key, out TValue Output) {
-        var KeyBytes = this.SerializeKey(ref Key);
+        var KeyBytes = TKeySerializer.Serialize(ref Key);
         var Session = this.ReadClientSession;
         var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
         SpanByteAndMemory value0 = default;
@@ -130,8 +130,8 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
     }
 
     private protected override TryAddResult PrivateTryAdd(TKey Key, TValue Value) {
-        var KeyBytes = this.SerializeKey(ref Key);
-        var ValueBytes = this.SerializeValue(ref Value);
+        var KeyBytes = TKeySerializer.Serialize(ref Key);
+        var ValueBytes = TValueSerializer.Serialize(ref Value);
         if (this.WouldOverflowMutable(KeyBytes.Length, ValueBytes.Length)) {
             return TryAddResult.LogFull;
         }
@@ -156,7 +156,7 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
 
     public override bool Remove(TKey key) {
         var DeleteClientSession = this.DeleteClientSession;
-        var KeyBytes = this.SerializeKey(ref key);
+        var KeyBytes = TKeySerializer.Serialize(ref key);
         var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
         var Input = default(EqualityEmpty);
         var Output = false;
