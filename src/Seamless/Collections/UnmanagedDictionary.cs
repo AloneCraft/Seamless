@@ -10,32 +10,23 @@ public abstract partial class UnmanagedDictionary<
     TKeySerializer,
     TValueSerializer
 >:UnmanagedCollection<
-    TKey,
-    TValue,
-    TKeySerializer,
-    TValueSerializer
->, ISeamlessDictionary<TKey,TValue>
+        TKey,
+        TValue,
+        TKeySerializer,
+        TValueSerializer
+    >,
+    ISeamlessDictionary<TKey,TValue>
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue>
     where TKeySerializer:ISerializer<TKey>
-    where TValueSerializer:ISerializer<TValue> {
+    where TValueSerializer:ISerializer<TValue>{
+    public bool IsReadOnly=>false;
 
-    //private ClientSession<FixedSpanByteKey,EqualityEmpty,SpanByteAndMemory,EqualityEmpty,Remove_TKey_TValue,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>> Remove_TKey_TValue_ClientSession { get; set; }
-    //private ClientSession<FixedSpanByteKey,PinnedSpanByte,bool,EqualityEmpty,Remove_KeyValuePair,StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<UnmanagedKeyComparer<TKey>,SpanByteRecordDisposer>>> Remove_KeyValuePair_ClientSession { get; set; }
+    public TryAddResult TryAdd(TKey key,TValue value)=>this.PrivateTryAdd(key,value);
 
-    //internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> collectionStore):base(collectionStore) {
-    //    var store = collectionStore.Store;
-    //    this.Remove_TKey_TValue_ClientSession = store.NewSession<FixedSpanByteKey,EqualityEmpty,SpanByteAndMemory,EqualityEmpty,Remove_TKey_TValue>(new());
-    //    this.Remove_KeyValuePair_ClientSession = store.NewSession<FixedSpanByteKey,PinnedSpanByte,bool,EqualityEmpty,Remove_KeyValuePair>(new());
-    //}
-
-    public bool IsReadOnly => false;
-
-    public TryAddResult TryAdd(TKey key,TValue value) => this.PrivateTryAdd(key,value);
-
-    public void Add(TKey key,TValue value) {
-        var result = this.TryAdd(key,value);
-        switch(result) {
+    public void Add(TKey key,TValue value){
+        var result=this.TryAdd(key,value);
+        switch(result){
             case TryAddResult.LogFull:
                 throw this.ThrowLogFull();
             case TryAddResult.KeyAlreadyExists:
@@ -43,10 +34,10 @@ public abstract partial class UnmanagedDictionary<
         }
     }
 
-    public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
+    public void Add(KeyValuePair<TKey,TValue> item)=>this.Add(item.Key,item.Value);
 
-    bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item) {
-        var status = this.Read(item.Key,out var output);
+    bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item){
+        var status=this.Read(item.Key,out var output);
         if(status.NotFound) return false;
         return output.Equals(item.Value);
     }
@@ -56,55 +47,64 @@ public abstract partial class UnmanagedDictionary<
     public partial bool Remove(KeyValuePair<TKey,TValue> item);
     public partial bool Remove(TKey key,[MaybeNullWhen(false)]out TValue value);
 
-    public override bool IsDisposed => this.disposed;
+    public override bool IsDisposed=>this.disposed;
     private bool disposed;
 
-    protected override void Dispose(bool disposing) {
-        if(this.disposed) {
+    protected override void Dispose(bool disposing){
+        if(this.disposed){
             return;
         }
-        this.disposed = true;
-        if(disposing) {
+        this.disposed=true;
+        if(disposing){
             this.Remove_TKey_TValue_ClientSession.Dispose();
             this.Remove_KeyValuePair_ClientSession.Dispose();
         }
         base.Dispose(disposing);
     }
 
-    public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex) {
+    public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex){
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
-        if(array.Length-arrayIndex<this.GetLongCount()) {
+        if(array.Length-arrayIndex<this.GetLongCount()){
             throw new ArgumentException("The destination array is too small.");
         }
-        foreach(var kvp in this) {
-            array[arrayIndex++] = kvp;
+        foreach(var kvp in this){
+            array[arrayIndex++]=kvp;
         }
     }
 
-    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
-    IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator()=>this.GetEnumerator();
+    IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator()=>this.GetEnumerator();
 
 
-    #if TSAVORITE1_1_1
-    public ICollection<TKey> Keys => this.CreateCollection<KeyIterator,TKey>(new());
-    public ICollection<TValue> Values => this.CreateCollection<ValueIterator,TValue>(new());
-    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Enumerate<KeyIterator,TKey>(new());
-    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<ValueIterator,TValue>(new());
+#if TSAVORITE1_1_1
+    public ICollection<TKey> Keys=>this.CreateCollection<KeyIterator,TKey>(new());
 #else
-    public ICollection<TKey> Keys => this.CreateCollection<KeyIterator,TKey>(new());
-    public ICollection<TValue> Values => this.CreateCollection<ValueIterator,TValue>(new());
+    public ICollection<TKey> Keys=>this.CreateCollection<KeyIterator,TKey>(new());
+#endif
+#if TSAVORITE1_1_1
+    public ICollection<TValue> Values=>this.CreateCollection<ValueIterator,TValue>(new());
+#else
+    public ICollection<TValue> Values=>this.CreateCollection<ValueIterator,TValue>(new());
+#endif
+#if TSAVORITE1_1_1
+    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys=>this.Enumerate<KeyIterator,TKey>(new());
+#else
     IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Enumerate<KeyIterator,TKey>(new());
-    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<ValueIterator,TValue>(new());
+#endif
+#if TSAVORITE1_1_1
+    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values=>this.Enumerate<ValueIterator,TValue>(new());
+#else
+    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values=>this.Enumerate<ValueIterator,TValue>(new());
 #endif
     private partial void SetValue(TKey key,TValue value);
-    public TValue this[TKey key] {
-        get {
-            if(this.TryGetValue(key,out var value)) {
+    public TValue this[TKey key]{
+        get{
+            if(this.TryGetValue(key,out var value)){
                 return value;
             }
             throw new KeyNotFoundException();
         }
-        set=>this.SetValue(key, value);
+        set=>this.SetValue(key,value);
     }
 }

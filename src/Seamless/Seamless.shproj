@@ -36,7 +36,6 @@
     <Compile Include="Devices\MemoryOnlyDevice.cs" />
     <Compile Include="GlobalUsings.cs" />
     <Compile Include="ICreate.cs" />
-    <Compile Include="ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Include="SessionFunctions\ManagedAdd.cs" />
     <Compile Include="SessionFunctions\ManagedContains.cs" />
     <Compile Include="SessionFunctions\ManagedDelete.cs" />
