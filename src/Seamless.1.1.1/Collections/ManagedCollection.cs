@@ -81,12 +81,8 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
     }
     public bool Contains(TKey Key){
         var KeyBytes=TKeySerializer.Serialize(ref Key);
-        var Session=this.ReadClientSession;
-        var FixedKey=SpanByte.FromPinnedSpan(KeyBytes);
-        SpanByteAndMemory Output=default;
-        var Status=Session.BasicContext.Read(ref FixedKey,ref Output);
-        Status=Pending(Session,Status,ref Output);
-        return Status.Found;
+        var SessionKey=SpanByte.FromPinnedSpan(KeyBytes);
+        return this.PrivateProtectedContainsKey(ref SessionKey);
     }
     private protected override Status Read(TKey Key,out TValue Value){
         var KeyBytes=TKeySerializer.Serialize(ref Key);
@@ -101,6 +97,23 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
             Value=default!;
         }
         return Status;
+    }
+    public bool Remove(TKey key){
+        var DeleteClientSession=this.ContainsDeleteClientSession;
+        var KeyBytes=TKeySerializer.Serialize(ref key);
+        var FixedKey=SpanByte.FromPinnedSpan(KeyBytes);
+        var Input=default(EqualityEmpty);
+        var Output=false;
+        var Status=DeleteClientSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output,default(EqualityEmpty));
+        if(Status.IsPending){
+            DeleteClientSession.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
+            using(CompletedOutputs){
+                Debug.Assert(CompletedOutputs.Next());
+                Status=CompletedOutputs.Current.Status;
+                Output=CompletedOutputs.Current.Output;
+            }
+        }
+        return Output;
     }
     public override long GetLongCount(){
         var Iterator=new CounterIterator();
@@ -132,21 +145,4 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         return TryAddResult.KeyAlreadyExists;
     }
 
-    public bool Remove(TKey key){
-        var DeleteClientSession=this.DeleteClientSession;
-        var KeyBytes=TKeySerializer.Serialize(ref key);
-        var FixedKey=SpanByte.FromPinnedSpan(KeyBytes);
-        var Input=default(EqualityEmpty);
-        var Output=false;
-        var Status=DeleteClientSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output,default(EqualityEmpty));
-        if(Status.IsPending){
-            DeleteClientSession.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
-            using(CompletedOutputs){
-                Debug.Assert(CompletedOutputs.Next());
-                Status=CompletedOutputs.Current.Status;
-                Output=CompletedOutputs.Current.Output;
-            }
-        }
-        return Output;
-    }
 }

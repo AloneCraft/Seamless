@@ -137,17 +137,12 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         }
         public void Dispose(){}
     }
-    public bool Contains(TKey Key)=>this.ContainsKey(Key);
+    public bool Contains(TKey Key)=>this.PrivateProtectedContainsKey(ref Key);
     /// <summary>
-    /// シリアライズ済みキーバイト列で直接存在判定する。
+    /// キーの存在を判定する。
     /// ContainsDelete の Reader が Read 時に output=true を返すことで存在判定を行う。
     /// </summary>
-    public bool ContainsKey(TKey Key){
-        var Session=this.DeleteClientSession;
-        var Status=Session.BasicContext.Read(Key,out var output);
-        Status=Pending(Session,Status,ref output);
-        return Status.Found;
-    }
+    public bool ContainsKey(TKey Key)=>this.PrivateProtectedContainsKey(ref Key);
 
 
 
@@ -208,7 +203,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     }
 
     public bool Remove(TKey key){
-        var Session=this.DeleteClientSession;
+        var Session=this.ContainsDeleteClientSession;
         var Input=default(EqualityEmpty);
         var Output=false;
         var Status=Session.BasicContext.RMW(ref key,ref Input,ref Output);

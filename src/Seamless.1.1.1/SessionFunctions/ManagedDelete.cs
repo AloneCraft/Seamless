@@ -1,14 +1,24 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 namespace Seamless.SessionFunctions;
 
+/// <summary>
+/// Read でキーの存在確認（Contains）、RMW で Tombstone 挿入による論理削除（Delete）を行うセッション関数。
+/// Tsavorite の Type-Based Dispatch により Read と RMW が独立してディスパッチされるため、
+/// 非競合な Contains と Delete を 1 クラスに統合できる。
+/// </summary>
 public partial struct ManagedDelete:
     ISessionFunctions<SpanByte,SpanByte,EqualityEmpty,bool,EqualityEmpty>,
     ICreate<ManagedDelete>
     {
-    [ExcludeFromCodeCoverage]public bool SingleReader(ref SpanByte key,ref EqualityEmpty input,ref SpanByte value,ref bool dst,ref ReadInfo readInfo)    {
-        throw new NotSupportedException("Read");
+    // Contains: キー存在時に dst=true で応答
+    public bool SingleReader(ref SpanByte key,ref EqualityEmpty input,ref SpanByte value,ref bool dst,ref ReadInfo readInfo) {
+        dst = true;
+        return true;
     }
-    [ExcludeFromCodeCoverage]public bool ConcurrentReader(ref SpanByte key,ref EqualityEmpty input,ref SpanByte value,ref bool dst,ref ReadInfo readInfo,ref RecordInfo recordInfo){    throw new NotSupportedException("Read");
+    // Contains: キー存在時に dst=true で応答
+    public bool ConcurrentReader(ref SpanByte key,ref EqualityEmpty input,ref SpanByte value,ref bool dst,ref ReadInfo readInfo,ref RecordInfo recordInfo) {
+        dst = true;
+        return true;
     }
     [ExcludeFromCodeCoverage]public int GetUpsertValueLength(ref SpanByte value,ref EqualityEmpty input){
         throw new NotSupportedException("Upsertで呼ばれる");
@@ -25,6 +35,7 @@ public partial struct ManagedDelete:
     [ExcludeFromCodeCoverage]public void PostUpsertOperation<TEpochAccessor>(ref SpanByte key,ref EqualityEmpty input,ref SpanByte src,ref UpsertInfo upsertInfo,TEpochAccessor epoch)where TEpochAccessor : IEpochAccessor{
         throw new NotSupportedException("Upsert");
     }
+    // Delete: キー未存在時は新規作成しない
     public bool NeedInitialUpdate(ref SpanByte key,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo){
         return false;
     }
@@ -71,9 +82,12 @@ public partial struct ManagedDelete:
     public void PostDeleteOperation<TEpochAccessor>(ref SpanByte key,ref DeleteInfo deleteInfo,TEpochAccessor epoch)where TEpochAccessor : IEpochAccessor{ 
         throw new NotSupportedException("Delete");
     }
-    [ExcludeFromCodeCoverage]
+    // Contains: ReadCompletionCallback でキーが見つかった場合に output=true で応答
     public void ReadCompletionCallback(ref SpanByte key,ref EqualityEmpty input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
-        throw new NotSupportedException("Read");
+        if(status.Found){
+        	output = true;
+        }else{
+        }
     }
     public int GetRMWModifiedValueLength(ref SpanByte value,ref EqualityEmpty input) => value.Length;
     [ExcludeFromCodeCoverage]

@@ -78,7 +78,7 @@ public abstract partial class Collection<
         TContainsDeleteFunctions,
         TStoreFunctions,
         TAllocator
-    > DeleteClientSession{get;private set;}
+    > ContainsDeleteClientSession{get;private set;}
     private readonly CollectionStore<
         TKey,
         TValue,
@@ -93,7 +93,13 @@ public abstract partial class Collection<
     
     
     
-    
+private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey){
+        var Session=this.ContainsDeleteClientSession;
+        var Output=false;
+        var Status=Session.BasicContext.Read(ref SessionKey,ref Output);
+        Status=Pending(Session,Status,ref Output);
+        return Status.Found;
+    }
     
     protected Collection(CollectionStore<
         TKey,
@@ -117,7 +123,7 @@ public abstract partial class Collection<
             EqualityEmpty,
             TAddFunctions
         >(TAddFunctions.Create());
-        this.DeleteClientSession=Store.NewSession<
+        this.ContainsDeleteClientSession=Store.NewSession<
             EqualityEmpty,
             bool,
             EqualityEmpty,
@@ -163,7 +169,7 @@ public abstract partial class Collection<
             EqualityEmpty,
             TAddFunctions
         >(TAddFunctions.Create());
-        this.DeleteClientSession=Store.NewSession<
+        this.ContainsDeleteClientSession=Store.NewSession<
 
             EqualityEmpty,
             bool,
