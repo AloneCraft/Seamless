@@ -159,7 +159,16 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         return Pending(Session,status,ref Output);
     }
 
-
+    public sealed partial class CounterIterator:IScanIteratorFunctions<TKey,TValue>{
+        public bool SingleReader(ref TKey key,ref TValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
+        public bool ConcurrentReader(ref TKey key,ref TValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
+    }
     public override long GetLongCount(){
         var iterator=new CounterIterator();
         var Cursor=0L;
