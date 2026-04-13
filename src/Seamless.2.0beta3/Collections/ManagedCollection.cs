@@ -33,8 +33,8 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
     }
     public partial struct Enumerator<TIterator,T>(
         ClientSession<
-    		FixedSpanByteKey,//TKey
-    		
+            FixedSpanByteKey,//TKey
+
             EqualityEmpty,//TInput
             SpanByteAndMemory,//TOutput
             EqualityEmpty,//TContext
@@ -84,16 +84,12 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
     
     
     
-    
-    
-    
-    
     private protected override Status Read(TKey Key,out TValue Value){
         var KeyBytes=TKeySerializer.Serialize(ref Key);
         var Session=this.ReadClientSession;
         var FixedKey=(FixedSpanByteKey)KeyBytes;
         var Output=default(SpanByteAndMemory);
-        var Status=Session.BasicContext.Read(FixedKey, ref Output);
+        var Status=Session.BasicContext.Read(FixedKey,ref Output);
         Status=Pending(Session, Status, ref Output);
         if(Status.Found){
             Value=TValueSerializer.Deserialize(Output.ReadOnlySpan);
@@ -103,12 +99,13 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         return Status;
     }
     public bool Remove(TKey key){
-        var DeleteClientSession=this.ContainsDeleteClientSession;
+        var ClientSession=this.ContainsDeleteClientSession;
         var KeyBytes=TKeySerializer.Serialize(ref key);
+
         var Input=default(EqualityEmpty);
         var Output=false;
-        var Status=DeleteClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes, ref Input, ref Output);
-        Status=Pending(DeleteClientSession, Status, ref Output);
+        var Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes, ref Input, ref Output);
+        Status=Pending(ClientSession,Status,ref Output);
         return Output;
     }
 

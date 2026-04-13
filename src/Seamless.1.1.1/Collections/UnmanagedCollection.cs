@@ -173,12 +173,6 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     //        this.Counter=numberOfRecords;
     //    }
     //}
-    public override long GetLongCount(){
-        var iterator=new CounterIterator();
-        var Cursor=0L;
-        this.ReadClientSession.IterateLookup(ref iterator,ref Cursor,resetCursor:false);
-        return iterator.Counter;
-    }
     public sealed class KeyIterator:ScanIteratorFunctions<TKey,TKey,TValue>{
         private protected override TKey Deserialize(ref TKey key,ref TValue value)=>key;
     }
