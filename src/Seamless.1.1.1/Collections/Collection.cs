@@ -138,17 +138,6 @@ public abstract partial class Collection<
             this.Counter=numberOfRecords;
         }
     }
-    //public class CounterIteratorBase{
-    //    public long Counter;
-    //    public bool OnStart(long beginAddress,long endAddress){
-    //        return true;
-    //    }
-    //    public void OnException(Exception exception,long numberOfRecords){
-    //    }
-    //    public void OnStop(bool completed,long numberOfRecords) {
-    //        this.Counter=numberOfRecords;
-    //    }
-    //}
     public void Clear(){
         var Session=this.AddClientSession;
         Session.BasicContext.CompletePending(wait:true);
@@ -237,34 +226,4 @@ public abstract partial class Collection<
         return true;
     }
     private protected abstract TryAddResult PrivateTryAdd(TKey Key,TValue Value);
-}
-
-public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>{
-    //public sealed partial class CounterIterator:IScanIteratorFunctions<SpanByte,SpanByte>{
-    //    public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
-    //        cursorRecordResult=CursorRecordResult.Accept;
-    //        return true;
-    //    }
-    //    public bool ConcurrentReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
-    //        cursorRecordResult=CursorRecordResult.Accept;
-    //        return true;
-    //    }
-    //}
-}
-
-public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>
-    where TKey:unmanaged,IEquatable<TKey>
-    where TValue:unmanaged,IEquatable<TValue>
-    where TKeySerializer:ISerializer<TKey>
-    where TValueSerializer:ISerializer<TValue>{
-    //public sealed partial class CounterIterator:IScanIteratorFunctions<TKey,TValue>{
-    //    public bool SingleReader(ref TKey key,ref TValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
-    //        cursorRecordResult=CursorRecordResult.Accept;
-    //        return true;
-    //    }
-    //    public bool ConcurrentReader(ref TKey key,ref TValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
-    //        cursorRecordResult=CursorRecordResult.Accept;
-    //        return true;
-    //    }
-    //}
 }
