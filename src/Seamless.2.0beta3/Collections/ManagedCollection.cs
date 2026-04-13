@@ -102,10 +102,8 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         }
         return Status;
     }
-
-
     public bool Remove(TKey key){
-        var DeleteClientSession=this.DeleteClientSession;
+        var DeleteClientSession=this.ContainsDeleteClientSession;
         var KeyBytes=TKeySerializer.Serialize(ref key);
         var Input=default(EqualityEmpty);
         var Output=false;

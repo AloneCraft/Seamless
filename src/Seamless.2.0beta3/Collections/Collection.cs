@@ -78,7 +78,7 @@ public abstract partial class Collection<
         TContainsDeleteFunctions,
         TStoreFunctions,
         TAllocator
-    > DeleteClientSession{get;private set;}
+    > ContainsDeleteClientSession{get;private set;}
     private readonly CollectionStore<
         TKey,
         TValue,
@@ -95,7 +95,7 @@ public abstract partial class Collection<
         return Iterator.Counter;
     }
     private protected bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes){
-        var Session=this.DeleteClientSession;
+        var Session=this.ContainsDeleteClientSession;
         var FixedKey=(FixedSpanByteKey)KeyBytes;
         var Output=false;
         var Status=Session.BasicContext.Read(FixedKey,ref Output);
@@ -119,7 +119,7 @@ public abstract partial class Collection<
             EqualityEmpty,
             TAddFunctions
         >(TAddFunctions.Create());
-        this.DeleteClientSession=Store.NewSession<
+        this.ContainsDeleteClientSession=Store.NewSession<
             FixedSpanByteKey,
             EqualityEmpty,
             bool,
@@ -163,7 +163,7 @@ public abstract partial class Collection<
             EqualityEmpty,
             TAddFunctions
         >(TAddFunctions.Create());
-        this.DeleteClientSession=Store.NewSession<
+        this.ContainsDeleteClientSession=Store.NewSession<
             FixedSpanByteKey,
             EqualityEmpty,
             bool,

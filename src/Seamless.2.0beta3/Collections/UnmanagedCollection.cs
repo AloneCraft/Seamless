@@ -93,7 +93,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     public bool Contains(TKey Key) => this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
 
     public bool Remove(TKey key) {
-        var DeleteClientSession = this.DeleteClientSession;
+        var DeleteClientSession = this.ContainsDeleteClientSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var Input = default(EqualityEmpty);
         var Output = false;
