@@ -2,24 +2,59 @@
 using Seamless.SessionFunctions;
 
 using System.Collections;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 namespace Seamless.Collections;
 public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>:Collection<
     TKey,
     TValue,
+    
+    
     TValue,//TReadOutput
-    TValue,//AddInput
-    UnmanagedRead<TKey,TValue>,
-    UnmanagedAdd<TKey,TValue>,
+    TValue,//TAddInput
+    UnmanagedRead<
+        TKey,
+        TValue
+    >,
+    UnmanagedAdd<
+        TKey,
+        TValue
+    >,
     ContainsDelete,
+    
+    
+    
     UnmanagedStoreFunctions,
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     UnmanagedAllocator
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 >
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue>
     where TKeySerializer:ISerializer<TKey>
-    where TValueSerializer:ISerializer<TValue> {
+    where TValueSerializer:ISerializer<TValue>{
     public sealed class KeyIterator:ScanIteratorFunctions<TKey> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)=>
             TKeySerializer.Deserialize(logRecord.Key);
@@ -35,20 +70,52 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
                 TValueSerializer.Deserialize(logRecord.ValueSpan)
             );
     }
-    [StructLayout(LayoutKind.Auto)]
     public struct Enumerator<TIterator,T>(
         ClientSession<
-            FixedSpanByteKey,
-            EqualityEmpty,
-            TValue,
-            EqualityEmpty,
-            UnmanagedRead<TKey,TValue>,
-            UnmanagedStoreFunctions,
-            UnmanagedAllocator
+            FixedSpanByteKey,//TKey
+            
+            EqualityEmpty,//TInput
+            TValue,//TOutput
+            EqualityEmpty,//TContext
+            
+            
+            
+            
+            UnmanagedRead<TKey,TValue>,//TReadFunctions
+            
+            
+            
+            
+            
+            
+            
+
+            
+            
+            UnmanagedStoreFunctions,//TStoreFunctions
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            UnmanagedAllocator//TAllocator
         > session,
         TIterator iterator
     ):IEnumerator<T>
-        where TIterator:ScanIteratorFunctions<T> {
+        where TIterator:ScanIteratorFunctions<
+            T
+            
+            
+        >{
         private TIterator Iterator=iterator;
         private long Cursor=0,Count;
         private int Index=-1;
@@ -88,35 +155,36 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     /// <summary>
     /// キー値で存在判定する。
     /// </summary>
-    public bool ContainsKey(TKey Key) => this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
-
-    public bool Contains(TKey Key) => this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
-
+    public bool ContainsKey(TKey Key)=>this.PrivateProtectedContainsKey(
+        TKeySerializer.Serialize(ref Key)
+    );
+    public bool Contains(TKey Key)=>this.PrivateProtectedContainsKey(
+        TKeySerializer.Serialize(ref Key)
+    );
+    private protected override Status Read(TKey Key,out TValue Output) {
+        var Session=this.ReadClientSession;
+        Output=default;
+        var Status=Session.BasicContext.Read((FixedSpanByteKey)TKeySerializer.Serialize(ref Key), ref Output);
+        return Pending(Session,Status,ref Output);
+    }
     public bool Remove(TKey key) {
-        var DeleteClientSession = this.ContainsDeleteClientSession;
-        var KeyBytes = TKeySerializer.Serialize(ref key);
-        var Input = default(EqualityEmpty);
-        var Output = false;
-        var Status = DeleteClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes, ref Input, ref Output);
-        Status = Pending(DeleteClientSession, Status, ref Output);
+        var ClientSession=this.ContainsDeleteClientSession;
+        var KeyBytes=TKeySerializer.Serialize(ref key);
+        var Input=default(EqualityEmpty);
+        var Output=false;
+        var Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes, ref Input, ref Output);
+        Status=Pending(ClientSession, Status, ref Output);
         return Output;
     }
-
-    private protected override Status Read(TKey Key,out TValue Output) {
-        var Session = this.ReadClientSession;
-        Output = default;
-        var Status = Session.BasicContext.Read((FixedSpanByteKey)TKeySerializer.Serialize(ref Key), ref Output);
-        return Pending(Session, Status, ref Output);
-    }
-
     private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value) {
         if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
-        var KeyBytes = TKeySerializer.Serialize(ref Key);
-        var Session = this.AddClientSession;
-        var Output = false;
-        var Status = Session.BasicContext.RMW((FixedSpanByteKey)KeyBytes, ref Value, ref Output);
-        Status = Pending(Session, Status, ref Output);
+        var KeyBytes=TKeySerializer.Serialize(ref Key);
+        var ClientSession=this.AddClientSession;
+        var Output=false;
+        var Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes, ref Value, ref Output);
+        Status=Pending(ClientSession,Status,ref Output);
+        Debug.Assert(Status.NotFound==Output);
         if(Output)
             return TryAddResult.Success;
         return TryAddResult.KeyAlreadyExists;
