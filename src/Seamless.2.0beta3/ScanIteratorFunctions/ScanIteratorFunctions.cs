@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 namespace Seamless.ScanIteratorFunctions;
-//AIへの指示:UnmanagedCollection,ManagedCollectionで使っている
-//2.0その為Collection.csに移動させる
+//todo 将来struct
 public abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions{
     public readonly T[] Chunk=new T[Const.Chunk_Length];
     public int Count;

@@ -58,8 +58,18 @@ public abstract partial class ManagedHashSet<TKey>
 	internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
         //this.EmptyBytes=Serialize(EqualityEmpty.Default).ToArray();
         var Store=CollectionStore.Store;
-        this.IntersectWith_ClientSession=Store.NewSession<EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith>(new());
-        this.SymmetricExceptWith_ClientSession=Store.NewSession<SpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith>(new());
+        this.IntersectWith_ClientSession=Store.NewSession<
+            EqualityEmpty,
+            EqualityEmpty,
+            EqualityEmpty,
+            IntersectWith
+        >(new());
+        this.SymmetricExceptWith_ClientSession=Store.NewSession<
+            SpanByte,
+            SpanByteAndMemory,
+            EqualityEmpty,
+            SymmetricExceptWith
+        >(new());
     }
 
 	public Enumerator<

@@ -10,12 +10,7 @@ public abstract partial class UnmanagedDictionary<
     TValue,
     TKeySerializer,
     TValueSerializer
->:UnmanagedCollection<
-    TKey,
-    TValue,
-    TKeySerializer,
-    TValueSerializer
->, ISeamlessDictionary<TKey,TValue>
+>
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue>
     where TKeySerializer:ISerializer<TKey>
@@ -40,10 +35,22 @@ public abstract partial class UnmanagedDictionary<
         UnmanagedAllocator
     > Remove_KeyValuePair_ClientSession { get; set; }
 
-    internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> collectionStore):base(collectionStore) {
-        var store = collectionStore.Store;
-        this.Remove_TKey_TValue_ClientSession = store.NewSession<FixedSpanByteKey,EqualityEmpty,SpanByteAndMemory,EqualityEmpty,Remove_TKey_TValue>(new());
-        this.Remove_KeyValuePair_ClientSession = store.NewSession<FixedSpanByteKey,PinnedSpanByte,bool,EqualityEmpty,Remove_KeyValuePair>(new());
+    internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore) {
+        var Store = CollectionStore.Store;
+        this.Remove_TKey_TValue_ClientSession =Store.NewSession<
+            FixedSpanByteKey,
+            EqualityEmpty,
+            SpanByteAndMemory,
+            EqualityEmpty,
+            Remove_TKey_TValue
+        >(new());
+        this.Remove_KeyValuePair_ClientSession=Store.NewSession<
+            FixedSpanByteKey,
+            PinnedSpanByte,
+            bool,
+            EqualityEmpty,
+            Remove_KeyValuePair
+        >(new());
     }
     public Enumerator<
         KeyValueIterator,
@@ -99,107 +106,15 @@ public abstract partial class UnmanagedDictionary<
         value =default;
         return false;
     }
-
-    //public Enumerator<
-    //    KeyValueIterator<
-    //        TKey,
-    //        TValue,
-    //        TKeySerializer,
-    //        TValueSerializer
-    //    >,
-    //    KeyValuePair<TKey,TValue>
-    //> GetEnumerator()=>new(this.ReadClientSession,new());
-
-    //private List<T> CreateCollection<TIterator,T>(TIterator iterator)
-    //    where TIterator:ScanIteratorFunctions<T> {
-    //    var collection = new List<T>();
-    //    using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
-    //    while(e.MoveNext()) {
-    //        collection.Add(e.Current);
-    //    }
-    //    return collection;
-    //}
-
-    //private IEnumerable<T> Enumerate<TIterator,T>(TIterator iterator)
-    //    where TIterator:ScanIteratorFunctions<T> {
-    //    using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
-    //    while(e.MoveNext()) {
-    //        yield return e.Current;
-    //    }
-    //}
-
-    //public override bool IsDisposed => this.disposed;
-    //private bool disposed;
-
-    //protected override void Dispose(bool disposing) {
-    //    if(this.disposed) {
-    //        return;
-    //    }
-    //    this.disposed = true;
-    //    if(disposing) {
-    //        this.Remove_TKey_TValue_ClientSession.Dispose();
-    //        this.Remove_KeyValuePair_ClientSession.Dispose();
-    //    }
-    //    base.Dispose(disposing);
-    //}
-
-    //public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex) {
-    //    ArgumentNullException.ThrowIfNull(array);
-    //    ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
-    //    if(array.Length-arrayIndex<this.GetLongCount()) {
-    //        throw new ArgumentException("The destination array is too small.");
-    //    }
-    //    foreach(var kvp in this) {
-    //        array[arrayIndex++] = kvp;
-    //    }
-    //}
-
-    //IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
-    //IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
-
-    //public List<KeyValuePair<TKey,TValue>> toList() {
-    //    using var e = this.GetEnumerator();
-    //    var list = new List<KeyValuePair<TKey,TValue>>();
-    //    while(e.MoveNext()) {
-    //        list.Add(e.Current);
-    //    }
-    //    return list;
-    //}
-
-    //public ICollection<TKey> Keys => this.CreateCollection<KeyIterator<TKey,TKeySerializer>,TKey>(new());
-    //public ICollection<TValue> Values => this.CreateCollection<ValueIterator<TValue,TValueSerializer>,TValue>(new());
-    //IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Enumerate<KeyIterator<TKey,TKeySerializer>,TKey>(new());
-    //IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<ValueIterator<TValue,TValueSerializer>,TValue>(new());
     private partial void SetValue(TKey key,TValue value){
         var keyBytes =TKeySerializer.Serialize(ref key);
         var valueBytes =TValueSerializer.Serialize(ref value);
-        if(this.WouldOverflowMutable(keyBytes.Length,valueBytes.Length)) {
+        if(this.WouldOverflowMutable(keyBytes.Length,valueBytes.Length))
             throw this.ThrowLogFull();
-        }
         var session = this.AddClientSession;
         var fixedKey = (FixedSpanByteKey)keyBytes;
         var input = valueBytes;
         var status = session.BasicContext.Upsert(fixedKey,input);
         status = Pending(session,status);
     }
-    //public TValue this[TKey key] {
-    //    get {
-    //        if(this.TryGetValue(key,out var value)) {
-    //            return value;
-    //        }
-    //        throw new KeyNotFoundException();
-    //    }
-    //    set {
-    //        var KeyBytes =this.SerializeKey(ref key);
-    //        var ValueBytes =this.SerializeValue(ref value);
-    //        if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length)) {
-    //            throw this.ThrowLogFull();
-    //        }
-    //        var Session = this.AddClientSession;
-    //        var FixedKey = (FixedSpanByteKey)KeyBytes;
-    //        var Input = ValueBytes;
-    //        var Status = Session.BasicContext.Upsert(FixedKey,Input);
-    //        Status = Pending(Session,Status);
-    //    }
-    //}
 }

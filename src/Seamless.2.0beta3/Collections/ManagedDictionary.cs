@@ -4,12 +4,56 @@ using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 namespace Seamless.Collections;
 public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer> {
-	private ClientSession<FixedSpanByteKey,EqualityEmpty,SpanByteAndMemory,EqualityEmpty,Remove_TKey_TValue ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
-	private ClientSession<FixedSpanByteKey,PinnedSpanByte,bool,EqualityEmpty,Remove_KeyValuePair ,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>Remove_KeyValuePair_ClientSession{get;set;}
+	private ClientSession<
+        FixedSpanByteKey,
+        EqualityEmpty,
+        SpanByteAndMemory,
+        EqualityEmpty,
+        Remove_TKey_TValue ,
+        StoreFunctions<
+            SpanByteComparer,
+            DefaultRecordDisposer
+        >,
+        SpanByteAllocator<
+            StoreFunctions<
+                SpanByteComparer,
+                DefaultRecordDisposer
+            >
+        >
+    > Remove_TKey_TValue_ClientSession{get;set;}
+	private ClientSession<
+        FixedSpanByteKey,
+        PinnedSpanByte,
+        bool,
+        EqualityEmpty,
+        Remove_KeyValuePair ,
+        StoreFunctions<
+            SpanByteComparer,
+            DefaultRecordDisposer
+        >,
+        SpanByteAllocator<
+            StoreFunctions<
+                SpanByteComparer,
+                DefaultRecordDisposer
+            >
+        >
+    >Remove_KeyValuePair_ClientSession{get;set;}
 	internal ManagedDictionary(ManagedCollectionStore<TKey,TValue>CollectionStore) : base(CollectionStore) {
 		var Store=CollectionStore.Store;
-		this.Remove_TKey_TValue_ClientSession=Store.NewSession<FixedSpanByteKey,EqualityEmpty,SpanByteAndMemory,EqualityEmpty,Remove_TKey_TValue>(new ());
-		this.Remove_KeyValuePair_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,bool,EqualityEmpty,Remove_KeyValuePair>(new ());
+		this.Remove_TKey_TValue_ClientSession =Store.NewSession<
+            FixedSpanByteKey,
+            EqualityEmpty,
+            SpanByteAndMemory,
+            EqualityEmpty,
+            Remove_TKey_TValue
+        >(new ());
+		this.Remove_KeyValuePair_ClientSession=Store.NewSession<
+            FixedSpanByteKey,
+            PinnedSpanByte,
+            bool,
+            EqualityEmpty,
+            Remove_KeyValuePair
+        >(new ());
     }
     public bool Remove(KeyValuePair<TKey,TValue> item) {
         var Session = this.Remove_KeyValuePair_ClientSession;
@@ -59,19 +103,16 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
             yield return e.Current;
     }
     public TValue this[TKey Key] {
-        get {
-            if(this.TryGetValue(Key,out var Value)) {
+        get{
+            if(this.TryGetValue(Key,out var Value))
                 return Value;
-            } else {
-                throw new KeyNotFoundException();
-            }
+            throw new KeyNotFoundException();
         }
         set {
             var KeyBytes =TKeySerializer.Serialize(ref Key);
             var ValueBytes =TValueSerializer.Serialize(ref value);
-            if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length)) {
+            if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
                 throw this.ThrowLogFull();
-            }
             var Session=this.AddClientSession;
             var FixedKey=(FixedSpanByteKey)KeyBytes;
             var Status = Session.BasicContext.Upsert(FixedKey,ValueBytes);

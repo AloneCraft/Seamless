@@ -4,12 +4,64 @@ using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 namespace Seamless.Collections;
 public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer> {
-	private ClientSession<SpanByte,SpanByte,EqualityEmpty,SpanByteAndMemory,EqualityEmpty,ManagedRemove_TKey_TValue,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>> Remove_TKey_TValue_ClientSession{get;set;}
-	private ClientSession<SpanByte,SpanByte,SpanByte,bool,EqualityEmpty,ManagedRemove_KeyValuePair,StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByte,SpanByte,SpanByteComparer,SpanByteRecordDisposer>>>Remove_KeyValuePair_ClientSession{get;set;}
+	private ClientSession<
+        SpanByte,
+        SpanByte,
+        EqualityEmpty,
+        SpanByteAndMemory,
+        EqualityEmpty,
+        ManagedRemove_TKey_TValue,
+        StoreFunctions<
+            SpanByte,
+            SpanByte,
+            SpanByteComparer,
+            SpanByteRecordDisposer
+        >,
+        SpanByteAllocator<
+            StoreFunctions<
+                SpanByte,
+                SpanByte,
+                SpanByteComparer,
+                SpanByteRecordDisposer
+            >
+        >
+    > Remove_TKey_TValue_ClientSession{get;set;}
+	private ClientSession<
+        SpanByte,
+        SpanByte,
+        SpanByte,
+        bool,
+        EqualityEmpty,
+        ManagedRemove_KeyValuePair,
+        StoreFunctions<
+            SpanByte,
+            SpanByte,
+            SpanByteComparer,
+            SpanByteRecordDisposer
+        >,
+        SpanByteAllocator<
+            StoreFunctions<
+                SpanByte,
+                SpanByte,
+                SpanByteComparer,
+                SpanByteRecordDisposer
+            >
+        >
+    >Remove_KeyValuePair_ClientSession{get;set;}
 	internal ManagedDictionary(ManagedCollectionStore<TKey,TValue>CollectionStore) : base(CollectionStore) { 
 		var Store=CollectionStore.Store;
-		this.Remove_TKey_TValue_ClientSession=Store.NewSession<EqualityEmpty,SpanByteAndMemory,EqualityEmpty,ManagedRemove_TKey_TValue>(new ());
-		this.Remove_KeyValuePair_ClientSession=Store.NewSession<SpanByte,bool,EqualityEmpty,ManagedRemove_KeyValuePair>(new ());
+		this.Remove_TKey_TValue_ClientSession =Store.NewSession<
+            EqualityEmpty,
+            SpanByteAndMemory,
+            EqualityEmpty,
+            ManagedRemove_TKey_TValue
+        >(new ());
+		this.Remove_KeyValuePair_ClientSession=Store.NewSession<
+            SpanByte,
+            bool,
+            EqualityEmpty,
+            ManagedRemove_KeyValuePair
+        >(new ());
 	}
     public bool Remove(KeyValuePair<TKey,TValue> item) {
         var Session = this.Remove_KeyValuePair_ClientSession;

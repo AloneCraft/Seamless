@@ -10,13 +10,57 @@ namespace Seamless.Collections;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 public abstract partial class ManagedHashSet<TKey>where TKey : IEquatable<TKey>{
-	private readonly ClientSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> IntersectWith_ClientSession;
-	private readonly ClientSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith,StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> SymmetricExceptWith_ClientSession;
+	private readonly ClientSession<
+		FixedSpanByteKey,
+		EqualityEmpty,
+		EqualityEmpty,
+		EqualityEmpty,
+		IntersectWith,
+		StoreFunctions<
+			SpanByteComparer,
+			DefaultRecordDisposer
+		>,
+		SpanByteAllocator<
+			StoreFunctions<
+				SpanByteComparer,
+				DefaultRecordDisposer
+			>
+		>
+	> IntersectWith_ClientSession;
+	private readonly ClientSession<
+		FixedSpanByteKey,
+		PinnedSpanByte,
+		SpanByteAndMemory,
+		EqualityEmpty,
+		SymmetricExceptWith,
+		StoreFunctions<
+			SpanByteComparer,
+			DefaultRecordDisposer
+		>,
+		SpanByteAllocator<
+			StoreFunctions<
+				SpanByteComparer,
+				DefaultRecordDisposer
+			>
+		>
+	> SymmetricExceptWith_ClientSession;
 	internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore):base(CollectionStore){
 		//var empty = EqualityEmpty.Default;
 		var Store=CollectionStore.Store;
-		this.IntersectWith_ClientSession=Store.NewSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith>(new());
-		this.SymmetricExceptWith_ClientSession=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,SymmetricExceptWith>(new());
+		this.IntersectWith_ClientSession      =Store.NewSession<
+			FixedSpanByteKey,
+			EqualityEmpty,
+			EqualityEmpty,
+			EqualityEmpty,
+			IntersectWith
+		>(new());
+		this.SymmetricExceptWith_ClientSession=Store.NewSession<
+			FixedSpanByteKey,
+			PinnedSpanByte,
+			SpanByteAndMemory,
+			EqualityEmpty,
+			SymmetricExceptWith
+		>(new());
 	}
 	public Enumerator<
 		KeyIterator,

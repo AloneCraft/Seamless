@@ -110,9 +110,8 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     }
 
     private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value) {
-        if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>())) {
+        if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
-        }
         var KeyBytes = TKeySerializer.Serialize(ref Key);
         var Session = this.AddClientSession;
         var Output = false;
@@ -120,7 +119,6 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         Status = Pending(Session, Status, ref Output);
         if(Output)
             return TryAddResult.Success;
-        else
-            return TryAddResult.KeyAlreadyExists;
+        return TryAddResult.KeyAlreadyExists;
     }
 }

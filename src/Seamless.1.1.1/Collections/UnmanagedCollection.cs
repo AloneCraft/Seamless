@@ -204,8 +204,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         Status=Pending(Session,Status);
         if(Status.NotFound)
             return TryAddResult.Success;
-        else
-            return TryAddResult.KeyAlreadyExists;
+        return TryAddResult.KeyAlreadyExists;
     }
 
     public bool Remove(TKey key){

@@ -102,6 +102,8 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         var Output = false;
         var Status = Session.BasicContext.RMW(FixedKey, ref FixedInput, ref Output);
         Status = Pending(Session, Status, ref Output);
-        return Output ? TryAddResult.Success : TryAddResult.KeyAlreadyExists;
+        if(Output)
+            return TryAddResult.Success;
+        return TryAddResult.KeyAlreadyExists;
     }
 }
