@@ -88,9 +88,9 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     /// <summary>
     /// キー値で存在判定する。
     /// </summary>
-    public bool ContainsKey(TKey Key) => this.ContainsKey(TKeySerializer.Serialize(ref Key));
+    public bool ContainsKey(TKey Key) => this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
 
-    public bool Contains(TKey Key) => this.ContainsKey(TKeySerializer.Serialize(ref Key));
+    public bool Contains(TKey Key) => this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
 
     public bool Remove(TKey key) {
         var DeleteClientSession = this.DeleteClientSession;

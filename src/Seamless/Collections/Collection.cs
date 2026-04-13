@@ -12,7 +12,7 @@ public abstract partial class Collection<
     TAddInput,
     TReadFunctions,
     TAddFunctions,
-    TDeleteFunctions,
+    TContainsDeleteFunctions,
     TStoreFunctions,
     TAllocator
 >:IDisposable{

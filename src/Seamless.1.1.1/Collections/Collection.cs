@@ -2,7 +2,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 namespace Seamless.Collections;
-
 public abstract partial class Collection<
     TKey,
     TValue,
@@ -12,12 +11,12 @@ public abstract partial class Collection<
     TAddInput,
     TReadFunctions,
     TAddFunctions,
-    TDeleteFunctions,
+    TContainsDeleteFunctions,
     TStoreFunctions,
     TAllocator
 >
     where TKey:IEquatable<TKey>
-    where TReadFunctions  :struct,ISessionFunctions<
+    where TReadFunctions:struct,ISessionFunctions<
         TSessionKey,
         TSessionValue,
         EqualityEmpty,
@@ -33,25 +32,23 @@ public abstract partial class Collection<
         EqualityEmpty
     >,
     ICreate<TAddFunctions>
-    where TDeleteFunctions:struct,ISessionFunctions<
+    where TContainsDeleteFunctions:struct,ISessionFunctions<
         TSessionKey,
         TSessionValue,
         EqualityEmpty,
         bool,
         EqualityEmpty
     >,
-    ICreate<TDeleteFunctions>
+    ICreate<TContainsDeleteFunctions>
     where TStoreFunctions :IStoreFunctions<
         TSessionKey,
         TSessionValue
     >
-    where TAllocator      :IAllocator     <
+    where TAllocator:IAllocator<
         TSessionKey,
         TSessionValue
-    ,TStoreFunctions>{
-    //todo ストラテジパターンでCollectionを分割して、CountをCollectionStoreに移すこともできるかも
-    public abstract long GetLongCount();
-    //private protected static partial ReadOnlySpan<byte> GetReadOnlySpan(SpanByteAndMemory a) => a.AsReadOnlySpan();
+    ,TStoreFunctions>
+{
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -78,7 +75,7 @@ public abstract partial class Collection<
         EqualityEmpty,
         bool,
         EqualityEmpty,
-        TDeleteFunctions,
+        TContainsDeleteFunctions,
         TStoreFunctions,
         TAllocator
     > DeleteClientSession{get;private set;}
@@ -90,6 +87,14 @@ public abstract partial class Collection<
         TStoreFunctions,
         TAllocator
     > CollectionStore;
+    //todo ストラテジパターンでCollectionを分割して、CountをCollectionStoreに移すこともできるかも
+    public abstract long GetLongCount();
+    
+    
+    
+    
+    
+    
     protected Collection(CollectionStore<
         TKey,
         TValue,
@@ -116,8 +121,8 @@ public abstract partial class Collection<
             EqualityEmpty,
             bool,
             EqualityEmpty,
-            TDeleteFunctions
-        >(TDeleteFunctions.Create());
+            TContainsDeleteFunctions
+        >(TContainsDeleteFunctions.Create());
     }
     public sealed partial class CounterIterator:IScanIteratorFunctions<TSessionKey,TSessionValue>{
         public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
@@ -144,27 +149,28 @@ public abstract partial class Collection<
         Session.Dispose();
         var Store=this.CollectionStore.Store;
         Store.Reset();
-        this.ReadClientSession  =Store.NewSession<
+        this.ReadClientSession=Store.NewSession<
+
             EqualityEmpty,
             TReadOutput,
             EqualityEmpty,
             TReadFunctions
         >(TReadFunctions.Create());
-        this.AddClientSession   =Store.NewSession<
+        this.AddClientSession=Store.NewSession<
+
             TAddInput,
             bool,
             EqualityEmpty,
             TAddFunctions
         >(TAddFunctions.Create());
         this.DeleteClientSession=Store.NewSession<
+
             EqualityEmpty,
             bool,
             EqualityEmpty,
-            TDeleteFunctions
-        >(TDeleteFunctions.Create());
+            TContainsDeleteFunctions
+        >(TContainsDeleteFunctions.Create());
     }
-
-
     private protected static Status Pending<
         TInput0,
         TOutput0,
@@ -180,7 +186,13 @@ public abstract partial class Collection<
         TStoreFunctions,
         TAllocator
     > Session,Status Status)
-        where TSessionFunctions0:struct,ISessionFunctions<TSessionKey,TSessionValue,TInput0,TOutput0,TContext0>{
+    where TSessionFunctions0:struct,ISessionFunctions<
+    	TSessionKey,
+    	TSessionValue,
+    	TInput0,
+    	TOutput0,
+    	TContext0
+    >{
         if(Status.IsPending){
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
             using(CompletedOutputs){
@@ -206,7 +218,13 @@ public abstract partial class Collection<
         TStoreFunctions,
         TAllocator
     > Session,Status Status,ref TOutput0 Output)
-        where TSessionFunctions0:struct,ISessionFunctions<TSessionKey,TSessionValue,TInput0,TOutput0,TContext0>{
+    where TSessionFunctions0:struct,ISessionFunctions<
+    	TSessionKey,
+    	TSessionValue,
+        TInput0,
+        TOutput0,
+        TContext0
+    >{
         if(Status.IsPending){
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
             using(CompletedOutputs){

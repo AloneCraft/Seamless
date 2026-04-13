@@ -2,59 +2,56 @@
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 namespace Seamless.Collections;
-
 public abstract partial class Collection<
     TKey,
     TValue,
+    
+    
     TReadOutput,
     TAddInput,
     TReadFunctions,
     TAddFunctions,
-    TDeleteFunctions,
+    TContainsDeleteFunctions,
     TStoreFunctions,
     TAllocator
 >
     where TKey:IEquatable<TKey>
-    //where TReadFunctions  : struct, ISessionFunctions<TSessionKey,TSessionValue,EqualityEmpty, TValue, EqualityEmpty>
-    //where TAddFunctions   : struct, ISessionFunctions<TSessionKey,TSessionValue,TValue, bool, EqualityEmpty>
-    //where TDeleteFunctions: struct, ISessionFunctions<TSessionKey,TSessionValue, EqualityEmpty, bool, EqualityEmpty>
     where TReadFunctions:struct,ISessionFunctions<
+        
+        
         EqualityEmpty,
         TReadOutput,
         EqualityEmpty
     >,
     ICreate<TReadFunctions>
     where TAddFunctions:struct,ISessionFunctions<
+        
+        
         TAddInput,
         bool,
         EqualityEmpty
     >,
     ICreate<TAddFunctions>
-    where TDeleteFunctions:struct,ISessionFunctions<
+    where TContainsDeleteFunctions:struct,ISessionFunctions<
+        
+        
         EqualityEmpty,
         bool,
         EqualityEmpty
     >,
-    ICreate<TDeleteFunctions>
+    ICreate<TContainsDeleteFunctions>
     where TStoreFunctions:IStoreFunctions
-    where TAllocator:IAllocator<TStoreFunctions>{
-    public long GetLongCount(){
-        var Iterator=new CounterIterator();
-        var Cursor=0L;
-        this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor:false);
-        return Iterator.Counter;
-    }
+    
+    
+    
+    where TAllocator:IAllocator<TStoreFunctions>
 
-    internal bool ContainsKey(ReadOnlySpan<byte> KeyBytes){
-        var Session=this.DeleteClientSession;
-        var FixedKey=(FixedSpanByteKey)KeyBytes;
-        var Output=false;
-        var Status=Session.BasicContext.Read(FixedKey,ref Output);
-        Status=Pending(Session,Status,ref Output);
-        return Status.Found;
-    }
+
+
+{
     private protected ClientSession<
         FixedSpanByteKey,
+        
         EqualityEmpty,
         TReadOutput,
         EqualityEmpty,
@@ -64,6 +61,7 @@ public abstract partial class Collection<
     > ReadClientSession{get;private set;}
     private protected ClientSession<
         FixedSpanByteKey,
+        
         TAddInput,
         bool,
         EqualityEmpty,
@@ -73,14 +71,37 @@ public abstract partial class Collection<
     > AddClientSession{get;private set;}
     private protected ClientSession<
         FixedSpanByteKey,
+        
         EqualityEmpty,
         bool,
         EqualityEmpty,
-        TDeleteFunctions,
+        TContainsDeleteFunctions,
         TStoreFunctions,
         TAllocator
     > DeleteClientSession{get;private set;}
-    private readonly CollectionStore<TKey,TValue,TStoreFunctions,TAllocator> CollectionStore;
+    private readonly CollectionStore<
+        TKey,
+        TValue,
+        
+        
+        TStoreFunctions,
+        TAllocator
+    > CollectionStore;
+    
+    public long GetLongCount(){
+        var Iterator=new CounterIterator();
+        var Cursor=0L;
+        this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor:false);
+        return Iterator.Counter;
+    }
+    private protected bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes){
+        var Session=this.DeleteClientSession;
+        var FixedKey=(FixedSpanByteKey)KeyBytes;
+        var Output=false;
+        var Status=Session.BasicContext.Read(FixedKey,ref Output);
+        Status=Pending(Session,Status,ref Output);
+        return Status.Found;
+    }
     protected Collection(CollectionStore<TKey,TValue,TStoreFunctions,TAllocator> CollectionStore){
         this.CollectionStore=CollectionStore;
         var Store=CollectionStore.Store;
@@ -103,8 +124,8 @@ public abstract partial class Collection<
             EqualityEmpty,
             bool,
             EqualityEmpty,
-            TDeleteFunctions
-        >(TDeleteFunctions.Create());
+            TContainsDeleteFunctions
+        >(TContainsDeleteFunctions.Create());
     }
     public partial class CounterIterator:IScanIteratorFunctions{
         public long Counter;
@@ -122,7 +143,7 @@ public abstract partial class Collection<
             return true;
         }
     }
-    public virtual void Clear(){
+    public void Clear(){
         var Session=this.AddClientSession;
         Session.BasicContext.CompletePending(wait:true);
         Session.Dispose();
@@ -147,12 +168,27 @@ public abstract partial class Collection<
             EqualityEmpty,
             bool,
             EqualityEmpty,
-            TDeleteFunctions
-        >(TDeleteFunctions.Create());
+            TContainsDeleteFunctions
+        >(TContainsDeleteFunctions.Create());
     }
+    private protected static Status Pending<
+        TInput0,
+        TOutput0,
 
-    //private protected abstract Status Read(TKey Key, out SpanByteAndMemory Output);
-    private protected static Status Pending<TInput0,TOutput0,TSessionFunctions0>(ClientSession<FixedSpanByteKey,TInput0,TOutput0,EqualityEmpty,TSessionFunctions0,TStoreFunctions,TAllocator> Session,Status Status)where TSessionFunctions0:ISessionFunctions<
+    	TSessionFunctions0
+    >(ClientSession<
+    	FixedSpanByteKey,
+    	
+        TInput0,
+        TOutput0,
+        EqualityEmpty,
+        TSessionFunctions0,
+        TStoreFunctions,
+        TAllocator
+    > Session,Status Status)
+    where TSessionFunctions0:struct,ISessionFunctions<
+    	
+    	
         TInput0,
         TOutput0,
         EqualityEmpty
@@ -167,7 +203,24 @@ public abstract partial class Collection<
         return Status;
     }
 
-    private protected static Status Pending<TInput0,TOutput0,TSessionFunctions0>(ClientSession<FixedSpanByteKey,TInput0,TOutput0,EqualityEmpty,TSessionFunctions0,TStoreFunctions,TAllocator> Session,Status Status,ref TOutput0 Output)where TSessionFunctions0:ISessionFunctions<
+    private protected static Status Pending<
+    	TInput0,
+    	TOutput0,
+    	
+    	TSessionFunctions0
+    >(ClientSession<
+    	FixedSpanByteKey,
+    	
+        TInput0,
+        TOutput0,
+    	EqualityEmpty,
+        TSessionFunctions0,
+        TStoreFunctions,
+        TAllocator
+    > Session,Status Status,ref TOutput0 Output)
+    where TSessionFunctions0:struct,ISessionFunctions<
+    	
+    	
         TInput0,
         TOutput0,
         EqualityEmpty
