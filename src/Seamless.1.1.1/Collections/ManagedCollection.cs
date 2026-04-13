@@ -111,25 +111,6 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         }
         return Status;
     }
-    //public sealed class CounterIterator:IScanIteratorFunctions<SpanByte,SpanByte>{
-    //    public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
-    //        cursorRecordResult=CursorRecordResult.Accept;
-    //        return true;
-    //    }
-    //    public bool ConcurrentReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
-    //        cursorRecordResult=CursorRecordResult.Accept;
-    //        return true;
-    //    }
-    //    public long Counter;
-    //    public bool OnStart(long beginAddress,long endAddress){
-    //        return true;
-    //    }
-    //    public void OnException(Exception exception,long numberOfRecords){
-    //    }
-    //    public void OnStop(bool completed,long numberOfRecords) {
-    //        this.Counter=numberOfRecords;
-    //    }
-    //}
     public override long GetLongCount(){
         var Iterator=new CounterIterator();
         long Cursor=0;
