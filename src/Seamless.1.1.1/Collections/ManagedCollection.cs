@@ -118,15 +118,8 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         var FixedKey=SpanByte.FromPinnedSpan(KeyBytes);
         var FixedInput=SpanByte.FromPinnedSpan(ValueBytes);
         var Output=false;
-        var Status=Session.BasicContext.RMW(ref FixedKey,ref FixedInput,ref Output,default(EqualityEmpty));
-        if(Status.IsPending){
-            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
-            using(CompletedOutputs){
-                Debug.Assert(CompletedOutputs.Next());
-                Status=CompletedOutputs.Current.Status;
-                Output=CompletedOutputs.Current.Output;
-            }
-        }
+        var Status=Session.BasicContext.RMW(ref FixedKey,ref FixedInput,ref Output);
+        Status=Pending(Session, Status, ref Output);
         if(Output)
             return TryAddResult.Success;
         return TryAddResult.KeyAlreadyExists;

@@ -5,32 +5,42 @@ using Seamless.Stores;
 namespace Seamless.Collections;
 public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer> {
 	private ClientSession<
-        FixedSpanByteKey,
-        EqualityEmpty,
-        SpanByteAndMemory,
-        EqualityEmpty,
-        Remove_TKey_TValue ,
+        FixedSpanByteKey,//TKey
+        
+        EqualityEmpty,//TInput
+        SpanByteAndMemory,//TOutput
+        EqualityEmpty,//TContext
+        Remove_TKey_TValue,//TFunctions
+        
+        
         StoreFunctions<
             SpanByteComparer,
             DefaultRecordDisposer
-        >,
+        >,//TStoreFunctions
+        
+        
         SpanByteAllocator<
             StoreFunctions<
                 SpanByteComparer,
                 DefaultRecordDisposer
             >
-        >
+        >//TAllocator
     > Remove_TKey_TValue_ClientSession{get;set;}
 	private ClientSession<
         FixedSpanByteKey,
+        
         PinnedSpanByte,
         bool,
         EqualityEmpty,
-        Remove_KeyValuePair ,
+        Remove_KeyValuePair,
+        
+        
         StoreFunctions<
             SpanByteComparer,
             DefaultRecordDisposer
         >,
+
+        
         SpanByteAllocator<
             StoreFunctions<
                 SpanByteComparer,
@@ -41,40 +51,40 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
 	internal ManagedDictionary(ManagedCollectionStore<TKey,TValue>CollectionStore) : base(CollectionStore) {
 		var Store=CollectionStore.Store;
 		this.Remove_TKey_TValue_ClientSession =Store.NewSession<
-            FixedSpanByteKey,
-            EqualityEmpty,
-            SpanByteAndMemory,
-            EqualityEmpty,
-            Remove_TKey_TValue
+            FixedSpanByteKey,//TKey
+            EqualityEmpty,//TInput
+            SpanByteAndMemory,//TOutput
+            EqualityEmpty,//TContext
+            Remove_TKey_TValue//TFunctions
         >(new ());
 		this.Remove_KeyValuePair_ClientSession=Store.NewSession<
-            FixedSpanByteKey,
-            PinnedSpanByte,
-            bool,
-            EqualityEmpty,
-            Remove_KeyValuePair
+            FixedSpanByteKey,//TKey
+            PinnedSpanByte,//TInput
+            bool,//TOutput
+            EqualityEmpty,//TContext
+            Remove_KeyValuePair//TFunctions
         >(new ());
     }
     public bool Remove(KeyValuePair<TKey,TValue> item) {
-        var Session = this.Remove_KeyValuePair_ClientSession;
-        var Key0 = item.Key;
-        var Value0 = item.Value;
+        var Session=this.Remove_KeyValuePair_ClientSession;
+        var Key0=item.Key;
+        var Value0=item.Value;
         var KeyBytes =TKeySerializer.Serialize(ref Key0);
         var ValueBytes =TValueSerializer.Serialize(ref Value0);
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
-        var Input = PinnedSpanByte.FromPinnedSpan(ValueBytes);
-        var Output = false;
-        var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
+        var FixedKey=(FixedSpanByteKey)KeyBytes;
+        var Input=PinnedSpanByte.FromPinnedSpan(ValueBytes);
+        var Output=false;
+        var Status=Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
         Status=Pending(Session,Status,ref Output);
         return Output;
     }
     public bool Remove(TKey key,[MaybeNullWhen(false)]out TValue value) {
-        var Session = this.Remove_TKey_TValue_ClientSession;
+        var Session=this.Remove_TKey_TValue_ClientSession;
         var KeyBytes =TKeySerializer.Serialize(ref key);
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
-        var Input = default(EqualityEmpty);
-        SpanByteAndMemory Output = default;
-        var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
+        var FixedKey=(FixedSpanByteKey)KeyBytes;
+        var Input=default(EqualityEmpty);
+        SpanByteAndMemory Output=default;
+        var Status=Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
         Status=Pending(Session,Status,ref Output);
         // output.Length>0 は InPlaceUpdater/CopyUpdater で値がコピーされた＝成功
         if(Output.Length>0) {
@@ -89,8 +99,8 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
         KeyValuePair<TKey,TValue>
     > GetEnumerator()=>new (this.ReadClientSession,new());
     private List<T> CreateCollection<TIterator,T>(TIterator Iterator)where TIterator : ScanIteratorFunctions<T>{
-        var Collection = new List<T>();
-        using var Enumerator = new Enumerator<TIterator, T>(this.ReadClientSession, Iterator);
+        var Collection=new List<T>();
+        using var Enumerator=new Enumerator<TIterator, T>(this.ReadClientSession, Iterator);
         while (Enumerator.MoveNext()){
             Collection.Add(Enumerator.Current);
         }
@@ -115,7 +125,8 @@ public abstract partial class ManagedDictionary<TKey, TValue, TKeySerializer, TV
                 throw this.ThrowLogFull();
             var Session=this.AddClientSession;
             var FixedKey=(FixedSpanByteKey)KeyBytes;
-            var Status = Session.BasicContext.Upsert(FixedKey,ValueBytes);
+            
+            var Status=Session.BasicContext.Upsert(FixedKey,ValueBytes);
             Status=Pending(Session,Status);
         }
     }
