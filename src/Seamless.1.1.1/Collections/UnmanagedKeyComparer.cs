@@ -1,5 +1,4 @@
-﻿
-namespace Seamless.Collections;
+﻿namespace Seamless.Collections;
 
 public readonly struct UnmanagedKeyComparer<TKey>:IKeyComparer<TKey>
     where TKey:unmanaged,IEquatable<TKey> {

@@ -28,7 +28,7 @@ public abstract partial class UnmanagedDictionary<
             TKey,
             TValue,
             UnmanagedKeyComparer<TKey>,
-            UnmanagedRecordDisposer<TKey,TValue>
+            DefaultRecordDisposer<TKey,TValue>
         >,
         BlittableAllocator<
             TKey,
@@ -37,7 +37,7 @@ public abstract partial class UnmanagedDictionary<
                 TKey,
                 TValue,
                 UnmanagedKeyComparer<TKey>,
-                UnmanagedRecordDisposer<TKey,TValue>
+                DefaultRecordDisposer<TKey,TValue>
             >
         >
     > Remove_TKey_TValue_ClientSession { get; set; }
@@ -52,7 +52,7 @@ public abstract partial class UnmanagedDictionary<
             TKey,
             TValue,
             UnmanagedKeyComparer<TKey>,
-            UnmanagedRecordDisposer<TKey,TValue>
+            DefaultRecordDisposer<TKey,TValue>
         >,
         BlittableAllocator<
             TKey,
@@ -61,7 +61,7 @@ public abstract partial class UnmanagedDictionary<
                 TKey,
                 TValue,
                 UnmanagedKeyComparer<TKey>,
-                UnmanagedRecordDisposer<TKey,TValue>
+                DefaultRecordDisposer<TKey,TValue>
             >
         >
     > Remove_KeyValuePair_ClientSession { get; set; }
