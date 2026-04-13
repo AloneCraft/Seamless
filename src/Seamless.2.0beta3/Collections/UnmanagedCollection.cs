@@ -55,15 +55,15 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     where TValue:unmanaged,IEquatable<TValue>
     where TKeySerializer:ISerializer<TKey>
     where TValueSerializer:ISerializer<TValue>{
-    public sealed class KeyIterator:ScanIteratorFunctions<TKey> {
+    public sealed partial class KeyIterator:ScanIteratorFunctions<TKey> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)=>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    internal sealed class ValueIterator:ScanIteratorFunctions<TValue> {
+    internal sealed partial class ValueIterator:ScanIteratorFunctions<TValue> {
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)=>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
-    public sealed class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
+    public sealed partial class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)=>
             new(
                 TKeySerializer.Deserialize(logRecord.Key),
