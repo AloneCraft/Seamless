@@ -13,8 +13,7 @@ public abstract partial class UnmanagedHashSet<TKey>
         EqualityEmpty,//TOutput
         EqualityEmpty,//TContext
         UnmanagedIntersectWith<
-            TKey,
-            EqualityEmpty
+            TKey
         >,
         StoreFunctions    <
             TKey,
@@ -87,8 +86,7 @@ public abstract partial class UnmanagedHashSet<TKey>
             EqualityEmpty,
             EqualityEmpty,
             UnmanagedIntersectWith<
-                TKey,
-                EqualityEmpty
+                TKey
             >
         >(new());
         this.SymmetricExceptWith_ClientSession=Store.NewSession<
