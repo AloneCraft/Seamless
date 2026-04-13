@@ -65,21 +65,30 @@ public abstract partial class ManagedHashSet<TKey>where TKey : IEquatable<TKey>{
         >(new());
         this.SymmetricExceptWith_ClientSession=Store.NewSession<
             SpanByte,//TKey
+            
             SpanByteAndMemory,//TOutput
             EqualityEmpty,//TContext
             SymmetricExceptWith//TFunctions
         >(new());
     }
-
     public Enumerator<
         KeyIterator,
         TKey
-    > GetEnumerator() =>new(this.ReadClientSession,new());
+    > GetEnumerator()=>new(this.ReadClientSession,new());
+    
+    
+    
+    
+
+
+
+
     public partial void IntersectWith(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
         var Session = this.IntersectWith_ClientSession;
-        EqualityEmpty Input = default;
-        EqualityEmpty Output = default;
+        var Input=default(EqualityEmpty);
+        var Output=default(EqualityEmpty);
+
         foreach(var Key in this) {
             if(other.Contains(Key)) continue;
             var Key0 = Key;
