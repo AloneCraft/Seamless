@@ -9,89 +9,88 @@ namespace Seamless.Collections;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(DebugView<>))]
-public abstract partial class ManagedHashSet<TKey>
-    where TKey : IEquatable<TKey>{
+public abstract partial class ManagedHashSet<TKey>where TKey : IEquatable<TKey>{
     private readonly ClientSession<
-        SpanByte,
-        SpanByte,
-        EqualityEmpty,
-        EqualityEmpty,
-        EqualityEmpty,
+        SpanByte,//TKey
+        SpanByte,//TValue
+        EqualityEmpty,//TInput
+        EqualityEmpty,//TOutput
+        EqualityEmpty,//TContext
         ManagedIntersectWith,
         StoreFunctions<
-            SpanByte,
-            SpanByte,
-            SpanByteComparer,
-            SpanByteRecordDisposer
+            SpanByte,//TKey
+            SpanByte,//TValue
+            SpanByteComparer,//TKeyComparer
+            SpanByteRecordDisposer//TRecordDisposer
         >,
         SpanByteAllocator<
             StoreFunctions<
-                SpanByte,
-                SpanByte,
-                SpanByteComparer,
-                SpanByteRecordDisposer
+                SpanByte,//TKey
+                SpanByte,//TValue
+                SpanByteComparer,//TKeyComparer
+                SpanByteRecordDisposer//TRecordDisposer
             >
         >
     > IntersectWith_ClientSession;
     private readonly ClientSession<
-        SpanByte,
-        SpanByte,
+        SpanByte,//TKey
+        SpanByte,//TValue
         SpanByte,//TInput
         SpanByteAndMemory,//TOutput
         EqualityEmpty,//TContext
         SymmetricExceptWith,
         StoreFunctions<
-            SpanByte,
-            SpanByte,
-            SpanByteComparer,
-            SpanByteRecordDisposer
+            SpanByte,//TKey
+            SpanByte,//TValue
+            SpanByteComparer,//TKeyComparer
+            SpanByteRecordDisposer//TRecordDisposer
         >,
         SpanByteAllocator<
             StoreFunctions<
-                SpanByte,
-                SpanByte,
-                SpanByteComparer,
-                SpanByteRecordDisposer
+                SpanByte,//TKey
+                SpanByte,//TValue
+                SpanByteComparer,//TKeyComparer
+                SpanByteRecordDisposer//TRecordDisposer
             >
         >
     > SymmetricExceptWith_ClientSession;
-	internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
-        //this.EmptyBytes=Serialize(EqualityEmpty.Default).ToArray();
+    internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
         var Store=CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<
-            EqualityEmpty,
-            EqualityEmpty,
-            EqualityEmpty,
-            ManagedIntersectWith
+            EqualityEmpty,//TKey
+            
+            EqualityEmpty,//TOutput
+            EqualityEmpty,//TContext
+            ManagedIntersectWith//TFunctions
         >(new());
         this.SymmetricExceptWith_ClientSession=Store.NewSession<
-            SpanByte,
-            SpanByteAndMemory,
-            EqualityEmpty,
-            SymmetricExceptWith
+            SpanByte,//TKey
+            SpanByteAndMemory,//TOutput
+            EqualityEmpty,//TContext
+            SymmetricExceptWith//TFunctions
         >(new());
     }
 
-	public Enumerator<
-		KeyIterator,
-		TKey
-	> GetEnumerator() =>new(this.ReadClientSession,new());
-	public partial void IntersectWith(ManagedHashSet<TKey> other){
-		ArgumentNullException.ThrowIfNull(other);
-		var Session = this.IntersectWith_ClientSession;
-		EqualityEmpty Input = default;
-		EqualityEmpty Output = default;
-		foreach(var Key in this) {
-			if(other.Contains(Key)) continue;
-			var Key0 = Key;
-			var KeyBytes = ManagedSerializer<TKey>.Serialize(ref Key0);
-			var Key1 = SpanByte.FromPinnedSpan(KeyBytes);
-			Session.BasicContext.RMW(ref Key1, ref Input, ref Output);
-		}
-		Session.BasicContext.CompletePending(wait: true);
-	}
-	public partial void SymmetricExceptWith(ManagedHashSet<TKey> other) {
-		ArgumentNullException.ThrowIfNull(other);
+    public Enumerator<
+        KeyIterator,
+        TKey
+    > GetEnumerator() =>new(this.ReadClientSession,new());
+    public partial void IntersectWith(ManagedHashSet<TKey> other){
+        ArgumentNullException.ThrowIfNull(other);
+        var Session = this.IntersectWith_ClientSession;
+        EqualityEmpty Input = default;
+        EqualityEmpty Output = default;
+        foreach(var Key in this) {
+            if(other.Contains(Key)) continue;
+            var Key0 = Key;
+            var KeyBytes = ManagedSerializer<TKey>.Serialize(ref Key0);
+            var Key1 = SpanByte.FromPinnedSpan(KeyBytes);
+            Session.BasicContext.RMW(ref Key1, ref Input, ref Output);
+        }
+        Session.BasicContext.CompletePending(wait: true);
+    }
+    public partial void SymmetricExceptWith(ManagedHashSet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
         var Session = this.SymmetricExceptWith_ClientSession;
         foreach(var Item in other){
             var Item0=Item;
@@ -102,5 +101,5 @@ public abstract partial class ManagedHashSet<TKey>
             var Status=Session.BasicContext.RMW(ref Key,ref Input,ref Output);
         }
         Session.BasicContext.CompletePending(wait: true);
-	}
+    }
 }
