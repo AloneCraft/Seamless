@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
-namespace Seamless.Collections; 
+namespace Seamless.Collections;
 public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>:Collection<
     TKey,//TKey
     TValue,//TValue
@@ -88,7 +88,7 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         var KeyBytes=TKeySerializer.Serialize(ref Key);
         var Session=this.ReadClientSession;
         var FixedKey=SpanByte.FromPinnedSpan(KeyBytes);
-        SpanByteAndMemory Output=default;
+        var Output=default(SpanByteAndMemory);
         var Status=Session.BasicContext.Read(ref FixedKey,ref Output);
         Status=Pending(Session, Status, ref Output);
         if(Status.Found){
@@ -99,27 +99,14 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         return Status;
     }
     public bool Remove(TKey key){
-        var DeleteClientSession=this.ContainsDeleteClientSession;
+        var ClientSession=this.ContainsDeleteClientSession;
         var KeyBytes=TKeySerializer.Serialize(ref key);
         var FixedKey=SpanByte.FromPinnedSpan(KeyBytes);
         var Input=default(EqualityEmpty);
         var Output=false;
-        var Status=DeleteClientSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output,default(EqualityEmpty));
-        if(Status.IsPending){
-            DeleteClientSession.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
-            using(CompletedOutputs){
-                Debug.Assert(CompletedOutputs.Next());
-                Status=CompletedOutputs.Current.Status;
-                Output=CompletedOutputs.Current.Output;
-            }
-        }
+        var Status=ClientSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output,default(EqualityEmpty));
+        Status=Pending(ClientSession,Status,ref Output);
         return Output;
-    }
-    public override long GetLongCount(){
-        var Iterator=new CounterIterator();
-        long Cursor=0;
-        this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor:false);
-        return Iterator.Counter;
     }
 
     private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value){

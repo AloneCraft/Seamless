@@ -87,49 +87,6 @@ public abstract partial class Collection<
         TStoreFunctions,
         TAllocator
     > CollectionStore;
-    //todo ストラテジパターンでCollectionを分割して、CountをCollectionStoreに移すこともできるかも
-    public abstract long GetLongCount();
-    
-    
-    
-    
-private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey){
-        var Session=this.ContainsDeleteClientSession;
-        var Output=false;
-        var Status=Session.BasicContext.Read(ref SessionKey,ref Output);
-        Status=Pending(Session,Status,ref Output);
-        return Status.Found;
-    }
-    
-    protected Collection(CollectionStore<
-        TKey,
-        TValue,
-        TSessionKey,
-        TSessionValue,
-        TStoreFunctions,
-        TAllocator
-    > CollectionStore){
-        this.CollectionStore=CollectionStore;
-        var Store=CollectionStore.Store;
-        this.ReadClientSession  =Store.NewSession<
-            EqualityEmpty,
-            TReadOutput,
-            EqualityEmpty,
-            TReadFunctions
-        >(TReadFunctions.Create());
-        this.AddClientSession   =Store.NewSession<
-            TAddInput,
-            bool,
-            EqualityEmpty,
-            TAddFunctions
-        >(TAddFunctions.Create());
-        this.ContainsDeleteClientSession=Store.NewSession<
-            EqualityEmpty,
-            bool,
-            EqualityEmpty,
-            TContainsDeleteFunctions
-        >(TContainsDeleteFunctions.Create());
-    }
     public sealed partial class CounterIterator:IScanIteratorFunctions<TSessionKey,TSessionValue>{
         public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
             cursorRecordResult=CursorRecordResult.Accept;
@@ -148,6 +105,54 @@ private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey){
         public void OnStop(bool completed,long numberOfRecords) {
             this.Counter=numberOfRecords;
         }
+    }
+    public long GetLongCount(){
+        var Iterator=new CounterIterator();
+        long Cursor=0;
+        this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor:false);
+        return Iterator.Counter;
+    }
+    private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey){
+        var Session=this.ContainsDeleteClientSession;
+        
+        var Output=false;
+        var Status=Session.BasicContext.Read(ref SessionKey,ref Output);
+        Status=Pending(Session,Status,ref Output);
+        return Status.Found;
+    }
+    protected Collection(
+        CollectionStore<
+            TKey,
+            TValue,
+            TSessionKey,
+            TSessionValue,
+            TStoreFunctions,
+            TAllocator
+        > CollectionStore
+    ){
+        this.CollectionStore=CollectionStore;
+        var Store=CollectionStore.Store;
+        this.ReadClientSession  =Store.NewSession<
+            EqualityEmpty,
+            
+            TReadOutput,
+            EqualityEmpty,
+            TReadFunctions
+        >(TReadFunctions.Create());
+        this.AddClientSession=Store.NewSession<
+            
+            TAddInput,
+            bool,
+            EqualityEmpty,
+            TAddFunctions
+        >(TAddFunctions.Create());
+        this.ContainsDeleteClientSession=Store.NewSession<
+
+            EqualityEmpty,
+            bool,
+            EqualityEmpty,
+            TContainsDeleteFunctions
+        >(TContainsDeleteFunctions.Create());
     }
     public void Clear(){
         var Session=this.AddClientSession;
@@ -193,11 +198,11 @@ private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey){
         TAllocator
     > Session,Status Status)
     where TSessionFunctions0:struct,ISessionFunctions<
-    	TSessionKey,
-    	TSessionValue,
-    	TInput0,
-    	TOutput0,
-    	TContext0
+        TSessionKey,
+        TSessionValue,
+        TInput0,
+        TOutput0,
+        TContext0
     >{
         if(Status.IsPending){
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
@@ -208,7 +213,6 @@ private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey){
         }
         return Status;
     }
-
     private protected static Status Pending<
         TInput0,
         TOutput0,
@@ -225,8 +229,8 @@ private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey){
         TAllocator
     > Session,Status Status,ref TOutput0 Output)
     where TSessionFunctions0:struct,ISessionFunctions<
-    	TSessionKey,
-    	TSessionValue,
+        TSessionKey,
+        TSessionValue,
         TInput0,
         TOutput0,
         TContext0

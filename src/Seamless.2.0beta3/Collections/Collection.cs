@@ -87,7 +87,25 @@ public abstract partial class Collection<
         TStoreFunctions,
         TAllocator
     > CollectionStore;
-    
+    public partial class CounterIterator:IScanIteratorFunctions{
+        public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)where TSourceLogRecord:ISourceLogRecord{
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
+
+
+
+
+        public long Counter;
+        public bool OnStart(long beginAddress,long endAddress){
+            return true;
+        }
+        public void OnException(Exception exception,long numberOfRecords){
+        }
+        public void OnStop(bool completed,long numberOfRecords){
+            this.Counter=numberOfRecords;
+        }
+    }
     public long GetLongCount(){
         var Iterator=new CounterIterator();
         var Cursor=0L;
@@ -102,7 +120,16 @@ public abstract partial class Collection<
         Status=Pending(Session,Status,ref Output);
         return Status.Found;
     }
-    protected Collection(CollectionStore<TKey,TValue,TStoreFunctions,TAllocator> CollectionStore){
+    protected Collection(
+        CollectionStore<
+            TKey,
+            TValue,
+
+
+            TStoreFunctions,
+            TAllocator
+        > CollectionStore
+    ){
         this.CollectionStore=CollectionStore;
         var Store=CollectionStore.Store;
         this.ReadClientSession=Store.NewSession<
@@ -126,22 +153,6 @@ public abstract partial class Collection<
             EqualityEmpty,
             TContainsDeleteFunctions
         >(TContainsDeleteFunctions.Create());
-    }
-    public partial class CounterIterator:IScanIteratorFunctions{
-        public long Counter;
-        public bool OnStart(long beginAddress,long endAddress){
-            return true;
-        }
-        public void OnException(Exception exception,long numberOfRecords){
-        }
-        public void OnStop(bool completed,long numberOfRecords){
-            this.Counter=numberOfRecords;
-        }
-        public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            where TSourceLogRecord:ISourceLogRecord{
-            cursorRecordResult=CursorRecordResult.Accept;
-            return true;
-        }
     }
     public void Clear(){
         var Session=this.AddClientSession;
@@ -175,10 +186,10 @@ public abstract partial class Collection<
         TInput0,
         TOutput0,
 
-    	TSessionFunctions0
+    TSessionFunctions0
     >(ClientSession<
-    	FixedSpanByteKey,
-    	
+        FixedSpanByteKey,
+
         TInput0,
         TOutput0,
         EqualityEmpty,
@@ -187,8 +198,8 @@ public abstract partial class Collection<
         TAllocator
     > Session,Status Status)
     where TSessionFunctions0:struct,ISessionFunctions<
-    	
-    	
+    
+    
         TInput0,
         TOutput0,
         EqualityEmpty
@@ -202,25 +213,24 @@ public abstract partial class Collection<
         }
         return Status;
     }
-
     private protected static Status Pending<
-    	TInput0,
-    	TOutput0,
-    	
-    	TSessionFunctions0
-    >(ClientSession<
-    	FixedSpanByteKey,
-    	
         TInput0,
         TOutput0,
-    	EqualityEmpty,
+
+        TSessionFunctions0
+    >(ClientSession<
+        FixedSpanByteKey,
+    
+        TInput0,
+        TOutput0,
+        EqualityEmpty,
         TSessionFunctions0,
         TStoreFunctions,
         TAllocator
     > Session,Status Status,ref TOutput0 Output)
     where TSessionFunctions0:struct,ISessionFunctions<
-    	
-    	
+    
+    
         TInput0,
         TOutput0,
         EqualityEmpty
