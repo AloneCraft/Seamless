@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 namespace Seamless.SessionFunctions;
 
-internal readonly struct IntersectWith:
+internal readonly struct ManagedIntersectWith:
     ISessionFunctions<SpanByte,SpanByte,EqualityEmpty,EqualityEmpty,EqualityEmpty>
 {
     [ExcludeFromCodeCoverage]public bool SingleReader(ref SpanByte Key,ref EqualityEmpty Input,ref SpanByte Value,ref EqualityEmpty Dst,ref ReadInfo ReadInfo){

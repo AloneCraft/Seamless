@@ -17,7 +17,7 @@ public abstract partial class ManagedHashSet<TKey>
         EqualityEmpty,
         EqualityEmpty,
         EqualityEmpty,
-        IntersectWith,
+        ManagedIntersectWith,
         StoreFunctions<
             SpanByte,
             SpanByte,
@@ -62,7 +62,7 @@ public abstract partial class ManagedHashSet<TKey>
             EqualityEmpty,
             EqualityEmpty,
             EqualityEmpty,
-            IntersectWith
+            ManagedIntersectWith
         >(new());
         this.SymmetricExceptWith_ClientSession=Store.NewSession<
             SpanByte,
