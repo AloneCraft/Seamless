@@ -16,6 +16,7 @@ public abstract partial class Collection<
     TStoreFunctions,
     TAllocator
 >:IDisposable{
+    public sealed partial class CounterIterator;
     private protected bool PrivateProtectedWouldOverflowMutable(int KeyLength,int ValueLength){
         Debug.Assert(this.LogMemorySize>=8192);
         var MutableBytes=(long)(this.LogMemorySize*this.MutableFraction);
@@ -62,32 +63,3 @@ public abstract partial class Collection<
 
     ~Collection()=>this.Dispose(false);
 }
-
-//#if !TSAVORITE2_0BETA3
-//public class CounterIteratorBase{
-//    public long Counter;
-//    public bool OnStart(long beginAddress,long endAddress){
-//        return true;
-//    }
-//    public void OnException(Exception exception,long numberOfRecords){
-//    }
-//    public void OnStop(bool completed,long numberOfRecords) {
-//        this.Counter=numberOfRecords;
-//    }
-//}
-//#endif
-
-//public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>
-//    where TKey            :IEquatable<TKey>
-//    where TValue          :IEquatable<TValue>
-//    where TKeySerializer  :ISerializer<TKey>
-//    where TValueSerializer:ISerializer<TValue>{
-//    public sealed partial class CounterIterator : CounterIteratorBase;
-//}
-//public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>
-//    where TKey            :unmanaged,IEquatable<TKey>
-//    where TValue          :unmanaged,IEquatable<TValue>
-//    where TKeySerializer  :ISerializer<TKey>
-//    where TValueSerializer:ISerializer<TValue>{
-//    public sealed partial class CounterIterator:CounterIteratorBase;
-//}

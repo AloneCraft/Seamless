@@ -39,7 +39,7 @@ public abstract partial class Collection<
     where TStoreFunctions:IStoreFunctions
     where TAllocator:IAllocator<TStoreFunctions>{
     public long GetLongCount(){
-        var Iterator=new CounterIteratorBase();
+        var Iterator=new CounterIterator();
         var Cursor=0L;
         this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor:false);
         return Iterator.Counter;
@@ -106,7 +106,7 @@ public abstract partial class Collection<
             TDeleteFunctions
         >(TDeleteFunctions.Create());
     }
-    public class CounterIteratorBase:IScanIteratorFunctions{
+    public partial class CounterIterator:IScanIteratorFunctions{
         public long Counter;
         public bool OnStart(long beginAddress,long endAddress){
             return true;
@@ -192,19 +192,3 @@ public abstract partial class Collection<
     }
     private protected abstract TryAddResult PrivateTryAdd(TKey Key,TValue Value);
 }
-//public class CounterIteratorBase:IScanIteratorFunctions{
-//    public long Counter;
-//    public bool OnStart(long beginAddress,long endAddress){
-//        return true;
-//    }
-//    public void OnException(Exception exception,long numberOfRecords){
-//    }
-//    public void OnStop(bool completed,long numberOfRecords){
-//        this.Counter=numberOfRecords;
-//    }
-//    public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-//        where TSourceLogRecord:ISourceLogRecord{
-//        cursorRecordResult=CursorRecordResult.Accept;
-//        return true;
-//    }
-//}
