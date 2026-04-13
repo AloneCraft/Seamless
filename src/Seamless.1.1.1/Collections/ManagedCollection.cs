@@ -1,21 +1,20 @@
 ﻿using System.Collections;
+using System.Diagnostics;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
-using System.Diagnostics;
-namespace Seamless.Collections;
-
+namespace Seamless.Collections; 
 public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>:Collection<
-    TKey,
-    TValue,
+    TKey,//TKey
+    TValue,//TValue
     SpanByte,//TSessionKey
     SpanByte,//TSessionValue
     SpanByteAndMemory,//TReadOutput
     SpanByte,//TAddInput
-    ManagedRead,
-    ManagedAdd,
-    ManagedDelete,
-    ManagedStoreFunctions,
-    ManagedAllocator
+    ManagedRead,//TReadFunctions
+    ManagedAdd,//TAddFunctions
+    ManagedDelete,//TContainsDeleteFunction
+    ManagedStoreFunctions,//TStoreFunctions
+    ManagedAllocator//TAllocator
 >{
     public sealed partial class KeyIterator{
         private protected override TKey Deserialize(ref SpanByte key,ref SpanByte value)=>
@@ -42,19 +41,19 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
             ManagedRead,
             ManagedStoreFunctions,
             ManagedAllocator
-        > Session,
+        >Session,
         TIterator Iterator
     ):IEnumerator<T>
-        where TIterator:ScanIteratorFunctions<T>{
+    where TIterator:ScanIteratorFunctions<T>{
         private TIterator Iterator=Iterator;
         private long Cursor=0,Count;
         private int Index=-1;
-        private bool _done;
+        private bool Done;
         public T Current=>this.Iterator.Chunk[this.Index];
         object? IEnumerator.Current=>this.Current;
         public bool MoveNext(){
             if(++this.Index<this.Count) return true;
-            if(this._done){
+            if(this.Done){
                 this.Index=-1;
                 return false;
             }
@@ -63,7 +62,7 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
             var Count=this.Iterator.Count;
             this.Count=Count;
             if(!r)
-                this._done=true;
+                this.Done=true;
             if(Count>0){
                 this.Index=0;
                 return true;
@@ -75,9 +74,10 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
             this.Cursor=0;
             this.Count=0;
             this.Index=-1;
-            this._done=false;
+            this.Done=false;
         }
-        public void Dispose(){}
+        public void Dispose(){
+        }
     }
     public bool Contains(TKey Key){
         var KeyBytes=TKeySerializer.Serialize(ref Key);
@@ -88,26 +88,17 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         Status=Pending(Session,Status,ref Output);
         return Status.Found;
     }
-
-    private protected override Status Read(TKey Key,out TValue Output){
+    private protected override Status Read(TKey Key,out TValue Value){
         var KeyBytes=TKeySerializer.Serialize(ref Key);
         var Session=this.ReadClientSession;
         var FixedKey=SpanByte.FromPinnedSpan(KeyBytes);
-        SpanByteAndMemory value0=default;
-        var Status=Session.BasicContext.Read(ref FixedKey,ref value0);
-        if(Status.IsPending){
-            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
-            using(CompletedOutputs){
-                Debug.Assert(CompletedOutputs.Next());
-                Status=CompletedOutputs.Current.Status;
-                value0=CompletedOutputs.Current.Output;
-            }
-        }
+        SpanByteAndMemory Output=default;
+        var Status=Session.BasicContext.Read(ref FixedKey,ref Output);
+        Status=Pending(Session, Status, ref Output);
         if(Status.Found){
-            Output=TValueSerializer.Deserialize(value0.AsReadOnlySpan());
+            Value=TValueSerializer.Deserialize(Output.AsReadOnlySpan());
         } else{
-            //Unsafe.SkipInit(out Output);
-            Output=default!;
+            Value=default!;
         }
         return Status;
     }
