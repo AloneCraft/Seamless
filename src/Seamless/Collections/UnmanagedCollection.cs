@@ -22,12 +22,8 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     //public partial bool Contains(TKey Key);
     //internal partial bool ContainsKey(TKey Key);
 
-    private protected ReadOnlySpan<byte> SerializeKey(ref TKey key) => TKeySerializer.Serialize(ref key);
-    private protected ReadOnlySpan<byte> SerializeValue(ref TValue value) => TValueSerializer.Serialize(ref value);
 
-
-
-    //private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value) {
+    //private protected override TryAddResult
     //    if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>())) {
     //        return TryAddResult.LogFull;
     //    }

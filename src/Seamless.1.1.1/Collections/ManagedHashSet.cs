@@ -74,7 +74,7 @@ public abstract partial class ManagedHashSet<TKey>
 		foreach(var Key in this) {
 			if(other.Contains(Key)) continue;
 			var Key0 = Key;
-			var KeyBytes = this.SerializeKey(ref Key0);
+			var KeyBytes = ManagedSerializer<TKey>.Serialize(ref Key0);
 			var Key1 = SpanByte.FromPinnedSpan(KeyBytes);
 			Session.BasicContext.RMW(ref Key1, ref Input, ref Output);
 		}
@@ -85,7 +85,7 @@ public abstract partial class ManagedHashSet<TKey>
         var Session = this.SymmetricExceptWith_ClientSession;
         foreach(var Item in other){
             var Item0=Item;
-            var KeyBytes = this.SerializeKey(ref Item0);
+            var KeyBytes = ManagedSerializer<TKey>.Serialize(ref Item0);
             var Key = SpanByte.FromPinnedSpan(KeyBytes);
             var Input = default(SpanByte);
             SpanByteAndMemory Output = default;
