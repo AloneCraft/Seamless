@@ -31,7 +31,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         UnmanagedKeyComparer<
             TKey
         >,
-        UnmanagedRecordDisposer<
+        DefaultRecordDisposer<
             TKey,
             TValue
         >
@@ -45,7 +45,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
             UnmanagedKeyComparer<
                 TKey
             >,
-            UnmanagedRecordDisposer<
+            DefaultRecordDisposer<
                 TKey,
                 TValue
             >
@@ -74,7 +74,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
                 UnmanagedKeyComparer<
                     TKey
                 >,
-                UnmanagedRecordDisposer<
+                DefaultRecordDisposer<
                     TKey,
                     TValue
                 >
@@ -88,7 +88,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
                     UnmanagedKeyComparer<
                         TKey
                     >,
-                    UnmanagedRecordDisposer<
+                    DefaultRecordDisposer<
                         TKey,
                         TValue
                     >
