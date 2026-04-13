@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 namespace Seamless.Collections;
+
 public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>:Collection<
     TKey,
     TValue,
@@ -100,42 +101,41 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
             T,
             TKey,
             TValue
-        > {
-        private TIterator Iterator = iterator;
-        private long Cursor = 0, Count;
-        private int Index = -1;
+        >{
+        private TIterator Iterator=iterator;
+        private long Cursor=0,Count;
+        private int Index=-1;
         private bool Done;
-        public T Current => this.Iterator.Chunk[this.Index];
-        object? IEnumerator.Current => this.Current;
-        public bool MoveNext() {
-            if(++this.Index<this.Count) {
+        public T Current=>this.Iterator.Chunk[this.Index];
+        object? IEnumerator.Current=>this.Current;
+        public bool MoveNext(){
+            if(++this.Index<this.Count){
                 return true;
-            } 
-            if(this.Done) {
-                this.Index = -1;
+            }
+            if(this.Done){
+                this.Index=-1;
                 return false;
             }
-            this.Iterator.Count = 0;
-            var result = session.IterateLookup(ref this.Iterator,ref this.Cursor,resetCursor: false);
-            var count = this.Iterator.Count;
-            this.Count = count;
+            this.Iterator.Count=0;
+            var result=session.IterateLookup(ref this.Iterator,ref this.Cursor,resetCursor:false);
+            var count=this.Iterator.Count;
+            this.Count=count;
             if(!result)
-                this.Done = true;
-            if(count>0) {
-                this.Index = 0;
+                this.Done=true;
+            if(count>0){
+                this.Index=0;
                 return true;
             }
-            this.Index = -1;
+            this.Index=-1;
             return false;
         }
-        public void Reset() {
-            this.Cursor = 0;
-            this.Count = 0;
-            this.Index = -1;
-            this.Done = false;
+        public void Reset(){
+            this.Cursor=0;
+            this.Count=0;
+            this.Index=-1;
+            this.Done=false;
         }
-        public void Dispose() {
-        }
+        public void Dispose(){}
     }
     public bool Contains(TKey Key)=>this.ContainsKey(Key);
     /// <summary>
@@ -143,69 +143,59 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     /// ContainsDelete の Reader が Read 時に output=true を返すことで存在判定を行う。
     /// </summary>
     public bool ContainsKey(TKey Key){
-        var Session = this.DeleteClientSession;
-        var Status = Session.BasicContext.Read(Key,out var output);
-        Status = Pending(Session, Status, ref output);
+        var Session=this.DeleteClientSession;
+        var Status=Session.BasicContext.Read(Key,out var output);
+        Status=Pending(Session,Status,ref output);
         return Status.Found;
     }
 
 
 
 
-    private protected override Status Read(TKey Key,out TValue Output) {
-        var Session = this.ReadClientSession;
-        Output = default;
-        var status = Session.BasicContext.Read(ref Key,ref Output);
+    private protected override Status Read(TKey Key,out TValue Output){
+        var Session=this.ReadClientSession;
+        Output=default;
+        var status=Session.BasicContext.Read(ref Key,ref Output);
         return Pending(Session,status,ref Output);
     }
 
 
-    public override long GetLongCount() {
-        var iterator = new CounterIterator();
-        var Cursor = 0L;
+    public override long GetLongCount(){
+        var iterator=new CounterIterator();
+        var Cursor=0L;
         this.ReadClientSession.IterateLookup(ref iterator,ref Cursor,resetCursor:false);
         return iterator.Counter;
     }
-    public sealed partial class CounterIterator : IScanIteratorFunctions<TKey, TValue> {
-        public bool SingleReader(ref TKey key, ref TValue value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult) {
-            cursorRecordResult = CursorRecordResult.Accept;
-            return true;
-        }
-        public bool ConcurrentReader(ref TKey key, ref TValue value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult) {
-            cursorRecordResult = CursorRecordResult.Accept;
-            return true;
-        }
+    public sealed class KeyIterator:ScanIteratorFunctions<TKey,TKey,TValue>{
+        private protected override TKey Deserialize(ref TKey key,ref TValue value)=>key;
     }
-    public sealed class KeyIterator : ScanIteratorFunctions<TKey, TKey, TValue> {
-        private protected override TKey Deserialize(ref TKey key, ref TValue value) => key;
+    internal sealed class ValueIterator:ScanIteratorFunctions<TValue,TKey,TValue>{
+        private protected override TValue Deserialize(ref TKey key,ref TValue value)=>value;
     }
-    internal sealed class ValueIterator : ScanIteratorFunctions<TValue, TKey, TValue> {
-        private protected override TValue Deserialize(ref TKey key, ref TValue value) => value;
-    }
-    public sealed class KeyValueIterator : ScanIteratorFunctions<KeyValuePair<TKey, TValue>, TKey, TValue> {
-        private protected override KeyValuePair<TKey, TValue> Deserialize(ref TKey key, ref TValue value) => new(key, value);
+    public sealed class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>,TKey,TValue>{
+        private protected override KeyValuePair<TKey,TValue> Deserialize(ref TKey key,ref TValue value)=>new(key,value);
     }
 
-    private protected override TryAddResult PrivateTryAdd(TKey key,TValue value) {
-        if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>())) {
+    private protected override TryAddResult PrivateTryAdd(TKey key,TValue value){
+        if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>())){
             return TryAddResult.LogFull;
         }
-        var Session = this.AddClientSession;
-        var Output = false;
-        var Status = Session.BasicContext.RMW(ref key,ref value,ref Output);
-        Status = Pending(Session,Status);
+        var Session=this.AddClientSession;
+        var Output=false;
+        var Status=Session.BasicContext.RMW(ref key,ref value,ref Output);
+        Status=Pending(Session,Status);
         if(Status.NotFound)
             return TryAddResult.Success;
         else
             return TryAddResult.KeyAlreadyExists;
     }
 
-    public bool Remove(TKey key) {
-        var Session = this.DeleteClientSession;
-        var Input = default(EqualityEmpty);
-        var Output = false;
-        var Status = Session.BasicContext.RMW(ref key,ref Input,ref Output);
-        Status = Pending(Session,Status,ref Output);
+    public bool Remove(TKey key){
+        var Session=this.DeleteClientSession;
+        var Input=default(EqualityEmpty);
+        var Output=false;
+        var Status=Session.BasicContext.RMW(ref key,ref Input,ref Output);
+        Status=Pending(Session,Status,ref Output);
         Debug.Assert(Status.Found!=Status.NotFound);
         return Output;
     }

@@ -16,58 +16,78 @@ public abstract partial class Collection<
     TStoreFunctions,
     TAllocator
 >:IDisposable{
-
-    private protected bool PrivateProtectedWouldOverflowMutable(int KeyLength, int ValueLength) {
-        Debug.Assert(this.LogMemorySize >= 8192);
-        var MutableBytes = (long)(this.LogMemorySize * this.MutableFraction);
-        if(MutableBytes <= 0) {
-            MutableBytes = this.LogMemorySize;
+    private protected bool PrivateProtectedWouldOverflowMutable(int KeyLength,int ValueLength){
+        Debug.Assert(this.LogMemorySize>=8192);
+        var MutableBytes=(long)(this.LogMemorySize*this.MutableFraction);
+        if(MutableBytes<=0){
+            MutableBytes=this.LogMemorySize;
+        } else{
         }
-        var Log = this.CollectionStore.Store.Log;
-        var Used = Log.TailAddress - Log.BeginAddress;
-        var Required = (long)KeyLength + ValueLength + RecordOverheadBytes;
-        return Used + Required > MutableBytes;
+        var Log=this.CollectionStore.Store.Log;
+        var Used=Log.TailAddress-Log.BeginAddress;
+        var Required=(long)KeyLength+ValueLength+RecordOverheadBytes;
+        return Used+Required>MutableBytes;
     }
 
-    private const int RecordOverheadBytes = 128;
-    private long LogMemorySize => this.CollectionStore.LogMemorySize;
-    private double MutableFraction => this.CollectionStore.MutableFraction;
+    private const int RecordOverheadBytes=128;
+    private long LogMemorySize=>this.CollectionStore.LogMemorySize;
+    private double MutableFraction=>this.CollectionStore.MutableFraction;
 
-    private protected OutOfMemoryException ThrowLogFull() {
-        var Log = this.CollectionStore.Store.Log;
+    private protected OutOfMemoryException ThrowLogFull(){
+        var Log=this.CollectionStore.Store.Log;
         return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
     }
-
-    private protected abstract bool WouldOverflowMutable(int KeyLength, int ValueLength);
-
-    public int Count => (int)this.GetLongCount();
-    public long EntryCount => this.CollectionStore.Store.EntryCount;
-
+    private protected abstract bool WouldOverflowMutable(int KeyLength,int ValueLength);
+    public int Count=>(int)this.GetLongCount();
+    public long EntryCount=>this.CollectionStore.Store.EntryCount;
     private protected abstract Status Read(TKey Key,out TValue Output);
-
-    #if TSAVORITE1_1_1
-    //public abstract bool Remove(TKey key);
-    //public abstract bool Contains(TKey Key);
-#endif
-
-    public abstract bool IsDisposed { get; }
+    public abstract bool IsDisposed{get;}
 
     private bool disposed;
 
-    public void Dispose() {
+    public void Dispose(){
         this.Dispose(true);
         GC.SuppressFinalize(this);
     }
 
-    protected virtual void Dispose(bool disposing) {
-        if(this.disposed) {
+    protected virtual void Dispose(bool disposing){
+        if(this.disposed){
             return;
         }
-        if(disposing) {
+        if(disposing){
             this.AddClientSession.Dispose();
         }
-        this.disposed = true;
+        this.disposed=true;
     }
 
-    ~Collection() => this.Dispose(false);
+    ~Collection()=>this.Dispose(false);
+}
+
+#if !TSAVORITE2_0BETA3
+public class CounterIteratorBase{
+    public long Counter;
+    public bool OnStart(long beginAddress,long endAddress){
+        return true;
+    }
+    public void OnException(Exception exception,long numberOfRecords){
+    }
+    public void OnStop(bool completed,long numberOfRecords) {
+        this.Counter=numberOfRecords;
+    }
+}
+#endif
+
+public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>
+    where TKey            :IEquatable<TKey>
+    where TValue          :IEquatable<TValue>
+    where TKeySerializer  :ISerializer<TKey>
+    where TValueSerializer:ISerializer<TValue>{
+    public sealed partial class CounterIterator : CounterIteratorBase;
+}
+public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>
+    where TKey            :unmanaged,IEquatable<TKey>
+    where TValue          :unmanaged,IEquatable<TValue>
+    where TKeySerializer  :ISerializer<TKey>
+    where TValueSerializer:ISerializer<TValue>{
+    public sealed partial class CounterIterator:CounterIteratorBase;
 }

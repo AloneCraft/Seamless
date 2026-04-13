@@ -34,7 +34,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ICreate.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedAdd.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedContains.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedDelete.cs" />
