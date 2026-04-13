@@ -10,9 +10,9 @@ public abstract partial class UnmanagedHashSet<TKey>
         TKey,
         EqualityEmpty,
         EqualityEmpty,//TInput
-        bool,//TOutput
+        EqualityEmpty,//TOutput
         EqualityEmpty,//TContext
-        UnmanagedDelete<
+        UnmanagedIntersectWith<
             TKey,
             EqualityEmpty
         >,
@@ -84,9 +84,9 @@ public abstract partial class UnmanagedHashSet<TKey>
         var Store=CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<
             EqualityEmpty,
-            bool,
             EqualityEmpty,
-            UnmanagedDelete<
+            EqualityEmpty,
+            UnmanagedIntersectWith<
                 TKey,
                 EqualityEmpty
             >
@@ -109,7 +109,7 @@ public abstract partial class UnmanagedHashSet<TKey>
         ArgumentNullException.ThrowIfNull(other);
         var Session = this.IntersectWith_ClientSession;
         EqualityEmpty Input = default;
-        bool Output = false;
+        EqualityEmpty Output = default;
         foreach(var key in this) {
             if(other.Contains(key)) continue;
             var k = key;
