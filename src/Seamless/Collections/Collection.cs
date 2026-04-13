@@ -46,8 +46,8 @@ public abstract partial class Collection<
     private protected abstract Status Read(TKey Key,out TValue Output);
 
     #if TSAVORITE1_1_1
-    public abstract bool Remove(TKey key);
-    public abstract bool Contains(TKey Key);
+    //public abstract bool Remove(TKey key);
+    //public abstract bool Contains(TKey Key);
 #endif
 
     public abstract bool IsDisposed { get; }

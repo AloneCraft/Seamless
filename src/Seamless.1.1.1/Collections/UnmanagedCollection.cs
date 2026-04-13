@@ -137,10 +137,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         public void Dispose() {
         }
     }
-    public override bool Contains(TKey Key) {
-
-        return this.ContainsKey(Key);
-    }
+    public bool Contains(TKey Key)=>this.ContainsKey(Key);
     /// <summary>
     /// シリアライズ済みキーバイト列で直接存在判定する。
     /// ContainsDelete の Reader が Read 時に output=true を返すことで存在判定を行う。
@@ -203,7 +200,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
             return TryAddResult.KeyAlreadyExists;
     }
 
-    public override bool Remove(TKey key) {
+    public bool Remove(TKey key) {
         var Session = this.DeleteClientSession;
         var Input = default(EqualityEmpty);
         var Output = false;
