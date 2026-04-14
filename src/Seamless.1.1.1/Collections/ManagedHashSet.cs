@@ -1,7 +1,8 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
+
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。
 /// <see cref="ISet{T}"/> を実装し、利用者に Tsavorite の詳細を見せない。
@@ -9,7 +10,8 @@ namespace Seamless.Collections;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(DebugView<>))]
-public abstract partial class ManagedHashSet<TKey> where TKey : IEquatable<TKey>
+public abstract partial class ManagedHashSet<TKey>
+    where TKey : IEquatable<TKey>
 {
     private readonly ClientSession<
         SpanByte,//TKey
@@ -18,20 +20,8 @@ public abstract partial class ManagedHashSet<TKey> where TKey : IEquatable<TKey>
         EqualityEmpty,//TOutput
         EqualityEmpty,//TContext
         ManagedIntersectWith,
-        StoreFunctions<
-            SpanByte,//TKey
-            SpanByte,//TValue
-            SpanByteComparer,//TKeyComparer
-            SpanByteRecordDisposer//TRecordDisposer
-        >,
-        SpanByteAllocator<
-            StoreFunctions<
-                SpanByte,//TKey
-                SpanByte,//TValue
-                SpanByteComparer,//TKeyComparer
-                SpanByteRecordDisposer//TRecordDisposer
-            >
-        >
+        ManagedStoreFunctions,
+        ManagedAllocator
     > IntersectWith_ClientSession;
     private readonly ClientSession<
         SpanByte,//TKey
@@ -40,20 +30,8 @@ public abstract partial class ManagedHashSet<TKey> where TKey : IEquatable<TKey>
         SpanByteAndMemory,//TOutput
         EqualityEmpty,//TContext
         SymmetricExceptWith,
-        StoreFunctions<
-            SpanByte,//TKey
-            SpanByte,//TValue
-            SpanByteComparer,//TKeyComparer
-            SpanByteRecordDisposer//TRecordDisposer
-        >,
-        SpanByteAllocator<
-            StoreFunctions<
-                SpanByte,//TKey
-                SpanByte,//TValue
-                SpanByteComparer,//TKeyComparer
-                SpanByteRecordDisposer//TRecordDisposer
-            >
-        >
+        ManagedStoreFunctions,
+        ManagedAllocator
     > SymmetricExceptWith_ClientSession;
     internal ManagedHashSet(ManagedCollectionStore<TKey, EqualityEmpty> CollectionStore) : base(CollectionStore)
     {
@@ -86,20 +64,8 @@ public abstract partial class ManagedHashSet<TKey> where TKey : IEquatable<TKey>
             EqualityEmpty,
             EqualityEmpty,
             ManagedIntersectWith,
-            StoreFunctions<
-                SpanByte,
-                SpanByte,
-                SpanByteComparer,
-                SpanByteRecordDisposer
-            >,
-            SpanByteAllocator<
-                StoreFunctions<
-                    SpanByte,
-                    SpanByte,
-                    SpanByteComparer,
-                    SpanByteRecordDisposer
-                >
-            >
+            ManagedStoreFunctions,
+            ManagedAllocator
         > session
     ) : IScanIteratorFunctions<SpanByte, SpanByte>
     {
@@ -129,6 +95,7 @@ public abstract partial class ManagedHashSet<TKey> where TKey : IEquatable<TKey>
         public void OnException(Exception exception, long numberOfRecords) { }
     }
     private readonly struct SymmetricExceptWithIterator(
+        ManagedHashSet<TKey> self,
         ClientSession<
             SpanByte,
             SpanByte,
@@ -155,6 +122,8 @@ public abstract partial class ManagedHashSet<TKey> where TKey : IEquatable<TKey>
     {
         public bool SingleReader(ref SpanByte key, ref SpanByte value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult)
         {
+            if (self.WouldOverflowMutable(key.Length, 1))
+                throw self.ThrowLogFull();
             var input = default(SpanByte);
             SpanByteAndMemory output = default;
             var status = session.BasicContext.RMW(ref key, ref input, ref output);
@@ -188,7 +157,7 @@ public abstract partial class ManagedHashSet<TKey> where TKey : IEquatable<TKey>
     {
         ArgumentNullException.ThrowIfNull(other);
         var session = this.SymmetricExceptWith_ClientSession;
-        var iterator = new SymmetricExceptWithIterator(session);
+        var iterator = new SymmetricExceptWithIterator(this, session);
         var cursor = 0L;
         other.ReadClientSession.IterateLookup(ref iterator, ref cursor, resetCursor: false);
         session.BasicContext.CompletePending(wait: true);
