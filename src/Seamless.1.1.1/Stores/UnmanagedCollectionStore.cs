@@ -27,8 +27,9 @@ public abstract partial class UnmanagedCollectionStore<TKey, TValue> : Collectio
             MutableFraction,
             LogDevice,
             ObjectLogDevice,
-                CheckpointDir,
-                OverflowMutableStrategyKind)
+            CheckpointDir,
+            OverflowMutableStrategyKind
+        )
     {
     }
 
