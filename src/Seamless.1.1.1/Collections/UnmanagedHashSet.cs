@@ -7,7 +7,7 @@ namespace Seamless.Collections;
 /// <summary>
 /// UnmanagedHashSet の 1.1.1 固有部分。IntersectWith/SymmetricExceptWith 実装とイテレータ。
 /// </summary>
-public abstract partial class UnmanagedHashSet<TKey>
+public partial class UnmanagedHashSet<TKey>
     where TKey : unmanaged, IEquatable<TKey>
 {
     private readonly ClientSession<

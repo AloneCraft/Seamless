@@ -10,7 +10,7 @@ namespace Seamless.Collections;
 /// 重複を許さず、キーのみを格納する。値は EqualityEmpty 構造体を使用する。
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
-public abstract partial class ManagedHashSet<TKey>
+public partial class ManagedHashSet<TKey>
     where TKey : IEquatable<TKey>
 {
     private readonly ClientSession<
