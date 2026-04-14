@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
+using Seamless.Stores;
 namespace Seamless.Collections;
 
 public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>:Collection<
@@ -118,12 +119,11 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         private long Cursor=0,Count;
         private int Index=-1;
         private bool Done;
-        public T Current=>Iterator.Chunk[this.Index];
+        public readonly T Current=>Iterator.Chunk[this.Index];
         object? IEnumerator.Current=>this.Current;
         public bool MoveNext(){
-            if(++this.Index<this.Count){
+            if(++this.Index<this.Count)
                 return true;
-            }
             if(this.Done){
                 this.Index=-1;
                 return false;

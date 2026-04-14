@@ -19,7 +19,6 @@
     <Compile Include="Collections\Serializers\ManagedSerializer.cs" />
     <Compile Include="Collections\Serializers\ISerializer.cs" />
     <Compile Include="Collections\TryAddResult.cs" />
-    <Compile Include="Collections\UnmanagedCollection.cs" />
     <Compile Include="Collections\UnmanagedDictionary.cs" />
     <Compile Include="Collections\UnmanagedHashSet.cs" />
     <Compile Include="Const.cs" />

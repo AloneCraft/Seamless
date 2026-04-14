@@ -316,7 +316,7 @@ public abstract class Collection<
         public void OnException(Exception exception,long numberOfRecords) { }
         public void OnStop(bool completed,long numberOfRecords) { }
     }
-    private protected readonly struct SymmetricExceptWithIterator<TCollection>(
+    private readonly struct SymmetricExceptWithIterator<TCollection>(
         TCollection Self,
         ClientSession<
             FixedSpanByteKey,

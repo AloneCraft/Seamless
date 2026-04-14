@@ -46,13 +46,12 @@ public partial class ManagedDictionary<
     }
     public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
     bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item){
-        var Status=this.Read(item.Key,out _);
-        Debug.Assert(Status.Found==!Status.NotFound);
-        return Status.Found;
+        var status=this.Read(item.Key,out var output);
+        if(status.NotFound) return false;
+        return output.Equals(item.Value);
     }
 
-    public bool ContainsKey(TKey Key) =>
-        this.Contains(Key);
+    //public bool ContainsKey(TKey Key) =>this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex){
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
