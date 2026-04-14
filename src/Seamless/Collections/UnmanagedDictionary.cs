@@ -77,26 +77,10 @@ public partial class UnmanagedDictionary<
     IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
 
 
-#if TSAVORITE1_1_1
-    public ICollection<TKey> Keys=>this.CreateCollection<KeyIterator,TKey>(new());
-#else
     public ICollection<TKey> Keys => this.CreateCollection<KeyIterator,TKey>(new());
-#endif
-#if TSAVORITE1_1_1
-    public ICollection<TValue> Values=>this.CreateCollection<ValueIterator,TValue>(new());
-#else
     public ICollection<TValue> Values => this.CreateCollection<ValueIterator,TValue>(new());
-#endif
-#if TSAVORITE1_1_1
-    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys=>this.Enumerate<KeyIterator,TKey>(new());
-#else
     IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Enumerate<KeyIterator,TKey>(new());
-#endif
-#if TSAVORITE1_1_1
-    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values=>this.Enumerate<ValueIterator,TValue>(new());
-#else
     IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<ValueIterator,TValue>(new());
-#endif
     private partial void SetValue(TKey key,TValue value);
     public TValue this[TKey key] {
         get {

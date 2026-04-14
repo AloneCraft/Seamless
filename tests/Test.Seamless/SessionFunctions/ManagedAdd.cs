@@ -10,7 +10,7 @@ namespace Test.Seamless.SessionFunctions;
 
 public sealed class ManagedAdd:AddTests<int,string> {
     private readonly struct DummyEpochAccessor:IEpochAccessor {
-        public void Resume() { }
+        public void Resume(){ }
         public bool TrySuspend() => true;
     }
     private static byte[] SerInt(int v) => MemoryPackSerializer.Serialize(v);
@@ -22,11 +22,11 @@ public sealed class ManagedAdd:AddTests<int,string> {
 #endif
     protected override int Key(int seed) => seed;
     protected override string Value(int seed) => $"v{seed}";
-    protected override (IDictionary<int,string> Dict,IDisposable Store) CreateMemory() {
+    protected override (IDictionary<int,string> Dict,IDisposable Store) CreateMemory(){
         var store = Factory.Create().Create<int,string>();
         return (store.Create(),store);
     }
-    protected override (IDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
+    protected override (IDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice){
         var store = Factory.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(logDevice,objDevice);
         return (store.Create(),store);
     }
@@ -34,7 +34,7 @@ public sealed class ManagedAdd:AddTests<int,string> {
         ((ManagedCollectionStore<int,string>)store).Store.Log.FlushAndEvict(true);
     protected override TryAddResult TryAdd(IDictionary<int,string> dict,int key,string value) =>
         ((ISeamlessDictionary<int,string>)dict).TryAdd(key,value);
-    protected override void DoUpsert() {
+    protected override void DoUpsert(){
         using var store = Factory.Create().Create<int,string>();
 #if TSAVORITE2_0BETA3
         using var session=store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, bool, EqualityEmpty, global::Seamless.SessionFunctions.ManagedAdd>(default);
@@ -51,13 +51,13 @@ public sealed class ManagedAdd:AddTests<int,string> {
             var val = MakeKey(SerStr("new"));
             var status = bc.Upsert(ref key,ref val);
 #endif
-            if(status.IsPending) {
+            if(status.IsPending){
                 bc.CompletePendingWithOutputs(out var completed,wait: true);
                 completed.Dispose();
             }
         }
     }
-    protected override void DoInPlaceWriter() {
+    protected override void DoInPlaceWriter(){
         using var store = Factory.Create().Create<int,string>();
 #if TSAVORITE2_0BETA3
         using var session=store.Store.NewSession<FixedSpanByteKey, PinnedSpanByte, bool, EqualityEmpty, global::Seamless.SessionFunctions.ManagedAdd>(default);
@@ -74,7 +74,7 @@ public sealed class ManagedAdd:AddTests<int,string> {
             var val = MakeKey(SerStr("new"));
             var status = bc.Upsert(ref key,ref val);
 #endif
-            if(status.IsPending) {
+            if(status.IsPending){
                 bc.CompletePendingWithOutputs(out var completed,wait: true);
                 completed.Dispose();
             }
@@ -87,7 +87,7 @@ public sealed class ManagedAdd:AddTests<int,string> {
             var val = MakeKey(SerStr("updated"));
             var status = bc.Upsert(ref key,ref val);
 #endif
-            if(status.IsPending) {
+            if(status.IsPending){
                 bc.CompletePendingWithOutputs(out var completed,wait: true);
                 completed.Dispose();
             }
@@ -203,7 +203,7 @@ public sealed class ManagedAdd:AddTests<int,string> {
     [Fact,Trait("Category","Unit")]public void InPlaceWrit2er_LogRecord_RecordSizeInfo_PinnedSpanByte_TSourceLogRecord_SpanByteAndMemory_UpsertInfo()=>this.TSourceLogRecord();
 #endif
 
-    protected override void DoRMW() {
+    protected override void DoRMW(){
         using var store = Factory.Create().Create<int,string>();
         var key = MakeKey(SerInt(1));
 #if TSAVORITE2_0BETA3
@@ -223,7 +223,7 @@ public sealed class ManagedAdd:AddTests<int,string> {
 #elif TSAVORITE1_1_1
             var status = bc.RMW(ref key,ref input0,ref output);
 #endif
-            if(status.IsPending) {
+            if(status.IsPending){
                 bc.CompletePendingWithOutputs(out var completed,wait: true);
                 completed.Dispose();
             }
@@ -236,7 +236,7 @@ public sealed class ManagedAdd:AddTests<int,string> {
 #elif TSAVORITE1_1_1
             var status = bc.RMW(ref key,ref input1,ref output);
 #endif
-            if(status.IsPending) {
+            if(status.IsPending){
                 bc.CompletePendingWithOutputs(out var completed,wait: true);
                 completed.Next();
                 status=completed.Current.Status;
@@ -246,7 +246,7 @@ public sealed class ManagedAdd:AddTests<int,string> {
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void RMWCompletionCallback_Managed() {
+    public void RMWCompletionCallback_Managed(){
         var folder = CreateDiskFolder();
         using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
@@ -257,7 +257,7 @@ public sealed class ManagedAdd:AddTests<int,string> {
         Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(0,"other"));
     }
     [Fact, Trait("Category","Unit")]
-    public void ReadCompletionCallback_Managed() {
+    public void ReadCompletionCallback_Managed(){
         var folder = CreateDiskFolder();
         using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
@@ -269,7 +269,7 @@ public sealed class ManagedAdd:AddTests<int,string> {
         Assert.Equal("target",v);
     }
     [Fact, Trait("Category","Unit")]
-    public void ConvertOutputToHeap_Managed() {
+    public void ConvertOutputToHeap_Managed(){
         var folder = CreateDiskFolder();
         using var LogDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice = Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
@@ -279,7 +279,7 @@ public sealed class ManagedAdd:AddTests<int,string> {
         store.Store.Log.FlushAndEvict(true);
         Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(0,"other"));
     }
-    protected override void DoConcurrentWriter() {
+    protected override void DoConcurrentWriter(){
 #if TSAVORITE1_1_1
         // 長い値で初回Upsert後、短い値で再Upsert → src.Length<=dst.Length → in-place コピー分岐を通す
         using var store = Factory.Create().Create<int,string>();
@@ -290,13 +290,13 @@ public sealed class ManagedAdd:AddTests<int,string> {
         bc.Upsert(ref key,ref valLong);
         var valShort = MakeKey(SerStr("hi"));
         var status = bc.Upsert(ref key,ref valShort);
-        if(status.IsPending) {
+        if(status.IsPending){
             bc.CompletePendingWithOutputs(out var c,wait: true);
             c.Dispose();
         }
 #endif
     }
-    protected override void DoSingleReader() {
+    protected override void DoSingleReader(){
 #if TSAVORITE1_1_1
         // ShiftReadOnlyAddress はページフラッシュを伴うため ManagedLocalStorageDevice が必要
         var folder = CreateDiskFolder();
@@ -311,7 +311,7 @@ public sealed class ManagedAdd:AddTests<int,string> {
         // ReadOnlyAddress をTailAddressまで進める → 書いたレコードが in-memory read-only 領域へ → SingleReader が呼ばれる
         store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
         var status1 = bc.Read(key1,out _);
-        if(status1.IsPending) {
+        if(status1.IsPending){
             bc.CompletePendingWithOutputs(out var c1,wait: true);
             c1.Dispose();
         }
@@ -322,14 +322,14 @@ public sealed class ManagedAdd:AddTests<int,string> {
         bc.Upsert(ref key2,ref empty);
         store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
         var status2 = bc.Read(key2,out _);
-        if(status2.IsPending) {
+        if(status2.IsPending){
             bc.CompletePendingWithOutputs(out var c2,wait: true);
             c2.Dispose();
         }
         Assert.True(status2.Found);
 #endif
     }
-    protected override void DoConcurrentReaderEmpty() {
+    protected override void DoConcurrentReaderEmpty(){
 #if TSAVORITE1_1_1
         // mutable 領域に空値を置いて Read → ConcurrentReader の Span.IsEmpty=true 分岐を通す
         using var store = Factory.Create().Create<int,string>();

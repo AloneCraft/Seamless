@@ -82,7 +82,7 @@ public partial class UnmanagedHashSet<TKey>
         
         
     > SymmetricExceptWith_ClientSession;
-    internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
+    internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore){
         var Store = CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<
             FixedSpanByteKey,
@@ -191,4 +191,9 @@ public partial class UnmanagedHashSet<TKey>
     public partial void SymmetricExceptWith(UnmanagedHashSet<TKey> other){
         this.SymmetricExceptWith(this,other,this.SymmetricExceptWith_ClientSession);
     }
+    
+    
+    
+    
+    
 }

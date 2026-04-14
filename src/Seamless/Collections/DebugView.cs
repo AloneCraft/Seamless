@@ -7,7 +7,7 @@ public class DebugView<TKey> {
     /// </summary>
     private const int MaxItems = 10_000;
     private readonly ICollection<TKey> _set;
-    public DebugView(ICollection<TKey> set) {
+    public DebugView(ICollection<TKey> set){
         ArgumentNullException.ThrowIfNull(set);
         _set=set;
     }
@@ -17,7 +17,7 @@ public class DebugView<TKey> {
             var count = Math.Min(_set.Count,MaxItems);
             var items = new TKey[count];
             var i = 0;
-            foreach(var item in _set) {
+            foreach(var item in _set){
                 if(i>=count) break;
                 items[i++]=item;
             }
@@ -26,7 +26,7 @@ public class DebugView<TKey> {
     }
 }
 public class DebugView<TKey, TValue>:DebugView<KeyValuePair<TKey,TValue>> {
-    public DebugView(ICollection<KeyValuePair<TKey,TValue>> set) : base(set) {
+    public DebugView(ICollection<KeyValuePair<TKey,TValue>> set) : base(set){
     }
 }
 

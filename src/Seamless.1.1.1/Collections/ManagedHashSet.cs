@@ -30,7 +30,7 @@ public partial class ManagedHashSet<TKey>
         ManagedStoreFunctions,
         ManagedAllocator
     > SymmetricExceptWith_ClientSession;
-    internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
+    internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore){
         var Store = CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<
             EqualityEmpty,//TKey
@@ -64,16 +64,16 @@ public partial class ManagedHashSet<TKey>
             ManagedAllocator
         > session
     ):IScanIteratorFunctions<SpanByte,SpanByte> {
-        public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
-            if(other.PrivateProtectedContainsKey(ref key)) {
+        public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
+            if(other.PrivateProtectedContainsKey(ref key)){
             }
             else {
                 var input = default(EqualityEmpty);
                 var output = default(EqualityEmpty);
                 var status = session.BasicContext.RMW(ref key,ref input,ref output);
-                if(status.IsPending) {
+                if(status.IsPending){
                     session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
-                    using(completedOutputs) {
+                    using(completedOutputs){
                         Debug.Assert(completedOutputs.Next());
                     }
                 }
@@ -86,8 +86,8 @@ public partial class ManagedHashSet<TKey>
         public bool ConcurrentReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
            => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
         public bool OnStart(long beginAddress,long endAddress) => true;
-        public void OnStop(bool completed,long numberOfRecords) { }
-        public void OnException(Exception exception,long numberOfRecords) { }
+        public void OnStop(bool completed,long numberOfRecords){ }
+        public void OnException(Exception exception,long numberOfRecords){ }
     }
     private readonly struct SymmetricExceptWithIterator(
         ManagedHashSet<TKey> self,
@@ -102,15 +102,15 @@ public partial class ManagedHashSet<TKey>
             ManagedAllocator
         > session
     ):IScanIteratorFunctions<SpanByte,SpanByte> {
-        public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
             if(self.WouldOverflowMutable(key.Length,1))
                 throw self.ThrowLogFull();
             var input = default(SpanByte);
             SpanByteAndMemory output = default;
             var status = session.BasicContext.RMW(ref key,ref input,ref output);
-            if(status.IsPending) {
+            if(status.IsPending){
                 session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
-                using(completedOutputs) {
+                using(completedOutputs){
                     Debug.Assert(completedOutputs.Next());
                 }
             }
@@ -122,8 +122,8 @@ public partial class ManagedHashSet<TKey>
         public bool ConcurrentReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
            => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
         public bool OnStart(long beginAddress,long endAddress) => true;
-        public void OnStop(bool completed,long numberOfRecords) { }
-        public void OnException(Exception exception,long numberOfRecords) { }
+        public void OnStop(bool completed,long numberOfRecords){ }
+        public void OnException(Exception exception,long numberOfRecords){ }
     }
     public partial void IntersectWith(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
@@ -133,7 +133,7 @@ public partial class ManagedHashSet<TKey>
         session.IterateLookup(ref iterator,ref cursor,resetCursor: false);
         session.BasicContext.CompletePending(wait: true);
     }
-    public partial void SymmetricExceptWith(ManagedHashSet<TKey> other) {
+    public partial void SymmetricExceptWith(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
         var session = this.SymmetricExceptWith_ClientSession;
         var iterator = new SymmetricExceptWithIterator(this,session);

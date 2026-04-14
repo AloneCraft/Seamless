@@ -7,12 +7,10 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(ImportingProject)' != ''" />
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\Collection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\EqualityEmpty.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISet.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedCollection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializers\UnmanagedSerializer.cs" />
@@ -24,7 +22,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Const.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ICreate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedAdd.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\ManagedContains.cs" />
@@ -36,10 +33,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedDelete.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedRead.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\CollectionStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Stores\CollectionStore`.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\Factory.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ICreate.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedCollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedDictionaryStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedHashSetStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\OverflowMutableStrategy.cs" />

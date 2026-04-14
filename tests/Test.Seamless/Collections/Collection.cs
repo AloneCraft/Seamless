@@ -6,72 +6,72 @@
 /// </summary>
 public class Collection {
     [Fact, Trait("Category","Unit")]
-    public void PrivateProtectedWouldOverflowMutable() {
+    public void PrivateProtectedWouldOverflowMutable(){
         //ここにテストコードを書いて
     }
 
     [Fact, Trait("Category","Unit")]
-    public void LogMemorySize() {
+    public void LogMemorySize(){
         //ここにテストコードを書いて
     }
 
     [Fact, Trait("Category","Unit")]
-    public void MutableFraction() {
+    public void MutableFraction(){
         //ここにテストコードを書いて
     }
 
     [Fact, Trait("Category","Unit")]
-    public void ThrowLogFull() {
+    public void ThrowLogFull(){
         //ここにテストコードを書いて
     }
 
     [Fact, Trait("Category","Unit")]
-    public void WouldOverflowMutable() {
+    public void WouldOverflowMutable(){
         //ここにテストコードを書いて
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Count() {
+    public void Count(){
         //ここにテストコードを書いて
     }
 
     [Fact, Trait("Category","Unit")]
-    public void EntryCount() {
+    public void EntryCount(){
         //ここにテストコードを書いて
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Read() {
+    public void Read(){
         //ここにテストコードを書いて
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Remove() {
+    public void Remove(){
         //ここにテストコードを書いて
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Contains() {
+    public void Contains(){
         //ここにテストコードを書いて
     }
 
     [Fact, Trait("Category","Unit")]
-    public void IsDisposed() {
+    public void IsDisposed(){
         //ここにテストコードを書いて
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Dispose() {
+    public void Dispose(){
         //ここにテストコードを書いて
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Dispose_Boolean() {
+    public void Dispose_Boolean(){
         //ここにテストコードを書いて
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Destructor() {
+    public void Destructor(){
         //ここにテストコードを書いて
     }
     //↓のコードが今までのテストコードの例。必要に応じて参考にしてください。

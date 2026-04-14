@@ -25,7 +25,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         ManagedStoreFunctions,
         ManagedAllocator
     > Remove_KeyValuePair_ClientSession { get; }
-    internal ManagedDictionary(ManagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
+    internal ManagedDictionary(ManagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore){
         var Store = CollectionStore.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<
             EqualityEmpty,//TKey
@@ -42,7 +42,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
             ManagedRemove_KeyValuePair//TFunctions
         >(new());
     }
-    public bool Remove(KeyValuePair<TKey,TValue> item) {
+    public bool Remove(KeyValuePair<TKey,TValue> item){
         var Session = this.Remove_KeyValuePair_ClientSession;
         var Key0 = item.Key;
         var Value0 = item.Value;
@@ -55,7 +55,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         Status=Pending(Session,Status,ref Output);
         return Output;
     }
-    public bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value) {
+    public bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value){
         var Session = this.Remove_TKey_TValue_ClientSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
@@ -64,7 +64,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         var Status = Session.BasicContext.RMW(ref FixedKey,ref Input,ref Output);
         Status=Pending(Session,Status,ref Output);
         // output.Length>0 は InPlaceUpdater/CopyUpdater で値がコピーされた＝成功
-        if(Output.Length>0) {
+        if(Output.Length>0){
             value=TValueSerializer.Deserialize(Output.AsReadOnlySpan());
             return true;
         }
@@ -78,7 +78,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
     private List<T> CreateCollection<TIterator, T>(TIterator Iterator) where TIterator : ScanIteratorFunctions<T,SpanByte,SpanByte> {
         var Collection = new List<T>();
         using var e = new Enumerator<TIterator,T>(this.ReadClientSession,Iterator);
-        while(e.MoveNext()) {
+        while(e.MoveNext()){
             Collection.Add(e.Current);
         }
         return Collection;

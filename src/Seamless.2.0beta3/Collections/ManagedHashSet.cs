@@ -30,7 +30,7 @@ public partial class ManagedHashSet<TKey>
         ManagedStoreFunctions,
         UnmanagedAllocator
     > SymmetricExceptWith_ClientSession;
-    internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
+    internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore){
         var Store = CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
@@ -133,7 +133,7 @@ public partial class ManagedHashSet<TKey>
 
 
 
-    public partial void SymmetricExceptWith(ManagedHashSet<TKey> other) {
+    public partial void SymmetricExceptWith(ManagedHashSet<TKey> other){
         this.SymmetricExceptWith(this,other,this.SymmetricExceptWith_ClientSession);
     }
 }
