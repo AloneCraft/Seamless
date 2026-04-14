@@ -1,6 +1,7 @@
 ﻿# Copilot Instructions
 
 ## Coding Rule
+- K&Rをsベースに
 - 波括弧位置を同一行
 - if elseで片方にしか処理がなくても{}は省略しない
     if(condition){
