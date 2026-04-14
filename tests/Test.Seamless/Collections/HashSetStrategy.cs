@@ -26,7 +26,7 @@ public sealed class SetHandle<T>(IDisposable store,ManagedHashSet<T> set):IDispo
     /// <summary>セット演算メソッド（IntersectWith 等）への引数に渡す具体型。</summary>
     public ManagedHashSet<T> Concrete => set;
 
-    public void Dispose() {
+    public void Dispose(){
         set.Dispose();
         store.Dispose();
     }
@@ -35,7 +35,7 @@ public sealed class SetHandle<T>(IDisposable store,ManagedHashSet<T> set):IDispo
 /// <summary>ManagedHashSet&lt;int&gt; 戦略。</summary>
 public struct ManagedIntHashSetStrategy:IHashSetTestStrategy<int> {
     public static int Elem(int i) => i;
-    public static SetHandle<int> CreateMemorySet() {
+    public static SetHandle<int> CreateMemorySet(){
         var store = Factory.Create().Create<int>();
         return new SetHandle<int>(store,store.Create());
     }
@@ -44,7 +44,7 @@ public struct ManagedIntHashSetStrategy:IHashSetTestStrategy<int> {
 /// <summary>ManagedHashSet&lt;string&gt; 戦略。</summary>
 public struct ManagedStringHashSetStrategy:IHashSetTestStrategy<string> {
     public static string Elem(int i) => i.ToString();
-    public static SetHandle<string> CreateMemorySet() {
+    public static SetHandle<string> CreateMemorySet(){
         var store = Factory.Create().Create<string>();
         return new SetHandle<string>(store,store.Create());
     }

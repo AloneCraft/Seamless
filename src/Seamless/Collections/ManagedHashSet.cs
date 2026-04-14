@@ -10,9 +10,9 @@ namespace Seamless.Collections;
 public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,ManagedSerializer<TKey>,ManagedSerializer<EqualityEmpty>>, ISet<TKey> where TKey : IEquatable<TKey> {
     //private readonly byte[] EmptyBytes;
     public bool IsReadOnly => false;
-    public bool Add(TKey item) {
+    public bool Add(TKey item){
         var Result = this.PrivateTryAdd(item,EqualityEmpty.Default);
-        switch(Result) {
+        switch(Result){
             case TryAddResult.Success:
                 return true;
             case TryAddResult.KeyAlreadyExists:
@@ -23,40 +23,40 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
         }
     }
     void ICollection<TKey>.Add(TKey item) => this.Add(item);
-    public void CopyTo(TKey[] array,int arrayIndex) {
+    public void CopyTo(TKey[] array,int arrayIndex){
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
         if(array.Length-arrayIndex<this.GetLongCount())
             throw new ArgumentException("The destination array is too small.");
-        foreach(var item in this) {
+        foreach(var item in this){
             array[arrayIndex++]=item;
         }
     }
-    public void ExceptWith(ManagedHashSet<TKey> other) {
+    public void ExceptWith(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
-        foreach(var item in other) {
+        foreach(var item in other){
             this.Remove(item);
         }
     }
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     IEnumerator<TKey> IEnumerable<TKey>.GetEnumerator() => this.GetEnumerator();
-    public bool IsProperSubsetOf(ManagedHashSet<TKey> other) {
+    public bool IsProperSubsetOf(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
         if(this.GetLongCount()>=other.GetLongCount())
             return false;
-        foreach(var Key in this) {
-            if(!other.Contains(Key)) {
+        foreach(var Key in this){
+            if(!other.Contains(Key)){
                 return false;
             }
         }
         return true;
     }
-    public bool IsProperSupersetOf(ManagedHashSet<TKey> other) {
+    public bool IsProperSupersetOf(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
         if(this.GetLongCount()<=other.GetLongCount())
             return false;
-        foreach(var item in other) {
-            if(!this.Contains(item)) {
+        foreach(var item in other){
+            if(!this.Contains(item)){
                 return false;
             }
             else {
@@ -64,10 +64,10 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
         }
         return true;
     }
-    public bool IsSubsetOf(ManagedHashSet<TKey> other) {
+    public bool IsSubsetOf(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
-        foreach(var Key in this) {
-            if(!other.Contains(Key)) {
+        foreach(var Key in this){
+            if(!other.Contains(Key)){
                 return false;
             }
             else {
@@ -75,10 +75,10 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
         }
         return true;
     }
-    public bool IsSupersetOf(ManagedHashSet<TKey> other) {
+    public bool IsSupersetOf(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
-        foreach(var item in other) {
-            if(!this.Contains(item)) {
+        foreach(var item in other){
+            if(!this.Contains(item)){
                 return false;
             }
             else {
@@ -86,10 +86,10 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
         }
         return true;
     }
-    public bool Overlaps(ManagedHashSet<TKey> other) {
+    public bool Overlaps(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
-        foreach(var item in other) {
-            if(this.Contains(item)) {
+        foreach(var item in other){
+            if(this.Contains(item)){
                 return true;
             }
             else {
@@ -97,12 +97,12 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
         }
         return false;
     }
-    public bool SetEquals(ManagedHashSet<TKey> other) {
+    public bool SetEquals(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
         if(this.GetLongCount()!=other.GetLongCount())
             return false;
-        foreach(var Key in this) {
-            if(!other.Contains(Key)) {
+        foreach(var Key in this){
+            if(!other.Contains(Key)){
                 return false;
             }
             else {
@@ -112,17 +112,17 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
     }
     public partial void IntersectWith(ManagedHashSet<TKey> other);
     public partial void SymmetricExceptWith(ManagedHashSet<TKey> other);
-    public void UnionWith(ManagedHashSet<TKey> other) {
+    public void UnionWith(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
-        foreach(var item in other) {
+        foreach(var item in other){
             this.Add(item);
         }
     }
     public override bool IsDisposed => this.disposed;
     private bool disposed;
-    protected override void Dispose(bool disposing) {
+    protected override void Dispose(bool disposing){
         if(this.disposed) return;
-        if(disposing) {
+        if(disposing){
             this.IntersectWith_ClientSession.Dispose();
             this.SymmetricExceptWith_ClientSession.Dispose();
         }

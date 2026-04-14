@@ -16,14 +16,14 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     // ── 基本操作 ──────────────────────────────────────────────────
 
     [Fact, Trait("Category","Unit")]
-    public void IsReadOnly_偽を返す() {
+    public void IsReadOnly_偽を返す(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         Assert.False(dict.IsReadOnly);
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Add_新規キー_追加される() {
+    public void Add_新規キー_追加される(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         dict.Add(TStrategy.K(1),TStrategy.V(1));
@@ -31,7 +31,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Add_重複キー_例外を投げる() {
+    public void Add_重複キー_例外を投げる(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         dict.Add(TStrategy.K(1),TStrategy.V(1));
@@ -39,7 +39,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Add_KVP_追加される() {
+    public void Add_KVP_追加される(){
         using var sh = TStrategy.CreateMemoryStore();
         ICollection<KeyValuePair<TKey,TValue>> col = sh.NewDict();
         col.Add(new KeyValuePair<TKey,TValue>(TStrategy.K(5),TStrategy.V(5)));
@@ -47,7 +47,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void TryGetValue_存在する() {
+    public void TryGetValue_存在する(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         dict.Add(TStrategy.K(3),TStrategy.V(3));
@@ -56,7 +56,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void TryGetValue_存在しない() {
+    public void TryGetValue_存在しない(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         Assert.False(dict.TryGetValue(TStrategy.K(0),out var val));
@@ -64,7 +64,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Indexer_Setter_値を設定する() {
+    public void Indexer_Setter_値を設定する(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         dict[TStrategy.K(10)]=TStrategy.V(10);
@@ -73,14 +73,14 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Indexer_Getter_存在しないキー_例外() {
+    public void Indexer_Getter_存在しないキー_例外(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         Assert.Throws<KeyNotFoundException>(() => { var _ = dict[TStrategy.K(999)]; });
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Indexer_Setter_既存値を上書きする() {
+    public void Indexer_Setter_既存値を上書きする(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         dict[TStrategy.K(1)]=TStrategy.V(1);
@@ -89,7 +89,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void ContainsKey_存在する() {
+    public void ContainsKey_存在する(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         dict.Add(TStrategy.K(1),TStrategy.V(1));
@@ -97,14 +97,14 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void ContainsKey_存在しない() {
+    public void ContainsKey_存在しない(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         Assert.False(dict.ContainsKey(TStrategy.K(999)));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Contains_KVP_存在する() {
+    public void Contains_KVP_存在する(){
         using var sh = TStrategy.CreateMemoryStore();
         ICollection<KeyValuePair<TKey,TValue>> col = sh.NewDict();
         col.Add(new KeyValuePair<TKey,TValue>(TStrategy.K(1),TStrategy.V(1)));
@@ -112,14 +112,14 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Contains_KVP_存在しない() {
+    public void Contains_KVP_存在しない(){
         using var sh = TStrategy.CreateMemoryStore();
         ICollection<KeyValuePair<TKey,TValue>> col = sh.NewDict();
         Assert.False(col.Contains(new KeyValuePair<TKey,TValue>(TStrategy.K(99),TStrategy.VWrong())));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Remove_キー_存在する() {
+    public void Remove_キー_存在する(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         dict.Add(TStrategy.K(1),TStrategy.V(1));
@@ -128,14 +128,14 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Remove_キー_存在しない() {
+    public void Remove_キー_存在しない(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         Assert.False(dict.Remove(TStrategy.K(99)));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Remove_KVP_値一致_削除成功() {
+    public void Remove_KVP_値一致_削除成功(){
         using var sh = TStrategy.CreateMemoryStore();
         ICollection<KeyValuePair<TKey,TValue>> col = sh.NewDict();
         col.Add(new KeyValuePair<TKey,TValue>(TStrategy.K(1),TStrategy.V(1)));
@@ -144,7 +144,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Remove_KVP_値不一致_削除しない() {
+    public void Remove_KVP_値不一致_削除しない(){
         using var sh = TStrategy.CreateMemoryStore();
         ICollection<KeyValuePair<TKey,TValue>> col = sh.NewDict();
         col.Add(new KeyValuePair<TKey,TValue>(TStrategy.K(1),TStrategy.V(1)));
@@ -153,7 +153,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Count_件数を返す() {
+    public void Count_件数を返す(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         dict.Add(TStrategy.K(1),TStrategy.V(1));
@@ -162,7 +162,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Clear_後Count0() {
+    public void Clear_後Count0(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         dict.Add(TStrategy.K(1),TStrategy.V(1));
@@ -171,7 +171,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Keys_追加した全キーを含む() {
+    public void Keys_追加した全キーを含む(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         dict.Add(TStrategy.K(1),TStrategy.V(1));
@@ -181,7 +181,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Values_追加した全値を含む() {
+    public void Values_追加した全値を含む(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         dict.Add(TStrategy.K(1),TStrategy.V(1));
@@ -191,7 +191,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void CopyTo_正常() {
+    public void CopyTo_正常(){
         using var sh = TStrategy.CreateMemoryStore();
         ICollection<KeyValuePair<TKey,TValue>> col = sh.NewDict();
         col.Add(new KeyValuePair<TKey,TValue>(TStrategy.K(1),TStrategy.V(1)));
@@ -202,14 +202,14 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void CopyTo_null配列_例外() {
+    public void CopyTo_null配列_例外(){
         using var sh = TStrategy.CreateMemoryStore();
         ICollection<KeyValuePair<TKey,TValue>> col = sh.NewDict();
         Assert.Throws<ArgumentNullException>(() => col.CopyTo(null!,0));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void GetEnumerator_全エントリを列挙できる() {
+    public void GetEnumerator_全エントリを列挙できる(){
         using var sh = TStrategy.CreateMemoryStore();
         IDictionary<TKey,TValue> dict = sh.NewDict();
         dict.Add(TStrategy.K(1),TStrategy.V(1));
@@ -221,7 +221,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void IEnumerable_GetEnumerator_全エントリを列挙できる() {
+    public void IEnumerable_GetEnumerator_全エントリを列挙できる(){
         using var sh = TStrategy.CreateMemoryStore();
         IEnumerable dict = sh.NewDict();
         var count = 0;

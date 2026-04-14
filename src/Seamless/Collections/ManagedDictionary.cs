@@ -26,9 +26,9 @@ public partial class ManagedDictionary<
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
     public bool IsReadOnly => false;
-    public override bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
+    public override bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value){
         var Status = this.Read(Key,out Value);
-        if(Status.NotFound) {
+        if(Status.NotFound){
             Value=default;
             return false;
         }
@@ -36,16 +36,16 @@ public partial class ManagedDictionary<
     }
     public TryAddResult TryAdd(TKey Key,TValue Value) =>
         this.PrivateTryAdd(Key,Value);
-    public void Add(TKey Key,TValue Value) {
+    public void Add(TKey Key,TValue Value){
         var Result = this.TryAdd(Key,Value);
-        switch(Result) {
+        switch(Result){
             case TryAddResult.LogFull:
                 throw this.ThrowLogFull();
             case TryAddResult.KeyAlreadyExists: throw new ArgumentException($"An item with the same key has already been added. Key: {Key}");
         }
     }
     public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
-    bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item) {
+    bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item){
         var Status = this.Read(item.Key,out _);
         Debug.Assert(Status.Found==!Status.NotFound);
         return Status.Found;
@@ -53,21 +53,21 @@ public partial class ManagedDictionary<
 
     public bool ContainsKey(TKey Key) =>
         this.Contains(Key);
-    public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex) {
+    public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex){
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
         if(array.Length-arrayIndex<this.GetLongCount())
             throw new ArgumentException("The destination array is too small.");
-        foreach(var kvp in this) {
+        foreach(var kvp in this){
             array[arrayIndex++]=kvp;
         }
     }
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
-    public List<KeyValuePair<TKey,TValue>> ToList() {
+    public List<KeyValuePair<TKey,TValue>> ToList(){
         using var Enumerator = this.GetEnumerator();
         var List = new List<KeyValuePair<TKey,TValue>>();
-        while(Enumerator.MoveNext()) {
+        while(Enumerator.MoveNext()){
             List.Add(Enumerator.Current);
         }
         return List;
@@ -78,10 +78,10 @@ public partial class ManagedDictionary<
     IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<ValueIterator,TValue>(new());
     public override bool IsDisposed => this.disposed;
     private bool disposed;
-    protected override void Dispose(bool disposing) {
+    protected override void Dispose(bool disposing){
         if(this.disposed) return;
         this.disposed=true;
-        if(disposing) {
+        if(disposing){
             this.Remove_TKey_TValue_ClientSession.Dispose();
             this.Remove_KeyValuePair_ClientSession.Dispose();
         }

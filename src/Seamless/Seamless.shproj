@@ -9,12 +9,10 @@
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.Common.props" />
   <PropertyGroup />
   <ItemGroup>
-    <Compile Include="Collections\Collection.cs" />
     <Compile Include="Collections\DebugView.cs" />
     <Compile Include="Collections\EqualityEmpty.cs" />
     <Compile Include="Collections\ISeamlessDictionary.cs" />
     <Compile Include="Collections\ISet.cs" />
-    <Compile Include="Collections\ManagedCollection.cs" />
     <Compile Include="Collections\ManagedDictionary.cs" />
     <Compile Include="Collections\ManagedHashSet.cs" />
     <Compile Include="Collections\Serializers\UnmanagedSerializer.cs" />
@@ -26,7 +24,6 @@
     <Compile Include="Collections\UnmanagedHashSet.cs" />
     <Compile Include="Const.cs" />
     <Compile Include="Devices\MemoryOnlyDevice.cs" />
-    <Compile Include="GlobalUsings.cs" />
     <Compile Include="ICreate.cs" />
     <Compile Include="SessionFunctions\ManagedAdd.cs" />
     <Compile Include="SessionFunctions\ManagedContains.cs" />
@@ -38,10 +35,8 @@
     <Compile Include="SessionFunctions\UnmanagedDelete.cs" />
     <Compile Include="SessionFunctions\UnmanagedRead.cs" />
     <Compile Include="Stores\CollectionStore.cs" />
-    <Compile Include="Stores\CollectionStore`.cs" />
     <Compile Include="Stores\Factory.cs" />
     <Compile Include="Stores\ICreate.cs" />
-    <Compile Include="Stores\ManagedCollectionStore.cs" />
     <Compile Include="Stores\ManagedDictionaryStore.cs" />
     <Compile Include="Stores\ManagedHashSetStore.cs" />
     <Compile Include="Stores\OverflowMutableStrategy.cs" />

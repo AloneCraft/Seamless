@@ -6,7 +6,7 @@ public abstract partial class ManagedCollectionStore<TKey, TValue> {
             new ManagedStoreFunctions(new SpanByteComparer(),static () => null,new DefaultRecordDisposer()),
             static (allocSettings,storeFuncs) => new UnmanagedAllocator(allocSettings,storeFuncs),
             IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,OverflowMutableStrategyKind
-        ) {
+        ){
     }
 
 

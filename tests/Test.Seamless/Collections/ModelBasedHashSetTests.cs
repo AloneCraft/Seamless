@@ -11,7 +11,7 @@ public class ModelBasedHashSetTests {
     private static readonly Op[] Ops = Enum.GetValues<Op>();
 
     [Fact, Trait("Category","Unit")]
-    public void ManagedHashSet_ランダム操作列がNET10HashSetと一致する() {
+    public void ManagedHashSet_ランダム操作列がNET10HashSetと一致する(){
         using var store = Factory.Create().Create<int>();
         using var subject = store.Create();
         var oracle = new HashSet<int>();
@@ -19,7 +19,7 @@ public class ModelBasedHashSetTests {
     }
 
     [Fact, Trait("Category","Unit")]
-    public void UnmanagedHashSet_ランダム操作列がNET10HashSetと一致する() {
+    public void UnmanagedHashSet_ランダム操作列がNET10HashSetと一致する(){
         using var store = Factory.Create().CreateUnmanagedHashSet<int>();
         using var subject = store.Create();
         var oracle = new HashSet<int>();
@@ -30,24 +30,24 @@ public class ModelBasedHashSetTests {
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(99)]
-    public void ManagedHashSet_複数シードでも一致する(int seed) {
+    public void ManagedHashSet_複数シードでも一致する(int seed){
         using var store = Factory.Create().Create<int>();
         using var subject = store.Create();
         var oracle = new HashSet<int>();
         RunRandomOps(subject,oracle,seed,opCount: 300);
     }
 
-    private static void RunRandomOps(ManagedHashSet<int> subject,HashSet<int> oracle,int seed,int opCount) {
+    private static void RunRandomOps(ManagedHashSet<int> subject,HashSet<int> oracle,int seed,int opCount){
         var rng = new Random(seed);
         using var otherStore = Factory.Create().Create<int>();
         using var other = otherStore.Create();
         var otherOracle = new HashSet<int>();
 
-        for(var i = 0; i<opCount; i++) {
+        for(var i = 0; i<opCount; i++){
             var op = Ops[rng.Next(Ops.Length)];
             var value = rng.Next(100);
 
-            switch(op) {
+            switch(op){
                 case Op.Add:
                     Assert.Equal(oracle.Add(value),subject.Add(value));
                     break;
@@ -93,17 +93,17 @@ public class ModelBasedHashSetTests {
         AssertSetEquals(oracle,subject);
     }
 
-    private static void RunRandomOpsUnmanaged(UnmanagedHashSet<int> subject,HashSet<int> oracle,int seed,int opCount) {
+    private static void RunRandomOpsUnmanaged(UnmanagedHashSet<int> subject,HashSet<int> oracle,int seed,int opCount){
         var rng = new Random(seed);
         using var otherStore = Factory.Create().CreateUnmanagedHashSet<int>();
         using var other = otherStore.Create();
         var otherOracle = new HashSet<int>();
 
-        for(var i = 0; i<opCount; i++) {
+        for(var i = 0; i<opCount; i++){
             var op = Ops[rng.Next(Ops.Length)];
             var value = rng.Next(100);
 
-            switch(op) {
+            switch(op){
                 case Op.Add:
                     Assert.Equal(oracle.Add(value),subject.Add(value));
                     break;
@@ -148,42 +148,42 @@ public class ModelBasedHashSetTests {
         AssertSetEqualsUnmanaged(oracle,subject);
     }
 
-    private static void SyncOther(ManagedHashSet<int> other,HashSet<int> otherOracle,Random rng) {
+    private static void SyncOther(ManagedHashSet<int> other,HashSet<int> otherOracle,Random rng){
         other.Clear();
         otherOracle.Clear();
         var count = rng.Next(10);
-        for(var j = 0; j<count; j++) {
+        for(var j = 0; j<count; j++){
             var v = rng.Next(100);
             other.Add(v);
             otherOracle.Add(v);
         }
     }
 
-    private static void SyncOtherUnmanaged(UnmanagedHashSet<int> other,HashSet<int> otherOracle,Random rng) {
+    private static void SyncOtherUnmanaged(UnmanagedHashSet<int> other,HashSet<int> otherOracle,Random rng){
         other.Clear();
         otherOracle.Clear();
         var count = rng.Next(10);
-        for(var j = 0; j<count; j++) {
+        for(var j = 0; j<count; j++){
             var v = rng.Next(100);
             other.Add(v);
             otherOracle.Add(v);
         }
     }
 
-    private static void AssertSetEquals(HashSet<int> oracle,ManagedHashSet<int> subject) {
-        foreach(var item in oracle) {
+    private static void AssertSetEquals(HashSet<int> oracle,ManagedHashSet<int> subject){
+        foreach(var item in oracle){
             Assert.True(subject.Contains(item),$"Subject missing {item}");
         }
-        foreach(var item in subject) {
+        foreach(var item in subject){
             Assert.True(oracle.Contains(item),$"Oracle missing {item}");
         }
     }
 
-    private static void AssertSetEqualsUnmanaged(HashSet<int> oracle,UnmanagedHashSet<int> subject) {
-        foreach(var item in oracle) {
+    private static void AssertSetEqualsUnmanaged(HashSet<int> oracle,UnmanagedHashSet<int> subject){
+        foreach(var item in oracle){
             Assert.True(subject.Contains(item),$"Subject missing {item}");
         }
-        foreach(var item in subject) {
+        foreach(var item in subject){
             Assert.True(oracle.Contains(item),$"Oracle missing {item}");
         }
     }

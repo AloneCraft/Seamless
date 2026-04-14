@@ -14,11 +14,11 @@ public readonly partial struct ManagedRead():
         return true;
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref ManagedOutput output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref ManagedOutput output,ref UpsertInfo upsertInfo){
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref ManagedOutput output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref ManagedOutput output,ref UpsertInfo upsertInfo){
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
@@ -27,11 +27,11 @@ public readonly partial struct ManagedRead():
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
-    public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref ManagedOutput output,ref UpsertInfo upsertInfo) {
+    public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref ManagedOutput output,ref UpsertInfo upsertInfo){
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
-    public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref ManagedOutput output,ref UpsertInfo upsertInfo) {
+    public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref ManagedOutput output,ref UpsertInfo upsertInfo){
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
@@ -52,11 +52,11 @@ public readonly partial struct ManagedRead():
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
-    public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref ManagedOutput output,ref UpsertInfo upsertInfo) {
+    public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref ManagedOutput output,ref UpsertInfo upsertInfo){
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
-    public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref ManagedOutput output,ref UpsertInfo upsertInfo) {
+    public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref ManagedOutput output,ref UpsertInfo upsertInfo){
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
@@ -70,15 +70,15 @@ public readonly partial struct ManagedRead():
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
-    public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref ManagedOutput output,ref RMWInfo rmwInfo) {
+    public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref ManagedOutput output,ref RMWInfo rmwInfo){
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref ManagedOutput output,ref RMWInfo rmwInfo) {
+    public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref ManagedOutput output,ref RMWInfo rmwInfo){
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
-    public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref ManagedOutput output,ref RMWInfo rmwInfo) {
+    public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref ManagedOutput output,ref RMWInfo rmwInfo){
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
@@ -103,19 +103,19 @@ public readonly partial struct ManagedRead():
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
-    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref ManagedOutput output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
+    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref ManagedOutput output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
-    public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
+    public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo){
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
-    public void PostInitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
+    public void PostInitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo){
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
+    public bool InPlaceDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo){
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
@@ -124,7 +124,7 @@ public readonly partial struct ManagedRead():
         where TEpochAccessor : IEpochAccessor {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
-    public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref ManagedOutput output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
+    public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref ManagedOutput output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input)
@@ -152,6 +152,6 @@ public readonly partial struct ManagedRead():
         where TSourceLogRecord : ISourceLogRecord {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
-    public void ConvertOutputToHeap(ref EqualityEmpty input,ref ManagedOutput output) {
+    public void ConvertOutputToHeap(ref EqualityEmpty input,ref ManagedOutput output){
     }
 }

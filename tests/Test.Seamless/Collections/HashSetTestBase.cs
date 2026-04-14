@@ -16,20 +16,20 @@ public abstract class HashSetTestBase<TStrategy, T>
     // ── 基本操作 ──────────────────────────────────────────────────
 
     [Fact, Trait("Category","Unit")]
-    public void Add_新規要素_真を返す() {
+    public void Add_新規要素_真を返す(){
         using var h = TStrategy.CreateMemorySet();
         Assert.True(h.Set.Add(TStrategy.Elem(1)));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Add_重複要素_偽を返す() {
+    public void Add_重複要素_偽を返す(){
         using var h = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
         Assert.False(h.Set.Add(TStrategy.Elem(1)));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void ICollection_Add_void_追加される() {
+    public void ICollection_Add_void_追加される(){
         using var h = TStrategy.CreateMemorySet();
         ICollection<T> col = h.Set;
         col.Add(TStrategy.Elem(1));
@@ -37,33 +37,33 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Contains_存在する要素_真を返す() {
+    public void Contains_存在する要素_真を返す(){
         using var h = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
         Assert.True(h.Set.Contains(TStrategy.Elem(1)));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Contains_存在しない要素_偽を返す() {
+    public void Contains_存在しない要素_偽を返す(){
         using var h = TStrategy.CreateMemorySet();
         Assert.False(h.Set.Contains(TStrategy.Elem(99)));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Remove_存在する要素_真を返す() {
+    public void Remove_存在する要素_真を返す(){
         using var h = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
         Assert.True(h.Set.Remove(TStrategy.Elem(1)));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Remove_存在しない要素_偽を返す() {
+    public void Remove_存在しない要素_偽を返す(){
         using var h = TStrategy.CreateMemorySet();
         Assert.False(h.Set.Remove(TStrategy.Elem(99)));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Count_追加後に増加する() {
+    public void Count_追加後に増加する(){
         using var h = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
         h.Set.Add(TStrategy.Elem(2));
@@ -71,7 +71,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Clear_後Count0() {
+    public void Clear_後Count0(){
         using var h = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
         h.Set.Clear();
@@ -79,14 +79,14 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void IsReadOnly_偽を返す() {
+    public void IsReadOnly_偽を返す(){
         using var h = TStrategy.CreateMemorySet();
         ICollection<T> col = h.Set;
         Assert.False(col.IsReadOnly);
     }
 
     [Fact, Trait("Category","Unit")]
-    public void CopyTo_正常() {
+    public void CopyTo_正常(){
         using var h = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
         h.Set.Add(TStrategy.Elem(2));
@@ -97,13 +97,13 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void CopyTo_null配列_例外() {
+    public void CopyTo_null配列_例外(){
         using var h = TStrategy.CreateMemorySet();
         Assert.Throws<ArgumentNullException>(() => ((ICollection<T>)h.Set).CopyTo(null!,0));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void GetEnumerator_全要素を列挙できる() {
+    public void GetEnumerator_全要素を列挙できる(){
         using var h = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
         h.Set.Add(TStrategy.Elem(2));
@@ -118,7 +118,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     // ── セット演算 ────────────────────────────────────────────────
 
     [Fact, Trait("Category","Unit")]
-    public void ExceptWith_差集合になる() {
+    public void ExceptWith_差集合になる(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -130,13 +130,13 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void ExceptWith_null_例外() {
+    public void ExceptWith_null_例外(){
         using var h = TStrategy.CreateMemorySet();
         Assert.Throws<ArgumentNullException>(() => h.Set.ExceptWith(null!));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void IntersectWith_積集合になる() {
+    public void IntersectWith_積集合になる(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -150,13 +150,13 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void IntersectWith_null_例外() {
+    public void IntersectWith_null_例外(){
         using var h = TStrategy.CreateMemorySet();
         Assert.Throws<ArgumentNullException>(() => h.Set.IntersectWith(null!));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void UnionWith_和集合になる() {
+    public void UnionWith_和集合になる(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -169,13 +169,13 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void UnionWith_null_例外() {
+    public void UnionWith_null_例外(){
         using var h = TStrategy.CreateMemorySet();
         Assert.Throws<ArgumentNullException>(() => h.Set.UnionWith(null!));
     }
 
     [Fact, Trait("Category","Unit")]
-    public void SymmetricExceptWith_対称差になる() {
+    public void SymmetricExceptWith_対称差になる(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -189,7 +189,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void SymmetricExceptWith_null_例外() {
+    public void SymmetricExceptWith_null_例外(){
         using var h = TStrategy.CreateMemorySet();
         Assert.Throws<ArgumentNullException>(() => h.Set.SymmetricExceptWith(null!));
     }
@@ -197,7 +197,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     // ── 包含関係 ──────────────────────────────────────────────────
 
     [Fact, Trait("Category","Unit")]
-    public void IsSubsetOf_部分集合_真を返す() {
+    public void IsSubsetOf_部分集合_真を返す(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -207,7 +207,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void IsSubsetOf_部分集合でない_偽を返す() {
+    public void IsSubsetOf_部分集合でない_偽を返す(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -217,7 +217,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void IsSupersetOf_上位集合_真を返す() {
+    public void IsSupersetOf_上位集合_真を返す(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -227,7 +227,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void IsSupersetOf_上位集合でない_偽を返す() {
+    public void IsSupersetOf_上位集合でない_偽を返す(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -237,7 +237,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void IsProperSubsetOf_真部分集合_真を返す() {
+    public void IsProperSubsetOf_真部分集合_真を返す(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -247,7 +247,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void IsProperSubsetOf_同サイズは偽() {
+    public void IsProperSubsetOf_同サイズは偽(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -256,7 +256,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void IsProperSupersetOf_真上位集合_真を返す() {
+    public void IsProperSupersetOf_真上位集合_真を返す(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -266,7 +266,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void IsProperSupersetOf_同サイズは偽() {
+    public void IsProperSupersetOf_同サイズは偽(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -275,7 +275,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Overlaps_共通要素あり_真を返す() {
+    public void Overlaps_共通要素あり_真を返す(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -285,7 +285,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Overlaps_共通要素なし_偽を返す() {
+    public void Overlaps_共通要素なし_偽を返す(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -294,7 +294,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void SetEquals_同一要素_真を返す() {
+    public void SetEquals_同一要素_真を返す(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -305,7 +305,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     }
 
     [Fact, Trait("Category","Unit")]
-    public void SetEquals_異なる要素_偽を返す() {
+    public void SetEquals_異なる要素_偽を返す(){
         using var h = TStrategy.CreateMemorySet();
         using var other = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));

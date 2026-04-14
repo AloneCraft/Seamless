@@ -11,7 +11,7 @@ public class ModelBasedDictionaryTests {
     private static readonly Op[] Ops = Enum.GetValues<Op>();
 
     [Fact, Trait("Category","Unit")]
-    public void ManagedDictionary_ランダム操作列がNET10Dictionaryと一致する() {
+    public void ManagedDictionary_ランダム操作列がNET10Dictionaryと一致する(){
         using var store = Factory.Create().Create<int,string>();
         using var subject = store.Create();
         var oracle = new Dictionary<int,string>();
@@ -19,7 +19,7 @@ public class ModelBasedDictionaryTests {
     }
 
     [Fact, Trait("Category","Unit")]
-    public void UnmanagedDictionary_ランダム操作列がNET10Dictionaryと一致する() {
+    public void UnmanagedDictionary_ランダム操作列がNET10Dictionaryと一致する(){
         using var store = Factory.Create().Create<int,int>();
         using var subject = store.Create();
         var oracle = new Dictionary<int,int>();
@@ -30,24 +30,24 @@ public class ModelBasedDictionaryTests {
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(99)]
-    public void ManagedDictionary_複数シードでも一致する(int seed) {
+    public void ManagedDictionary_複数シードでも一致する(int seed){
         using var store = Factory.Create().Create<int,string>();
         using var subject = store.Create();
         var oracle = new Dictionary<int,string>();
         RunRandomOps(subject,oracle,seed,opCount: 300);
     }
 
-    private static void RunRandomOps(ISeamlessDictionary<int,string> subject,Dictionary<int,string> oracle,int seed,int opCount) {
+    private static void RunRandomOps(ISeamlessDictionary<int,string> subject,Dictionary<int,string> oracle,int seed,int opCount){
         var rng = new Random(seed);
 
-        for(var i = 0; i<opCount; i++) {
+        for(var i = 0; i<opCount; i++){
             var op = Ops[rng.Next(Ops.Length)];
             var key = rng.Next(50);
             var value = $"v{rng.Next(100)}";
 
-            switch(op) {
+            switch(op){
                 case Op.Add:
-                    if(oracle.ContainsKey(key)) {
+                    if(oracle.ContainsKey(key)){
                         Assert.Throws<ArgumentException>(() => subject.Add(key,value));
                     }
                     else {
@@ -64,7 +64,7 @@ public class ModelBasedDictionaryTests {
                     Assert.Equal(oracle.Remove(key),subject.Remove(key));
                     break;
                 case Op.RemoveKvp:
-                    if(oracle.TryGetValue(key,out var existing)) {
+                    if(oracle.TryGetValue(key,out var existing)){
                         var kvp = new KeyValuePair<int,string>(key,existing);
                         var oracleRemoved = ((ICollection<KeyValuePair<int,string>>)oracle).Remove(kvp);
                         var subjectRemoved = ((ICollection<KeyValuePair<int,string>>)subject).Remove(kvp);
@@ -81,7 +81,7 @@ public class ModelBasedDictionaryTests {
                     if(oracleTgv) Assert.Equal(oracleVal,subjectVal);
                     break;
                 case Op.Indexer_Get:
-                    if(oracle.ContainsKey(key)) {
+                    if(oracle.ContainsKey(key)){
                         Assert.Equal(oracle[key],subject[key]);
                     }
                     else {
@@ -118,17 +118,17 @@ public class ModelBasedDictionaryTests {
         AssertDictEquals(oracle,subject);
     }
 
-    private static void RunRandomOpsUnmanaged(ISeamlessDictionary<int,int> subject,Dictionary<int,int> oracle,int seed,int opCount) {
+    private static void RunRandomOpsUnmanaged(ISeamlessDictionary<int,int> subject,Dictionary<int,int> oracle,int seed,int opCount){
         var rng = new Random(seed);
 
-        for(var i = 0; i<opCount; i++) {
+        for(var i = 0; i<opCount; i++){
             var op = Ops[rng.Next(Ops.Length)];
             var key = rng.Next(50);
             var value = rng.Next(1000);
 
-            switch(op) {
+            switch(op){
                 case Op.Add:
-                    if(oracle.ContainsKey(key)) {
+                    if(oracle.ContainsKey(key)){
                         Assert.Throws<ArgumentException>(() => subject.Add(key,value));
                     }
                     else {
@@ -145,7 +145,7 @@ public class ModelBasedDictionaryTests {
                     Assert.Equal(oracle.Remove(key),subject.Remove(key));
                     break;
                 case Op.RemoveKvp:
-                    if(oracle.TryGetValue(key,out var existing)) {
+                    if(oracle.TryGetValue(key,out var existing)){
                         var kvp = new KeyValuePair<int,int>(key,existing);
                         var oracleRemoved = ((ICollection<KeyValuePair<int,int>>)oracle).Remove(kvp);
                         var subjectRemoved = ((ICollection<KeyValuePair<int,int>>)subject).Remove(kvp);
@@ -162,7 +162,7 @@ public class ModelBasedDictionaryTests {
                     if(oracleTgv) Assert.Equal(oracleVal,subjectVal);
                     break;
                 case Op.Indexer_Get:
-                    if(oracle.ContainsKey(key)) {
+                    if(oracle.ContainsKey(key)){
                         Assert.Equal(oracle[key],subject[key]);
                     }
                     else {
@@ -202,7 +202,7 @@ public class ModelBasedDictionaryTests {
         where TKey : IEquatable<TKey>
         where TValue : IEquatable<TValue> {
         Assert.Equal(oracle.Count,subject.Count);
-        foreach(var kvp in oracle) {
+        foreach(var kvp in oracle){
             Assert.True(subject.TryGetValue(kvp.Key,out var val),$"Subject missing key {kvp.Key}");
             Assert.Equal(kvp.Value,val);
         }

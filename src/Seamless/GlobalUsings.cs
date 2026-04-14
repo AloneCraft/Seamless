@@ -1,9 +1,0 @@
-﻿#if !(TSAVORITE2_0BETA3 || TSAVORITE1_1_1)
-global using Tsavorite.core;
-global using Garnet.common;
-global using ManagedSessionKey=Tsavorite.core.PinnedSpanByte;
-global using ManagedSessionValue=Tsavorite.core.SpanByteAndMemory;
-global using ManagedOutput=Tsavorite.core.SpanByteAndMemory;
-global using ManagedStoreFunctions=Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>;
-global using ManagedAllocator=Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>>;
-#endif

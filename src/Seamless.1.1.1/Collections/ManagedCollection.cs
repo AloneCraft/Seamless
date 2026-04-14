@@ -1,9 +1,11 @@
 ﻿using System.Collections;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
+using Seamless.Stores;
+using System.Runtime.InteropServices;
 namespace Seamless.Collections;
 
-public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>:Collection<
+public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>:Collection<
     TKey,//TKey
     TValue,//TValue
     SpanByte,//TSessionKey
@@ -15,23 +17,28 @@ public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TV
     ManagedDelete,//TContainsDeleteFunction
     ManagedStoreFunctions,//TStoreFunctions
     ManagedAllocator//TAllocator
-> {
-    public sealed partial class KeyIterator {
+>
+    where TKey : IEquatable<TKey>
+    where TValue : IEquatable<TValue>
+    where TKeySerializer : ISerializer<TKey>
+    where TValueSerializer : ISerializer<TValue> {
+    public sealed class KeyIterator:ScanIteratorFunctions<TKey,SpanByte,SpanByte> {
         private protected override TKey Deserialize(ref SpanByte key,ref SpanByte value) =>
             TKeySerializer.Deserialize(key.AsReadOnlySpan());
     }
-    internal sealed partial class ValueIterator {
+    internal sealed class ValueIterator:ScanIteratorFunctions<TValue,SpanByte,SpanByte> {
         private protected override TValue Deserialize(ref SpanByte key,ref SpanByte value) =>
             TValueSerializer.Deserialize(value.AsReadOnlySpan());
     }
-    public sealed partial class KeyValueIterator {
+    public sealed class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>,SpanByte,SpanByte> {
         private protected override KeyValuePair<TKey,TValue> Deserialize(ref SpanByte key,ref SpanByte value) {
             var Key = TKeySerializer.Deserialize(key.AsReadOnlySpan());
             var Value = TValueSerializer.Deserialize(value.AsReadOnlySpan());
             return new(Key,Value);
         }
     }
-    public partial struct Enumerator<TIterator, T>(
+    [StructLayout(LayoutKind.Auto)]
+    public struct Enumerator<TIterator, T>(
         ClientSession<
             SpanByte,//TKey
             SpanByte,//TValue
@@ -78,6 +85,8 @@ public abstract partial class ManagedCollection<TKey, TValue, TKeySerializer, TV
         }
         public void Dispose() {
         }
+    }
+    private protected ManagedCollection(ManagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
     }
     public bool Contains(TKey Key) {
         var KeyBytes = TKeySerializer.Serialize(ref Key);

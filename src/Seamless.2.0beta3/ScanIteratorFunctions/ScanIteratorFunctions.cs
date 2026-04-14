@@ -14,12 +14,14 @@ public abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions{
         if(Count==Const.Chunk_Length){
             cursorRecordResult=CursorRecordResult.EndBatch;
             return true;
-        }
-        else{
+        }else{
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
     }
+    
+    
+    
     public bool OnStart(long beginAddress,long endAddress){
         this.Count=0;
         return true;

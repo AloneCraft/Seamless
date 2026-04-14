@@ -63,7 +63,7 @@ public partial class UnmanagedDictionary<
             >
         >
     > Remove_KeyValuePair_ClientSession { get; set; }
-    internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
+    internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore){
         var Store = CollectionStore.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<
             
@@ -96,7 +96,7 @@ public partial class UnmanagedDictionary<
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator iterator)
     where TIterator : ScanIteratorFunctions<T,TKey,TValue> {
         using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
-        while(e.MoveNext()) {
+        while(e.MoveNext()){
             yield return e.Current;
         }
     }
@@ -104,12 +104,12 @@ public partial class UnmanagedDictionary<
         where TIterator : ScanIteratorFunctions<T,TKey,TValue> {
         var collection = new List<T>();
         using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
-        while(e.MoveNext()) {
+        while(e.MoveNext()){
             collection.Add(e.Current);
         }
         return collection;
     }
-    public partial bool Remove(KeyValuePair<TKey,TValue> item) {
+    public partial bool Remove(KeyValuePair<TKey,TValue> item){
         var Session = this.Remove_KeyValuePair_ClientSession;
         var Key = item.Key;
         
@@ -122,7 +122,7 @@ public partial class UnmanagedDictionary<
         Pending(Session,Status,ref Output);
         return Output;
     }
-    public partial bool Remove(TKey key,out TValue value) {
+    public partial bool Remove(TKey key,out TValue value){
         var Session = this.Remove_TKey_TValue_ClientSession;
         
         
@@ -131,7 +131,7 @@ public partial class UnmanagedDictionary<
         var Status = Session.BasicContext.RMW(ref key,ref Input,ref Output);
         Status=Pending(Session,Status,ref Output);
         
-        if(Status.Found) {
+        if(Status.Found){
             value=Output;
             return true;
         }
@@ -139,7 +139,7 @@ public partial class UnmanagedDictionary<
         value=default;
         return false;
     }
-    private partial void SetValue(TKey key,TValue value) {
+    private partial void SetValue(TKey key,TValue value){
 
 
         if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>()))
