@@ -1,5 +1,16 @@
 ﻿# Copilot Instructions
 
+## Coding Rule
+if(condition){
+	// code
+}
+の時
+if(condition){
+	// code
+}else{
+}
+とelseを入れること。理由はカバレッジのため。elseがないと、ifの条件がfalseのときのコードが存在しないことになり、カバレッジが100%にならないため。
+
 ## User Preferences
 - Listに追加してはいけない。Tsavoriteを使っている理由はメモリに収まらないサイズのコレクションを扱うためであり、Iterator/Enumeratorで全件をList等のメモリ上コレクションに蓄積するのはNG。チャンク単位（固定長配列）でバッファリングし、少しずつ返す方式にすること。
 - C# のジェネリック関連コンパイルエラーでは型変換だけでなく where 制約の不一致を優先して確認すること。

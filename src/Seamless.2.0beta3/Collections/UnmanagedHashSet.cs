@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
@@ -8,7 +7,8 @@ namespace Seamless.Collections;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 public abstract partial class UnmanagedHashSet<TKey>
-    where TKey:unmanaged,IEquatable<TKey> {
+    where TKey : unmanaged, IEquatable<TKey>
+{
     private readonly ClientSession<
         FixedSpanByteKey,
         EqualityEmpty,
@@ -27,16 +27,17 @@ public abstract partial class UnmanagedHashSet<TKey>
         UnmanagedStoreFunctions,
         UnmanagedAllocator
     > SymmetricExceptWith_ClientSession;
-    internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore):base(CollectionStore){
-        var Store=CollectionStore.Store;
-        this.IntersectWith_ClientSession      =Store.NewSession<
+    internal UnmanagedHashSet(UnmanagedCollectionStore<TKey, EqualityEmpty> CollectionStore) : base(CollectionStore)
+    {
+        var Store = CollectionStore.Store;
+        this.IntersectWith_ClientSession = Store.NewSession<
             FixedSpanByteKey,
             EqualityEmpty,
             EqualityEmpty,
             EqualityEmpty,
             IntersectWith
         >(new());
-        this.SymmetricExceptWith_ClientSession=Store.NewSession<
+        this.SymmetricExceptWith_ClientSession = Store.NewSession<
             FixedSpanByteKey,
             PinnedSpanByte,
             SpanByteAndMemory,
@@ -47,41 +48,98 @@ public abstract partial class UnmanagedHashSet<TKey>
     public Enumerator<
         KeyIterator,
         TKey
-    > GetEnumerator()=>new(this.ReadClientSession,new());
-    private Enumerator<
-        SpanByteKeyIterator,
-        byte[]
-    > GetSpanByteEnumerator()=>new(this.ReadClientSession,new());
-    private sealed class SpanByteKeyIterator:ScanIteratorFunctions<byte[]> {
-        private protected override byte[] Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
-            logRecord.Key.ToArray();
-    }
-    public partial void IntersectWith(UnmanagedHashSet<TKey> other){
-        ArgumentNullException.ThrowIfNull(other);
-        var IntersectWith_ClientSession = this.IntersectWith_ClientSession;
-        var Input = default(EqualityEmpty);
-        var Output = default(EqualityEmpty);
-        var Enumerator = this.GetSpanByteEnumerator();
-        while(Enumerator.MoveNext()) {
-            var KeyBytes = Enumerator.Current;
-            if(other.PrivateProtectedContainsKey(KeyBytes)) continue;
-            if(this.WouldOverflowMutable(KeyBytes.Length,1)) throw this.ThrowLogFull();
-            var FixedKey = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-            var Status = IntersectWith_ClientSession.BasicContext.RMW(FixedKey,ref Input,ref Output);
+    > GetEnumerator() => new(this.ReadClientSession, new());
+    private readonly struct IntersectWithIterator(
+        UnmanagedHashSet<TKey> self,
+        UnmanagedHashSet<TKey> other,
+        ClientSession<
+            FixedSpanByteKey,
+            EqualityEmpty,
+            EqualityEmpty,
+            EqualityEmpty,
+            IntersectWith,
+            UnmanagedStoreFunctions,
+            UnmanagedAllocator
+        > session
+    ) : IScanIteratorFunctions
+    {
+        public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult)
+            where TSourceLogRecord : ISourceLogRecord
+        {
+            var keyBytes = logRecord.Key;
+            if (!other.PrivateProtectedContainsKey(keyBytes))
+            {
+                if (self.WouldOverflowMutable(keyBytes.Length, 1))
+                    throw self.ThrowLogFull();
+                var input = default(EqualityEmpty);
+                var output = default(EqualityEmpty);
+                var status = session.BasicContext.RMW((FixedSpanByteKey)keyBytes, ref input, ref output);
+                if (status.IsPending)
+                {
+                    session.BasicContext.CompletePendingWithOutputs(out var completedOutputs, wait: true);
+                    using (completedOutputs)
+                    {
+                        Debug.Assert(completedOutputs.Next());
+                    }
+                }
+            }
+            cursorRecordResult = CursorRecordResult.Accept;
+            return true;
         }
-        IntersectWith_ClientSession.BasicContext.CompletePending(wait: true);
+        public bool OnStart(long beginAddress, long endAddress) => true;
+        public void OnException(Exception exception, long numberOfRecords) { }
+        public void OnStop(bool completed, long numberOfRecords) { }
     }
-    public partial void SymmetricExceptWith(UnmanagedHashSet<TKey> other) {
-        ArgumentNullException.ThrowIfNull(other);
-        var Session = this.SymmetricExceptWith_ClientSession;
-        var Input = default(PinnedSpanByte);
-        var Enumerator = other.GetSpanByteEnumerator();
-        while(Enumerator.MoveNext()){
-            var KeyBytes = Enumerator.Current;
-            var Key = (FixedSpanByteKey)(ReadOnlySpan<byte>)KeyBytes;
-            SpanByteAndMemory Output = default;
-            var Status=Session.BasicContext.RMW(Key,ref Input,ref Output);
+    private readonly struct SymmetricExceptWithIterator(
+        ClientSession<
+            FixedSpanByteKey,
+            PinnedSpanByte,
+            SpanByteAndMemory,
+            EqualityEmpty,
+            SymmetricExceptWith,
+            UnmanagedStoreFunctions,
+            UnmanagedAllocator
+        > session
+    ) : IScanIteratorFunctions
+    {
+        public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult)
+            where TSourceLogRecord : ISourceLogRecord
+        {
+            var input = default(PinnedSpanByte);
+            SpanByteAndMemory output = default;
+            var status = session.BasicContext.RMW((FixedSpanByteKey)logRecord.Key, ref input, ref output);
+            if (status.IsPending)
+            {
+                session.BasicContext.CompletePendingWithOutputs(out var completedOutputs, wait: true);
+                using (completedOutputs)
+                {
+                    Debug.Assert(completedOutputs.Next());
+                }
+            }
+            cursorRecordResult = CursorRecordResult.Accept;
+            return true;
         }
-        Session.BasicContext.CompletePending(wait: true);
+        public bool OnStart(long beginAddress, long endAddress) => true;
+        public void OnException(Exception exception, long numberOfRecords) { }
+        public void OnStop(bool completed, long numberOfRecords) { }
+    }
+    public partial void IntersectWith(UnmanagedHashSet<TKey> other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        var session = this.IntersectWith_ClientSession;
+        var iterator = new IntersectWithIterator(this, other, session);
+        var cursor = 0L;
+        session.IterateLookup(ref iterator, ref cursor, resetCursor: false);
+        session.BasicContext.CompletePending(wait: true);
+    }
+
+    public partial void SymmetricExceptWith(UnmanagedHashSet<TKey> other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        var session = this.SymmetricExceptWith_ClientSession;
+        var iterator = new SymmetricExceptWithIterator(session);
+        var cursor = 0L;
+        other.ReadClientSession.IterateLookup(ref iterator, ref cursor, resetCursor: false);
+        session.BasicContext.CompletePending(wait: true);
     }
 }

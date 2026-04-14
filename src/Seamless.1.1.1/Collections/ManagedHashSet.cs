@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
@@ -9,7 +9,8 @@ namespace Seamless.Collections;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(DebugView<>))]
-public abstract partial class ManagedHashSet<TKey>where TKey : IEquatable<TKey>{
+public abstract partial class ManagedHashSet<TKey> where TKey : IEquatable<TKey>
+{
     private readonly ClientSession<
         SpanByte,//TKey
         SpanByte,//TValue
@@ -54,18 +55,19 @@ public abstract partial class ManagedHashSet<TKey>where TKey : IEquatable<TKey>{
             >
         >
     > SymmetricExceptWith_ClientSession;
-    internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
-        var Store=CollectionStore.Store;
-        this.IntersectWith_ClientSession=Store.NewSession<
+    internal ManagedHashSet(ManagedCollectionStore<TKey, EqualityEmpty> CollectionStore) : base(CollectionStore)
+    {
+        var Store = CollectionStore.Store;
+        this.IntersectWith_ClientSession = Store.NewSession<
             EqualityEmpty,//TKey
-            
+
             EqualityEmpty,//TOutput
             EqualityEmpty,//TContext
             ManagedIntersectWith//TFunctions
         >(new());
-        this.SymmetricExceptWith_ClientSession=Store.NewSession<
+        this.SymmetricExceptWith_ClientSession = Store.NewSession<
             SpanByte,//TKey
-            
+
             SpanByteAndMemory,//TOutput
             EqualityEmpty,//TContext
             SymmetricExceptWith//TFunctions
@@ -74,41 +76,121 @@ public abstract partial class ManagedHashSet<TKey>where TKey : IEquatable<TKey>{
     public Enumerator<
         KeyIterator,
         TKey
-    > GetEnumerator()=>new(this.ReadClientSession,new());
-    
-    
-    
-    
-
-
-
-
-    public partial void IntersectWith(ManagedHashSet<TKey> other){
-        ArgumentNullException.ThrowIfNull(other);
-        var Session = this.IntersectWith_ClientSession;
-        var Input=default(EqualityEmpty);
-        var Output=default(EqualityEmpty);
-
-        foreach(var Key in this) {
-            if(other.Contains(Key)) continue;
-            var Key0 = Key;
-            var KeyBytes = ManagedSerializer<TKey>.Serialize(ref Key0);
-            var Key1 = SpanByte.FromPinnedSpan(KeyBytes);
-            Session.BasicContext.RMW(ref Key1, ref Input, ref Output);
+    > GetEnumerator() => new(this.ReadClientSession, new());
+    private readonly struct IntersectWithIterator(
+        ManagedHashSet<TKey> other,
+        ClientSession<
+            SpanByte,
+            SpanByte,
+            EqualityEmpty,
+            EqualityEmpty,
+            EqualityEmpty,
+            ManagedIntersectWith,
+            StoreFunctions<
+                SpanByte,
+                SpanByte,
+                SpanByteComparer,
+                SpanByteRecordDisposer
+            >,
+            SpanByteAllocator<
+                StoreFunctions<
+                    SpanByte,
+                    SpanByte,
+                    SpanByteComparer,
+                    SpanByteRecordDisposer
+                >
+            >
+        > session
+    ) : IScanIteratorFunctions<SpanByte, SpanByte>
+    {
+        public bool SingleReader(ref SpanByte key, ref SpanByte value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult)
+        {
+            if (!other.PrivateProtectedContainsKey(ref key))
+            {
+                var input = default(EqualityEmpty);
+                var output = default(EqualityEmpty);
+                var status = session.BasicContext.RMW(ref key, ref input, ref output);
+                if (status.IsPending)
+                {
+                    session.BasicContext.CompletePendingWithOutputs(out var completedOutputs, wait: true);
+                    using (completedOutputs)
+                    {
+                        Debug.Assert(completedOutputs.Next());
+                    }
+                }
+            }
+            cursorRecordResult = CursorRecordResult.Accept;
+            return true;
         }
-        Session.BasicContext.CompletePending(wait: true);
+        public bool ConcurrentReader(ref SpanByte key, ref SpanByte value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult)
+            => this.SingleReader(ref key, ref value, recordMetadata, numberOfRecords, out cursorRecordResult);
+        public bool OnStart(long beginAddress, long endAddress) => true;
+        public void OnStop(bool completed, long numberOfRecords) { }
+        public void OnException(Exception exception, long numberOfRecords) { }
     }
-    public partial void SymmetricExceptWith(ManagedHashSet<TKey> other) {
-        ArgumentNullException.ThrowIfNull(other);
-        var Session = this.SymmetricExceptWith_ClientSession;
-        foreach(var Item in other){
-            var Item0=Item;
-            var KeyBytes = ManagedSerializer<TKey>.Serialize(ref Item0);
-            var Key = SpanByte.FromPinnedSpan(KeyBytes);
-            var Input = default(SpanByte);
-            SpanByteAndMemory Output = default;
-            var Status=Session.BasicContext.RMW(ref Key,ref Input,ref Output);
+    private readonly struct SymmetricExceptWithIterator(
+        ClientSession<
+            SpanByte,
+            SpanByte,
+            SpanByte,
+            SpanByteAndMemory,
+            EqualityEmpty,
+            SymmetricExceptWith,
+            StoreFunctions<
+                SpanByte,
+                SpanByte,
+                SpanByteComparer,
+                SpanByteRecordDisposer
+            >,
+            SpanByteAllocator<
+                StoreFunctions<
+                    SpanByte,
+                    SpanByte,
+                    SpanByteComparer,
+                    SpanByteRecordDisposer
+                >
+            >
+        > session
+    ) : IScanIteratorFunctions<SpanByte, SpanByte>
+    {
+        public bool SingleReader(ref SpanByte key, ref SpanByte value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult)
+        {
+            var input = default(SpanByte);
+            SpanByteAndMemory output = default;
+            var status = session.BasicContext.RMW(ref key, ref input, ref output);
+            if (status.IsPending)
+            {
+                session.BasicContext.CompletePendingWithOutputs(out var completedOutputs, wait: true);
+                using (completedOutputs)
+                {
+                    Debug.Assert(completedOutputs.Next());
+                }
+            }
+            cursorRecordResult = CursorRecordResult.Accept;
+            return true;
         }
-        Session.BasicContext.CompletePending(wait: true);
+        public bool ConcurrentReader(ref SpanByte key, ref SpanByte value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult)
+            => this.SingleReader(ref key, ref value, recordMetadata, numberOfRecords, out cursorRecordResult);
+        public bool OnStart(long beginAddress, long endAddress) => true;
+        public void OnStop(bool completed, long numberOfRecords) { }
+        public void OnException(Exception exception, long numberOfRecords) { }
+    }
+    public partial void IntersectWith(ManagedHashSet<TKey> other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        var session = this.IntersectWith_ClientSession;
+        var iterator = new IntersectWithIterator(other, session);
+        var cursor = 0L;
+        session.IterateLookup(ref iterator, ref cursor, resetCursor: false);
+        session.BasicContext.CompletePending(wait: true);
+    }
+    public partial void SymmetricExceptWith(ManagedHashSet<TKey> other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        var session = this.SymmetricExceptWith_ClientSession;
+        var iterator = new SymmetricExceptWithIterator(session);
+        var cursor = 0L;
+        other.ReadClientSession.IterateLookup(ref iterator, ref cursor, resetCursor: false);
+        session.BasicContext.CompletePending(wait: true);
     }
 }

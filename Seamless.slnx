@@ -1,4 +1,8 @@
-﻿<Solution>
+<Solution>
+  <Folder Name="/solution/">
+    <File Path="copilot-instructions.md" />
+    <File Path="ReadMe.txt" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Seamless.1.1.1/Seamless.1.1.1.csproj" />
     <Project Path="src/Seamless.2.0beta3/Seamless.2.0beta3.csproj" />
@@ -9,8 +13,5 @@
     <Project Path="tests/Test.Seamless.1.1.1/Test.Seamless.1.1.1.csproj" />
     <Project Path="tests/Test.Seamless.2.0beta3/Test.Seamless.2.0beta3.csproj" />
     <Project Path="tests/Test.Seamless/Test.Seamless.shproj" Id="f485746b-4005-416a-8e23-c2a691d7f41d" />
-  </Folder>
-  <Folder Name="/新しいフォルダー1/">
-    <File Path="ReadMe.txt" />
   </Folder>
 </Solution>

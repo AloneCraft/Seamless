@@ -1,4 +1,5 @@
-﻿namespace Seamless.Stores;
+﻿using Seamless.Collections;
+namespace Seamless.Stores;
 
 public abstract partial class UnmanagedCollectionStore<TKey,TValue>:CollectionStore<
     TKey,
@@ -28,10 +29,9 @@ public abstract partial class UnmanagedCollectionStore<TKey,TValue>:CollectionSt
             CheckpointDir) {
     }
 
-    protected override long CompactLog(long compactUntil) =>
-        this.Store.Log.Compact<TValue,bool,EqualityEmpty,SessionFunctions.UnmanagedAdd<TKey,TValue>>(
-            new(),
-            compactUntil,
-            CompactionType.Lookup
-        );
+    protected override long CompactLog(long compactUntil)=>this.Store.Log.Compact<TValue,bool,EqualityEmpty,SessionFunctions.UnmanagedAdd<TKey,TValue>>(
+        new(),
+        compactUntil,
+        CompactionType.Lookup
+    );
 }
