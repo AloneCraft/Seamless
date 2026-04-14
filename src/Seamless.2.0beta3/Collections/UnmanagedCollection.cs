@@ -154,12 +154,8 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     /// <summary>
     /// キー値で存在判定する。
     /// </summary>
-    public bool ContainsKey(TKey Key)=>this.PrivateProtectedContainsKey(
-        TKeySerializer.Serialize(ref Key)
-    );
-    public bool Contains(TKey Key)=>this.PrivateProtectedContainsKey(
-        TKeySerializer.Serialize(ref Key)
-    );
+    public bool ContainsKey(TKey Key)=>this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
+    public bool Contains(TKey Key)=>this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     private protected override Status Read(TKey Key,out TValue Output){
         var ClientSession=this.ReadClientSession;
         Output=default;

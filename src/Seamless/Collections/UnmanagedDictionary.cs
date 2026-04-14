@@ -42,6 +42,7 @@ public partial class UnmanagedDictionary<
         return output.Equals(item.Value);
     }
 
+    //public bool ContainsKey2(TKey Key) =>base.ContainsKey() this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     //public bool ContainsKey(TKey key)=>this.Contains(key);
 
     public partial bool Remove(KeyValuePair<TKey,TValue> item);
