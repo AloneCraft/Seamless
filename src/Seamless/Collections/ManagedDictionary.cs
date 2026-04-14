@@ -21,13 +21,13 @@ public partial class ManagedDictionary<
         TValueSerializer
     >,
     ISeamlessDictionary<TKey,TValue>
-    where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>
-    where TKeySerializer : ISerializer<TKey>
-    where TValueSerializer : ISerializer<TValue> {
+    where TKey:IEquatable<TKey>
+    where TValue:IEquatable<TValue>
+    where TKeySerializer:ISerializer<TKey>
+    where TValueSerializer:ISerializer<TValue> {
     public bool IsReadOnly => false;
     public override bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value){
-        var Status = this.Read(Key,out Value);
+        var Status=this.Read(Key,out Value);
         if(Status.NotFound){
             Value=default;
             return false;
@@ -37,7 +37,7 @@ public partial class ManagedDictionary<
     public TryAddResult TryAdd(TKey Key,TValue Value) =>
         this.PrivateTryAdd(Key,Value);
     public void Add(TKey Key,TValue Value){
-        var Result = this.TryAdd(Key,Value);
+        var Result=this.TryAdd(Key,Value);
         switch(Result){
             case TryAddResult.LogFull:
                 throw this.ThrowLogFull();
@@ -46,7 +46,7 @@ public partial class ManagedDictionary<
     }
     public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
     bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item){
-        var Status = this.Read(item.Key,out _);
+        var Status=this.Read(item.Key,out _);
         Debug.Assert(Status.Found==!Status.NotFound);
         return Status.Found;
     }
@@ -65,8 +65,8 @@ public partial class ManagedDictionary<
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
     public List<KeyValuePair<TKey,TValue>> ToList(){
-        using var Enumerator = this.GetEnumerator();
-        var List = new List<KeyValuePair<TKey,TValue>>();
+        using var Enumerator=this.GetEnumerator();
+        var List=new List<KeyValuePair<TKey,TValue>>();
         while(Enumerator.MoveNext()){
             List.Add(Enumerator.Current);
         }

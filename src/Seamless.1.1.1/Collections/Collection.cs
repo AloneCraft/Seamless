@@ -19,8 +19,8 @@ public abstract class Collection<
     TStoreFunctions,
     TAllocator
 >:IDisposable
-    where TKey : IEquatable<TKey>
-    where TReadFunctions : struct, ISessionFunctions<
+    where TKey:IEquatable<TKey>
+    where TReadFunctions:struct, ISessionFunctions<
         TSessionKey,
         TSessionValue,
         EqualityEmpty,
@@ -28,7 +28,7 @@ public abstract class Collection<
         EqualityEmpty
     >,
     ICreate<TReadFunctions>
-    where TAddFunctions : struct, ISessionFunctions<
+    where TAddFunctions:struct, ISessionFunctions<
         TSessionKey,
         TSessionValue,
         TAddInput,
@@ -36,7 +36,7 @@ public abstract class Collection<
         EqualityEmpty
     >,
     ICreate<TAddFunctions>
-    where TContainsDeleteFunctions : struct, ISessionFunctions<
+    where TContainsDeleteFunctions:struct, ISessionFunctions<
         TSessionKey,
         TSessionValue,
         EqualityEmpty,
@@ -44,11 +44,11 @@ public abstract class Collection<
         EqualityEmpty
     >,
     ICreate<TContainsDeleteFunctions>
-    where TStoreFunctions : IStoreFunctions<
+    where TStoreFunctions:IStoreFunctions<
         TSessionKey,
         TSessionValue
     >
-    where TAllocator : IAllocator<
+    where TAllocator:IAllocator<
         TSessionKey,
         TSessionValue,
         TStoreFunctions
@@ -111,15 +111,15 @@ public abstract class Collection<
         }
     }
     public long GetLongCount() {
-        var Iterator = new CounterIterator();
-        var Cursor = 0L;
+        var Iterator=new CounterIterator();
+        var Cursor=0L;
         this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         return Iterator.Counter;
     }
     private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey) {
-        var Session = this.ContainsDeleteClientSession;
-        var Output = false;
-        var Status = Session.BasicContext.Read(ref SessionKey,ref Output);
+        var Session=this.ContainsDeleteClientSession;
+        var Output=false;
+        var Status=Session.BasicContext.Read(ref SessionKey,ref Output);
         Status=Pending(Session,Status,ref Output);
         return Status.Found;
     }
@@ -134,7 +134,7 @@ public abstract class Collection<
         > CollectionStore
     ) {
         this.CollectionStore=CollectionStore;
-        var Store = CollectionStore.Store;
+        var Store=CollectionStore.Store;
         this.ReadClientSession=Store.NewSession<
             EqualityEmpty,
 
@@ -158,10 +158,10 @@ public abstract class Collection<
         >(TContainsDeleteFunctions.Create());
     }
     public void Clear() {
-        var Session = this.AddClientSession;
+        var Session=this.AddClientSession;
         Session.BasicContext.CompletePending(wait: true);
         Session.Dispose();
-        var Store = this.CollectionStore.Store;
+        var Store=this.CollectionStore.Store;
         Store.Reset();
         this.ReadClientSession=Store.NewSession<
 
@@ -186,7 +186,7 @@ public abstract class Collection<
         >(TContainsDeleteFunctions.Create());
     }
     public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
-        var Status = this.Read(Key,out Value);
+        var Status=this.Read(Key,out Value);
         if(Status.NotFound) {
             Value=default;
             return false;
@@ -212,7 +212,7 @@ public abstract class Collection<
         > Session,
         Status Status
     )
-    where TSessionFunctions0 : struct, ISessionFunctions<
+    where TSessionFunctions0:struct, ISessionFunctions<
         TSessionKey,
         TSessionValue,
         TInput0,
@@ -249,7 +249,7 @@ public abstract class Collection<
         Status Status,
         ref TOutput0 Output
     )
-    where TSessionFunctions0 : struct, ISessionFunctions<
+    where TSessionFunctions0:struct, ISessionFunctions<
         TSessionKey,
         TSessionValue,
         TInput0,
@@ -273,14 +273,14 @@ public abstract class Collection<
     private double MutableFraction => this.CollectionStore.MutableFraction;
 
     private protected OutOfMemoryException ThrowLogFull() {
-        var Log = this.CollectionStore.Store.Log;
+        var Log=this.CollectionStore.Store.Log;
         return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private protected bool WouldOverflowMutable(int KeyLength,int ValueLength) {
         Debug.Assert(this.LogMemorySize>=8192);
-        var Log = this.CollectionStore.Store.Log;
+        var Log=this.CollectionStore.Store.Log;
         return this.CollectionStore.OverflowMutableStrategyKind switch {
             OverflowMutableStrategyKind.Memory => this.WouldOverflowMutable<MemoryOverflowMutableStrategy>(Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
             OverflowMutableStrategyKind.Storage => this.WouldOverflowMutable<StorageOverflowMutableStrategy>(Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
@@ -290,7 +290,7 @@ public abstract class Collection<
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool WouldOverflowMutable<TOverflowMutableStrategy>(long BeginAddress,long TailAddress,int KeyLength,int ValueLength)
-        where TOverflowMutableStrategy : struct, IOverflowMutableStrategy<TOverflowMutableStrategy> {
+        where TOverflowMutableStrategy:struct, IOverflowMutableStrategy<TOverflowMutableStrategy> {
         return TOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,BeginAddress,TailAddress,KeyLength,ValueLength);
     }
 

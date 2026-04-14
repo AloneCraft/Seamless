@@ -143,8 +143,8 @@
 //        {
 //            var コア=this.Arrayコア[z];
 //            var path=new PathF();
-//            Color lineColor=z % 2 == 0 ? Colors.RoyalBlue : Colors.DeepSkyBlue;
-//            canvas.StrokeColor=z % 2 == 0 ? Colors.RoyalBlue : Colors.DeepSkyBlue;
+//            Color lineColor=z % 2 == 0 ? Colors.RoyalBlue:Colors.DeepSkyBlue;
+//            canvas.StrokeColor=z % 2 == 0 ? Colors.RoyalBlue:Colors.DeepSkyBlue;
 //            canvas.StrokeSize=3;
 
 //            for (int x=0; x < stepCount; x++)

@@ -59,6 +59,8 @@
   <ItemGroup>
     <Compile Remove="..\Test.Seamless\CheckpointRecoveryTests.cs" />
     <Compile Remove="..\Test.Seamless\DictionaryGuidEmptyRecoveryTests.cs" />
+    <Compile Remove="..\Test.Seamless\SessionFunctions\ManagedAdd.cs" />
+    <Compile Remove="..\Test.Seamless\SessionFunctions\UnmanagedAdd.cs" />
     <Compile Remove="..\Test.Seamless\StoreCheckpoint.cs" />
     <Compile Remove="TestKeyComparer.cs" />
   </ItemGroup>

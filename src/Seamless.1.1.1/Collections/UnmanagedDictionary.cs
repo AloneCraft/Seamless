@@ -10,10 +10,10 @@ public partial class UnmanagedDictionary<
     TKeySerializer,
     TValueSerializer
 >
-    where TKey : unmanaged, IEquatable<TKey>
-    where TValue : unmanaged, IEquatable<TValue>
-    where TKeySerializer : ISerializer<TKey>
-    where TValueSerializer : ISerializer<TValue> {
+    where TKey:unmanaged, IEquatable<TKey>
+    where TValue:unmanaged, IEquatable<TValue>
+    where TKeySerializer:ISerializer<TKey>
+    where TValueSerializer:ISerializer<TValue> {
 
     private ClientSession<
         TKey,
@@ -63,8 +63,8 @@ public partial class UnmanagedDictionary<
             >
         >
     > Remove_KeyValuePair_ClientSession { get; set; }
-    internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore){
-        var Store = CollectionStore.Store;
+    internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
+        var Store=CollectionStore.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<
             
             EqualityEmpty,
@@ -94,41 +94,41 @@ public partial class UnmanagedDictionary<
         >
     > GetEnumerator() => new(this.ReadClientSession,new());
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator iterator)
-    where TIterator : ScanIteratorFunctions<T,TKey,TValue> {
-        using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
+    where TIterator:ScanIteratorFunctions<T,TKey,TValue> {
+        using var e=new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
         while(e.MoveNext()){
             yield return e.Current;
         }
     }
     private List<T> CreateCollection<TIterator, T>(TIterator iterator) 
-        where TIterator : ScanIteratorFunctions<T,TKey,TValue> {
-        var collection = new List<T>();
-        using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
+        where TIterator:ScanIteratorFunctions<T,TKey,TValue> {
+        var collection=new List<T>();
+        using var e=new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
         while(e.MoveNext()){
             collection.Add(e.Current);
         }
         return collection;
     }
     public partial bool Remove(KeyValuePair<TKey,TValue> item){
-        var Session = this.Remove_KeyValuePair_ClientSession;
-        var Key = item.Key;
+        var Session=this.Remove_KeyValuePair_ClientSession;
+        var Key=item.Key;
         
         
         
         
-        var Input = item.Value;
-        var Output = false;
-        var Status = Session.BasicContext.RMW(ref Key,ref Input,ref Output);
+        var Input=item.Value;
+        var Output=false;
+        var Status=Session.BasicContext.RMW(ref Key,ref Input,ref Output);
         Pending(Session,Status,ref Output);
         return Output;
     }
     public partial bool Remove(TKey key,out TValue value){
-        var Session = this.Remove_TKey_TValue_ClientSession;
+        var Session=this.Remove_TKey_TValue_ClientSession;
         
         
-        var Input = default(EqualityEmpty);
-        var Output = default(TValue);
-        var Status = Session.BasicContext.RMW(ref key,ref Input,ref Output);
+        var Input=default(EqualityEmpty);
+        var Output=default(TValue);
+        var Status=Session.BasicContext.RMW(ref key,ref Input,ref Output);
         Status=Pending(Session,Status,ref Output);
         
         if(Status.Found){
@@ -144,10 +144,10 @@ public partial class UnmanagedDictionary<
 
         if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>()))
             throw this.ThrowLogFull();
-        var session = this.AddClientSession;
+        var session=this.AddClientSession;
 
 
-        var status = session.BasicContext.Upsert(ref key,ref value);
+        var status=session.BasicContext.Upsert(ref key,ref value);
         status=Pending(session,status);
     }
 }

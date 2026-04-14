@@ -6,7 +6,7 @@ namespace Test.Seamless.Collections;
 /// <see cref="Collections.ISet{T}"/> を通じた HashSet テストの生成戦略。
 /// 静的ポリモーフィズムにより具体型を差し替える。
 /// </summary>
-public interface IHashSetTestStrategy<T> where T : IEquatable<T> {
+public interface IHashSetTestStrategy<T> where T:IEquatable<T> {
     /// <summary>インデックスから要素を生成する。</summary>
     static abstract T Elem(int i);
     /// <summary>メモリバックのセットを生成する。</summary>
@@ -19,7 +19,7 @@ public interface IHashSetTestStrategy<T> where T : IEquatable<T> {
 /// セット演算引数用に具体型 <see cref="ManagedHashSet{T}"/> も公開する。
 /// </summary>
 public sealed class SetHandle<T>(IDisposable store,ManagedHashSet<T> set):IDisposable
-    where T : IEquatable<T> {
+    where T:IEquatable<T> {
     /// <summary>Seamless.Collections.ISet{T} 経由でアクセスするセット。</summary>
     public global::Seamless.Collections.ISet<T> Set => set;
 
@@ -36,7 +36,7 @@ public sealed class SetHandle<T>(IDisposable store,ManagedHashSet<T> set):IDispo
 public struct ManagedIntHashSetStrategy:IHashSetTestStrategy<int> {
     public static int Elem(int i) => i;
     public static SetHandle<int> CreateMemorySet(){
-        var store = Factory.Create().Create<int>();
+        var store=Factory.Create().Create<int>();
         return new SetHandle<int>(store,store.Create());
     }
 }
@@ -45,7 +45,7 @@ public struct ManagedIntHashSetStrategy:IHashSetTestStrategy<int> {
 public struct ManagedStringHashSetStrategy:IHashSetTestStrategy<string> {
     public static string Elem(int i) => i.ToString();
     public static SetHandle<string> CreateMemorySet(){
-        var store = Factory.Create().Create<string>();
+        var store=Factory.Create().Create<string>();
         return new SetHandle<string>(store,store.Create());
     }
 }

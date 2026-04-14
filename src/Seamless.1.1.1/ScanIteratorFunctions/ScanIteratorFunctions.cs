@@ -2,12 +2,12 @@
 namespace Seamless.ScanIteratorFunctions;
 
 public abstract class ScanIteratorFunctions<T, TSessionKey, TSessionValue>:IScanIteratorFunctions<TSessionKey,TSessionValue> {
-    public readonly T[] Chunk = new T[Const.Chunk_Length];
+    public readonly T[] Chunk=new T[Const.Chunk_Length];
     public int Count;
     private protected abstract T Deserialize(ref TSessionKey key,ref TSessionValue value);
     public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
         Debug.Assert(!recordMetadata.RecordInfo.Tombstone);
-        var Count = this.Count;
+        var Count=this.Count;
         this.Chunk[Count]=this.Deserialize(ref key,ref value);
         Count++;
         this.Count=Count;

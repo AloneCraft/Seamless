@@ -8,21 +8,21 @@ namespace Test.Seamless.Collections;
 /// </summary>
 public class ModelBasedHashSetTests {
     private enum Op { Add, Remove, Contains, Clear, Count, ExceptWith, IntersectWith, UnionWith, SymmetricExceptWith }
-    private static readonly Op[] Ops = Enum.GetValues<Op>();
+    private static readonly Op[] Ops=Enum.GetValues<Op>();
 
     [Fact, Trait("Category","Unit")]
     public void ManagedHashSet_ランダム操作列がNET10HashSetと一致する(){
-        using var store = Factory.Create().Create<int>();
-        using var subject = store.Create();
-        var oracle = new HashSet<int>();
+        using var store=Factory.Create().Create<int>();
+        using var subject=store.Create();
+        var oracle=new HashSet<int>();
         RunRandomOps(subject,oracle,seed: 42,opCount: 500);
     }
 
     [Fact, Trait("Category","Unit")]
     public void UnmanagedHashSet_ランダム操作列がNET10HashSetと一致する(){
-        using var store = Factory.Create().CreateUnmanagedHashSet<int>();
-        using var subject = store.Create();
-        var oracle = new HashSet<int>();
+        using var store=Factory.Create().CreateUnmanagedHashSet<int>();
+        using var subject=store.Create();
+        var oracle=new HashSet<int>();
         RunRandomOpsUnmanaged(subject,oracle,seed: 123,opCount: 500);
     }
 
@@ -31,21 +31,21 @@ public class ModelBasedHashSetTests {
     [InlineData(1)]
     [InlineData(99)]
     public void ManagedHashSet_複数シードでも一致する(int seed){
-        using var store = Factory.Create().Create<int>();
-        using var subject = store.Create();
-        var oracle = new HashSet<int>();
+        using var store=Factory.Create().Create<int>();
+        using var subject=store.Create();
+        var oracle=new HashSet<int>();
         RunRandomOps(subject,oracle,seed,opCount: 300);
     }
 
     private static void RunRandomOps(ManagedHashSet<int> subject,HashSet<int> oracle,int seed,int opCount){
-        var rng = new Random(seed);
-        using var otherStore = Factory.Create().Create<int>();
-        using var other = otherStore.Create();
-        var otherOracle = new HashSet<int>();
+        var rng=new Random(seed);
+        using var otherStore=Factory.Create().Create<int>();
+        using var other=otherStore.Create();
+        var otherOracle=new HashSet<int>();
 
-        for(var i = 0; i<opCount; i++){
-            var op = Ops[rng.Next(Ops.Length)];
-            var value = rng.Next(100);
+        for(var i=0; i<opCount; i++){
+            var op=Ops[rng.Next(Ops.Length)];
+            var value=rng.Next(100);
 
             switch(op){
                 case Op.Add:
@@ -94,14 +94,14 @@ public class ModelBasedHashSetTests {
     }
 
     private static void RunRandomOpsUnmanaged(UnmanagedHashSet<int> subject,HashSet<int> oracle,int seed,int opCount){
-        var rng = new Random(seed);
-        using var otherStore = Factory.Create().CreateUnmanagedHashSet<int>();
-        using var other = otherStore.Create();
-        var otherOracle = new HashSet<int>();
+        var rng=new Random(seed);
+        using var otherStore=Factory.Create().CreateUnmanagedHashSet<int>();
+        using var other=otherStore.Create();
+        var otherOracle=new HashSet<int>();
 
-        for(var i = 0; i<opCount; i++){
-            var op = Ops[rng.Next(Ops.Length)];
-            var value = rng.Next(100);
+        for(var i=0; i<opCount; i++){
+            var op=Ops[rng.Next(Ops.Length)];
+            var value=rng.Next(100);
 
             switch(op){
                 case Op.Add:
@@ -151,9 +151,9 @@ public class ModelBasedHashSetTests {
     private static void SyncOther(ManagedHashSet<int> other,HashSet<int> otherOracle,Random rng){
         other.Clear();
         otherOracle.Clear();
-        var count = rng.Next(10);
-        for(var j = 0; j<count; j++){
-            var v = rng.Next(100);
+        var count=rng.Next(10);
+        for(var j=0; j<count; j++){
+            var v=rng.Next(100);
             other.Add(v);
             otherOracle.Add(v);
         }
@@ -162,9 +162,9 @@ public class ModelBasedHashSetTests {
     private static void SyncOtherUnmanaged(UnmanagedHashSet<int> other,HashSet<int> otherOracle,Random rng){
         other.Clear();
         otherOracle.Clear();
-        var count = rng.Next(10);
-        for(var j = 0; j<count; j++){
-            var v = rng.Next(100);
+        var count=rng.Next(10);
+        for(var j=0; j<count; j++){
+            var v=rng.Next(100);
             other.Add(v);
             otherOracle.Add(v);
         }

@@ -1,4 +1,4 @@
-using Seamless.Devices;
+﻿using Seamless.Devices;
 
 namespace Seamless.Stores;
 
@@ -13,7 +13,7 @@ public abstract partial class CollectionStore<
     TSessionValue,
     TStoreFunctions,
     TAllocator
-> : CollectionStore, IDisposable {
+>:CollectionStore, IDisposable {
     public long LogMemorySize{get;}
     public double MutableFraction{get;}
     internal OverflowMutableStrategyKind OverflowMutableStrategyKind{get;}
@@ -23,7 +23,7 @@ public abstract partial class CollectionStore<
         TStoreFunctions StoreFunctions,
         Func<AllocatorSettings,TStoreFunctions,TAllocator> allocatorFactory,
         long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction)
-        : this(StoreFunctions,allocatorFactory,IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory){
+       :this(StoreFunctions,allocatorFactory,IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory){
     }
 
     public void AssertCheckpointDir(){
