@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using Seamless.Stores;
 namespace Seamless.SessionFunctions;
 
 /// <summary>
@@ -6,9 +7,10 @@ namespace Seamless.SessionFunctions;
 /// Tsavorite の Type-Based Dispatch により Read と RMW が独立してディスパッチされるため、
 /// 非競合な Contains と Delete を 1 クラスに統合できる。
 /// </summary>
-public partial struct ManagedDelete:
+public struct ManagedContainsDelete:
     ISessionFunctions<SpanByte,SpanByte,EqualityEmpty,bool,EqualityEmpty>,
-    ICreate<ManagedDelete>{
+    ICreate<ManagedContainsDelete>{
+    public static ManagedContainsDelete Create()=>new();
     // Contains: キー存在時に dst=true で応答
     public bool SingleReader(ref SpanByte key,ref EqualityEmpty input,ref SpanByte value,ref bool dst,ref ReadInfo readInfo){
         dst=true;

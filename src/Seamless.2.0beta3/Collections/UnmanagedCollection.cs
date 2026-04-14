@@ -1,5 +1,6 @@
 ﻿using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
+using Seamless.Stores;
 
 using System.Collections;
 using System.Diagnostics;
@@ -150,6 +151,8 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         }
         public void Dispose(){
         }
+    }
+    protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
     }
     /// <summary>
     /// キー値で存在判定する。

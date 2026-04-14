@@ -1,12 +1,13 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Seamless.Stores;
 namespace Seamless.SessionFunctions;
 
 /// <summary>
 /// UnmanagedCollection 用セッション関数。Add は Upsert と RMW の両方で呼ばれるため、両方の処理を実装する必要がある。
 /// </summary>
-public readonly partial struct UnmanagedRead<TKey,TValue>:
+public readonly  struct UnmanagedRead<TKey,TValue>:
     ISessionFunctions<EqualityEmpty,TValue,EqualityEmpty>,
     ICreate<UnmanagedRead<TKey,TValue>>
     where TKey:unmanaged,IEquatable<TKey>

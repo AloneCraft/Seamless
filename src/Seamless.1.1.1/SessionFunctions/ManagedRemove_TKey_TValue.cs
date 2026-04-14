@@ -5,7 +5,7 @@ using System.Buffers;
 /// <summary>
 /// RMWで値の読み取りと削除を同時に行うセッション関数。
 /// </summary>
-internal readonly partial struct ManagedRemove_TKey_TValue():
+internal readonly  struct ManagedRemove_TKey_TValue():
     ISessionFunctions<SpanByte,SpanByte,EqualityEmpty,SpanByteAndMemory,EqualityEmpty>{
     private readonly MemoryPool<byte> memoryPool=MemoryPool<byte>.Shared;
 

@@ -1,9 +1,10 @@
 ﻿using System.Collections;
+using System.Diagnostics;
 
+using System.Runtime.InteropServices;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
-using System.Runtime.InteropServices;
 namespace Seamless.Collections;
 
 public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>:Collection<
@@ -14,10 +15,43 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     SpanByteAndMemory,//TReadOutput
     SpanByte,//TAddInput
     ManagedRead,//TReadFunctions
+    
+    
+    
     ManagedAdd,//TAddFunctions
-    ManagedDelete,//TContainsDeleteFunction
+    
+    
+    
+    ManagedContainsDelete,//TContainsDeleteFunction
+    
+    
+    
     ManagedStoreFunctions,//TStoreFunctions
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     ManagedAllocator//TAllocator
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 >
     where TKey:IEquatable<TKey>
     where TValue:IEquatable<TValue>
@@ -96,7 +130,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
                 return false;
             }
             Iterator.Count=0;
-            var r=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            var r=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor:false);
             var Count=Iterator.Count;
             this.Count=Count;
             if(!r)
@@ -126,12 +160,13 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     }
     public bool Contains(TKey Key)=>this.ContainsKey(Key);
     private protected override Status Read(TKey Key,out TValue Value){
-        var KeyBytes=TKeySerializer.Serialize(ref Key);
         var ClientSession=this.ReadClientSession;
+        var KeyBytes=TKeySerializer.Serialize(ref Key);
         var FixedKey=SpanByte.FromPinnedSpan(KeyBytes);
         var Output=default(SpanByteAndMemory);
         var Status=ClientSession.BasicContext.Read(ref FixedKey,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
+        Debug.Assert(Status.IsCompleted);
         if(Status.Found){
             Value=TValueSerializer.Deserialize(Output.AsReadOnlySpan());
         }else{
@@ -147,6 +182,8 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         var Output=false;
         var Status=ClientSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
+        Debug.Assert(Status.IsCompleted);
+
         return Output;
     }
     private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value){
@@ -154,12 +191,14 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         var ValueBytes=TValueSerializer.Serialize(ref Value);
         if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
             return TryAddResult.LogFull;
-        var Session=this.AddClientSession;
+        var ClientSession=this.AddClientSession;
         var FixedKey=SpanByte.FromPinnedSpan(KeyBytes);
         var FixedInput=SpanByte.FromPinnedSpan(ValueBytes);
         var Output=false;
-        var Status=Session.BasicContext.RMW(ref FixedKey,ref FixedInput,ref Output);
-        Status=Pending(Session,Status,ref Output);
+        var Status=ClientSession.BasicContext.RMW(ref FixedKey,ref FixedInput,ref Output);
+        Status=Pending(ClientSession,Status,ref Output);
+        Debug.Assert(Status.IsCompleted);
+
         if(Output)
             return TryAddResult.Success;
         return TryAddResult.KeyAlreadyExists;

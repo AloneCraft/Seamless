@@ -1,12 +1,14 @@
-﻿namespace Seamless.SessionFunctions;
+﻿using Seamless.Stores;
+namespace Seamless.SessionFunctions;
 
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 /// <summary>
 /// ManagedCollection 用セッション関数。ManagedRead は Read でのみ使われる。
 /// </summary>
-public readonly partial struct ManagedRead():
-    ISessionFunctions<EqualityEmpty,ManagedOutput,EqualityEmpty> {
+public readonly struct ManagedRead():
+    ISessionFunctions<EqualityEmpty,ManagedOutput,EqualityEmpty>,ICreate<ManagedRead>{
+    public static ManagedRead Create()=>new();
     private readonly MemoryPool<byte> memoryPool=MemoryPool<byte>.Shared;
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref ManagedOutput output,ref ReadInfo readInfo)
         where TSourceLogRecord:ISourceLogRecord {

@@ -21,7 +21,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         TKey,
         TValue
     >,
-    UnmanagedDelete<
+    UnmanagedContainsDelete<
         TKey,
         TValue
     >,
@@ -150,39 +150,54 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         public void Dispose(){
         }
     }
-    /// <summary>
-    /// キーの存在を判定する。
-    /// </summary>
-    public bool ContainsKey(TKey Key)=>this.PrivateProtectedContainsKey(
-        ref Key
-    );
-    public bool Contains(TKey Key)=>this.PrivateProtectedContainsKey(
-        ref Key
-    );
+    protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
+    }
+    public bool ContainsKey(TKey Key){
+        
+        
+        return this.PrivateProtectedContainsKey(ref Key);
+    }
+    public bool Contains(TKey Key)=>this.ContainsKey(Key);
     private protected override Status Read(TKey Key,out TValue Output){
         var ClientSession=this.ReadClientSession;
+
+
         Output=default;
         var Status=ClientSession.BasicContext.Read(ref Key,ref Output);
-        return Pending(ClientSession,Status,ref Output);
+        Status=Pending(ClientSession,Status,ref Output);
+        Debug.Assert(Status.IsCompleted);
+        return Status;
     }
+    
+    
+    
+    
+    
+    
     public bool Remove(TKey key){
         var ClientSession=this.ContainsDeleteClientSession;
+
 
         var Input=default(EqualityEmpty);
         var Output=false;
         var Status=ClientSession.BasicContext.RMW(ref key,ref Input,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
+        Debug.Assert(Status.IsCompleted);
         Debug.Assert(Status.Found!=Status.NotFound);
         return Output;
     }
     private protected override TryAddResult PrivateTryAdd(TKey key,TValue value){
+
+
         if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
-
         var ClientSession=this.AddClientSession;
+
+        
         var Output=false;
         var Status=ClientSession.BasicContext.RMW(ref key,ref value,ref Output);
         Status=Pending(ClientSession,Status);
+        Debug.Assert(Status.IsCompleted);
         Debug.Assert(Status.NotFound==Output);
         if(Output)
             return TryAddResult.Success;
