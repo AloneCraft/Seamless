@@ -17,17 +17,9 @@
     <Compile Include="Collections\ManagedCollection.cs" />
     <Compile Include="Collections\ManagedDictionary.cs" />
     <Compile Include="Collections\ManagedHashSet.cs" />
-    <Compile Include="Collections\MemoryManagedDictionary.cs" />
-    <Compile Include="Collections\MemoryManagedHashSet.cs" />
-    <Compile Include="Collections\MemoryUnmanagedDictionary.cs" />
-    <Compile Include="Collections\MemoryUnmanagedHashSet.cs" />
     <Compile Include="Collections\Serializers\UnmanagedSerializer.cs" />
     <Compile Include="Collections\Serializers\ManagedSerializer.cs" />
     <Compile Include="Collections\Serializers\ISerializer.cs" />
-    <Compile Include="Collections\StorageManagedDictionary.cs" />
-    <Compile Include="Collections\StorageManagedHashSet.cs" />
-    <Compile Include="Collections\StorageUnmanagedDictionary.cs" />
-    <Compile Include="Collections\StorageUnmanagedHashSet.cs" />
     <Compile Include="Collections\TryAddResult.cs" />
     <Compile Include="Collections\UnmanagedCollection.cs" />
     <Compile Include="Collections\UnmanagedDictionary.cs" />
@@ -51,20 +43,12 @@
     <Compile Include="Stores\ICreate.cs" />
     <Compile Include="Stores\ManagedCollectionStore.cs" />
     <Compile Include="Stores\ManagedDictionaryStore.cs" />
-    <Compile Include="Stores\MemoryManagedDictionaryStore.cs" />
-    <Compile Include="Stores\MemoryManagedHashSetStore.cs" />
-    <Compile Include="Stores\MemoryUnmanagedDictionaryStore.cs" />
-    <Compile Include="Stores\StorageManagedDictionaryStore.cs" />
-    <Compile Include="Stores\StorageManagedHashSetStore.cs" />
-    <Compile Include="Stores\StorageUnmanagedDictionaryStore.cs" />
+    <Compile Include="Stores\ManagedHashSetStore.cs" />
+    <Compile Include="Stores\OverflowMutableStrategy.cs" />
     <Compile Include="Stores\UnmanagedCollectionStore.cs" />
     <Compile Include="Stores\UnmanagedDictionaryStore.cs" />
     <Compile Include="Stores\UnmanagedHashSetStore.cs" />
     <Compile Include="StructDictionaryFeature.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="SessionFunctions\Managed\" />
-    <Folder Include="SessionFunctions\Unmanaged\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="SessionFunctions\Document.txt" />
