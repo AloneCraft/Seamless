@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using Seamless.Stores;
 namespace Seamless.SessionFunctions;
 
 public enum EInput { }
@@ -8,7 +9,7 @@ public enum EOutput { }
 /// </summary>
 /// <typeparam name="TKey"></typeparam>
 /// <typeparam name="TValue"></typeparam>
-public readonly partial struct UnmanagedAdd<TKey, TValue>:
+public readonly  struct UnmanagedAdd<TKey, TValue>:
     ISessionFunctions<TKey,TValue,TValue,bool,EqualityEmpty>,
     ICreate<UnmanagedAdd<TKey,TValue>>
     where TKey:unmanaged, IEquatable<TKey>

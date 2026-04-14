@@ -4,4 +4,4 @@
 /// キーが存在する場合は値をOutputにコピーしてからExpireAndStopで論理削除する。
 /// キーが存在しない場合はNeedInitialUpdate=falseでNotFoundを返す。
 /// </summary>
-internal readonly partial struct ManagedRemove_TKey_TValue;
+internal readonly  struct ManagedRemove_TKey_TValue;

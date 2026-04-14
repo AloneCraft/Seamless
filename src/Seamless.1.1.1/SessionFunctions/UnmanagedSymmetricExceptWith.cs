@@ -1,8 +1,9 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Seamless.Stores;
 namespace Seamless.SessionFunctions;
 
-public readonly partial struct UnmanagedSymmetricExceptWith<TKey,TValue>:
+public readonly  struct UnmanagedSymmetricExceptWith<TKey,TValue>:
     ISessionFunctions<TKey,TValue,EqualityEmpty,EqualityEmpty,EqualityEmpty>,
     ICreate<UnmanagedSymmetricExceptWith<TKey,TValue>>
     where TKey:unmanaged,IEquatable<TKey>

@@ -3,7 +3,7 @@ namespace Seamless.SessionFunctions;
 /// <summary>
 /// RMWでKey,Value両方が一致するエントリのみ削除するセッション関数。
 /// </summary>
-internal readonly partial struct ManagedRemove_KeyValuePair():
+internal readonly  struct ManagedRemove_KeyValuePair():
     ISessionFunctions<SpanByte,SpanByte,SpanByte,bool,EqualityEmpty>{
     [ExcludeFromCodeCoverage]
     public bool SingleReader(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref bool dst,ref ReadInfo readInfo)=>

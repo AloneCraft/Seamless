@@ -9,7 +9,5 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     public sealed partial class KeyIterator;
     internal sealed partial class ValueIterator;
     public sealed partial class KeyValueIterator;
-    protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
-    }
     //public sealed partial class CounterIterator:CounterIteratorBase;
 }

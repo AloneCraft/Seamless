@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Seamless.Stores;
 namespace Seamless.SessionFunctions;
 
 /// <summary>
@@ -7,7 +8,7 @@ namespace Seamless.SessionFunctions;
 /// Tsavorite の Type-Based Dispatch により Read と RMW が独立してディスパッチされるため、
 /// 非競合な Contains と Delete を 1 クラスに統合できる。
 /// </summary>
-public readonly partial struct UnmanagedContainsDelete<TKey,TValue>:
+public readonly struct UnmanagedContainsDelete<TKey,TValue>:
     ISessionFunctions<TKey,TValue,EqualityEmpty,bool,EqualityEmpty>,
     ICreate<UnmanagedContainsDelete<TKey,TValue>>
     where TKey:unmanaged,IEquatable<TKey>

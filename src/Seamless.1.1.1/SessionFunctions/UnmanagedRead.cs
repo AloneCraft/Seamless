@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Seamless.Stores;
 namespace Seamless.SessionFunctions;
 //public readonly partial struct ManagedRead():
 //    ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,EqualityEmpty>{
@@ -9,7 +10,7 @@ namespace Seamless.SessionFunctions;
 /// </summary>
 /// <typeparam name="TKey"></typeparam>
 /// <typeparam name="TValue"></typeparam>
-public readonly partial struct UnmanagedRead<TKey,TValue>:
+public readonly struct UnmanagedRead<TKey,TValue>:
     ISessionFunctions<TKey,TValue,EqualityEmpty,TValue,EqualityEmpty>,
     ICreate<UnmanagedRead<TKey,TValue>>
     where TKey:unmanaged,IEquatable<TKey>

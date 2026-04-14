@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace Seamless.SessionFunctions;
 
-public readonly partial struct UnmanagedRemove_TKey_TValue<TKey,TValue>:
+public readonly  struct UnmanagedRemove_TKey_TValue<TKey,TValue>:
     ISessionFunctions<TKey,TValue,EqualityEmpty,TValue,EqualityEmpty>
     where TKey:unmanaged,IEquatable<TKey>
     where TValue:unmanaged,IEquatable<TValue>{

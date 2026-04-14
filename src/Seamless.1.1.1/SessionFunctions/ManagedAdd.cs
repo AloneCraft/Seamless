@@ -1,10 +1,14 @@
-﻿namespace Seamless.SessionFunctions;
+﻿using Seamless.Stores;
+
+namespace Seamless.SessionFunctions;
 
 /// <summary>
 /// ManagedCollection 用セッション関数。Add は Upsert と RMW の両方で呼ばれるため、両方の処理を実装する必要がある。
 /// </summary>
-public readonly partial struct ManagedAdd:
-    ISessionFunctions<ManagedSessionValue,ManagedSessionValue,ManagedSessionValue,bool,EqualityEmpty> {
+public readonly  struct ManagedAdd:
+    ISessionFunctions<ManagedSessionValue,ManagedSessionValue,ManagedSessionValue,bool,EqualityEmpty>,ICreate<ManagedAdd> {
+    public static ManagedAdd Create()=>new();
+
     public bool SingleReader(ref ManagedSessionValue key,ref ManagedSessionValue input,ref ManagedSessionValue value,ref bool dst,ref ReadInfo readInfo) {
         throw new NotSupportedException("ManagedAddクラスのRMWでのみ使われる");
     }

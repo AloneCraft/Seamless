@@ -1,10 +1,13 @@
-﻿namespace Seamless.SessionFunctions;
+﻿using System.Runtime.CompilerServices;
+using Seamless.Stores;
+namespace Seamless.SessionFunctions;
 
 /// <summary>
 /// ManagedCollection 用セッション関数。ManagedAdd は RMW と Upsert の両方で使われる。RMWではAddセマンティクス（キー既存時は拒否）。
 /// </summary>
-public readonly partial struct ManagedAdd:
-    ISessionFunctions<ManagedSessionKey,bool,EqualityEmpty> {
+public readonly  struct ManagedAdd:
+    ISessionFunctions<ManagedSessionKey,bool,EqualityEmpty>,ICreate<ManagedAdd> {
+    public static ManagedAdd Create()=>new();
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref ManagedSessionKey input,ref bool output,ref ReadInfo readInfo)
         where TSourceLogRecord:ISourceLogRecord {
         throw new NotSupportedException("ManagedAddクラスのRMWでのみ使われる");
