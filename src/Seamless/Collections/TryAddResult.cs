@@ -1,6 +1,7 @@
-namespace Seamless.Collections;
+﻿namespace Seamless.Collections;
+
 public enum TryAddResult{
-	Success,
-	LogFull,
+    Success,
+    LogFull,
     KeyAlreadyExists,
 }

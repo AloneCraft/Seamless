@@ -3,7 +3,6 @@ using System.Diagnostics.CodeAnalysis;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
-
 public abstract partial class Collection<
     TKey,
     TValue,
@@ -46,7 +45,11 @@ public abstract partial class Collection<
 
 
 
-    where TAllocator:IAllocator<TStoreFunctions>{
+    where TAllocator:IAllocator<
+        
+        
+        TStoreFunctions
+    >{
     private protected ClientSession<
         FixedSpanByteKey,
 
@@ -56,7 +59,7 @@ public abstract partial class Collection<
         TReadFunctions,
         TStoreFunctions,
         TAllocator
-    > ReadClientSession{get;private set;}
+    > ReadClientSession{get; private set;}
     private protected ClientSession<
         FixedSpanByteKey,
 
@@ -66,7 +69,7 @@ public abstract partial class Collection<
         TAddFunctions,
         TStoreFunctions,
         TAllocator
-    > AddClientSession{get;private set;}
+    > AddClientSession{get; private set;}
     private protected ClientSession<
         FixedSpanByteKey,
 
@@ -76,7 +79,7 @@ public abstract partial class Collection<
         TContainsDeleteFunctions,
         TStoreFunctions,
         TAllocator
-    > ContainsDeleteClientSession{get;private set;}
+    > ContainsDeleteClientSession{get; private set;}
     private readonly CollectionStore<
         TKey,
         TValue,
@@ -85,13 +88,12 @@ public abstract partial class Collection<
         TStoreFunctions,
         TAllocator
     > CollectionStore;
-    public partial class CounterIterator:IScanIteratorFunctions{
+    public sealed class CounterIterator:IScanIteratorFunctions{
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord:ISourceLogRecord{
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-
 
 
 
@@ -110,6 +112,156 @@ public abstract partial class Collection<
         var Cursor=0L;
         this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor:false);
         return Iterator.Counter;
+    }
+    private protected bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes){
+        var Session=this.ContainsDeleteClientSession;
+        var Output=false;
+        var Status=Session.BasicContext.Read((FixedSpanByteKey)KeyBytes,ref Output);
+        Status=Pending(Session,Status,ref Output);
+        return Status.Found;
+    }
+    protected Collection(
+        CollectionStore<
+            TKey,
+            TValue,
+
+
+            TStoreFunctions,
+            TAllocator
+        > CollectionStore
+    ){
+        this.CollectionStore=CollectionStore;
+        var Store=CollectionStore.Store;
+        this.ReadClientSession=Store.NewSession<
+            FixedSpanByteKey,
+            EqualityEmpty,
+            TReadOutput,
+            EqualityEmpty,
+            TReadFunctions
+        >(TReadFunctions.Create());
+        this.AddClientSession=Store.NewSession<
+            FixedSpanByteKey,
+            TAddInput,
+            bool,
+            EqualityEmpty,
+            TAddFunctions
+        >(TAddFunctions.Create());
+        this.ContainsDeleteClientSession=Store.NewSession<
+            FixedSpanByteKey,
+            EqualityEmpty,
+            bool,
+            EqualityEmpty,
+            TContainsDeleteFunctions
+        >(TContainsDeleteFunctions.Create());
+    }
+    public void Clear(){
+        var Session=this.AddClientSession;
+        Session.BasicContext.CompletePending(wait:true);
+        Session.Dispose();
+        var Store=this.CollectionStore.Store;
+        Store.Reset();
+        this.ReadClientSession=Store.NewSession<
+            FixedSpanByteKey,
+            EqualityEmpty,
+            TReadOutput,
+            EqualityEmpty,
+            TReadFunctions
+        >(TReadFunctions.Create());
+        this.AddClientSession=Store.NewSession<
+            FixedSpanByteKey,
+            TAddInput,
+            bool,
+            EqualityEmpty,
+            TAddFunctions
+        >(TAddFunctions.Create());
+        this.ContainsDeleteClientSession=Store.NewSession<
+            FixedSpanByteKey,
+            EqualityEmpty,
+            bool,
+            EqualityEmpty,
+            TContainsDeleteFunctions
+        >(TContainsDeleteFunctions.Create());
+    }
+    public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value){
+        var Status=this.Read(Key,out Value);
+        if(Status.NotFound){
+            Value=default;
+            return false;
+        }
+        return true;
+    }
+    private protected abstract TryAddResult PrivateTryAdd(TKey Key,TValue Value);
+    private protected static Status Pending<
+        TInput0,
+        TOutput0,
+
+        TSessionFunctions0
+    >(
+        ClientSession<
+            FixedSpanByteKey,
+
+            TInput0,
+            TOutput0,
+            EqualityEmpty,
+            TSessionFunctions0,
+            TStoreFunctions,
+            TAllocator
+        > Session,
+        Status Status
+    )
+    where TSessionFunctions0:struct,ISessionFunctions<
+
+
+        TInput0,
+        TOutput0,
+        EqualityEmpty
+    >{
+        if(Status.IsPending){
+            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
+            using(CompletedOutputs){
+                Debug.Assert(CompletedOutputs.Next());
+                Status=CompletedOutputs.Current.Status;
+            }
+        }else{
+        }
+        return Status;
+    }
+    private protected static Status Pending<
+        TInput0,
+        TOutput0,
+
+        TSessionFunctions0
+    >(
+        ClientSession<
+            FixedSpanByteKey,
+
+            TInput0,
+            TOutput0,
+            EqualityEmpty,
+            TSessionFunctions0,
+            TStoreFunctions,
+            TAllocator
+        > Session,
+        Status Status,
+        ref TOutput0 Output
+    )
+    where TSessionFunctions0:struct,ISessionFunctions<
+
+
+        TInput0,
+        TOutput0,
+        EqualityEmpty
+    >{
+        if(Status.IsPending){
+            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
+            using(CompletedOutputs){
+                Debug.Assert(CompletedOutputs.Next());
+                Status=CompletedOutputs.Current.Status;
+                Output=CompletedOutputs.Current.Output;
+            }
+        }else{
+        }
+        return Status;
     }
     private protected readonly struct IntersectWithIterator<TCollection>(
         TCollection Self,
@@ -203,14 +355,6 @@ public abstract partial class Collection<
         public void OnException(Exception exception,long numberOfRecords){}
         public void OnStop(bool completed,long numberOfRecords){}
     }
-    private protected bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes){
-        var Session=this.ContainsDeleteClientSession;
-        var FixedKey=(FixedSpanByteKey)KeyBytes;
-        var Output=false;
-        var Status=Session.BasicContext.Read(FixedKey,ref Output);
-        Status=Pending(Session,Status,ref Output);
-        return Status.Found;
-    }
     private protected void IntersectWith<TCollection>(
         TCollection Self,
         TCollection Other,
@@ -273,144 +417,4 @@ public abstract partial class Collection<
         Other.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor:false);
         Session.BasicContext.CompletePending(wait:true);
     }
-    protected Collection(
-        CollectionStore<
-            TKey,
-            TValue,
-
-
-            TStoreFunctions,
-            TAllocator
-        > CollectionStore
-    ){
-        this.CollectionStore=CollectionStore;
-        var Store=CollectionStore.Store;
-        this.ReadClientSession=Store.NewSession<
-            FixedSpanByteKey,
-            EqualityEmpty,
-            TReadOutput,
-            EqualityEmpty,
-            TReadFunctions
-        >(TReadFunctions.Create());
-        this.AddClientSession=Store.NewSession<
-            FixedSpanByteKey,
-            TAddInput,
-            bool,
-            EqualityEmpty,
-            TAddFunctions
-        >(TAddFunctions.Create());
-        this.ContainsDeleteClientSession=Store.NewSession<
-            FixedSpanByteKey,
-            EqualityEmpty,
-            bool,
-            EqualityEmpty,
-            TContainsDeleteFunctions
-        >(TContainsDeleteFunctions.Create());
-    }
-    public void Clear(){
-        var Session=this.AddClientSession;
-        Session.BasicContext.CompletePending(wait:true);
-        Session.Dispose();
-        var Store=this.CollectionStore.Store;
-        Store.Reset();
-        this.ReadClientSession=Store.NewSession<
-            FixedSpanByteKey,
-            EqualityEmpty,
-            TReadOutput,
-            EqualityEmpty,
-            TReadFunctions
-        >(TReadFunctions.Create());
-        this.AddClientSession=Store.NewSession<
-            FixedSpanByteKey,
-            TAddInput,
-            bool,
-            EqualityEmpty,
-            TAddFunctions
-        >(TAddFunctions.Create());
-        this.ContainsDeleteClientSession=Store.NewSession<
-            FixedSpanByteKey,
-            EqualityEmpty,
-            bool,
-            EqualityEmpty,
-            TContainsDeleteFunctions
-        >(TContainsDeleteFunctions.Create());
-    }
-    private protected static Status Pending<
-        TInput0,
-        TOutput0,
-
-        TSessionFunctions0
-    >(
-        ClientSession<
-            FixedSpanByteKey,
-
-            TInput0,
-            TOutput0,
-            EqualityEmpty,
-            TSessionFunctions0,
-            TStoreFunctions,
-            TAllocator
-        > Session,Status Status
-    )
-        where TSessionFunctions0:struct,ISessionFunctions<
-
-
-            TInput0,
-            TOutput0,
-            EqualityEmpty
-        >{
-        if(Status.IsPending){
-            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
-            using(CompletedOutputs){
-                Debug.Assert(CompletedOutputs.Next());
-                Status=CompletedOutputs.Current.Status;
-            }
-        } else{
-        }
-        return Status;
-    }
-    private protected static Status Pending<
-        TInput0,
-        TOutput0,
-
-        TSessionFunctions0
-    >(
-        ClientSession<
-            FixedSpanByteKey,
-
-            TInput0,
-            TOutput0,
-            EqualityEmpty,
-            TSessionFunctions0,
-            TStoreFunctions,
-            TAllocator
-        > Session,Status Status,ref TOutput0 Output
-    )
-        where TSessionFunctions0:struct,ISessionFunctions<
-
-
-            TInput0,
-            TOutput0,
-            EqualityEmpty
-        >{
-        if(Status.IsPending){
-            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
-            using(CompletedOutputs){
-                Debug.Assert(CompletedOutputs.Next());
-                Status=CompletedOutputs.Current.Status;
-                Output=CompletedOutputs.Current.Output;
-            }
-        } else{
-        }
-        return Status;
-    }
-    public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)]out TValue Value){
-        var Status=this.Read(Key,out Value);
-        if(Status.NotFound){
-            Value=default;
-            return false;
-        }
-        return true;
-    }
-    private protected abstract TryAddResult PrivateTryAdd(TKey Key,TValue Value);
 }

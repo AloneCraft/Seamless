@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 namespace Seamless.Collections;
+
 public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>:Collection<
     TKey,
     TValue,
@@ -179,7 +180,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     private protected override TryAddResult PrivateTryAdd(TKey key,TValue value){
         if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
-            
+
         var ClientSession=this.AddClientSession;
         var Output=false;
         var Status=ClientSession.BasicContext.RMW(ref key,ref value,ref Output);

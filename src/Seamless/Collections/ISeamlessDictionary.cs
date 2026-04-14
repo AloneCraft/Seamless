@@ -8,24 +8,23 @@ namespace Seamless.Collections;
 /// <see cref="IsDisposed"/>、<see cref="EntryCount"/>、<see cref="TryAdd"/>、
 /// <see cref="Remove(TKey,out TValue)"/> を公開する。
 /// </summary>
-public interface ISeamlessDictionary<TKey, TValue> : IDictionary<TKey, TValue>,IReadOnlyDictionary<TKey,TValue>,IDisposable
-    where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>
-{
+public interface ISeamlessDictionary<TKey,TValue>:IDictionary<TKey,TValue>,IReadOnlyDictionary<TKey,TValue>,IDisposable
+    where TKey:IEquatable<TKey>
+    where TValue:IEquatable<TValue>{
     /// <summary>このインスタンスが既に破棄されているかどうかを取得する。</summary>
-    bool IsDisposed { get; }
+    bool IsDisposed{get;}
     /// <summary>ストアに格納されているエントリ数を取得する。</summary>
-    long EntryCount { get; }
+    long EntryCount{get;}
     /// <summary>キーが存在しない場合のみ追加する。</summary>
-    new TryAddResult TryAdd(TKey key, TValue value);
+    new TryAddResult TryAdd(TKey key,TValue value);
     /// <summary>キーを削除し、削除された値を返す。</summary>
-    bool Remove(TKey key, [MaybeNullWhen(false)] out TValue value);
+    bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value);
     // IDictionary<TKey,TValue> と IReadOnlyDictionary<TKey,TValue> の両方に同名メンバーが存在するため、
     // new で単一のスロットとして宣言し、呼び出し側のあいまいさを解消する。
     new bool ContainsKey(TKey key);
-    new bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value);
-    new TValue this[TKey key] { get; set; }
-    new int Count { get; }
-    new ICollection<TKey> Keys { get; }
-    new ICollection<TValue> Values { get; }
+    new bool TryGetValue(TKey key,[MaybeNullWhen(false)] out TValue value);
+    new TValue this[TKey key]{get; set;}
+    new int Count{get;}
+    new ICollection<TKey> Keys{get;}
+    new ICollection<TValue> Values{get;}
 }

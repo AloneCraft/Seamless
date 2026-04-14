@@ -6,14 +6,14 @@
 //using StoreFunc = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>;
 //public class CheckpointRecoveryTests{
 //    public static class Const{
-//        public const int IndexSizeBits = 6; 
+//        public const int IndexSizeBits = 6;
 //        public const int PageSizeBits = 12;
 //        public const int MemorySizeBits = PageSizeBits+1;
 //        public const long IndexSize =1L<<IndexSizeBits;
 //        public const long LogMemorySize=1L<<MemorySizeBits;
 //        public const long PageSize  =1L<<PageSizeBits;
 //        public const long SegmentSize=PageSize*1;
-//        public const long MinObjectLogCapacity=1L<<22; 
+//        public const long MinObjectLogCapacity=1L<<22;
 //    }
 //    public readonly struct Add():ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty> {
 //        private readonly MemoryPool<byte> memoryPool = MemoryPool<byte>.Shared;

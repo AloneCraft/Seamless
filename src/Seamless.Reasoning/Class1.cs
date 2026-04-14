@@ -1,4 +1,5 @@
 ﻿namespace Seamless.Reasoning;
+
 public record BenchmarkConfig(
     long BufferSize,      // バッファサイズ
     int LoopCount,        // ループ回数
@@ -15,7 +16,7 @@ public record BenchmarkResult(
 );
 
 // ベンチマーク本体のインターフェース
-public interface IBenchmark : IDisposable{
+public interface IBenchmark:IDisposable{
     // 1. 準備フェーズ（計測時間に含まない）
     // ここでメモリ確保、データの初期化、スレッドのPin留めを行う
     void Setup(BenchmarkConfig BenchmarkConfig);

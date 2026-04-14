@@ -11,7 +11,7 @@ public class TestIteratorLookup(ITestOutputHelper output){
         using var LogDevice=new LocalMemoryDevice(capacity:Const.MinLogCapacity,sz_segment:Const.SegmentSize,parallelism:1,sector_size:64U,latencyMs:0,fileName:@$"{Environment.CurrentDirectory}\LogDevice.bin");
         var Settings=new KVSettings{IndexSize=Const.IndexSize,LogMemorySize=Const.LogMemorySize,PageSize=Const.PageSize,SegmentSize=Const.SegmentSize,MutableFraction=1,LogDevice=LogDevice,};
         var StoreFunctions=new StoreFunctions<SpanByteComparer,SpanByteRecordDisposer>(new SpanByteComparer(),()=>null,new SpanByteRecordDisposer());
-        using var Store = new TsavoriteKV<StoreFunctions<SpanByteComparer, SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer, SpanByteRecordDisposer>>>(Settings,StoreFunctions,static (AllocSettings, StoreFuncs) => new(AllocSettings, StoreFuncs));
+        using var Store=new TsavoriteKV<StoreFunctions<SpanByteComparer,SpanByteRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,SpanByteRecordDisposer>>>(Settings,StoreFunctions,static(AllocSettings,StoreFuncs)=>new(AllocSettings,StoreFuncs));
         using var Session=Common.CreateSession(Store);
         Common.Upsert(Session,count0);
         var List=new List<KeyValuePair<int,int>>();

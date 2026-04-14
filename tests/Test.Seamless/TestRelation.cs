@@ -1,12 +1,12 @@
-using System.IO.Hashing;
+﻿using System.IO.Hashing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Xunit;
 namespace Seamless.Collections.Tests;
 public class TestRelation{
     private static ulong GetHashCode64<T>(ref T value) where T:unmanaged{
-        var span = MemoryMarshal.CreateReadOnlySpan(ref value, 1);
-        var bytes = MemoryMarshal.AsBytes(span);
+        var span=MemoryMarshal.CreateReadOnlySpan(ref value,1);
+        var bytes=MemoryMarshal.AsBytes(span);
         return XxHash64.HashToUInt64(bytes);
     }
     private partial struct UnmanagedKey0{
@@ -17,7 +17,7 @@ public class TestRelation{
         public partial int Id0{get;}
         public partial int Id1{get;}
         public partial int Value0{get;}
-        public partial int Value1{get; }
+        public partial int Value1{get;}
     }
     private partial struct UnmanagedKey0(int Id0,int Id1):IEquatable<UnmanagedKey0>{
         public partial int Id0=>
@@ -73,7 +73,7 @@ public class TestRelation{
             return true;
         }
         public override bool Equals(object? obj)=>
-            obj is UnmanagedValue0 other && this.Equals(other);
+            obj is UnmanagedValue0 other&&this.Equals(other);
         public override int GetHashCode()=>
             HashCode.Combine(this._unmanaged.Id0,this._unmanaged.Id1,this._unmanaged.Value0,this._unmanaged.Value1);
         public static bool operator==(UnmanagedValue0 left,UnmanagedValue0 right)=>left.Equals(right);
@@ -87,7 +87,7 @@ public class TestRelation{
         public partial int Id0{get;}
         public partial int Id1{get;}
         public partial string Value0{get;}
-        public partial int Value1{get; }
+        public partial int Value1{get;}
     }
     private partial struct UnmanagedKey1(int Id0,int Id1):IEquatable<UnmanagedKey1>{
         public partial int Id0=>
@@ -151,10 +151,10 @@ public class TestRelation{
             return true;
         }
         public override bool Equals(object? obj)=>
-            obj is ManagedValue1 other && this.Equals(other);
+            obj is ManagedValue1 other&&this.Equals(other);
         public override int GetHashCode(){
             var h64=GetHashCode64(ref this._unmanaged);
-            return (int)(h64 ^ (h64>>32));
+            return(int)(h64^(h64>>32));
         }
         public static bool operator==(ManagedValue1 left,ManagedValue1 right)=>left.Equals(right);
         public static bool operator!=(ManagedValue1 left,ManagedValue1 right)=>!left.Equals(right);

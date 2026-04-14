@@ -3,8 +3,8 @@
 using Syncfusion.Maui.Core.Hosting;
 namespace Seamless.RelationStudio;
 
-public static class MauiProgramExtensions {
-    public static MauiAppBuilder UseSharedMauiApp(this MauiAppBuilder builder) {
+public static class MauiProgramExtensions{
+    public static MauiAppBuilder UseSharedMauiApp(this MauiAppBuilder builder){
         builder.Services.AddSingleton<Statistics>();
         builder.Services.AddTransient<ChartPage>();
         builder.Services.AddTransient<GridPage>();
@@ -12,7 +12,7 @@ public static class MauiProgramExtensions {
         builder
             .UseMauiApp<App>()
             .ConfigureSyncfusionCore()
-            .ConfigureFonts(fonts => {
+            .ConfigureFonts(fonts=>{
                 fonts.AddFont("OpenSans-Regular.ttf","OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf","OpenSansSemibold");
             });
