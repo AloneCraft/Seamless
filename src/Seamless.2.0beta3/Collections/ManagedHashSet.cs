@@ -10,8 +10,7 @@ namespace Seamless.Collections;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 public partial class ManagedHashSet<TKey>
-    where TKey : IEquatable<TKey>
-{
+    where TKey:IEquatable<TKey>{
     private readonly ClientSession<
         FixedSpanByteKey,//TKey
 
@@ -56,17 +55,16 @@ public partial class ManagedHashSet<TKey>
             >
         >
     > SymmetricExceptWith_ClientSession;
-    internal ManagedHashSet(ManagedCollectionStore<TKey, EqualityEmpty> CollectionStore) : base(CollectionStore)
-    {
-        var Store = CollectionStore.Store;
-        this.IntersectWith_ClientSession = Store.NewSession<
+    internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore):base(CollectionStore){
+        var Store=CollectionStore.Store;
+        this.IntersectWith_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
             EqualityEmpty,//TInput
             EqualityEmpty,//TOutput
             EqualityEmpty,//TContext
             IntersectWith//TFunctions
         >(new());
-        this.SymmetricExceptWith_ClientSession = Store.NewSession<
+        this.SymmetricExceptWith_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
             PinnedSpanByte,//TInput
             SpanByteAndMemory,//TOutput
@@ -77,13 +75,11 @@ public partial class ManagedHashSet<TKey>
     public Enumerator<
         KeyIterator,
         TKey
-    > GetEnumerator() => new(this.ReadClientSession, new());
-    public partial void IntersectWith(ManagedHashSet<TKey> other)
-    {
-        this.IntersectWith(this, other, this.IntersectWith_ClientSession);
+    > GetEnumerator()=>new(this.ReadClientSession,new());
+    public partial void IntersectWith(ManagedHashSet<TKey> other){
+        this.IntersectWith(this,other,this.IntersectWith_ClientSession);
     }
-    public partial void SymmetricExceptWith(ManagedHashSet<TKey> other)
-    {
-        this.SymmetricExceptWith(this, other, this.SymmetricExceptWith_ClientSession);
+    public partial void SymmetricExceptWith(ManagedHashSet<TKey> other){
+        this.SymmetricExceptWith(this,other,this.SymmetricExceptWith_ClientSession);
     }
 }

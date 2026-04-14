@@ -6,9 +6,8 @@ namespace Seamless.Stores;
 /// UnmanagedHashSet 用の Tsavorite ストア。
 /// </summary>
 public class UnmanagedHashSetStore<TKey>
-    : UnmanagedCollectionStore<TKey, EqualityEmpty>
-    where TKey : unmanaged, IEquatable<TKey>
-{
+    :UnmanagedCollectionStore<TKey,EqualityEmpty>
+    where TKey:unmanaged,IEquatable<TKey>{
     internal UnmanagedHashSetStore(
         long IndexSize,
         long PageSize,
@@ -18,7 +17,7 @@ public class UnmanagedHashSetStore<TKey>
         IDevice LogDevice,
         IDevice ObjectLogDevice,
         string? CheckpointDir
-    ) : base(
+    ):base(
         IndexSize,
         PageSize,
         SegmentSize,
@@ -28,8 +27,7 @@ public class UnmanagedHashSetStore<TKey>
         ObjectLogDevice,
         CheckpointDir,
         OverflowMutableStrategyKind.Storage
-    )
-    { }
+    ){}
 
     internal UnmanagedHashSetStore(
         long IndexSize,
@@ -37,18 +35,17 @@ public class UnmanagedHashSetStore<TKey>
         long SegmentSize,
         long MemorySize,
         double MutableFraction
-    ) : base(
+    ):base(
         IndexSize,
         PageSize,
         SegmentSize,
         MemorySize,
         MutableFraction,
-        new MemoryOnlyDevice(SegmentSize * 2),
+        new MemoryOnlyDevice(SegmentSize*2),
         new MemoryOnlyDevice(Const.MinObjectLogCapacity),
         null,
         OverflowMutableStrategyKind.Memory
-    )
-    { }
+    ){}
 
-    public UnmanagedHashSet<TKey> Create() => new(this);
+    public UnmanagedHashSet<TKey> Create()=>new(this);
 }

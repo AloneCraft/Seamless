@@ -3,7 +3,7 @@ namespace Seamless.Devices;
 /// <summary>
 /// ディスクI/Oを行わず、退避ページをヒープ上のバイト配列に保持するデバイス。
 /// </summary>
-public sealed class MemoryOnlyDevice : StorageDeviceBase{
+public sealed class MemoryOnlyDevice:StorageDeviceBase{
     private const string DeviceName="memory-only";
     private const uint DefaultSectorSize=512;
     public MemoryOnlyDevice(long Capacity):base(DeviceName,DefaultSectorSize,Capacity){}

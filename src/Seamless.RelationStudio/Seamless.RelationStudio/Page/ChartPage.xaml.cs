@@ -1,25 +1,24 @@
-using Syncfusion.Maui.Charts;
+Ôªøusing Syncfusion.Maui.Charts;
 using System.Collections.Specialized;
 using Seamless.Reasoning;
 
 namespace Seamless.RelationStudio;
 
-public partial class ChartPage : ContentPage
-{
+public partial class ChartPage:ContentPage{
     private Statistics _stats;
 
-    public ChartPage(Statistics stats) {
+    public ChartPage(Statistics stats){
         InitializeComponent();
-        this._stats = stats;
-        this.BindingContext = stats;
-        
+        this._stats=stats;
+        this.BindingContext=stats;
+
         // Configure Bandwidth Axis to be on the right
-        YBandwidth.CrossesAt = double.MaxValue;
-        this._stats.SfGrid.CollectionChanged +=this.OnSfGridCollectionChanged;
-        
+        YBandwidth.CrossesAt=double.MaxValue;
+        this._stats.SfGrid.CollectionChanged+=this.OnSfGridCollectionChanged;
+
         // Populate existing (if any)
         var a=0;
-        foreach(var core in this._stats.SfGrid) {
+        foreach(var core in this._stats.SfGrid){
             this.AddSeriesForCore(core);
             //if(a==3) break;
             a++;
@@ -28,30 +27,30 @@ public partial class ChartPage : ContentPage
         //stats.read();
     }
 
-    private void OnSfGridCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) {
-        if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems != null) {
-            foreach(ÉRÉA core in e.NewItems) {
-                MainThread.BeginInvokeOnMainThread(() => {
+    private void OnSfGridCollectionChanged(object? sender,NotifyCollectionChangedEventArgs e){
+        if(e.Action==NotifyCollectionChangedAction.Add&&e.NewItems!=null){
+            foreach(ÔøΩRÔøΩA core in e.NewItems) {
+                MainThread.BeginInvokeOnMainThread(()=>{
                     this.AddSeriesForCore(core);
                 });
             }
         }
-        else if (e.Action == NotifyCollectionChangedAction.Reset) {
-            MainThread.BeginInvokeOnMainThread(() => {
+        else if(e.Action==NotifyCollectionChangedAction.Reset){
+            MainThread.BeginInvokeOnMainThread(()=>{
                 Chart.Series.Clear();
             });
         }
     }
 
-    private void AddSeriesForCore(ÉRÉA core) {
-        var Latency=new LineSeries {
-            ItemsSource = core.ArrayRam,
-            XBindingPath = "CacheSizeKiB",
-            YBindingPath = "LatencyNs",
-            YAxisName = "YLatency",
-            Label = $"Latency Core {core.OSè„ÇÃID}",
-            ShowMarkers = true,
-            EnableTooltip = true
+    private void AddSeriesForCore(ÔøΩRÔøΩA core){
+        var Latency=new LineSeries{
+            ItemsSource=core.ArrayRam,
+            XBindingPath="CacheSizeKiB",
+            YBindingPath="LatencyNs",
+            YAxisName="YLatency",
+            Label=$"Latency Core {core.OSÔøΩÔøΩÔøΩID}",
+            ShowMarkers=true,
+            EnableTooltip=true
         };
         Chart.Series.Add(Latency);
 
@@ -60,7 +59,7 @@ public partial class ChartPage : ContentPage
         //    XBindingPath = "CacheSizeKiB",
         //    YBindingPath = "BandwidthGiB",
         //    YAxisName = "YBandwidth",
-        //    Label = $"Bandwidth Core {core.OSè„ÇÃID}",
+        //    Label = $"Bandwidth Core {core.OSÔøΩÔøΩÔøΩID}",
         //    Opacity = 0.5,
         //    ShowMarkers = true,
         //    EnableTooltip = true

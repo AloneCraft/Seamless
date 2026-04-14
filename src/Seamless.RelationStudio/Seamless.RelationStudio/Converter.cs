@@ -5,12 +5,12 @@ using Seamless.Reasoning;
 using System.Collections.ObjectModel;
 using System.Globalization;
 namespace Seamless.RelationStudio;
-public enum UnitConverterParameter {
+public enum UnitConverterParameter{
     K,M,G,
     m,u,n,
     Ki,Mi,Gi,
 }
-public class UnitConverter:IValueConverter {
+public class UnitConverter:IValueConverter{
     public object Convert(object? value,Type targetType,object? parameter,CultureInfo culture){
         var UnitConverterParameter=(UnitConverterParameter)parameter!;
         if(value is double @double){
@@ -32,19 +32,16 @@ public class UnitConverter:IValueConverter {
         throw new NotImplementedException();
     }
 }
-public class InverseBoolConverter : IValueConverter
-{
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        if (value is bool booleanValue)
-            return !booleanValue;
+public class InverseBoolConverter:IValueConverter{
+    public object Convert(object? value,Type targetType,object? parameter,CultureInfo culture){
+        if(value is bool booleanValue)
+            return!booleanValue;
         return value;
     }
 
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        if (value is bool booleanValue)
-            return !booleanValue;
+    public object ConvertBack(object? value,Type targetType,object? parameter,CultureInfo culture){
+        if(value is bool booleanValue)
+            return!booleanValue;
         return value;
     }
 }

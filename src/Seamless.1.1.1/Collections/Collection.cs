@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
+
 namespace Seamless.Collections;
 public abstract partial class Collection<
     TKey,
@@ -24,7 +25,7 @@ public abstract partial class Collection<
         EqualityEmpty
     >,
     ICreate<TReadFunctions>
-    where TAddFunctions   :struct,ISessionFunctions<
+    where TAddFunctions:struct,ISessionFunctions<
         TSessionKey,
         TSessionValue,
         TAddInput,
@@ -40,15 +41,15 @@ public abstract partial class Collection<
         EqualityEmpty
     >,
     ICreate<TContainsDeleteFunctions>
-    where TStoreFunctions :IStoreFunctions<
+    where TStoreFunctions:IStoreFunctions<
         TSessionKey,
         TSessionValue
     >
     where TAllocator:IAllocator<
         TSessionKey,
-        TSessionValue
-    ,TStoreFunctions>
-{
+        TSessionValue,
+        TStoreFunctions
+    >{
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -58,7 +59,7 @@ public abstract partial class Collection<
         TReadFunctions,
         TStoreFunctions,
         TAllocator
-    > ReadClientSession{get;private set;}
+    > ReadClientSession{get; private set;}
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -68,7 +69,7 @@ public abstract partial class Collection<
         TAddFunctions,
         TStoreFunctions,
         TAllocator
-    > AddClientSession{get;private set;}
+    > AddClientSession{get; private set;}
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -78,7 +79,7 @@ public abstract partial class Collection<
         TContainsDeleteFunctions,
         TStoreFunctions,
         TAllocator
-    > ContainsDeleteClientSession{get;private set;}
+    > ContainsDeleteClientSession{get; private set;}
     private readonly CollectionStore<
         TKey,
         TValue,
@@ -87,7 +88,7 @@ public abstract partial class Collection<
         TStoreFunctions,
         TAllocator
     > CollectionStore;
-    public sealed partial class CounterIterator:IScanIteratorFunctions<TSessionKey,TSessionValue>{
+    public sealed class CounterIterator:IScanIteratorFunctions<TSessionKey,TSessionValue>{
         public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -102,19 +103,18 @@ public abstract partial class Collection<
         }
         public void OnException(Exception exception,long numberOfRecords){
         }
-        public void OnStop(bool completed,long numberOfRecords) {
+        public void OnStop(bool completed,long numberOfRecords){
             this.Counter=numberOfRecords;
         }
     }
     public long GetLongCount(){
         var Iterator=new CounterIterator();
-        long Cursor=0;
+        var Cursor=0L;
         this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor:false);
         return Iterator.Counter;
     }
     private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey){
         var Session=this.ContainsDeleteClientSession;
-        
         var Output=false;
         var Status=Session.BasicContext.Read(ref SessionKey,ref Output);
         Status=Pending(Session,Status,ref Output);
@@ -132,15 +132,15 @@ public abstract partial class Collection<
     ){
         this.CollectionStore=CollectionStore;
         var Store=CollectionStore.Store;
-        this.ReadClientSession  =Store.NewSession<
+        this.ReadClientSession=Store.NewSession<
             EqualityEmpty,
-            
+
             TReadOutput,
             EqualityEmpty,
             TReadFunctions
         >(TReadFunctions.Create());
         this.AddClientSession=Store.NewSession<
-            
+
             TAddInput,
             bool,
             EqualityEmpty,
@@ -182,21 +182,33 @@ public abstract partial class Collection<
             TContainsDeleteFunctions
         >(TContainsDeleteFunctions.Create());
     }
+    public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value){
+        var Status=this.Read(Key,out Value);
+        if(Status.NotFound){
+            Value=default;
+            return false;
+        }
+        return true;
+    }
+    private protected abstract TryAddResult PrivateTryAdd(TKey Key,TValue Value);
     private protected static Status Pending<
         TInput0,
         TOutput0,
         TContext0,
         TSessionFunctions0
-    >(ClientSession<
-        TSessionKey,
-        TSessionValue,
-        TInput0,
-        TOutput0,
-        TContext0,
-        TSessionFunctions0,
-        TStoreFunctions,
-        TAllocator
-    > Session,Status Status)
+    >(
+        ClientSession<
+            TSessionKey,
+            TSessionValue,
+            TInput0,
+            TOutput0,
+            TContext0,
+            TSessionFunctions0,
+            TStoreFunctions,
+            TAllocator
+        > Session,
+        Status Status
+    )
     where TSessionFunctions0:struct,ISessionFunctions<
         TSessionKey,
         TSessionValue,
@@ -210,6 +222,7 @@ public abstract partial class Collection<
                 Debug.Assert(CompletedOutputs.Next());
                 Status=CompletedOutputs.Current.Status;
             }
+        }else{
         }
         return Status;
     }
@@ -218,16 +231,20 @@ public abstract partial class Collection<
         TOutput0,
         TContext0,
         TSessionFunctions0
-    >(ClientSession<
-        TSessionKey,
-        TSessionValue,
-        TInput0,
-        TOutput0,
-        TContext0,
-        TSessionFunctions0,
-        TStoreFunctions,
-        TAllocator
-    > Session,Status Status,ref TOutput0 Output)
+    >(
+        ClientSession<
+            TSessionKey,
+            TSessionValue,
+            TInput0,
+            TOutput0,
+            TContext0,
+            TSessionFunctions0,
+            TStoreFunctions,
+            TAllocator
+        > Session,
+        Status Status,
+        ref TOutput0 Output
+    )
     where TSessionFunctions0:struct,ISessionFunctions<
         TSessionKey,
         TSessionValue,
@@ -242,16 +259,8 @@ public abstract partial class Collection<
                 Status=CompletedOutputs.Current.Status;
                 Output=CompletedOutputs.Current.Output;
             }
+        }else{
         }
         return Status;
     }
-    public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)]out TValue Value){
-        var Status=this.Read(Key,out Value);
-        if(Status.NotFound){
-            Value=default;
-            return false;
-        }
-        return true;
-    }
-    private protected abstract TryAddResult PrivateTryAdd(TKey Key,TValue Value);
 }

@@ -10,9 +10,9 @@ public partial class Chart:ObservableObject{
     [ObservableProperty]
     public double _L1Size;
     //public ObservableCollection<GridRowModel> SfGrid { get; } = new();
-    public ObservableCollection<Ram> Rams{ get; } = new();
-    public ObservableCollection<コア> Enumerableコア{ get; } = new();
-    public ObservableCollection<コア> SfGrid { get; } = new();
+    public ObservableCollection<Ram> Rams{get;}=new();
+    public ObservableCollection<コア> Enumerableコア{get;}=new();
+    public ObservableCollection<コア> SfGrid{get;}=new();
     private bool IsLoaded;
     private readonly Benchmark Benchmark;
     public Chart(Benchmark Benchmark){
@@ -24,10 +24,10 @@ public partial class Chart:ObservableObject{
         //    await Task.Run(()=>Thread.Sleep(100));
         //}
         if(this.IsLoaded) return;
-        this.IsLoaded = true;
+        this.IsLoaded=true;
 
         //var Rams = this.Rams;
-        var SfGrid = this.SfGrid;
+        var SfGrid=this.SfGrid;
         ThreadPool.QueueUserWorkItem(async st=>{
             var Benchmark=this.Benchmark;
             //GC.Collect(2,GCCollectionMode.Forced,true);

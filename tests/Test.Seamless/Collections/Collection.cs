@@ -4,74 +4,74 @@
 /// <see cref="Seamless.Collections.Collection{TKey,TValue,TReadOutput,TAddInput,TReadFunctions,TAddFunctions,TDeleteFunctions,TStoreFunctions,TAllocator}"/>
 /// のテスト。テストに使うクラスはインナークラスとする。
 /// </summary>
-public class Collection {
-    [Fact, Trait("Category", "Unit")]
-    public void PrivateProtectedWouldOverflowMutable() {
+public class Collection{
+    [Fact,Trait("Category","Unit")]
+    public void PrivateProtectedWouldOverflowMutable(){
         //ここにテストコードを書いて
     }
 
-    [Fact, Trait("Category", "Unit")]
-    public void LogMemorySize() {
+    [Fact,Trait("Category","Unit")]
+    public void LogMemorySize(){
         //ここにテストコードを書いて
     }
 
-    [Fact, Trait("Category", "Unit")]
-    public void MutableFraction() {
+    [Fact,Trait("Category","Unit")]
+    public void MutableFraction(){
         //ここにテストコードを書いて
     }
 
-    [Fact, Trait("Category", "Unit")]
-    public void ThrowLogFull() {
+    [Fact,Trait("Category","Unit")]
+    public void ThrowLogFull(){
         //ここにテストコードを書いて
     }
 
-    [Fact, Trait("Category", "Unit")]
-    public void WouldOverflowMutable() {
+    [Fact,Trait("Category","Unit")]
+    public void WouldOverflowMutable(){
         //ここにテストコードを書いて
     }
 
-    [Fact, Trait("Category", "Unit")]
-    public void Count() {
+    [Fact,Trait("Category","Unit")]
+    public void Count(){
         //ここにテストコードを書いて
     }
 
-    [Fact, Trait("Category", "Unit")]
-    public void EntryCount() {
+    [Fact,Trait("Category","Unit")]
+    public void EntryCount(){
         //ここにテストコードを書いて
     }
 
-    [Fact, Trait("Category", "Unit")]
-    public void Read() {
+    [Fact,Trait("Category","Unit")]
+    public void Read(){
         //ここにテストコードを書いて
     }
 
-    [Fact, Trait("Category", "Unit")]
-    public void Remove() {
+    [Fact,Trait("Category","Unit")]
+    public void Remove(){
         //ここにテストコードを書いて
     }
 
-    [Fact, Trait("Category", "Unit")]
-    public void Contains() {
+    [Fact,Trait("Category","Unit")]
+    public void Contains(){
         //ここにテストコードを書いて
     }
 
-    [Fact, Trait("Category", "Unit")]
-    public void IsDisposed() {
+    [Fact,Trait("Category","Unit")]
+    public void IsDisposed(){
         //ここにテストコードを書いて
     }
 
-    [Fact, Trait("Category", "Unit")]
-    public void Dispose() {
+    [Fact,Trait("Category","Unit")]
+    public void Dispose(){
         //ここにテストコードを書いて
     }
 
-    [Fact, Trait("Category", "Unit")]
-    public void Dispose_Boolean() {
+    [Fact,Trait("Category","Unit")]
+    public void Dispose_Boolean(){
         //ここにテストコードを書いて
     }
 
-    [Fact, Trait("Category", "Unit")]
-    public void Destructor() {
+    [Fact,Trait("Category","Unit")]
+    public void Destructor(){
         //ここにテストコードを書いて
     }
     //↓のコードが今までのテストコードの例。必要に応じて参考にしてください。

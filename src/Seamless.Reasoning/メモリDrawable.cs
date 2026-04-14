@@ -150,7 +150,7 @@
 //            for (int x = 0; x < stepCount; x++)
 //            {
 //                // レイテンシnsを帯域幅（仮にMB/sなど）に見立てて計算
-//                float value = (float)コア.ListRam[x].レイテンシns / 1000f; 
+//                float value = (float)コア.ListRam[x].レイテンシns / 1000f;
 //                var (sx, sy) = Project2D(x, value, stepCount, maxBandwidth, dirtyRect);
 
 //                if (x == 0) path.MoveTo(sx, sy);

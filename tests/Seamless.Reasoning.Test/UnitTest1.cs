@@ -3,12 +3,11 @@ using Xunit.Abstractions;
 
 namespace Seamless.Reasoning.Test;
 
-public class UnitTest1 {
+public class UnitTest1{
     private readonly ITestOutputHelper _output;
 
-    public UnitTest1(ITestOutputHelper output)
-    {
-        _output = output;
+    public UnitTest1(ITestOutputHelper output){
+        _output=output;
     }
 
     [Fact]
@@ -21,7 +20,7 @@ public class UnitTest1 {
             var OS上のID=new nint(1L<<a);
             実行環境.SetThreadAffinityMask(実行環境.GetCurrentThread(),OS上のID);
             //コア.L1計測(s,L1計測回数);
-            var (List一部Ram,List全部Ram)=await コア.キャッシュ計測Async(使いまわしバッファ);
+            var(List一部Ram,List全部Ram)=await コア.キャッシュ計測Async(使いまわしバッファ);
             foreach(var b in List全部Ram){
                 this.WriteLine($"コア{a},{b.ToString()}");
             }
@@ -51,9 +50,7 @@ public class UnitTest1 {
             this.WriteLine($"コア{a},L3   {コア0.L3.ToString()}");
             this.WriteLine($"コア{a},L4   {コア0.L4.ToString()}");
             this.WriteLine($"コア{a},Dram {コア0.Dram.ToString()}");
-        }
-
-        {
+        }{
             var Arrayコアコア_Length=Arrayコア_Length*Arrayコア.Length;
             var Arrayコアコア=new コアコア[Arrayコアコア_Length];
             var c=0;

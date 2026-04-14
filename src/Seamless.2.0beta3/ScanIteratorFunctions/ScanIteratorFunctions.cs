@@ -4,8 +4,8 @@ namespace Seamless.ScanIteratorFunctions;
 public abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions{
     public readonly T[] Chunk=new T[Const.Chunk_Length];
     public int Count;
-    private protected abstract T Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)where TSourceLogRecord:ISourceLogRecord;
-    public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)where TSourceLogRecord:ISourceLogRecord{
+    private protected abstract T Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) where TSourceLogRecord:ISourceLogRecord;
+    public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) where TSourceLogRecord:ISourceLogRecord{
         Debug.Assert(!logRecord.Info.Tombstone);
         var Count=this.Count;
         this.Chunk[Count]=this.Deserialize(logRecord);
@@ -14,7 +14,8 @@ public abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions{
         if(Count==Const.Chunk_Length){
             cursorRecordResult=CursorRecordResult.EndBatch;
             return true;
-        }else{
+        }
+        else{
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }

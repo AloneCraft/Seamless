@@ -1,5 +1,6 @@
 ﻿namespace Seamless.Collections;
-public interface ISet<TKey> : ICollection<TKey>where TKey: IEquatable<TKey>{
+
+public interface ISet<TKey>:ICollection<TKey> where TKey:IEquatable<TKey>{
     new bool Add(TKey item);
     void UnionWith(ManagedHashSet<TKey> other);
     void IntersectWith(ManagedHashSet<TKey> other);

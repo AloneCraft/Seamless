@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 namespace Seamless.Collections.Benchmarks;
-public abstract class BenchmarkDictionary<TKey,TValue>(ITestOutputHelper output):Benchmark<TKey,TValue>(output) 
+public abstract class BenchmarkDictionary<TKey,TValue>(ITestOutputHelper output):Benchmark<TKey,TValue>(output)
     where TKey:IEquatable<TKey>
     where TValue:IEquatable<TValue>{
     protected DictionaryStore<TKey,TValue> CreateBenchmarkStore()=>new();
