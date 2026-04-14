@@ -3,7 +3,14 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Seamless.Stores;
 
-public abstract partial class CollectionStore<TKey, TValue, TSessionKey, TSessionValue, TStoreFunctions, TAllocator>
+public abstract partial class CollectionStore<
+	TKey,
+	TValue,
+	TSessionKey,
+	TSessionValue,
+	TStoreFunctions,
+	TAllocator
+>
 	where TKey : IEquatable<TKey>
 	where TStoreFunctions : IStoreFunctions<TSessionKey, TSessionValue>
 	where TAllocator : IAllocator<TSessionKey, TSessionValue, TStoreFunctions>
@@ -31,40 +38,40 @@ public abstract partial class CollectionStore<TKey, TValue, TSessionKey, TSessio
 		this.MutableFraction = MutableFraction;
 		this.OverflowMutableStrategyKind = OverflowMutableStrategyKind;
 		//MemoryOnlyDevice使用時はシリアライザ不要。ページデータはヒープ上で保持されるためインライン格納で十分。
-		this.Settings = new()
-		{
-			IndexSize = IndexSize,
-			MemorySize = MemorySize,
-			PageSize = PageSize,
-			SegmentSize = SegmentSize,
+		this.Settings=new(){
+			IndexSize=IndexSize,
+			MemorySize=MemorySize,
+			PageSize=PageSize,
+			SegmentSize=SegmentSize,
 
-			MutableFraction = MutableFraction,
-			LogDevice = LogDevice,
-			ObjectLogDevice = ObjectLogDevice,
+			MutableFraction=MutableFraction,
+			LogDevice=LogDevice,
+			ObjectLogDevice=ObjectLogDevice,
 
-			CheckpointDir = CheckpointDir,
+			CheckpointDir=CheckpointDir,
 		};
-		this.Store = new TsavoriteKV<TSessionKey, TSessionValue, TStoreFunctions, TAllocator>(
+		this.Store=new TsavoriteKV<TSessionKey, TSessionValue, TStoreFunctions, TAllocator>(
 			this.Settings,
 			StoreFunctions,
 			allocatorFactory
 		);
 		[ExcludeFromCodeCoverage]
-		static IObjectSerializer<SpanByte>? NullSerializer() => null;
+		static IObjectSerializer<SpanByte>? NullSerializer()=>null;
 	}
-	public void CompactWithLookup()
-	{
-		var store = this.Store;
-		var beginAddress = store.Log.BeginAddress;
-		var segmentSize = this.Settings.SegmentSize;
-		var nextSegmentStart = (beginAddress / segmentSize + 1) * segmentSize;
-		var compactUntil = nextSegmentStart;
-		var safeReadOnlyAddress = store.Log.SafeReadOnlyAddress;
-		if (compactUntil > safeReadOnlyAddress)
-			compactUntil = safeReadOnlyAddress;
-		if (compactUntil <= beginAddress)
+	public void CompactWithLookup(){
+		var store=this.Store;
+		var beginAddress=store.Log.BeginAddress;
+		var segmentSize=this.Settings.SegmentSize;
+		var nextSegmentStart=(beginAddress/segmentSize+1)*segmentSize;
+		var compactUntil=nextSegmentStart;
+		var safeReadOnlyAddress=store.Log.SafeReadOnlyAddress;
+		if(compactUntil>safeReadOnlyAddress){
+			compactUntil=safeReadOnlyAddress;
+		}
+		if(compactUntil<=beginAddress){
 			return;
-		var untilAddress = this.CompactLog(compactUntil);
+		}
+		var untilAddress=this.CompactLog(compactUntil);
 		store.Log.ShiftBeginAddress(untilAddress, true, true);
 	}
 	protected abstract long CompactLog(long compactUntil);
