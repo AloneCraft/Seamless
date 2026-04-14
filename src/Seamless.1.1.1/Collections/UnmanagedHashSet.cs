@@ -85,6 +85,7 @@ public partial class UnmanagedHashSet<TKey>
     internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore):base(CollectionStore){
         var Store=CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<
+
             EqualityEmpty,
             EqualityEmpty,
             EqualityEmpty,
@@ -93,6 +94,7 @@ public partial class UnmanagedHashSet<TKey>
             >
         >(new());
         this.SymmetricExceptWith_ClientSession=Store.NewSession<
+
             EqualityEmpty,
             EqualityEmpty,
             EqualityEmpty,

@@ -1,5 +1,6 @@
 ﻿using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
+
 using Seamless.Stores;
 namespace Seamless.Collections;
 
@@ -16,23 +17,52 @@ public partial class UnmanagedDictionary<
 
     private ClientSession<
         FixedSpanByteKey,
+        
         EqualityEmpty,
         SpanByteAndMemory,
         EqualityEmpty,
         Remove_TKey_TValue,
         UnmanagedStoreFunctions,
+        
+        
+        
+        
+        
         UnmanagedAllocator
+        
+        
+        
+        
+        
+        
+        
+        
+        
     > Remove_TKey_TValue_ClientSession { get; set; }
     private ClientSession<
         FixedSpanByteKey,
+        
         PinnedSpanByte,
         bool,
         EqualityEmpty,
         Remove_KeyValuePair,
         UnmanagedStoreFunctions,
+        
+        
+        
+        
+        
         UnmanagedAllocator
+        
+        
+        
+        
+        
+        
+        
+        
+        
     > Remove_KeyValuePair_ClientSession { get; set; }
-
     internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
         var Store = CollectionStore.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<
@@ -41,6 +71,9 @@ public partial class UnmanagedDictionary<
             SpanByteAndMemory,
             EqualityEmpty,
             Remove_TKey_TValue
+            
+            
+            
         >(new());
         this.Remove_KeyValuePair_ClientSession=Store.NewSession<
             FixedSpanByteKey,
@@ -48,6 +81,9 @@ public partial class UnmanagedDictionary<
             bool,
             EqualityEmpty,
             Remove_KeyValuePair
+            
+            
+            
         >(new());
     }
     public Enumerator<
@@ -58,7 +94,7 @@ public partial class UnmanagedDictionary<
         >
     > GetEnumerator() => new(this.ReadClientSession,new());
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator iterator)
-        where TIterator : ScanIteratorFunctions<T> {
+    where TIterator : ScanIteratorFunctions<T>{
         using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
         while(e.MoveNext()) {
             yield return e.Current;
@@ -75,10 +111,10 @@ public partial class UnmanagedDictionary<
     }
     public partial bool Remove(KeyValuePair<TKey,TValue> item) {
         var Session = this.Remove_KeyValuePair_ClientSession;
-        var Key0 = item.Key;
-        var Value0 = item.Value;
-        var KeyBytes = TKeySerializer.Serialize(ref Key0);
-        var ValueBytes = TValueSerializer.Serialize(ref Value0);
+        var Key = item.Key;
+        var Value = item.Value;
+        var KeyBytes = TKeySerializer.Serialize(ref Key);
+        var ValueBytes = TValueSerializer.Serialize(ref Value);
         var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Input = PinnedSpanByte.FromPinnedSpan(ValueBytes);
         var Output = false;
@@ -86,7 +122,6 @@ public partial class UnmanagedDictionary<
         Status=Pending(Session,Status,ref Output);
         return Output;
     }
-
     public partial bool Remove(TKey key,out TValue value) {
         var Session = this.Remove_TKey_TValue_ClientSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
