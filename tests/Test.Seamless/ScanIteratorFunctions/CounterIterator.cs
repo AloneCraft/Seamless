@@ -18,9 +18,9 @@ public class CounterIterator{
     [Fact,Trait("Category","Unit")]
     public void OnException(){
 #if TSAVORITE2_0BETA3
-        var iter = new ManagedHashSet<int>.CounterIterator();
+        var iter=new ManagedHashSet<int>.CounterIterator();
 #elif TSAVORITE1_1_1
-        var iter = new ManagedHashSet<int>.CounterIterator();
+        var iter=new ManagedHashSet<int>.CounterIterator();
 #endif
         iter.OnException(new Exception("test"),0);
     }

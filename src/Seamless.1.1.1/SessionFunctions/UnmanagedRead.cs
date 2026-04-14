@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 namespace Seamless.SessionFunctions;
 //public readonly partial struct ManagedRead():
 //    ISessionFunctions<SpanByte,SpanByte,SpanByte,SpanByteAndMemory,EqualityEmpty>{
-//    private readonly MemoryPool<byte> memoryPool = MemoryPool<byte>.Shared;
+//    private readonly MemoryPool<byte> memoryPool=MemoryPool<byte>.Shared;
 /// <summary>
 /// Read(TKey,out TValue) のみをサポートするセッション関数。Add は Upsert と RMW の両方で呼ばれるため、両方の処理を実装する必要がある。
 /// </summary>

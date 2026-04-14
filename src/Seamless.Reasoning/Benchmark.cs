@@ -238,8 +238,8 @@ public class Benchmark:IBenchmark{
     //    // 計測前にGCを掃除し、スレッドをバックグラウンドへ移動
     //    GC.Collect(2,GCCollectionMode.Forced,true);
     //    GC.WaitForPendingFinalizers();
-    //    for(var Bits=Const.最小Bits;Bits<Const.最大Bits;Bits++) {
-    //        var Bytes = 1 << Bits;
+    //    for(var Bits=Const.最小Bits;Bits<Const.最大Bits;Bits++){
+    //        var Bytes=1 << Bits;
     //        //var 中間容量=(Bits+容量)/2;
     //        // A. レイテンシ計測
     //        var ListRam=new List<Ram>();
@@ -270,13 +270,13 @@ public class Benchmark:IBenchmark{
     //    // 計測前にGCを掃除し、スレッドをバックグラウンドへ移動
     //    GC.Collect(2,GCCollectionMode.Forced,true);
     //    GC.WaitForPendingFinalizers();
-    //    var List = await Task.Run(() => {
-    //        var List全部Ram = new List<Ram>();
+    //    var List=await Task.Run(()=>{
+    //        var List全部Ram=new List<Ram>();
     //        {
     //            var BytesSecond=this.演算性能計測();
     //            List全部Ram.Add(new(0,0,BytesSecond));
     //        }
-    //        for(var Bits=Const.最小Bits;Bits<Const.最大Bits;Bits++) {
+    //        for(var Bits=Const.最小Bits;Bits<Const.最大Bits;Bits++){
     //            var Bytes=1<<Bits;
     //            //var 中間容量=(Bits+容量)/2;
     //            // A. レイテンシ計測
@@ -284,24 +284,24 @@ public class Benchmark:IBenchmark{
     //            var BytesSecond =this.シーケンシャル性能計測BytesSecond(Bits);
     //            List全部Ram.Add(new(Bytes, レイテンシns, BytesSecond));
     //        }
-    //        var List一部Ram = new List<Ram>();
+    //        var List一部Ram=new List<Ram>();
     //        //if(List全部Temp.Count == 0) return List一部Ram;
-    //        const double 跳ね上がり閾値 = 1.5;
-    //        var 前回レイテンシ = List全部Ram[0].レイテンシsecond;
-    //        var 階層カウント = 0;
-    //        for(var i = 1;i < List全部Ram.Count;i++) {
-    //            var 現在 = List全部Ram[i];
-    //            if(現在.レイテンシsecond > 前回レイテンシ * 跳ね上がり閾値) {
+    //        const double 跳ね上がり閾値=1.5;
+    //        var 前回レイテンシ=List全部Ram[0].レイテンシsecond;
+    //        var 階層カウント=0;
+    //        for(var i=1;i < List全部Ram.Count;i++){
+    //            var 現在=List全部Ram[i];
+    //            if(現在.レイテンシsecond > 前回レイテンシ * 跳ね上がり閾値){
     //                var 全部Ram=List全部Ram[i - 1];
-    //                var 名前 = $"L{階層カウント + 1}";
+    //                var 名前=$"L{階層カウント + 1}";
     //                List一部Ram.Add(全部Ram);
     //                階層カウント++;
     //                // L3まで判定したら、残りはRAMなのでループを抜ける構成もアリ
     //                //if (階層カウント >= 3) break;
     //            }
-    //            前回レイテンシ = 現在.レイテンシsecond;
+    //            前回レイテンシ=現在.レイテンシsecond;
     //        }
-    //        var 最終要素 = List全部Ram.Last();
+    //        var 最終要素=List全部Ram.Last();
     //        List一部Ram.Add(最終要素);
     //        return (List一部Ram,List全部Temp:List全部Ram);
     //    });
@@ -338,7 +338,7 @@ public class Benchmark:IBenchmark{
     public コア[] Arrayコア;
     public async void Run(){
         //var 使いまわしバッファ=new 使いまわしバッファ(29);
-        //var List = await Task.Run(() =>
+        //var List=await Task.Run(() =>
         var Bits数=Const.最大Bits-Const.最小Bits;
         var Arrayコア_Length=Environment.ProcessorCount;
         var Arrayコア=this.Arrayコア=new コア[Arrayコア_Length];
@@ -352,7 +352,7 @@ public class Benchmark:IBenchmark{
                 var ArrayレイテンシSecond=new double[Bits数];
                 var Array帯域BytesSecond=new long[Bits数];
                 //{
-                //    var BytesSecond = this.演算性能計測();
+                //    var BytesSecond=this.演算性能計測();
                 //    List全部Ram.Add(new(0,0,BytesSecond));
                 //}
                 var b=0;
@@ -375,7 +375,7 @@ public class Benchmark:IBenchmark{
                     var レイテンシSecond0=ArrayレイテンシSecond[i];
                     if(レイテンシSecond0>前回レイテンシ*跳ね上がり閾値){
                         var レイテンシSecond1=ArrayレイテンシSecond[i-1];
-                        //var 名前 = $"L{階層カウント + 1}";
+                        //var 名前=$"L{階層カウント + 1}";
                         List一部レイテンシSecond.Add(レイテンシSecond1);
                         階層カウント++;
                     }
@@ -387,31 +387,31 @@ public class Benchmark:IBenchmark{
                 var Ram=new Ram(List一部Bytes.ToArray(),List一部レイテンシSecond.ToArray(),List一部帯域BytesSecond.ToArray());
                 var コア=new コア(Ram);
                 Arrayコア[a]=コア;
-                //var (List一部Ram, List全部Ram) = await this.キャッシュ計測結果崖分離Async();
-                //foreach(var b in ArrayレイテンシSecond) {
+                //var (List一部Ram, List全部Ram)=await this.キャッシュ計測結果崖分離Async();
+                //foreach(var b in ArrayレイテンシSecond){
                 //    this.WriteLine($"コア{a},{b.ToString()}");
                 //}
-                //var コア0 = new コア(OS上のID);
-                //var EnumerableRam = コア0.ArrayRam;
-                //foreach(var b in ArrayレイテンシSecond) {
+                //var コア0=new コア(OS上のID);
+                //var EnumerableRam=コア0.ArrayRam;
+                //foreach(var b in ArrayレイテンシSecond){
                 //    EnumerableRam.Add(b);
                 //}
-                //if(List一部Ram.Count > 0) {
-                //    コア0.L1 = List一部Ram[0];
-                //    if(List一部Ram.Count > 1) {
-                //        コア0.L2 = List一部Ram[1];
-                //        if(List一部Ram.Count > 2) {
-                //            コア0.L3 = List一部Ram[2];
-                //            if(List一部Ram.Count > 3) {
-                //                コア0.L4 = List一部Ram[3];
-                //                if(List一部Ram.Count > 4) {
-                //                    コア0.Dram = List一部Ram[4];
+                //if(List一部Ram.Count > 0){
+                //    コア0.L1=List一部Ram[0];
+                //    if(List一部Ram.Count > 1){
+                //        コア0.L2=List一部Ram[1];
+                //        if(List一部Ram.Count > 2){
+                //            コア0.L3=List一部Ram[2];
+                //            if(List一部Ram.Count > 3){
+                //                コア0.L4=List一部Ram[3];
+                //                if(List一部Ram.Count > 4){
+                //                    コア0.Dram=List一部Ram[4];
                 //                }
                 //            }
                 //        }
                 //    }
                 //}
-                //Arrayコア[a] = コア0;
+                //Arrayコア[a]=コア0;
                 //this.WriteLine($"コア{a},L1   {コア0.L1.ToString()}");
                 //this.WriteLine($"コア{a},L2   {コア0.L2.ToString()}");
                 //this.WriteLine($"コア{a},L3   {コア0.L3.ToString()}");
@@ -420,11 +420,11 @@ public class Benchmark:IBenchmark{
             }
         });
         //{
-        //    var Arrayコアコア_Length = Arrayコア_Length * Arrayコア.Length;
-        //    var Arrayコアコア = new コアコア[Arrayコアコア_Length];
-        //    var c = 0;
-        //    foreach(var コアa in Arrayコア) {
-        //        foreach(var コアb in Arrayコア) {
+        //    var Arrayコアコア_Length=Arrayコア_Length * Arrayコア.Length;
+        //    var Arrayコアコア=new コアコア[Arrayコアコア_Length];
+        //    var c=0;
+        //    foreach(var コアa in Arrayコア){
+        //        foreach(var コアb in Arrayコア){
         //            if(コアa.OS上のID == コアb.OS上のID)
         //                continue;
         //            //var Bytesb=コアb.L1.Bytes;
@@ -435,11 +435,11 @@ public class Benchmark:IBenchmark{
         //            //    Bytes=Bytesb;
         //            //}
         //            //var Bits=BitOperations.Log2((ulong)Bytes);
-        //            var コアコア = new コアコア(コアa,コアb);
+        //            var コアコア=new コアコア(コアa,コアb);
         //            コアコア.往復レイテンシns計測();
         //            this.WriteLine($"コア:{コアa.OS上のID} コア:{コアb.OS上のID} 往復レイテンシ:{コアコア.往復レイテンシns}ns");
         //            //var pair=コアコア.計測ペア干渉(a,b,使いまわしバッファ,Bits);
-        //            Arrayコアコア[c++] = コアコア;
+        //            Arrayコアコア[c++]=コアコア;
         //        }
         //    }
         //    // App.xaml.cs などで保持しているインスタンス経由でアクセス

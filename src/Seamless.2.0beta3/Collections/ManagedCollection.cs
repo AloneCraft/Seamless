@@ -34,7 +34,7 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
     public partial struct Enumerator<TIterator,T>(
         ClientSession<
             FixedSpanByteKey,//TKey
-
+            //
             EqualityEmpty,//TInput
             SpanByteAndMemory,//TOutput
             EqualityEmpty,//TContext
@@ -80,8 +80,8 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         }
     }
     public bool Contains(TKey Key){
-        
-        
+        //
+        //
         return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     }
     private protected override Status Read(TKey Key,out TValue Value){
@@ -93,8 +93,7 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         Status=Pending(Session,Status,ref Output);
         if(Status.Found){
             Value=TValueSerializer.Deserialize(Output.ReadOnlySpan);
-        }
-        else{
+        }else{
             Value=default!;
         }
         return Status;

@@ -3,7 +3,7 @@ using Tsavorite.core;
 namespace Test.Seamless.Collections;
 
 public class StoreCheckpoint{
-    //private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    //private static string CreateFolder()=>Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private static string CreateFolder()=>Path.Combine(Path.GetTempPath(),"SeamlessTest");
     [Fact,Trait("Category","Unit")]
     public async Task SaveAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー(){

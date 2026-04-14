@@ -11,7 +11,7 @@ namespace Seamless.Reasoning;
 public class コア(nint OS上のID){
     public nint OS上のID{get; set;}=OS上のID;
     public string 種類{get; set;} // "P-Core" or "E-Core"
-    //public ObservableCollection<Ram> EnumerableRam{ get; } = new();
+    //public ObservableCollection<Ram> EnumerableRam{ get; }=new();
     public Ram[] ArrayRam;
     public Ram L1{get; set;}
     public Ram L2{get; set;}

@@ -151,7 +151,7 @@ public readonly struct ManagedSerializer<T> : ISerializer<T> {
         MemoryPackSerializer.Serialize(writer, value);
         serializedData = writer.WrittenSpan;
     }
-    public static T Deserialize(ReadOnlySpan<byte> bytes) => MemoryPackSerializer.Deserialize<T>(bytes)!;
+    public static T Deserialize(ReadOnlySpan<byte> bytes)=>MemoryPackSerializer.Deserialize<T>(bytes)!;
 }
 public readonly struct UnmanagedSerializer<T> : ISerializer<T> where T : unmanaged {
     public static void Serialize(ref T value, Span<byte> destination)=>MemoryMarshal.Write(destination, ref value);

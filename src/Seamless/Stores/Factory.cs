@@ -19,7 +19,7 @@ public readonly struct Factory {
         long MemorySize,
         double MutableFraction,
         string? CheckpointDir
-    ) {
+    ){
         this.IndexSize=IndexSize;
         this.PageSize=PageSize;
         this.SegmentSize=SegmentSize;
@@ -29,19 +29,19 @@ public readonly struct Factory {
     }
     /// <summary>構成パラメータを指定して Factory を生成する。</summary>
     public static Factory Create(
-        long IndexSize = Const.IndexSize,
-        long PageSize = Const.PageSize,
-        long SegmentSize = Const.SegmentSize,
-        long MemorySize = Const.LogMemorySize,
-        double MutableFraction = 1.0,
-        string? CheckpointDir = null
-    ) => new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,CheckpointDir);
+        long IndexSize=Const.IndexSize,
+        long PageSize=Const.PageSize,
+        long SegmentSize=Const.SegmentSize,
+        long MemorySize=Const.LogMemorySize,
+        double MutableFraction=1.0,
+        string? CheckpointDir=null
+    )=>new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,CheckpointDir);
 
     // ── Memory Dictionary ──────────────────────────────────────────
     /// <summary>Managed Key × Managed Value</summary>
     public ManagedDictionaryStore<TKey,TValue,ManagedSerializer<TKey>,ManagedSerializer<TValue>> Create<TKey, TValue>(
-        ManagedTag _0 = default,
-        ManagedTag _1 = default
+        ManagedTag _0=default,
+        ManagedTag _1=default
     )
         where TKey : IEquatable<TKey>
         where TValue : IEquatable<TValue> =>
@@ -49,8 +49,8 @@ public readonly struct Factory {
     /// <summary>Managed Key × Unmanaged Value</summary>
     [OverloadResolutionPriority(1)]
     public ManagedDictionaryStore<TKey,TValue,ManagedSerializer<TKey>,UnmanagedSerializer<TValue>> Create<TKey, TValue>(
-        ManagedTag _0 = default,
-        UnmanagedTag _1 = default
+        ManagedTag _0=default,
+        UnmanagedTag _1=default
     )
         where TKey : IEquatable<TKey>
         where TValue : unmanaged, IEquatable<TValue> =>
@@ -58,8 +58,8 @@ public readonly struct Factory {
     /// <summary>Unmanaged Key × Managed Value</summary>
     [OverloadResolutionPriority(1)]
     public ManagedDictionaryStore<TKey,TValue,UnmanagedSerializer<TKey>,ManagedSerializer<TValue>> Create<TKey, TValue>(
-        UnmanagedTag _0 = default,
-        ManagedTag _1 = default
+        UnmanagedTag _0=default,
+        ManagedTag _1=default
     )
         where TKey : unmanaged, IEquatable<TKey>
         where TValue : IEquatable<TValue> =>
@@ -67,8 +67,8 @@ public readonly struct Factory {
     /// <summary>Unmanaged Key × Unmanaged Value</summary>
     [OverloadResolutionPriority(2)]
     public UnmanagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
-        UnmanagedTag _0 = default,
-        UnmanagedTag _1 = default
+        UnmanagedTag _0=default,
+        UnmanagedTag _1=default
     )
         where TKey : unmanaged, IEquatable<TKey>
         where TValue : unmanaged, IEquatable<TValue> =>
@@ -79,8 +79,8 @@ public readonly struct Factory {
     public ManagedDictionaryStore<TKey,TValue,ManagedSerializer<TKey>,ManagedSerializer<TValue>> Create<TKey, TValue>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
-        ManagedTag _0 = default,
-        ManagedTag _1 = default
+        ManagedTag _0=default,
+        ManagedTag _1=default
     )
         where TKey : IEquatable<TKey>
         where TValue : IEquatable<TValue> =>
@@ -90,8 +90,8 @@ public readonly struct Factory {
     public ManagedDictionaryStore<TKey,TValue,ManagedSerializer<TKey>,UnmanagedSerializer<TValue>> Create<TKey, TValue>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
-        ManagedTag _0 = default,
-        UnmanagedTag _1 = default
+        ManagedTag _0=default,
+        UnmanagedTag _1=default
     )
         where TKey : IEquatable<TKey>
         where TValue : unmanaged, IEquatable<TValue> =>
@@ -101,8 +101,8 @@ public readonly struct Factory {
     public ManagedDictionaryStore<TKey,TValue,UnmanagedSerializer<TKey>,ManagedSerializer<TValue>> Create<TKey, TValue>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
-        UnmanagedTag _0 = default,
-        ManagedTag _1 = default
+        UnmanagedTag _0=default,
+        ManagedTag _1=default
     )
         where TKey : unmanaged, IEquatable<TKey>
         where TValue : IEquatable<TValue> =>
@@ -112,8 +112,8 @@ public readonly struct Factory {
     public UnmanagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
-        UnmanagedTag _0 = default,
-        UnmanagedTag _1 = default
+        UnmanagedTag _0=default,
+        UnmanagedTag _1=default
     )
         where TKey : unmanaged, IEquatable<TKey>
         where TValue : unmanaged, IEquatable<TValue> =>

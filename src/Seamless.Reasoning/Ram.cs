@@ -3,7 +3,7 @@
 namespace Seamless.Reasoning;
 // 計測設定（パラメータ）
 public struct Ram(long Bytes,double レイテンシsecond,long BytesSecond){
-    //public string 名前 { get; set; } = 名前;// "L1i", "L1d", "L2", "L3"
+    //public string 名前 { get; set; }=名前;// "L1i", "L1d", "L2", "L3"
     public long Bytes{get; set;}=Bytes;
     public double レイテンシsecond{get; set;}=レイテンシsecond;
     public long BytesSecond{get; set;}=BytesSecond;
@@ -20,7 +20,7 @@ public struct Ram(long Bytes,double レイテンシsecond,long BytesSecond){
         //1G=1,000,000,000Bytes
         //1M=    1,000,000Bytes
         //1K=        1,000Bytes
-        //1 =            1Bytes
+        //1=           1Bytes
         if(this.Bytes<Const.Ki){
             //999Bytes
             sb.Append($"{this.Bytes,3}Bytes,");
