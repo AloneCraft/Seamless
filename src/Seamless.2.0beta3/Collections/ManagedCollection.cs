@@ -18,10 +18,10 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     ManagedStoreFunctions,//TStoreFunctions
     ManagedAllocator//TAllocator
 >
-    where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>
-    where TKeySerializer : ISerializer<TKey>
-    where TValueSerializer : ISerializer<TValue> {
+    where TKey:IEquatable<TKey>
+    where TValue:IEquatable<TValue>
+    where TKeySerializer:ISerializer<TKey>
+    where TValueSerializer:ISerializer<TValue> {
     public sealed class KeyIterator:ScanIteratorFunctions<TKey> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
@@ -32,8 +32,8 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     }
     public sealed class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
-            var Key = TKeySerializer.Deserialize(logRecord.Key);
-            var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
+            var Key=TKeySerializer.Deserialize(logRecord.Key);
+            var Value=TValueSerializer.Deserialize(logRecord.ValueSpan);
             return new(Key,Value);
         }
     }
@@ -51,12 +51,11 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         > Session,
         TIterator Iterator
     ):IEnumerator<T>
-    where TIterator : ScanIteratorFunctions<T> {
-        private TIterator Iterator = Iterator;
-        private long Cursor = 0, Count;
-        private int Index = -1;
+    where TIterator:ScanIteratorFunctions<T> {
+        private long Cursor=0, Count;
+        private int Index=-1;
         private bool Done;
-        public T Current => this.Iterator.Chunk[this.Index];
+        public T Current => Iterator.Chunk[this.Index];
         object? IEnumerator.Current => this.Current;
         public bool MoveNext() {
             if(++this.Index<this.Count) return true;
@@ -64,9 +63,9 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
                 this.Index=-1;
                 return false;
             }
-            this.Iterator.Count=0;
-            var r = Session.IterateLookup(ref this.Iterator,ref this.Cursor,resetCursor: false);
-            var Count = this.Iterator.Count;
+            Iterator.Count=0;
+            var r=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            var Count=Iterator.Count;
             this.Count=Count;
             if(!r)
                 this.Done=true;
@@ -86,7 +85,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         public void Dispose() {
         }
     }
-    private protected ManagedCollection(ManagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
+    private protected ManagedCollection(ManagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore) {
     }
     public bool Contains(TKey Key) {
         //
@@ -94,11 +93,11 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     }
     private protected override Status Read(TKey Key,out TValue Value) {
-        var KeyBytes = TKeySerializer.Serialize(ref Key);
-        var Session = this.ReadClientSession;
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
-        var Output = default(SpanByteAndMemory);
-        var Status = Session.BasicContext.Read(FixedKey,ref Output);
+        var KeyBytes=TKeySerializer.Serialize(ref Key);
+        var Session=this.ReadClientSession;
+        var FixedKey=(FixedSpanByteKey)KeyBytes;
+        var Output=default(SpanByteAndMemory);
+        var Status=Session.BasicContext.Read(FixedKey,ref Output);
         Status=Pending(Session,Status,ref Output);
         if(Status.Found) {
             Value=TValueSerializer.Deserialize(Output.ReadOnlySpan);
@@ -109,25 +108,25 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         return Status;
     }
     public bool Remove(TKey key) {
-        var ClientSession = this.ContainsDeleteClientSession;
-        var KeyBytes = TKeySerializer.Serialize(ref key);
+        var ClientSession=this.ContainsDeleteClientSession;
+        var KeyBytes=TKeySerializer.Serialize(ref key);
 
-        var Input = default(EqualityEmpty);
-        var Output = false;
-        var Status = ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
+        var Input=default(EqualityEmpty);
+        var Output=false;
+        var Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
         return Output;
     }
     private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value) {
-        var KeyBytes = TKeySerializer.Serialize(ref Key);
-        var ValueBytes = TValueSerializer.Serialize(ref Value);
+        var KeyBytes=TKeySerializer.Serialize(ref Key);
+        var ValueBytes=TValueSerializer.Serialize(ref Value);
         if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
             return TryAddResult.LogFull;
-        var Session = this.AddClientSession;
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
-        var FixedInput = PinnedSpanByte.FromPinnedSpan(ValueBytes);
-        var Output = false;
-        var Status = Session.BasicContext.RMW(FixedKey,ref FixedInput,ref Output);
+        var Session=this.AddClientSession;
+        var FixedKey=(FixedSpanByteKey)KeyBytes;
+        var FixedInput=PinnedSpanByte.FromPinnedSpan(ValueBytes);
+        var Output=false;
+        var Status=Session.BasicContext.RMW(FixedKey,ref FixedInput,ref Output);
         Status=Pending(Session,Status,ref Output);
         if(Output)
             return TryAddResult.Success;

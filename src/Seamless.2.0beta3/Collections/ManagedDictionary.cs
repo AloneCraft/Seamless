@@ -3,7 +3,6 @@ using Seamless.ScanIteratorFunctions;
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 namespace Seamless.Collections;
-
 public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer>{
     private ClientSession<
         FixedSpanByteKey,//TKey
@@ -25,7 +24,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         ManagedStoreFunctions,
         UnmanagedAllocator
     > Remove_KeyValuePair_ClientSession{get;}
-    internal ManagedDictionary(ManagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore){
+    internal ManagedDictionary(ManagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
         var Store=CollectionStore.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey

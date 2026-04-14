@@ -8,7 +8,7 @@ namespace Seamless.Collections;
 /// UnmanagedHashSet の 2.0beta3 固有部分。IntersectWith/SymmetricExceptWith セッションとイテレータ。
 /// </summary>
 public partial class UnmanagedHashSet<TKey>
-    where TKey : unmanaged, IEquatable<TKey> {
+    where TKey:unmanaged, IEquatable<TKey> {
     private readonly ClientSession<
         FixedSpanByteKey,
 
@@ -82,8 +82,8 @@ public partial class UnmanagedHashSet<TKey>
         
         
     > SymmetricExceptWith_ClientSession;
-    internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore){
-        var Store = CollectionStore.Store;
+    internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore):base(CollectionStore){
+        var Store=CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<
             FixedSpanByteKey,
             EqualityEmpty,

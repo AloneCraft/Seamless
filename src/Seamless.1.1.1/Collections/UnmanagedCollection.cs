@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 namespace Seamless.Collections;
@@ -108,19 +107,18 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
                     >
                 >
             >//TAllocator
-        > session,
-        TIterator iterator
+        > Session,
+        TIterator Iterator
     ):IEnumerator<T>
         where TIterator:ScanIteratorFunctions<
             T,
             TKey,
             TValue
         >{
-        private TIterator Iterator=iterator;
         private long Cursor=0,Count;
         private int Index=-1;
         private bool Done;
-        public T Current=>this.Iterator.Chunk[this.Index];
+        public T Current=>Iterator.Chunk[this.Index];
         object? IEnumerator.Current=>this.Current;
         public bool MoveNext(){
             if(++this.Index<this.Count){
@@ -130,9 +128,9 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
                 this.Index=-1;
                 return false;
             }
-            this.Iterator.Count=0;
-            var r=session.IterateLookup(ref this.Iterator,ref this.Cursor,resetCursor:false);
-            var Count=this.Iterator.Count;
+            Iterator.Count=0;
+            var r=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor:false);
+            var Count=Iterator.Count;
             this.Count=Count;
             if(!r)
                 this.Done=true;

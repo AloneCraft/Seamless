@@ -43,8 +43,8 @@ public readonly struct Factory {
         ManagedTag _0=default,
         ManagedTag _1=default
     )
-        where TKey : IEquatable<TKey>
-        where TValue : IEquatable<TValue> =>
+        where TKey:IEquatable<TKey>
+        where TValue:IEquatable<TValue> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Managed Key × Unmanaged Value</summary>
     [OverloadResolutionPriority(1)]
@@ -52,8 +52,8 @@ public readonly struct Factory {
         ManagedTag _0=default,
         UnmanagedTag _1=default
     )
-        where TKey : IEquatable<TKey>
-        where TValue : unmanaged, IEquatable<TValue> =>
+        where TKey:IEquatable<TKey>
+        where TValue:unmanaged, IEquatable<TValue> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Unmanaged Key × Managed Value</summary>
     [OverloadResolutionPriority(1)]
@@ -61,8 +61,8 @@ public readonly struct Factory {
         UnmanagedTag _0=default,
         ManagedTag _1=default
     )
-        where TKey : unmanaged, IEquatable<TKey>
-        where TValue : IEquatable<TValue> =>
+        where TKey:unmanaged, IEquatable<TKey>
+        where TValue:IEquatable<TValue> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Unmanaged Key × Unmanaged Value</summary>
     [OverloadResolutionPriority(2)]
@@ -70,8 +70,8 @@ public readonly struct Factory {
         UnmanagedTag _0=default,
         UnmanagedTag _1=default
     )
-        where TKey : unmanaged, IEquatable<TKey>
-        where TValue : unmanaged, IEquatable<TValue> =>
+        where TKey:unmanaged, IEquatable<TKey>
+        where TValue:unmanaged, IEquatable<TValue> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
 
     // ── Storage Dictionary ─────────────────────────────────────────
@@ -82,8 +82,8 @@ public readonly struct Factory {
         ManagedTag _0=default,
         ManagedTag _1=default
     )
-        where TKey : IEquatable<TKey>
-        where TValue : IEquatable<TValue> =>
+        where TKey:IEquatable<TKey>
+        where TValue:IEquatable<TValue> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
     /// <summary>Managed Key × Unmanaged Value（ストレージ付き）</summary>
     [OverloadResolutionPriority(1)]
@@ -93,8 +93,8 @@ public readonly struct Factory {
         ManagedTag _0=default,
         UnmanagedTag _1=default
     )
-        where TKey : IEquatable<TKey>
-        where TValue : unmanaged, IEquatable<TValue> =>
+        where TKey:IEquatable<TKey>
+        where TValue:unmanaged, IEquatable<TValue> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
     /// <summary>Unmanaged Key × Managed Value（ストレージ付き）</summary>
     [OverloadResolutionPriority(1)]
@@ -104,8 +104,8 @@ public readonly struct Factory {
         UnmanagedTag _0=default,
         ManagedTag _1=default
     )
-        where TKey : unmanaged, IEquatable<TKey>
-        where TValue : IEquatable<TValue> =>
+        where TKey:unmanaged, IEquatable<TKey>
+        where TValue:IEquatable<TValue> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
     /// <summary>Unmanaged Key × Unmanaged Value（ストレージ付き）</summary>
     [OverloadResolutionPriority(2)]
@@ -115,33 +115,33 @@ public readonly struct Factory {
         UnmanagedTag _0=default,
         UnmanagedTag _1=default
     )
-        where TKey : unmanaged, IEquatable<TKey>
-        where TValue : unmanaged, IEquatable<TValue> =>
+        where TKey:unmanaged, IEquatable<TKey>
+        where TValue:unmanaged, IEquatable<TValue> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
 
     // ── Managed HashSet ────────────────────────────────────────────
     /// <summary>Memory ManagedHashSet</summary>
     public ManagedHashSetStore<TKey> Create<TKey>()
-        where TKey : IEquatable<TKey> =>
+        where TKey:IEquatable<TKey> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Storage ManagedHashSet</summary>
     public ManagedHashSetStore<TKey> Create<TKey>(
         IDevice LogDevice,
         IDevice ObjectLogDevice
     )
-        where TKey : IEquatable<TKey> =>
+        where TKey:IEquatable<TKey> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
 
     // ── Unmanaged HashSet ──────────────────────────────────────────
     /// <summary>Memory UnmanagedHashSet</summary>
     public UnmanagedHashSetStore<TKey> CreateUnmanagedHashSet<TKey>()
-        where TKey : unmanaged, IEquatable<TKey> =>
+        where TKey:unmanaged, IEquatable<TKey> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Storage UnmanagedHashSet</summary>
     public UnmanagedHashSetStore<TKey> CreateUnmanagedHashSet<TKey>(
         IDevice LogDevice,
         IDevice ObjectLogDevice
     )
-        where TKey : unmanaged, IEquatable<TKey> =>
+        where TKey:unmanaged, IEquatable<TKey> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
 }

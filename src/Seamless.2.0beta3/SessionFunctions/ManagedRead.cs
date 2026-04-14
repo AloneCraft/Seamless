@@ -7,9 +7,9 @@ using System.Diagnostics.CodeAnalysis;
 /// </summary>
 public readonly partial struct ManagedRead():
     ISessionFunctions<EqualityEmpty,ManagedOutput,EqualityEmpty> {
-    private readonly MemoryPool<byte> memoryPool = MemoryPool<byte>.Shared;
+    private readonly MemoryPool<byte> memoryPool=MemoryPool<byte>.Shared;
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref ManagedOutput output,ref ReadInfo readInfo)
-        where TSourceLogRecord : ISourceLogRecord {
+        where TSourceLogRecord:ISourceLogRecord {
         srcLogRecord.ValueSpan.CopyTo(ref output,this.memoryPool);
         return true;
     }
@@ -23,7 +23,7 @@ public readonly partial struct ManagedRead():
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref ManagedOutput output,ref UpsertInfo upsertInfo)
-        where TSourceLogRecord : ISourceLogRecord {
+        where TSourceLogRecord:ISourceLogRecord {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
@@ -36,19 +36,19 @@ public readonly partial struct ManagedRead():
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref ManagedOutput output,ref UpsertInfo upsertInfo)
-        where TSourceLogRecord : ISourceLogRecord {
+        where TSourceLogRecord:ISourceLogRecord {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
-        where TKey : IKey, allows ref struct
-        where TEpochAccessor : IEpochAccessor {
+        where TKey:IKey, allows ref struct
+        where TEpochAccessor:IEpochAccessor {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
-        where TKey : IKey, allows ref struct
-        where TEpochAccessor : IEpochAccessor {
+        where TKey:IKey, allows ref struct
+        where TEpochAccessor:IEpochAccessor {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
@@ -61,12 +61,12 @@ public readonly partial struct ManagedRead():
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref ManagedOutput output,ref UpsertInfo upsertInfo)
-        where TSourceLogRecord : ISourceLogRecord {
+        where TSourceLogRecord:ISourceLogRecord {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
     public bool NeedInitialUpdate<TKey>(TKey key,ref EqualityEmpty input,ref ManagedOutput output,ref RMWInfo rmwInfo)
-        where TKey : IKey, allows ref struct {
+        where TKey:IKey, allows ref struct {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
@@ -83,23 +83,23 @@ public readonly partial struct ManagedRead():
     }
     [ExcludeFromCodeCoverage]
     public bool NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref ManagedOutput output,ref RMWInfo rmwInfo)
-        where TSourceLogRecord : ISourceLogRecord {
+        where TSourceLogRecord:ISourceLogRecord {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
     public bool CopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref ManagedOutput output,ref RMWInfo rmwInfo)
-        where TSourceLogRecord : ISourceLogRecord {
+        where TSourceLogRecord:ISourceLogRecord {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref ManagedOutput output,ref RMWInfo rmwInfo)
-        where TSourceLogRecord : ISourceLogRecord {
+        where TSourceLogRecord:ISourceLogRecord {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
     public void PostRMWOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
-        where TKey : IKey, allows ref struct
-        where TEpochAccessor : IEpochAccessor {
+        where TKey:IKey, allows ref struct
+        where TEpochAccessor:IEpochAccessor {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
@@ -120,36 +120,36 @@ public readonly partial struct ManagedRead():
     }
     [ExcludeFromCodeCoverage]
     public void PostDeleteOperation<TKey, TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
-        where TKey : IKey, allows ref struct
-        where TEpochAccessor : IEpochAccessor {
+        where TKey:IKey, allows ref struct
+        where TEpochAccessor:IEpochAccessor {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref ManagedOutput output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input)
-        where TSourceLogRecord : ISourceLogRecord {
+        where TSourceLogRecord:ISourceLogRecord {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        where TKey:IKey, allows ref struct {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        where TKey:IKey, allows ref struct {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,IHeapObject value,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        where TKey:IKey, allows ref struct {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey, TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct
-        where TSourceLogRecord : ISourceLogRecord {
+        where TKey:IKey, allows ref struct
+        where TSourceLogRecord:ISourceLogRecord {
         throw new NotSupportedException("ManagedReadクラスのReadでのみ使われる");
     }
     public void ConvertOutputToHeap(ref EqualityEmpty input,ref ManagedOutput output){

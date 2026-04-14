@@ -111,34 +111,29 @@ public sealed class UnmanagedAdd:AddTests<int,long>{
         var folder=CreateDiskFolder();
         using var logDevice=Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var objDevice=Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store=Factory.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,long>(logDevice,objDevice);
-        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.SessionFunctions.UnmanagedAdd<int,long>>(new());
-        var bc=session.BasicContext;
-        var key1=400;
-        var val1=100L;
-        bc.Upsert(ref key1,ref val1);
-        store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
-        bool output1=default;
-        var status1=bc.Read(ref key1,ref output1);
-        if(status1.IsPending){
-            bc.CompletePendingWithOutputs(out var c1,wait: true);
-            c1.Dispose();
-        }
-        Assert.True(status1.Found);
+        var (dict,store)=this.CreateDisk(logDevice,objDevice);
+        using var _store=store;
+        using var _dict=(IDisposable)dict;
+        var collectionStore=(UnmanagedCollectionStore<int,long>)store;
+
+        dict[400]=100L;
+        collectionStore.Store.Log.ShiftReadOnlyAddress(collectionStore.Store.Log.TailAddress,wait: true);
+
+        Assert.True(dict.TryGetValue(400,out var actual));
+        Assert.Equal(100L,actual);
 #endif
     }
 
     protected override void DoConcurrentReaderEmpty(){
 #if TSAVORITE1_1_1
-        using var store=Factory.Create().Create<int,long>();
-        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.SessionFunctions.UnmanagedAdd<int,long>>(new());
-        var bc=session.BasicContext;
-        var key=500;
-        var val=0L;
-        bc.Upsert(ref key,ref val);
-        bool output=default;
-        var status=bc.Read(ref key,ref output);
-        Assert.True(status.Found);
+        var (dict,store)=this.CreateMemory();
+        using var _store=store;
+        using var _dict=(IDisposable)dict;
+
+        dict[500]=0L;
+
+        Assert.True(dict.TryGetValue(500,out var actual));
+        Assert.Equal(0L,actual);
 #endif
     }
 }

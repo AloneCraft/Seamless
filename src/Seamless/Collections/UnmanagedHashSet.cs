@@ -7,11 +7,11 @@ namespace Seamless.Collections;
 /// </summary>
 [DebuggerTypeProxy(typeof(DebugView<>))]
 public partial class UnmanagedHashSet<TKey>:UnmanagedCollection<TKey,EqualityEmpty,UnmanagedSerializer<TKey>,UnmanagedSerializer<EqualityEmpty>>, ICollection<TKey>
-    where TKey : unmanaged, IEquatable<TKey> {
+    where TKey:unmanaged, IEquatable<TKey> {
     public bool IsReadOnly => false;
     void ICollection<TKey>.Add(TKey item) => this.Add(item);
     public bool Add(TKey item){
-        var Result = this.PrivateTryAdd(item,EqualityEmpty.Default);
+        var Result=this.PrivateTryAdd(item,EqualityEmpty.Default);
         switch(Result){
             case TryAddResult.Success:
                 return true;

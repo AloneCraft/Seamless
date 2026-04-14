@@ -16,16 +16,16 @@ public partial class UnmanagedDictionary<
         TValueSerializer
     >,
     ISeamlessDictionary<TKey,TValue>
-    where TKey : unmanaged, IEquatable<TKey>
-    where TValue : unmanaged, IEquatable<TValue>
-    where TKeySerializer : ISerializer<TKey>
-    where TValueSerializer : ISerializer<TValue> {
+    where TKey:unmanaged, IEquatable<TKey>
+    where TValue:unmanaged, IEquatable<TValue>
+    where TKeySerializer:ISerializer<TKey>
+    where TValueSerializer:ISerializer<TValue> {
     public bool IsReadOnly => false;
 
     public TryAddResult TryAdd(TKey key,TValue value) => this.PrivateTryAdd(key,value);
 
     public void Add(TKey key,TValue value) {
-        var result = this.TryAdd(key,value);
+        var result=this.TryAdd(key,value);
         switch(result) {
             case TryAddResult.LogFull:
                 throw this.ThrowLogFull();
@@ -37,7 +37,7 @@ public partial class UnmanagedDictionary<
     public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
 
     bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item) {
-        var status = this.Read(item.Key,out var output);
+        var status=this.Read(item.Key,out var output);
         if(status.NotFound) return false;
         return output.Equals(item.Value);
     }

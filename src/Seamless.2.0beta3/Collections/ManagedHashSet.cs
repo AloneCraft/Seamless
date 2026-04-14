@@ -9,7 +9,7 @@ namespace Seamless.Collections;
 /// 重複を許さず、キーのみを格納する。値は EqualityEmpty 構造体を使用する。
 /// </summary>
 public partial class ManagedHashSet<TKey>
-    where TKey : IEquatable<TKey> {
+    where TKey:IEquatable<TKey> {
     private readonly ClientSession<
         FixedSpanByteKey,//TKey
 
@@ -30,8 +30,8 @@ public partial class ManagedHashSet<TKey>
         ManagedStoreFunctions,
         UnmanagedAllocator
     > SymmetricExceptWith_ClientSession;
-    internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore){
-        var Store = CollectionStore.Store;
+    internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore):base(CollectionStore){
+        var Store=CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
             EqualityEmpty,//TInput
