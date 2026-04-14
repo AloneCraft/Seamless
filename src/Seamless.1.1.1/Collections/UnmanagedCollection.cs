@@ -173,7 +173,6 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     
     
     
-    
     public bool Remove(TKey key){
         var ClientSession=this.ContainsDeleteClientSession;
 
