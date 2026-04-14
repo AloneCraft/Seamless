@@ -10,7 +10,7 @@ namespace Seamless.Collections;
 /// </summary>
 [DebuggerDisplay("Count = {Count}")]
 [DebuggerTypeProxy(typeof(DebugView<>))]
-public abstract partial class ManagedHashSet<TKey>
+public partial class ManagedHashSet<TKey>
     where TKey : IEquatable<TKey>
 {
     private readonly ClientSession<
@@ -71,7 +71,10 @@ public abstract partial class ManagedHashSet<TKey>
     {
         public bool SingleReader(ref SpanByte key, ref SpanByte value, RecordMetadata recordMetadata, long numberOfRecords, out CursorRecordResult cursorRecordResult)
         {
-            if (!other.PrivateProtectedContainsKey(ref key))
+            if (other.PrivateProtectedContainsKey(ref key))
+            {
+            }
+            else
             {
                 var input = default(EqualityEmpty);
                 var output = default(EqualityEmpty);
@@ -83,6 +86,9 @@ public abstract partial class ManagedHashSet<TKey>
                     {
                         Debug.Assert(completedOutputs.Next());
                     }
+                }
+                else
+                {
                 }
             }
             cursorRecordResult = CursorRecordResult.Accept;
@@ -134,6 +140,9 @@ public abstract partial class ManagedHashSet<TKey>
                 {
                     Debug.Assert(completedOutputs.Next());
                 }
+            }
+            else
+            {
             }
             cursorRecordResult = CursorRecordResult.Accept;
             return true;

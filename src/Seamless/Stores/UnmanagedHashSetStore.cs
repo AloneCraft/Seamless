@@ -5,10 +5,11 @@ namespace Seamless.Stores;
 /// <summary>
 /// UnmanagedHashSet 用の Tsavorite ストア。
 /// </summary>
-public abstract class UnmanagedHashSetStore<TKey>
-    :UnmanagedCollectionStore<TKey,EqualityEmpty>
-    where TKey:unmanaged,IEquatable<TKey> {
-    private protected UnmanagedHashSetStore(
+public class UnmanagedHashSetStore<TKey>
+    : UnmanagedCollectionStore<TKey, EqualityEmpty>
+    where TKey : unmanaged, IEquatable<TKey>
+{
+    internal UnmanagedHashSetStore(
         long IndexSize,
         long PageSize,
         long SegmentSize,
@@ -17,7 +18,7 @@ public abstract class UnmanagedHashSetStore<TKey>
         IDevice LogDevice,
         IDevice ObjectLogDevice,
         string? CheckpointDir
-    ):base(
+    ) : base(
         IndexSize,
         PageSize,
         SegmentSize,
@@ -25,62 +26,29 @@ public abstract class UnmanagedHashSetStore<TKey>
         MutableFraction,
         LogDevice,
         ObjectLogDevice,
-        CheckpointDir
-    ){}
-    public abstract UnmanagedHashSet<TKey> Create();
-}
-/// <summary>
-/// メモリのみの UnmanagedHashSet ストア。
-/// </summary>
-public sealed class MemoryUnmanagedHashSetStore<TKey>
-    :UnmanagedHashSetStore<TKey>
-    where TKey:unmanaged,IEquatable<TKey> {
-    internal MemoryUnmanagedHashSetStore(
+        CheckpointDir,
+        OverflowMutableStrategyKind.Storage
+    )
+    { }
+
+    internal UnmanagedHashSetStore(
         long IndexSize,
         long PageSize,
         long SegmentSize,
         long MemorySize,
         double MutableFraction
-    ):base(
+    ) : base(
         IndexSize,
         PageSize,
         SegmentSize,
         MemorySize,
         MutableFraction,
-        new MemoryOnlyDevice(SegmentSize*2),
+        new MemoryOnlyDevice(SegmentSize * 2),
         new MemoryOnlyDevice(Const.MinObjectLogCapacity),
-        null
-    ){}
-    public override UnmanagedHashSet<TKey> Create()=>
-        new MemoryUnmanagedHashSet<TKey>(this);
-}
-/// <summary>
-/// ストレージ付き UnmanagedHashSet ストア。
-/// </summary>
-public sealed class StorageUnmanagedHashSetStore<TKey>
-    :UnmanagedHashSetStore<TKey>
-    where TKey:unmanaged,IEquatable<TKey> {
-    internal StorageUnmanagedHashSetStore(
-        long IndexSize,
-        long PageSize,
-        long SegmentSize,
-        long MemorySize,
-        double MutableFraction,
-        IDevice LogDevice,
-        IDevice ObjectLogDevice,
-        string? CheckpointDir
-    ):base(
-        IndexSize,
-        PageSize,
-        SegmentSize,
-        MemorySize,
-        MutableFraction,
-        LogDevice,
-        ObjectLogDevice,
-        CheckpointDir
-    ){}
-    public override UnmanagedHashSet<TKey> Create()=>
+        null,
+        OverflowMutableStrategyKind.Memory
+    )
+    { }
 
-        new StorageUnmanagedHashSet<TKey>(this);
-
+    public UnmanagedHashSet<TKey> Create() => new(this);
 }
