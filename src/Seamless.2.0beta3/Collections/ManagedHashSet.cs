@@ -1,6 +1,5 @@
 ﻿using Seamless.SessionFunctions;
 using Seamless.Stores;
-
 using System.Diagnostics;
 namespace Seamless.Collections;
 
