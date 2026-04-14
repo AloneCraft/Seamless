@@ -1,6 +1,6 @@
 ﻿using Seamless.SessionFunctions;
 using Seamless.Stores;
-using System.Diagnostics;
+
 namespace Seamless.Collections;
 
 /// <summary>
@@ -8,9 +8,8 @@ namespace Seamless.Collections;
 /// <see cref="ISet{T}"/> を実装し、利用者に Tsavorite の詳細を見せない。
 /// 重複を許さず、キーのみを格納する。値は EqualityEmpty 構造体を使用する。
 /// </summary>
-[DebuggerDisplay("Count = {Count}")]
 public partial class ManagedHashSet<TKey>
-    where TKey:IEquatable<TKey>{
+    where TKey : IEquatable<TKey> {
     private readonly ClientSession<
         FixedSpanByteKey,//TKey
 
@@ -18,20 +17,8 @@ public partial class ManagedHashSet<TKey>
         EqualityEmpty,//TOutput
         EqualityEmpty,//TContext
         IntersectWith,//TFunctions
-
-
-        StoreFunctions<
-            SpanByteComparer,//TKeyComparer
-            DefaultRecordDisposer//TRecordDisposer
-        >,//TStoreFunctions
-
-
-        SpanByteAllocator<
-            StoreFunctions<
-                SpanByteComparer,//TKeyComparer
-                DefaultRecordDisposer//TRecordDisposer
-            >
-        >
+        ManagedStoreFunctions,//TStoreFunctions
+        ManagedAllocator
     > IntersectWith_ClientSession;
     private readonly ClientSession<
         FixedSpanByteKey,//TKey
@@ -40,23 +27,11 @@ public partial class ManagedHashSet<TKey>
         SpanByteAndMemory,//TOutput
         EqualityEmpty,//TContext
         SymmetricExceptWith,//TFunctions
-        StoreFunctions<
-            SpanByteComparer,//TKeyComparer
-            DefaultRecordDisposer//TRecordDisposer
-
-
-        >,
-        SpanByteAllocator<
-            StoreFunctions<
-                SpanByteComparer,//TKeyComparer
-                DefaultRecordDisposer//TRecordDisposer
-
-
-            >
-        >
+        ManagedStoreFunctions,
+        UnmanagedAllocator
     > SymmetricExceptWith_ClientSession;
-    internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore):base(CollectionStore){
-        var Store=CollectionStore.Store;
+    internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
+        var Store = CollectionStore.Store;
         this.IntersectWith_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
             EqualityEmpty,//TInput
@@ -75,11 +50,90 @@ public partial class ManagedHashSet<TKey>
     public Enumerator<
         KeyIterator,
         TKey
-    > GetEnumerator()=>new(this.ReadClientSession,new());
+    > GetEnumerator() => new(this.ReadClientSession,new());
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     public partial void IntersectWith(ManagedHashSet<TKey> other){
+        //2.0はMaagedもUnmanagedも共通なのでCollectionで定義している
         this.IntersectWith(this,other,this.IntersectWith_ClientSession);
     }
-    public partial void SymmetricExceptWith(ManagedHashSet<TKey> other){
+
+
+
+
+    public partial void SymmetricExceptWith(ManagedHashSet<TKey> other) {
         this.SymmetricExceptWith(this,other,this.SymmetricExceptWith_ClientSession);
     }
 }

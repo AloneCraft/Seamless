@@ -3,6 +3,8 @@ using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 
 namespace Seamless.Collections;
+
+[DebuggerDisplay("Count={Count}")]
 public abstract partial class Collection<
     TKey,
     TValue,
@@ -16,8 +18,8 @@ public abstract partial class Collection<
     TStoreFunctions,
     TAllocator
 >
-    where TKey:IEquatable<TKey>
-    where TReadFunctions:struct,ISessionFunctions<
+    where TKey : IEquatable<TKey>
+    where TReadFunctions : struct, ISessionFunctions<
         TSessionKey,
         TSessionValue,
         EqualityEmpty,
@@ -25,7 +27,7 @@ public abstract partial class Collection<
         EqualityEmpty
     >,
     ICreate<TReadFunctions>
-    where TAddFunctions:struct,ISessionFunctions<
+    where TAddFunctions : struct, ISessionFunctions<
         TSessionKey,
         TSessionValue,
         TAddInput,
@@ -33,7 +35,7 @@ public abstract partial class Collection<
         EqualityEmpty
     >,
     ICreate<TAddFunctions>
-    where TContainsDeleteFunctions:struct,ISessionFunctions<
+    where TContainsDeleteFunctions : struct, ISessionFunctions<
         TSessionKey,
         TSessionValue,
         EqualityEmpty,
@@ -41,15 +43,15 @@ public abstract partial class Collection<
         EqualityEmpty
     >,
     ICreate<TContainsDeleteFunctions>
-    where TStoreFunctions:IStoreFunctions<
+    where TStoreFunctions : IStoreFunctions<
         TSessionKey,
         TSessionValue
     >
-    where TAllocator:IAllocator<
+    where TAllocator : IAllocator<
         TSessionKey,
         TSessionValue,
         TStoreFunctions
-    >{
+    > {
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -59,7 +61,7 @@ public abstract partial class Collection<
         TReadFunctions,
         TStoreFunctions,
         TAllocator
-    > ReadClientSession{get; private set;}
+    > ReadClientSession { get; private set; }
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -69,7 +71,7 @@ public abstract partial class Collection<
         TAddFunctions,
         TStoreFunctions,
         TAllocator
-    > AddClientSession{get; private set;}
+    > AddClientSession { get; private set; }
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -79,7 +81,7 @@ public abstract partial class Collection<
         TContainsDeleteFunctions,
         TStoreFunctions,
         TAllocator
-    > ContainsDeleteClientSession{get; private set;}
+    > ContainsDeleteClientSession { get; private set; }
     private readonly CollectionStore<
         TKey,
         TValue,
@@ -88,35 +90,35 @@ public abstract partial class Collection<
         TStoreFunctions,
         TAllocator
     > CollectionStore;
-    public sealed class CounterIterator:IScanIteratorFunctions<TSessionKey,TSessionValue>{
-        public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
+    public sealed class CounterIterator:IScanIteratorFunctions<TSessionKey,TSessionValue> {
+        public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
+        public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
         public long Counter;
-        public bool OnStart(long beginAddress,long endAddress){
+        public bool OnStart(long beginAddress,long endAddress) {
             return true;
         }
-        public void OnException(Exception exception,long numberOfRecords){
+        public void OnException(Exception exception,long numberOfRecords) {
         }
-        public void OnStop(bool completed,long numberOfRecords){
+        public void OnStop(bool completed,long numberOfRecords) {
             this.Counter=numberOfRecords;
         }
     }
-    public long GetLongCount(){
-        var Iterator=new CounterIterator();
-        var Cursor=0L;
-        this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor:false);
+    public long GetLongCount() {
+        var Iterator = new CounterIterator();
+        var Cursor = 0L;
+        this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         return Iterator.Counter;
     }
-    private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey){
-        var Session=this.ContainsDeleteClientSession;
-        var Output=false;
-        var Status=Session.BasicContext.Read(ref SessionKey,ref Output);
+    private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey) {
+        var Session = this.ContainsDeleteClientSession;
+        var Output = false;
+        var Status = Session.BasicContext.Read(ref SessionKey,ref Output);
         Status=Pending(Session,Status,ref Output);
         return Status.Found;
     }
@@ -129,9 +131,9 @@ public abstract partial class Collection<
             TStoreFunctions,
             TAllocator
         > CollectionStore
-    ){
+    ) {
         this.CollectionStore=CollectionStore;
-        var Store=CollectionStore.Store;
+        var Store = CollectionStore.Store;
         this.ReadClientSession=Store.NewSession<
             EqualityEmpty,
 
@@ -154,11 +156,11 @@ public abstract partial class Collection<
             TContainsDeleteFunctions
         >(TContainsDeleteFunctions.Create());
     }
-    public void Clear(){
-        var Session=this.AddClientSession;
-        Session.BasicContext.CompletePending(wait:true);
+    public void Clear() {
+        var Session = this.AddClientSession;
+        Session.BasicContext.CompletePending(wait: true);
         Session.Dispose();
-        var Store=this.CollectionStore.Store;
+        var Store = this.CollectionStore.Store;
         Store.Reset();
         this.ReadClientSession=Store.NewSession<
 
@@ -182,9 +184,9 @@ public abstract partial class Collection<
             TContainsDeleteFunctions
         >(TContainsDeleteFunctions.Create());
     }
-    public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value){
-        var Status=this.Read(Key,out Value);
-        if(Status.NotFound){
+    public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
+        var Status = this.Read(Key,out Value);
+        if(Status.NotFound) {
             Value=default;
             return false;
         }
@@ -209,20 +211,21 @@ public abstract partial class Collection<
         > Session,
         Status Status
     )
-    where TSessionFunctions0:struct,ISessionFunctions<
+    where TSessionFunctions0 : struct, ISessionFunctions<
         TSessionKey,
         TSessionValue,
         TInput0,
         TOutput0,
         TContext0
-    >{
-        if(Status.IsPending){
-            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
-            using(CompletedOutputs){
+    > {
+        if(Status.IsPending) {
+            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
+            using(CompletedOutputs) {
                 Debug.Assert(CompletedOutputs.Next());
                 Status=CompletedOutputs.Current.Status;
             }
-        }else{
+        }
+        else {
         }
         return Status;
     }
@@ -245,21 +248,22 @@ public abstract partial class Collection<
         Status Status,
         ref TOutput0 Output
     )
-    where TSessionFunctions0:struct,ISessionFunctions<
+    where TSessionFunctions0 : struct, ISessionFunctions<
         TSessionKey,
         TSessionValue,
         TInput0,
         TOutput0,
         TContext0
-    >{
-        if(Status.IsPending){
-            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
-            using(CompletedOutputs){
+    > {
+        if(Status.IsPending) {
+            Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
+            using(CompletedOutputs) {
                 Debug.Assert(CompletedOutputs.Next());
                 Status=CompletedOutputs.Current.Status;
                 Output=CompletedOutputs.Current.Output;
             }
-        }else{
+        }
+        else {
         }
         return Status;
     }

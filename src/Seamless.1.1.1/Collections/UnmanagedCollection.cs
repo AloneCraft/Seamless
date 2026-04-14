@@ -71,7 +71,6 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
                 value
             );
     }
-    [StructLayout(LayoutKind.Auto)]
     public struct Enumerator<TIterator,T>(
         ClientSession<
             TKey,//TKey
@@ -170,6 +169,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     }
     public bool Remove(TKey key){
         var ClientSession=this.ContainsDeleteClientSession;
+
         var Input=default(EqualityEmpty);
         var Output=false;
         var Status=ClientSession.BasicContext.RMW(ref key,ref Input,ref Output);
@@ -186,7 +186,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         var Status=ClientSession.BasicContext.RMW(ref key,ref value,ref Output);
         Status=Pending(ClientSession,Status);
         Debug.Assert(Status.NotFound==Output);
-        if(Status.NotFound)
+        if(Output)
             return TryAddResult.Success;
         return TryAddResult.KeyAlreadyExists;
     }

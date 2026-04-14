@@ -329,7 +329,7 @@ public class HashSet{
                 fullSet.Add(1);
             }
         }) is OutOfMemoryException,"TryAddResult.LogFull");
-        //switch(Result) {
+        //switch(Result){
         //    case TryAddResult.Success:
         //        return true;
         //    case TryAddResult.KeyAlreadyExists:

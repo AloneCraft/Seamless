@@ -2,74 +2,74 @@
 //using MemoryPack;
 //using System.Buffers;
 //using Tsavorite.core;
-//using OA = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>>;
-//using StoreFunc = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>;
+//using OA=Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>>;
+//using StoreFunc=Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>;
 //public class CheckpointRecoveryTests{
 //    public static class Const{
-//        public const int IndexSizeBits = 6;
-//        public const int PageSizeBits = 12;
-//        public const int MemorySizeBits = PageSizeBits+1;
+//        public const int IndexSizeBits=6;
+//        public const int PageSizeBits=12;
+//        public const int MemorySizeBits=PageSizeBits+1;
 //        public const long IndexSize =1L<<IndexSizeBits;
 //        public const long LogMemorySize=1L<<MemorySizeBits;
 //        public const long PageSize  =1L<<PageSizeBits;
 //        public const long SegmentSize=PageSize*1;
 //        public const long MinObjectLogCapacity=1L<<22;
 //    }
-//    public readonly struct Add():ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty> {
-//        private readonly MemoryPool<byte> memoryPool = MemoryPool<byte>.Shared;
+//    public readonly struct Add():ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>{
+//        private readonly MemoryPool<byte> memoryPool=MemoryPool<byte>.Shared;
 //        public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref ReadInfo readInfo)
 //            where TSourceLogRecord:ISourceLogRecord {
 //            srcLogRecord.ValueSpan.CopyTo(ref output,this.memoryPool);
 //            return true;
 //        }
 //        public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ReadOnlySpan<byte> srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo)
-//            => logRecord.TrySetValueSpanAndPrepareOptionals(srcValue,in sizeInfo);
+//           =>logRecord.TrySetValueSpanAndPrepareOptionals(srcValue,in sizeInfo);
 //        public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,IHeapObject srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo)
-//            => logRecord.TrySetValueObjectAndPrepareOptionals(srcValue,in sizeInfo);
+//           =>logRecord.TrySetValueObjectAndPrepareOptionals(srcValue,in sizeInfo);
 //        public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,in TSourceLogRecord inputLogRecord,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo)
 //            where TSourceLogRecord:ISourceLogRecord
-//            => dstLogRecord.TryCopyFrom(in inputLogRecord,in sizeInfo);
+//           =>dstLogRecord.TryCopyFrom(in inputLogRecord,in sizeInfo);
 //        public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ReadOnlySpan<byte> srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo)
-//            => dstLogRecord.TrySetValueSpanAndPrepareOptionals(srcValue,in sizeInfo);
+//           =>dstLogRecord.TrySetValueSpanAndPrepareOptionals(srcValue,in sizeInfo);
 //        public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,IHeapObject srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo)
-//            => dstLogRecord.TrySetValueObjectAndPrepareOptionals(srcValue,in sizeInfo);
+//           =>dstLogRecord.TrySetValueObjectAndPrepareOptionals(srcValue,in sizeInfo);
 //        public bool InitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,in TSourceLogRecord inputLogRecord,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo)
 //            where TSourceLogRecord:ISourceLogRecord
-//            => dstLogRecord.TryCopyFrom(in inputLogRecord,in sizeInfo);
+//           =>dstLogRecord.TryCopyFrom(in inputLogRecord,in sizeInfo);
 //        public void PostUpsertOperation<TKey,TEpochAccessor>(TKey key,ref PinnedSpanByte input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
 //            where TKey:IKey,allows ref struct where TEpochAccessor:IEpochAccessor {}
 //        public void PostUpsertOperation<TKey,TEpochAccessor>(TKey key,ref PinnedSpanByte input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
 //            where TKey:IKey,allows ref struct where TEpochAccessor:IEpochAccessor {}
-//        public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ReadOnlySpan<byte> srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo) {}
-//        public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,IHeapObject srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo) {}
+//        public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ReadOnlySpan<byte> srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo){}
+//        public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,IHeapObject srcValue,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo){}
 //        public void PostInitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,in TSourceLogRecord inputLogRecord,ref SpanByteAndMemory output,ref UpsertInfo upsertInfo)
 //            where TSourceLogRecord:ISourceLogRecord {}
 //        public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref PinnedSpanByte input)
 //            where TKey:IKey,allows ref struct
-//            => new(){KeySize=key.KeyBytes.Length,ValueSize=value.Length};
+//           =>new(){KeySize=key.KeyBytes.Length,ValueSize=value.Length};
 //        public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,IHeapObject value,ref PinnedSpanByte input)
 //            where TKey:IKey,allows ref struct
-//            => new(){KeySize=key.KeyBytes.Length,ValueSize=ObjectIdMap.ObjectIdSize,ValueIsObject=true};
+//           =>new(){KeySize=key.KeyBytes.Length,ValueSize=ObjectIdMap.ObjectIdSize,ValueIsObject=true};
 //        public RecordFieldInfo GetUpsertFieldInfo<TKey,TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref PinnedSpanByte input)
 //            where TKey:IKey,allows ref struct where TSourceLogRecord:ISourceLogRecord
-//            => new(){KeySize=key.KeyBytes.Length,ValueSize=inputLogRecord.Info.ValueIsObject?ObjectIdMap.ObjectIdSize:inputLogRecord.ValueSpan.Length,ValueIsObject=inputLogRecord.Info.ValueIsObject};
-//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.NeedInitialUpdate<TKey>(TKey key,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) => throw new NotSupportedException();
-//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) => throw new NotSupportedException();
-//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) => throw new NotSupportedException();
-//        void ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) => throw new NotSupportedException();
-//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) => throw new NotSupportedException();
-//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.CopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) => throw new NotSupportedException();
-//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo) => throw new NotSupportedException();
-//        void ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.PostRMWOperation<TKey,TEpochAccessor>(TKey key,ref PinnedSpanByte input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor) => throw new NotSupportedException();
-//        void ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) => throw new NotSupportedException();
-//        RecordFieldInfo IVariableLengthInput<PinnedSpanByte>.GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input) => throw new NotSupportedException();
-//        RecordFieldInfo IVariableLengthInput<PinnedSpanByte>.GetRMWInitialFieldInfo<TKey>(TKey key,ref PinnedSpanByte input) => throw new NotSupportedException();
-//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) => throw new NotSupportedException();
-//        void ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.PostInitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) => throw new NotSupportedException();
-//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.InPlaceDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) => throw new NotSupportedException();
-//        void ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.PostDeleteOperation<TKey,TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor) => throw new NotSupportedException();
-//        public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {}
-//        public void ConvertOutputToHeap(ref PinnedSpanByte input,ref SpanByteAndMemory output) {}
+//           =>new(){KeySize=key.KeyBytes.Length,ValueSize=inputLogRecord.Info.ValueIsObject?ObjectIdMap.ObjectIdSize:inputLogRecord.ValueSpan.Length,ValueIsObject=inputLogRecord.Info.ValueIsObject};
+//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.NeedInitialUpdate<TKey>(TKey key,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)=>throw new NotSupportedException();
+//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)=>throw new NotSupportedException();
+//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)=>throw new NotSupportedException();
+//        void ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)=>throw new NotSupportedException();
+//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)=>throw new NotSupportedException();
+//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.CopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)=>throw new NotSupportedException();
+//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref PinnedSpanByte input,ref SpanByteAndMemory output,ref RMWInfo rmwInfo)=>throw new NotSupportedException();
+//        void ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.PostRMWOperation<TKey,TEpochAccessor>(TKey key,ref PinnedSpanByte input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)=>throw new NotSupportedException();
+//        void ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata)=>throw new NotSupportedException();
+//        RecordFieldInfo IVariableLengthInput<PinnedSpanByte>.GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref PinnedSpanByte input)=>throw new NotSupportedException();
+//        RecordFieldInfo IVariableLengthInput<PinnedSpanByte>.GetRMWInitialFieldInfo<TKey>(TKey key,ref PinnedSpanByte input)=>throw new NotSupportedException();
+//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo)=>throw new NotSupportedException();
+//        void ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.PostInitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo)=>throw new NotSupportedException();
+//        bool ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.InPlaceDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo)=>throw new NotSupportedException();
+//        void ISessionFunctions<PinnedSpanByte,SpanByteAndMemory,EqualityEmpty>.PostDeleteOperation<TKey,TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)=>throw new NotSupportedException();
+//        public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref PinnedSpanByte input,ref SpanByteAndMemory output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){}
+//        public void ConvertOutputToHeap(ref PinnedSpanByte input,ref SpanByteAndMemory output){}
 //    }
 //    private async ValueTask SaveLoad(CheckpointType　CheckpointType,int LoadCount){
 //        var ct=TestContext.Current.CancellationToken;
@@ -125,13 +125,13 @@
 //            };
 //            var sf=new StoreFunctions<SpanByteComparer,DefaultRecordDisposer>(
 //                new SpanByteComparer(),
-//                () => null,
+//                ()=>null,
 //                new DefaultRecordDisposer()
 //            );
 //            return new TsavoriteKV<StoreFunc,OA>(
 //                Settings,
 //                sf,
-//                static (AllocSettings,StoreFuncs) => new SpanByteAllocator<StoreFunc>(AllocSettings,StoreFuncs));
+//                static (AllocSettings,StoreFuncs)=>new SpanByteAllocator<StoreFunc>(AllocSettings,StoreFuncs));
 //        }
 //        static void Read(TsavoriteKV<StoreFunc,OA> Store){
 //            var Session=Store.NewSession<FixedSpanByteKey,PinnedSpanByte,SpanByteAndMemory,EqualityEmpty,Add>(new());

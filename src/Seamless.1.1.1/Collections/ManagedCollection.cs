@@ -93,8 +93,7 @@ public abstract partial class ManagedCollection<TKey,TValue,TKeySerializer,TValu
         Status=Pending(Session,Status,ref Output);
         if(Status.Found){
             Value=TValueSerializer.Deserialize(Output.AsReadOnlySpan());
-        }
-        else{
+        }else{
             Value=default!;
         }
         return Status;

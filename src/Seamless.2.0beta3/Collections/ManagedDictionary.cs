@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 namespace Seamless.Collections;
 
-public partial class ManagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>{
+public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer>{
     private ClientSession<
         FixedSpanByteKey,//TKey
 
@@ -12,44 +12,20 @@ public partial class ManagedDictionary<TKey,TValue,TKeySerializer,TValueSerializ
         SpanByteAndMemory,//TOutput
         EqualityEmpty,//TContext
         Remove_TKey_TValue,//TFunctions
-
         ManagedStoreFunctions,//TStoreFunctions
-                              //StoreFunctions<
-                              //    SpanByteComparer,
-                              //    DefaultRecordDisposer
-                              //>,//TStoreFunctions
         ManagedAllocator//TAllocator
-
-        //SpanByteAllocator<
-        //    StoreFunctions<
-        //        SpanByteComparer,
-        //        DefaultRecordDisposer
-        //    >
-        //>//TAllocator
-    > Remove_TKey_TValue_ClientSession{get; set;}
+    > Remove_TKey_TValue_ClientSession { get; }
     private ClientSession<
         FixedSpanByteKey,
-
+        //
         PinnedSpanByte,
         bool,
         EqualityEmpty,
         Remove_KeyValuePair,
-
-
-        StoreFunctions<
-            SpanByteComparer,
-            DefaultRecordDisposer
-        >,
-
-
-        SpanByteAllocator<
-            StoreFunctions<
-                SpanByteComparer,
-                DefaultRecordDisposer
-            >
-        >
-    > Remove_KeyValuePair_ClientSession{get; set;}
-    internal ManagedDictionary(ManagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
+        ManagedStoreFunctions,
+        UnmanagedAllocator
+    > Remove_KeyValuePair_ClientSession{get;}
+    internal ManagedDictionary(ManagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore){
         var Store=CollectionStore.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
@@ -101,9 +77,9 @@ public partial class ManagedDictionary<TKey,TValue,TKeySerializer,TValueSerializ
     > GetEnumerator()=>new(this.ReadClientSession,new());
     private List<T> CreateCollection<TIterator,T>(TIterator Iterator) where TIterator:ScanIteratorFunctions<T>{
         var Collection=new List<T>();
-        using var Enumerator=new Enumerator<TIterator,T>(this.ReadClientSession,Iterator);
-        while(Enumerator.MoveNext()){
-            Collection.Add(Enumerator.Current);
+        using var e=new Enumerator<TIterator,T>(this.ReadClientSession,Iterator);
+        while(e.MoveNext()){
+            Collection.Add(e.Current);
         }
         return Collection;
     }
@@ -126,7 +102,6 @@ public partial class ManagedDictionary<TKey,TValue,TKeySerializer,TValueSerializ
                 throw this.ThrowLogFull();
             var Session=this.AddClientSession;
             var FixedKey=(FixedSpanByteKey)KeyBytes;
-
             var Status=Session.BasicContext.Upsert(FixedKey,ValueBytes);
             Status=Pending(Session,Status);
         }

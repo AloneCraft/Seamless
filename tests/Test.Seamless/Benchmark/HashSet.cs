@@ -26,7 +26,7 @@ public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,EqualityE
         const int PageSize=4096,MemorySize=8192;
         const double MutableFraction=(double)PageSize/MemorySize;
         using var store=Factory.Create(CheckpointDir:CheckpointDir,MutableFraction:MutableFraction,IndexSize:Count,PageSize:PageSize,MemorySize:MemorySize).Create<int>(LogDevice,ObjectLogDevice);
-        //$$\text{MutableFraction} = \frac{\text{PageSize}}{\text{LogMemorySize}}$$/
+        //$$\text{MutableFraction}=\frac{\text{PageSize}}{\text{LogMemorySize}}$$/
         using var h=store.Create();
         var s=Stopwatch.StartNew();
         var ms=s.ElapsedMilliseconds;

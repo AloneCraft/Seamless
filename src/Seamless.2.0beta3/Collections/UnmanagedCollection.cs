@@ -81,7 +81,6 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
 
 
 
-
             UnmanagedRead<TKey,TValue>,//TReadFunctions
 
 
@@ -163,10 +162,10 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         TKeySerializer.Serialize(ref Key)
     );
     private protected override Status Read(TKey Key,out TValue Output){
-        var Session=this.ReadClientSession;
+        var ClientSession=this.ReadClientSession;
         Output=default;
-        var Status=Session.BasicContext.Read((FixedSpanByteKey)TKeySerializer.Serialize(ref Key),ref Output);
-        return Pending(Session,Status,ref Output);
+        var Status=ClientSession.BasicContext.Read((FixedSpanByteKey)TKeySerializer.Serialize(ref Key),ref Output);
+        return Pending(ClientSession,Status,ref Output);
     }
     public bool Remove(TKey key){
         var ClientSession=this.ContainsDeleteClientSession;
@@ -175,6 +174,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         var Output=false;
         var Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
+        Debug.Assert(Status.Found!=Status.NotFound);
         return Output;
     }
     private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value){

@@ -24,7 +24,7 @@ public partial class ManagedDictionary<TKey,TValue,TKeySerializer,TValueSerializ
         ManagedRemove_KeyValuePair,
         ManagedStoreFunctions,
         ManagedAllocator
-    > Remove_KeyValuePair_ClientSession{get; set;}
+    > Remove_KeyValuePair_ClientSession{get;}
     internal ManagedDictionary(ManagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
         var Store=CollectionStore.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<
@@ -102,8 +102,7 @@ public partial class ManagedDictionary<TKey,TValue,TKeySerializer,TValueSerializ
                 throw this.ThrowLogFull();
             var Session=this.AddClientSession;
             var FixedKey=SpanByte.FromPinnedSpan(KeyBytes);
-            var Input=SpanByte.FromPinnedSpan(ValueBytes);
-            var Status=Session.BasicContext.Upsert(FixedKey,Input);
+            var Status=Session.BasicContext.Upsert(FixedKey,SpanByte.FromPinnedSpan(ValueBytes));
             Status=Pending(Session,Status);
         }
     }
