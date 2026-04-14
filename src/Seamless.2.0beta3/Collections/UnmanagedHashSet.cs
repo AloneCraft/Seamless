@@ -1,4 +1,6 @@
-﻿using Seamless.SessionFunctions;
+﻿
+
+using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
 
@@ -9,21 +11,76 @@ public partial class UnmanagedHashSet<TKey>
     where TKey : unmanaged, IEquatable<TKey> {
     private readonly ClientSession<
         FixedSpanByteKey,
-        EqualityEmpty,
-        EqualityEmpty,
-        EqualityEmpty,
+
+        EqualityEmpty,//TInput
+        EqualityEmpty,//TOutput
+        EqualityEmpty,//TContext
         IntersectWith,
+        
+        
         UnmanagedStoreFunctions,
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         UnmanagedAllocator
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
     > IntersectWith_ClientSession;
     private readonly ClientSession<
         FixedSpanByteKey,
-        PinnedSpanByte,
-        SpanByteAndMemory,
-        EqualityEmpty,
+        
+        PinnedSpanByte,//TInput
+        SpanByteAndMemory,//TOutput
+        EqualityEmpty,//TContext
         SymmetricExceptWith,
+        
+        
+        
         UnmanagedStoreFunctions,
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         UnmanagedAllocator
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
     > SymmetricExceptWith_ClientSession;
     internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
         var Store = CollectionStore.Store;
@@ -33,6 +90,8 @@ public partial class UnmanagedHashSet<TKey>
             EqualityEmpty,
             EqualityEmpty,
             IntersectWith
+            
+            
         >(new());
         this.SymmetricExceptWith_ClientSession=Store.NewSession<
             FixedSpanByteKey,
@@ -40,17 +99,96 @@ public partial class UnmanagedHashSet<TKey>
             SpanByteAndMemory,
             EqualityEmpty,
             SymmetricExceptWith
+            
+
+            
         >(new());
     }
     public Enumerator<
         KeyIterator,
         TKey
-    > GetEnumerator() => new(this.ReadClientSession,new());
-    public partial void IntersectWith(UnmanagedHashSet<TKey> other) {
+    > GetEnumerator()=>new(this.ReadClientSession,new());
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    public partial void IntersectWith(UnmanagedHashSet<TKey> other){
         this.IntersectWith(this,other,this.IntersectWith_ClientSession);
     }
 
-    public partial void SymmetricExceptWith(UnmanagedHashSet<TKey> other) {
+
+
+
+
+    public partial void SymmetricExceptWith(UnmanagedHashSet<TKey> other){
         this.SymmetricExceptWith(this,other,this.SymmetricExceptWith_ClientSession);
     }
 }

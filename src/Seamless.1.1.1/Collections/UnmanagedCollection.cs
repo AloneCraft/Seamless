@@ -190,5 +190,4 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
             return TryAddResult.Success;
         return TryAddResult.KeyAlreadyExists;
     }
-
 }

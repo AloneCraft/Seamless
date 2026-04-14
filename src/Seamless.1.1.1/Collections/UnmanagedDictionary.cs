@@ -63,9 +63,10 @@ public partial class UnmanagedDictionary<
             >
         >
     > Remove_KeyValuePair_ClientSession { get; set; }
-    internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> collectionStore) : base(collectionStore) {
-        var store = collectionStore.Store;
-        this.Remove_TKey_TValue_ClientSession=store.NewSession<
+    internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
+        var Store = CollectionStore.Store;
+        this.Remove_TKey_TValue_ClientSession=Store.NewSession<
+            
             EqualityEmpty,
             TValue,
             EqualityEmpty,
@@ -74,7 +75,8 @@ public partial class UnmanagedDictionary<
                 TValue
             >
         >(new());
-        this.Remove_KeyValuePair_ClientSession=store.NewSession<
+        this.Remove_KeyValuePair_ClientSession=Store.NewSession<
+            
             TValue,
             bool,
             EqualityEmpty,
@@ -92,13 +94,14 @@ public partial class UnmanagedDictionary<
         >
     > GetEnumerator() => new(this.ReadClientSession,new());
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator iterator)
-        where TIterator : ScanIteratorFunctions<T,TKey,TValue> {
+    where TIterator : ScanIteratorFunctions<T,TKey,TValue> {
         using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
         while(e.MoveNext()) {
             yield return e.Current;
         }
     }
-    private List<T> CreateCollection<TIterator, T>(TIterator iterator) where TIterator : ScanIteratorFunctions<T,TKey,TValue> {
+    private List<T> CreateCollection<TIterator, T>(TIterator iterator) 
+        where TIterator : ScanIteratorFunctions<T,TKey,TValue> {
         var collection = new List<T>();
         using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
         while(e.MoveNext()) {
@@ -108,32 +111,42 @@ public partial class UnmanagedDictionary<
     }
     public partial bool Remove(KeyValuePair<TKey,TValue> item) {
         var Session = this.Remove_KeyValuePair_ClientSession;
-        var key = item.Key;
-        var input = item.Value;
-        var output = false;
-        var status = Session.BasicContext.RMW(ref key,ref input,ref output);
-        Pending(Session,status,ref output);
-        return output;
+        var Key = item.Key;
+        
+        
+        
+        
+        var Input = item.Value;
+        var Output = false;
+        var Status = Session.BasicContext.RMW(ref Key,ref Input,ref Output);
+        Pending(Session,Status,ref Output);
+        return Output;
     }
-
     public partial bool Remove(TKey key,out TValue value) {
         var Session = this.Remove_TKey_TValue_ClientSession;
-        var input = default(EqualityEmpty);
-        var output = default(TValue);
-        var status = Session.BasicContext.RMW(ref key,ref input,ref output);
-        status=Pending(Session,status,ref output);
-        if(status.Found) {
-            value=output;
+        
+        
+        var Input = default(EqualityEmpty);
+        var Output = default(TValue);
+        var Status = Session.BasicContext.RMW(ref key,ref Input,ref Output);
+        Status=Pending(Session,Status,ref Output);
+        
+        if(Status.Found) {
+            value=Output;
             return true;
         }
+        //Unsafe.SkipInit(out value);
         value=default;
         return false;
     }
     private partial void SetValue(TKey key,TValue value) {
-        if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>())) {
+
+
+        if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>()))
             throw this.ThrowLogFull();
-        }
         var session = this.AddClientSession;
+
+
         var status = session.BasicContext.Upsert(ref key,ref value);
         status=Pending(session,status);
     }
