@@ -2,7 +2,7 @@
 using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
-using EqualityEmpty=Seamless.Collections.EqualityEmpty;
+using EqualityEmpty = Seamless.Collections.EqualityEmpty;
 
 namespace Test.Seamless.SessionFunctions;
 
