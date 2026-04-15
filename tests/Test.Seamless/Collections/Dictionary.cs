@@ -1,6 +1,6 @@
 ﻿namespace Test.Seamless.Collections;
 
-public class Dictionary:DictionaryTestBase<ManagedDictStrategy,string,string>{}
-public class Dictionary_Unmanaged:DictionaryTestBase<UnmanagedDictStrategy,int,int>{}
-public class Dictionary_UnmanagedKey:DictionaryTestBase<UnmanagedKeyDictStrategy,int,string>{}
-public class Dictionary_UnmanagedValue:DictionaryTestBase<UnmanagedValueDictStrategy,string,int>{}
+public class ManagedManagedIDictionary : DictionaryTestBase<ManagedDictStrategy, string, string>;
+public class ManagedUnmanagedIDictionary : DictionaryTestBase<UnmanagedValueDictStrategy, string, int>;
+public class UnmanagedManagedIDictionary : DictionaryTestBase<UnmanagedKeyDictStrategy, int, string>;
+public class UnmanagedUnmanagedIDictionary : DictionaryTestBase<UnmanagedDictStrategy, int, int>;

@@ -30,7 +30,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedCollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedDictionaryStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedHashSetStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)StructDictionaryFeature.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="$(MSBuildThisFileDirectory)SessionFunctions\Document.txt" />
