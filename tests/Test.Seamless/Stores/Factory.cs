@@ -59,4 +59,47 @@ public class FactoryTests{
         using var store=Factory.Create().Create<ManagedStruct,UnmanagedStruct>();
         Assert.IsType<ManagedDictionaryStore<ManagedStruct,UnmanagedStruct,ManagedSerializer<ManagedStruct>,UnmanagedSerializer<UnmanagedStruct>>>(store);
     }
+
+    [Fact,Trait("Category","Unit")]
+    public void CreateManagedManaged_ManagedManagedDictionaryを返す(){
+        using var store=Factory.Create().Create<string,string>();
+        using var dictionary=store.CreateManagedManaged();
+        Assert.IsType<ManagedManagedDictionary<string,string,ManagedSerializer<string>,ManagedSerializer<string>>>(dictionary);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void CreateUnmanagedManaged_UnmanagedManagedDictionaryを返す(){
+        using var store=Factory.Create().Create<int,string>();
+        using var dictionary=store.CreateUnmanagedManaged();
+        Assert.IsType<UnmanagedManagedDictionary<int,string,UnmanagedSerializer<int>,ManagedSerializer<string>>>(dictionary);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void CreateManagedUnmanaged_ManagedUnmanagedDictionaryを返す(){
+        using var store=Factory.Create().Create<string,int>();
+        using var dictionary=store.Create();
+        Assert.IsType<ManagedUnmanagedDictionary<string,int,ManagedSerializer<string>,UnmanagedSerializer<int>>>(dictionary);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void CreateUnmanagedUnmanaged_UnmanagedUnmanagedDictionaryを返す(){
+        using var store=Factory.Create().Create<int,int>();
+        using var dictionary=store.CreateUnmanagedUnmanaged();
+        Assert.IsType<UnmanagedUnmanagedDictionary<int,int,UnmanagedSerializer<int>,UnmanagedSerializer<int>>>(dictionary);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void CreateManagedUnmanagedHashSet_ManagedUnmanagedHashSetを返す(){
+        using var store=Factory.Create().Create<string>(new ManagedTag());
+        using var set=store.CreateManagedUnmanaged();
+        Assert.IsType<ManagedUnmanagedHashSet<string>>(set);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void CreateUnmanagedUnmanagedHashSet_UnmanagedUnmanagedHashSetを返す(){
+        using var store=Factory.Create().Create<int>();
+        using var set=store.Create();
+        Assert.IsType<UnmanagedUnmanagedHashSet<int>>(set);
+    }
 }
+

@@ -91,15 +91,15 @@ public abstract class IntersectWithTests<TKey>
 public sealed class ManagedIntersectWith:IntersectWithTests<int>{
     protected override int Key(int seed)=>seed;
     protected override(ManagedHashSet<int> Set,IDisposable Store) CreateMemory(){
-        var store=Factory.Create().Create<int>();
+        var store=Factory.Create().Create<int>(new ManagedTag());
         return(store.Create(),store);
     }
     protected override(ManagedHashSet<int> Set,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice){
-        var store=Factory.Create(MemorySize:Const.MinObjectLogCapacity).Create<int>(logDevice,objDevice);
+        var store=Factory.Create(MemorySize:Const.MinObjectLogCapacity).Create<int>(logDevice,objDevice,new ManagedTag());
         return(store.Create(),store);
     }
     protected override(ManagedHashSet<int> Set,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice){
-        var store=Factory.Create(MemorySize:Const.MinObjectLogCapacity,MutableFraction:0).Create<int>(logDevice,objDevice);
+        var store=Factory.Create(MemorySize:Const.MinObjectLogCapacity,MutableFraction:0).Create<int>(logDevice,objDevice,new ManagedTag());
         return(store.Create(),store);
     }
     protected override void ShiftReadOnly(IDisposable store){
@@ -113,7 +113,7 @@ public sealed class ManagedIntersectWith:IntersectWithTests<int>{
 /// </summary>
 public sealed class UnmanagedIntersectWith{
     private static(UnmanagedHashSet<int> Set,IDisposable Store) CreateSet(){
-        var store=Factory.Create().CreateUnmanagedHashSet<int>();
+        var store=Factory.Create().Create<int>();
         return(store.Create(),store);
     }
 

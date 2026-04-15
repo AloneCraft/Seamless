@@ -15,4 +15,5 @@ public class UnmanagedDictionaryStore<TKey,TValue>:UnmanagedCollectionStore<TKey
     }
 
     public UnmanagedDictionary<TKey,TValue,UnmanagedSerializer<TKey>,UnmanagedSerializer<TValue>> Create()=>new(this);
+    public UnmanagedUnmanagedDictionary<TKey,TValue,UnmanagedSerializer<TKey>,UnmanagedSerializer<TValue>> CreateUnmanagedUnmanaged()=>new(this);
 }

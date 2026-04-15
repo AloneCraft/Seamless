@@ -42,7 +42,7 @@ public readonly struct ManagedHashSetStrategy<TProvider, T> : IHashSetTestStrate
         double mutableFraction = 1.0)
     {
         var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).Create<T>(new ManagedTag());
-        return new HashSetHandle<T>(store, store.Create());
+        return new HashSetHandle<T>(store, store.CreateManagedUnmanaged());
     }
 }
 public readonly struct UnmanagedHashSetStrategy<TProvider, T> : IHashSetTestStrategy<T>
@@ -53,7 +53,7 @@ public readonly struct UnmanagedHashSetStrategy<TProvider, T> : IHashSetTestStra
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0)
     {
-        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).CreateUnmanagedHashSet<T>();
+        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).Create<T>();
         return new HashSetHandle<T>(store, store.Create());
     }
 }

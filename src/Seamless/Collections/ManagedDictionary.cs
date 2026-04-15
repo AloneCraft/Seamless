@@ -13,7 +13,7 @@ public partial class ManagedDictionary<
     TKeySerializer,
     TValueSerializer
 >
-    :ManagedCollection<
+    :ManagedManagedCollection<
         TKey,
         TValue,
         TKeySerializer,

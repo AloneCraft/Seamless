@@ -16,3 +16,4 @@ public class ManagedDictionaryStore<TKey,TValue,TKeySerializer,TValueSerializer>
 
     public ManagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer> Create()=>new(this);
 }
+

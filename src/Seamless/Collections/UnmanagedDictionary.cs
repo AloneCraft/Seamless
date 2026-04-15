@@ -13,7 +13,7 @@ public partial class UnmanagedDictionary<
     TValue,
     TKeySerializer,
     TValueSerializer
->:UnmanagedCollection<
+>:UnmanagedUnmanagedCollection<
     TKey,
     TValue,
     TKeySerializer,
