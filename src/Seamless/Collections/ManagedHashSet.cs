@@ -7,7 +7,7 @@ namespace Seamless.Collections;
 /// 重複を許さず、キーのみを格納する。値は EqualityEmpty 構造体を使用する。
 /// </summary>
 [DebuggerTypeProxy(typeof(DebugView<>))]
-public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,ManagedSerializer<TKey>,ManagedSerializer<EqualityEmpty>>, ISet<TKey> where TKey:IEquatable<TKey> {
+public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,ManagedSerializer<TKey>,ManagedSerializer<EqualityEmpty>>, ISeamlessHashSet<TKey> where TKey:IEquatable<TKey> {
     //private readonly byte[] EmptyBytes;
     public bool IsReadOnly => false;
     public bool Add(TKey item){
