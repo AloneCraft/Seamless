@@ -120,7 +120,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         private int Index=-1;
         private bool Done;
         public readonly T Current=>Iterator.Chunk[this.Index];
-        object? IEnumerator.Current=>this.Current;
+        readonly object? IEnumerator.Current=>this.Current;
         public bool MoveNext(){
             if(++this.Index<this.Count)
                 return true;
@@ -147,10 +147,10 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
             this.Index=-1;
             this.Done=false;
         }
-        public void Dispose(){
+        public readonly void Dispose(){
         }
     }
-    protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
+    private protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
     }
     public bool ContainsKey(TKey Key){
         
@@ -168,6 +168,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         Debug.Assert(Status.IsCompleted);
         return Status;
     }
+    
     
     
     

@@ -19,8 +19,8 @@ public abstract class Collection<
     TStoreFunctions,
     TAllocator
 >:IDisposable
-    where TKey:IEquatable<TKey>
-    where TReadFunctions:struct, ISessionFunctions<
+    where TKey : IEquatable<TKey>
+    where TReadFunctions : struct, ISessionFunctions<
 
 
         EqualityEmpty,
@@ -28,7 +28,7 @@ public abstract class Collection<
         EqualityEmpty
     >,
     ICreate<TReadFunctions>
-    where TAddFunctions:struct, ISessionFunctions<
+    where TAddFunctions : struct, ISessionFunctions<
 
 
         TAddInput,
@@ -36,7 +36,7 @@ public abstract class Collection<
         EqualityEmpty
     >,
     ICreate<TAddFunctions>
-    where TContainsDeleteFunctions:struct, ISessionFunctions<
+    where TContainsDeleteFunctions : struct, ISessionFunctions<
 
 
         EqualityEmpty,
@@ -44,11 +44,11 @@ public abstract class Collection<
         EqualityEmpty
     >,
     ICreate<TContainsDeleteFunctions>
-    where TStoreFunctions:IStoreFunctions
+    where TStoreFunctions : IStoreFunctions
 
 
 
-    where TAllocator:IAllocator<
+    where TAllocator : IAllocator<
 
 
         TStoreFunctions
@@ -91,9 +91,20 @@ public abstract class Collection<
         TStoreFunctions,
         TAllocator
     > CollectionStore;
+    public TryAddResult TryAdd(TKey Key,TValue Value) => this.PrivateTryAdd(Key,Value);
+    public void Add(TKey Key,TValue Value) {
+        var Result = this.TryAdd(Key,Value);
+        switch(Result) {
+            case TryAddResult.LogFull:
+                throw this.ThrowLogFull();
+            case TryAddResult.KeyAlreadyExists:
+                throw new ArgumentException($"An item with the same key has already been added. Key: {Key}");
+        }
+        Debug.Assert(Result==TryAddResult.Success);
+    }
     public sealed class CounterIterator:IScanIteratorFunctions {
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            where TSourceLogRecord:ISourceLogRecord {
+            where TSourceLogRecord : ISourceLogRecord {
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
@@ -111,15 +122,15 @@ public abstract class Collection<
         }
     }
     public long GetLongCount() {
-        var Iterator=new CounterIterator();
-        var Cursor=0L;
+        var Iterator = new CounterIterator();
+        var Cursor = 0L;
         this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         return Iterator.Counter;
     }
     private protected bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes) {
-        var Session=this.ContainsDeleteClientSession;
-        var Output=false;
-        var Status=Session.BasicContext.Read((FixedSpanByteKey)KeyBytes,ref Output);
+        var Session = this.ContainsDeleteClientSession;
+        var Output = false;
+        var Status = Session.BasicContext.Read((FixedSpanByteKey)KeyBytes,ref Output);
         Status=Pending(Session,Status,ref Output);
         return Status.Found;
     }
@@ -134,7 +145,7 @@ public abstract class Collection<
         > CollectionStore
     ) {
         this.CollectionStore=CollectionStore;
-        var Store=CollectionStore.Store;
+        var Store = CollectionStore.Store;
         this.ReadClientSession=Store.NewSession<
             FixedSpanByteKey,
             EqualityEmpty,
@@ -158,10 +169,10 @@ public abstract class Collection<
         >(TContainsDeleteFunctions.Create());
     }
     public void Clear() {
-        var Session=this.AddClientSession;
+        var Session = this.AddClientSession;
         Session.BasicContext.CompletePending(wait: true);
         Session.Dispose();
-        var Store=this.CollectionStore.Store;
+        var Store = this.CollectionStore.Store;
         Store.Reset();
         this.ReadClientSession=Store.NewSession<
             FixedSpanByteKey,
@@ -185,8 +196,8 @@ public abstract class Collection<
             TContainsDeleteFunctions
         >(TContainsDeleteFunctions.Create());
     }
-    public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
-        var Status=this.Read(Key,out Value);
+    public bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
+        var Status = this.Read(Key,out Value);
         if(Status.NotFound) {
             Value=default;
             return false;
@@ -212,7 +223,7 @@ public abstract class Collection<
         > Session,
         Status Status
     )
-    where TSessionFunctions0:struct, ISessionFunctions<
+    where TSessionFunctions0 : struct, ISessionFunctions<
 
 
         TInput0,
@@ -249,7 +260,7 @@ public abstract class Collection<
         Status Status,
         ref TOutput0 Output
     )
-    where TSessionFunctions0:struct, ISessionFunctions<
+    where TSessionFunctions0 : struct, ISessionFunctions<
 
 
         TInput0,
@@ -282,7 +293,7 @@ public abstract class Collection<
             TAllocator
         > Session
     ):IScanIteratorFunctions
-        where TCollection:Collection<
+        where TCollection : Collection<
             TKey,
             TValue,
             TReadOutput,
@@ -294,14 +305,14 @@ public abstract class Collection<
             TAllocator
         > {
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            where TSourceLogRecord:ISourceLogRecord {
-            var KeyBytes=logRecord.Key;
+            where TSourceLogRecord : ISourceLogRecord {
+            var KeyBytes = logRecord.Key;
             if(!Other.PrivateProtectedContainsKey(KeyBytes)) {
                 if(Self.WouldOverflowMutable(KeyBytes.Length,1))
                     throw Self.ThrowLogFull();
-                var Input=default(EqualityEmpty);
-                var Output=default(EqualityEmpty);
-                var Status=Session.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
+                var Input = default(EqualityEmpty);
+                var Output = default(EqualityEmpty);
+                var Status = Session.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
                 if(Status.IsPending) {
                     Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
                     using(CompletedOutputs) {
@@ -329,7 +340,7 @@ public abstract class Collection<
             TAllocator
         > Session
     ):IScanIteratorFunctions
-        where TCollection:Collection<
+        where TCollection : Collection<
             TKey,
             TValue,
             TReadOutput,
@@ -341,12 +352,12 @@ public abstract class Collection<
             TAllocator
         > {
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            where TSourceLogRecord:ISourceLogRecord {
+            where TSourceLogRecord : ISourceLogRecord {
             if(Self.WouldOverflowMutable(logRecord.Key.Length,1))
                 throw Self.ThrowLogFull();
-            var Input=default(PinnedSpanByte);
-            SpanByteAndMemory Output=default;
-            var Status=Session.BasicContext.RMW((FixedSpanByteKey)logRecord.Key,ref Input,ref Output);
+            var Input = default(PinnedSpanByte);
+            SpanByteAndMemory Output = default;
+            var Status = Session.BasicContext.RMW((FixedSpanByteKey)logRecord.Key,ref Input,ref Output);
             if(Status.IsPending) {
                 Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
                 using(CompletedOutputs) {
@@ -360,7 +371,7 @@ public abstract class Collection<
         public void OnException(Exception exception,long numberOfRecords) { }
         public void OnStop(bool completed,long numberOfRecords) { }
     }
-    private protected void IntersectWith<TCollection>(
+    private protected static void IntersectWith<TCollection>(
         TCollection Self,
         TCollection Other,
         ClientSession<
@@ -374,7 +385,7 @@ public abstract class Collection<
             TAllocator
         > Session
     )
-        where TCollection:Collection<
+        where TCollection : Collection<
             TKey,
             TValue,
             TReadOutput,
@@ -386,12 +397,12 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(Other);
-        var Iterator=new IntersectWithIterator<TCollection>(Self,Other,Session);
-        var Cursor=0L;
+        var Iterator = new IntersectWithIterator<TCollection>(Self,Other,Session);
+        var Cursor = 0L;
         Session.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         Session.BasicContext.CompletePending(wait: true);
     }
-    private protected void SymmetricExceptWith<TCollection>(
+    private protected static void SymmetricExceptWith<TCollection>(
         TCollection Self,
         TCollection Other,
         ClientSession<
@@ -405,7 +416,7 @@ public abstract class Collection<
             TAllocator
         > Session
     )
-        where TCollection:Collection<
+        where TCollection : Collection<
             TKey,
             TValue,
             TReadOutput,
@@ -417,8 +428,8 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(Other);
-        var Iterator=new SymmetricExceptWithIterator<TCollection>(Self,Session);
-        var Cursor=0L;
+        var Iterator = new SymmetricExceptWithIterator<TCollection>(Self,Session);
+        var Cursor = 0L;
         Other.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         Session.BasicContext.CompletePending(wait: true);
     }
@@ -427,14 +438,14 @@ public abstract class Collection<
     private double MutableFraction => this.CollectionStore.MutableFraction;
 
     private protected OutOfMemoryException ThrowLogFull() {
-        var Log=this.CollectionStore.Store.Log;
+        var Log = this.CollectionStore.Store.Log;
         return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private protected bool WouldOverflowMutable(int KeyLength,int ValueLength) {
         Debug.Assert(this.LogMemorySize>=8192);
-        var Log=this.CollectionStore.Store.Log;
+        var Log = this.CollectionStore.Store.Log;
         return this.CollectionStore.OverflowMutableStrategyKind switch {
             OverflowMutableStrategyKind.Memory => this.WouldOverflowMutable<MemoryOverflowMutableStrategy>(Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
             OverflowMutableStrategyKind.Storage => this.WouldOverflowMutable<StorageOverflowMutableStrategy>(Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
@@ -444,7 +455,7 @@ public abstract class Collection<
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool WouldOverflowMutable<TOverflowMutableStrategy>(long BeginAddress,long TailAddress,int KeyLength,int ValueLength)
-        where TOverflowMutableStrategy:struct, IOverflowMutableStrategy<TOverflowMutableStrategy> {
+        where TOverflowMutableStrategy : struct, IOverflowMutableStrategy<TOverflowMutableStrategy> {
         return TOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,BeginAddress,TailAddress,KeyLength,ValueLength);
     }
 

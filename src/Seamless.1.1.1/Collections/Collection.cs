@@ -91,6 +91,17 @@ public abstract class Collection<
         TStoreFunctions,
         TAllocator
     > CollectionStore;
+    public TryAddResult TryAdd(TKey Key,TValue Value) => this.PrivateTryAdd(Key,Value);
+    public void Add(TKey Key,TValue Value) {
+        var Result = this.TryAdd(Key,Value);
+        switch(Result) {
+            case TryAddResult.LogFull:
+                throw this.ThrowLogFull();
+            case TryAddResult.KeyAlreadyExists:
+                throw new ArgumentException($"An item with the same key has already been added. Key: {Key}");
+        }
+        Debug.Assert(Result==TryAddResult.Success);
+    }
     public sealed class CounterIterator:IScanIteratorFunctions<TSessionKey,TSessionValue> {
         public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             cursorRecordResult=CursorRecordResult.Accept;

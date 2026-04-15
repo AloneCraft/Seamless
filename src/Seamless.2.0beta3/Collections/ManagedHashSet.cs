@@ -127,13 +127,13 @@ public partial class ManagedHashSet<TKey>
 
     public partial void IntersectWith(ManagedHashSet<TKey> other){
         //2.0はMaagedもUnmanagedも共通なのでCollectionで定義している
-        this.IntersectWith(this,other,this.IntersectWith_ClientSession);
+        IntersectWith(this,other,this.IntersectWith_ClientSession);
     }
 
 
 
 
     public partial void SymmetricExceptWith(ManagedHashSet<TKey> other){
-        this.SymmetricExceptWith(this,other,this.SymmetricExceptWith_ClientSession);
+        SymmetricExceptWith(this,other,this.SymmetricExceptWith_ClientSession);
     }
 }

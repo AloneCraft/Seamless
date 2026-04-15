@@ -181,7 +181,7 @@ public partial class UnmanagedHashSet<TKey>
 
 
     public partial void IntersectWith(UnmanagedHashSet<TKey> other){
-        this.IntersectWith(this,other,this.IntersectWith_ClientSession);
+        IntersectWith(this,other,this.IntersectWith_ClientSession);
     }
 
 
@@ -189,7 +189,7 @@ public partial class UnmanagedHashSet<TKey>
 
 
     public partial void SymmetricExceptWith(UnmanagedHashSet<TKey> other){
-        this.SymmetricExceptWith(this,other,this.SymmetricExceptWith_ClientSession);
+        SymmetricExceptWith(this,other,this.SymmetricExceptWith_ClientSession);
     }
     
     
