@@ -7,9 +7,10 @@ namespace Seamless.Collections;
 /// 重複を許さず、キーのみを格納する。値は EqualityEmpty 構造体を使用する。
 /// </summary>
 [DebuggerTypeProxy(typeof(DebugView<>))]
-public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,ManagedSerializer<TKey>,ManagedSerializer<EqualityEmpty>>, ISeamlessHashSet<TKey> where TKey:IEquatable<TKey> {
+public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,ManagedSerializer<TKey>,ManagedSerializer<EqualityEmpty>>,ISeamlessHashSet<TKey>
+    where TKey:IEquatable<TKey>{
     //private readonly byte[] EmptyBytes;
-    public bool IsReadOnly => false;
+    public bool IsReadOnly=>false;
     public bool Add(TKey item){
         var Result=this.PrivateTryAdd(item,EqualityEmpty.Default);
         switch(Result){
@@ -22,7 +23,7 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
                 throw this.ThrowLogFull();
         }
     }
-    void ICollection<TKey>.Add(TKey item) => this.Add(item);
+    void ICollection<TKey>.Add(TKey item)=>this.Add(item);
     public void CopyTo(TKey[] array,int arrayIndex){
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
@@ -38,16 +39,16 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
             this.Remove(item);
         }
     }
-    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
-    IEnumerator<TKey> IEnumerable<TKey>.GetEnumerator() => this.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator()=>this.GetEnumerator();
+    IEnumerator<TKey> IEnumerable<TKey>.GetEnumerator()=>this.GetEnumerator();
     public bool IsProperSubsetOf(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
         if(this.GetLongCount()>=other.GetLongCount())
             return false;
         foreach(var Key in this){
-            if(!other.Contains(Key)){
-                return false;
-            }
+            if(other.Contains(Key))
+                continue;
+            return false;
         }
         return true;
     }
@@ -58,8 +59,7 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
         foreach(var item in other){
             if(!this.Contains(item)){
                 return false;
-            }
-            else {
+            } else{
             }
         }
         return true;
@@ -69,8 +69,7 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
         foreach(var Key in this){
             if(!other.Contains(Key)){
                 return false;
-            }
-            else {
+            } else{
             }
         }
         return true;
@@ -80,8 +79,7 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
         foreach(var item in other){
             if(!this.Contains(item)){
                 return false;
-            }
-            else {
+            } else{
             }
         }
         return true;
@@ -91,8 +89,7 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
         foreach(var item in other){
             if(this.Contains(item)){
                 return true;
-            }
-            else {
+            } else{
             }
         }
         return false;
@@ -104,8 +101,7 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
         foreach(var Key in this){
             if(!other.Contains(Key)){
                 return false;
-            }
-            else {
+            } else{
             }
         }
         return true;
@@ -118,16 +114,14 @@ public partial class ManagedHashSet<TKey>:ManagedCollection<TKey,EqualityEmpty,M
             this.Add(item);
         }
     }
-    public override bool IsDisposed => this.disposed;
+    public override bool IsDisposed=>this.disposed;
     private bool disposed;
     protected override void Dispose(bool disposing){
         if(this.disposed) return;
         if(disposing){
             this.IntersectWith_ClientSession.Dispose();
             this.SymmetricExceptWith_ClientSession.Dispose();
-        }
-        else {
-
+        } else{
         }
         this.disposed=true;
         base.Dispose(disposing);

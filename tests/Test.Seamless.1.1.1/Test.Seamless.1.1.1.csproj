@@ -9,6 +9,11 @@
 		<DefineConstants>$(DefineConstants);TSAVORITE1_1_1</DefineConstants>
 	</PropertyGroup>
 	<ItemGroup>
+	  <Compile Remove="Garnet\**" />
+	  <EmbeddedResource Remove="Garnet\**" />
+	  <None Remove="Garnet\**" />
+	</ItemGroup>
+	<ItemGroup>
 	  <Compile Remove="CheckpointRecoveryTests.cs" />
 	</ItemGroup>
 
@@ -29,10 +34,6 @@
 
 	<ItemGroup>
 		<Using Include="Xunit" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <Folder Include="Garnet\" />
 	</ItemGroup>
 
 	<ItemGroup>
