@@ -2,7 +2,11 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 namespace Seamless.Collections;
-
+/// <summary>
+/// Tsavorite をバックエンドに使うオンメモリ Dictionary。
+/// <see cref="IDictionary{TKey,TValue}"/> を実装し、利用者に Tsavorite の詳細を見せない。
+/// 静的ポリモーフィズムにより仮想ディスパッチを回避する。
+/// </summary>
 [DebuggerTypeProxy(typeof(DebugView<,>))]
 public partial class UnmanagedDictionary<
     TKey,
@@ -10,34 +14,33 @@ public partial class UnmanagedDictionary<
     TKeySerializer,
     TValueSerializer
 >:UnmanagedCollection<
-        TKey,
-        TValue,
-        TKeySerializer,
-        TValueSerializer
-    >,
-    ISeamlessDictionary<TKey,TValue>
-    where TKey:unmanaged, IEquatable<TKey>
-    where TValue:unmanaged, IEquatable<TValue>
-    where TKeySerializer:ISerializer<TKey>
-    where TValueSerializer:ISerializer<TValue> {
+    TKey,
+    TValue,
+    TKeySerializer,
+    TValueSerializer
+>,
+ISeamlessDictionary<TKey,TValue>
+    where TKey : unmanaged, IEquatable<TKey>
+    where TValue : unmanaged, IEquatable<TValue>
+    where TKeySerializer : ISerializer<TKey>
+    where TValueSerializer : ISerializer<TValue> {
     public bool IsReadOnly => false;
+    //public TryAddResult TryAdd(TKey key,TValue value) => this.PrivateTryAdd(key,value);
 
-    public TryAddResult TryAdd(TKey key,TValue value) => this.PrivateTryAdd(key,value);
-
-    public void Add(TKey key,TValue value) {
-        var result=this.TryAdd(key,value);
-        switch(result) {
-            case TryAddResult.LogFull:
-                throw this.ThrowLogFull();
-            case TryAddResult.KeyAlreadyExists:
-                throw new ArgumentException($"An item with the same key has already been added. Key: {key}");
-        }
-    }
+    //public void Add(TKey key,TValue value) {
+    //    var result=this.TryAdd(key,value);
+    //    switch(result) {
+    //        case TryAddResult.LogFull:
+    //            throw this.ThrowLogFull();
+    //        case TryAddResult.KeyAlreadyExists:
+    //            throw new ArgumentException($"An item with the same key has already been added. Key: {key}");
+    //    }
+    //}
 
     public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
 
     bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item) {
-        var status=this.Read(item.Key,out var output);
+        var status = this.Read(item.Key,out var output);
         if(status.NotFound) return false;
         return output.Equals(item.Value);
     }
@@ -46,7 +49,7 @@ public partial class UnmanagedDictionary<
     //public bool ContainsKey(TKey key)=>this.Contains(key);
 
     public partial bool Remove(KeyValuePair<TKey,TValue> item);
-    public partial bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value);
+    public partial bool Remove(TKey key,out TValue value);
 
     public override bool IsDisposed => this.disposed;
     private bool disposed;

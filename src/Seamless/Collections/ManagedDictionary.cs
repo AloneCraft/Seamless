@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ Dictionary。
@@ -21,52 +20,46 @@ public partial class ManagedDictionary<
         TValueSerializer
     >,
     ISeamlessDictionary<TKey,TValue>
-    where TKey:IEquatable<TKey>
-    where TValue:IEquatable<TValue>
-    where TKeySerializer:ISerializer<TKey>
-    where TValueSerializer:ISerializer<TValue> {
+    where TKey : IEquatable<TKey>
+    where TValue : IEquatable<TValue>
+    where TKeySerializer : ISerializer<TKey>
+    where TValueSerializer : ISerializer<TValue> {
     public bool IsReadOnly => false;
-    public override bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value){
-        var Status=this.Read(Key,out Value);
-        if(Status.NotFound){
-            Value=default;
-            return false;
-        }
-        return true;
-    }
-    public TryAddResult TryAdd(TKey Key,TValue Value) =>
-        this.PrivateTryAdd(Key,Value);
-    public void Add(TKey Key,TValue Value){
-        var Result=this.TryAdd(Key,Value);
-        switch(Result){
-            case TryAddResult.LogFull:
-                throw this.ThrowLogFull();
-            case TryAddResult.KeyAlreadyExists: throw new ArgumentException($"An item with the same key has already been added. Key: {Key}");
-        }
-    }
+    //public TryAddResult TryAdd(TKey Key,TValue Value) =>
+    //    this.PrivateTryAdd(Key,Value);
+    //public void Add(TKey Key,TValue Value){
+    //    var Result=this.TryAdd(Key,Value);
+    //    switch(Result){
+    //        case TryAddResult.LogFull:
+    //            throw this.ThrowLogFull();
+    //        case TryAddResult.KeyAlreadyExists:
+    //            throw new ArgumentException($"An item with the same key has already been added. Key: {Key}");
+    //    }
+    //    Debug.Assert(Result==TryAddResult.Success);
+    //}
     public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
-    bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item){
-        var status=this.Read(item.Key,out var output);
+    bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item) {
+        var status = this.Read(item.Key,out var output);
         if(status.NotFound) return false;
         return output.Equals(item.Value);
     }
 
     //public bool ContainsKey(TKey Key) =>this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
-    public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex){
+    public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex) {
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
         if(array.Length-arrayIndex<this.GetLongCount())
             throw new ArgumentException("The destination array is too small.");
-        foreach(var kvp in this){
+        foreach(var kvp in this) {
             array[arrayIndex++]=kvp;
         }
     }
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
-    public List<KeyValuePair<TKey,TValue>> ToList(){
-        using var Enumerator=this.GetEnumerator();
-        var List=new List<KeyValuePair<TKey,TValue>>();
-        while(Enumerator.MoveNext()){
+    public List<KeyValuePair<TKey,TValue>> ToList() {
+        using var Enumerator = this.GetEnumerator();
+        var List = new List<KeyValuePair<TKey,TValue>>();
+        while(Enumerator.MoveNext()) {
             List.Add(Enumerator.Current);
         }
         return List;
@@ -77,10 +70,10 @@ public partial class ManagedDictionary<
     IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<ValueIterator,TValue>(new());
     public override bool IsDisposed => this.disposed;
     private bool disposed;
-    protected override void Dispose(bool disposing){
+    protected override void Dispose(bool disposing) {
         if(this.disposed) return;
         this.disposed=true;
-        if(disposing){
+        if(disposing) {
             this.Remove_TKey_TValue_ClientSession.Dispose();
             this.Remove_KeyValuePair_ClientSession.Dispose();
         }

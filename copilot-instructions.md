@@ -51,6 +51,7 @@
 - CreateUnmanaged 系の新規経路では識別子に `Unmanaged` を付ける命名方針を優先する。
 ## Test Class Rules
 - テストクラスはテスト対象クラスと同じ名前にすること。テスト対象が `Seamless.1.1.1/Collections/Collection.cs` だとするとテストクラスは `Test.Seamless.1.1.1/Collections/Collection.cs`
+- テストメソッドの順序はテスト対象と全く同じにする
 - テスト対象の public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value);のテストメソッドは
 - [Fact,Trait("Category","Unit")]public void TryGetValue(){....}
 - TryGetValueに関するあらゆるテストはこの内部で完結させる。つまり複数テストを行う。コメントで何のテストか明示する
