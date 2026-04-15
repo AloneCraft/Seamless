@@ -10,7 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)AdventureWorks2008R2\AdventureWorks2008R2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\Benchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\Dictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\HashSet.cs" />
@@ -21,15 +20,13 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Helpers\DictionaryTestBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Helpers\DictionaryStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Helpers\HashSetStrategy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\StoreHandle.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Empty.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Enumerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSetDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Helpers\HashSetTestBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedHashSet.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\ModelBasedDictionaryTests.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\ModelBasedHashSetTests.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\StoreHandle.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ScanIteratorFunctions\CounterIterator.cs" />
@@ -53,7 +50,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)TestTypes.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="$(MSBuildThisFileDirectory)AdventureWorks2008R2\" />
     <Folder Include="$(MSBuildThisFileDirectory)Tsavorite\" />
     <Folder Include="$(MSBuildThisFileDirectory)Garnet\" />
   </ItemGroup>
