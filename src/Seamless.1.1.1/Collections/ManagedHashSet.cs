@@ -51,7 +51,7 @@ public partial class ManagedHashSet<TKey>
         KeyIterator,
         TKey
     > GetEnumerator() => new(this.ReadClientSession,new());
-    private readonly struct IntersectWithIterator(
+    private readonly struct IntersectWithImpl(
         ManagedHashSet<TKey> other,
         ClientSession<
             SpanByte,
@@ -89,7 +89,7 @@ public partial class ManagedHashSet<TKey>
         public void OnStop(bool completed,long numberOfRecords){ }
         public void OnException(Exception exception,long numberOfRecords){ }
     }
-    private readonly struct SymmetricExceptWithIterator(
+    private readonly struct SymmetricExceptWithImpl(
         ManagedHashSet<TKey> self,
         ClientSession<
             SpanByte,
@@ -128,7 +128,7 @@ public partial class ManagedHashSet<TKey>
     public partial void IntersectWith(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
         var session=this.IntersectWith_ClientSession;
-        var iterator=new IntersectWithIterator(other,session);
+        var iterator=new IntersectWithImpl(other,session);
         var cursor=0L;
         session.IterateLookup(ref iterator,ref cursor,resetCursor: false);
         session.BasicContext.CompletePending(wait: true);
@@ -136,7 +136,7 @@ public partial class ManagedHashSet<TKey>
     public partial void SymmetricExceptWith(ManagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
         var session=this.SymmetricExceptWith_ClientSession;
-        var iterator=new SymmetricExceptWithIterator(this,session);
+        var iterator=new SymmetricExceptWithImpl(this,session);
         var cursor=0L;
         other.ReadClientSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
         session.BasicContext.CompletePending(wait: true);

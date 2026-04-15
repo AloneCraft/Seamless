@@ -25,26 +25,12 @@ public partial class ManagedDictionary<
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
     public bool IsReadOnly => false;
-    //public TryAddResult TryAdd(TKey Key,TValue Value) =>
-    //    this.PrivateTryAdd(Key,Value);
-    //public void Add(TKey Key,TValue Value){
-    //    var Result=this.TryAdd(Key,Value);
-    //    switch(Result){
-    //        case TryAddResult.LogFull:
-    //            throw this.ThrowLogFull();
-    //        case TryAddResult.KeyAlreadyExists:
-    //            throw new ArgumentException($"An item with the same key has already been added. Key: {Key}");
-    //    }
-    //    Debug.Assert(Result==TryAddResult.Success);
-    //}
     public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
     bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item) {
         var status = this.Read(item.Key,out var output);
         if(status.NotFound) return false;
         return output.Equals(item.Value);
     }
-
-    //public bool ContainsKey(TKey Key) =>this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex) {
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
@@ -56,7 +42,7 @@ public partial class ManagedDictionary<
     }
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
-    public List<KeyValuePair<TKey,TValue>> ToList() {
+    public List<KeyValuePair<TKey,TValue>> ToList(){
         using var Enumerator = this.GetEnumerator();
         var List = new List<KeyValuePair<TKey,TValue>>();
         while(Enumerator.MoveNext()) {
@@ -71,7 +57,8 @@ public partial class ManagedDictionary<
     public override bool IsDisposed => this.disposed;
     private bool disposed;
     protected override void Dispose(bool disposing) {
-        if(this.disposed) return;
+        if(this.disposed)
+            return;
         this.disposed=true;
         if(disposing) {
             this.Remove_TKey_TValue_ClientSession.Dispose();

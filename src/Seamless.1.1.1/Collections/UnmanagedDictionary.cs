@@ -109,7 +109,7 @@ public partial class UnmanagedDictionary<
         }
         return collection;
     }
-    public partial bool Remove(KeyValuePair<TKey,TValue> item){
+    public bool Remove(KeyValuePair<TKey,TValue> item){
         var Session=this.Remove_KeyValuePair_ClientSession;
         var Key=item.Key;
         
@@ -122,7 +122,7 @@ public partial class UnmanagedDictionary<
         Pending(Session,Status,ref Output);
         return Output;
     }
-    public partial bool Remove(TKey key,out TValue value){
+    public bool Remove(TKey key,out TValue value){
         var Session=this.Remove_TKey_TValue_ClientSession;
         
         

@@ -371,7 +371,7 @@ public abstract class Collection<
         public void OnException(Exception exception,long numberOfRecords) { }
         public void OnStop(bool completed,long numberOfRecords) { }
     }
-    private protected static void IntersectWith<TCollection>(
+    private protected static void IntersectWithImpl<TCollection>(
         TCollection Self,
         TCollection Other,
         ClientSession<
@@ -402,7 +402,7 @@ public abstract class Collection<
         Session.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         Session.BasicContext.CompletePending(wait: true);
     }
-    private protected static void SymmetricExceptWith<TCollection>(
+    private protected static void SymmetricExceptWithImpl<TCollection>(
         TCollection Self,
         TCollection Other,
         ClientSession<

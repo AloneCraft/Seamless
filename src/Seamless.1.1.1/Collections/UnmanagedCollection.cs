@@ -153,8 +153,8 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     private protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
     }
     public bool ContainsKey(TKey Key){
-        
-        
+        //
+        //
         return this.PrivateProtectedContainsKey(ref Key);
     }
     public bool Contains(TKey Key)=>this.ContainsKey(Key);
@@ -196,7 +196,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         
         var Output=false;
         var Status=ClientSession.BasicContext.RMW(ref key,ref value,ref Output);
-        Status=Pending(ClientSession,Status);
+        Status=Pending(ClientSession,Status,ref Output);
         Debug.Assert(Status.IsCompleted);
         Debug.Assert(Status.NotFound==Output);
         if(Output)
