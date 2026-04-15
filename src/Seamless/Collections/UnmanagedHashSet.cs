@@ -6,7 +6,7 @@ namespace Seamless.Collections;
 /// 重複を許さず、unmanaged キーのみを格納する。値は EqualityEmpty 構造体を使用する。
 /// </summary>
 [DebuggerTypeProxy(typeof(DebugView<>))]
-public partial class UnmanagedHashSet<TKey>:UnmanagedCollection<TKey,EqualityEmpty,UnmanagedSerializer<TKey>,UnmanagedSerializer<EqualityEmpty>>, ISeamlessHashSet<TKey>
+public partial class UnmanagedHashSet<TKey>:UnmanagedUnmanagedCollection<TKey,EqualityEmpty,UnmanagedSerializer<TKey>,UnmanagedSerializer<EqualityEmpty>>, ISeamlessHashSet<TKey>
     where TKey:unmanaged, IEquatable<TKey> {
     public bool IsReadOnly => false;
     void ICollection<TKey>.Add(TKey item) => this.Add(item);

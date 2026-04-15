@@ -13,8 +13,11 @@
     <Compile Include="Collections\EqualityEmpty.cs" />
     <Compile Include="Collections\ISeamlessDictionary.cs" />
     <Compile Include="Collections\ISet.cs" />
+    <Compile Include="Collections\CollectionKinds.cs" />
     <Compile Include="Collections\ManagedDictionary.cs" />
     <Compile Include="Collections\ManagedHashSet.cs" />
+    <Compile Include="Collections\KindDictionaries.cs" />
+    <Compile Include="Collections\KindHashSets.cs" />
     <Compile Include="Collections\Serializers\UnmanagedSerializer.cs" />
     <Compile Include="Collections\Serializers\ManagedSerializer.cs" />
     <Compile Include="Collections\Serializers\ISerializer.cs" />
@@ -27,6 +30,7 @@
     <Compile Include="Stores\CollectionStore.cs" />
     <Compile Include="Stores\Factory.cs" />
     <Compile Include="Stores\ManagedDictionaryStore.cs" />
+    <Compile Include="Stores\ManagedDictionaryStoreExtensions.cs" />
     <Compile Include="Stores\ManagedHashSetStore.cs" />
     <Compile Include="Stores\OverflowMutableStrategy.cs" />
     <Compile Include="Stores\UnmanagedCollectionStore.cs" />

@@ -48,4 +48,5 @@ public class UnmanagedHashSetStore<TKey>
     ){}
 
     public UnmanagedHashSet<TKey> Create()=>new(this);
+    public UnmanagedUnmanagedHashSet<TKey> CreateUnmanagedUnmanaged()=>new(this);
 }

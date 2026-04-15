@@ -12,8 +12,11 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\CollectionKinds.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\KindDictionaries.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\KindHashSets.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializers\UnmanagedSerializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializers\ManagedSerializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializers\ISerializer.cs" />
@@ -26,6 +29,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stores\Factory.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ICreate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedDictionaryStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedDictionaryStoreExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedHashSetStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\OverflowMutableStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedCollectionStore.cs" />

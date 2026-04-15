@@ -12,4 +12,5 @@ public class ManagedHashSetStore<TKey>:ManagedCollectionStore<TKey,EqualityEmpty
         base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory){}
 
     public ManagedHashSet<TKey> Create()=>new(this);
+    public ManagedUnmanagedHashSet<TKey> CreateManagedUnmanaged()=>new(this);
 }

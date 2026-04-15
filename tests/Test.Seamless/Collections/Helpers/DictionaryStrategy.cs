@@ -72,7 +72,7 @@ public readonly struct ManagedStoreDictionaryStrategy<TKeyProvider, TValueProvid
     {
         var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).Create<TKey, TValue>(new ManagedTag(), new ManagedTag());
         return DictStoreHandleFactory.Create(
-            store, () => store.Create(), wait => store.Store.Log.FlushAndEvict(wait),
+            store, () => store.CreateManagedManaged(), wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
     }
     public static StoreHandle<TKey, TValue> CreateStorageStore(
@@ -84,7 +84,7 @@ public readonly struct ManagedStoreDictionaryStrategy<TKeyProvider, TValueProvid
     {
         var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction, CheckpointDir: checkpointDir).Create<TKey, TValue>(logDevice, objDevice, new ManagedTag(), new ManagedTag());
         return DictStoreHandleFactory.Create(
-            store, () => store.Create(), wait => store.Store.Log.FlushAndEvict(wait),
+            store, () => store.CreateManagedManaged(), wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
     }
 }
@@ -102,7 +102,7 @@ public readonly struct UnmanagedKeyDictionaryStrategy<TKeyProvider, TValueProvid
     {
         var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).Create<TKey, TValue>(new UnmanagedTag(), new ManagedTag());
         return DictStoreHandleFactory.Create(
-            store, () => store.Create(), wait => store.Store.Log.FlushAndEvict(wait),
+            store, () => store.CreateUnmanagedManaged(), wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
     }
     public static StoreHandle<TKey, TValue> CreateStorageStore(
@@ -114,7 +114,7 @@ public readonly struct UnmanagedKeyDictionaryStrategy<TKeyProvider, TValueProvid
     {
         var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction, CheckpointDir: checkpointDir).Create<TKey, TValue>(logDevice, objDevice, new UnmanagedTag(), new ManagedTag());
         return DictStoreHandleFactory.Create(
-            store, () => store.Create(), wait => store.Store.Log.FlushAndEvict(wait),
+            store, () => store.CreateUnmanagedManaged(), wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
     }
 }
@@ -132,7 +132,7 @@ public readonly struct UnmanagedValueDictionaryStrategy<TKeyProvider, TValueProv
     {
         var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).Create<TKey, TValue>(new ManagedTag(), new UnmanagedTag());
         return DictStoreHandleFactory.Create(
-            store, () => store.Create(), wait => store.Store.Log.FlushAndEvict(wait),
+            store, () => store.CreateManagedUnmanaged(), wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
     }
     public static StoreHandle<TKey, TValue> CreateStorageStore(
@@ -144,7 +144,7 @@ public readonly struct UnmanagedValueDictionaryStrategy<TKeyProvider, TValueProv
     {
         var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction, CheckpointDir: checkpointDir).Create<TKey, TValue>(logDevice, objDevice, new ManagedTag(), new UnmanagedTag());
         return DictStoreHandleFactory.Create(
-            store, () => store.Create(), wait => store.Store.Log.FlushAndEvict(wait),
+                store, () => store.CreateManagedUnmanaged(), wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(), token => store.Load(token), () => store.Address);
     }
 }
@@ -162,7 +162,7 @@ public readonly struct UnmanagedStoreDictionaryStrategy<TKeyProvider,TValueProvi
     ){
         var store=Factory.Create(MemorySize:memorySize,MutableFraction:mutableFraction).Create<TKey,TValue>(new UnmanagedTag(),new UnmanagedTag());
         return DictStoreHandleFactory.Create(
-            store,()=>store.Create(),wait=>store.Store.Log.FlushAndEvict(wait),
+            store,()=>store.CreateUnmanagedUnmanaged(),wait=>store.Store.Log.FlushAndEvict(wait),
             ()=>store.Save(),token=>store.Load(token),()=>store.Address);
     }
     public static StoreHandle<TKey,TValue> CreateStorageStore(
@@ -174,7 +174,7 @@ public readonly struct UnmanagedStoreDictionaryStrategy<TKeyProvider,TValueProvi
     ){
         var store=Factory.Create(MemorySize:memorySize,MutableFraction:mutableFraction,CheckpointDir:checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new UnmanagedTag(),new UnmanagedTag());
         return DictStoreHandleFactory.Create(
-            store,()=>store.Create(),wait=>store.Store.Log.FlushAndEvict(wait),
+            store,()=>store.CreateUnmanagedUnmanaged(),wait=>store.Store.Log.FlushAndEvict(wait),
             ()=>store.Save(),token=>store.Load(token),()=>store.Address);
     }
 }

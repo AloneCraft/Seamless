@@ -236,8 +236,7 @@ public abstract class Collection<
                 Debug.Assert(CompletedOutputs.Next());
                 Status=CompletedOutputs.Current.Status;
             }
-        }
-        else {
+        }else{
         }
         return Status;
     }
@@ -269,13 +268,12 @@ public abstract class Collection<
     > {
         if(Status.IsPending) {
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-            using(CompletedOutputs) {
+            using(CompletedOutputs){
                 Debug.Assert(CompletedOutputs.Next());
                 Status=CompletedOutputs.Current.Status;
                 Output=CompletedOutputs.Current.Output;
             }
-        }
-        else {
+        }else{
         }
         return Status;
     }
@@ -307,17 +305,19 @@ public abstract class Collection<
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
             var KeyBytes = logRecord.Key;
-            if(!Other.PrivateProtectedContainsKey(KeyBytes)) {
+            if(Other.PrivateProtectedContainsKey(KeyBytes)){
+            }else{
                 if(Self.WouldOverflowMutable(KeyBytes.Length,1))
                     throw Self.ThrowLogFull();
-                var Input = default(EqualityEmpty);
-                var Output = default(EqualityEmpty);
-                var Status = Session.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
-                if(Status.IsPending) {
-                    Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-                    using(CompletedOutputs) {
+                var Input=default(EqualityEmpty);
+                var Output=default(EqualityEmpty);
+                var Status=Session.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
+                if(Status.IsPending){
+                    Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
+                    using(CompletedOutputs){
                         Debug.Assert(CompletedOutputs.Next());
                     }
+                } else{
                 }
             }
             cursorRecordResult=CursorRecordResult.Accept;
@@ -363,6 +363,7 @@ public abstract class Collection<
                 using(CompletedOutputs) {
                     Debug.Assert(CompletedOutputs.Next());
                 }
+            } else{
             }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -472,11 +473,11 @@ public abstract class Collection<
     }
 
     protected virtual void Dispose(bool disposing) {
-        if(this.disposed) {
+        if(this.disposed)
             return;
-        }
-        if(disposing) {
+        if(disposing){
             this.AddClientSession.Dispose();
+        } else{
         }
         this.disposed=true;
     }
