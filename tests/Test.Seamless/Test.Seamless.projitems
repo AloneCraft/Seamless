@@ -31,7 +31,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSetTestBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\IDictionaryTestBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedDictionary.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedDictionary.VersionSpecific.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ModelBasedDictionaryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ModelBasedHashSetTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\StoreHandle.cs" />
