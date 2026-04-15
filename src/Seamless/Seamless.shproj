@@ -32,7 +32,6 @@
     <Compile Include="Stores\UnmanagedCollectionStore.cs" />
     <Compile Include="Stores\UnmanagedDictionaryStore.cs" />
     <Compile Include="Stores\UnmanagedHashSetStore.cs" />
-    <Compile Include="StructDictionaryFeature.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="SessionFunctions\Document.txt" />

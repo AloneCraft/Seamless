@@ -1,51 +1,91 @@
-﻿using Seamless.Collections;
+﻿using Seamless;
+using Seamless.Collections;
 using Seamless.Stores;
 namespace Test.Seamless.Collections;
 
-/// <summary>
-/// <see cref="Collections.ISet{T}"/> を通じた HashSet テストの生成戦略。
-/// 静的ポリモーフィズムにより具体型を差し替える。
-/// </summary>
-public interface IHashSetTestStrategy<T> where T:IEquatable<T> {
-    /// <summary>インデックスから要素を生成する。</summary>
-    static abstract T Elem(int i);
-    /// <summary>メモリバックのセットを生成する。</summary>
-    static abstract SetHandle<T> CreateMemorySet();
-}
+public sealed class HashSetHandle<TSet, T>(IDisposable store, TSet set) : IDisposable
+    where TSet : class, ICollection<T>, IDisposable
+    where T : IEquatable<T>
+{
+    public TSet Set => set;
 
-/// <summary>
-/// テスト用ストア＋セットラッパー。
-/// <see cref="Collections.ISet{T}"/> としてセットを公開し、
-/// セット演算引数用に具体型 <see cref="ManagedHashSet{T}"/> も公開する。
-/// </summary>
-public sealed class SetHandle<T>(IDisposable store,ManagedHashSet<T> set):IDisposable
-    where T:IEquatable<T> {
-    /// <summary>Seamless.Collections.ISet{T} 経由でアクセスするセット。</summary>
-    public global::Seamless.Collections.ISet<T> Set => set;
-
-    /// <summary>セット演算メソッド（IntersectWith 等）への引数に渡す具体型。</summary>
-    public ManagedHashSet<T> Concrete => set;
-
-    public void Dispose(){
+    public void Dispose()
+    {
         set.Dispose();
         store.Dispose();
     }
 }
 
-/// <summary>ManagedHashSet&lt;int&gt; 戦略。</summary>
-public struct ManagedIntHashSetStrategy:IHashSetTestStrategy<int> {
-    public static int Elem(int i) => i;
-    public static SetHandle<int> CreateMemorySet(){
-        var store=Factory.Create().Create<int>();
-        return new SetHandle<int>(store,store.Create());
-    }
+/// <summary>
+/// 具体的な HashSet 型に対するテスト生成戦略。
+/// 要素生成と concrete 型専用メソッドの呼び分けを担う。
+/// </summary>
+public interface IHashSetTestStrategy<TSet, T>
+    where TSet : class, ICollection<T>, IDisposable
+    where T : IEquatable<T>
+{
+    static abstract T Elem(int i);
+    static abstract HashSetHandle<TSet, T> CreateMemorySet(
+        long memorySize = Const.LogMemorySize,
+        double mutableFraction = 1.0);
+    static abstract bool Add(TSet set, T item);
+    static abstract void ExceptWith(TSet set, TSet other);
+    static abstract void IntersectWith(TSet set, TSet other);
+    static abstract bool IsSubsetOf(TSet set, TSet other);
+    static abstract bool IsSupersetOf(TSet set, TSet other);
+    static abstract bool IsProperSubsetOf(TSet set, TSet other);
+    static abstract bool IsProperSupersetOf(TSet set, TSet other);
+    static abstract bool Overlaps(TSet set, TSet other);
+    static abstract bool SetEquals(TSet set, TSet other);
+    static abstract void SymmetricExceptWith(TSet set, TSet other);
+    static abstract void UnionWith(TSet set, TSet other);
+    static abstract bool IsDisposed(TSet set);
 }
 
-/// <summary>ManagedHashSet&lt;string&gt; 戦略。</summary>
-public struct ManagedStringHashSetStrategy:IHashSetTestStrategy<string> {
+public readonly struct ManagedStringHashSetStrategy : IHashSetTestStrategy<global::Seamless.Collections.ManagedHashSet<string>, string>
+{
     public static string Elem(int i) => i.ToString();
-    public static SetHandle<string> CreateMemorySet(){
-        var store=Factory.Create().Create<string>();
-        return new SetHandle<string>(store,store.Create());
+    public static HashSetHandle<global::Seamless.Collections.ManagedHashSet<string>, string> CreateMemorySet(
+        long memorySize = Const.LogMemorySize,
+        double mutableFraction = 1.0)
+    {
+        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).Create<string>(new ManagedTag());
+        return new HashSetHandle<global::Seamless.Collections.ManagedHashSet<string>, string>(store, store.Create());
     }
+    public static bool Add(global::Seamless.Collections.ManagedHashSet<string> set, string item) => set.Add(item);
+    public static void ExceptWith(global::Seamless.Collections.ManagedHashSet<string> set, global::Seamless.Collections.ManagedHashSet<string> other) => set.ExceptWith(other);
+    public static void IntersectWith(global::Seamless.Collections.ManagedHashSet<string> set, global::Seamless.Collections.ManagedHashSet<string> other) => set.IntersectWith(other);
+    public static bool IsSubsetOf(global::Seamless.Collections.ManagedHashSet<string> set, global::Seamless.Collections.ManagedHashSet<string> other) => set.IsSubsetOf(other);
+    public static bool IsSupersetOf(global::Seamless.Collections.ManagedHashSet<string> set, global::Seamless.Collections.ManagedHashSet<string> other) => set.IsSupersetOf(other);
+    public static bool IsProperSubsetOf(global::Seamless.Collections.ManagedHashSet<string> set, global::Seamless.Collections.ManagedHashSet<string> other) => set.IsProperSubsetOf(other);
+    public static bool IsProperSupersetOf(global::Seamless.Collections.ManagedHashSet<string> set, global::Seamless.Collections.ManagedHashSet<string> other) => set.IsProperSupersetOf(other);
+    public static bool Overlaps(global::Seamless.Collections.ManagedHashSet<string> set, global::Seamless.Collections.ManagedHashSet<string> other) => set.Overlaps(other);
+    public static bool SetEquals(global::Seamless.Collections.ManagedHashSet<string> set, global::Seamless.Collections.ManagedHashSet<string> other) => set.SetEquals(other);
+    public static void SymmetricExceptWith(global::Seamless.Collections.ManagedHashSet<string> set, global::Seamless.Collections.ManagedHashSet<string> other) => set.SymmetricExceptWith(other);
+    public static void UnionWith(global::Seamless.Collections.ManagedHashSet<string> set, global::Seamless.Collections.ManagedHashSet<string> other) => set.UnionWith(other);
+    public static bool IsDisposed(global::Seamless.Collections.ManagedHashSet<string> set) => set.IsDisposed;
+}
+
+public readonly struct UnmanagedIntHashSetStrategy : IHashSetTestStrategy<global::Seamless.Collections.UnmanagedHashSet<int>, int>
+{
+    public static int Elem(int i) => i;
+    public static HashSetHandle<global::Seamless.Collections.UnmanagedHashSet<int>, int> CreateMemorySet(
+        long memorySize = Const.LogMemorySize,
+        double mutableFraction = 1.0)
+    {
+        var store = Factory.Create(MemorySize: memorySize, MutableFraction: mutableFraction).CreateUnmanagedHashSet<int>();
+        return new HashSetHandle<global::Seamless.Collections.UnmanagedHashSet<int>, int>(store, store.Create());
+    }
+    public static bool Add(global::Seamless.Collections.UnmanagedHashSet<int> set, int item) => set.Add(item);
+    public static void ExceptWith(global::Seamless.Collections.UnmanagedHashSet<int> set, global::Seamless.Collections.UnmanagedHashSet<int> other) => set.ExceptWith(other);
+    public static void IntersectWith(global::Seamless.Collections.UnmanagedHashSet<int> set, global::Seamless.Collections.UnmanagedHashSet<int> other) => set.IntersectWith(other);
+    public static bool IsSubsetOf(global::Seamless.Collections.UnmanagedHashSet<int> set, global::Seamless.Collections.UnmanagedHashSet<int> other) => set.IsSubsetOf(other);
+    public static bool IsSupersetOf(global::Seamless.Collections.UnmanagedHashSet<int> set, global::Seamless.Collections.UnmanagedHashSet<int> other) => set.IsSupersetOf(other);
+    public static bool IsProperSubsetOf(global::Seamless.Collections.UnmanagedHashSet<int> set, global::Seamless.Collections.UnmanagedHashSet<int> other) => set.IsProperSubsetOf(other);
+    public static bool IsProperSupersetOf(global::Seamless.Collections.UnmanagedHashSet<int> set, global::Seamless.Collections.UnmanagedHashSet<int> other) => set.IsProperSupersetOf(other);
+    public static bool Overlaps(global::Seamless.Collections.UnmanagedHashSet<int> set, global::Seamless.Collections.UnmanagedHashSet<int> other) => set.Overlaps(other);
+    public static bool SetEquals(global::Seamless.Collections.UnmanagedHashSet<int> set, global::Seamless.Collections.UnmanagedHashSet<int> other) => set.SetEquals(other);
+    public static void SymmetricExceptWith(global::Seamless.Collections.UnmanagedHashSet<int> set, global::Seamless.Collections.UnmanagedHashSet<int> other) => set.SymmetricExceptWith(other);
+    public static void UnionWith(global::Seamless.Collections.UnmanagedHashSet<int> set, global::Seamless.Collections.UnmanagedHashSet<int> other) => set.UnionWith(other);
+    public static bool IsDisposed(global::Seamless.Collections.UnmanagedHashSet<int> set) => set.IsDisposed;
 }
