@@ -63,14 +63,14 @@ public class FactoryTests{
     [Fact,Trait("Category","Unit")]
     public void CreateManagedManaged_ManagedManagedDictionaryを返す(){
         using var store=Factory.Create().Create<string,string>();
-        using var dictionary=store.CreateManagedManaged();
+        using var dictionary=store.Create();
         Assert.IsType<ManagedManagedDictionary<string,string,ManagedSerializer<string>,ManagedSerializer<string>>>(dictionary);
     }
 
     [Fact,Trait("Category","Unit")]
     public void CreateUnmanagedManaged_UnmanagedManagedDictionaryを返す(){
         using var store=Factory.Create().Create<int,string>();
-        using var dictionary=store.CreateUnmanagedManaged();
+        using var dictionary=store.Create();
         Assert.IsType<UnmanagedManagedDictionary<int,string,UnmanagedSerializer<int>,ManagedSerializer<string>>>(dictionary);
     }
 
