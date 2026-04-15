@@ -108,7 +108,7 @@ public partial class UnmanagedHashSet<TKey>
         KeyIterator,
         TKey
     > GetEnumerator()=>new(this.ReadClientSession,new());
-    private readonly struct IntersectWithIterator(
+    private readonly struct IntersectWithImpl(
         UnmanagedHashSet<TKey> other,
         ClientSession<
             TKey,
@@ -146,8 +146,8 @@ public partial class UnmanagedHashSet<TKey>
         public void OnStop(bool completed,long numberOfRecords){}
         public void OnException(Exception exception,long numberOfRecords){}
     }
-    private readonly struct SymmetricExceptWithIterator(
-        UnmanagedHashSet<TKey> self,
+    private readonly struct SymmetricExceptWithImpl(
+        UnmanagedHashSet<TKey> Self,
         ClientSession<
             TKey,
             EqualityEmpty,
@@ -160,8 +160,8 @@ public partial class UnmanagedHashSet<TKey>
         > session
     ):IScanIteratorFunctions<TKey,EqualityEmpty>{
         public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
-            if(self.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),1))
-                throw self.ThrowLogFull();
+            if(Self.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),1))
+                throw Self.ThrowLogFull();
             var input=default(EqualityEmpty);
             var output=default(EqualityEmpty);
             var status=session.BasicContext.RMW(ref key,ref input,ref output);
@@ -183,7 +183,7 @@ public partial class UnmanagedHashSet<TKey>
     public partial void IntersectWith(UnmanagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
         var session=this.IntersectWith_ClientSession;
-        var iterator=new IntersectWithIterator(other,session);
+        var iterator=new IntersectWithImpl(other,session);
         var cursor=0L;
         session.IterateLookup(ref iterator,ref cursor,resetCursor:false);
         session.BasicContext.CompletePending(wait:true);
@@ -191,7 +191,7 @@ public partial class UnmanagedHashSet<TKey>
     public partial void SymmetricExceptWith(UnmanagedHashSet<TKey> other){
         ArgumentNullException.ThrowIfNull(other);
         var session=this.SymmetricExceptWith_ClientSession;
-        var iterator=new SymmetricExceptWithIterator(this,session);
+        var iterator=new SymmetricExceptWithImpl(this,session);
         var cursor=0L;
         other.ReadClientSession.IterateLookup(ref iterator,ref cursor,resetCursor:false);
         session.BasicContext.CompletePending(wait:true);

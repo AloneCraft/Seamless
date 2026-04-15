@@ -1,10 +1,9 @@
-﻿using Seamless.ScanIteratorFunctions;
-using Seamless.SessionFunctions;
-using Seamless.Stores;
-
-using System.Collections;
+﻿using System.Collections;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Seamless.ScanIteratorFunctions;
+using Seamless.SessionFunctions;
+using Seamless.Stores;
 namespace Seamless.Collections;
 
 public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>:Collection<
@@ -123,9 +122,8 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         public T Current=>Iterator.Chunk[this.Index];
         object? IEnumerator.Current=>this.Current;
         public bool MoveNext(){
-            if(++this.Index<this.Count){
+            if(++this.Index<this.Count)
                 return true;
-            }
             if(this.Done){
                 this.Index=-1;
                 return false;
@@ -154,35 +152,52 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     }
     protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
     }
-    /// <summary>
-    /// キー値で存在判定する。
-    /// </summary>
-    public bool ContainsKey(TKey Key)=>this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
+    public bool ContainsKey(TKey Key){
+        //
+        //
+        return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
+    }
     public bool Contains(TKey Key)=>this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     private protected override Status Read(TKey Key,out TValue Output){
         var ClientSession=this.ReadClientSession;
+        
+        
         Output=default;
         var Status=ClientSession.BasicContext.Read((FixedSpanByteKey)TKeySerializer.Serialize(ref Key),ref Output);
-        return Pending(ClientSession,Status,ref Output);
+        Status=Pending(ClientSession,Status,ref Output);
+        Debug.Assert(Status.IsCompleted);
+        return Status;
     }
+    
+    
+    
+    
+    
+    
     public bool Remove(TKey key){
         var ClientSession=this.ContainsDeleteClientSession;
         var KeyBytes=TKeySerializer.Serialize(ref key);
+        
         var Input=default(EqualityEmpty);
         var Output=false;
         var Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
+        Debug.Assert(Status.IsCompleted);
         Debug.Assert(Status.Found!=Status.NotFound);
         return Output;
     }
     private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value){
+
+
         if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
-        var KeyBytes=TKeySerializer.Serialize(ref Key);
         var ClientSession=this.AddClientSession;
+        var KeyBytes=TKeySerializer.Serialize(ref Key);
+        
         var Output=false;
         var Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Value,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
+        Debug.Assert(Status.IsCompleted);
         Debug.Assert(Status.NotFound==Output);
         if(Output)
             return TryAddResult.Success;
