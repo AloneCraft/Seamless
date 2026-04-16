@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\Benchmark.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\CheckpointIndexResizeBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\ConstructorBenchmarkBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\Dictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\FixedVariableConstructorBenchmark.cs" />

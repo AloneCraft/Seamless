@@ -1,7 +1,7 @@
 ﻿using Tsavorite.core;
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
-namespace Test.Seamless.Collections;
+namespace Test.Seamless;
 
 /// <summary>
 /// indexCheckpointToken=Guid.EqualityEmpty によるリカバリーのテスト。

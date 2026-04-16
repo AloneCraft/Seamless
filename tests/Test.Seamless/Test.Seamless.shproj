@@ -19,7 +19,6 @@
     <Compile Include="Benchmark\KindConstructorDictionaryBenchmark.cs" />
     <Compile Include="Benchmark\KindConstructorHashSetBenchmark.cs" />
     <Compile Include="Benchmark\KindDictionary.cs" />
-    <Compile Include="Category.cs" />
     <Compile Include="CheckpointRecoveryTests.cs" />
     <Compile Include="Collections\Dictionary.cs" />
     <Compile Include="Collections\DictionaryIReadOnly.cs" />

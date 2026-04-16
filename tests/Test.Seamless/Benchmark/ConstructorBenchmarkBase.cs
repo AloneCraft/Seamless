@@ -303,11 +303,11 @@ public abstract class HashSetConstructorBenchmarkBase<TKey, TSet>(ITestOutputHel
 
     [Fact]
     [Trait("Category","")]
-    public void Ctor_Count_100件を計測する(){
+    public void Ctor_Count_10件を計測する(){
         using var handle = this.CreateHandle();
         var set = handle.Collection;
         this.Seed(set);
-        const int iterations = 100;
+        const int iterations = 10;
 
         var sw = Stopwatch.StartNew();
         for(var i = 0; i<iterations; i++)
