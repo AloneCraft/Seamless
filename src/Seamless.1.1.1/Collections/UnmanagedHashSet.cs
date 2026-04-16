@@ -162,14 +162,15 @@ public partial class UnmanagedHashSet<TKey>
         public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
             if(Self.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),1))
                 throw Self.ThrowLogFull();
-            var input=default(EqualityEmpty);
-            var output=default(EqualityEmpty);
-            var status=session.BasicContext.RMW(ref key,ref input,ref output);
-            if(status.IsPending){
-                session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait:true);
-                using(completedOutputs){
-                    Debug.Assert(completedOutputs.Next());
+            var Input=default(EqualityEmpty);
+            var Output=default(EqualityEmpty);
+            var Status=session.BasicContext.RMW(ref key,ref Input,ref Output);
+            if(Status.IsPending){
+                session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
+                using(CompletedOutputs){
+                    Debug.Assert(CompletedOutputs.Next());
                 }
+            } else{
             }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;

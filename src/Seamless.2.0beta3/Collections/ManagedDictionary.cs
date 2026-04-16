@@ -88,21 +88,21 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         while(e.MoveNext())
             yield return e.Current;
     }
-    public TValue this[TKey Key]{
+    public TValue this[TKey key]{
         get{
-            if(this.TryGetValue(Key,out var Value))
-                return Value;
+            if(this.TryGetValue(key,out var value))
+                return value;
             throw new KeyNotFoundException();
         }
         set{
-            var KeyBytes=TKeySerializer.Serialize(ref Key);
+            var KeyBytes=TKeySerializer.Serialize(ref key);
             var ValueBytes=TValueSerializer.Serialize(ref value);
             if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
                 throw this.ThrowLogFull();
-            var Session=this.AddClientSession;
+            var ClientSession=this.AddClientSession;
             var FixedKey=(FixedSpanByteKey)KeyBytes;
-            var Status=Session.BasicContext.Upsert(FixedKey,ValueBytes);
-            Status=Pending(Session,Status);
+            var Status=ClientSession.BasicContext.Upsert(FixedKey,ValueBytes);
+            Status=Pending(ClientSession,Status);
         }
     }
 }

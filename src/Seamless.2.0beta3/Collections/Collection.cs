@@ -353,7 +353,7 @@ public abstract class Collection<
         > {
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            if(Self.WouldOverflowMutable(logRecord.Key.Length,1))
+            if(Self.WouldOverflowMutable(logRecord.Key.Length,4))
                 throw Self.ThrowLogFull();
             var Input = default(PinnedSpanByte);
             SpanByteAndMemory Output = default;

@@ -121,17 +121,17 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         Debug.Assert(Status.IsCompleted);
         return Output;
     }
-    private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value){
-        var KeyBytes=TKeySerializer.Serialize(ref Key);
-        var ValueBytes=TValueSerializer.Serialize(ref Value);
+    private protected override TryAddResult PrivateTryAdd(TKey key,TValue value){
+        var KeyBytes=TKeySerializer.Serialize(ref key);
+        var ValueBytes=TValueSerializer.Serialize(ref value);
         if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
             return TryAddResult.LogFull;
-        var Session=this.AddClientSession;
+        var ClientSession=this.AddClientSession;
         var FixedKey=(FixedSpanByteKey)KeyBytes;
         var FixedInput=PinnedSpanByte.FromPinnedSpan(ValueBytes);
         var Output=false;
-        var Status=Session.BasicContext.RMW(FixedKey,ref FixedInput,ref Output);
-        Status=Pending(Session,Status,ref Output);
+        var Status=ClientSession.BasicContext.RMW(FixedKey,ref FixedInput,ref Output);
+        Status=Pending(ClientSession,Status,ref Output);
         Debug.Assert(Status.IsCompleted);
         if(Output)
             return TryAddResult.Success;

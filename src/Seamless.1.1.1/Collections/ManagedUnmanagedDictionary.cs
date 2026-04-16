@@ -1,17 +1,16 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
 namespace Seamless.Collections;
 
 public sealed partial class ManagedUnmanagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer> {
     /// <summary>
-    /// TValue のサイズは compile-time 定数。
-    /// オーバーフロー時に値シリアライズをスキップすることで無駄な作業を省く。
+    /// todo 1.1.1 TKeyとTValueの片方が可変長でも可変長の扱いになっている。将来、TKeyの固定長が実装できた場合は書き直す
     /// </summary>
-    private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value){
-        var KeyBytes=TKeySerializer.Serialize(ref Key);
-        if(this.WouldOverflowMutable(KeyBytes.Length,Unsafe.SizeOf<TValue>()))
+    private protected override TryAddResult PrivateTryAdd(TKey key,TValue value){
+        var KeyBytes=TKeySerializer.Serialize(ref key);
+        if(this.WouldOverflowMutable(KeyBytes.Length,4+Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
-        var ValueBytes=TValueSerializer.Serialize(ref Value);
+        var ValueBytes=TValueSerializer.Serialize(ref value);
         var ClientSession=this.AddClientSession;
         var FixedKey=SpanByte.FromPinnedSpan(KeyBytes);
         var FixedInput=SpanByte.FromPinnedSpan(ValueBytes);

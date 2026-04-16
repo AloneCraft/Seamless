@@ -12,6 +12,12 @@
 	<DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
 	    </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="Garnet\**" />
+    <EmbeddedResource Remove="Garnet\**" />
+    <None Remove="Garnet\**" />
+  </ItemGroup>
+
   <!--<ItemGroup>
     <Compile Remove="Function\**" />
     <Compile Remove="IDevice\**" />
@@ -49,11 +55,6 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Garnet\" />
-    <Folder Include="SessionFunctions\" />
   </ItemGroup>
 
   <ItemGroup>
