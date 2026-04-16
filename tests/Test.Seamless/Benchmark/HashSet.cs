@@ -42,7 +42,7 @@ public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,EqualityE
         }
     }
     [Fact,Trait("Category","")]
-    public void _Add_10万件の追加時間を計測する(){
+    public void Add_10万件の追加時間を計測する(){
         var sw=new Stopwatch();
         using var store=this.CreateStore();
         using var set=store.Create();
@@ -55,7 +55,7 @@ public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,EqualityE
     }
     [Fact]
     [Trait("Category","")]
-    public void _Contains_10万件の検索時間を計測する(){
+    public void Contains_10万件の検索時間を計測する(){
         using var store=this.CreateStore();
         using var set=store.Create();
         for(var i=0; i<Count; i++)
@@ -68,7 +68,7 @@ public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,EqualityE
     }
     [Fact]
     [Trait("Category","")]
-    public void _Remove_10万件の削除時間を計測する(){
+    public void Remove_10万件の削除時間を計測する(){
         var sw=new Stopwatch();
         using var store=this.CreateStore();
         using var set=store.Create();
@@ -83,7 +83,7 @@ public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,EqualityE
     }
     [Fact]
     [Trait("Category","")]
-    public void _GetEnumerator_10万件の列挙時間を計測する(){
+    public void GetEnumerator_10万件の列挙時間を計測する(){
         using var store=this.CreateStore();
         using var set=store.Create();
         for(var i=0; i<Count; i++)
@@ -95,7 +95,7 @@ public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,EqualityE
     }
     [Fact]
     [Trait("Category","")]
-    public void _UnionWith_10万件同士の和集合時間を計測する(){
+    public void UnionWith_10万件同士の和集合時間を計測する(){
         var sw=new Stopwatch();
         using var store1=this.CreateStore();
         using var store2=this.CreateStore();
@@ -112,7 +112,7 @@ public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,EqualityE
     }
     [Fact]
     [Trait("Category","")]
-    public void _IntersectWith_10万件同士の積集合時間を計測する(){
+    public void IntersectWith_10万件同士の積集合時間を計測する(){
         var sw=new Stopwatch();
         using var store1=this.CreateStore();
         using var store2=this.CreateStore();
@@ -129,7 +129,7 @@ public abstract class HashSet<T>(ITestOutputHelper output):Benchmark<T,EqualityE
     }
     [Fact]
     [Trait("Category","")]
-    public void _Mixed_10万件のAdd_Contains_Remove混合時間を計測する(){
+    public void Mixed_10万件のAdd_Contains_Remove混合時間を計測する(){
         using var store=this.CreateStore();
         using var set=store.Create();
         var sw=Stopwatch.StartNew();

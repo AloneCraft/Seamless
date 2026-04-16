@@ -234,7 +234,7 @@ public class StoreCheckpoint
         public int WriteDelayMilliseconds { get; set; } = 0;
 
         public SimulatedFlakyDevice(string path)
-            : base(path, false, false, false, -1, false, false, false) { }
+            : base(path, false, false, false, -1, false, false, false){ }
 
         public override void WriteAsync(IntPtr srcAddress, int alignedSourceNextAddress, ulong alignedDestinationAddress, uint numBytesToWrite, DeviceIOCompletionCallback callback, object callbackContext)
         {

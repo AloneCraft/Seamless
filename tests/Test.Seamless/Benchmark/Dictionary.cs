@@ -13,7 +13,7 @@ public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmar
     }
     [Fact]
     [Trait("Category","")]
-    public void _Add_10万件の追加時間を計測する(){
+    public void Add_10万件の追加時間を計測する(){
         var sw=new Stopwatch();
         using var store=this.CreateStore();
         using var dict=store.Create();
@@ -26,7 +26,7 @@ public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmar
     }
     [Fact]
     [Trait("Category","")]
-    public void _ContainsKey_10万件の検索時間を計測する(){
+    public void ContainsKey_10万件の検索時間を計測する(){
         using var store=this.CreateStore();
         using var dict=store.Create();
         for(var i=0; i<Count; i++)
@@ -39,7 +39,7 @@ public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmar
     }
     [Fact]
     [Trait("Category","")]
-    public void _TryGetValue_10万件の取得時間を計測する(){
+    public void TryGetValue_10万件の取得時間を計測する(){
         using var store=this.CreateStore();
         using var dict=store.Create();
         for(var i=0; i<Count; i++)
@@ -52,7 +52,7 @@ public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmar
     }
     [Fact]
     [Trait("Category","")]
-    public void _Indexer_Set_10万件の上書き時間を計測する(){
+    public void Indexer_Set_10万件の上書き時間を計測する(){
         using var store=this.CreateStore();
         using var dict=store.Create();
         for(var i=0; i<Count; i++)
@@ -67,7 +67,7 @@ public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmar
     }
     [Fact]
     [Trait("Category","")]
-    public void _Remove_10万件の削除時間を計測する(){
+    public void Remove_10万件の削除時間を計測する(){
         var sw=new Stopwatch();
         using var store=this.CreateStore();
         using var dict=store.Create();
@@ -81,7 +81,7 @@ public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmar
     }
     [Fact]
     [Trait("Category","")]
-    public void _GetEnumerator_10万件の列挙時間を計測する(){
+    public void GetEnumerator_10万件の列挙時間を計測する(){
         using var store=this.CreateStore();
         using var dict=store.Create();
         for(var i=0; i<Count; i++)
@@ -97,7 +97,7 @@ public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmar
     }
     [Fact]
     [Trait("Category","")]
-    public void _Keys_10万件のKeys取得時間を計測する(){
+    public void Keys_10万件のKeys取得時間を計測する(){
         using var store=this.CreateStore();
         using var dict=store.Create();
         for(var i=0; i<Count; i++)
@@ -110,7 +110,7 @@ public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmar
     }
     [Fact]
     [Trait("Category","")]
-    public void _Values_10万件のValues取得時間を計測する(){
+    public void Values_10万件のValues取得時間を計測する(){
         using var store=this.CreateStore();
         using var dict=store.Create();
         for(var i=0; i<Count; i++)
@@ -123,7 +123,7 @@ public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmar
     }
     [Fact]
     [Trait("Category","")]
-    public void _Mixed_0万件のAdd_Read_Remove混合時間を計測する(){
+    public void Mixed_0万件のAdd_Read_Remove混合時間を計測する(){
         using var store=this.CreateStore();
         using var dict=store.Create();
         var sw=Stopwatch.StartNew();

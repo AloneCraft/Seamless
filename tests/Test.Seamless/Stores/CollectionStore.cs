@@ -6,7 +6,7 @@ namespace Test.Seamless.Stores;
 /// 既存テスト(CoverInternals等)でカバーしていない分岐に注力する。
 /// </summary>
 
-public class CollectionStore2{
+public class CollectionStore{
     private static string CreateFolder()=>Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize=global::Seamless.Const.MinObjectLogCapacity;
     //CollectionStore コンストラクタ: ObjectLogDevice.Capacity<0 の分岐

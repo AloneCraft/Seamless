@@ -9,28 +9,28 @@
     <Import_RootNamespace>Tests.Seamless</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\Benchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\ConstructorBenchmarkBase.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\HashSetBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\Dictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\FixedVariableConstructorBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\HashSet.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\KindDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\HashSetBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\KindConstructorDictionaryBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\KindConstructorHashSetBenchmark.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\KindDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Helpers\Collections\DictionaryStrategy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Helpers\Collections\DictionaryTestBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Helpers\Collections\IDictionaryTestBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Helpers\Collections\HashSetStrategy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Helpers\Collections\HashSetTestBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Category.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CheckpointRecoveryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Dictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\DictionaryIReadOnly.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\Helpers\DictionaryTestBase.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\Helpers\DictionaryStrategy.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\Helpers\HashSetStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\StoreHandle.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Empty.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Enumerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSetDebugView.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Collections\Helpers\HashSetTestBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\HashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
@@ -50,11 +50,12 @@
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\SymmetricExcept.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SessionFunctions\UnmanagedAdd.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)StoreCheckpoint.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Stores\CollectionStore2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\CollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\Factory.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\KindDictionarySize.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Test.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestTypes.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="$(MSBuildThisFileDirectory)Tsavorite\" />

@@ -13,15 +13,15 @@ public readonly  struct ManagedAdd:
         throw new NotSupportedException("ManagedAddクラスのRMWでのみ使われる");
     }
 
-    public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref ManagedSessionKey input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
+    public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref ManagedSessionKey input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
         throw new NotSupportedException("ManagedAddクラスのRMWでのみ使われる");
     }
 
-    public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
+    public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo){
         return dstLogRecord.TrySetValueSpanAndPrepareOptionals(srcValue,in sizeInfo);
     }
 
-    public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
+    public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo){
         return dstLogRecord.TrySetValueObjectAndPrepareOptionals(srcValue,in sizeInfo);
     }
 
@@ -30,21 +30,21 @@ public readonly  struct ManagedAdd:
         return dstLogRecord.TryCopyFrom(in inputLogRecord,in sizeInfo);
     }
 
-    public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
+    public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo){
     }
 
-    public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
+    public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo){
     }
 
     public void PostInitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,in TSourceLogRecord inputLogRecord,ref bool output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord:ISourceLogRecord {
     }
 
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo){
         return logRecord.TrySetValueSpanAndPrepareOptionals(srcValue,in sizeInfo);
     }
 
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo){
         return logRecord.TrySetValueObjectAndPrepareOptionals(srcValue,in sizeInfo);
     }
 
@@ -71,11 +71,11 @@ public readonly  struct ManagedAdd:
         return true;
     }
 
-    public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,ref bool output,ref RMWInfo rmwInfo) {
+    public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,ref bool output,ref RMWInfo rmwInfo){
         return dstLogRecord.TrySetValueSpanAndPrepareOptionals(input.ReadOnlySpan,in sizeInfo);
     }
 
-    public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,ref bool output,ref RMWInfo rmwInfo) {
+    public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,ref bool output,ref RMWInfo rmwInfo){
         output=true;
     }
 
@@ -100,7 +100,7 @@ public readonly  struct ManagedAdd:
     /// <summary>
     /// キー既存時は InPlaceUpdater=false で更新を拒否（output は default(false) のまま＝失敗）
     /// </summary>
-    public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,ref bool output,ref RMWInfo rmwInfo) {
+    public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref ManagedSessionKey input,ref bool output,ref RMWInfo rmwInfo){
         return false;
     }
 
@@ -109,18 +109,18 @@ public readonly  struct ManagedAdd:
         where TEpochAccessor:IEpochAccessor {
     }
 
-    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref ManagedSessionKey input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
+    public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref ManagedSessionKey input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
     }
 
-    public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
+    public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo){
         throw new NotSupportedException("ManagedAddクラスのRMWでのみ使われる");
     }
 
-    public void PostInitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
+    public void PostInitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo){
         throw new NotSupportedException("ManagedAddクラスのRMWでのみ使われる");
     }
 
-    public bool InPlaceDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
+    public bool InPlaceDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo){
         throw new NotSupportedException("ManagedAddクラスのRMWでのみ使われる");
     }
 
@@ -132,30 +132,30 @@ public readonly  struct ManagedAdd:
 
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref ManagedSessionKey input)
         where TSourceLogRecord:ISourceLogRecord {
-        return new() { KeySize=srcLogRecord.KeyBytes.Length,ValueSize=input.ReadOnlySpan.Length };
+        return new(){ KeySize=srcLogRecord.KeyBytes.Length,ValueSize=input.ReadOnlySpan.Length };
     }
 
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref ManagedSessionKey input)
         where TKey:IKey, allows ref struct {
-        return new() { KeySize=key.KeyBytes.Length,ValueSize=input.ReadOnlySpan.Length };
+        return new(){ KeySize=key.KeyBytes.Length,ValueSize=input.ReadOnlySpan.Length };
     }
 
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref ManagedSessionKey input)
         where TKey:IKey, allows ref struct {
-        return new() { KeySize=key.KeyBytes.Length,ValueSize=value.Length };
+        return new(){ KeySize=key.KeyBytes.Length,ValueSize=value.Length };
     }
 
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,IHeapObject value,ref ManagedSessionKey input)
         where TKey:IKey, allows ref struct {
-        return new() { KeySize=key.KeyBytes.Length,ValueSize=ObjectIdMap.ObjectIdSize,ValueIsObject=true };
+        return new(){ KeySize=key.KeyBytes.Length,ValueSize=ObjectIdMap.ObjectIdSize,ValueIsObject=true };
     }
 
     public RecordFieldInfo GetUpsertFieldInfo<TKey, TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref ManagedSessionKey input)
         where TKey:IKey, allows ref struct
         where TSourceLogRecord:ISourceLogRecord {
-        return new() { KeySize=key.KeyBytes.Length,ValueSize=inputLogRecord.Info.ValueIsObject ? ObjectIdMap.ObjectIdSize:inputLogRecord.ValueSpan.Length,ValueIsObject=inputLogRecord.Info.ValueIsObject };
+        return new(){ KeySize=key.KeyBytes.Length,ValueSize=inputLogRecord.Info.ValueIsObject ? ObjectIdMap.ObjectIdSize:inputLogRecord.ValueSpan.Length,ValueIsObject=inputLogRecord.Info.ValueIsObject };
     }
 
-    public void ConvertOutputToHeap(ref ManagedSessionKey input,ref bool output) {
+    public void ConvertOutputToHeap(ref ManagedSessionKey input,ref bool output){
     }
 }

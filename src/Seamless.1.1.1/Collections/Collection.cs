@@ -92,9 +92,9 @@ public abstract class Collection<
         TAllocator
     > CollectionStore;
     public TryAddResult TryAdd(TKey Key,TValue Value) => this.PrivateTryAdd(Key,Value);
-    public void Add(TKey Key,TValue Value) {
+    public void Add(TKey Key,TValue Value){
         var Result = this.TryAdd(Key,Value);
-        switch(Result) {
+        switch(Result){
             case TryAddResult.LogFull:
                 throw this.ThrowLogFull();
             case TryAddResult.KeyAlreadyExists:
@@ -103,31 +103,31 @@ public abstract class Collection<
         Debug.Assert(Result==TryAddResult.Success);
     }
     public sealed class CounterIterator:IScanIteratorFunctions<TSessionKey,TSessionValue> {
-        public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
         public long Counter;
-        public bool OnStart(long beginAddress,long endAddress) {
+        public bool OnStart(long beginAddress,long endAddress){
             return true;
         }
-        public void OnException(Exception exception,long numberOfRecords) {
+        public void OnException(Exception exception,long numberOfRecords){
         }
-        public void OnStop(bool completed,long numberOfRecords) {
+        public void OnStop(bool completed,long numberOfRecords){
             this.Counter=numberOfRecords;
         }
     }
-    public long GetLongCount() {
+    public long GetLongCount(){
         var Iterator = new CounterIterator();
         var Cursor = 0L;
         this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         return Iterator.Counter;
     }
-    private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey) {
+    private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey){
         var Session = this.ContainsDeleteClientSession;
         var Output = false;
         var Status = Session.BasicContext.Read(ref SessionKey,ref Output);
@@ -143,7 +143,7 @@ public abstract class Collection<
             TStoreFunctions,
             TAllocator
         > CollectionStore
-    ) {
+    ){
         this.CollectionStore=CollectionStore;
         var Store = CollectionStore.Store;
         this.ReadClientSession=Store.NewSession<
@@ -168,7 +168,7 @@ public abstract class Collection<
             TContainsDeleteFunctions
         >(TContainsDeleteFunctions.Create());
     }
-    public void Clear() {
+    public void Clear(){
         var Session = this.AddClientSession;
         Session.BasicContext.CompletePending(wait: true);
         Session.Dispose();
@@ -196,9 +196,9 @@ public abstract class Collection<
             TContainsDeleteFunctions
         >(TContainsDeleteFunctions.Create());
     }
-    public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
+    public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value){
         var Status = this.Read(Key,out Value);
-        if(Status.NotFound) {
+        if(Status.NotFound){
             Value=default;
             return false;
         }
@@ -230,9 +230,9 @@ public abstract class Collection<
         TOutput0,
         TContext0
     > {
-        if(Status.IsPending) {
+        if(Status.IsPending){
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-            using(CompletedOutputs) {
+            using(CompletedOutputs){
                 Debug.Assert(CompletedOutputs.Next());
                 Status=CompletedOutputs.Current.Status;
             }
@@ -267,9 +267,9 @@ public abstract class Collection<
         TOutput0,
         TContext0
     > {
-        if(Status.IsPending) {
+        if(Status.IsPending){
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-            using(CompletedOutputs) {
+            using(CompletedOutputs){
                 Debug.Assert(CompletedOutputs.Next());
                 Status=CompletedOutputs.Current.Status;
                 Output=CompletedOutputs.Current.Output;
@@ -283,13 +283,13 @@ public abstract class Collection<
     private long LogMemorySize => this.CollectionStore.LogMemorySize;
     private double MutableFraction => this.CollectionStore.MutableFraction;
 
-    private protected OutOfMemoryException ThrowLogFull() {
+    private protected OutOfMemoryException ThrowLogFull(){
         var Log = this.CollectionStore.Store.Log;
         return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private protected bool WouldOverflowMutable(int KeyLength,int ValueLength) {
+    private protected bool WouldOverflowMutable(int KeyLength,int ValueLength){
         Debug.Assert(this.LogMemorySize>=8192);
         var Log = this.CollectionStore.Store.Log;
         return this.CollectionStore.OverflowMutableStrategyKind switch {
@@ -312,16 +312,16 @@ public abstract class Collection<
 
     private bool disposed;
 
-    public void Dispose() {
+    public void Dispose(){
         this.Dispose(true);
         GC.SuppressFinalize(this);
     }
 
-    protected virtual void Dispose(bool disposing) {
-        if(this.disposed) {
+    protected virtual void Dispose(bool disposing){
+        if(this.disposed){
             return;
         }
-        if(disposing) {
+        if(disposing){
             this.AddClientSession.Dispose();
         }
         this.disposed=true;

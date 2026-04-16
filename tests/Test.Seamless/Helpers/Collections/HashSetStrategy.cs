@@ -6,7 +6,7 @@ namespace Test.Seamless.Collections;
 public sealed class HashSetHandle<T>(IDisposable store,ISeamlessHashSet<T> set):IDisposable
     where T : IEquatable<T> {
     public ISeamlessHashSet<T> Set => set;
-    public void Dispose() {
+    public void Dispose(){
         set.Dispose();
         store.Dispose();
     }
@@ -39,7 +39,7 @@ public readonly struct ManagedHashSetStrategy<TProvider, T>:IHashSetTestStrategy
     public static T Elem(int i) => TProvider.Create(i);
     public static HashSetHandle<T> CreateMemorySet(
         long memorySize = Const.LogMemorySize,
-        double mutableFraction = 1.0) {
+        double mutableFraction = 1.0){
         var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<T>(new ManagedTag());
         return new HashSetHandle<T>(store,store.Create());
     }
@@ -50,7 +50,7 @@ public readonly struct UnmanagedHashSetStrategy<TProvider, T>:IHashSetTestStrate
     public static T Elem(int i) => TProvider.Create(i);
     public static HashSetHandle<T> CreateMemorySet(
         long memorySize = Const.LogMemorySize,
-        double mutableFraction = 1.0) {
+        double mutableFraction = 1.0){
         var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<T>();
         return new HashSetHandle<T>(store,store.Create());
     }
