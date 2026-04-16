@@ -16,25 +16,25 @@ public readonly  struct UnmanagedAdd<TKey, TValue>:
     where TValue:unmanaged, IEquatable<TValue> {
     public static UnmanagedAdd<TKey,TValue> Create() => new();
 
-    public bool SingleReader(ref TKey key,ref TValue input,ref TValue value,ref bool dst,ref ReadInfo readInfo) {
+    public bool SingleReader(ref TKey key,ref TValue input,ref TValue value,ref bool dst,ref ReadInfo readInfo){
         throw new NotSupportedException("UnmanagedAddクラスのRMWでのみ使われる");
     }
-    public bool ConcurrentReader(ref TKey key,ref TValue input,ref TValue value,ref bool dst,ref ReadInfo readInfo,ref RecordInfo recordInfo) {
+    public bool ConcurrentReader(ref TKey key,ref TValue input,ref TValue value,ref bool dst,ref ReadInfo readInfo,ref RecordInfo recordInfo){
         throw new NotSupportedException("UnmanagedAddクラスのRMWでのみ使われる");
     }
-    public void ReadCompletionCallback(ref TKey key,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
+    public void ReadCompletionCallback(ref TKey key,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
         throw new NotSupportedException("UnmanagedAddクラスのRMWでのみ使われる");
     }
 
-    public bool SingleWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,WriteReason reason,ref RecordInfo recordInfo) {
+    public bool SingleWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,WriteReason reason,ref RecordInfo recordInfo){
         dst=src;
         return true;
     }
 
-    public void PostSingleWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,WriteReason reason) {
+    public void PostSingleWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,WriteReason reason){
     }
 
-    public bool ConcurrentWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,ref RecordInfo recordInfo) {
+    public bool ConcurrentWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,ref RecordInfo recordInfo){
         dst=src;
         return true;
     }
@@ -45,22 +45,22 @@ public readonly  struct UnmanagedAdd<TKey, TValue>:
 
     public bool NeedInitialUpdate(ref TKey key,ref TValue input,ref bool output,ref RMWInfo rmwInfo) => true;
 
-    public bool InitialUpdater(ref TKey key,ref TValue input,ref TValue value,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
+    public bool InitialUpdater(ref TKey key,ref TValue input,ref TValue value,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo){
         value=input;
         return true;
     }
 
-    public void PostInitialUpdater(ref TKey key,ref TValue input,ref TValue value,ref bool output,ref RMWInfo rmwInfo) {
+    public void PostInitialUpdater(ref TKey key,ref TValue input,ref TValue value,ref bool output,ref RMWInfo rmwInfo){
         output=true;
     }
 
     public bool NeedCopyUpdate(ref TKey key,ref TValue input,ref TValue oldValue,ref bool output,ref RMWInfo rmwInfo) => false;
 
-    public bool CopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
+    public bool CopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo){
         throw new NotSupportedException("NeedCopyUpdate が false を返すので呼ばれない");
     }
 
-    public bool PostCopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo) {
+    public bool PostCopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo){
         throw new NotSupportedException("CopyUpdater が false を返すので呼ばれない");
     }
 
@@ -74,18 +74,18 @@ public readonly  struct UnmanagedAdd<TKey, TValue>:
         where TEpochAccessor:IEpochAccessor {
     }
 
-    public void RMWCompletionCallback(ref TKey key,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
+    public void RMWCompletionCallback(ref TKey key,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
     }
 
-    public bool SingleDeleter(ref TKey key,ref TValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) {
+    public bool SingleDeleter(ref TKey key,ref TValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
         throw new NotSupportedException("Add は Delete を使用しない");
     }
 
-    public void PostSingleDeleter(ref TKey key,ref DeleteInfo deleteInfo) {
+    public void PostSingleDeleter(ref TKey key,ref DeleteInfo deleteInfo){
         throw new NotSupportedException("Add は Delete を使用しない");
     }
 
-    public bool ConcurrentDeleter(ref TKey key,ref TValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) {
+    public bool ConcurrentDeleter(ref TKey key,ref TValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
         throw new NotSupportedException("Add は Delete を使用しない");
     }
 
@@ -94,6 +94,6 @@ public readonly  struct UnmanagedAdd<TKey, TValue>:
         throw new NotSupportedException("Add は Delete を使用しない");
     }
 
-    public void ConvertOutputToHeap(ref TValue input,ref bool output) {
+    public void ConvertOutputToHeap(ref TValue input,ref bool output){
     }
 }

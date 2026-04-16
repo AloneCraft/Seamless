@@ -1,4 +1,4 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Seamless.Stores;
 namespace Test.Seamless.Stores;
 
@@ -20,7 +20,7 @@ public class KindDictionarySize {
     }
 
     [Fact, Trait("Category","Unit")]
-    public void UnmanagedUnmanaged_vs_ManagedManaged_サイズが小さい() {
+    public void UnmanagedUnmanaged_vs_ManagedManaged_サイズが小さい(){
         using var uuStore = Factory.Create(MemorySize:MemorySize).Create<int,int>();
         using var uuDict  = uuStore.Create();
         var uuBytes = MeasureLogBytes(()=>uuStore.Store.Log.TailAddress, uuDict);
@@ -35,7 +35,7 @@ public class KindDictionarySize {
     }
 
     [Fact, Trait("Category","Unit")]
-    public void ManagedUnmanaged_vs_ManagedManaged_値部分で差がある() {
+    public void ManagedUnmanaged_vs_ManagedManaged_値部分で差がある(){
         using var muStore = Factory.Create(MemorySize:MemorySize).Create<int,int>(new ManagedTag(), default);
         using var muDict  = muStore.Create();
         var muBytes = MeasureLogBytes(()=>muStore.Store.Log.TailAddress, muDict);
@@ -50,7 +50,7 @@ public class KindDictionarySize {
     }
 
     [Fact, Trait("Category","Unit")]
-    public void 全4種類のログサイズを出力する() {
+    public void 全4種類のログサイズを出力する(){
         var sizes = new System.Collections.Generic.Dictionary<string, long>();
 
         {

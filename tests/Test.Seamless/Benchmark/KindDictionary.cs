@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Seamless.Collections;
 using Seamless.Stores;
 namespace Benchmarks;
@@ -8,7 +8,7 @@ namespace Benchmarks;
 /// パフォーマンスとログサイズを計測するベンチマーク。
 /// </summary>
 [Collection("Benchmark")]
-public class KindDictionary(ITestOutputHelper output) {
+public class KindDictionary(ITestOutputHelper output){
     private const int Count = 100_000;
     private const long MemorySize = Seamless.Const.LogMemorySize << 12;
 
@@ -16,7 +16,7 @@ public class KindDictionary(ITestOutputHelper output) {
         string label,
         Func<long> getTailAddress,
         Func<long> getBeginAddress,
-        ISeamlessDictionary<int,int> dict) {
+        ISeamlessDictionary<int,int> dict){
         // Add
         var sw = Stopwatch.StartNew();
         for(var i = 0; i < Count; i++) dict.Add(i, i);
@@ -45,7 +45,7 @@ public class KindDictionary(ITestOutputHelper output) {
     }
 
     [Fact, Trait("Category","")]
-    public void _UnmanagedUnmanaged_int_int() {
+    public void UnmanagedUnmanaged_int_int(){
         var IndexSize = (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Count);
         using var store = Factory.Create(IndexSize:IndexSize, MemorySize:MemorySize).Create<int,int>();
         using var dict  = store.Create();
@@ -53,7 +53,7 @@ public class KindDictionary(ITestOutputHelper output) {
     }
 
     [Fact, Trait("Category","")]
-    public void _UnmanagedManaged_int_int() {
+    public void UnmanagedManaged_int_int(){
         var IndexSize = (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Count);
         using var store = Factory.Create(IndexSize:IndexSize, MemorySize:MemorySize).Create<int,int>(default, new ManagedTag());
         using var dict  = store.Create();
@@ -61,7 +61,7 @@ public class KindDictionary(ITestOutputHelper output) {
     }
 
     [Fact, Trait("Category","")]
-    public void _ManagedUnmanaged_int_int() {
+    public void ManagedUnmanaged_int_int(){
         var IndexSize = (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Count);
         using var store = Factory.Create(IndexSize:IndexSize, MemorySize:MemorySize).Create<int,int>(new ManagedTag(), default);
         using var dict  = store.Create();
@@ -69,7 +69,7 @@ public class KindDictionary(ITestOutputHelper output) {
     }
 
     [Fact, Trait("Category","")]
-    public void _ManagedManaged_int_int() {
+    public void ManagedManaged_int_int(){
         var IndexSize = (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Count);
         using var store = Factory.Create(IndexSize:IndexSize, MemorySize:MemorySize).Create<int,int>(new ManagedTag(), new ManagedTag());
         using var dict  = store.Create();

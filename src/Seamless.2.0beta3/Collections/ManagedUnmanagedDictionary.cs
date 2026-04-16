@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
@@ -15,7 +15,7 @@ public sealed partial class ManagedUnmanagedDictionary<TKey,TValue,TKeySerialize
         ManagedAllocator
     > UnmanagedValueAddClientSession = null!;
 
-    partial void InitializeKind(ManagedCollectionStore<TKey,TValue> collectionStore) {
+    partial void InitializeKind(ManagedCollectionStore<TKey,TValue> collectionStore){
         this.UnmanagedValueAddClientSession=collectionStore.Store.NewSession<
             FixedSpanByteKey,
             TValue,
@@ -25,11 +25,11 @@ public sealed partial class ManagedUnmanagedDictionary<TKey,TValue,TKeySerialize
         >(new());
     }
 
-    partial void DisposeKind(bool disposing) {
+    partial void DisposeKind(bool disposing){
         if(disposing) this.UnmanagedValueAddClientSession.Dispose();
     }
 
-    private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value) {
+    private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value){
         var KeyBytes=TKeySerializer.Serialize(ref Key);
         if(this.WouldOverflowMutable(KeyBytes.Length,Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;

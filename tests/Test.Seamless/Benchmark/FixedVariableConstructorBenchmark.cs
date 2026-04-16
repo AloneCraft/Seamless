@@ -1,18 +1,18 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Seamless.Collections;
 using Seamless.Stores;
 
 namespace Benchmarks;
 
 [Collection("Benchmark")]
-public class FixedVariableConstructorBenchmark(ITestOutputHelper output) {
+public class FixedVariableConstructorBenchmark(ITestOutputHelper output){
     private const int Count = 100_000;
     private static readonly int IndexSize = (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Count);
     private const long MemorySize = Seamless.Const.LogMemorySize<<11;
 
     [Fact]
     [Trait("Category","")]
-    public void ManagedManagedDictionary_固定長と可変長の速度を計測する() {
+    public void ManagedManagedDictionary_固定長と可変長の速度を計測する(){
         using var fixedStore = Factory.Create(IndexSize: IndexSize,MemorySize: MemorySize)
             .Create<int,int>(new ManagedTag(),new ManagedTag());
         using var fixedDict = new ManagedManagedDictionary<int,int,ManagedSerializer<int>,ManagedSerializer<int>>(fixedStore);
@@ -30,7 +30,7 @@ public class FixedVariableConstructorBenchmark(ITestOutputHelper output) {
         using var variableDict = new ManagedManagedDictionary<string,string,ManagedSerializer<string>,ManagedSerializer<string>>(variableStore);
 
         sw.Restart();
-        for(var i = 0; i<Count; i++) {
+        for(var i = 0; i<Count; i++){
             var key = i.ToString();
             variableDict.Add(key,key);
         }
@@ -47,7 +47,7 @@ public class FixedVariableConstructorBenchmark(ITestOutputHelper output) {
 
     [Fact]
     [Trait("Category","")]
-    public void ManagedHashSet_固定長と可変長の速度を計測する() {
+    public void ManagedHashSet_固定長と可変長の速度を計測する(){
         using var fixedStore = Factory.Create(IndexSize: IndexSize,MemorySize: MemorySize)
             .Create<int>(new ManagedTag());
         using var fixedSet = new ManagedHashSet<int>(fixedStore);

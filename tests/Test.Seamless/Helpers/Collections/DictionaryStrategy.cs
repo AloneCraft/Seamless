@@ -18,16 +18,16 @@ public readonly struct StringDictTypeProvider:IDictTypeProvider<string> {
     public static string Wrong() => "!!";
 }
 public readonly struct UnmanagedStructDictTypeProvider:IDictTypeProvider<UnmanagedStruct> {
-    public static UnmanagedStruct Create(int i) => new() { Value=i };
-    public static UnmanagedStruct Wrong() => new() { Value=-1 };
+    public static UnmanagedStruct Create(int i) => new(){ Value=i };
+    public static UnmanagedStruct Wrong() => new(){ Value=-1 };
 }
 public readonly struct ManagedStructDictTypeProvider:IDictTypeProvider<ManagedStruct> {
-    public static ManagedStruct Create(int i) => new() { Name=$"N{i}" };
-    public static ManagedStruct Wrong() => new() { Name="!!" };
+    public static ManagedStruct Create(int i) => new(){ Name=$"N{i}" };
+    public static ManagedStruct Wrong() => new(){ Name="!!" };
 }
 public readonly struct ManagedClassDictTypeProvider:IDictTypeProvider<ManagedClass> {
-    public static ManagedClass Create(int i) => new() { Name=$"C{i}" };
-    public static ManagedClass Wrong() => new() { Name="!!" };
+    public static ManagedClass Create(int i) => new(){ Name=$"C{i}" };
+    public static ManagedClass Wrong() => new(){ Name="!!" };
 }
 public interface IDictTestStrategy<TKey, TValue>
     where TKey : IEquatable<TKey>
@@ -69,7 +69,7 @@ public readonly struct ManagedStoreDictionaryStrategy<TKeyProvider, TValueProvid
     public static TValue VWrong() => TValueProvider.Wrong();
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = Const.LogMemorySize,
-        double mutableFraction = 1.0) {
+        double mutableFraction = 1.0){
         var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new ManagedTag(),new ManagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
@@ -80,7 +80,7 @@ public readonly struct ManagedStoreDictionaryStrategy<TKeyProvider, TValueProvid
         long memorySize = Const.MinObjectLogCapacity,
         double mutableFraction = 1.0,
         string? checkpointDir = null,
-        bool recoverDevice = false) {
+        bool recoverDevice = false){
         var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new ManagedTag(),new ManagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
@@ -97,7 +97,7 @@ public readonly struct UnmanagedKeyDictionaryStrategy<TKeyProvider, TValueProvid
     public static TValue VWrong() => TValueProvider.Wrong();
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = Const.LogMemorySize,
-        double mutableFraction = 1.0) {
+        double mutableFraction = 1.0){
         var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new UnmanagedTag(),new ManagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
@@ -108,7 +108,7 @@ public readonly struct UnmanagedKeyDictionaryStrategy<TKeyProvider, TValueProvid
         long memorySize = Const.MinObjectLogCapacity,
         double mutableFraction = 1.0,
         string? checkpointDir = null,
-        bool recoverDevice = false) {
+        bool recoverDevice = false){
         var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new UnmanagedTag(),new ManagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
@@ -125,7 +125,7 @@ public readonly struct UnmanagedValueDictionaryStrategy<TKeyProvider, TValueProv
     public static TValue VWrong() => TValueProvider.Wrong();
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = Const.LogMemorySize,
-        double mutableFraction = 1.0) {
+        double mutableFraction = 1.0){
         var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new ManagedTag(),new UnmanagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
@@ -136,7 +136,7 @@ public readonly struct UnmanagedValueDictionaryStrategy<TKeyProvider, TValueProv
         long memorySize = Const.MinObjectLogCapacity,
         double mutableFraction = 1.0,
         string? checkpointDir = null,
-        bool recoverDevice = false) {
+        bool recoverDevice = false){
         var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new ManagedTag(),new UnmanagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
@@ -154,7 +154,7 @@ public readonly struct UnmanagedStoreDictionaryStrategy<TKeyProvider, TValueProv
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0
-    ) {
+    ){
         var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new UnmanagedTag(),new UnmanagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
@@ -166,7 +166,7 @@ public readonly struct UnmanagedStoreDictionaryStrategy<TKeyProvider, TValueProv
         double mutableFraction = 1.0,
         string? checkpointDir = null,
         bool recoverDevice = false
-    ) {
+    ){
         var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new UnmanagedTag(),new UnmanagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),

@@ -32,7 +32,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
     public sealed class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
-        private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
+        private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord){
             var Key=TKeySerializer.Deserialize(logRecord.Key);
             var Value=TValueSerializer.Deserialize(logRecord.ValueSpan);
             return new(Key,Value);
@@ -58,9 +58,9 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         private bool Done;
         public T Current => Iterator.Chunk[this.Index];
         object? IEnumerator.Current => this.Current;
-        public bool MoveNext() {
+        public bool MoveNext(){
             if(++this.Index<this.Count) return true;
-            if(this.Done) {
+            if(this.Done){
                 this.Index=-1;
                 return false;
             }
@@ -70,31 +70,31 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
             this.Count=Count;
             if(!r)
                 this.Done=true;
-            if(Count>0) {
+            if(Count>0){
                 this.Index=0;
                 return true;
             }
             this.Index=-1;
             return false;
         }
-        public void Reset() {
+        public void Reset(){
             this.Cursor=0;
             this.Count=0;
             this.Index=-1;
             this.Done=false;
         }
-        public void Dispose() {
+        public void Dispose(){
         }
     }
-    private protected ManagedCollection(ManagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore) {
+    private protected ManagedCollection(ManagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
     }
-    public bool Contains(TKey Key) {
+    public bool Contains(TKey Key){
         //
         //
         return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     }
     public bool ContainsKey(TKey Key) =>this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
-    private protected override Status Read(TKey Key,out TValue Value) {
+    private protected override Status Read(TKey Key,out TValue Value){
         var KeyBytes=TKeySerializer.Serialize(ref Key);
         var Session=this.ReadClientSession;
         var FixedKey=(FixedSpanByteKey)KeyBytes;
@@ -102,7 +102,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         var Status=Session.BasicContext.Read(FixedKey,ref Output);
         Status=Pending(Session,Status,ref Output);
         Debug.Assert(Status.IsCompleted);
-        if(Status.Found) {
+        if(Status.Found){
             Value=TValueSerializer.Deserialize(Output.ReadOnlySpan);
         }
         else {
@@ -110,7 +110,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         }
         return Status;
     }
-    public bool Remove(TKey key) {
+    public bool Remove(TKey key){
         var ClientSession=this.ContainsDeleteClientSession;
         var KeyBytes=TKeySerializer.Serialize(ref key);
 
@@ -121,7 +121,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         Debug.Assert(Status.IsCompleted);
         return Output;
     }
-    private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value) {
+    private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value){
         var KeyBytes=TKeySerializer.Serialize(ref Key);
         var ValueBytes=TValueSerializer.Serialize(ref Value);
         if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))

@@ -27,7 +27,7 @@ public class UnmanagedHashSetStore<TKey>
         ObjectLogDevice,
         CheckpointDir,
         OverflowMutableStrategyKind.Storage
-    ) { }
+    ){ }
 
     internal UnmanagedHashSetStore(
         long IndexSize,
@@ -45,7 +45,7 @@ public class UnmanagedHashSetStore<TKey>
         new MemoryOnlyDevice(Const.MinObjectLogCapacity),
         null,
         OverflowMutableStrategyKind.Memory
-    ) { }
+    ){ }
 
     public UnmanagedHashSet<TKey> Create() => new(this);
 }
@@ -70,7 +70,7 @@ public class UnmanagedUnmanagedHashSetStore<TKey>:UnmanagedHashSetStore<TKey>
         LogDevice,
         ObjectLogDevice,
         CheckpointDir
-    ) { }
+    ){ }
 
     internal UnmanagedUnmanagedHashSetStore(
         long IndexSize,
@@ -84,7 +84,7 @@ public class UnmanagedUnmanagedHashSetStore<TKey>:UnmanagedHashSetStore<TKey>
         SegmentSize,
         MemorySize,
         MutableFraction
-    ) { }
+    ){ }
 
     public new UnmanagedUnmanagedHashSet<TKey> Create() => new(this);
 }

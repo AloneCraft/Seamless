@@ -26,17 +26,17 @@ ISeamlessDictionary<TKey,TValue>
     where TValueSerializer : ISerializer<TValue> {
     public bool IsReadOnly => false;
     public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
-    bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item) {
+    bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item){
         var status = this.Read(item.Key,out var output);
         if(status.NotFound) return false;
         return output.Equals(item.Value);
     }
-    public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex) {
+    public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex){
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
         if(array.Length-arrayIndex<this.GetLongCount())
             throw new ArgumentException("The destination array is too small.");
-        foreach(var kvp in this) {
+        foreach(var kvp in this){
             array[arrayIndex++]=kvp;
         }
     }
@@ -45,7 +45,7 @@ ISeamlessDictionary<TKey,TValue>
     public List<KeyValuePair<TKey,TValue>> ToList(){
         using var Enumerator = this.GetEnumerator();
         var List = new List<KeyValuePair<TKey,TValue>>();
-        while(Enumerator.MoveNext()) {
+        while(Enumerator.MoveNext()){
             List.Add(Enumerator.Current);
         }
         return List;
@@ -56,11 +56,11 @@ ISeamlessDictionary<TKey,TValue>
     IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerate<ValueIterator,TValue>(new());
     public override bool IsDisposed => this.disposed;
     private bool disposed;
-    protected override void Dispose(bool disposing) {
+    protected override void Dispose(bool disposing){
         if(this.disposed)
             return;
         this.disposed=true;
-        if(disposing) {
+        if(disposing){
             this.Remove_TKey_TValue_ClientSession.Dispose();
             this.Remove_KeyValuePair_ClientSession.Dispose();
         }
@@ -69,7 +69,7 @@ ISeamlessDictionary<TKey,TValue>
     private partial void SetValue(TKey key,TValue value);
     public TValue this[TKey key] {
         get {
-            if(this.TryGetValue(key,out var value)) {
+            if(this.TryGetValue(key,out var value)){
                 return value;
             }
             throw new KeyNotFoundException();

@@ -21,7 +21,7 @@ public readonly struct Factory {
         long MemorySize,
         double MutableFraction,
         string? CheckpointDir
-    ) {
+    ){
         this.IndexSize=IndexSize;
         this.PageSize=PageSize;
         this.SegmentSize=SegmentSize;

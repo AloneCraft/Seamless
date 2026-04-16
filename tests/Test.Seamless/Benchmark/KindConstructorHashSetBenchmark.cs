@@ -1,4 +1,4 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Seamless.Stores;
 
 namespace Benchmarks;
@@ -10,7 +10,7 @@ public abstract class ManagedHashSetCtorBenchmark<TKey>(ITestOutputHelper output
 
     protected override string BenchmarkName => "ManagedHashSet";
 
-    protected override ConstructorBenchmarkHandle<ManagedHashSet<TKey>> CreateHandle() {
+    protected override ConstructorBenchmarkHandle<ManagedHashSet<TKey>> CreateHandle(){
         var store = Factory.Create(IndexSize: this.IndexSize,MemorySize: MemorySize)
             .Create<TKey>(new ManagedTag());
         var set = new ManagedHashSet<TKey>(store);
@@ -32,7 +32,7 @@ public abstract class UnmanagedHashSetCtorBenchmark<TKey>(ITestOutputHelper outp
 
     protected override string BenchmarkName => "UnmanagedHashSet";
 
-    protected override ConstructorBenchmarkHandle<UnmanagedHashSet<TKey>> CreateHandle() {
+    protected override ConstructorBenchmarkHandle<UnmanagedHashSet<TKey>> CreateHandle(){
         var store = Factory.Create(IndexSize: this.IndexSize,MemorySize: MemorySize)
             .Create<TKey>(new UnmanagedTag());
         var set = new UnmanagedHashSet<TKey>(store);
@@ -49,24 +49,24 @@ public abstract class UnmanagedHashSetCtorBenchmark<TKey>(ITestOutputHelper outp
 
 [Trait("TKey","int")]
 public sealed class ManagedHashSetCtor_Int(ITestOutputHelper output)
-    :ManagedHashSetCtorBenchmark<int>(output) {
+    :ManagedHashSetCtorBenchmark<int>(output){
     protected override int CreateKey(int seed) => seed;
 }
 
 [Trait("TKey","string")]
 public sealed class ManagedHashSetCtor_String(ITestOutputHelper output)
-    :ManagedHashSetCtorBenchmark<string>(output) {
+    :ManagedHashSetCtorBenchmark<string>(output){
     protected override string CreateKey(int seed) => seed.ToString();
 }
 
 [Trait("TKey","int")]
 public sealed class UnmanagedHashSetCtor_Int(ITestOutputHelper output)
-    :UnmanagedHashSetCtorBenchmark<int>(output) {
+    :UnmanagedHashSetCtorBenchmark<int>(output){
     protected override int CreateKey(int seed) => seed;
 }
 
 [Trait("TKey","long")]
 public sealed class UnmanagedHashSetCtor_Long(ITestOutputHelper output)
-    :UnmanagedHashSetCtorBenchmark<long>(output) {
+    :UnmanagedHashSetCtorBenchmark<long>(output){
     protected override long CreateKey(int seed) => seed;
 }

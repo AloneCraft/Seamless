@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Diagnostics;
 
 namespace Benchmarks;
@@ -7,7 +7,7 @@ public sealed class ConstructorBenchmarkHandle<TCollection>(IDisposable store,TC
     :IDisposable {
     public TCollection Collection { get; } = collection;
 
-    public void Dispose() {
+    public void Dispose(){
         if(Collection is IDisposable disposable)
             disposable.Dispose();
         store.Dispose();
@@ -30,14 +30,14 @@ public abstract class DictionaryConstructorBenchmarkBase<TKey, TValue, TDictiona
     protected abstract long GetItemCount(TDictionary dict);
     protected abstract void ClearItems(TDictionary dict);
 
-    private void Seed(TDictionary dict) {
+    private void Seed(TDictionary dict){
         for(var i = 0; i<Count; i++)
             this.AddItem(dict,this.CreateKey(i),this.CreateValue(i));
     }
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_Add_TryGet_10万件を計測する() {
+    public void Ctor_Add_TryGet_10万件を計測する(){
         using var handle = this.CreateHandle();
         var dict = handle.Collection;
 
@@ -54,7 +54,7 @@ public abstract class DictionaryConstructorBenchmarkBase<TKey, TValue, TDictiona
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_ContainsKey_10万件を計測する() {
+    public void Ctor_ContainsKey_10万件を計測する(){
         using var handle = this.CreateHandle();
         var dict = handle.Collection;
         this.Seed(dict);
@@ -70,7 +70,7 @@ public abstract class DictionaryConstructorBenchmarkBase<TKey, TValue, TDictiona
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_TryAdd_10万件を計測する() {
+    public void Ctor_TryAdd_10万件を計測する(){
         using var handle = this.CreateHandle();
         var dict = handle.Collection;
 
@@ -85,7 +85,7 @@ public abstract class DictionaryConstructorBenchmarkBase<TKey, TValue, TDictiona
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_IndexerSet_10万件を計測する() {
+    public void Ctor_IndexerSet_10万件を計測する(){
         using var handle = this.CreateHandle();
         var dict = handle.Collection;
         this.Seed(dict);
@@ -101,7 +101,7 @@ public abstract class DictionaryConstructorBenchmarkBase<TKey, TValue, TDictiona
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_Remove_10万件を計測する() {
+    public void Ctor_Remove_10万件を計測する(){
         using var handle = this.CreateHandle();
         var dict = handle.Collection;
         this.Seed(dict);
@@ -117,7 +117,7 @@ public abstract class DictionaryConstructorBenchmarkBase<TKey, TValue, TDictiona
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_GetEnumerator_10万件を計測する() {
+    public void Ctor_GetEnumerator_10万件を計測する(){
         using var handle = this.CreateHandle();
         var dict = handle.Collection;
         this.Seed(dict);
@@ -134,7 +134,7 @@ public abstract class DictionaryConstructorBenchmarkBase<TKey, TValue, TDictiona
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_Mixed_Add_Get_Remove_10万件を計測する() {
+    public void Ctor_Mixed_Add_Get_Remove_10万件を計測する(){
         using var handle = this.CreateHandle();
         var dict = handle.Collection;
 
@@ -153,7 +153,7 @@ public abstract class DictionaryConstructorBenchmarkBase<TKey, TValue, TDictiona
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_Clear_10万件を計測する() {
+    public void Ctor_Clear_10万件を計測する(){
         using var handle = this.CreateHandle();
         var dict = handle.Collection;
         this.Seed(dict);
@@ -168,17 +168,18 @@ public abstract class DictionaryConstructorBenchmarkBase<TKey, TValue, TDictiona
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_Count_10万件を計測する() {
+    public void Ctor_Count_100件を計測する(){
         using var handle = this.CreateHandle();
         var dict = handle.Collection;
         this.Seed(dict);
+        const int iterations = 100;
 
         var sw = Stopwatch.StartNew();
-        for(var i = 0; i<Count; i++)
+        for(var i = 0; i<iterations; i++)
             _=this.GetItemCount(dict);
         sw.Stop();
 
-        this.Write($"[{this.BenchmarkName} ctor Count] {Count:N0}件: {sw.ElapsedMilliseconds}ms ({sw.Elapsed.TotalMicroseconds/Count:F2}us/op)");
+        this.Write($"[{this.BenchmarkName} ctor Count] {iterations:N0}件: {sw.ElapsedMilliseconds}ms ({sw.Elapsed.TotalMicroseconds/iterations:F2}us/op)");
         Assert.Equal(Count,this.GetItemCount(dict));
     }
 }
@@ -196,14 +197,14 @@ public abstract class HashSetConstructorBenchmarkBase<TKey, TSet>(ITestOutputHel
     protected abstract long GetItemCount(TSet set);
     protected abstract void ClearItems(TSet set);
 
-    private void Seed(TSet set) {
+    private void Seed(TSet set){
         for(var i = 0; i<Count; i++)
             _=this.AddItem(set,this.CreateKey(i));
     }
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_Add_Contains_10万件を計測する() {
+    public void Ctor_Add_Contains_10万件を計測する(){
         using var handle = this.CreateHandle();
         var set = handle.Collection;
 
@@ -220,7 +221,7 @@ public abstract class HashSetConstructorBenchmarkBase<TKey, TSet>(ITestOutputHel
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_TryAdd_10万件を計測する() {
+    public void Ctor_TryAdd_10万件を計測する(){
         using var handle = this.CreateHandle();
         var set = handle.Collection;
 
@@ -235,7 +236,7 @@ public abstract class HashSetConstructorBenchmarkBase<TKey, TSet>(ITestOutputHel
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_Remove_10万件を計測する() {
+    public void Ctor_Remove_10万件を計測する(){
         using var handle = this.CreateHandle();
         var set = handle.Collection;
         this.Seed(set);
@@ -251,7 +252,7 @@ public abstract class HashSetConstructorBenchmarkBase<TKey, TSet>(ITestOutputHel
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_GetEnumerator_10万件を計測する() {
+    public void Ctor_GetEnumerator_10万件を計測する(){
         using var handle = this.CreateHandle();
         var set = handle.Collection;
         this.Seed(set);
@@ -268,7 +269,7 @@ public abstract class HashSetConstructorBenchmarkBase<TKey, TSet>(ITestOutputHel
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_Mixed_Add_Contains_Remove_10万件を計測する() {
+    public void Ctor_Mixed_Add_Contains_Remove_10万件を計測する(){
         using var handle = this.CreateHandle();
         var set = handle.Collection;
 
@@ -287,7 +288,7 @@ public abstract class HashSetConstructorBenchmarkBase<TKey, TSet>(ITestOutputHel
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_Clear_10万件を計測する() {
+    public void Ctor_Clear_10万件を計測する(){
         using var handle = this.CreateHandle();
         var set = handle.Collection;
         this.Seed(set);
@@ -302,17 +303,18 @@ public abstract class HashSetConstructorBenchmarkBase<TKey, TSet>(ITestOutputHel
 
     [Fact]
     [Trait("Category","")]
-    public void _Ctor_Count_10万件を計測する() {
+    public void Ctor_Count_100件を計測する(){
         using var handle = this.CreateHandle();
         var set = handle.Collection;
         this.Seed(set);
+        const int iterations = 100;
 
         var sw = Stopwatch.StartNew();
-        for(var i = 0; i<Count; i++)
+        for(var i = 0; i<iterations; i++)
             _=this.GetItemCount(set);
         sw.Stop();
 
-        this.Write($"[{this.BenchmarkName} ctor Count] {Count:N0}件: {sw.ElapsedMilliseconds}ms ({sw.Elapsed.TotalMicroseconds/Count:F2}us/op)");
+        this.Write($"[{this.BenchmarkName} ctor Count] {iterations:N0}件: {sw.ElapsedMilliseconds}ms ({sw.Elapsed.TotalMicroseconds/iterations:F2}us/op)");
         Assert.Equal(Count,this.GetItemCount(set));
     }
 }
