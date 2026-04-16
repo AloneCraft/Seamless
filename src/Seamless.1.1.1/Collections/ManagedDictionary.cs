@@ -99,10 +99,10 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
             var ValueBytes=TValueSerializer.Serialize(ref value);
             if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
                 throw this.ThrowLogFull();
-            var Session=this.AddClientSession;
+            var ClientSession=this.AddClientSession;
             var FixedKey=SpanByte.FromPinnedSpan(KeyBytes);
-            var Status=Session.BasicContext.Upsert(FixedKey,SpanByte.FromPinnedSpan(ValueBytes));
-            Status=Pending(Session,Status);
+            var Status=ClientSession.BasicContext.Upsert(FixedKey,SpanByte.FromPinnedSpan(ValueBytes));
+            Status=Pending(ClientSession,Status);
         }
     }
 }

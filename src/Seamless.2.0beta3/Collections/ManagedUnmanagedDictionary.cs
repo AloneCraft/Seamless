@@ -29,14 +29,14 @@ public sealed partial class ManagedUnmanagedDictionary<TKey,TValue,TKeySerialize
         if(disposing) this.UnmanagedValueAddClientSession.Dispose();
     }
 
-    private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value){
-        var KeyBytes=TKeySerializer.Serialize(ref Key);
+    private protected override TryAddResult PrivateTryAdd(TKey key,TValue value){
+        var KeyBytes=TKeySerializer.Serialize(ref key);
         if(this.WouldOverflowMutable(KeyBytes.Length,Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
-        var Session=this.UnmanagedValueAddClientSession;
+        var ClientSession=this.UnmanagedValueAddClientSession;
         var Output=false;
-        var Status=Session.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Value,ref Output);
-        Status=Pending(Session,Status,ref Output);
+        var Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref value,ref Output);
+        Status=Pending(ClientSession,Status,ref Output);
         Debug.Assert(Status.IsCompleted);
         if(Output)
             return TryAddResult.Success;

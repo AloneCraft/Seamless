@@ -186,16 +186,16 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         Debug.Assert(Status.Found!=Status.NotFound);
         return Output;
     }
-    private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value){
+    private protected override TryAddResult PrivateTryAdd(TKey key,TValue value){
+        var KeyBytes=TKeySerializer.Serialize(ref key);
 
 
-        if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>()))
+        if(this.WouldOverflowMutable(KeyBytes.Length,Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
         var ClientSession=this.AddClientSession;
-        var KeyBytes=TKeySerializer.Serialize(ref Key);
         
         var Output=false;
-        var Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Value,ref Output);
+        var Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref value,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
         Debug.Assert(Status.IsCompleted);
         Debug.Assert(Status.NotFound==Output);

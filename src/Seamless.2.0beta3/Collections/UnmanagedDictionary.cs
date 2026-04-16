@@ -144,10 +144,10 @@ public partial class UnmanagedDictionary<
         var valueBytes = TValueSerializer.Serialize(ref value);
         if(this.WouldOverflowMutable(keyBytes.Length,valueBytes.Length))
             throw this.ThrowLogFull();
-        var session = this.AddClientSession;
-        var fixedKey = (FixedSpanByteKey)keyBytes;
-        var input = valueBytes;
-        var status = session.BasicContext.Upsert(fixedKey,input);
-        status=Pending(session,status);
+        var ClientSession= this.AddClientSession;
+        var FixedKey = (FixedSpanByteKey)keyBytes;
+        var Input = valueBytes;
+        var Status = ClientSession.BasicContext.Upsert(FixedKey,Input);
+        Status=Pending(ClientSession,Status);
     }
 }

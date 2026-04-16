@@ -105,16 +105,15 @@ public partial class ManagedHashSet<TKey>
         public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult){
             if(self.WouldOverflowMutable(key.Length,1))
                 throw self.ThrowLogFull();
-            var input=default(SpanByte);
-            SpanByteAndMemory output=default;
-            var status=session.BasicContext.RMW(ref key,ref input,ref output);
-            if(status.IsPending){
+            var Input=default(SpanByte);
+            SpanByteAndMemory Output=default;
+            var Status=session.BasicContext.RMW(ref key,ref Input,ref Output);
+            if(Status.IsPending){
                 session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
                 using(completedOutputs){
                     Debug.Assert(completedOutputs.Next());
                 }
-            }
-            else {
+            }else{
             }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
