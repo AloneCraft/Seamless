@@ -11,8 +11,14 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\Benchmark.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\ConstructorBenchmarkBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\HashSetBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\Dictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\FixedVariableConstructorBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\HashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\KindDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\KindConstructorDictionaryBenchmark.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\KindConstructorHashSetBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Category.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CheckpointRecoveryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Dictionary.cs" />
@@ -46,6 +52,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)StoreCheckpoint.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\CollectionStore2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\Factory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\KindDictionarySize.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Test.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestTypes.cs" />
   </ItemGroup>
