@@ -11,6 +11,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="Benchmark\Benchmark.cs" />
+    <Compile Include="Benchmark\CheckpointIndexResizeBenchmark.cs" />
     <Compile Include="Benchmark\ConstructorBenchmarkBase.cs" />
     <Compile Include="Benchmark\Dictionary.cs" />
     <Compile Include="Benchmark\FixedVariableConstructorBenchmark.cs" />

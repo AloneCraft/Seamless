@@ -21,9 +21,9 @@ public abstract class RemoveTKeyTValueTests<TKey,TValue>
         var(dict,store)=this.CreateMemory();
         using var _store=store;
         using var _dict=dict;
-        dict[Key(1)]=Value(1);
-        Assert.True(dict.Remove(Key(1),out var value));
-        Assert.Equal(Value(1),value);
+        dict[this.Key(1)]=this.Value(1);
+        Assert.True(dict.Remove(this.Key(1),out var value));
+        Assert.Equal(this.Value(1),value);
     }
     [Fact,Trait("Category","Unit")] public void InPlaceUpdater()=>this.InMemory();
     [Fact,Trait("Category","Unit")] public void GetRMWModifiedFieldInfo()=>this.InMemory();
@@ -34,7 +34,7 @@ public abstract class RemoveTKeyTValueTests<TKey,TValue>
         var(dict,store)=this.CreateMemory();
         using var _store=store;
         using var _dict=dict;
-        Assert.False(dict.Remove(Key(999),out _));
+        Assert.False(dict.Remove(this.Key(999),out _));
     }
 
     private void DiskSpill(){
@@ -44,9 +44,9 @@ public abstract class RemoveTKeyTValueTests<TKey,TValue>
         var(dict,store)=this.CreateDiskSpill(logDevice,objDevice);
         using var _store=store;
         using var _dict=dict;
-        for(var a=0; a<300; a++) dict[Key(a)]=Value(a);
-        Assert.True(dict.Remove(Key(0),out var value));
-        Assert.Equal(Value(0),value);
+        for(var a=0; a<300; a++) dict[this.Key(a)]=this.Value(a);
+        Assert.True(dict.Remove(this.Key(0),out var value));
+        Assert.Equal(this.Value(0),value);
     }
     [Fact,Trait("Category","Unit")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification="<�ۗ���>")]
@@ -68,10 +68,10 @@ public abstract class RemoveTKeyTValueTests<TKey,TValue>
         var(dict,store)=this.CreateDisk(logDevice,objDevice);
         using var _store=store;
         using var _dict=dict;
-        dict[Key(0)]=Value(0);
+        dict[this.Key(0)]=this.Value(0);
         this.FlushAndEvict(store);
-        Assert.True(dict.Remove(Key(0),out var value));
-        Assert.Equal(Value(0),value);
+        Assert.True(dict.Remove(this.Key(0),out var value));
+        Assert.Equal(this.Value(0),value);
     }
     [Fact,Trait("Category","Unit")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification="<�ۗ���>")]

@@ -17,7 +17,10 @@
     <Compile Include="Collections\CollectionKinds.cs" />
     <Compile Include="Collections\ManagedDictionary.cs" />
     <Compile Include="Collections\ManagedHashSet.cs" />
-    <Compile Include="Collections\KindDictionaries.cs" />
+    <Compile Include="Collections\UnmanagedUnmanagedDictionary.cs" />
+    <Compile Include="Collections\ManagedUnmanagedDictionary.cs" />
+    <Compile Include="Collections\UnmanagedManagedDictionary.cs" />
+    <Compile Include="Collections\ManagedManagedDictionary.cs" />
     <Compile Include="Collections\KindHashSets.cs" />
     <Compile Include="Collections\Serializers\UnmanagedSerializer.cs" />
     <Compile Include="Collections\Serializers\ManagedSerializer.cs" />

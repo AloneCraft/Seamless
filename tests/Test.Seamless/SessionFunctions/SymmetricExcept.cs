@@ -24,13 +24,13 @@ public abstract class SymmetricExceptTests<TKey>
         using var _storeB=storeB;
         using var _setA=setA;
         using var _setB=setB;
-        setA.Add(Key(1)); setA.Add(Key(2)); setA.Add(Key(3));
-        setB.Add(Key(2)); setB.Add(Key(3)); setB.Add(Key(4));
+        setA.Add(this.Key(1)); setA.Add(this.Key(2)); setA.Add(this.Key(3));
+        setB.Add(this.Key(2)); setB.Add(this.Key(3)); setB.Add(this.Key(4));
         setA.SymmetricExceptWith(setB);
-        Assert.Contains(Key(1),setA);
-        Assert.DoesNotContain(Key(2),setA);
-        Assert.DoesNotContain(Key(3),setA);
-        Assert.Contains(Key(4),setA);
+        Assert.Contains(this.Key(1),setA);
+        Assert.DoesNotContain(this.Key(2),setA);
+        Assert.DoesNotContain(this.Key(3),setA);
+        Assert.Contains(this.Key(4),setA);
     }
     [Fact,Trait("Category","Unit")] public void InPlaceUpdater()=>this.SymmetricExceptWith();
     [Fact,Trait("Category","Unit")] public void GetRMWModifiedFieldInfo()=>this.SymmetricExceptWith();
@@ -51,14 +51,14 @@ public abstract class SymmetricExceptTests<TKey>
         using var _storeB=storeB;
         using var _setA=setA;
         using var _setB=setB;
-        setA.Add(Key(1)); setA.Add(Key(2)); setA.Add(Key(3));
-        setB.Add(Key(2)); setB.Add(Key(3)); setB.Add(Key(4));
+        setA.Add(this.Key(1)); setA.Add(this.Key(2)); setA.Add(this.Key(3));
+        setB.Add(this.Key(2)); setB.Add(this.Key(3)); setB.Add(this.Key(4));
         this.ShiftReadOnly(storeA);
         setA.SymmetricExceptWith(setB);
-        Assert.Contains(Key(1),setA);
-        Assert.DoesNotContain(Key(2),setA);
-        Assert.DoesNotContain(Key(3),setA);
-        Assert.Contains(Key(4),setA);
+        Assert.Contains(this.Key(1),setA);
+        Assert.DoesNotContain(this.Key(2),setA);
+        Assert.DoesNotContain(this.Key(3),setA);
+        Assert.Contains(this.Key(4),setA);
     }
     [Fact,Trait("Category","Unit")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
@@ -84,12 +84,12 @@ public abstract class SymmetricExceptTests<TKey>
         using var _setA=setA;
         using var _setB=setB;
         for(var a=0; a<300; a++){
-            setA.Add(Key(a));
-            if(a%3==0) setB.Add(Key(a));
+            setA.Add(this.Key(a));
+            if(a%3==0) setB.Add(this.Key(a));
         }
         setA.SymmetricExceptWith(setB);
-        Assert.DoesNotContain(Key(0),setA);
-        Assert.Contains(Key(1),setA);
+        Assert.DoesNotContain(this.Key(0),setA);
+        Assert.Contains(this.Key(1),setA);
     }
 
     // ── FlushAndEvict (ConvertOutputToHeap path) ──────────────────────
@@ -103,13 +103,13 @@ public abstract class SymmetricExceptTests<TKey>
         using var _storeB=storeB;
         using var _setA=setA;
         using var _setB=setB;
-        setA.Add(Key(1)); setA.Add(Key(2)); setA.Add(Key(3));
-        setB.Add(Key(2)); setB.Add(Key(3));
+        setA.Add(this.Key(1)); setA.Add(this.Key(2)); setA.Add(this.Key(3));
+        setB.Add(this.Key(2)); setB.Add(this.Key(3));
         this.FlushAndEvict(storeA);
         setA.SymmetricExceptWith(setB);
-        Assert.Contains(Key(1),setA);
-        Assert.DoesNotContain(Key(2),setA);
-        Assert.DoesNotContain(Key(3),setA);
+        Assert.Contains(this.Key(1),setA);
+        Assert.DoesNotContain(this.Key(2),setA);
+        Assert.DoesNotContain(this.Key(3),setA);
     }
     [Fact,Trait("Category","Unit")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]

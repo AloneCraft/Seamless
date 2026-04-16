@@ -9,7 +9,7 @@ public abstract class Dictionary<TKey,TValue>(ITestOutputHelper output):Benchmar
     where TValue:IEquatable<TValue>{
     private protected ManagedManagedDictionaryStore<TKey,TValue> CreateStore(){
         var MemorySize=Seamless.Const.LogMemorySize<<11;
-        return Factory.Create(IndexSize:IndexSize,MemorySize:MemorySize).Create<TKey,TValue>();
+        return Factory.Create(IndexSize:this.IndexSize,MemorySize:MemorySize).Create<TKey,TValue>();
     }
     [Fact]
     [Trait("Category","")]

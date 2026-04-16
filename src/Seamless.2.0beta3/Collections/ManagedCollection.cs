@@ -5,7 +5,6 @@ using Seamless.SessionFunctions;
 using Seamless.Stores;
 using System.Runtime.InteropServices;
 namespace Seamless.Collections;
-
 public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>:Collection<
     TKey,//TKey
     TValue,//TValue
@@ -38,11 +37,10 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
             return new(Key,Value);
         }
     }
-    [StructLayout(LayoutKind.Auto)]
     public struct Enumerator<TIterator, T>(
         ClientSession<
             FixedSpanByteKey,//TKey
-                             //
+            //
             EqualityEmpty,//TInput
             SpanByteAndMemory,//TOutput
             EqualityEmpty,//TContext
@@ -52,14 +50,20 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         > Session,
         TIterator Iterator
     ):IEnumerator<T>
-    where TIterator:ScanIteratorFunctions<T> {
+        where TIterator:ScanIteratorFunctions<T>
+
+
+
+
+    {
         private long Cursor=0, Count;
         private int Index=-1;
         private bool Done;
-        public T Current => Iterator.Chunk[this.Index];
-        object? IEnumerator.Current => this.Current;
+        public readonly T Current => Iterator.Chunk[this.Index];
+        readonly object? IEnumerator.Current => this.Current;
         public bool MoveNext(){
-            if(++this.Index<this.Count) return true;
+            if(++this.Index<this.Count)
+                return true;
             if(this.Done){
                 this.Index=-1;
                 return false;
@@ -83,7 +87,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
             this.Index=-1;
             this.Done=false;
         }
-        public void Dispose(){
+        public readonly void Dispose(){
         }
     }
     private protected ManagedCollection(ManagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
@@ -104,8 +108,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         Debug.Assert(Status.IsCompleted);
         if(Status.Found){
             Value=TValueSerializer.Deserialize(Output.ReadOnlySpan);
-        }
-        else {
+        }else {
             Value=default!;
         }
         return Status;
@@ -113,7 +116,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     public bool Remove(TKey key){
         var ClientSession=this.ContainsDeleteClientSession;
         var KeyBytes=TKeySerializer.Serialize(ref key);
-
+        //
         var Input=default(EqualityEmpty);
         var Output=false;
         var Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);

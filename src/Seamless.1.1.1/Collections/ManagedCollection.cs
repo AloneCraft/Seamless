@@ -5,7 +5,6 @@ using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
-
 public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>:Collection<
     TKey,//TKey
     TValue,//TValue
@@ -14,43 +13,10 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     SpanByteAndMemory,//TReadOutput
     SpanByte,//TAddInput
     ManagedRead,//TReadFunctions
-    
-    
-    
     ManagedAdd,//TAddFunctions
-    
-    
-    
     ManagedContainsDelete,//TContainsDeleteFunction
-    
-    
-    
     ManagedStoreFunctions,//TStoreFunctions
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     ManagedAllocator//TAllocator
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 >
     where TKey:IEquatable<TKey>
     where TValue:IEquatable<TValue>
@@ -79,35 +45,8 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
             SpanByteAndMemory,//TOutput
             EqualityEmpty,//TContext
             ManagedRead,
-            
-            
-            
             ManagedStoreFunctions,
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
             ManagedAllocator
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
         > Session,
         TIterator Iterator
     ):IEnumerator<T>
@@ -115,7 +54,8 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
             T,
             SpanByte,
             SpanByte
-        >{
+        >
+    {
         private long Cursor=0,Count;
         private int Index=-1;
         private bool Done;
@@ -182,7 +122,6 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         var Status=ClientSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
         Debug.Assert(Status.IsCompleted);
-
         return Output;
     }
     private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value){
@@ -197,7 +136,6 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         var Status=ClientSession.BasicContext.RMW(ref FixedKey,ref FixedInput,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
         Debug.Assert(Status.IsCompleted);
-
         if(Output)
             return TryAddResult.Success;
         return TryAddResult.KeyAlreadyExists;

@@ -29,13 +29,13 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<
             EqualityEmpty,//TKey
             SpanByteAndMemory,//TValue
-
+            //
             EqualityEmpty,//TContext
             ManagedRemove_TKey_TValue//TFunctions
         >(new());
         this.Remove_KeyValuePair_ClientSession=Store.NewSession<
             SpanByte,//TInput
-
+            //
             bool,//TOutput
             EqualityEmpty,//TContext
             ManagedRemove_KeyValuePair//TFunctions

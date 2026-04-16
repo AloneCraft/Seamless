@@ -1,11 +1,12 @@
 ﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
+//
+//
 namespace Seamless.Collections;
-
+/// <summary>
+/// todo 1.1.1 TKeyとTValueの片方が可変長でも可変長の扱いになっている。将来、TKeyの固定長が実装できた場合は書き直す
+/// </summary>
 public sealed partial class ManagedUnmanagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer> {
-    /// <summary>
-    /// todo 1.1.1 TKeyとTValueの片方が可変長でも可変長の扱いになっている。将来、TKeyの固定長が実装できた場合は書き直す
-    /// </summary>
     private protected override TryAddResult PrivateTryAdd(TKey key,TValue value){
         var KeyBytes=TKeySerializer.Serialize(ref key);
         if(this.WouldOverflowMutable(KeyBytes.Length,4+Unsafe.SizeOf<TValue>()))

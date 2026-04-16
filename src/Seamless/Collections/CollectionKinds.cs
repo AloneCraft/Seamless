@@ -1,15 +1,6 @@
 ﻿using Seamless.Stores;
 namespace Seamless.Collections;
 
-public interface IKeyKind;
-public interface IValueKind;
-
-public readonly struct ManagedKey:IKeyKind;
-public readonly struct UnmanagedKey:IKeyKind;
-
-public readonly struct ManagedValue:IValueKind;
-public readonly struct UnmanegedValue:IValueKind;
-
 public abstract class ManagedManagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>
     :ManagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>
     where TKey:IEquatable<TKey>
