@@ -10,6 +10,7 @@
     <!--<AllowUnsafeBlocks>true</AllowUnsafeBlocks>-->
     <ServerGarbageCollection>true</ServerGarbageCollection>
 	<DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
+	<Configurations>Debug;Release;Debug1;Debug2;Release1;Release2</Configurations>
 	    </PropertyGroup>
 
   <ItemGroup>
@@ -57,10 +58,6 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\Seamless.2.0beta3\Seamless.2.0beta3.csproj" />
-  </ItemGroup>
-
   <Import Project="..\Test.Seamless\Test.Seamless.projitems" Label="Shared" />
 
   <ItemGroup>
@@ -70,6 +67,10 @@
     <Compile Remove="..\Test.Seamless\SessionFunctions\UnmanagedAdd.cs" />
     <Compile Remove="..\Test.Seamless\StoreCheckpoint.cs" />
     <Compile Remove="TestKeyComparer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Seamless2\Seamless2.csproj" />
   </ItemGroup>
 
 

@@ -128,14 +128,14 @@ public partial class UnmanagedHashSet<TKey>
                 var input=default(EqualityEmpty);
                 var output=default(EqualityEmpty);
                 var status=session.BasicContext.RMW(ref key,ref input,ref output);
-                if(status.IsPending){
-                    session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait:true);
-                    using(completedOutputs){
-                        Debug.Assert(completedOutputs.Next());
-                    }
-                }
-                else{
-                }
+                Pending(session,status,ref output);
+                //if(status.IsPending){
+                //    session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait:true);
+                //    using(completedOutputs){
+                //        Debug.Assert(completedOutputs.Next());
+                //    }
+                //}else{
+                //}
             }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -165,13 +165,18 @@ public partial class UnmanagedHashSet<TKey>
             var Input=default(EqualityEmpty);
             var Output=default(EqualityEmpty);
             var Status=session.BasicContext.RMW(ref key,ref Input,ref Output);
-            if(Status.IsPending){
-                session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
-                using(CompletedOutputs){
-                    Debug.Assert(CompletedOutputs.Next());
-                }
-            } else{
-            }
+            Pending(session,Status,ref Output);
+            //if(Status.IsPending){
+            //    session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
+            //    using(CompletedOutputs){
+            //        if(!CompletedOutputs.Next()){
+            //        } else{
+            //            Status=CompletedOutputs.Current.Status;
+            //            Output=CompletedOutputs.Current.Output;
+            //        }
+            //    }
+            //} else{
+            //}
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }

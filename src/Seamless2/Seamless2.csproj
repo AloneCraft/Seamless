@@ -7,6 +7,7 @@
     <RootNamespace>Seamless</RootNamespace>
     <ServerGarbageCollection>true</ServerGarbageCollection>
 	<DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
+	<Configurations>Debug;Release;Debug1;Debug2;Release1;Release2</Configurations>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />

@@ -7,6 +7,7 @@
     <RootNamespace>Seamless</RootNamespace>
     <ServerGarbageCollection>true</ServerGarbageCollection>
 	  <DefineConstants>$(DefineConstants);TSAVORITE1_1_1</DefineConstants>
+	  <Configurations>Debug;Release;Debug1;Debug2;Release1;Release2</Configurations>
   </PropertyGroup>
 
   <!--<ItemGroup>
@@ -32,7 +33,7 @@
 
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />
-    <PackageReference Include="Microsoft.Garnet" Version="1.1.1" />
+    <PackageReference Include="Microsoft.Garnet" Version="1.*" />
   </ItemGroup>
   <Import Project="..\Seamless\Seamless.projitems" Label="Shared" />
   <ItemGroup>

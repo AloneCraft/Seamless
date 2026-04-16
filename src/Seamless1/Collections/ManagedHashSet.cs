@@ -86,14 +86,14 @@ public partial class ManagedHashSet<TKey>
                 var input=default(EqualityEmpty);
                 var output=default(EqualityEmpty);
                 var status=session.BasicContext.RMW(ref key,ref input,ref output);
-                if(status.IsPending){
-                    session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
-                    using(completedOutputs){
-                        Debug.Assert(completedOutputs.Next());
-                    }
-                }
-                else {
-                }
+                Pending(session,status,ref output);
+                //if(status.IsPending){
+                //    session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
+                //    using(completedOutputs){
+                //        Debug.Assert(completedOutputs.Next());
+                //    }
+                //}else {
+                //}
             }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -123,13 +123,14 @@ public partial class ManagedHashSet<TKey>
             var Input=default(SpanByte);
             SpanByteAndMemory Output=default;
             var Status=session.BasicContext.RMW(ref key,ref Input,ref Output);
-            if(Status.IsPending){
-                session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
-                using(completedOutputs){
-                    Debug.Assert(completedOutputs.Next());
-                }
-            }else{
-            }
+            Pending(session,Status,ref Output);
+            //if(Status.IsPending){
+            //    session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
+            //    using(completedOutputs){
+            //        Debug.Assert(completedOutputs.Next());
+            //    }
+            //}else{
+            //}
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }

@@ -7,6 +7,7 @@
 		<IsTestProject>true</IsTestProject>
 		<RootNamespace>Test.Seamless</RootNamespace>
 		<DefineConstants>$(DefineConstants);TSAVORITE1_1_1</DefineConstants>
+		<Configurations>Debug;Release;Debug1;Debug2;Release1;Release2</Configurations>
 	</PropertyGroup>
 	<ItemGroup>
 	  <Compile Remove="Garnet\**" />
@@ -23,7 +24,7 @@
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="MemoryPack" Version="1.*" />
-		<PackageReference Include="Microsoft.Garnet" Version="1.1.1" />
+		<PackageReference Include="Microsoft.Garnet" Version="1.*" />
 		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
 		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
 			<PrivateAssets>all</PrivateAssets>
@@ -36,15 +37,15 @@
 		<Using Include="Xunit" />
 	</ItemGroup>
 
-	<ItemGroup>
-	  <ProjectReference Include="..\..\src\Seamless.1.1.1\Seamless.1.1.1.csproj" />
-	</ItemGroup>
-
 	<Import Project="..\Test.Seamless\Test.Seamless.projitems" Label="Shared" />
 
 	<ItemGroup>
 	  <Compile Remove="..\Test.Seamless\SessionFunctions\ManagedAdd.cs" />
 	  <Compile Remove="..\Test.Seamless\SessionFunctions\UnmanagedAdd.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\src\Seamless1\Seamless1.csproj" />
 	</ItemGroup>
 
 </Project>

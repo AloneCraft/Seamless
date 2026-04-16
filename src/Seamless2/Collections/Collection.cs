@@ -233,8 +233,10 @@ public abstract class Collection<
         if(Status.IsPending){
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
             using(CompletedOutputs){
-                Debug.Assert(CompletedOutputs.Next());
-                Status=CompletedOutputs.Current.Status;
+                if(!CompletedOutputs.Next()){
+                } else{
+                    Status=CompletedOutputs.Current.Status;
+                }
             }
         }else{
         }
@@ -269,9 +271,11 @@ public abstract class Collection<
         if(Status.IsPending){
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
             using(CompletedOutputs){
-                Debug.Assert(CompletedOutputs.Next());
-                Status=CompletedOutputs.Current.Status;
-                Output=CompletedOutputs.Current.Output;
+                if(!CompletedOutputs.Next()){
+                } else{
+                    Status=CompletedOutputs.Current.Status;
+                    Output=CompletedOutputs.Current.Output;
+                }
             }
         }else{
         }
@@ -355,7 +359,11 @@ public abstract class Collection<
                 if(Status.IsPending){
                     Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
                     using(CompletedOutputs){
-                        Debug.Assert(CompletedOutputs.Next());
+                        if(!CompletedOutputs.Next()){
+                        } else{
+                            Status=CompletedOutputs.Current.Status;
+                            Output=CompletedOutputs.Current.Output;
+                        }
                     }
                 } else{
                 }
@@ -401,7 +409,11 @@ public abstract class Collection<
             if(Status.IsPending){
                 Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
                 using(CompletedOutputs){
-                    Debug.Assert(CompletedOutputs.Next());
+                    if(!CompletedOutputs.Next()){
+                    } else{
+                        Status=CompletedOutputs.Current.Status;
+                        Output=CompletedOutputs.Current.Output;
+                    }
                 }
             } else{
             }
