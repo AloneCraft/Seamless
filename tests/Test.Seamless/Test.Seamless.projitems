@@ -24,7 +24,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Collections\IDictionaryTestBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Collections\HashSetStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Helpers\Collections\HashSetTestBase.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Category.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)CheckpointRecoveryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Dictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\DictionaryIReadOnly.cs" />
