@@ -1,8 +1,7 @@
 ﻿using Seamless.SessionFunctions;
 using Seamless.Stores;
-
+//
 namespace Seamless.Collections;
-
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。
 /// <see cref="ISet{T}"/> を実装し、利用者に Tsavorite の詳細を見せない。
@@ -12,7 +11,7 @@ public partial class ManagedHashSet<TKey>
     where TKey : IEquatable<TKey> {
     private readonly ClientSession<
         FixedSpanByteKey,//TKey
-
+        //
         EqualityEmpty,//TInput
         EqualityEmpty,//TOutput
         EqualityEmpty,//TContext
@@ -22,7 +21,7 @@ public partial class ManagedHashSet<TKey>
     > IntersectWith_ClientSession;
     private readonly ClientSession<
         FixedSpanByteKey,//TKey
-
+        //
         PinnedSpanByte,//TInput
         SpanByteAndMemory,//TOutput
         EqualityEmpty,//TContext
@@ -51,89 +50,93 @@ public partial class ManagedHashSet<TKey>
         KeyIterator,
         TKey
     > GetEnumerator() => new(this.ReadClientSession,new());
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     public partial void IntersectWith(ManagedHashSet<TKey> other){
         //2.0はMaagedもUnmanagedも共通なのでCollectionで定義している
-        IntersectWithImpl(this,other,this.IntersectWith_ClientSession);
+        IntersectWith(this,other,this.IntersectWith_ClientSession);
+        //
+        //
+        //
+        //
     }
-
-
-
-
     public partial void SymmetricExceptWith(ManagedHashSet<TKey> other){
-        SymmetricExceptWithImpl(this,other,this.SymmetricExceptWith_ClientSession);
+        SymmetricExceptWith(this,other,this.SymmetricExceptWith_ClientSession);
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
     }
 }

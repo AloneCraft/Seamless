@@ -8,7 +8,7 @@ public sealed class ConstructorBenchmarkHandle<TCollection>(IDisposable store,TC
     public TCollection Collection { get; } = collection;
 
     public void Dispose(){
-        if(Collection is IDisposable disposable)
+        if(this.Collection is IDisposable disposable)
             disposable.Dispose();
         store.Dispose();
     }

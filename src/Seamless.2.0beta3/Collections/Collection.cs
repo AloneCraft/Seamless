@@ -277,7 +277,47 @@ public abstract class Collection<
         }
         return Status;
     }
-    private protected readonly struct IntersectWithIterator<TCollection>(
+    private long LogMemorySize => this.CollectionStore.LogMemorySize;
+    private double MutableFraction => this.CollectionStore.MutableFraction;
+    private protected OutOfMemoryException ThrowLogFull(){
+        var Log = this.CollectionStore.Store.Log;
+        return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
+    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private protected bool WouldOverflowMutable(int KeyLength,int ValueLength){
+        Debug.Assert(this.LogMemorySize>=8192);
+        var Log = this.CollectionStore.Store.Log;
+        return this.CollectionStore.OverflowMutableStrategyKind switch {
+            OverflowMutableStrategyKind.Memory => this.WouldOverflowMutable<MemoryOverflowMutableStrategy>(Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
+            OverflowMutableStrategyKind.Storage => this.WouldOverflowMutable<StorageOverflowMutableStrategy>(Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
+            _ => throw new UnreachableException(),
+        };
+    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool WouldOverflowMutable<TOverflowMutableStrategy>(long BeginAddress,long TailAddress,int KeyLength,int ValueLength)
+        where TOverflowMutableStrategy : struct, IOverflowMutableStrategy<TOverflowMutableStrategy> {
+        return TOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,BeginAddress,TailAddress,KeyLength,ValueLength);
+    }
+    public int Count => (int)this.GetLongCount();
+    public long EntryCount => this.CollectionStore.Store.EntryCount;
+    private protected abstract Status Read(TKey Key,out TValue Output);
+    public abstract bool IsDisposed { get; }
+    private bool disposed;
+    public void Dispose(){
+        this.Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+    protected virtual void Dispose(bool disposing){
+        if(this.disposed)
+            return;
+        if(disposing){
+            this.AddClientSession.Dispose();
+        } else{
+        }
+        this.disposed=true;
+    }
+    ~Collection() => this.Dispose(false);
+    private  readonly struct IntersectWithScanIteratorFunctions<TCollection>(
         TCollection Self,
         TCollection Other,
         ClientSession<
@@ -327,7 +367,7 @@ public abstract class Collection<
         public void OnException(Exception exception,long numberOfRecords){ }
         public void OnStop(bool completed,long numberOfRecords){ }
     }
-    private readonly struct SymmetricExceptWithIterator<TCollection>(
+    private readonly struct SymmetricExceptWithScanIteratorFunctions<TCollection>(
         TCollection Self,
         ClientSession<
             FixedSpanByteKey,
@@ -372,7 +412,14 @@ public abstract class Collection<
         public void OnException(Exception exception,long numberOfRecords){ }
         public void OnStop(bool completed,long numberOfRecords){ }
     }
-    private protected static void IntersectWithImpl<TCollection>(
+    /// <summary>
+    /// ManagedHashSet,UnmanagedHashSetが使う
+    /// </summary>
+    /// <typeparam name="TCollection"></typeparam>
+    /// <param name="Self"></param>
+    /// <param name="Other"></param>
+    /// <param name="Session"></param>
+    private protected static void IntersectWith<TCollection>(
         TCollection Self,
         TCollection Other,
         ClientSession<
@@ -398,12 +445,19 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(Other);
-        var Iterator = new IntersectWithIterator<TCollection>(Self,Other,Session);
+        var Iterator = new IntersectWithScanIteratorFunctions<TCollection>(Self,Other,Session);
         var Cursor = 0L;
         Session.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         Session.BasicContext.CompletePending(wait: true);
     }
-    private protected static void SymmetricExceptWithImpl<TCollection>(
+    /// <summary>
+    /// ManagedHashSet,UnmanagedHashSetが使う
+    /// </summary>
+    /// <typeparam name="TCollection"></typeparam>
+    /// <param name="Self"></param>
+    /// <param name="Other"></param>
+    /// <param name="Session"></param>
+    private protected static void SymmetricExceptWith<TCollection>(
         TCollection Self,
         TCollection Other,
         ClientSession<
@@ -429,58 +483,9 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(Other);
-        var Iterator = new SymmetricExceptWithIterator<TCollection>(Self,Session);
+        var Iterator = new SymmetricExceptWithScanIteratorFunctions<TCollection>(Self,Session);
         var Cursor = 0L;
         Other.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         Session.BasicContext.CompletePending(wait: true);
     }
-
-    private long LogMemorySize => this.CollectionStore.LogMemorySize;
-    private double MutableFraction => this.CollectionStore.MutableFraction;
-
-    private protected OutOfMemoryException ThrowLogFull(){
-        var Log = this.CollectionStore.Store.Log;
-        return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private protected bool WouldOverflowMutable(int KeyLength,int ValueLength){
-        Debug.Assert(this.LogMemorySize>=8192);
-        var Log = this.CollectionStore.Store.Log;
-        return this.CollectionStore.OverflowMutableStrategyKind switch {
-            OverflowMutableStrategyKind.Memory => this.WouldOverflowMutable<MemoryOverflowMutableStrategy>(Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
-            OverflowMutableStrategyKind.Storage => this.WouldOverflowMutable<StorageOverflowMutableStrategy>(Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
-            _ => throw new UnreachableException(),
-        };
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool WouldOverflowMutable<TOverflowMutableStrategy>(long BeginAddress,long TailAddress,int KeyLength,int ValueLength)
-        where TOverflowMutableStrategy : struct, IOverflowMutableStrategy<TOverflowMutableStrategy> {
-        return TOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,BeginAddress,TailAddress,KeyLength,ValueLength);
-    }
-
-    public int Count => (int)this.GetLongCount();
-    public long EntryCount => this.CollectionStore.Store.EntryCount;
-    private protected abstract Status Read(TKey Key,out TValue Output);
-    public abstract bool IsDisposed { get; }
-
-    private bool disposed;
-
-    public void Dispose(){
-        this.Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing){
-        if(this.disposed)
-            return;
-        if(disposing){
-            this.AddClientSession.Dispose();
-        } else{
-        }
-        this.disposed=true;
-    }
-
-    ~Collection() => this.Dispose(false);
 }

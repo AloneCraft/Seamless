@@ -20,9 +20,9 @@ public abstract class DeleteTests<TKey,TValue>
         var(dict,store)=this.CreateMemory();
         using var _store=store;
         using var _dict=(IDisposable)dict;
-        dict[Key(1)]=Value(1);
-        Assert.True(dict.Remove(Key(1)));
-        Assert.False(dict.Remove(Key(1)));
+        dict[this.Key(1)]=this.Value(1);
+        Assert.True(dict.Remove(this.Key(1)));
+        Assert.False(dict.Remove(this.Key(1)));
     }
     [Fact,Trait("Category","Unit")] public void NeedInitialUpdate()=>this.InMemory();
 
@@ -33,9 +33,9 @@ public abstract class DeleteTests<TKey,TValue>
         var(dict,store)=this.CreateDiskSpill(logDevice,objDevice);
         using var _store=store;
         using var _dict=(IDisposable)dict;
-        for(var a=0; a<300; a++) dict[Key(a)]=Value(a);
-        Assert.True(dict.Remove(Key(0)));
-        Assert.False(dict.Remove(Key(99999)));
+        for(var a=0; a<300; a++) dict[this.Key(a)]=this.Value(a);
+        Assert.True(dict.Remove(this.Key(0)));
+        Assert.False(dict.Remove(this.Key(99999)));
     }
     [Fact,Trait("Category","Unit")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification="<�ۗ���>")]
@@ -51,9 +51,9 @@ public abstract class DeleteTests<TKey,TValue>
         var(dict,store)=this.CreateDisk(logDevice,objDevice);
         using var _store=store;
         using var _dict=(IDisposable)dict;
-        dict.Add(Key(0),Value(0));
+        dict.Add(this.Key(0),this.Value(0));
         this.FlushAndEvict(store);
-        dict.Remove(Key(0));
+        dict.Remove(this.Key(0));
     }
     [Fact,Trait("Category","Unit")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification="<�ۗ���>")]

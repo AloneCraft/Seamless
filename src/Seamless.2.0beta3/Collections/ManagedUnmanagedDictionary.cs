@@ -3,7 +3,9 @@ using System.Runtime.CompilerServices;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
-
+/// <summary>
+/// todo 2.0 TKeyとTValueの片方が可変長でも可変長の扱いになっている。将来、TKeyの固定長が実装できた場合は書き直す
+/// </summary>
 public sealed partial class ManagedUnmanagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer> {
     private ClientSession<
         FixedSpanByteKey,

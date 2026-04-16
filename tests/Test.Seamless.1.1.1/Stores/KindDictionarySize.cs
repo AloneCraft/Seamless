@@ -84,7 +84,7 @@ public partial class KindDictionarySize{
             Assert.Equal(expected[kind], sizes[kind]);
     }
 
-    private static partial System.Collections.Generic.Dictionary<string, long> GetExpectedSizes() {
+    private static partial System.Collections.Generic.Dictionary<string, long> GetExpectedSizes(){
         // Tsavorite 1.1.1 では SpanByte キーは必ず SpanByte 値を使う必要があります。
         // 例え Generic の UnmanagedSerializer<T> を使用しても、Tsavorite の型チェックにより
         // SpanByte キーと unmanaged 値の組み合わせが拒否されます。

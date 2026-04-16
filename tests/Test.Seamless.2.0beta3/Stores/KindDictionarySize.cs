@@ -82,7 +82,7 @@ public partial class KindDictionarySize{
             Assert.Equal(expected[kind], sizes[kind]);
     }
 
-    private static partial System.Collections.Generic.Dictionary<string, long> GetExpectedSizes() {
+    private static partial System.Collections.Generic.Dictionary<string, long> GetExpectedSizes(){
         return new System.Collections.Generic.Dictionary<string, long> {
             ["UnmanagedUnmanaged"] = 24320,
             ["UnmanagedManaged"] = 24320,

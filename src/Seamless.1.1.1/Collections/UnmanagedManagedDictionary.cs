@@ -7,7 +7,7 @@ public sealed partial class UnmanagedManagedDictionary<TKey, TValue, TKeySeriali
     /// <summary>
     /// todo 1.1.1 TKeyとTValueの片方が可変長でも可変長の扱いになっている。将来、TKeyの固定長が実装できた場合は書き直す
     /// </summary>
-    private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value) {
+    private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value){
         var KeyBytes = TKeySerializer.Serialize(ref Key);
         var ValueBytes = TValueSerializer.Serialize(ref Value);
         if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
