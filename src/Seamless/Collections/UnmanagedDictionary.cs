@@ -8,7 +8,7 @@ namespace Seamless.Collections;
 /// 静的ポリモーフィズムにより仮想ディスパッチを回避する。
 /// </summary>
 [DebuggerTypeProxy(typeof(DebugView<,>))]
-public partial class UnmanagedDictionary<
+public abstract partial class UnmanagedDictionary<
     TKey,
     TValue,
     TKeySerializer,
