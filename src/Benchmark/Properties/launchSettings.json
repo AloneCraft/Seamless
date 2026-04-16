@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "Benchmark 2.*": {
+      "commandName": "Project",
+      "commandLineArgs": "--filter *Dictionary*",
+      "environmentVariables": {
+        "SEAMLESS_BENCHMARK_TARGET": "2.0beta3"
+      }
+    },
+    "Benchmark 1.*": {
+      "commandName": "Project",
+      "commandLineArgs": "--filter *Dictionary*",
+      "environmentVariables": {
+        "SEAMLESS_BENCHMARK_TARGET": "1.1.1"
+      }
+    }
+  }
+}

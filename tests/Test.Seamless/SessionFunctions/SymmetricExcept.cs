@@ -12,8 +12,7 @@ public abstract class SymmetricExceptTests<TKey>
     protected abstract(ManagedHashSet<TKey> Set,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice);
     protected abstract void ShiftReadOnly(IDisposable store);
     protected abstract void FlushAndEvict(IDisposable store);
-
-    protected static string CreateDiskFolder()=>Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    private static string CreateDiskFolder()=>Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize=Const.MinObjectLogCapacity;
 
     // ── In-memory (Mutable key) ──────────────────────────────────────
