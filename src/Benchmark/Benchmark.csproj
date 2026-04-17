@@ -5,17 +5,32 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <ServerGarbageCollection>true</ServerGarbageCollection>
-    <Configurations>Debug;Release;Debug1;Release1;Debug2;Release2</Configurations>
+    <Configurations>Debug;Release</Configurations>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+	<DefineConstants>$(DefineConstants);DEBUG;TRACE</DefineConstants>
+	<Optimize>false</Optimize>
+	<DebugType>portable</DebugType>
+	<DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+	<Optimize>true</Optimize>
+	<DebugType>portable</DebugType>
+	<DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
     <PackageReference Include="MemoryPack" Version="1.*" />
   </ItemGroup>
-  <ItemGroup Condition="'$(Configuration)' == 'Debug1' or '$(Configuration)' == 'Release1'">
+
+  <ItemGroup>
+    <!--
+      現状 Benchmark は Seamless1 (Tsavorite 1.1.1) と Seamless2 (Tsavorite 2.0-beta.3) のどちらか一方のみを同時に参照できる。
+      Tsavorite.core の API 形状が非互換なため、1 プロセス内で両立しない。
+      両方をベンチマークする場合は Benchmark.projitems + Benchmark1.csproj / Benchmark2.csproj 分割を推奨。
+    -->
     <ProjectReference Include="..\Seamless1\Seamless1.csproj" />
   </ItemGroup>
-  <ItemGroup Condition="'$(Configuration)' != 'Debug2' And '$(Configuration)' != 'Release2'">
-    <ProjectReference Include="..\Seamless2\Seamless2.csproj" />
-  </ItemGroup>
+
 </Project>
