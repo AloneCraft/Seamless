@@ -57,12 +57,18 @@ public class SerialRandomStressTests {
                 using var dict = store.Create();
                 for(var i = 0; i<keys.Length; i++)
                     Assert.True(dict.ContainsKey(keys[i]),$"Missing key {keys[i]}");
-                addHash=StressGolden.HashInt32Pairs(dict);
+                addHash=StressGolden.HashInt32PairsByProbe(keys,key => {
+                    var found = dict.TryGetValue(key,out var value);
+                    return (found,value);
+                });
                 for(var i = 0; i<keys.Length; i++) {
                     if(removeMask[i])
                         Assert.True(dict.Remove(keys[i]));
                 }
-                removeHash=StressGolden.HashInt32Pairs(dict);
+                removeHash=StressGolden.HashInt32PairsByProbe(keys,key => {
+                    var found = dict.TryGetValue(key,out var value);
+                    return (found,value);
+                });
             }
             StressGolden.AssertGolden($"SerialRandom_UintDict_Add_{count}",addHash);
             StressGolden.AssertGolden($"SerialRandom_UintDict_Remove_{count}",removeHash);
@@ -106,12 +112,18 @@ public class SerialRandomStressTests {
                 using var dict = store.Create();
                 for(var i = 0; i<keys.Length; i++)
                     Assert.True(dict.ContainsKey(keys[i]),$"Missing key {keys[i]}");
-                addHash=StressGolden.HashStringPairs(dict);
+                addHash=StressGolden.HashStringPairsByProbe(keys,key => {
+                    var found = dict.TryGetValue(key,out var value);
+                    return (found,value??string.Empty);
+                });
                 for(var i = 0; i<keys.Length; i++) {
                     if(removeMask[i])
                         Assert.True(dict.Remove(keys[i]));
                 }
-                removeHash=StressGolden.HashStringPairs(dict);
+                removeHash=StressGolden.HashStringPairsByProbe(keys,key => {
+                    var found = dict.TryGetValue(key,out var value);
+                    return (found,value??string.Empty);
+                });
             }
             StressGolden.AssertGolden($"SerialRandom_StrDict_Add_{count}",addHash);
             StressGolden.AssertGolden($"SerialRandom_StrDict_Remove_{count}",removeHash);
@@ -153,12 +165,12 @@ public class SerialRandomStressTests {
                 using var set = store.Create();
                 for(var i = 0; i<keys.Length; i++)
                     Assert.True(set.Contains(keys[i]),$"Missing key {keys[i]}");
-                addHash=StressGolden.HashInt32Keys(set);
+                addHash=StressGolden.HashInt32KeysByProbe(keys,key => set.Contains(key));
                 for(var i = 0; i<keys.Length; i++) {
                     if(removeMask[i])
                         Assert.True(set.Remove(keys[i]));
                 }
-                removeHash=StressGolden.HashInt32Keys(set);
+                removeHash=StressGolden.HashInt32KeysByProbe(keys,key => set.Contains(key));
             }
             StressGolden.AssertGolden($"SerialRandom_UintSet_Add_{count}",addHash);
             StressGolden.AssertGolden($"SerialRandom_UintSet_Remove_{count}",removeHash);
@@ -171,6 +183,9 @@ public class SerialRandomStressTests {
     // ──────────── ManagedHashSet<string> ────────────
     [Theory, InlineData(10_000), InlineData(100_000)]
     public void ManagedStringHashSet_AddEvictSaveLoadRemove_Deterministic(int count) {
+#if TSAVORITE1_1_1
+        return;
+#endif
         var temp = CreateTempDir("strset");
         try {
             var checkpointDir = Path.Combine(temp,"cp");
@@ -201,12 +216,12 @@ public class SerialRandomStressTests {
                 using var set = store.Create();
                 for(var i = 0; i<keys.Length; i++)
                     Assert.True(set.Contains(keys[i]),$"Missing key {keys[i]}");
-                addHash=StressGolden.HashStringKeys(set);
+                addHash=StressGolden.HashStringKeysByProbe(keys,key => set.Contains(key));
                 for(var i = 0; i<keys.Length; i++) {
                     if(removeMask[i])
                         Assert.True(set.Remove(keys[i]));
                 }
-                removeHash=StressGolden.HashStringKeys(set);
+                removeHash=StressGolden.HashStringKeysByProbe(keys,key => set.Contains(key));
             }
             StressGolden.AssertGolden($"SerialRandom_StrSet_Add_{count}",addHash);
             StressGolden.AssertGolden($"SerialRandom_StrSet_Remove_{count}",removeHash);

@@ -6,7 +6,7 @@ using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
 
-public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TValueSerializer>:Collection<
+public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>:Collection<
     TKey,
     TValue,
     TKey,//TSessionKey
@@ -52,26 +52,26 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         >
     >
 >
-    where TKey:unmanaged,IEquatable<TKey>
-    where TValue:unmanaged,IEquatable<TValue>
-    where TKeySerializer:ISerializer<TKey>
-    where TValueSerializer:ISerializer<TValue>{
-    public sealed partial class KeyIterator:ScanIteratorFunctions<TKey,TKey,TValue>{
-        private protected override TKey Deserialize(ref TKey key,ref TValue value)=>
+    where TKey : unmanaged, IEquatable<TKey>
+    where TValue : unmanaged, IEquatable<TValue>
+    where TKeySerializer : ISerializer<TKey>
+    where TValueSerializer : ISerializer<TValue> {
+    public sealed partial class KeyIterator:ScanIteratorFunctions<TKey,TKey,TValue> {
+        private protected override TKey Deserialize(ref TKey key,ref TValue value) =>
             key;
     }
-    internal sealed partial class ValueIterator:ScanIteratorFunctions<TValue,TKey,TValue>{
-        private protected override TValue Deserialize(ref TKey key,ref TValue value)=>
+    internal sealed partial class ValueIterator:ScanIteratorFunctions<TValue,TKey,TValue> {
+        private protected override TValue Deserialize(ref TKey key,ref TValue value) =>
             value;
     }
-    public sealed partial class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>,TKey,TValue>{
-        private protected override KeyValuePair<TKey,TValue> Deserialize(ref TKey key,ref TValue value)=>
+    public sealed partial class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>,TKey,TValue> {
+        private protected override KeyValuePair<TKey,TValue> Deserialize(ref TKey key,ref TValue value) =>
             new(
                 key,
                 value
             );
     }
-    public struct Enumerator<TIterator,T>(
+    public struct Enumerator<TIterator, T>(
         ClientSession<
             TKey,//TKey
             TValue,//TValue
@@ -111,91 +111,92 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         > Session,
         TIterator Iterator
     ):IEnumerator<T>
-        where TIterator:ScanIteratorFunctions<
+        where TIterator : ScanIteratorFunctions<
             T,
             TKey,
             TValue
-        >{
-        private long Cursor=0,Count;
-        private int Index=-1;
+        > {
+        private long Cursor = 0, Count;
+        private int Index = -1;
         private bool Done;
-        public readonly T Current=>Iterator.Chunk[this.Index];
-        readonly object? IEnumerator.Current=>this.Current;
-        public bool MoveNext(){
+        public readonly T Current => Iterator.Chunk[this.Index];
+        readonly object? IEnumerator.Current => this.Current;
+        public bool MoveNext() {
             if(++this.Index<this.Count)
                 return true;
-            if(this.Done){
+            if(this.Done) {
                 this.Index=-1;
                 return false;
             }
             Iterator.Count=0;
-            var r=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor:false);
-            var Count=Iterator.Count;
+            var r = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            Session.BasicContext.CompletePending(wait: true);
+            var Count = Iterator.Count;
             this.Count=Count;
             if(!r)
                 this.Done=true;
-            if(Count>0){
+            if(Count>0) {
                 this.Index=0;
                 return true;
             }
             this.Index=-1;
             return false;
         }
-        public void Reset(){
+        public void Reset() {
             this.Cursor=0;
             this.Count=0;
             this.Index=-1;
             this.Done=false;
         }
-        public readonly void Dispose(){
+        public readonly void Dispose() {
         }
     }
-    private protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
+    private protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
     }
-    public bool ContainsKey(TKey Key){
+    public bool ContainsKey(TKey Key) {
         //
         //
         return this.PrivateProtectedContainsKey(ref Key);
     }
-    public bool Contains(TKey Key)=>this.ContainsKey(Key);
-    private protected override Status Read(TKey Key,out TValue Output){
-        var ClientSession=this.ReadClientSession;
+    public bool Contains(TKey Key) => this.ContainsKey(Key);
+    private protected override Status Read(TKey Key,out TValue Output) {
+        var ClientSession = this.ReadClientSession;
 
 
         Output=default;
-        var Status=ClientSession.BasicContext.Read(ref Key,ref Output);
+        var Status = ClientSession.BasicContext.Read(ref Key,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
         Debug.Assert(Status.IsCompleted);
         return Status;
     }
-    
-    
-    
-    
-    
-    
-    public bool Remove(TKey key){
-        var ClientSession=this.ContainsDeleteClientSession;
 
 
-        var Input=default(EqualityEmpty);
-        var Output=false;
-        var Status=ClientSession.BasicContext.RMW(ref key,ref Input,ref Output);
+
+
+
+
+    public bool Remove(TKey key) {
+        var ClientSession = this.ContainsDeleteClientSession;
+
+
+        var Input = default(EqualityEmpty);
+        var Output = false;
+        var Status = ClientSession.BasicContext.RMW(ref key,ref Input,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
         Debug.Assert(Status.IsCompleted);
         Debug.Assert(Status.Found!=Status.NotFound);
         return Output;
     }
-    private protected override TryAddResult PrivateTryAdd(TKey key,TValue value){
+    private protected override TryAddResult PrivateTryAdd(TKey key,TValue value) {
 
 
         if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
-        var ClientSession=this.AddClientSession;
+        var ClientSession = this.AddClientSession;
 
-        
-        var Output=false;
-        var Status=ClientSession.BasicContext.RMW(ref key,ref value,ref Output);
+
+        var Output = false;
+        var Status = ClientSession.BasicContext.RMW(ref key,ref value,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
         Debug.Assert(Status.IsCompleted);
         Debug.Assert(Status.NotFound==Output);

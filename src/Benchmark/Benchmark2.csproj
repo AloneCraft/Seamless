@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <ServerGarbageCollection>true</ServerGarbageCollection>
-    <Configurations>Debug;Release</Configurations>
+    <Configurations>Debug;Release;Release001;Release002;Release004;Release008;Release016;Release032;Release064;Release128;Release256;Release512</Configurations>
     <RootNamespace>BenchmarkExe</RootNamespace>
     <AssemblyName>Benchmark2</AssemblyName>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
@@ -18,6 +18,11 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <Optimize>true</Optimize>
+    <DebugType>portable</DebugType>
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="$([System.String]::Copy('$(Configuration)').StartsWith('Release')) and '$(Configuration)' != 'Release'">
     <Optimize>true</Optimize>
     <DebugType>portable</DebugType>
     <DefineConstants>TRACE</DefineConstants>
