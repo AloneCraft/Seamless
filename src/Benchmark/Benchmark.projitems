@@ -9,7 +9,7 @@
     <Import_RootNamespace>BenchmarkExe</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)Program.cs" />
+    <Compile Include="Program.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DictionaryStoreBenchmark.cs" />
   </ItemGroup>
 </Project>
