@@ -10,6 +10,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BenchmarkColumnsConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BenchmarkScale.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DictionaryStoreBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DictionaryApiSurfaceBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)HashSetApiSurfaceBenchmark.cs" />

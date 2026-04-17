@@ -1,5 +1,4 @@
 ﻿using System.Runtime.CompilerServices;
-using Seamless.Collections;
 namespace Seamless.Stores;
 
 /// <summary>Managed/Unmanaged オーバーロード解決用タグ。</summary>
@@ -21,7 +20,7 @@ public readonly struct Factory {
         long MemorySize,
         double MutableFraction,
         string? CheckpointDir
-    ){
+    ) {
         this.IndexSize=IndexSize;
         this.PageSize=PageSize;
         this.SegmentSize=SegmentSize;

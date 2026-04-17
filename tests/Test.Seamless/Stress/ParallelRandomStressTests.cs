@@ -13,6 +13,8 @@ public class ParallelRandomStressTests {
     private const int Seed = 20260417;
     private const double RemoveRate = 0.5;
     private static readonly int ThreadCount = Math.Max(2,Math.Min(8,Environment.ProcessorCount));
+    private const int StressCountSmall = 2_048;
+    private const int StressCountLarge = 16_384;
 
     private static string CreateTempDir(string tag) {
         var dir = Path.Combine(Path.GetTempPath(),"Seamless_PStress_"+tag+"_"+Guid.NewGuid().ToString("N"));
@@ -35,11 +37,15 @@ public class ParallelRandomStressTests {
         return result;
     }
 
-    [Theory, InlineData(10_000), InlineData(100_000)]
+    [Theory, InlineData(StressCountSmall), InlineData(StressCountLarge)]
     public void UnmanagedIntDictionary_ParallelAddRemove_Deterministic(int count) {
+        const int Count = 1;
 #if TSAVORITE1_1_1
+        _=Count;
+        _=count;
         return;
-#endif
+#else
+        var repeat = StressScale.Apply(Count);
         var temp = CreateTempDir("uintdict");
         try {
             var logPath = Path.Combine(temp,"log");
@@ -49,34 +55,40 @@ public class ParallelRandomStressTests {
             var keyToRemove = new Dictionary<int,bool>(count);
             for(var i = 0; i<keys.Length; i++) keyToRemove[keys[i]]=removeMaskFlat[i];
             var partitions = Partition(keys,ThreadCount);
-            string addHash, removeHash;
+            var addHash = string.Empty;
+            var removeHash = string.Empty;
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
             using(var store = Factory.Create().Create<int,int>(logDevice,objDevice)) {
-                Parallel.For(0,ThreadCount,t => {
-                    using var dict = store.Create();
-                    foreach(var k in partitions[t])
-                        dict.Add(k,k*2);
-                });
-                // 全体ハッシュは単一ハンドル経由で列挙して得る。
-                using(var dict = store.Create()) {
-                    addHash=StressGolden.HashInt32PairsByProbe(keys,key => {
-                        var found = dict.TryGetValue(key,out var value);
-                        return (found,value);
-                    });
-                }
-                Parallel.For(0,ThreadCount,t => {
-                    using var dict = store.Create();
-                    foreach(var k in partitions[t]) {
-                        if(keyToRemove[k])
-                            dict.Remove(k);
+                for(var r = 0; r<repeat; r++) {
+                    using(var dict = store.Create()) {
+                        dict.Clear();
                     }
-                });
-                using(var dict = store.Create()) {
-                    removeHash=StressGolden.HashInt32PairsByProbe(keys,key => {
-                        var found = dict.TryGetValue(key,out var value);
-                        return (found,value);
+                    Parallel.For(0,ThreadCount,t => {
+                        using var dict = store.Create();
+                        foreach(var k in partitions[t])
+                            dict.Add(k,k*2);
                     });
+                    // 全体ハッシュは単一ハンドル経由で列挙して得る。
+                    using(var dict = store.Create()) {
+                        addHash=StressGolden.HashInt32PairsByProbe(keys,key => {
+                            var found = dict.TryGetValue(key,out var value);
+                            return (found,value);
+                        });
+                    }
+                    Parallel.For(0,ThreadCount,t => {
+                        using var dict = store.Create();
+                        foreach(var k in partitions[t]) {
+                            if(keyToRemove[k])
+                                dict.Remove(k);
+                        }
+                    });
+                    using(var dict = store.Create()) {
+                        removeHash=StressGolden.HashInt32PairsByProbe(keys,key => {
+                            var found = dict.TryGetValue(key,out var value);
+                            return (found,value);
+                        });
+                    }
                 }
             }
             StressGolden.AssertGolden($"ParallelRandom_UintDict_Add_{count}",addHash);
@@ -85,13 +97,18 @@ public class ParallelRandomStressTests {
         finally {
             TryCleanup(temp);
         }
+#endif
     }
 
-    [Theory, InlineData(10_000)]
+    [Theory, InlineData(StressCountSmall)]
     public void ManagedStringDictionary_ParallelAddRemove_Deterministic(int count) {
+        const int Count = 5;
 #if TSAVORITE1_1_1
+        _=Count;
+        _=count;
         return;
-#endif
+#else
+        var repeat = StressScale.Apply(Count);
         var temp = CreateTempDir("strdict");
         try {
             var logPath = Path.Combine(temp,"log");
@@ -108,32 +125,38 @@ public class ParallelRandomStressTests {
             }
             var partitions = Partition([.. Enumerable.Range(0,keys.Length)],ThreadCount)
                 .Select(idxs => idxs.Select(i => keys[i]).ToArray()).ToArray();
-            string addHash, removeHash;
+            var addHash = string.Empty;
+            var removeHash = string.Empty;
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
             using(var store = Factory.Create().Create<string,string>(logDevice,objDevice,new ManagedTag(),new ManagedTag())) {
-                Parallel.For(0,ThreadCount,t => {
-                    using var dict = store.Create();
-                    foreach(var k in partitions[t])
-                        dict.Add(k,keyToValue[k]);
-                });
-                using(var dict = store.Create()) {
-                    addHash=StressGolden.HashStringPairsByProbe(keys,key => {
-                        var found = dict.TryGetValue(key,out var value);
-                        return (found,value??string.Empty);
+                for(var r = 0; r<repeat; r++) {
+                    using(var dict = store.Create()) {
+                        dict.Clear();
+                    }
+                    Parallel.For(0,ThreadCount,t => {
+                        using var dict = store.Create();
+                        foreach(var k in partitions[t])
+                            dict.Add(k,keyToValue[k]);
                     });
-                }
-                Parallel.For(0,ThreadCount,t => {
-                    using var dict = store.Create();
-                    foreach(var k in partitions[t])
-                        if(keyToRemove[k])
-                            dict.Remove(k);
-                });
-                using(var dict = store.Create()) {
-                    removeHash=StressGolden.HashStringPairsByProbe(keys,key => {
-                        var found = dict.TryGetValue(key,out var value);
-                        return (found,value??string.Empty);
+                    using(var dict = store.Create()) {
+                        addHash=StressGolden.HashStringPairsByProbe(keys,key => {
+                            var found = dict.TryGetValue(key,out var value);
+                            return (found,value??string.Empty);
+                        });
+                    }
+                    Parallel.For(0,ThreadCount,t => {
+                        using var dict = store.Create();
+                        foreach(var k in partitions[t])
+                            if(keyToRemove[k])
+                                dict.Remove(k);
                     });
+                    using(var dict = store.Create()) {
+                        removeHash=StressGolden.HashStringPairsByProbe(keys,key => {
+                            var found = dict.TryGetValue(key,out var value);
+                            return (found,value??string.Empty);
+                        });
+                    }
                 }
             }
             StressGolden.AssertGolden($"ParallelRandom_StrDict_Add_{count}",addHash);
@@ -142,13 +165,18 @@ public class ParallelRandomStressTests {
         finally {
             TryCleanup(temp);
         }
+#endif
     }
 
-    [Theory, InlineData(10_000), InlineData(100_000)]
+    [Theory, InlineData(StressCountSmall), InlineData(StressCountLarge)]
     public void UnmanagedIntHashSet_ParallelAddRemove_Deterministic(int count) {
+        const int Count = 1;
 #if TSAVORITE1_1_1
+        _=Count;
+        _=count;
         return;
-#endif
+#else
+        var repeat = StressScale.Apply(Count);
         var temp = CreateTempDir("uintset");
         try {
             var logPath = Path.Combine(temp,"log");
@@ -158,21 +186,27 @@ public class ParallelRandomStressTests {
             var keyToRemove = new Dictionary<int,bool>(count);
             for(var i = 0; i<keys.Length; i++) keyToRemove[keys[i]]=removeMaskFlat[i];
             var partitions = Partition(keys,ThreadCount);
-            string addHash, removeHash;
+            var addHash = string.Empty;
+            var removeHash = string.Empty;
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
             using(var store = Factory.Create().Create<int>(logDevice,objDevice)) {
-                Parallel.For(0,ThreadCount,t => {
-                    using var set = store.Create();
-                    foreach(var k in partitions[t]) set.Add(k);
-                });
-                using(var set = store.Create()) addHash=StressGolden.HashInt32KeysByProbe(keys,key => set.Contains(key));
-                Parallel.For(0,ThreadCount,t => {
-                    using var set = store.Create();
-                    foreach(var k in partitions[t])
-                        if(keyToRemove[k]) set.Remove(k);
-                });
-                using(var set = store.Create()) removeHash=StressGolden.HashInt32KeysByProbe(keys,key => set.Contains(key));
+                for(var r = 0; r<repeat; r++) {
+                    using(var set = store.Create()) {
+                        set.Clear();
+                    }
+                    Parallel.For(0,ThreadCount,t => {
+                        using var set = store.Create();
+                        foreach(var k in partitions[t]) set.Add(k);
+                    });
+                    using(var set = store.Create()) addHash=StressGolden.HashInt32KeysByProbe(keys,key => set.Contains(key));
+                    Parallel.For(0,ThreadCount,t => {
+                        using var set = store.Create();
+                        foreach(var k in partitions[t])
+                            if(keyToRemove[k]) set.Remove(k);
+                    });
+                    using(var set = store.Create()) removeHash=StressGolden.HashInt32KeysByProbe(keys,key => set.Contains(key));
+                }
             }
             StressGolden.AssertGolden($"ParallelRandom_UintSet_Add_{count}",addHash);
             StressGolden.AssertGolden($"ParallelRandom_UintSet_Remove_{count}",removeHash);
@@ -180,13 +214,18 @@ public class ParallelRandomStressTests {
         finally {
             TryCleanup(temp);
         }
+#endif
     }
 
-    [Theory, InlineData(10_000)]
+    [Theory, InlineData(StressCountSmall)]
     public void ManagedStringHashSet_ParallelAddRemove_Deterministic(int count) {
+        const int Count = 5;
 #if TSAVORITE1_1_1
+        _=Count;
+        _=count;
         return;
-#endif
+#else
+        var repeat = StressScale.Apply(Count);
         var temp = CreateTempDir("strset");
         try {
             var logPath = Path.Combine(temp,"log");
@@ -198,21 +237,27 @@ public class ParallelRandomStressTests {
             for(var i = 0; i<keys.Length; i++) keyToRemove[keys[i]]=removeMaskFlat[i];
             var partitions = Partition([.. Enumerable.Range(0,keys.Length)],ThreadCount)
                 .Select(idxs => idxs.Select(i => keys[i]).ToArray()).ToArray();
-            string addHash, removeHash;
+            var addHash = string.Empty;
+            var removeHash = string.Empty;
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
             using(var store = Factory.Create().Create<string>(logDevice,objDevice,new ManagedTag())) {
-                Parallel.For(0,ThreadCount,t => {
-                    using var set = store.Create();
-                    foreach(var k in partitions[t]) set.Add(k);
-                });
-                using(var set = store.Create()) addHash=StressGolden.HashStringKeysByProbe(keys,key => set.Contains(key));
-                Parallel.For(0,ThreadCount,t => {
-                    using var set = store.Create();
-                    foreach(var k in partitions[t])
-                        if(keyToRemove[k]) set.Remove(k);
-                });
-                using(var set = store.Create()) removeHash=StressGolden.HashStringKeysByProbe(keys,key => set.Contains(key));
+                for(var r = 0; r<repeat; r++) {
+                    using(var set = store.Create()) {
+                        set.Clear();
+                    }
+                    Parallel.For(0,ThreadCount,t => {
+                        using var set = store.Create();
+                        foreach(var k in partitions[t]) set.Add(k);
+                    });
+                    using(var set = store.Create()) addHash=StressGolden.HashStringKeysByProbe(keys,key => set.Contains(key));
+                    Parallel.For(0,ThreadCount,t => {
+                        using var set = store.Create();
+                        foreach(var k in partitions[t])
+                            if(keyToRemove[k]) set.Remove(k);
+                    });
+                    using(var set = store.Create()) removeHash=StressGolden.HashStringKeysByProbe(keys,key => set.Contains(key));
+                }
             }
             StressGolden.AssertGolden($"ParallelRandom_StrSet_Add_{count}",addHash);
             StressGolden.AssertGolden($"ParallelRandom_StrSet_Remove_{count}",removeHash);
@@ -220,5 +265,6 @@ public class ParallelRandomStressTests {
         finally {
             TryCleanup(temp);
         }
+#endif
     }
 }

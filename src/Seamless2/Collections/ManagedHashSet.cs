@@ -1,6 +1,5 @@
 ﻿using Seamless.SessionFunctions;
 using Seamless.Stores;
-//
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。

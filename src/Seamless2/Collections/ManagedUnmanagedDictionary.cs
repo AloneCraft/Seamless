@@ -16,7 +16,6 @@ public sealed partial class ManagedUnmanagedDictionary<TKey,TValue,TKeySerialize
         ManagedStoreFunctions,
         ManagedAllocator
     > UnmanagedValueAddClientSession = null!;
-
     partial void InitializeKind(ManagedCollectionStore<TKey,TValue> collectionStore){
         this.UnmanagedValueAddClientSession=collectionStore.Store.NewSession<
             FixedSpanByteKey,
@@ -28,14 +27,16 @@ public sealed partial class ManagedUnmanagedDictionary<TKey,TValue,TKeySerialize
     }
 
     partial void DisposeKind(bool disposing){
-        if(disposing) this.UnmanagedValueAddClientSession.Dispose();
+        if(disposing) this.UnmanagedValueAddClientSession.Dispose();this.AddClientSession.Dispose();
     }
-
     private protected override TryAddResult PrivateTryAdd(TKey key,TValue value){
         var KeyBytes=TKeySerializer.Serialize(ref key);
         if(this.WouldOverflowMutable(KeyBytes.Length,Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
+
         var ClientSession=this.UnmanagedValueAddClientSession;
+
+
         var Output=false;
         var Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref value,ref Output);
         Status=Pending(ClientSession,Status,ref Output);

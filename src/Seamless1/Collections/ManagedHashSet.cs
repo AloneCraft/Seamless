@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using Seamless.SessionFunctions;
+﻿using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
 /// <summary>
@@ -87,15 +86,9 @@ public partial class ManagedHashSet<TKey>
             else {
                 var input = default(EqualityEmpty);
                 var output = default(EqualityEmpty);
-                var status = session.BasicContext.RMW(ref key,ref input,ref output);
-                Pending(session,status,ref output);
-                //if(status.IsPending){
-                //    session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
-                //    using(completedOutputs){
-                //        Debug.Assert(completedOutputs.Next());
-                //    }
-                //}else {
-                //}
+                // コールバック内で Pending (CompletePendingWithOutputs) を呼ぶと Tsavorite 内部状態が
+                // 壊れるため、保留中 RMW は IntersectWith 末尾の CompletePending に委ねる。
+                session.BasicContext.RMW(ref key,ref input,ref output);
             }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -124,15 +117,9 @@ public partial class ManagedHashSet<TKey>
                 throw self.ThrowLogFull();
             var Input = default(SpanByte);
             SpanByteAndMemory Output = default;
-            var Status = session.BasicContext.RMW(ref key,ref Input,ref Output);
-            Pending(session,Status,ref Output);
-            //if(Status.IsPending){
-            //    session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
-            //    using(completedOutputs){
-            //        Debug.Assert(completedOutputs.Next());
-            //    }
-            //}else{
-            //}
+            // コールバック内で Pending (CompletePendingWithOutputs) を呼ぶと Tsavorite 内部状態が
+            // 壊れるため、保留中 RMW は SymmetricExceptWith 末尾の CompletePending に委ねる。
+            session.BasicContext.RMW(ref key,ref Input,ref Output);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }

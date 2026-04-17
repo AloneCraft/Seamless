@@ -125,6 +125,7 @@ public abstract class Collection<
         var Iterator = new CounterIterator();
         var Cursor = 0L;
         this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+
         return Iterator.Counter;
     }
     private protected bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes){
@@ -321,6 +322,7 @@ public abstract class Collection<
         this.disposed=true;
     }
     ~Collection() => this.Dispose(false);
+    //ManagedCollection,UnamagedCollection
     private  readonly struct IntersectWithScanIteratorFunctions<TCollection>(
         TCollection Self,
         TCollection Other,
@@ -355,18 +357,10 @@ public abstract class Collection<
                     throw Self.ThrowLogFull();
                 var Input=default(EqualityEmpty);
                 var Output=default(EqualityEmpty);
-                var Status=Session.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
-                if(Status.IsPending){
-                    Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
-                    using(CompletedOutputs){
-                        if(!CompletedOutputs.Next()){
-                        } else{
-                            Status=CompletedOutputs.Current.Status;
-                            Output=CompletedOutputs.Current.Output;
-                        }
-                    }
-                } else{
-                }
+                // コールバック内で CompletePendingWithOutputs を呼ぶとネストした
+                // CompletePending が Tsavorite 内部状態を壊すため、
+                // 保留操作は IntersectWith 末尾の CompletePending に委ねる。
+                Session.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
             }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -405,18 +399,9 @@ public abstract class Collection<
                 throw Self.ThrowLogFull();
             var Input = default(PinnedSpanByte);
             SpanByteAndMemory Output = default;
-            var Status = Session.BasicContext.RMW((FixedSpanByteKey)logRecord.Key,ref Input,ref Output);
-            if(Status.IsPending){
-                Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
-                using(CompletedOutputs){
-                    if(!CompletedOutputs.Next()){
-                    } else{
-                        Status=CompletedOutputs.Current.Status;
-                        Output=CompletedOutputs.Current.Output;
-                    }
-                }
-            } else{
-            }
+            // コールバック内で CompletePendingWithOutputs を呼ぶと Tsavorite 内部状態が壊れるため、
+            // 保留中 RMW は SymmetricExceptWith 末尾の CompletePending に委ねる。
+            Session.BasicContext.RMW((FixedSpanByteKey)logRecord.Key,ref Input,ref Output);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }

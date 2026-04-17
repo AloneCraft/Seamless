@@ -1,381 +1,476 @@
-using System.Diagnostics;
+using System.Collections;
+using Seamless.Collections;
+using Seamless.Stores;
+using Tsavorite.core;
 namespace Seamless.Collections.Benchmarks;
 
-public abstract class BenchmarkDictionary<TKey, TValue>(ITestOutputHelper output) : Benchmark<TKey, TValue>(output)
-	where TKey : IEquatable<TKey>
-	where TValue : IEquatable<TValue>
-{
-	protected DictionaryStore<TKey, TValue> CreateBenchmarkStore() => new();
-	[Fact]
-	[Trait("Category", "Benchmark")]
-	public void Benchmark_Add_10万件の追加時間を計測する()
-	{
-		var sw = new Stopwatch();
-		for (var a = 0; a < Loop; a++)
-		{
-			using var store = this.CreateBenchmarkStore();
-			using var dict = store.Create();
-			sw.Start();
-			for (var i = 0; i < Count; i++)
-			{
-				dict.Add(this.CreateKey(i), this.CreateValue(i));
-			}
-			sw.Stop();
-			Assert.Equal(Count, dict.GetLongCount());
-		}
-		this.Write($"[Dictionary.Add] {Count:N0}件: {sw.ElapsedMilliseconds}ms ({sw.Elapsed.TotalMicroseconds / Count:F2}us/op)");
-	}
-	[Fact]
-	[Trait("Category", "Benchmark")]
-	public void Benchmark_ContainsKey_10万件の検索時間を計測する()
-	{
-		using var store = this.CreateBenchmarkStore();
-		using var dict = store.Create();
-		for (var i = 0; i < Count; i++)
-			dict.Add(this.CreateKey(i), this.CreateValue(i));
-		Assert.Equal(Count, dict.GetLongCount());
-		var sw = Stopwatch.StartNew();
-		for (var a = 0; a < Loop; a++)
-			for (var i = 0; i < Count; i++)
-				_ = dict.ContainsKey(this.CreateKey(i));
-		sw.Stop();
-		this.Write($"[Dictionary.ContainsKey] {Count:N0}件: {sw.ElapsedMilliseconds}ms ({sw.Elapsed.TotalMicroseconds / Count:F2}us/op)");
-	}
-	[Fact]
-	[Trait("Category", "Benchmark")]
-	public void Benchmark_TryGetValue_10万件の取得時間を計測する()
-	{
-		using var store = this.CreateBenchmarkStore();
-		using var dict = store.Create();
-		for (var i = 0; i < Count; i++)
-			dict.Add(this.CreateKey(i), this.CreateValue(i));
-		Assert.Equal(Count, dict.GetLongCount());
-		var sw = Stopwatch.StartNew();
-		for (var a = 0; a < Loop; a++)
-			for (var i = 0; i < Count; i++)
-				dict.TryGetValue(this.CreateKey(i), out _);
-		sw.Stop();
-		this.Write($"[Dictionary.TryGetValue] {Count:N0}件: {sw.ElapsedMilliseconds}ms ({sw.Elapsed.TotalMicroseconds / Count:F2}us/op)");
-	}
-	[Fact]
-	[Trait("Category", "Benchmark")]
-	public void Benchmark_Indexer_Set_10万件の上書き時間を計測する()
-	{
-		using var store = this.CreateBenchmarkStore();
-		using var dict = store.Create();
-		for (var i = 0; i < Count; i++)
-			dict.Add(this.CreateKey(i), this.CreateValue(i));
-		Assert.Equal(Count, dict.GetLongCount());
-		var sw = Stopwatch.StartNew();
-		for (var a = 0; a < Loop; a++)
-			for (var i = 0; i < Count; i++)
-				dict[this.CreateKey(i)] = this.CreateValue(i + Count);
-		sw.Stop();
-		this.Write($"[Dictionary.Indexer set] {Count:N0}件: {sw.ElapsedMilliseconds}ms ({sw.Elapsed.TotalMicroseconds / Count:F2}us/op)");
-		Assert.Equal(Count, dict.GetLongCount());
-	}
-	[Fact]
-	[Trait("Category", "Benchmark")]
-	public void Benchmark_Remove_10万件の削除時間を計測する()
-	{
-		var sw = new Stopwatch();
-		for (var a = 0; a < Loop; a++)
-		{
-			using var store = this.CreateBenchmarkStore();
-			using var dict = store.Create();
-			for (var i = 0; i < Count; i++)
-				dict.Add(this.CreateKey(i), this.CreateValue(i));
-			sw.Start();
-			for (var i = 0; i < Count; i++)
-				dict.Remove(this.CreateKey(i));
-			sw.Stop();
-			Assert.Equal(0, dict.GetLongCount());
-		}
-		this.Write($"[Dictionary.Remove] {Count:N0}件: {sw.ElapsedMilliseconds}ms ({sw.Elapsed.TotalMicroseconds / Count:F2}us/op)");
-	}
-	[Fact]
-	[Trait("Category", "Benchmark")]
-	public void Benchmark_GetEnumerator_10万件の列挙時間を計測する()
-	{
-		using var store = this.CreateBenchmarkStore();
-		using var dict = store.Create();
-		for (var i = 0; i < Count; i++)
-			dict.Add(this.CreateKey(i), this.CreateValue(i));
-		var count = 0;
-		foreach (var kvp in dict)
-			count++;
-		var sw = Stopwatch.StartNew();
-		for (var a = 0; a < Loop; a++)
-		{
-			foreach (var kvp in dict) { }
-		}
-		sw.Stop();
-		this.Write($"[Dictionary.GetEnumerator] {Count:N0}件: {sw.ElapsedMilliseconds}ms ({sw.Elapsed.TotalMicroseconds / Count:F2}us/op)");
-		Assert.Equal(Count, dict.GetLongCount());
-	}
-	[Fact]
-	[Trait("Category", "Benchmark")]
-	public void Benchmark_Keys_10万件のKeys取得時間を計測する()
-	{
-		using var store = this.CreateBenchmarkStore();
-		using var dict = store.Create();
-		for (var i = 0; i < Count; i++)
-			dict.Add(this.CreateKey(i), this.CreateValue(i));
-		var sw = Stopwatch.StartNew();
-		var keys = dict.Keys;
-		sw.Stop();
-		this.Write($"[Dictionary.Keys] {Count:N0}件: {sw.ElapsedMilliseconds}ms ({sw.Elapsed.TotalMicroseconds / Count:F2}us/op)");
-		Assert.Equal(Count, keys.Count);
-	}
-	[Fact]
-	[Trait("Category", "Benchmark")]
-	public void Benchmark_Values_10万件のValues取得時間を計測する()
-	{
-		using var store = this.CreateBenchmarkStore();
-		using var dict = store.Create();
-		for (var i = 0; i < Count; i++)
-			dict.Add(this.CreateKey(i), this.CreateValue(i));
-		var sw = Stopwatch.StartNew();
-		var values = dict.Values;
-		sw.Stop();
-		this.Write($"[Dictionary.Values] {Count:N0}件: {sw.ElapsedMilliseconds}ms ({sw.Elapsed.TotalMicroseconds / Count:F2}us/op)");
-		Assert.Equal(Count, values.Count);
-	}
-	[Fact]
-	[Trait("Category", "Benchmark")]
-	public void Benchmark_Mixed_0万件のAdd_Read_Remove混合時間を計測する()
-	{
-		using var store = this.CreateBenchmarkStore();
-		using var dict = store.Create();
-		var sw = Stopwatch.StartNew();
-		for (var i = 0; i < Count; i++)
-			dict.Add(this.CreateKey(i), this.CreateValue(i));
-		for (var a = 0; a < Loop; a++)
-			for (var i = 0; i < Count; i++)
-				dict.TryGetValue(this.CreateKey(i), out _);
-		for (var i = 0; i < Count; i++)
-			dict.Remove(this.CreateKey(i));
-		sw.Stop();
-		this.Write($"[Dictionary.Mixed Add+Read+Remove] {Count:N0}件x3: {sw.ElapsedMilliseconds}ms ({sw.Elapsed.TotalMicroseconds / (Count * 3):F2}us/op)");
-	}
+/// <summary>
+/// Dictionary 用の (Store, Dictionary, チE��イス, 一時ディレクトリ) をまとめた破棁E��能ハンドル、E
+/// </summary>
+public sealed class DictHandle<TKey,TValue> : IDisposable
+    where TKey:IEquatable<TKey>
+    where TValue:IEquatable<TValue> {
+    public required IDisposable Store { get; init; }
+    public required ISeamlessDictionary<TKey,TValue> Dict { get; init; }
+    public string? Dir { get; init; }
+    public IDevice? Log { get; init; }
+    public IDevice? Obj { get; init; }
+    public void Dispose() {
+        this.Dict.Dispose();
+        this.Store.Dispose();
+        this.Log?.Dispose();
+        this.Obj?.Dispose();
+        if(this.Dir is not null && Directory.Exists(this.Dir)) {
+            try { Directory.Delete(this.Dir,recursive: true); } catch { }
+        }
+    }
 }
-[Trait("TKey", "int")]
-public abstract class BenchmarkDictionary_Int<TValue>(ITestOutputHelper output) : BenchmarkDictionary<int, TValue>(output) where TValue : IEquatable<TValue>
-{
-	protected override int CreateKey(int seed) => seed;
-}
-// ---StringKey派生---
-[Trait("TKey", "string")]
-public abstract class BenchmarkDictionary_String<TValue>(ITestOutputHelper output) : BenchmarkDictionary<string, TValue>(output) where TValue : IEquatable<TValue>
-{
-	protected override string CreateKey(int seed) => seed.ToString();
-}
-// ---DecimalKey派生---
-[Trait("TKey", "decimal")]
-public abstract class BenchmarkDictionary_Decimal<TValue>(ITestOutputHelper output) : BenchmarkDictionary<decimal, TValue>(output) where TValue : IEquatable<TValue>
-{
-	protected override decimal CreateKey(int seed) => (decimal)seed;
-}
-// ---UnmanagedStructKey派生---
-[Trait("TKey", "UnmanagedStruct")]
-public abstract class BenchmarkDictionary_UnmanagedStruct<TValue>(ITestOutputHelper output) : BenchmarkDictionary<UnmanagedStruct, TValue>(output) where TValue : IEquatable<TValue>
-{
-	protected override UnmanagedStruct CreateKey(int seed) => new() { Value = seed };
-}
-// ---ManagedStructKey派生---
-[Trait("TKey", "ManagedStruct")]
-public abstract class BenchmarkDictionary_ManagedStruct<TValue>(ITestOutputHelper output) : BenchmarkDictionary<ManagedStruct, TValue>(output) where TValue : IEquatable<TValue>
-{
-	protected override ManagedStruct CreateKey(int seed) => new() { Name = $"N{seed}" };
-}
-// ---SampleClassKey派生---
-[Trait("TKey", "ManagedClass")]
-public abstract class BenchmarkDictionary_Class<TValue>(ITestOutputHelper output) : BenchmarkDictionary<ManagedClass, TValue>(output) where TValue : IEquatable<TValue>
-{
-	protected override ManagedClass CreateKey(int seed) => new() { Name = $"N{seed}" };
-}
-[Trait("TValue", "int"), Trait("TKeyTValue", "Unmanaged")]
-public class BenchmarkDictionary_Int_Int(ITestOutputHelper output) : BenchmarkDictionary_Int<int>(output)
-{
-	protected override int CreateValue(int seed) => seed;
-}
-[Trait("TValue", "string"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_Int_String(ITestOutputHelper output) : BenchmarkDictionary_Int<string>(output)
-{
-	protected override string CreateValue(int seed) => seed.ToString();
-}
-[Trait("TValue", "decimal"), Trait("TKeyTValue", "Unmanaged")]
-public class BenchmarkDictionary_Int_Decimal(ITestOutputHelper output) : BenchmarkDictionary_Int<decimal>(output)
-{
-	protected override decimal CreateValue(int seed) => (decimal)seed;
-}
-[Trait("TValue", "UnmanagedStruct"), Trait("TKeyTValue", "Unmanaged")]
-public class BenchmarkDictionary_Int_UnmanagedStruct(ITestOutputHelper output) : BenchmarkDictionary_Int<UnmanagedStruct>(output)
-{
-	protected override UnmanagedStruct CreateValue(int seed) => new() { Value = seed };
-}
-[Trait("TValue", "ManagedStruct"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_Int_ManagedStruct(ITestOutputHelper output) : BenchmarkDictionary_Int<ManagedStruct>(output)
-{
-	protected override ManagedStruct CreateValue(int seed) => new() { Name = $"N{seed}" };
-}
-[Trait("TValue", "ManagedClass"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_Int_SampleClass(ITestOutputHelper output) : BenchmarkDictionary_Int<ManagedClass>(output)
-{
-	protected override ManagedClass CreateValue(int seed) => new() { Name = $"N{seed}" };
-}
-// String key × 6 values
-[Trait("TValue", "int"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_String_Int(ITestOutputHelper output) : BenchmarkDictionary_String<int>(output)
-{
-	protected override int CreateValue(int seed) => seed;
-}
-[Trait("TValue", "string"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_String_String(ITestOutputHelper output) : BenchmarkDictionary_String<string>(output)
-{
-	protected override string CreateValue(int seed) => seed.ToString();
-}
-[Trait("TValue", "decimal"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_String_Decimal(ITestOutputHelper output) : BenchmarkDictionary_String<decimal>(output)
-{
-	protected override decimal CreateValue(int seed) => (decimal)seed;
-}
-[Trait("TValue", "UnmanagedStruct"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_String_UnmanagedStruct(ITestOutputHelper output) : BenchmarkDictionary_String<UnmanagedStruct>(output)
-{
-	protected override UnmanagedStruct CreateValue(int seed) => new() { Value = seed };
-}
-[Trait("TValue", "ManagedStruct"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_String_ManagedStruct(ITestOutputHelper output) : BenchmarkDictionary_String<ManagedStruct>(output)
-{
-	protected override ManagedStruct CreateValue(int seed) => new() { Name = $"N{seed}" };
-}
-[Trait("TValue", "ManagedClass"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_String_SampleClass(ITestOutputHelper output) : BenchmarkDictionary_String<ManagedClass>(output)
-{
-	protected override ManagedClass CreateValue(int seed) => new() { Name = $"N{seed}" };
-}
-// Decimal key × 6 values
-[Trait("TValue", "int"), Trait("TKeyTValue", "Unmanaged")]
-public class BenchmarkDictionary_Decimal_Int(ITestOutputHelper output) : BenchmarkDictionary_Decimal<int>(output)
-{
-	protected override int CreateValue(int seed) => seed;
-}
-[Trait("TValue", "string"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_Decimal_String(ITestOutputHelper output) : BenchmarkDictionary_Decimal<string>(output)
-{
-	protected override string CreateValue(int seed) => seed.ToString();
-}
-[Trait("TValue", "decimal"), Trait("TKeyTValue", "Unmanaged")]
-public class BenchmarkDictionary_Decimal_Decimal(ITestOutputHelper output) : BenchmarkDictionary_Decimal<decimal>(output)
-{
-	protected override decimal CreateValue(int seed) => (decimal)seed;
-}
-[Trait("TValue", "UnmanagedStruct"), Trait("TKeyTValue", "Unmanaged")]
-public class BenchmarkDictionary_Decimal_UnmanagedStruct(ITestOutputHelper output) : BenchmarkDictionary_Decimal<UnmanagedStruct>(output)
-{
-	protected override UnmanagedStruct CreateValue(int seed) => new() { Value = seed };
-}
-[Trait("TValue", "ManagedStruct"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_Decimal_ManagedStruct(ITestOutputHelper output) : BenchmarkDictionary_Decimal<ManagedStruct>(output)
-{
-	protected override ManagedStruct CreateValue(int seed) => new() { Name = $"N{seed}" };
-}
-[Trait("TValue", "ManagedClass"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_Decimal_SampleClass(ITestOutputHelper output) : BenchmarkDictionary_Decimal<ManagedClass>(output)
-{
-	protected override ManagedClass CreateValue(int seed) => new() { Name = $"N{seed}" };
-}
-// UnmanagedStruct key × 6 values
-[Trait("TValue", "int"), Trait("TKeyTValue", "Unmanaged")]
-public class BenchmarkDictionary_UnmanagedStruct_Int(ITestOutputHelper output) : BenchmarkDictionary_UnmanagedStruct<int>(output)
-{
-	protected override int CreateValue(int seed) => seed;
-}
-[Trait("TValue", "string"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_UnmanagedStruct_String(ITestOutputHelper output) : BenchmarkDictionary_UnmanagedStruct<string>(output)
-{
-	protected override string CreateValue(int seed) => seed.ToString();
-}
-[Trait("TValue", "decimal"), Trait("TKeyTValue", "Unmanaged")]
-public class BenchmarkDictionary_UnmanagedStruct_Decimal(ITestOutputHelper output) : BenchmarkDictionary_UnmanagedStruct<decimal>(output)
-{
-	protected override decimal CreateValue(int seed) => (decimal)seed;
-}
-[Trait("TValue", "UnmanagedStruct"), Trait("TKeyTValue", "Unmanaged")]
-public class BenchmarkDictionary_UnmanagedStruct_UnmanagedStruct(ITestOutputHelper output) : BenchmarkDictionary_UnmanagedStruct<UnmanagedStruct>(output)
-{
-	protected override UnmanagedStruct CreateValue(int seed) => new() { Value = seed };
-}
-[Trait("TValue", "ManagedStruct"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_UnmanagedStruct_ManagedStruct(ITestOutputHelper output) : BenchmarkDictionary_UnmanagedStruct<ManagedStruct>(output)
-{
-	protected override ManagedStruct CreateValue(int seed) => new() { Name = $"N{seed}" };
-}
-[Trait("TValue", "ManagedClass"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_UnmanagedStruct_SampleClass(ITestOutputHelper output) : BenchmarkDictionary_UnmanagedStruct<ManagedClass>(output)
-{
-	protected override ManagedClass CreateValue(int seed) => new() { Name = $"N{seed}" };
-}
-// ManagedStruct key × 6 values
-[Trait("TValue", "int"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_ManagedStruct_Int(ITestOutputHelper output) : BenchmarkDictionary_ManagedStruct<int>(output)
-{
-	protected override int CreateValue(int seed) => seed;
-}
-[Trait("TValue", "string"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_ManagedStruct_String(ITestOutputHelper output) : BenchmarkDictionary_ManagedStruct<string>(output)
-{
-	protected override string CreateValue(int seed) => seed.ToString();
-}
-[Trait("TValue", "decimal"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_ManagedStruct_Decimal(ITestOutputHelper output) : BenchmarkDictionary_ManagedStruct<decimal>(output)
-{
-	protected override decimal CreateValue(int seed) => (decimal)seed;
-}
-[Trait("TValue", "UnmanagedStruct"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_ManagedStruct_UnmanagedStruct(ITestOutputHelper output) : BenchmarkDictionary_ManagedStruct<UnmanagedStruct>(output)
-{
-	protected override UnmanagedStruct CreateValue(int seed) => new() { Value = seed };
-}
-[Trait("TValue", "ManagedStruct"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_ManagedStruct_ManagedStruct(ITestOutputHelper output) : BenchmarkDictionary_ManagedStruct<ManagedStruct>(output)
-{
-	protected override ManagedStruct CreateValue(int seed) => new() { Name = $"N{seed}" };
-}
-[Trait("TValue", "ManagedClass"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionary_ManagedStruct_SampleClass(ITestOutputHelper output) : BenchmarkDictionary_ManagedStruct<ManagedClass>(output)
-{
-	protected override ManagedClass CreateValue(int seed) => new() { Name = $"N{seed}" };
-}
-// SampleClass key × 6 values
-[Trait("TValue", "int"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionaryClassInt(ITestOutputHelper output) : BenchmarkDictionary_Class<int>(output)
-{
-	protected override int CreateValue(int seed) => seed;
-}
-[Trait("TValue", "string"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionaryClassString(ITestOutputHelper output) : BenchmarkDictionary_Class<string>(output)
-{
-	protected override string CreateValue(int seed) => seed.ToString();
-}
-[Trait("TValue", "decimal"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionaryClassDecimal(ITestOutputHelper output) : BenchmarkDictionary_Class<decimal>(output)
-{
-	protected override decimal CreateValue(int seed) => (decimal)seed;
-}
-[Trait("TValue", "UnmanagedStruct"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionaryClassUnmanagedStruct(ITestOutputHelper output) : BenchmarkDictionary_Class<UnmanagedStruct>(output)
-{
-	protected override UnmanagedStruct CreateValue(int seed) => new() { Value = seed };
-}
-[Trait("TValue", "ManagedStruct"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionaryClassManagedStruct(ITestOutputHelper output) : BenchmarkDictionary_Class<ManagedStruct>(output)
-{
-	protected override ManagedStruct CreateValue(int seed) => new() { Name = $"N{seed}" };
-}
-[Trait("TValue", "ManagedClass"), Trait("TKeyTValue", "Managed")]
-public class BenchmarkDictionaryClassClass(ITestOutputHelper output) : BenchmarkDictionary_Class<ManagedClass>(output)
-{
-	protected override ManagedClass CreateValue(int seed) => new() { Name = $"N{seed}" };
+
+/// <summary>
+/// Dictionary ベンチ�Eークの generic 基底、EPI メソチE��ごとに <c>[Theory]</c> を定義する、E
+/// 派生型で Managed/Unmanaged を型引数で刁E��替え、Esee cref="CreateStoreAndDict"/> を実裁E��る、E
+/// </summary>
+/// <remarks>
+/// 吁E��スト�E <c>Count</c> 件のキーで Store めE1 つ作り、Parallel 並列度刁E�EスレチE��で同時に計測する、E
+/// <c>IndexSize=Count</c>、Ec>MutableFraction&lt;1.0</c> 時�E一時ログチE��イスに書き込む、E
+/// </remarks>
+public abstract class BenchmarkDictionary<TKey,TValue> : BenchmarkBase
+    where TKey:IEquatable<TKey>
+    where TValue:IEquatable<TValue> {
+    protected BenchmarkDictionary(ITestOutputHelper output) : base(output) { }
+
+    protected abstract TKey CreateKey(int seed);
+    protected abstract TValue CreateValue(int seed);
+
+    /// <summary>Store+Dictionary を作る。派生型ぁEManaged/Unmanaged のどちらかを実裁E��る、E/summary>
+    protected abstract DictHandle<TKey,TValue> CreateStoreAndDict(double mutableFraction,int elementCount);
+
+    /// <summary>dict を空にしてから <paramref name="count"/> 件を投入する、E/summary>
+    protected void Populate(ISeamlessDictionary<TKey,TValue> dict,int count) {
+        for(var i = 0; i<count; i++) {
+            dict[this.CreateKey(i)]=this.CreateValue(i);
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // ISeamlessDictionary (= IDictionary<TKey,TValue>) 直接呼び出ぁE
+    // ──────────────────────────────────────────────────────────────────
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.Add"),MemberData(nameof(Matrix))]
+    public void Add(int parallel,double mutableFraction) {
+        const int Count = 2_500_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => this.CreateStoreAndDict(mutableFraction,Count),
+            measure: (t,h) => {
+                for(var i = 0; i<Count; i++) h.Dict.Add(this.CreateKey(i),this.CreateValue(i));
+            },
+            teardown: h => h.Dispose(),
+            label: "Dictionary.Add",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.Remove_key"),MemberData(nameof(Matrix))]
+    public void Remove_key(int parallel,double mutableFraction) {
+        const int Count = 2_300_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                for(var i = 0; i<Count; i++) h.Dict.Remove(this.CreateKey(i));
+            },
+            teardown: h => h.Dispose(),
+            label: "Dictionary.Remove(key)",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.Remove_key_value"),MemberData(nameof(Matrix))]
+    public void Remove_key_value(int parallel,double mutableFraction) {
+        const int Count = 2_300_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                for(var i = 0; i<Count; i++) h.Dict.Remove(this.CreateKey(i),out _);
+            },
+            teardown: h => h.Dispose(),
+            label: "Dictionary.Remove(key,value)",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.Clear"),MemberData(nameof(Matrix))]
+    public void Clear(int parallel,double mutableFraction) {
+        const int Count = 5_000_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => h.Dict.Clear(),
+            teardown: h => h.Dispose(),
+            label: "Dictionary.Clear",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.TryGetValue"),MemberData(nameof(Matrix))]
+    public void TryGetValue(int parallel,double mutableFraction) {
+        const int Count = 2_300_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                for(var i = 0; i<Count; i++) h.Dict.TryGetValue(this.CreateKey(i),out _);
+            },
+            teardown: h => h.Dispose(),
+            label: "Dictionary.TryGetValue",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.Contains"),MemberData(nameof(Matrix))]
+    public void Contains(int parallel,double mutableFraction) {
+        const int Count = 2_000_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                var coll = (ICollection<KeyValuePair<TKey,TValue>>)h.Dict;
+                for(var i = 0; i<Count; i++) _ = coll.Contains(new KeyValuePair<TKey,TValue>(this.CreateKey(i),this.CreateValue(i)));
+            },
+            teardown: h => h.Dispose(),
+            label: "Dictionary.Contains(KVP)",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.ContainsKey"),MemberData(nameof(Matrix))]
+    public void ContainsKey(int parallel,double mutableFraction) {
+        const int Count = 2_400_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                for(var i = 0; i<Count; i++) _ = h.Dict.ContainsKey(this.CreateKey(i));
+            },
+            teardown: h => h.Dispose(),
+            label: "Dictionary.ContainsKey",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.foreach"),MemberData(nameof(Matrix))]
+    public void Enumerate_foreach(int parallel,double mutableFraction) {
+        const int Count = 1_500_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => { var n = 0; foreach(var kv in h.Dict) n++; },
+            teardown: h => h.Dispose(),
+            label: "Dictionary.foreach",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.Count"),MemberData(nameof(Matrix))]
+    public void Count_(int parallel,double mutableFraction) {
+        const int Count = 1_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => { _ = h.Dict.Count; },
+            teardown: h => h.Dispose(),
+            label: "Dictionary.Count",
+            measuredOpsTotal: parallel);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.Keys"),MemberData(nameof(Matrix))]
+    public void Keys_(int parallel,double mutableFraction) {
+        const int Count = 1_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => { _ = h.Dict.Keys; },
+            teardown: h => h.Dispose(),
+            label: "Dictionary.Keys",
+            measuredOpsTotal: parallel);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.Values"),MemberData(nameof(Matrix))]
+    public void Values_(int parallel,double mutableFraction) {
+        const int Count = 1_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => { _ = h.Dict.Values; },
+            teardown: h => h.Dispose(),
+            label: "Dictionary.Values",
+            measuredOpsTotal: parallel);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.ToList"),MemberData(nameof(Matrix))]
+    public void ToList_(int parallel,double mutableFraction) {
+        const int Count = 700_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => { _ = System.Linq.Enumerable.ToList(h.Dict); },
+            teardown: h => h.Dispose(),
+            label: "Dictionary.ToList",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.get_Item"),MemberData(nameof(Matrix))]
+    public void Indexer_Get(int parallel,double mutableFraction) {
+        const int Count = 2_500_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                for(var i = 0; i<Count; i++) _ = h.Dict[this.CreateKey(i)];
+            },
+            teardown: h => h.Dispose(),
+            label: "Dictionary.get_Item",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","Dictionary.set_Item"),MemberData(nameof(Matrix))]
+    public void Indexer_Set(int parallel,double mutableFraction) {
+        const int Count = 2_500_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                for(var i = 0; i<Count; i++) h.Dict[this.CreateKey(i)]=this.CreateValue(i+1);
+            },
+            teardown: h => h.Dispose(),
+            label: "Dictionary.set_Item",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // IDictionary<TKey,TValue> 経由
+    // ──────────────────────────────────────────────────────────────────
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","IDictionary.Add"),MemberData(nameof(Matrix))]
+    public void IDictionary_Add(int parallel,double mutableFraction) {
+        const int Count = 2_400_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => this.CreateStoreAndDict(mutableFraction,Count),
+            measure: (t,h) => {
+                var d = (IDictionary<TKey,TValue>)h.Dict;
+                for(var i = 0; i<Count; i++) d.Add(this.CreateKey(i),this.CreateValue(i));
+            },
+            teardown: h => h.Dispose(),
+            label: "IDictionary.Add",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","IDictionary.ContainsKey"),MemberData(nameof(Matrix))]
+    public void IDictionary_ContainsKey(int parallel,double mutableFraction) {
+        const int Count = 2_700_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                var d = (IDictionary<TKey,TValue>)h.Dict;
+                for(var i = 0; i<Count; i++) _ = d.ContainsKey(this.CreateKey(i));
+            },
+            teardown: h => h.Dispose(),
+            label: "IDictionary.ContainsKey",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","IDictionary.Remove"),MemberData(nameof(Matrix))]
+    public void IDictionary_Remove(int parallel,double mutableFraction) {
+        const int Count = 2_500_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                var d = (IDictionary<TKey,TValue>)h.Dict;
+                for(var i = 0; i<Count; i++) _ = d.Remove(this.CreateKey(i));
+            },
+            teardown: h => h.Dispose(),
+            label: "IDictionary.Remove",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","IDictionary.TryGetValue"),MemberData(nameof(Matrix))]
+    public void IDictionary_TryGetValue(int parallel,double mutableFraction) {
+        const int Count = 2_700_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                var d = (IDictionary<TKey,TValue>)h.Dict;
+                for(var i = 0; i<Count; i++) d.TryGetValue(this.CreateKey(i),out _);
+            },
+            teardown: h => h.Dispose(),
+            label: "IDictionary.TryGetValue",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","IDictionary.Keys"),MemberData(nameof(Matrix))]
+    public void IDictionary_Keys(int parallel,double mutableFraction) {
+        const int Count = 1_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => { var d = (IDictionary<TKey,TValue>)h.Dict; _ = d.Keys; },
+            teardown: h => h.Dispose(),
+            label: "IDictionary.Keys",
+            measuredOpsTotal: parallel);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","IDictionary.Values"),MemberData(nameof(Matrix))]
+    public void IDictionary_Values(int parallel,double mutableFraction) {
+        const int Count = 1_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => { var d = (IDictionary<TKey,TValue>)h.Dict; _ = d.Values; },
+            teardown: h => h.Dispose(),
+            label: "IDictionary.Values",
+            measuredOpsTotal: parallel);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // ICollection<KVP> 経由
+    // ──────────────────────────────────────────────────────────────────
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","ICollection.Add"),MemberData(nameof(Matrix))]
+    public void ICollection_Add(int parallel,double mutableFraction) {
+        const int Count = 2_700_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => this.CreateStoreAndDict(mutableFraction,Count),
+            measure: (t,h) => {
+                var c = (ICollection<KeyValuePair<TKey,TValue>>)h.Dict;
+                for(var i = 0; i<Count; i++) c.Add(new KeyValuePair<TKey,TValue>(this.CreateKey(i),this.CreateValue(i)));
+            },
+            teardown: h => h.Dispose(),
+            label: "ICollection.Add",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","ICollection.Clear"),MemberData(nameof(Matrix))]
+    public void ICollection_Clear(int parallel,double mutableFraction) {
+        const int Count = 5_000_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => { var c = (ICollection<KeyValuePair<TKey,TValue>>)h.Dict; c.Clear(); },
+            teardown: h => h.Dispose(),
+            label: "ICollection.Clear",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","ICollection.Contains"),MemberData(nameof(Matrix))]
+    public void ICollection_Contains(int parallel,double mutableFraction) {
+        const int Count = 2_800_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                var c = (ICollection<KeyValuePair<TKey,TValue>>)h.Dict;
+                for(var i = 0; i<Count; i++) _ = c.Contains(new KeyValuePair<TKey,TValue>(this.CreateKey(i),this.CreateValue(i)));
+            },
+            teardown: h => h.Dispose(),
+            label: "ICollection.Contains",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","ICollection.CopyTo"),MemberData(nameof(Matrix))]
+    public void ICollection_CopyTo(int parallel,double mutableFraction) {
+        const int Count = 700_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                var c = (ICollection<KeyValuePair<TKey,TValue>>)h.Dict;
+                var arr = new KeyValuePair<TKey,TValue>[c.Count];
+                c.CopyTo(arr,0);
+            },
+            teardown: h => h.Dispose(),
+            label: "ICollection.CopyTo",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","ICollection.Remove"),MemberData(nameof(Matrix))]
+    public void ICollection_Remove(int parallel,double mutableFraction) {
+        const int Count = 2_500_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                var c = (ICollection<KeyValuePair<TKey,TValue>>)h.Dict;
+                for(var i = 0; i<Count; i++) _ = c.Remove(new KeyValuePair<TKey,TValue>(this.CreateKey(i),this.CreateValue(i)));
+            },
+            teardown: h => h.Dispose(),
+            label: "ICollection.Remove",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // IReadOnlyCollection<KVP>.Count / IReadOnlyDictionary メンチE
+    // ──────────────────────────────────────────────────────────────────
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","IReadOnlyCollection.Count"),MemberData(nameof(Matrix))]
+    public void IReadOnlyCollection_Count(int parallel,double mutableFraction) {
+        const int Count = 1_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => { var c = (IReadOnlyCollection<KeyValuePair<TKey,TValue>>)h.Dict; _ = c.Count; },
+            teardown: h => h.Dispose(),
+            label: "IReadOnlyCollection.Count",
+            measuredOpsTotal: parallel);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","IReadOnlyDictionary.get_Item"),MemberData(nameof(Matrix))]
+    public void IReadOnlyDictionary_Indexer_Get(int parallel,double mutableFraction) {
+        const int Count = 2_600_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                var d = (IReadOnlyDictionary<TKey,TValue>)h.Dict;
+                for(var i = 0; i<Count; i++) _ = d[this.CreateKey(i)];
+            },
+            teardown: h => h.Dispose(),
+            label: "IReadOnlyDictionary.get_Item",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","IReadOnlyDictionary.ContainsKey"),MemberData(nameof(Matrix))]
+    public void IReadOnlyDictionary_ContainsKey(int parallel,double mutableFraction) {
+        const int Count = 2_600_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                var d = (IReadOnlyDictionary<TKey,TValue>)h.Dict;
+                for(var i = 0; i<Count; i++) _ = d.ContainsKey(this.CreateKey(i));
+            },
+            teardown: h => h.Dispose(),
+            label: "IReadOnlyDictionary.ContainsKey",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","IReadOnlyDictionary.TryGetValue"),MemberData(nameof(Matrix))]
+    public void IReadOnlyDictionary_TryGetValue(int parallel,double mutableFraction) {
+        const int Count = 2_500_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                var d = (IReadOnlyDictionary<TKey,TValue>)h.Dict;
+                for(var i = 0; i<Count; i++) d.TryGetValue(this.CreateKey(i),out _);
+            },
+            teardown: h => h.Dispose(),
+            label: "IReadOnlyDictionary.TryGetValue",
+            measuredOpsTotal: (long)parallel*Count);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","IReadOnlyDictionary.Keys"),MemberData(nameof(Matrix))]
+    public void IReadOnlyDictionary_Keys(int parallel,double mutableFraction) {
+        const int Count = 5_000_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => { var d = (IReadOnlyDictionary<TKey,TValue>)h.Dict; _ = d.Keys; },
+            teardown: h => h.Dispose(),
+            label: "IReadOnlyDictionary.Keys",
+            measuredOpsTotal: parallel);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","IReadOnlyDictionary.Values"),MemberData(nameof(Matrix))]
+    public void IReadOnlyDictionary_Values(int parallel,double mutableFraction) {
+        const int Count = 5_000_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => { var d = (IReadOnlyDictionary<TKey,TValue>)h.Dict; _ = d.Values; },
+            teardown: h => h.Dispose(),
+            label: "IReadOnlyDictionary.Values",
+            measuredOpsTotal: parallel);
+    }
+
+    [Theory,Trait("Category","Benchmark"),Trait("Api","IEnumerable.GetEnumerator"),MemberData(nameof(Matrix))]
+    public void IEnumerable_GetEnumerator(int parallel,double mutableFraction) {
+        const int Count = 1_400_000 * BenchmarkScale.Scale;
+        this.RunParallel(parallel,
+            setupPerThread: t => { var h = this.CreateStoreAndDict(mutableFraction,Count); this.Populate(h.Dict,Count); return h; },
+            measure: (t,h) => {
+                var e = ((IEnumerable)h.Dict).GetEnumerator();
+                try { while(e.MoveNext()) { } } finally { if(e is IDisposable d) d.Dispose(); }
+            },
+            teardown: h => h.Dispose(),
+            label: "IEnumerable.GetEnumerator",
+            measuredOpsTotal: (long)parallel*Count);
+    }
 }

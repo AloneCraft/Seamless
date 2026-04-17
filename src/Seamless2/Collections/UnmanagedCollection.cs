@@ -78,10 +78,10 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
             EqualityEmpty,//TInput
             TValue,//TOutput
             EqualityEmpty,//TContext
-
-
-
-            UnmanagedRead<TKey,TValue>,//TReadFunctions
+            UnmanagedRead<
+                TKey,
+                TValue
+            >,//TReadFunctions
 
 
 
@@ -119,8 +119,8 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
         private long Cursor=0,Count;
         private int Index=-1;
         private bool Done;
-        public T Current=>Iterator.Chunk[this.Index];
-        object? IEnumerator.Current=>this.Current;
+        public readonly T Current=>Iterator.Chunk[this.Index];
+        readonly object? IEnumerator.Current=>this.Current;
         public bool MoveNext(){
             if(++this.Index<this.Count)
                 return true;
@@ -130,6 +130,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
             }
             Iterator.Count=0;
             var r=session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor:false);
+            //1.0と違い同期的に完了
             var Count=Iterator.Count;
             this.Count=Count;
             if(!r)
@@ -147,7 +148,7 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
             this.Index=-1;
             this.Done=false;
         }
-        public void Dispose(){
+        public readonly void Dispose(){
         }
     }
     protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore):base(CollectionStore){
@@ -188,12 +189,9 @@ public abstract partial class UnmanagedCollection<TKey,TValue,TKeySerializer,TVa
     }
     private protected override TryAddResult PrivateTryAdd(TKey key,TValue value){
         var KeyBytes=TKeySerializer.Serialize(ref key);
-
-
         if(this.WouldOverflowMutable(KeyBytes.Length,Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
         var ClientSession=this.AddClientSession;
-        
         var Output=false;
         var Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref value,ref Output);
         Status=Pending(ClientSession,Status,ref Output);

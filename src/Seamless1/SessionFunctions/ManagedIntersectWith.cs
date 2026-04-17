@@ -28,9 +28,9 @@ internal readonly struct ManagedIntersectWith:
     public void PostSingleWriter(ref SpanByte Key,ref EqualityEmpty Input,ref SpanByte Src,ref SpanByte Dst,ref EqualityEmpty Output,ref UpsertInfo UpsertInfo,WriteReason Reason){
         throw new NotSupportedException("Upsert");
     }
-    [ExcludeFromCodeCoverage]
     public bool NeedInitialUpdate(ref SpanByte Key,ref EqualityEmpty Input,ref EqualityEmpty Output,ref RMWInfo RmwInfo){
-        throw new NotSupportedException("Upsert");
+        // キーが存在しない場合は新規作成しない（NOTFOUND を返させる）。  
+        return false;
     }
     [ExcludeFromCodeCoverage]
     public bool InitialUpdater(ref SpanByte Key,ref EqualityEmpty Input,ref SpanByte Value,ref EqualityEmpty Output,ref RMWInfo RmwInfo,ref RecordInfo RecordInfo){

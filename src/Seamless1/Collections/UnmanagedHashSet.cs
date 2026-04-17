@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
@@ -129,13 +128,6 @@ public partial class UnmanagedHashSet<TKey>
                 var output = default(EqualityEmpty);
                 var status = session.BasicContext.RMW(ref key,ref input,ref output);
                 Pending(session,status,ref output);
-                //if(status.IsPending){
-                //    session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait:true);
-                //    using(completedOutputs){
-                //        Debug.Assert(completedOutputs.Next());
-                //    }
-                //}else{
-                //}
             }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -166,17 +158,6 @@ public partial class UnmanagedHashSet<TKey>
             var Output = default(EqualityEmpty);
             var Status = session.BasicContext.RMW(ref key,ref Input,ref Output);
             Pending(session,Status,ref Output);
-            //if(Status.IsPending){
-            //    session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait:true);
-            //    using(CompletedOutputs){
-            //        if(!CompletedOutputs.Next()){
-            //        } else{
-            //            Status=CompletedOutputs.Current.Status;
-            //            Output=CompletedOutputs.Current.Output;
-            //        }
-            //    }
-            //} else{
-            //}
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
@@ -192,7 +173,6 @@ public partial class UnmanagedHashSet<TKey>
         var iterator = new IntersectWithImpl(other,session);
         var cursor = 0L;
         session.IterateLookup(ref iterator,ref cursor,resetCursor: false);
-        session.BasicContext.CompletePending(wait: true);
         session.BasicContext.CompletePending(wait: true);
     }
     public partial void SymmetricExceptWith(UnmanagedHashSet<TKey> other) {

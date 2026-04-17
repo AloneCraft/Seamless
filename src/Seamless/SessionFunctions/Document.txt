@@ -1,4 +1,71 @@
-﻿Read
+﻿ScanSessionFunction
+    lock(gate) しているがパフォーマンスが悪そうだ。もっとよい解決法を考えて
+    構造的な分析をすると、lock は実は不要です。理由を説明し、2つのアプローチを提案します。
+
+    分析
+    ManagedIntersectWith.cs:103 に既にこう書いてあります:
+
+    IterateLookup でスキャンしたキー（= 必ずメモリ上、HeadAddress以上）に対して RMW を呼ぶ。一方 ConvertOutputToHeap が呼ばれる条件は「RMW が IsPending になった時」だけ（= レコードがディスク上、HeadAddress未満）。この2条件は同一レコードに対して同時に成立できないため、IntersectWith 経由では構造的に到達不可能。
+
+    つまり:
+
+    IterateLookup は HeadAddress～TailAddress（メモリ上）のレコードだけをスキャンする
+    各レコードのコールバックはスキャンスレッドで同期的・順次に呼ばれる
+    スキャン対象がすべてメモリ上なので、スキャン起因の pending IO は発生しない
+    メモリ上のキーに対する RMW も IsPending にならない
+    ScanIteratorFunctions の Interlocked コメント（「Pending非同期がConcurrentで呼ばれるため」）は列挙の一般的な安全策ですが、IntersectWith/SymmetricExceptWith では上記の構造的保証により並列コールバックは発生しません。
+
+SymmetricExceptWith では OTHER のスキャン中に THIS の RMW が IsPending になりうる（THIS 側のキーがディスク上の場合）が、Pending() は同じスレッドで inline 解決するため、スキャンコールバックの並列化は起きません。
+
+提案A（推奨）: lock を除去する
+
+結論だけ言うと、1.1.1 系の IterateLookup/ScanCursor 経路では ConcurrentReader + SingleReader の並列は起こりえます。
+
+整理:
+
+SingleReader + SingleReader 並列
+起こりにくい（通常はない）という理解で合っています。
+
+ConcurrentReader + ConcurrentReader 並列
+同一スキャン文脈では基本想定しにくいです（主スレッド側の進行で呼ばれるため）。
+ただし別セッション/別スキャンを同時実行すればアプリ全体では並列になりえます。
+
+ConcurrentReader + SingleReader 並列
+ここが要注意で、起こりえます。
+理由は、mutable 側の処理進行中に pending I/O 完了側から read-only 側コールバックが返ってくる経路があるためです。
+そのため、同じ状態（同じ session や同じ可変フィールド）を触るなら排他が必要になります。
+
+2.0でconcurrentreaderが無くなった理由
+
+理由を正確に言語化するため、まず 1.x と 2.0 のスキャン関数インターフェース差分（Single/Concurrent の有無）をコードで再確認します。
+
+理由は、2.0 でスキャン API 自体が整理されて「呼び分けが不要になった」からです。
+
+1.x 系はスキャン側に 2 つの入口がありました
+ScanIteratorFunctions.cs:8 に SingleReader、ScanIteratorFunctions.cs:25 に ConcurrentReader があります。
+
+2.0 系は入口を 1 本化しています
+ScanIteratorFunctions.cs:8 は Reader だけです。
+同様にセッション関数群も Reader 1 本で統一されています（例: ManagedRead.cs:13, UnmanagedRead.cs:16）。
+
+つまり「mutable だから ConcurrentReader、immutable だから SingleReader」という分岐モデルを 2.0 で廃止した
+これにより、ConcurrentReader という概念そのものが不要になって削除されています。
+設計意図としては、コールバック面を単純化して実装と利用側の分岐を減らすためです。
+
+要するに、2.0 は「並行読み専用の別コールバック」を残す設計ではなく、「Reader 1 本に統合して内部で処理する設計」に変わった、が直接の理由です。
+
+Continued with Autopilot: Task not yet complete
+
+差分の根拠を正確にするため、Seamless1/Seamless2 の IterateLookup 呼び出し箇所と CompletePending の有無を並べて確認します。
+
+補強として、2.0 側で「IterateLookup では IsPending にならない」というコメント実装も確認して、理由を一段具体化します。
+
+結論だけ先に言うと、2.0 では IterateLookup 自体が「Pending を返して後で完了する」方式ではなく、スキャン中の必要な読み出しをその場で処理してから Reader を呼ぶ流れに変わっているためです。
+
+
+
+
+Read
     GetUpsertFieldInfo//サイズ見積もり
     if(FoundMutable){
         Reader
