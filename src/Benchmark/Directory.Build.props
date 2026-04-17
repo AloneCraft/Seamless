@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      Benchmark1.csproj と Benchmark2.csproj が同じフォルダを共有するため、
+      NuGet restore が同じ obj/project.assets.json を上書きし合って
+      Tsavorite.core 1/2 の解決が衝突する。
+      MSBuildProjectName ごとに obj/bin を分離して衝突を防ぐ。
+      Microsoft.Common.props より前にインポートする必要があるため Directory.Build.props で設定する。
+    -->
+    <BaseIntermediateOutputPath>obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin\$(MSBuildProjectName)\</BaseOutputPath>
+  </PropertyGroup>
+</Project>
