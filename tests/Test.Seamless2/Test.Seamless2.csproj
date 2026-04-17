@@ -13,8 +13,11 @@
 	</PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="artifacts\**" />
     <Compile Remove="Garnet\**" />
+    <EmbeddedResource Remove="artifacts\**" />
     <EmbeddedResource Remove="Garnet\**" />
+    <None Remove="artifacts\**" />
     <None Remove="Garnet\**" />
   </ItemGroup>
 
