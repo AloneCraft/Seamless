@@ -8,20 +8,23 @@ public abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions{
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) where TSourceLogRecord:ISourceLogRecord{
         Debug.Assert(!logRecord.Info.Tombstone);
         var Count=this.Count;
+        // EndBatch返却後にConditionalScanPush経由(pending IO完了)でOnStartを経ずに
+        // Readerが再呼出されることがある。Count>=Chunk_LengthならEnumeratorが
+        // 既にChunk[0..Count-1]を読み終えていないため、このレコードは無視してEndBatchを返す。
+        if(Count>=Const.Chunk_Length){
+            cursorRecordResult=CursorRecordResult.EndBatch;
+            return true;
+        }
         this.Chunk[Count]=this.Deserialize(logRecord);
         Count++;
         this.Count=Count;
         if(Count==Const.Chunk_Length){
             cursorRecordResult=CursorRecordResult.EndBatch;
-            return true;
         }else{
             cursorRecordResult=CursorRecordResult.Accept;
-            return true;
         }
+        return true;
     }
-    
-    
-    
     public bool OnStart(long beginAddress,long endAddress){
         this.Count=0;
         return true;

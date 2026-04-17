@@ -5,28 +5,36 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ServerGarbageCollection>true</ServerGarbageCollection>
+    <RootNamespace>Seamless.Collections.Benchmarks</RootNamespace>
+    <DefineConstants>$(DefineConstants);TSAVORITE1_1_1</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="8.0.0">
+    <PackageReference Include="coverlet.collector" Version="8.0.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="MemoryPack" Version="1.*" />
-    <PackageReference Include="Microsoft.Garnet" Version="2.0.0-beta.3" />
+    <PackageReference Include="Microsoft.Garnet" Version="1.*" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
   </ItemGroup>
-
 
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Benchmarks.csproj は自己完結: 必要な型は本プロジェクト内に定義する。 -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Seamless1\Seamless1.csproj" />
+  </ItemGroup>
 
 </Project>

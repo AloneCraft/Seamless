@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Seamless.BenchmarkCalibration</RootNamespace>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Seamless1\Seamless1.csproj" />
+  </ItemGroup>
+</Project>

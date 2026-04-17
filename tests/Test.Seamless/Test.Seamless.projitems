@@ -55,6 +55,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stores\KindDictionarySize.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stress\StressGolden.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stress\StressScript.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stress\StressScale.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stress\SerialRandomStressTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stress\ParallelRandomStressTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stress\SetOperationStressTests.cs" />

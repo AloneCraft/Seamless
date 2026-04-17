@@ -1,7 +1,3 @@
-using System.Numerics;
-
-using Test.Seamless.Collections;
-
 namespace Benchmarks;
 
 [Collection("Benchmark")]

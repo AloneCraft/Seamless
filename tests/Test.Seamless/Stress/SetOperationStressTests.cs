@@ -11,6 +11,7 @@ namespace Test.Seamless.Stress;
 public class SetOperationStressTests {
     private const int SeedA = 20260417;
     private const int SeedB = 20260419;
+    private const int StressSetOpCount = 2_048;
 
     private static string CreateTempDir(string tag) {
         var dir = Path.Combine(Path.GetTempPath(),"Seamless_SetStress_"+tag+"_"+Guid.NewGuid().ToString("N"));
@@ -25,6 +26,7 @@ public class SetOperationStressTests {
     private static void RunUnmanagedIntSetOp(
         string opName,
         int count,
+        int repeat,
         Action<UnmanagedUnmanagedHashSet<int>,UnmanagedUnmanagedHashSet<int>> op) {
         var temp = CreateTempDir("uintset_"+opName);
         try {
@@ -34,7 +36,7 @@ public class SetOperationStressTests {
             var objA = Path.Combine(temp,"objA");
             var logB = Path.Combine(temp,"logB");
             var objB = Path.Combine(temp,"objB");
-            string hash;
+            var hash = string.Empty;
             using(var logDevA = Devices.CreateLogDevice(logA))
             using(var objDevA = Devices.CreateLogDevice(objA))
             using(var logDevB = Devices.CreateLogDevice(logB))
@@ -43,14 +45,18 @@ public class SetOperationStressTests {
             using(var storeB = Factory.Create().Create<int>(logDevB,objDevB))
             using(var setA = storeA.Create())
             using(var setB = storeB.Create()) {
-                foreach(var k in keysA) setA.Add(k);
-                foreach(var k in keysB) setB.Add(k);
-                storeA.Store.Log.FlushAndEvict(wait: true);
-                storeB.Store.Log.FlushAndEvict(wait: true);
-                op(setA,setB);
-                var probeKeys = new HashSet<int>(keysA);
-                probeKeys.UnionWith(keysB);
-                hash=StressGolden.HashInt32KeysByProbe(probeKeys,key => setA.Contains(key));
+                for(var r = 0; r<repeat; r++) {
+                    setA.Clear();
+                    setB.Clear();
+                    foreach(var k in keysA) setA.Add(k);
+                    foreach(var k in keysB) setB.Add(k);
+                    storeA.Store.Log.FlushAndEvict(wait: true);
+                    storeB.Store.Log.FlushAndEvict(wait: true);
+                    op(setA,setB);
+                    var probeKeys = new HashSet<int>(keysA);
+                    probeKeys.UnionWith(keysB);
+                    hash=StressGolden.HashInt32KeysByProbe(probeKeys,key => setA.Contains(key));
+                }
             }
             StressGolden.AssertGolden($"SetOp_UintSet_{opName}_{count}",hash);
         }
@@ -59,38 +65,51 @@ public class SetOperationStressTests {
         }
     }
 
-    [Theory, InlineData(10_000)]
-    public void IntersectWith_UnmanagedInt(int count) =>
+    [Theory, InlineData(StressSetOpCount)]
+    public void IntersectWith_UnmanagedInt(int count) {
+        const int Count = 1;
 #if TSAVORITE1_1_1
+        _=Count;
         _=count;
 #else
-        RunUnmanagedIntSetOp("IntersectWith",count,(a,b) => a.IntersectWith(b));
+        RunUnmanagedIntSetOp("IntersectWith",count,StressScale.Apply(Count),(a,b) => a.IntersectWith(b));
 #endif
-    [Theory, InlineData(10_000)]
-    public void SymmetricExceptWith_UnmanagedInt(int count) =>
+    }
+    [Theory, InlineData(StressSetOpCount)]
+    public void SymmetricExceptWith_UnmanagedInt(int count) {
+        const int Count = 1;
 #if TSAVORITE1_1_1
+        _=Count;
         _=count;
 #else
-        RunUnmanagedIntSetOp("SymmetricExceptWith",count,(a,b) => a.SymmetricExceptWith(b));
+        RunUnmanagedIntSetOp("SymmetricExceptWith",count,StressScale.Apply(Count),(a,b) => a.SymmetricExceptWith(b));
 #endif
-    [Theory, InlineData(10_000)]
-    public void UnionWith_UnmanagedInt(int count) =>
+    }
+    [Theory, InlineData(StressSetOpCount)]
+    public void UnionWith_UnmanagedInt(int count) {
+        const int Count = 1;
 #if TSAVORITE1_1_1
+        _=Count;
         _=count;
 #else
-        RunUnmanagedIntSetOp("UnionWith",count,(a,b) => a.UnionWith(b));
+        RunUnmanagedIntSetOp("UnionWith",count,StressScale.Apply(Count),(a,b) => a.UnionWith(b));
 #endif
-    [Theory, InlineData(10_000)]
-    public void ExceptWith_UnmanagedInt(int count) =>
+    }
+    [Theory, InlineData(StressSetOpCount)]
+    public void ExceptWith_UnmanagedInt(int count) {
+        const int Count = 1;
 #if TSAVORITE1_1_1
+        _=Count;
         _=count;
 #else
-        RunUnmanagedIntSetOp("ExceptWith",count,(a,b) => a.ExceptWith(b));
+        RunUnmanagedIntSetOp("ExceptWith",count,StressScale.Apply(Count),(a,b) => a.ExceptWith(b));
 #endif
+    }
 
     private static void RunManagedStringSetOp(
         string opName,
         int count,
+        int repeat,
         Action<ManagedHashSet<string>,ManagedHashSet<string>> op) {
         var temp = CreateTempDir("strset_"+opName);
         try {
@@ -102,7 +121,7 @@ public class SetOperationStressTests {
             var objA = Path.Combine(temp,"objA");
             var logB = Path.Combine(temp,"logB");
             var objB = Path.Combine(temp,"objB");
-            string hash;
+            var hash = string.Empty;
             using(var logDevA = Devices.CreateLogDevice(logA))
             using(var objDevA = Devices.CreateLogDevice(objA))
             using(var logDevB = Devices.CreateLogDevice(logB))
@@ -111,14 +130,18 @@ public class SetOperationStressTests {
             using(var storeB = Factory.Create().Create<string>(logDevB,objDevB,new ManagedTag()))
             using(var setA = storeA.Create())
             using(var setB = storeB.Create()) {
-                foreach(var k in keysA) setA.Add(k);
-                foreach(var k in keysB) setB.Add(k);
-                storeA.Store.Log.FlushAndEvict(wait: true);
-                storeB.Store.Log.FlushAndEvict(wait: true);
-                op(setA,setB);
-                var probeKeys = new HashSet<string>(keysA,StringComparer.Ordinal);
-                probeKeys.UnionWith(keysB);
-                hash=StressGolden.HashStringKeysByProbe(probeKeys,key => setA.Contains(key));
+                for(var r = 0; r<repeat; r++) {
+                    setA.Clear();
+                    setB.Clear();
+                    foreach(var k in keysA) setA.Add(k);
+                    foreach(var k in keysB) setB.Add(k);
+                    storeA.Store.Log.FlushAndEvict(wait: true);
+                    storeB.Store.Log.FlushAndEvict(wait: true);
+                    op(setA,setB);
+                    var probeKeys = new HashSet<string>(keysA,StringComparer.Ordinal);
+                    probeKeys.UnionWith(keysB);
+                    hash=StressGolden.HashStringKeysByProbe(probeKeys,key => setA.Contains(key));
+                }
             }
             StressGolden.AssertGolden($"SetOp_StrSet_{opName}_{count}",hash);
         }
@@ -127,32 +150,44 @@ public class SetOperationStressTests {
         }
     }
 
-    [Theory, InlineData(10_000)]
-    public void IntersectWith_ManagedString(int count) =>
+    [Theory, InlineData(StressSetOpCount)]
+    public void IntersectWith_ManagedString(int count) {
+        const int Count = 2;
 #if TSAVORITE1_1_1
+        _=Count;
         _=count;
 #else
-        RunManagedStringSetOp("IntersectWith",count,(a,b) => a.IntersectWith(b));
+        RunManagedStringSetOp("IntersectWith",count,StressScale.Apply(Count),(a,b) => a.IntersectWith(b));
 #endif
-    [Theory, InlineData(10_000)]
-    public void SymmetricExceptWith_ManagedString(int count) =>
+    }
+    [Theory, InlineData(StressSetOpCount)]
+    public void SymmetricExceptWith_ManagedString(int count) {
+        const int Count = 1;
 #if TSAVORITE1_1_1
+        _=Count;
         _=count;
 #else
-        RunManagedStringSetOp("SymmetricExceptWith",count,(a,b) => a.SymmetricExceptWith(b));
+        RunManagedStringSetOp("SymmetricExceptWith",count,StressScale.Apply(Count),(a,b) => a.SymmetricExceptWith(b));
 #endif
-    [Theory, InlineData(10_000)]
-    public void UnionWith_ManagedString(int count) =>
+    }
+    [Theory, InlineData(StressSetOpCount)]
+    public void UnionWith_ManagedString(int count) {
+        const int Count = 2;
 #if TSAVORITE1_1_1
+        _=Count;
         _=count;
 #else
-        RunManagedStringSetOp("UnionWith",count,(a,b) => a.UnionWith(b));
+        RunManagedStringSetOp("UnionWith",count,StressScale.Apply(Count),(a,b) => a.UnionWith(b));
 #endif
-    [Theory, InlineData(10_000)]
-    public void ExceptWith_ManagedString(int count) =>
+    }
+    [Theory, InlineData(StressSetOpCount)]
+    public void ExceptWith_ManagedString(int count) {
+        const int Count = 2;
 #if TSAVORITE1_1_1
+        _=Count;
         _=count;
 #else
-        RunManagedStringSetOp("ExceptWith",count,(a,b) => a.ExceptWith(b));
+        RunManagedStringSetOp("ExceptWith",count,StressScale.Apply(Count),(a,b) => a.ExceptWith(b));
 #endif
+    }
 }

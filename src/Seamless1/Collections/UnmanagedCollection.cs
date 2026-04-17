@@ -115,7 +115,7 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
             T,
             TKey,
             TValue
-        > {
+        >{
         private long Cursor = 0, Count;
         private int Index = -1;
         private bool Done;
@@ -189,12 +189,9 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
     }
     private protected override TryAddResult PrivateTryAdd(TKey key,TValue value) {
 
-
         if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
         var ClientSession = this.AddClientSession;
-
-
         var Output = false;
         var Status = ClientSession.BasicContext.RMW(ref key,ref value,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
