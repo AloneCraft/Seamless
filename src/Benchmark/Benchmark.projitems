@@ -11,5 +11,7 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DictionaryStoreBenchmark.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DictionaryApiSurfaceBenchmark.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HashSetApiSurfaceBenchmark.cs" />
   </ItemGroup>
 </Project>

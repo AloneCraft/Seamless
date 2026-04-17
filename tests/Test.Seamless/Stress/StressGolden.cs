@@ -68,6 +68,20 @@ internal static class StressGolden {
         return Convert.ToHexString(sha.Hash!);
     }
 
+    /// <summary>
+    /// 既知キー集合を point-read して (Int32 key, Int32 value) ペアをハッシュ化する。
+    /// scan/列挙経路を使わないため、ストレージ実装差異の影響を受けにくい。
+    /// </summary>
+    public static string HashInt32PairsByProbe(IEnumerable<int> keys,Func<int,(bool Found,int Value)> tryGet) {
+        var list = new List<KeyValuePair<int,int>>();
+        foreach(var key in keys) {
+            var (found,value)=tryGet(key);
+            if(found)
+                list.Add(new KeyValuePair<int,int>(key,value));
+        }
+        return HashInt32Pairs(list);
+    }
+
     /// <summary>(String キー, String 値) ペアのハッシュ化。列挙は 1 パスで収集する。</summary>
     public static string HashStringPairs(IEnumerable<KeyValuePair<string,string>> pairs) {
         var list = new List<KeyValuePair<string,string>>();
@@ -87,6 +101,43 @@ internal static class StressGolden {
         }
         sha.TransformFinalBlock([],0,0);
         return Convert.ToHexString(sha.Hash!);
+    }
+
+    /// <summary>
+    /// 既知キー集合を point-read して (String key, String value) ペアをハッシュ化する。
+    /// </summary>
+    public static string HashStringPairsByProbe(IEnumerable<string> keys,Func<string,(bool Found,string Value)> tryGet) {
+        var list = new List<KeyValuePair<string,string>>();
+        foreach(var key in keys) {
+            var (found,value)=tryGet(key);
+            if(found)
+                list.Add(new KeyValuePair<string,string>(key,value));
+        }
+        return HashStringPairs(list);
+    }
+
+    /// <summary>
+    /// 既知キー集合を Contains で probe して Int32 キー集合ハッシュを作る。
+    /// </summary>
+    public static string HashInt32KeysByProbe(IEnumerable<int> keys,Func<int,bool> contains) {
+        var list = new List<int>();
+        foreach(var key in keys) {
+            if(contains(key))
+                list.Add(key);
+        }
+        return HashInt32Keys(list);
+    }
+
+    /// <summary>
+    /// 既知キー集合を Contains で probe して String キー集合ハッシュを作る。
+    /// </summary>
+    public static string HashStringKeysByProbe(IEnumerable<string> keys,Func<string,bool> contains) {
+        var list = new List<string>();
+        foreach(var key in keys) {
+            if(contains(key))
+                list.Add(key);
+        }
+        return HashStringKeys(list);
     }
 
     /// <summary>
