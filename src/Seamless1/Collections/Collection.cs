@@ -5,7 +5,7 @@ using Seamless.Stores;
 
 namespace Seamless.Collections;
 
-[DebuggerDisplay("Count={Count}")]
+[DebuggerDisplay("EntryCount={EntryCount}")]
 public abstract class Collection<
     TKey,
     TValue,
@@ -63,6 +63,16 @@ public abstract class Collection<
         TStoreFunctions,
         TAllocator
     > ReadClientSession { get; private set; }
+    private protected ClientSession<
+        TSessionKey,
+        TSessionValue,
+        EqualityEmpty,
+        TReadOutput,
+        EqualityEmpty,
+        TReadFunctions,
+        TStoreFunctions,
+        TAllocator
+    > ReadMemoryClientSession { get; private set; }
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -154,6 +164,13 @@ public abstract class Collection<
             EqualityEmpty,
             TReadFunctions
         >(TReadFunctions.Create());
+        this.ReadMemoryClientSession=Store.NewSession<
+            EqualityEmpty,
+
+            TReadOutput,
+            EqualityEmpty,
+            TReadFunctions
+        >(TReadFunctions.Create());
         this.AddClientSession=Store.NewSession<
 
             TAddInput,
@@ -173,9 +190,17 @@ public abstract class Collection<
         var Session = this.AddClientSession;
         Session.BasicContext.CompletePending(wait: true);
         Session.Dispose();
+        this.ReadMemoryClientSession.Dispose();
         var Store = this.CollectionStore.Store;
         Store.Reset();
         this.ReadClientSession=Store.NewSession<
+
+            EqualityEmpty,
+            TReadOutput,
+            EqualityEmpty,
+            TReadFunctions
+        >(TReadFunctions.Create());
+        this.ReadMemoryClientSession=Store.NewSession<
 
             EqualityEmpty,
             TReadOutput,
@@ -305,6 +330,7 @@ public abstract class Collection<
     }
     public int Count => (int)this.GetLongCount();
     public long EntryCount => this.CollectionStore.Store.EntryCount;
+    private protected long HeadAddress => this.CollectionStore.Address.HeadAddress;
     private protected abstract Status Read(TKey Key,out TValue Output);
     public abstract bool IsDisposed { get; }
     private bool disposed;
@@ -317,6 +343,7 @@ public abstract class Collection<
             return;
         }
         if(disposing) {
+            this.ReadMemoryClientSession.Dispose();
             this.AddClientSession.Dispose();
         }
         this.disposed=true;

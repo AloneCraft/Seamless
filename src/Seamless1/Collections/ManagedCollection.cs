@@ -48,14 +48,15 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
             ManagedStoreFunctions,
             ManagedAllocator
         > Session,
-        TIterator Iterator
+        TIterator Iterator,
+        long InitialCursor = 0
     ):IEnumerator<T>
         where TIterator : ScanIteratorFunctions<
             T,
             SpanByte,
             SpanByte
         > {
-        private long Cursor = 0, Count;
+        private long Cursor = InitialCursor, Count;
         private int Index = -1;
         private bool Done;
         public readonly T Current => Iterator.Chunk[this.Index];
@@ -94,14 +95,16 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     }
     public bool ContainsKey(TKey Key) {
         var KeyBytes = TKeySerializer.Serialize(ref Key);
-        var SessionKey = SpanByte.FromPinnedSpan(KeyBytes);
+        using var pinnedKey = new PinnedSpanByteOwner(KeyBytes);
+        var SessionKey = pinnedKey.SpanByte;
         return this.PrivateProtectedContainsKey(ref SessionKey);
     }
     public bool Contains(TKey Key) => this.ContainsKey(Key);
     private protected override Status Read(TKey Key,out TValue Value) {
         var ClientSession = this.ReadClientSession;
         var KeyBytes = TKeySerializer.Serialize(ref Key);
-        var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
+        using var pinnedKey = new PinnedSpanByteOwner(KeyBytes);
+        var FixedKey = pinnedKey.SpanByte;
         var Output = default(SpanByteAndMemory);
         var Status = ClientSession.BasicContext.Read(ref FixedKey,ref Output);
         Status=Pending(ClientSession,Status,ref Output);
@@ -117,7 +120,8 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     public bool Remove(TKey key) {
         var ClientSession = this.ContainsDeleteClientSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
-        var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
+        using var pinnedKey = new PinnedSpanByteOwner(KeyBytes);
+        var FixedKey = pinnedKey.SpanByte;
         var Input = default(EqualityEmpty);
         var Output = false;
         var Status = ClientSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output);
@@ -131,8 +135,10 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
             return TryAddResult.LogFull;
         var ClientSession = this.AddClientSession;
-        var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
-        var FixedInput = SpanByte.FromPinnedSpan(ValueBytes);
+        using var pinnedKey = new PinnedSpanByteOwner(KeyBytes);
+        using var pinnedValue = new PinnedSpanByteOwner(ValueBytes);
+        var FixedKey = pinnedKey.SpanByte;
+        var FixedInput = pinnedValue.SpanByte;
         var Output = false;
         var Status = ClientSession.BasicContext.RMW(ref FixedKey,ref FixedInput,ref Output);
         Status=Pending(ClientSession,Status,ref Output);

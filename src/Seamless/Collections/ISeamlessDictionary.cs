@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Seamless.Collections;
 
@@ -8,7 +9,7 @@ namespace Seamless.Collections;
 /// <see cref="IsDisposed"/>、<see cref="EntryCount"/>、<see cref="TryAdd"/>、
 /// <see cref="Remove(TKey,out TValue)"/> を公開する。
 /// </summary>
-public interface ISeamlessDictionary<TKey, TValue>:IDictionary<TKey,TValue>, IReadOnlyDictionary<TKey,TValue>, IDisposable
+public interface ISeamlessDictionary<TKey, TValue>:IDictionary<TKey,TValue>, IReadOnlyDictionary<TKey,TValue>, IMemoryCollection<KeyValuePair<TKey,TValue>>, IDisposable
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
     /// <summary>このインスタンスが既に破棄されているかどうかを取得する。</summary>

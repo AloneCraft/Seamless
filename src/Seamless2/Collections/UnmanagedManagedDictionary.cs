@@ -8,14 +8,13 @@ public sealed partial class UnmanagedManagedDictionary<TKey, TValue, TKeySeriali
     /// </summary>
     private protected override TryAddResult PrivateTryAdd(TKey key,TValue value) {
         var KeyBytes = TKeySerializer.Serialize(ref key);
-        var ValueBytes = TValueSerializer.Serialize(ref value);
-        if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
+        var serializedValueSize = TValueSerializer.Serialize(ref value).Length;
+        if(this.WouldOverflowMutable(KeyBytes.Length,serializedValueSize))
             return TryAddResult.LogFull;
 
         var Session = this.AddClientSession;
         var Output = false;
-        var Input = PinnedSpanByte.FromPinnedSpan(ValueBytes);
-        var Status = Session.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
+        var Status = Session.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref value,ref Output);
         Status=Pending(Session,Status,ref Output);
         Debug.Assert(Status.IsCompleted);
 

@@ -1,17 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-	  <RootNamespace>Test.Seamless</RootNamespace>
-    <!--<AllowUnsafeBlocks>true</AllowUnsafeBlocks>-->
-    <ServerGarbageCollection>true</ServerGarbageCollection>
-	<DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
-	</PropertyGroup>
-
+    <RootNamespace>Test.Seamless</RootNamespace>
+    <DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Remove="artifacts\**" />
     <Compile Remove="Garnet\**" />
@@ -20,27 +16,10 @@
     <None Remove="artifacts\**" />
     <None Remove="Garnet\**" />
   </ItemGroup>
-
-  <!--<ItemGroup>
-    <Compile Remove="Function\**" />
-    <Compile Remove="IDevice\**" />
-    <Compile Remove="動作確認\**" />
-    <EmbeddedResource Remove="Function\**" />
-    <EmbeddedResource Remove="IDevice\**" />
-    <EmbeddedResource Remove="動作確認\**" />
-    <None Remove="Function\**" />
-    <None Remove="IDevice\**" />
-    <None Remove="動作確認\**" />
-  </ItemGroup>
-
   <ItemGroup>
     <Compile Remove="CheckpointRecoveryTests.cs" />
-    <Compile Remove="Common.cs" />
-    <Compile Remove="DictionaryGuidEmptyRecoveryTests.cs" />
-    <Compile Remove="StoreCheckpoint.cs" />
     <Compile Remove="TestKeyComparer.cs" />
-  </ItemGroup>-->
-
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="8.0.1">
       <PrivateAssets>all</PrivateAssets>
@@ -55,25 +34,15 @@
     </PackageReference>
     <PackageReference Include="xunit.v3" Version="3.2.2" />
   </ItemGroup>
-
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
-
   <Import Project="..\Test.Seamless\Test.Seamless.projitems" Label="Shared" />
-
   <ItemGroup>
-    <Compile Remove="..\Test.Seamless\CheckpointRecoveryTests.cs" />
-    <Compile Remove="..\Test.Seamless\DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Remove="..\Test.Seamless\SessionFunctions\ManagedAdd.cs" />
     <Compile Remove="..\Test.Seamless\SessionFunctions\UnmanagedAdd.cs" />
-    <Compile Remove="..\Test.Seamless\StoreCheckpoint.cs" />
-    <Compile Remove="TestKeyComparer.cs" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\src\Seamless2\Seamless2.csproj" />
   </ItemGroup>
-
-
 </Project>

@@ -1,4 +1,23 @@
-﻿ScanSessionFunction
+﻿セッション数: アプリケーション内で同時に実行されるスレッドやタスクの数。
+epoch 数: 各スレッドが同期のために使用する LightEpoch のインスタンスや状態。
+LightEpochの上限は16
+    LightEpoch.cs
+    private struct InstanceIndexBuffer
+    {
+        internal const int MaxInstances = 16;
+        // ...
+    }
+    int SelectInstance()
+    {
+        for (var i = 0; i < InstanceIndexBuffer.MaxInstances; i++)
+        {
+            ref var entry = ref InstanceTracker.GetRef(i);
+            if (kInvalidIndex == Interlocked.CompareExchange(ref entry, 1, kInvalidIndex))
+                return i;
+        }
+        throw new InvalidOperationException("Exceeded maximum number of active LightEpoch instances");
+    }
+ScanSessionFunction
     lock(gate) しているがパフォーマンスが悪そうだ。もっとよい解決法を考えて
     構造的な分析をすると、lock は実は不要です。理由を説明し、2つのアプローチを提案します。
 

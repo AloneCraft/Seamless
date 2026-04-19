@@ -5,28 +5,61 @@ public class DebugView<TKey> {
     /// <summary>
     /// デバッガーに表示する要素の上限。.NET の List&lt;T&gt; デバッグビューに倣い 10,000 件とする。
     /// </summary>
-    private const int MaxItems=10_000;
-    private readonly ICollection<TKey> Collection;
-    public DebugView(ICollection<TKey> set){
-        ArgumentNullException.ThrowIfNull(set);
-        this.Collection=set;
+    private const int MaxItems = 10_000;
+    private readonly IMemoryCollection<TKey> Collection;
+    public DebugView(IMemoryCollection<TKey> collection) {
+        ArgumentNullException.ThrowIfNull(collection);
+        this.Collection=collection;
     }
     [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-    public TKey[] Items {
+    public string[] Items {
         get {
-            var Count=Math.Min(this.Collection.Count,MaxItems);
-            var items=new TKey[Count];
-            var i=0;
-            foreach(var item in this.Collection){
-                if(i>=Count)
-                    break;
-                items[i++]=item;
-            }
-            return items;
+            var items = new List<string>(Math.Min(64,MaxItems));
+            // foreach(var item in this.Collection) {
+            //     if(items.Count>=MaxItems)
+            //         break;
+            //     items.Add(item);
+            // }
+            items.Add("abc");
+            return items.ToArray();
         }
     }
+    // public TKey[] Items {
+    //     get {
+    //         var items = new List<TKey>(Math.Min(64,MaxItems));
+    //         // foreach(var item in this.Collection) {
+    //         //     if(items.Count>=MaxItems)
+    //         //         break;
+    //         //     items.Add(item);
+    //         // }
+    //         //items.Add(default!);
+    //         return items.ToArray();
+    //     }
+    // }
 }
 public class DebugView<TKey, TValue>:DebugView<KeyValuePair<TKey,TValue>> {
-    public DebugView(ICollection<KeyValuePair<TKey,TValue>> set):base(set){
+    public DebugView(IMemoryCollection<KeyValuePair<TKey,TValue>> collection) : base(collection) {
+    }
+}
+public class ManagedHashSetDebugView<TKey>:DebugView<TKey>
+    where TKey : IEquatable<TKey> {
+    public ManagedHashSetDebugView(IMemoryCollection<TKey> collection) : base(collection) {
+    }
+}
+public class UnmanagedHashSetDebugView<TKey>:DebugView<TKey>
+    where TKey : unmanaged, IEquatable<TKey> {
+    public UnmanagedHashSetDebugView(IMemoryCollection<TKey> collection) : base(collection) {
+    }
+}
+/// <summary>
+/// DebuggerTypeProxy の型引数数を Dictionary の 4 型引数に合わせるためのラッパー。
+/// デバッガーはオープンジェネリック型を使う際に型引数数が一致している必要がある。
+/// </summary>
+public class DictionaryDebugView<TKey, TValue, TKeySerializer, TValueSerializer>:DebugView<TKey,TValue>
+    where TKey : IEquatable<TKey>
+    where TValue : IEquatable<TValue>
+    where TKeySerializer : ISerializer<TKey>
+    where TValueSerializer : ISerializer<TValue> {
+    public DictionaryDebugView(IMemoryCollection<KeyValuePair<TKey,TValue>> collection) : base(collection) {
     }
 }

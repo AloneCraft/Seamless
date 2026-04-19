@@ -13,8 +13,10 @@ public sealed partial class UnmanagedManagedDictionary<TKey, TValue, TKeySeriali
             return TryAddResult.LogFull;
 
         var ClientSession = this.AddClientSession;
-        var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
-        var FixedInput = SpanByte.FromPinnedSpan(ValueBytes);
+        using var pinnedKey = new PinnedSpanByteOwner(KeyBytes);
+        using var pinnedValue = new PinnedSpanByteOwner(ValueBytes);
+        var FixedKey = pinnedKey.SpanByte;
+        var FixedInput = pinnedValue.SpanByte;
         var Output = false;
         var Status = ClientSession.BasicContext.RMW(ref FixedKey,ref FixedInput,ref Output);
         Status=Pending(ClientSession,Status,ref Output);

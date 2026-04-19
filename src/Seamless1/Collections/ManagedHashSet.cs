@@ -49,6 +49,7 @@ public partial class ManagedHashSet<TKey>
         KeyIterator,
         TKey
     > GetEnumerator() => new(this.ReadClientSession,new());
+    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<KeyIterator,TKey>(this.ReadMemoryClientSession,new(),this.HeadAddress);
     public partial void IntersectWith(ManagedHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var session = this.IntersectWith_ClientSession;
