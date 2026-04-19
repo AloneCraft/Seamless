@@ -19,11 +19,11 @@ public partial class UnmanagedDictionary<
         FixedSpanByteKey,
 
         EqualityEmpty,
-        SpanByteAndMemory,
+        TValue,
         EqualityEmpty,
-        Remove_TKey_TValue,
+        UnmanagedRemove_TKey_TValue<TKey,TValue>,
         UnmanagedStoreFunctions,
-        
+
 
 
 
@@ -42,10 +42,10 @@ public partial class UnmanagedDictionary<
     private ClientSession<
         FixedSpanByteKey,
 
-        PinnedSpanByte,
+        TValue,//TInput
         bool,
         EqualityEmpty,
-        Remove_KeyValuePair,
+        Remove_KeyValuePair<TValue,TValueSerializer>,
         UnmanagedStoreFunctions,
 
 
@@ -63,24 +63,24 @@ public partial class UnmanagedDictionary<
 
 
     > Remove_KeyValuePair_ClientSession { get; set; }
-    internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore){
+    internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
         var Store = CollectionStore.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<
             FixedSpanByteKey,
             EqualityEmpty,
-            SpanByteAndMemory,
+            TValue,
             EqualityEmpty,
-            Remove_TKey_TValue
+            UnmanagedRemove_TKey_TValue<TKey,TValue>
 
 
 
         >(new());
         this.Remove_KeyValuePair_ClientSession=Store.NewSession<
             FixedSpanByteKey,
-            PinnedSpanByte,
+            TValue,//TInput
             bool,
             EqualityEmpty,
-            Remove_KeyValuePair
+            Remove_KeyValuePair<TValue,TValueSerializer>
 
 
 
@@ -93,10 +93,11 @@ public partial class UnmanagedDictionary<
             TValue
         >
     > GetEnumerator() => new(this.ReadClientSession,new());
+    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadMemoryClientSession,new(),this.HeadAddress);
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator iterator)
     where TIterator : ScanIteratorFunctions<T> {
         using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
-        while(e.MoveNext()){
+        while(e.MoveNext()) {
             yield return e.Current;
         }
     }
@@ -104,47 +105,44 @@ public partial class UnmanagedDictionary<
         where TIterator : ScanIteratorFunctions<T> {
         var collection = new List<T>();
         using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
-        while(e.MoveNext()){
+        while(e.MoveNext()) {
             collection.Add(e.Current);
         }
         return collection;
     }
-    public bool Remove(KeyValuePair<TKey,TValue> item){
+    public bool Remove(KeyValuePair<TKey,TValue> item) {
         var Session = this.Remove_KeyValuePair_ClientSession;
         var Key = item.Key;
         var Value = item.Value;
         var KeyBytes = TKeySerializer.Serialize(ref Key);
-        var ValueBytes = TValueSerializer.Serialize(ref Value);
         var FixedKey = (FixedSpanByteKey)KeyBytes;
-        var Input = PinnedSpanByte.FromPinnedSpan(ValueBytes);
         var Output = false;
-        var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
+        var Status = Session.BasicContext.RMW(FixedKey,ref Value,ref Output);
         Status=Pending(Session,Status,ref Output);
         return Output;
     }
-    public bool Remove(TKey key,out TValue value){
+    public bool Remove(TKey key,out TValue value) {
         var Session = this.Remove_TKey_TValue_ClientSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Input = default(EqualityEmpty);
-        var Output = default(SpanByteAndMemory);
+        var Output = default(TValue);
         var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
         Status=Pending(Session,Status,ref Output);
-        // output.Length>0 は InPlaceUpdater/CopyUpdater で値がコピーされた＝成功
-        if(Output.Length>0){
-            value=TValueSerializer.Deserialize(Output.ReadOnlySpan);
+        if(!Status.NotFound) {
+            value=Output;
             return true;
         }
         //Unsafe.SkipInit(out value);
         value=default;
         return false;
     }
-    private partial void SetValue(TKey key,TValue value){
+    private partial void SetValue(TKey key,TValue value) {
         var keyBytes = TKeySerializer.Serialize(ref key);
         var valueBytes = TValueSerializer.Serialize(ref value);
         if(this.WouldOverflowMutable(keyBytes.Length,valueBytes.Length))
             throw this.ThrowLogFull();
-        var ClientSession= this.AddClientSession;
+        var ClientSession = this.AddClientSession;
         var FixedKey = (FixedSpanByteKey)keyBytes;
         var Input = valueBytes;
         var Status = ClientSession.BasicContext.Upsert(FixedKey,Input);

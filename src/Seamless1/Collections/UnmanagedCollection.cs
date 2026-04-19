@@ -109,14 +109,15 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
                 >
             >//TAllocator
         > Session,
-        TIterator Iterator
+        TIterator Iterator,
+        long InitialCursor = 0
     ):IEnumerator<T>
         where TIterator : ScanIteratorFunctions<
             T,
             TKey,
             TValue
-        >{
-        private long Cursor = 0, Count;
+        > {
+        private long Cursor = InitialCursor, Count;
         private int Index = -1;
         private bool Done;
         public readonly T Current => Iterator.Chunk[this.Index];

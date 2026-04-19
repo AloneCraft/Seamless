@@ -1,12 +1,12 @@
 ﻿using Seamless.Stores;
-namespace Test.Seamless.Stores;
+namespace Test.Seamless.Unit.Stores;
 
 /// <summary>
 /// 4種類のDictionaryがログサイズに差が出ることを確認するテスト。
 /// int キー + int 値 で N 件挿入後の TailAddress を比較する。
 /// </summary>
 public partial class KindDictionarySize {
-    public partial void UnmanagedUnmanaged_vs_ManagedManaged_サイズが小さい() {
+    public partial void UnmanagedUnmanaged_vs_ManagedManaged_SizeIsSmaller() {
         using var uuStore = Factory.Create(MemorySize: MemorySize).Create<int,int>();
         using var uuDict = uuStore.Create();
         var uuBytes = MeasureLogBytes(() => uuStore.Store.Log.TailAddress,uuDict);
@@ -19,7 +19,7 @@ public partial class KindDictionarySize {
         Assert.True(uuBytes<mmBytes,
             $"UnmanagedUnmanaged({uuBytes}) > ManagedManaged({mmBytes})");
     }
-    public partial void ManagedUnmanaged_vs_ManagedManaged_値部分で差がある() {
+    public partial void ManagedUnmanaged_vs_ManagedManaged_ValuePartDiffers() {
         using var muStore = Factory.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),default);
         using var muDict = muStore.Create();
         var muBytes = MeasureLogBytes(() => muStore.Store.Log.TailAddress,muDict);
@@ -34,7 +34,7 @@ public partial class KindDictionarySize {
         Assert.True(muBytes==mmBytes,
             $"ManagedUnmanaged({muBytes}) > ManagedManaged({mmBytes})");
     }
-    public partial void UnmanagedManaged_vs_ManagedManaged_値部分で差がある() {
+    public partial void UnmanagedManaged_vs_ManagedManaged_ValuePartDiffers() {
         using var muStore = Factory.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
         using var muDict = muStore.Create();
         var muBytes = MeasureLogBytes(() => muStore.Store.Log.TailAddress,muDict);
@@ -49,7 +49,7 @@ public partial class KindDictionarySize {
         Assert.True(muBytes==mmBytes,
             $"ManagedUnmanaged({muBytes}) > ManagedManaged({mmBytes})");
     }
-    public partial void 全4種類のログサイズを出力する() {
+    public partial void OutputsLogSizesForAllFourKinds() {
         var sizes = new System.Collections.Generic.Dictionary<string,long>();
 
         {

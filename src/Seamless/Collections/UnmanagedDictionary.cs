@@ -6,7 +6,7 @@ namespace Seamless.Collections;
 /// <see cref="IDictionary{TKey,TValue}"/> を実装し、利用者に Tsavorite の詳細を見せない。
 /// 静的ポリモーフィズムにより仮想ディスパッチを回避する。
 /// </summary>
-[DebuggerTypeProxy(typeof(DebugView<,>))]
+[DebuggerTypeProxy(typeof(DictionaryDebugView<,,,>))]
 public abstract partial class UnmanagedDictionary<
     TKey,
     TValue,

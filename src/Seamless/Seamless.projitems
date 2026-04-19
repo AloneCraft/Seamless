@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\EqualityEmpty.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\IMemoryCollection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISet.cs" />

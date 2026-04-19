@@ -8,18 +8,13 @@ public abstract class ScanIteratorFunctions<T, TSessionKey, TSessionValue>:IScan
     public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
         Debug.Assert(!recordMetadata.RecordInfo.Tombstone);
         var index = Interlocked.Increment(ref this.Count)-1;
-        if(index>=Const.Chunk_Length) {       // ← オーバーフローガード
+        if(index>=Const.Chunk_Length) {
             Volatile.Write(ref this.Count,Const.Chunk_Length);
-            cursorRecordResult=CursorRecordResult.EndBatch;
-            return true;                       // ← Deserialize せずに捨てる！
+            cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
+            return true;
         }
         this.Chunk[index]=this.Deserialize(ref key,ref value);
-        if(index+1==Const.Chunk_Length) {
-            cursorRecordResult=CursorRecordResult.EndBatch;
-        }
-        else {
-            cursorRecordResult=CursorRecordResult.Accept;
-        }
+        cursorRecordResult=CursorRecordResult.Accept;
         return true;
     }
     public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {

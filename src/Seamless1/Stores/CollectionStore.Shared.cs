@@ -14,19 +14,19 @@ public abstract partial class CollectionStore<
     TStoreFunctions,
     TAllocator
 >:CollectionStore, IDisposable {
-    public long LogMemorySize{get;}
-    public double MutableFraction{get;}
-    internal OverflowMutableStrategyKind OverflowMutableStrategyKind{get;}
+    public long LogMemorySize { get; }
+    public double MutableFraction { get; }
+    internal OverflowMutableStrategyKind OverflowMutableStrategyKind { get; }
     private bool Disposed;
 
     private protected CollectionStore(
         TStoreFunctions StoreFunctions,
         Func<AllocatorSettings,TStoreFunctions,TAllocator> allocatorFactory,
         long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction)
-       :this(StoreFunctions,allocatorFactory,IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory){
+       : this(StoreFunctions,allocatorFactory,IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory) {
     }
 
-    public void AssertCheckpointDir(){
+    public void AssertCheckpointDir() {
         if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
             throw new InvalidOperationException($"{nameof(this.Settings.CheckpointDir)} is not set.");
     }
@@ -34,10 +34,9 @@ public abstract partial class CollectionStore<
     /// <summary>
     /// データベース全体の完全なバックアップ（Full Checkpoint）
     /// </summary>
-    public async ValueTask<Guid> SaveAsync(CheckpointType CheckpointType=CheckpointType.Snapshot,CancellationToken ct=default){
+    public async ValueTask<Guid> SaveAsync(CheckpointType CheckpointType = CheckpointType.Snapshot,CancellationToken ct = default) {
         this.AssertCheckpointDir();
-        await Task.Yield();
-        var(success,token)=await this.Store.TakeFullCheckpointAsync(CheckpointType,ct);
+        var (success,token)=await this.Store.TakeFullCheckpointAsync(CheckpointType,ct);
         await this.Store.CompleteCheckpointAsync(ct);
         if(success)
             return token;
@@ -47,17 +46,16 @@ public abstract partial class CollectionStore<
     /// <summary>
     /// データベース全体の完全なバックアップ（Full Checkpoint）
     /// </summary>
-    public Guid Save(CheckpointType CheckpointType=CheckpointType.Snapshot) => this.SaveAsync(CheckpointType).GetAwaiter().GetResult();
+    public Guid Save(CheckpointType CheckpointType = CheckpointType.Snapshot) => this.SaveAsync(CheckpointType).GetAwaiter().GetResult();
 
     /// <summary>
     /// データ（ログ）部分のみのバックアップ（Incremental/Log Checkpoint）
     /// インデックスは復元せず、ログを先頭から再生してインデックスを再構築するリカバリー。
     /// インデックスチェックポイントが存在しない場合や、インデックスチェックポイントが破損している場合の復旧に使用する。
     /// </summary>
-    public async ValueTask<Guid> SaveLogOnlyAsync(CheckpointType CheckpointType=CheckpointType.Snapshot,CancellationToken ct=default){
+    public async ValueTask<Guid> SaveLogOnlyAsync(CheckpointType CheckpointType = CheckpointType.Snapshot,CancellationToken ct = default) {
         this.AssertCheckpointDir();
-        await Task.Yield();
-        var(success,token)=await this.Store.TakeHybridLogCheckpointAsync(CheckpointType,cancellationToken:ct);
+        var (success,token)=await this.Store.TakeHybridLogCheckpointAsync(CheckpointType,cancellationToken: ct);
         await this.Store.CompleteCheckpointAsync(ct);
         if(success)
             return token;
@@ -69,14 +67,14 @@ public abstract partial class CollectionStore<
     /// インデックスは復元せず、ログを先頭から再生してインデックスを再構築するリカバリー。
     /// インデックスチェックポイントが存在しない場合や、インデックスチェックポイントが破損している場合の復旧に使用する。
     /// </summary>
-    public Guid SaveLogOnly(CheckpointType CheckpointType=CheckpointType.Snapshot) => this.SaveLogOnlyAsync(CheckpointType).GetAwaiter().GetResult();
+    public Guid SaveLogOnly(CheckpointType CheckpointType = CheckpointType.Snapshot) => this.SaveLogOnlyAsync(CheckpointType).GetAwaiter().GetResult();
 
     /// <summary>
     /// 最新のデータに復元
     /// </summary>
-    public async ValueTask LoadAsync(CancellationToken ct=default){
+    public async ValueTask LoadAsync(CancellationToken ct = default) {
         this.AssertCheckpointDir();
-        await this.Store.RecoverAsync(cancellationToken:ct);
+        await this.Store.RecoverAsync(cancellationToken: ct);
     }
 
     /// <summary>
@@ -87,35 +85,35 @@ public abstract partial class CollectionStore<
     /// <summary>
     /// 指定した過去地点(token)へのピンポイント復元
     /// </summary>
-    public async ValueTask LoadAsync(Guid token,CancellationToken ct=default){
+    public async ValueTask LoadAsync(Guid token,CancellationToken ct = default) {
         this.AssertCheckpointDir();
-        await this.Store.RecoverAsync(Guid.Empty,token,cancellationToken:ct);
+        await this.Store.RecoverAsync(Guid.Empty,token,cancellationToken: ct);
     }
 
     /// <summary>
     /// 指定した過去地点(token)へのピンポイント復元
     /// </summary>
-    public void Load(Guid token){
-        var ct=CancellationToken.None;
+    public void Load(Guid token) {
+        var ct = CancellationToken.None;
         this.LoadAsync(token,ct).GetAwaiter().GetResult();
     }
 
     public (long BeginAddress,long HeadAddress,long ReadOnlyAddress,long TailAddress) Address {
         get {
-            var Log=this.Store.Log;
+            var Log = this.Store.Log;
             return (Log.BeginAddress,Log.HeadAddress,Log.ReadOnlyAddress,Log.TailAddress);
         }
     }
 
-    public void Dispose(){
+    public void Dispose() {
         this.Dispose(true);
         GC.SuppressFinalize(this);
     }
 
-    protected virtual void Dispose(bool disposing){
+    protected virtual void Dispose(bool disposing) {
         if(this.Disposed) return;
         this.Disposed=true;
-        if(disposing){
+        if(disposing) {
             this.Store.Dispose();
             this.Settings.Dispose();
         }

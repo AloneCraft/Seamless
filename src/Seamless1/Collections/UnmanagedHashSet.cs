@@ -107,6 +107,7 @@ public partial class UnmanagedHashSet<TKey>
         KeyIterator,
         TKey
     > GetEnumerator() => new(this.ReadClientSession,new());
+    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<KeyIterator,TKey>(this.ReadMemoryClientSession,new(),this.HeadAddress);
     private readonly struct IntersectWithImpl(
         UnmanagedHashSet<TKey> other,
         ClientSession<
