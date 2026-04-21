@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -15,7 +15,7 @@ public abstract class IntersectWithTests<TKey>
     protected static string CreateDiskFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize = Const.MinObjectLogCapacity;
 
-    // ���� In-memory (Mutable key) ����������������������������������������������������������������������������
+    // In-memory (Mutable key)
     private void Mutable() {
         var (setA,storeA)=this.CreateMemory();
         var (setB,storeB)=this.CreateMemory();
@@ -35,7 +35,7 @@ public abstract class IntersectWithTests<TKey>
     [Fact, Trait("Category","Unit")] public void GetRMWModifiedFieldInfo() => this.Mutable();
     [Fact, Trait("Category","Unit")] public void PostRMWOperation() => this.Mutable();
 
-    // ���� ReadOnly in-memory (ShiftReadOnlyAddress) ������������������������������������������
+    // ReadOnly in-memory (ShiftReadOnlyAddress)
     private void ReadOnly() {
         var folder = CreateDiskFolder();
         using var logDevice = Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
@@ -56,15 +56,15 @@ public abstract class IntersectWithTests<TKey>
         Assert.DoesNotContain(this.Key(4),setA);
     }
     [Fact, Trait("Category","Unit")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification = "<�ۗ���>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void NeedCopyUpdate() => this.ReadOnly();
     [Fact, Trait("Category","Unit")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification = "<�ۗ���>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void CopyUpdater() => this.ReadOnly();
 
-    // ���� Disk (IsPending path) ����������������������������������������������������������������������������������
+    // Disk (IsPending path)
     [Fact, Trait("Category","Unit")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification = "<�ۗ���>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void IsPendingPath_Works() {
         var folderA = CreateDiskFolder();
         var folderB = CreateDiskFolder();
@@ -109,7 +109,7 @@ public sealed class ManagedIntersectWith:IntersectWithTests<int> {
 }
 
 /// <summary>
-/// UnmanagedHashSet.IntersectWith �̃e�X�g�B�������̂݁i�X�g���[�W�o���A���g�Ȃ��j�B
+/// UnmanagedHashSet.IntersectWith のテスト。管理のみ（ストレージバインドなし）。
 /// </summary>
 public sealed class UnmanagedIntersectWith {
     private static (UnmanagedHashSet<int> Set,IDisposable Store) CreateSet() {
@@ -133,7 +133,35 @@ public sealed class UnmanagedIntersectWith {
         Assert.True(setA.Contains(3));
         Assert.False(setA.Contains(4));
     }
-
+    [Fact, Trait("Category","Unit")]
+    public void ExceptWith0() {
+        var (setA,storeA)=CreateSet();
+        var (setB,storeB)=CreateSet();
+        using var _storeA = storeA;
+        using var _storeB = storeB;
+        using var _setA = setA;
+        using var _setB = setB;
+        setA.Add(1);
+        setA.Add(2);
+        setB.Add(2);
+        setB.Add(3);
+        setA.ExceptWith(setB);
+        Assert.Equal(1,setA.Count);
+    }
+    [Fact, Trait("Category","Unit")]public void IntersectWith0() {
+        var (setA,storeA)=CreateSet();
+        var (setB,storeB)=CreateSet();
+        using var _storeA = storeA;
+        using var _storeB = storeB;
+        using var _setA = setA;
+        using var _setB = setB;
+        setA.Add(1);
+        setA.Add(2);
+        setB.Add(2);
+        setB.Add(3);
+        setA.IntersectWith(setB);
+        Assert.Equal(0,setA.Count);
+    }
     [Fact, Trait("Category","Unit")]
     public void IntersectWith_EmptyOther_ClearsAll() {
         var (setA,storeA)=CreateSet();

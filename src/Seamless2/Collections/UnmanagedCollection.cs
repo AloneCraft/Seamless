@@ -168,18 +168,18 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
     protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
     }
     public bool ContainsKey(TKey Key) {
-        //
-        //
         return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     }
     public bool Contains(TKey Key) => this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
-    private protected override Status Read(TKey Key,out TValue Output) {
-        var ClientSession = this.ReadClientSession;
-
-
+    private protected override unsafe Status Read(TKey Key,out TValue Output) {
+        var ClientSession = this.ReadSession;
+        var KeyBytes = TKeySerializer.Serialize(ref Key);
         Output=default;
-        var Status = ClientSession.BasicContext.Read((FixedSpanByteKey)TKeySerializer.Serialize(ref Key),ref Output);
-        Status=Pending(ClientSession,Status,ref Output);
+        Status Status;
+        fixed(byte* _ = KeyBytes) {
+            Status=ClientSession.BasicContext.Read((FixedSpanByteKey)KeyBytes,ref Output);
+            Status=Pending(ClientSession,Status,ref Output);
+        }
         Debug.Assert(Status.IsCompleted);
         return Status;
     }
@@ -189,26 +189,32 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
 
 
 
-    public bool Remove(TKey key) {
-        var ClientSession = this.ContainsDeleteClientSession;
+    public unsafe bool Remove(TKey key) {
+        var ClientSession = this.ContainsDeleteSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
 
         var Input = default(EqualityEmpty);
         var Output = false;
-        var Status = ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
-        Status=Pending(ClientSession,Status,ref Output);
+        Status Status;
+        fixed(byte* _ = KeyBytes) {
+            Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
+            Status=Pending(ClientSession,Status,ref Output);
+        }
         Debug.Assert(Status.IsCompleted);
         Debug.Assert(Status.Found!=Status.NotFound);
         return Output;
     }
-    private protected override TryAddResult PrivateTryAdd(TKey key,TValue value) {
+    private protected override unsafe TryAddResult PrivateTryAdd(TKey key,TValue value) {
         var KeyBytes = TKeySerializer.Serialize(ref key);
         if(this.WouldOverflowMutable(KeyBytes.Length,Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
-        var ClientSession = this.AddClientSession;
+        var ClientSession = this.Add_ClientSession;
         var Output = false;
-        var Status = ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref value,ref Output);
-        Status=Pending(ClientSession,Status,ref Output);
+        Status Status;
+        fixed(byte* _ = KeyBytes) {
+            Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref value,ref Output);
+            Status=Pending(ClientSession,Status,ref Output);
+        }
         Debug.Assert(Status.IsCompleted);
         Debug.Assert(Status.NotFound==Output);
         if(Output)

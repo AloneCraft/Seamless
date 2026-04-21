@@ -92,11 +92,11 @@ public partial class UnmanagedDictionary<
             TKey,
             TValue
         >
-    > GetEnumerator() => new(this.ReadClientSession,new());
+    > GetEnumerator() => new(this.ReadSession,new());
     IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadMemoryClientSession,new(),this.HeadAddress);
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator iterator)
     where TIterator : ScanIteratorFunctions<T> {
-        using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
+        using var e = new Enumerator<TIterator,T>(this.ReadSession,iterator);
         while(e.MoveNext()) {
             yield return e.Current;
         }
@@ -104,31 +104,37 @@ public partial class UnmanagedDictionary<
     private List<T> CreateCollection<TIterator, T>(TIterator iterator)
         where TIterator : ScanIteratorFunctions<T> {
         var collection = new List<T>();
-        using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
+        using var e = new Enumerator<TIterator,T>(this.ReadSession,iterator);
         while(e.MoveNext()) {
             collection.Add(e.Current);
         }
         return collection;
     }
-    public bool Remove(KeyValuePair<TKey,TValue> item) {
+    public unsafe bool Remove(KeyValuePair<TKey,TValue> item) {
         var Session = this.Remove_KeyValuePair_ClientSession;
         var Key = item.Key;
         var Value = item.Value;
         var KeyBytes = TKeySerializer.Serialize(ref Key);
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Output = false;
-        var Status = Session.BasicContext.RMW(FixedKey,ref Value,ref Output);
-        Status=Pending(Session,Status,ref Output);
+        Status Status;
+        fixed(byte* _ = KeyBytes) {
+            var FixedKey = (FixedSpanByteKey)KeyBytes;
+            Status=Session.BasicContext.RMW(FixedKey,ref Value,ref Output);
+            Status=Pending(Session,Status,ref Output);
+        }
         return Output;
     }
-    public bool Remove(TKey key,out TValue value) {
+    public unsafe bool Remove(TKey key,out TValue value) {
         var Session = this.Remove_TKey_TValue_ClientSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
         var Input = default(EqualityEmpty);
         var Output = default(TValue);
-        var Status = Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
-        Status=Pending(Session,Status,ref Output);
+        Status Status;
+        fixed(byte* _ = KeyBytes) {
+            var FixedKey = (FixedSpanByteKey)KeyBytes;
+            Status=Session.BasicContext.RMW(FixedKey,ref Input,ref Output);
+            Status=Pending(Session,Status,ref Output);
+        }
         if(!Status.NotFound) {
             value=Output;
             return true;
@@ -142,10 +148,15 @@ public partial class UnmanagedDictionary<
         var valueBytes = TValueSerializer.Serialize(ref value);
         if(this.WouldOverflowMutable(keyBytes.Length,valueBytes.Length))
             throw this.ThrowLogFull();
-        var ClientSession = this.AddClientSession;
-        var FixedKey = (FixedSpanByteKey)keyBytes;
+        var ClientSession = this.Add_ClientSession;
         var Input = valueBytes;
-        var Status = ClientSession.BasicContext.Upsert(FixedKey,Input);
+        Status Status;
+        unsafe {
+            fixed(byte* _ = keyBytes) {
+                var FixedKey = (FixedSpanByteKey)keyBytes;
+                Status=ClientSession.BasicContext.Upsert(FixedKey,Input);
+            }
+        }
         Status=Pending(ClientSession,Status);
     }
 }

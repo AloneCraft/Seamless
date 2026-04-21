@@ -7,28 +7,34 @@ internal readonly struct UnmanagedIntersectWith<TKey>:
     where TKey : unmanaged, IEquatable<TKey> {
     [ExcludeFromCodeCoverage]
     public bool SingleReader(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Value,ref EqualityEmpty Dst,ref ReadInfo ReadInfo) {
-        throw new NotSupportedException("Read");
+        // Read 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool ConcurrentReader(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Value,ref EqualityEmpty Dst,ref ReadInfo ReadInfo,ref RecordInfo RecordInfo) {
-        throw new NotSupportedException("Read");
+        // Read 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool SingleWriter(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Src,ref EqualityEmpty Dst,ref EqualityEmpty Output,ref UpsertInfo UpsertInfo,WriteReason Reason,ref RecordInfo RecordInfo) {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool ConcurrentWriter(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Src,ref EqualityEmpty Dst,ref EqualityEmpty Output,ref UpsertInfo UpsertInfo,ref RecordInfo RecordInfo) {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TEpochAccessor>(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Src,ref UpsertInfo UpsertInfo,TEpochAccessor Epoch)
         where TEpochAccessor : IEpochAccessor {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostSingleWriter(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Src,ref EqualityEmpty Dst,ref EqualityEmpty Output,ref UpsertInfo UpsertInfo,WriteReason Reason) {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     public bool NeedInitialUpdate(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Output,ref RMWInfo RmwInfo) {
         // キーが存在しない場合は新規作成しない（NOTFOUND を返させる）。
@@ -36,7 +42,8 @@ internal readonly struct UnmanagedIntersectWith<TKey>:
     }
     [ExcludeFromCodeCoverage]
     public bool InitialUpdater(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Value,ref EqualityEmpty Output,ref RMWInfo RmwInfo,ref RecordInfo RecordInfo) {
-        throw new NotSupportedException("IntersectWith RMWで新規レコードを作ることはない。");
+        // NeedInitialUpdate が常に false のため、IntersectWith で新規レコード作成には進まない。
+        throw new NotSupportedException();
     }
     public bool InPlaceUpdater(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Value,ref EqualityEmpty Output,ref RMWInfo RmwInfo,ref RecordInfo RecordInfo) {
         RmwInfo.Action=RMWAction.ExpireAndStop;
@@ -44,7 +51,8 @@ internal readonly struct UnmanagedIntersectWith<TKey>:
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialUpdater(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Value,ref EqualityEmpty Output,ref RMWInfo RmwInfo) {
-        throw new NotSupportedException("InitialUpdater が呼ばれないので呼ばれない");
+        // NeedInitialUpdate が false のため InitialUpdater も呼ばれず、到達しない。
+        throw new NotSupportedException();
     }
     public bool NeedCopyUpdate(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Value,ref EqualityEmpty Output,ref RMWInfo RmwInfo) {
         return true;//ReadOnly領域に見つかった際Mutableにコピーして更新プロセスを続行するか
@@ -55,46 +63,55 @@ internal readonly struct UnmanagedIntersectWith<TKey>:
     }
     [ExcludeFromCodeCoverage]
     public bool PostCopyUpdater(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty OldValue,ref EqualityEmpty NewValue,ref EqualityEmpty Output,ref RMWInfo RmwInfo) {
-        throw new NotSupportedException("CopyUpdaterがfalseを返すのでここは呼ばれない");
+        // CopyUpdater が false を返して処理を打ち切るため、到達しない。
+        throw new NotSupportedException();
     }
     public void PostRMWOperation<TEpochAccessor>(ref TKey Key,ref EqualityEmpty Input,ref RMWInfo RmwInfo,TEpochAccessor Epoch)
         where TEpochAccessor : IEpochAccessor {
     }
     [ExcludeFromCodeCoverage]
     public void RMWCompletionCallback(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Output,EqualityEmpty Ctx,Status Status,RecordMetadata RecordMetadata) {
-        throw new NotSupportedException("RMW の非同期I/O完了時に呼ばれる。");
+        // IterateLookup でメモリ上のキーを走査して RMW しているため、ここで非同期完了にはならない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool SingleDeleter(ref TKey key,ref EqualityEmpty value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) {
-        throw new NotSupportedException("Delete");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostSingleDeleter(ref TKey key,ref DeleteInfo deleteInfo) {
-        throw new NotSupportedException("Delete");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool ConcurrentDeleter(ref TKey key,ref EqualityEmpty value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) {
-        throw new NotSupportedException("Delete");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostDeleteOperation<TEpochAccessor>(ref TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epoch)
         where TEpochAccessor : IEpochAccessor {
-        throw new NotSupportedException("Delete");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void ReadCompletionCallback(ref TKey key,ref EqualityEmpty input,ref EqualityEmpty output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
-        throw new NotSupportedException("Read非同期で呼ばれる");
+        // このセッション関数は Read 完了通知を使わない。
+        throw new NotSupportedException();
     }
     public int GetRMWModifiedValueLength(ref EqualityEmpty Value,ref EqualityEmpty Input) {
         return Unsafe.SizeOf<EqualityEmpty>();
     }
     [ExcludeFromCodeCoverage]
     public int GetRMWInitialValueLength(ref EqualityEmpty Input) {
-        throw new NotSupportedException("IntersectWith RMWで新規レコードを作ることはないので、このメソッドは呼ばれない。");
+        // NeedInitialUpdate が false のため、初期値サイズ計算には進まない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public int GetUpsertValueLength(ref EqualityEmpty Value,ref EqualityEmpty Input) {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     public void ConvertOutputToHeap(ref EqualityEmpty Input,ref EqualityEmpty Output) {
         // IterateLookup はディスク上レコードも返すため、RMW が IsPending になることがある。

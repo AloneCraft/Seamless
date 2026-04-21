@@ -1,4 +1,4 @@
-using BenchmarkDotNet.Columns;
+﻿using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Reports;
 
@@ -8,7 +8,7 @@ public sealed class BenchmarkColumnsConfig : ManualConfig
 {
     public BenchmarkColumnsConfig()
     {
-        AddColumnProvider(new PreferredFirstColumnProvider());
+        this.AddColumnProvider(new PreferredFirstColumnProvider());
     }
 
     private sealed class PreferredFirstColumnProvider : IColumnProvider

@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Seamless</RootNamespace>
     <ServerGarbageCollection>true</ServerGarbageCollection>
+	  <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 	  <DefineConstants>$(DefineConstants);TSAVORITE1_1_1</DefineConstants>
   </PropertyGroup>
 

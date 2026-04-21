@@ -56,15 +56,15 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
     where TValue : unmanaged, IEquatable<TValue>
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-    public sealed partial class KeyIterator:ScanIteratorFunctions<TKey,TKey,TValue> {
+    public sealed partial class KeyIterator:ScanIteratorFunctions<TKey> {
         private protected override TKey Deserialize(ref TKey key,ref TValue value) =>
             key;
     }
-    internal sealed partial class ValueIterator:ScanIteratorFunctions<TValue,TKey,TValue> {
+    internal sealed partial class ValueIterator:ScanIteratorFunctions<TValue> {
         private protected override TValue Deserialize(ref TKey key,ref TValue value) =>
             value;
     }
-    public sealed partial class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>,TKey,TValue> {
+    public sealed partial class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize(ref TKey key,ref TValue value) =>
             new(
                 key,
@@ -113,9 +113,7 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
         long InitialCursor = 0
     ):IEnumerator<T>
         where TIterator : ScanIteratorFunctions<
-            T,
-            TKey,
-            TValue
+            T
         > {
         private long Cursor = InitialCursor, Count;
         private int Index = -1;
@@ -130,12 +128,15 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
                 return false;
             }
             Iterator.Count=0;
-            var r = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            var 最後まで読み切ったか = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
             Session.BasicContext.CompletePending(wait: true);
             var Count = Iterator.Count;
             this.Count=Count;
-            if(!r)
+            if(最後まで読み切ったか) {
+            }
+            else {
                 this.Done=true;
+            }
             if(Count>0) {
                 this.Index=0;
                 return true;
@@ -161,7 +162,7 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
     }
     public bool Contains(TKey Key) => this.ContainsKey(Key);
     private protected override Status Read(TKey Key,out TValue Output) {
-        var ClientSession = this.ReadClientSession;
+        var ClientSession = this.ReadSession;
 
 
         Output=default;
@@ -177,7 +178,7 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
 
 
     public bool Remove(TKey key) {
-        var ClientSession = this.ContainsDeleteClientSession;
+        var ClientSession = this.ContainsDeleteSession;
 
 
         var Input = default(EqualityEmpty);
@@ -192,7 +193,7 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
 
         if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>()))
             return TryAddResult.LogFull;
-        var ClientSession = this.AddClientSession;
+        var ClientSession = this.Add_ClientSession;
         var Output = false;
         var Status = ClientSession.BasicContext.RMW(ref key,ref value,ref Output);
         Status=Pending(ClientSession,Status,ref Output);

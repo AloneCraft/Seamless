@@ -1,4 +1,4 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
 
@@ -125,79 +125,79 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
     public void HashSet_Add(int parallel,double mutableFraction)
         => this.Drive(parallel,mutableFraction,Scaled,prefill: false,
             h => { var n = Scaled; for(var i = 0; i<n; i++) h.Set.Add(this.CreateKey(i)); },
-            nameof(HashSet_Add));
+            nameof(this.HashSet_Add));
 
     [Theory, MemberData(nameof(Matrix))]
     public void HashSet_Remove(int parallel,double mutableFraction)
         => this.Drive(parallel,mutableFraction,Scaled,prefill: true,
             h => { var n = Scaled; for(var i = 0; i<n; i++) h.Set.Remove(this.CreateKey(i)); },
-            nameof(HashSet_Remove));
+            nameof(this.HashSet_Remove));
 
     [Theory, MemberData(nameof(Matrix))]
     public void HashSet_Contains(int parallel,double mutableFraction)
         => this.Drive(parallel,mutableFraction,Scaled,prefill: true,
             h => { var n = Scaled; for(var i = 0; i<n; i++) _=h.Set.Contains(this.CreateKey(i)); },
-            nameof(HashSet_Contains));
+            nameof(this.HashSet_Contains));
 
     [Theory, MemberData(nameof(Matrix))]
     public void HashSet_CopyTo(int parallel,double mutableFraction)
         => this.Drive(parallel,mutableFraction,1,prefill: true,
             h => { var buf = new TKey[(int)Scaled]; h.Set.CopyTo(buf,0); },
-            nameof(HashSet_CopyTo));
+            nameof(this.HashSet_CopyTo));
 
     [Theory, MemberData(nameof(Matrix))]
     public void HashSet_Foreach(int parallel,double mutableFraction)
         => this.Drive(parallel,mutableFraction,Scaled,prefill: true,
             h => { foreach(var _ in h.Set) { } },
-            nameof(HashSet_Foreach));
+            nameof(this.HashSet_Foreach));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_IntersectWith(int parallel,double mutableFraction)
         => this.Drive2(parallel,mutableFraction,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => h.IntersectWith(other),
-            nameof(HashSet_IntersectWith));
+            nameof(this.HashSet_IntersectWith));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_SymmetricExceptWith(int parallel,double mutableFraction)
         => this.Drive2(parallel,mutableFraction,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => h.SymmetricExceptWith(other),
-            nameof(HashSet_SymmetricExceptWith));
+            nameof(this.HashSet_SymmetricExceptWith));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_IsProperSubsetOf(int parallel,double mutableFraction)
         => this.Drive2(parallel,mutableFraction,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => { _=h.IsProperSubsetOf(other); },
-            nameof(HashSet_IsProperSubsetOf));
+            nameof(this.HashSet_IsProperSubsetOf));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_IsProperSupersetOf(int parallel,double mutableFraction)
         => this.Drive2(parallel,mutableFraction,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => { _=h.IsProperSupersetOf(other); },
-            nameof(HashSet_IsProperSupersetOf));
+            nameof(this.HashSet_IsProperSupersetOf));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_IsSubsetOf(int parallel,double mutableFraction)
         => this.Drive2(parallel,mutableFraction,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => { _=h.IsSubsetOf(other); },
-            nameof(HashSet_IsSubsetOf));
+            nameof(this.HashSet_IsSubsetOf));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_IsSupersetOf(int parallel,double mutableFraction)
         => this.Drive2(parallel,mutableFraction,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => { _=h.IsSupersetOf(other); },
-            nameof(HashSet_IsSupersetOf));
+            nameof(this.HashSet_IsSupersetOf));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_Overlaps(int parallel,double mutableFraction)
         => this.Drive2(parallel,mutableFraction,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => { _=h.Overlaps(other); },
-            nameof(HashSet_Overlaps));
+            nameof(this.HashSet_Overlaps));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_SetEquals(int parallel,double mutableFraction)
         => this.Drive2(parallel,mutableFraction,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => { _=h.SetEquals(other); },
-            nameof(HashSet_SetEquals));
+            nameof(this.HashSet_SetEquals));
 
     // =============================================================
     // ICollection<T>
@@ -210,13 +210,13 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
                 var n = Scaled;
                 for(var i = 0; i<n; i++) c.Add(this.CreateKey(i));
             },
-            nameof(ICollection_Add));
+            nameof(this.ICollection_Add));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_Clear(int parallel,double mutableFraction)
         => this.Drive(parallel,mutableFraction,1,prefill: true,
             h => ((ICollection<TKey>)h.Set).Clear(),
-            nameof(ICollection_Clear));
+            nameof(this.ICollection_Clear));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_Contains(int parallel,double mutableFraction)
@@ -226,7 +226,7 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=c.Contains(this.CreateKey(i));
             },
-            nameof(ICollection_Contains));
+            nameof(this.ICollection_Contains));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_CopyTo(int parallel,double mutableFraction)
@@ -235,7 +235,7 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
                 var buf = new TKey[(int)Scaled];
                 ((ICollection<TKey>)h.Set).CopyTo(buf,0);
             },
-            nameof(ICollection_CopyTo));
+            nameof(this.ICollection_CopyTo));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_Remove(int parallel,double mutableFraction)
@@ -245,13 +245,13 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=c.Remove(this.CreateKey(i));
             },
-            nameof(ICollection_Remove));
+            nameof(this.ICollection_Remove));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_Count(int parallel,double mutableFraction)
         => this.Drive(parallel,mutableFraction,1,prefill: true,
             h => { _=((ICollection<TKey>)h.Set).Count; },
-            nameof(ICollection_Count));
+            nameof(this.ICollection_Count));
 
     // =============================================================
     // IReadOnlyCollection<T>
@@ -263,7 +263,7 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
                 if(h.Set is IReadOnlyCollection<TKey> ro) _=ro.Count;
                 else _=((ICollection<TKey>)h.Set).Count;
             },
-            nameof(IReadOnlyCollection_Count));
+            nameof(this.IReadOnlyCollection_Count));
 }
 
 // ============================================================================

@@ -17,6 +17,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Helpers\Collections\IDictionaryTestBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Helpers\Collections\HashSetStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Helpers\Collections\HashSetTestBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\DebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\Dictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\DictionaryIReadOnly.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\StoreHandle.cs" />
@@ -40,6 +41,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\Remove_TKey_TValue.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\SessionFunctionTestDummies.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\SymmetricExcept.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\UnionWith.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\UnmanagedAdd.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)StoreCheckpoint.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Stores\CollectionStore.cs" />

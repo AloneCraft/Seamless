@@ -22,7 +22,8 @@ public readonly struct ContainsDelete:
     }
     [ExcludeFromCodeCoverage]
     public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo){
-        throw new NotSupportedException("NeedInitialUpdateがfalseを返すので呼ばれない");
+        // NeedInitialUpdate が false を返すため到達しない。
+        throw new NotSupportedException();
     }
     // Delete: キー存在時は Tombstone を挿入して削除。output=trueで成功を通知。
     public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo){
@@ -32,7 +33,8 @@ public readonly struct ContainsDelete:
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo){
-        throw new NotSupportedException("NeedInitialUpdateがfalseを返すので呼ばれない");
+        // NeedInitialUpdate が false を返すため到達しない。
+        throw new NotSupportedException();
     }
     public bool NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord:ISourceLogRecord{
         return true;
@@ -44,7 +46,8 @@ public readonly struct ContainsDelete:
     }
     [ExcludeFromCodeCoverage]
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord:ISourceLogRecord{
-        throw new NotSupportedException("CopyUpdaterがfalseを返すのでここは呼ばれない");
+        // CopyUpdater が false を返して処理を打ち切るため、到達しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo){
@@ -125,7 +128,8 @@ public readonly struct ContainsDelete:
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref EqualityEmpty input)
         where TKey:IKey,allows ref struct{
-        throw new NotSupportedException("NeedInitialUpdateがfalseを返すので呼ばれない");
+        // NeedInitialUpdate が false を返すため到達しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref EqualityEmpty input)

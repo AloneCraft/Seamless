@@ -49,7 +49,8 @@ public readonly struct UnmanagedRead<TKey,TValue>:
     public bool NeedInitialUpdate(ref TKey key,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo)=>true;
 
     public bool InitialUpdater(ref TKey key,ref EqualityEmpty input,ref TValue value,ref TValue output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo){
-        throw new NotSupportedException("UnmagedReadクラスのReadでのみ使われる");
+        // UnmanagedRead は Read でのみ使用するため、他のコールバックには到達しない。
+        throw new NotSupportedException();
     }
 
     public void PostInitialUpdater(ref TKey key,ref EqualityEmpty input,ref TValue value,ref TValue output,ref RMWInfo rmwInfo){
@@ -59,12 +60,14 @@ public readonly struct UnmanagedRead<TKey,TValue>:
 
     [ExcludeFromCodeCoverage]
     public bool CopyUpdater(ref TKey key,ref EqualityEmpty input,ref TValue oldValue,ref TValue newValue,ref TValue output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo){
-        throw new NotSupportedException("NeedCopyUpdate が false を返すので呼ばれない");
+        // NeedCopyUpdate が false を返すため到達しない。
+        throw new NotSupportedException();
     }
 
     [ExcludeFromCodeCoverage]
     public bool PostCopyUpdater(ref TKey key,ref EqualityEmpty input,ref TValue oldValue,ref TValue newValue,ref TValue output,ref RMWInfo rmwInfo){
-        throw new NotSupportedException("CopyUpdater が false を返すので呼ばれない");
+        // CopyUpdater が false を返して処理を打ち切るため、到達しない。
+        throw new NotSupportedException();
     }
 
     public bool InPlaceUpdater(ref TKey key,ref EqualityEmpty input,ref TValue value,ref TValue output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo)=>false;
@@ -82,23 +85,27 @@ public readonly struct UnmanagedRead<TKey,TValue>:
 
     [ExcludeFromCodeCoverage]
     public bool SingleDeleter(ref TKey key,ref TValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
-        throw new NotSupportedException("Add は Delete を使用しない");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
 
     [ExcludeFromCodeCoverage]
     public void PostSingleDeleter(ref TKey key,ref DeleteInfo deleteInfo){
-        throw new NotSupportedException("Add は Delete を使用しない");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
 
     [ExcludeFromCodeCoverage]
     public bool ConcurrentDeleter(ref TKey key,ref TValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
-        throw new NotSupportedException("Add は Delete を使用しない");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
 
     [ExcludeFromCodeCoverage]
     public void PostDeleteOperation<TEpochAccessor>(ref TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epoch)
         where TEpochAccessor:IEpochAccessor{
-        throw new NotSupportedException("Add は Delete を使用しない");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
 
     public void ConvertOutputToHeap(ref EqualityEmpty input,ref TValue output){

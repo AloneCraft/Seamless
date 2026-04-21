@@ -32,6 +32,7 @@
     <Compile Include="Unit\Collections\Dictionary.cs" />
     <Compile Include="Unit\Collections\DictionaryIReadOnly.cs" />
     <Compile Include="Unit\Collections\Empty.cs" />
+    <Compile Include="Unit\Collections\DebugView.cs" />
     <Compile Include="Unit\Collections\Enumerator.cs" />
     <Compile Include="Unit\Collections\HashSet.cs" />
     <Compile Include="Unit\Collections\HashSetDebugView.cs" />
@@ -56,6 +57,7 @@
     <Compile Include="Unit\SessionFunctions\Remove_TKey_TValue.cs" />
     <Compile Include="Unit\SessionFunctions\SessionFunctionTestDummies.cs" />
     <Compile Include="Unit\SessionFunctions\SymmetricExcept.cs" />
+    <Compile Include="Unit\SessionFunctions\UnionWith.cs" />
     <Compile Include="Unit\SessionFunctions\UnmanagedAdd.cs" />
     <Compile Include="Unit\Stores\CollectionStore.cs" />
     <Compile Include="Unit\Stores\Factory.cs" />

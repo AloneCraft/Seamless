@@ -22,15 +22,15 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     where TValue : IEquatable<TValue>
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-    public sealed class KeyIterator:ScanIteratorFunctions<TKey,SpanByte,SpanByte> {
+    public sealed class KeyIterator:ScanIteratorFunctions<TKey> {
         private protected override TKey Deserialize(ref SpanByte key,ref SpanByte value) =>
             TKeySerializer.Deserialize(key.AsReadOnlySpan());
     }
-    internal sealed class ValueIterator:ScanIteratorFunctions<TValue,SpanByte,SpanByte> {
+    internal sealed class ValueIterator:ScanIteratorFunctions<TValue> {
         private protected override TValue Deserialize(ref SpanByte key,ref SpanByte value) =>
             TValueSerializer.Deserialize(value.AsReadOnlySpan());
     }
-    public sealed class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>,SpanByte,SpanByte> {
+    public sealed class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize(ref SpanByte key,ref SpanByte value) {
             var Key = TKeySerializer.Deserialize(key.AsReadOnlySpan());
             var Value = TValueSerializer.Deserialize(value.AsReadOnlySpan());
@@ -52,9 +52,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         long InitialCursor = 0
     ):IEnumerator<T>
         where TIterator : ScanIteratorFunctions<
-            T,
-            SpanByte,
-            SpanByte
+            T
         > {
         private long Cursor = InitialCursor, Count;
         private int Index = -1;
@@ -69,12 +67,14 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
                 return false;
             }
             Iterator.Count=0;
-            var r = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            var 最後まで読み切ったか = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
             Session.BasicContext.CompletePending(wait: true);
             var Count = Iterator.Count;
             this.Count=Count;
-            if(!r)
+            if(最後まで読み切ったか){
+            } else{
                 this.Done=true;
+            }
             if(Count>0) {
                 this.Index=0;
                 return true;
@@ -93,55 +93,62 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     }
     private protected ManagedCollection(ManagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
     }
-    public bool ContainsKey(TKey Key) {
+    public unsafe bool ContainsKey(TKey Key) {
         var KeyBytes = TKeySerializer.Serialize(ref Key);
-        using var pinnedKey = new PinnedSpanByteOwner(KeyBytes);
-        var SessionKey = pinnedKey.SpanByte;
-        return this.PrivateProtectedContainsKey(ref SessionKey);
+        fixed(byte* _ = KeyBytes) {
+            var SessionKey = SpanByte.FromPinnedSpan(KeyBytes);
+            return this.PrivateProtectedContainsKey(ref SessionKey);
+        }
     }
-    public bool Contains(TKey Key) => this.ContainsKey(Key);
-    private protected override Status Read(TKey Key,out TValue Value) {
-        var ClientSession = this.ReadClientSession;
+    public bool Contains(TKey Key) {
+        return this.ContainsKey(Key);
+    }
+    private protected override unsafe Status Read(TKey Key,out TValue Value) {
+        var ClientSession = this.ReadSession;
         var KeyBytes = TKeySerializer.Serialize(ref Key);
-        using var pinnedKey = new PinnedSpanByteOwner(KeyBytes);
-        var FixedKey = pinnedKey.SpanByte;
         var Output = default(SpanByteAndMemory);
-        var Status = ClientSession.BasicContext.Read(ref FixedKey,ref Output);
-        Status=Pending(ClientSession,Status,ref Output);
+        Status Status;
+        fixed(byte* _ = KeyBytes) {
+            var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
+            Status=ClientSession.BasicContext.Read(ref FixedKey,ref Output);
+            Status=Pending(ClientSession,Status,ref Output);
+        }
         Debug.Assert(Status.IsCompleted);
-        if(Status.Found) {
+        if(Status.Found)
             Value=TValueSerializer.Deserialize(Output.AsReadOnlySpan());
-        }
-        else {
+        else
             Value=default!;
-        }
         return Status;
     }
-    public bool Remove(TKey key) {
-        var ClientSession = this.ContainsDeleteClientSession;
+    public unsafe bool Remove(TKey key) {
+        var ClientSession = this.ContainsDeleteSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
-        using var pinnedKey = new PinnedSpanByteOwner(KeyBytes);
-        var FixedKey = pinnedKey.SpanByte;
         var Input = default(EqualityEmpty);
         var Output = false;
-        var Status = ClientSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output);
-        Status=Pending(ClientSession,Status,ref Output);
+        Status Status;
+        fixed(byte* _ = KeyBytes) {
+            var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
+            Status=ClientSession.BasicContext.RMW(ref FixedKey,ref Input,ref Output);
+            Status=Pending(ClientSession,Status,ref Output);
+        }
         Debug.Assert(Status.IsCompleted);
         return Output;
     }
-    private protected override TryAddResult PrivateTryAdd(TKey Key,TValue Value) {
+    private protected override unsafe TryAddResult PrivateTryAdd(TKey Key,TValue Value) {
         var KeyBytes = TKeySerializer.Serialize(ref Key);
         var ValueBytes = TValueSerializer.Serialize(ref Value);
         if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
             return TryAddResult.LogFull;
-        var ClientSession = this.AddClientSession;
-        using var pinnedKey = new PinnedSpanByteOwner(KeyBytes);
-        using var pinnedValue = new PinnedSpanByteOwner(ValueBytes);
-        var FixedKey = pinnedKey.SpanByte;
-        var FixedInput = pinnedValue.SpanByte;
+        var ClientSession = this.Add_ClientSession;
         var Output = false;
-        var Status = ClientSession.BasicContext.RMW(ref FixedKey,ref FixedInput,ref Output);
-        Status=Pending(ClientSession,Status,ref Output);
+        Status Status;
+        fixed(byte* _ = KeyBytes)
+        fixed(byte* __ = ValueBytes) {
+            var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
+            var FixedInput = SpanByte.FromPinnedSpan(ValueBytes);
+            Status=ClientSession.BasicContext.RMW(ref FixedKey,ref FixedInput,ref Output);
+            Status=Pending(ClientSession,Status,ref Output);
+        }
         Debug.Assert(Status.IsCompleted);
         if(Output)
             return TryAddResult.Success;

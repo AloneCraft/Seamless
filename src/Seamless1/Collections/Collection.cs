@@ -53,6 +53,41 @@ public abstract class Collection<
         TSessionValue,
         TStoreFunctions
     > {
+    public abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions<TSessionKey,TSessionValue> {
+        public readonly T[] Chunk = new T[Const.Chunk_Length];
+        public int Count;
+        private long LastAcceptedAddress;
+        private protected abstract T Deserialize(ref TSessionKey key,ref TSessionValue value);
+        public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            Debug.Assert(!recordMetadata.RecordInfo.Tombstone);
+            var index = Interlocked.Increment(ref this.Count)-1;
+            if(index>=Const.Chunk_Length) {
+                Volatile.Write(ref this.Count,Const.Chunk_Length);
+                var lastAcceptedAddress = Volatile.Read(ref this.LastAcceptedAddress);
+                if(recordMetadata.Address==lastAcceptedAddress)
+                    cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;//Pendingの影響で重複 → RetryLastRecord 付けない
+                else
+                    cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
+                return true;
+            }
+            this.Chunk[index]=this.Deserialize(ref key,ref value);
+            Volatile.Write(ref this.LastAcceptedAddress,recordMetadata.Address);
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
+        public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            return this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+        }
+        public bool OnStart(long beginAddress,long endAddress) {
+            Volatile.Write(ref this.Count,0);
+            Volatile.Write(ref this.LastAcceptedAddress,0);
+            return true;
+        }
+        public void OnStop(bool completed,long numberOfRecords) {
+        }
+        public void OnException(Exception exception,long numberOfRecords) {
+        }
+    }
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -62,7 +97,7 @@ public abstract class Collection<
         TReadFunctions,
         TStoreFunctions,
         TAllocator
-    > ReadClientSession { get; private set; }
+    > ReadSession { get; private set; }
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -82,7 +117,7 @@ public abstract class Collection<
         TAddFunctions,
         TStoreFunctions,
         TAllocator
-    > AddClientSession { get; private set; }
+    > Add_ClientSession { get; private set; }
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -92,7 +127,7 @@ public abstract class Collection<
         TContainsDeleteFunctions,
         TStoreFunctions,
         TAllocator
-    > ContainsDeleteClientSession { get; private set; }
+    > ContainsDeleteSession { get; private set; }
     private readonly CollectionStore<
         TKey,
         TValue,
@@ -134,15 +169,15 @@ public abstract class Collection<
     public long GetLongCount() {
         var Iterator = new CounterIterator();
         var Cursor = 0L;
-        this.ReadClientSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-        this.ReadClientSession.BasicContext.CompletePending(wait: true);
+        this.ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        this.ReadSession.BasicContext.CompletePending(wait: true);
         return Iterator.Counter;
     }
     private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey) {
-        var Session = this.ContainsDeleteClientSession;
+        var ContainsDeleteSession = this.ContainsDeleteSession;
         var Output = false;
-        var Status = Session.BasicContext.Read(ref SessionKey,ref Output);
-        Status=Pending(Session,Status,ref Output);
+        var Status = ContainsDeleteSession.BasicContext.Read(ref SessionKey,ref Output);
+        Status=Pending(ContainsDeleteSession,Status,ref Output);
         return Status.Found;
     }
     protected Collection(
@@ -157,7 +192,7 @@ public abstract class Collection<
     ) {
         this.CollectionStore=CollectionStore;
         var Store = CollectionStore.Store;
-        this.ReadClientSession=Store.NewSession<
+        this.ReadSession=Store.NewSession<
             EqualityEmpty,
 
             TReadOutput,
@@ -171,14 +206,14 @@ public abstract class Collection<
             EqualityEmpty,
             TReadFunctions
         >(TReadFunctions.Create());
-        this.AddClientSession=Store.NewSession<
+        this.Add_ClientSession=Store.NewSession<
 
             TAddInput,
             bool,
             EqualityEmpty,
             TAddFunctions
         >(TAddFunctions.Create());
-        this.ContainsDeleteClientSession=Store.NewSession<
+        this.ContainsDeleteSession=Store.NewSession<
 
             EqualityEmpty,
             bool,
@@ -186,14 +221,56 @@ public abstract class Collection<
             TContainsDeleteFunctions
         >(TContainsDeleteFunctions.Create());
     }
+    private static void CompletePendingAndDispose(
+        ClientSession<
+            TSessionKey,
+            TSessionValue,
+            EqualityEmpty,
+            TReadOutput,
+            EqualityEmpty,
+            TReadFunctions,
+            TStoreFunctions,
+            TAllocator
+        > session) {
+        session.BasicContext.CompletePending(wait: true);
+        session.Dispose();
+    }
+    private static void CompletePendingAndDispose(
+        ClientSession<
+            TSessionKey,
+            TSessionValue,
+            TAddInput,
+            bool,
+            EqualityEmpty,
+            TAddFunctions,
+            TStoreFunctions,
+            TAllocator
+        > session) {
+        session.BasicContext.CompletePending(wait: true);
+        session.Dispose();
+    }
+    private static void CompletePendingAndDispose(
+        ClientSession<
+            TSessionKey,
+            TSessionValue,
+            EqualityEmpty,
+            bool,
+            EqualityEmpty,
+            TContainsDeleteFunctions,
+            TStoreFunctions,
+            TAllocator
+        > session) {
+        session.BasicContext.CompletePending(wait: true);
+        session.Dispose();
+    }
     public void Clear() {
-        var Session = this.AddClientSession;
-        Session.BasicContext.CompletePending(wait: true);
-        Session.Dispose();
-        this.ReadMemoryClientSession.Dispose();
+        CompletePendingAndDispose(this.ReadSession);
+        CompletePendingAndDispose(this.ReadMemoryClientSession);
+        CompletePendingAndDispose(this.Add_ClientSession);
+        CompletePendingAndDispose(this.ContainsDeleteSession);
         var Store = this.CollectionStore.Store;
         Store.Reset();
-        this.ReadClientSession=Store.NewSession<
+        this.ReadSession=Store.NewSession<
 
             EqualityEmpty,
             TReadOutput,
@@ -207,14 +284,14 @@ public abstract class Collection<
             EqualityEmpty,
             TReadFunctions
         >(TReadFunctions.Create());
-        this.AddClientSession=Store.NewSession<
+        this.Add_ClientSession=Store.NewSession<
 
             TAddInput,
             bool,
             EqualityEmpty,
             TAddFunctions
         >(TAddFunctions.Create());
-        this.ContainsDeleteClientSession=Store.NewSession<
+        this.ContainsDeleteSession=Store.NewSession<
 
             EqualityEmpty,
             bool,
@@ -309,6 +386,12 @@ public abstract class Collection<
     }
     private long LogMemorySize => this.CollectionStore.LogMemorySize;
     private double MutableFraction => this.CollectionStore.MutableFraction;
+    private protected bool IsEmpty {
+        get {
+            var Log = this.CollectionStore.Store.Log;
+            return Log.TailAddress<=Log.BeginAddress;
+        }
+    }
     private protected OutOfMemoryException ThrowLogFull() {
         var Log = this.CollectionStore.Store.Log;
         return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
@@ -343,190 +426,217 @@ public abstract class Collection<
             return;
         }
         if(disposing) {
-            this.ReadMemoryClientSession.Dispose();
-            this.AddClientSession.Dispose();
+            CompletePendingAndDispose(this.ReadSession);
+            CompletePendingAndDispose(this.ReadMemoryClientSession);
+            CompletePendingAndDispose(this.Add_ClientSession);
+            CompletePendingAndDispose(this.ContainsDeleteSession);
         }
         this.disposed=true;
     }
     ~Collection() => this.Dispose(false);
+    private protected const int SetOperationBatchSize = 512;
     //Collection
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
+    private struct IsSubsetOfScanIteratorFunctions<TCollection>(TCollection other):IScanIteratorFunctions<TSessionKey,TSessionValue>
+        where TCollection : Collection<
+            TKey,
+            TValue,
+            TSessionKey,
+            TSessionValue,
+            TReadOutput,
+            TAddInput,
+            TReadFunctions,
+            TAddFunctions,
+            TContainsDeleteFunctions,
+            TStoreFunctions,
+            TAllocator
+        > {
+        public bool IsSubset=true;
+        public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            if(!this.IsSubset) {
+                cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
+                return true;
+            }
+            if(other.PrivateProtectedContainsKey(ref key)) {
+                cursorRecordResult=CursorRecordResult.Accept;
+                return true;
+            }
+            this.IsSubset=false;
+            cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
+            return true;
+        }
+        public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+            => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+        public bool OnStart(long beginAddress,long endAddress) => true;
+        public void OnStop(bool completed,long numberOfRecords) { }
+        public void OnException(Exception exception,long numberOfRecords) { }
+    }
+    private struct OverlapsScanIteratorFunctions<TCollection>(TCollection self):IScanIteratorFunctions<TSessionKey,TSessionValue>
+        where TCollection : Collection<
+            TKey,
+            TValue,
+            TSessionKey,
+            TSessionValue,
+            TReadOutput,
+            TAddInput,
+            TReadFunctions,
+            TAddFunctions,
+            TContainsDeleteFunctions,
+            TStoreFunctions,
+            TAllocator
+        > {
+        public bool FoundOverlap=false;
+        public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            if(this.FoundOverlap) {
+                cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
+                return true;
+            }
+            if(self.PrivateProtectedContainsKey(ref key)) {
+                this.FoundOverlap=true;
+                cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
+                return true;
+            }
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
+        public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+            => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+        public bool OnStart(long beginAddress,long endAddress) => true;
+        public void OnStop(bool completed,long numberOfRecords) { }
+        public void OnException(Exception exception,long numberOfRecords) { }
+    }
+    private protected static bool IsSubsetOfSet<TCollection>(TCollection Self,TCollection Other)
+        where TCollection : Collection<
+            TKey,
+            TValue,
+            TSessionKey,
+            TSessionValue,
+            TReadOutput,
+            TAddInput,
+            TReadFunctions,
+            TAddFunctions,
+            TContainsDeleteFunctions,
+            TStoreFunctions,
+            TAllocator
+        > {
+        ArgumentNullException.ThrowIfNull(Other);
+        var ScanSession = Self.ReadSession;
+        var Cursor = 0L;
+        while(true) {
+            var Iterator = new IsSubsetOfScanIteratorFunctions<TCollection>(Other);
+            var 最後まで読み切ったか = ScanSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+            ScanSession.BasicContext.CompletePending(wait: true);
+            if(!Iterator.IsSubset) {
+                return false;
+            }
+            if(最後まで読み切ったか) {
+                return true;
+            }
+        }
+    }
+    private protected static bool IsSupersetOfSet<TCollection>(TCollection Self,TCollection Other)
+        where TCollection : Collection<
+            TKey,
+            TValue,
+            TSessionKey,
+            TSessionValue,
+            TReadOutput,
+            TAddInput,
+            TReadFunctions,
+            TAddFunctions,
+            TContainsDeleteFunctions,
+            TStoreFunctions,
+            TAllocator
+        > {
+        ArgumentNullException.ThrowIfNull(Other);
+        return IsSubsetOfSet(Other,Self);
+    }
+    private protected static bool IsProperSubsetOfSet<TCollection>(TCollection Self,TCollection Other)
+        where TCollection : Collection<
+            TKey,
+            TValue,
+            TSessionKey,
+            TSessionValue,
+            TReadOutput,
+            TAddInput,
+            TReadFunctions,
+            TAddFunctions,
+            TContainsDeleteFunctions,
+            TStoreFunctions,
+            TAllocator
+        > {
+        ArgumentNullException.ThrowIfNull(Other);
+        if(Self.GetLongCount()>=Other.GetLongCount()) {
+            return false;
+        }
+        return IsSubsetOfSet(Self,Other);
+    }
+    private protected static bool IsProperSupersetOfSet<TCollection>(TCollection Self,TCollection Other)
+        where TCollection : Collection<
+            TKey,
+            TValue,
+            TSessionKey,
+            TSessionValue,
+            TReadOutput,
+            TAddInput,
+            TReadFunctions,
+            TAddFunctions,
+            TContainsDeleteFunctions,
+            TStoreFunctions,
+            TAllocator
+        > {
+        ArgumentNullException.ThrowIfNull(Other);
+        if(Self.GetLongCount()<=Other.GetLongCount()) {
+            return false;
+        }
+        return IsSupersetOfSet(Self,Other);
+    }
+    private protected static bool OverlapsSet<TCollection>(TCollection Self,TCollection Other)
+        where TCollection : Collection<
+            TKey,
+            TValue,
+            TSessionKey,
+            TSessionValue,
+            TReadOutput,
+            TAddInput,
+            TReadFunctions,
+            TAddFunctions,
+            TContainsDeleteFunctions,
+            TStoreFunctions,
+            TAllocator
+        > {
+        ArgumentNullException.ThrowIfNull(Other);
+        var ScanSession = Other.ReadSession;
+        var Cursor = 0L;
+        while(true) {
+            var Iterator = new OverlapsScanIteratorFunctions<TCollection>(Self);
+            var 最後まで読み切ったか = ScanSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+            ScanSession.BasicContext.CompletePending(wait: true);
+            if(Iterator.FoundOverlap) {
+                return true;
+            }
+            if(最後まで読み切ったか) {
+                return false;
+            }
+        }
+    }
+    private protected static bool SetEqualsSet<TCollection>(TCollection Self,TCollection Other)
+        where TCollection : Collection<
+            TKey,
+            TValue,
+            TSessionKey,
+            TSessionValue,
+            TReadOutput,
+            TAddInput,
+            TReadFunctions,
+            TAddFunctions,
+            TContainsDeleteFunctions,
+            TStoreFunctions,
+            TAllocator
+        > {
+        ArgumentNullException.ThrowIfNull(Other);
+        if(Self.GetLongCount()!=Other.GetLongCount()) {
+            return false;
+        }
+        return IsSubsetOfSet(Self,Other);
+    }
 }

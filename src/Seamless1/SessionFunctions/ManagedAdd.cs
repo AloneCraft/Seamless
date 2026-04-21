@@ -56,17 +56,20 @@ public readonly struct ManagedAdd:
     public bool NeedCopyUpdate(ref ManagedSessionValue key,ref ManagedSessionValue input,ref ManagedSessionValue value,ref bool output,ref RMWInfo rmwInfo) => false;
 
     public bool CopyUpdater(ref ManagedSessionValue key,ref ManagedSessionValue input,ref ManagedSessionValue oldValue,ref ManagedSessionValue newValue,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
-        throw new NotSupportedException("RMWで更新しない限りない");
+        // Read のみ使用するため、RMW 系コールバックには到達しない。
+        throw new NotSupportedException();
     }
 
     public bool PostCopyUpdater(ref ManagedSessionValue key,ref ManagedSessionValue input,ref ManagedSessionValue oldValue,ref ManagedSessionValue newValue,ref bool output,ref RMWInfo rmwInfo) =>
-        throw new NotSupportedException("RMWで更新しない限りない");
+        // Read のみ使用するため、RMW 系コールバックには到達しない。
+        throw new NotSupportedException();
 
     public bool InPlaceUpdater(ref ManagedSessionValue key,ref ManagedSessionValue input,ref ManagedSessionValue value,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) =>
         false;
 
     public int GetRMWModifiedValueLength(ref ManagedSessionValue value,ref ManagedSessionValue input) {
-        throw new NotSupportedException("NeedCopyUpdate() が常に false 計上デッドコード");
+        // NeedCopyUpdate が常に false のため到達しない。
+        throw new NotSupportedException();
     }
 
     public int GetRMWInitialValueLength(ref ManagedSessionValue input) => input.Length+4;
@@ -82,20 +85,24 @@ public readonly struct ManagedAdd:
     }
 
     public bool SingleDeleter(ref ManagedSessionValue key,ref ManagedSessionValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) {
-        throw new NotSupportedException("AddはUpsert,RMW");
+        // Add は Upsert と RMW を使用するため、Read/Delete 系コールバックには到達しない。
+        throw new NotSupportedException();
     }
 
     public void PostSingleDeleter(ref ManagedSessionValue key,ref DeleteInfo deleteInfo) {
-        throw new NotSupportedException("AddはUpsert,RMW");
+        // Add は Upsert と RMW を使用するため、Read/Delete 系コールバックには到達しない。
+        throw new NotSupportedException();
     }
 
     public bool ConcurrentDeleter(ref ManagedSessionValue key,ref ManagedSessionValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) {
-        throw new NotSupportedException("AddはUpsert,RMW");
+        // Add は Upsert と RMW を使用するため、Read/Delete 系コールバックには到達しない。
+        throw new NotSupportedException();
     }
 
     public void PostDeleteOperation<TEpochAccessor>(ref ManagedSessionValue key,ref DeleteInfo deleteInfo,TEpochAccessor epoch)
         where TEpochAccessor : IEpochAccessor {
-        throw new NotSupportedException("AddはUpsert,RMW");
+        // Add は Upsert と RMW を使用するため、Read/Delete 系コールバックには到達しない。
+        throw new NotSupportedException();
     }
 
     public void ConvertOutputToHeap(ref ManagedSessionValue input,ref bool output) {

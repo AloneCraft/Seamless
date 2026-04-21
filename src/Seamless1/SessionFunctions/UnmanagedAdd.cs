@@ -17,13 +17,16 @@ public readonly  struct UnmanagedAdd<TKey, TValue>:
     public static UnmanagedAdd<TKey,TValue> Create() => new();
 
     public bool SingleReader(ref TKey key,ref TValue input,ref TValue value,ref bool dst,ref ReadInfo readInfo){
-        throw new NotSupportedException("UnmanagedAddクラスのRMWでのみ使われる");
+        // UnmanagedAdd は RMW でのみ使用するため、他のコールバックには到達しない。
+        throw new NotSupportedException();
     }
     public bool ConcurrentReader(ref TKey key,ref TValue input,ref TValue value,ref bool dst,ref ReadInfo readInfo,ref RecordInfo recordInfo){
-        throw new NotSupportedException("UnmanagedAddクラスのRMWでのみ使われる");
+        // UnmanagedAdd は RMW でのみ使用するため、他のコールバックには到達しない。
+        throw new NotSupportedException();
     }
     public void ReadCompletionCallback(ref TKey key,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
-        throw new NotSupportedException("UnmanagedAddクラスのRMWでのみ使われる");
+        // UnmanagedAdd は RMW でのみ使用するため、他のコールバックには到達しない。
+        throw new NotSupportedException();
     }
 
     public bool SingleWriter(ref TKey key,ref TValue input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,WriteReason reason,ref RecordInfo recordInfo){
@@ -57,11 +60,13 @@ public readonly  struct UnmanagedAdd<TKey, TValue>:
     public bool NeedCopyUpdate(ref TKey key,ref TValue input,ref TValue oldValue,ref bool output,ref RMWInfo rmwInfo) => false;
 
     public bool CopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo){
-        throw new NotSupportedException("NeedCopyUpdate が false を返すので呼ばれない");
+        // NeedCopyUpdate が false を返すため到達しない。
+        throw new NotSupportedException();
     }
 
     public bool PostCopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo){
-        throw new NotSupportedException("CopyUpdater が false を返すので呼ばれない");
+        // CopyUpdater が false を返して処理を打ち切るため、到達しない。
+        throw new NotSupportedException();
     }
 
     public bool InPlaceUpdater(ref TKey key,ref TValue input,ref TValue value,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) => false;
@@ -78,20 +83,24 @@ public readonly  struct UnmanagedAdd<TKey, TValue>:
     }
 
     public bool SingleDeleter(ref TKey key,ref TValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
-        throw new NotSupportedException("Add は Delete を使用しない");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
 
     public void PostSingleDeleter(ref TKey key,ref DeleteInfo deleteInfo){
-        throw new NotSupportedException("Add は Delete を使用しない");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
 
     public bool ConcurrentDeleter(ref TKey key,ref TValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
-        throw new NotSupportedException("Add は Delete を使用しない");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
 
     public void PostDeleteOperation<TEpochAccessor>(ref TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epoch)
         where TEpochAccessor:IEpochAccessor {
-        throw new NotSupportedException("Add は Delete を使用しない");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
 
     public void ConvertOutputToHeap(ref TValue input,ref bool output){

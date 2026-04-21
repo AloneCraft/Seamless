@@ -14,7 +14,8 @@ public readonly  struct UnmanagedAdd<TKey, TValue>():
     public static UnmanagedAdd<TKey,TValue> Create() => new();
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref ReadInfo readInfo)
         where TSourceLogRecord:ISourceLogRecord {
-        throw new NotSupportedException("UnmagedAddクラスのRMWでのみ使われる");
+        // UnmanagedAdd は RMW でのみ使用するため、他のコールバックには到達しない。
+        throw new NotSupportedException();
     }
     public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo){
         return logRecord.TrySetValueSpanAndPrepareOptionals(srcValue,in sizeInfo);
@@ -80,11 +81,13 @@ public readonly  struct UnmanagedAdd<TKey, TValue>():
     }
     public bool CopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo)
         where TSourceLogRecord:ISourceLogRecord {
-        throw new NotSupportedException("NeedCopyUpdate が false を返すので呼ばれない");
+        // NeedCopyUpdate が false を返すため到達しない。
+        throw new NotSupportedException();
     }
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo)
         where TSourceLogRecord:ISourceLogRecord {
-        throw new NotSupportedException("NeedCopyUpdate が false を返すので呼ばれない");
+        // NeedCopyUpdate が false を返すため到達しない。
+        throw new NotSupportedException();
     }
     public void PostRMWOperation<TKey0, TEpochAccessor>(TKey0 key,ref TValue input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
         where TKey0:IKey, allows ref struct
@@ -93,18 +96,22 @@ public readonly  struct UnmanagedAdd<TKey, TValue>():
     public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
     }
     public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo){
-        throw new NotSupportedException("Add は Delete を使用しない");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
     public void PostInitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo){
-        throw new NotSupportedException("Add は Delete を使用しない");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
     public bool InPlaceDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo){
-        throw new NotSupportedException("Add は Delete を使用しない");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
     public void PostDeleteOperation<TKey0, TEpochAccessor>(TKey0 key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
         where TKey0:IKey, allows ref struct
         where TEpochAccessor:IEpochAccessor {
-        throw new NotSupportedException("Add は Delete を使用しない");
+        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        throw new NotSupportedException();
     }
     public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
     }

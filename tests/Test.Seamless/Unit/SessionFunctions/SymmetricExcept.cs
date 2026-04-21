@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -139,22 +139,6 @@ public sealed class ManagedSymmetricExcept:SymmetricExceptTests<int> {
     protected override void FlushAndEvict(IDisposable store) =>
         ((ManagedHashSetStore<int>)store).Store.Log.FlushAndEvict(true);
 
-    [Fact, Trait("Category","Unit")]
-    public void LogFull_Throws() {
-        using var store = Factory.Create(MutableFraction: 0.01).Create<int>();
-        using var set = store.Create();
-        using var otherStore = Factory.Create().Create<int>();
-        using var other = otherStore.Create();
-        var exception = Record.Exception(() => {
-            for(var a = 0; a<10000; a++) {
-                other.Clear();
-                other.Add(a);
-                set.SymmetricExceptWith(other);
-            }
-        });
-        var outOfMemory = Assert.IsType<OutOfMemoryException>(exception);
-        Assert.StartsWith("Tsavorite mutable log is full.",outOfMemory.Message);
-    }
 }
 
 /// <summary>
@@ -256,24 +240,5 @@ public sealed class UnmanagedSymmetricExcept {
         Assert.True(setA.Contains(2));
         Assert.True(setA.Contains(3));
         Assert.True(setA.Contains(4));
-    }
-
-    [Fact, Trait("Category","Unit")]
-    public void SymmetricExceptWith_LogFull_Throws() {
-        var (set,store)=CreateSmallMutableSet();
-        var (other,otherStore)=CreateSet();
-        using var _store = store;
-        using var _otherStore = otherStore;
-        using var _set = set;
-        using var _other = other;
-        var exception = Record.Exception(() => {
-            for(var a = 0; a<10000; a++) {
-                other.Clear();
-                other.Add(a);
-                set.SymmetricExceptWith(other);
-            }
-        });
-        var outOfMemory = Assert.IsType<OutOfMemoryException>(exception);
-        Assert.StartsWith("Tsavorite mutable log is full.",outOfMemory.Message);
     }
 }

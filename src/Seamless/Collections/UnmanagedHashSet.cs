@@ -31,88 +31,16 @@ public partial class UnmanagedHashSet<TKey>:UnmanagedUnmanagedCollection<TKey,Eq
             array[arrayIndex++]=item;
         }
     }
-    public void ExceptWith(UnmanagedHashSet<TKey> other) {
-        ArgumentNullException.ThrowIfNull(other);
-#if TSAVORITE2_0BETA3
-        this.ExceptWithZeroCopy(other);
-#else
-        foreach(var item in other) {
-            this.Remove(item);
-        }
-#endif
-    }
+    public partial void ExceptWith(UnmanagedHashSet<TKey> other);
     public partial void IntersectWith(UnmanagedHashSet<TKey> other);
-    public bool IsSubsetOf(UnmanagedHashSet<TKey> other) {
-        ArgumentNullException.ThrowIfNull(other);
-        foreach(var Key in this) {
-            if(!other.Contains(Key)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    public bool IsSupersetOf(UnmanagedHashSet<TKey> other) {
-        ArgumentNullException.ThrowIfNull(other);
-        foreach(var item in other) {
-            if(!this.Contains(item)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    public bool IsProperSubsetOf(UnmanagedHashSet<TKey> other) {
-        ArgumentNullException.ThrowIfNull(other);
-        if(this.GetLongCount()>=other.GetLongCount())
-            return false;
-        foreach(var Key in this) {
-            if(!other.Contains(Key)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    public bool IsProperSupersetOf(UnmanagedHashSet<TKey> other) {
-        ArgumentNullException.ThrowIfNull(other);
-        if(this.GetLongCount()<=other.GetLongCount())
-            return false;
-        foreach(var item in other) {
-            if(!this.Contains(item)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    public bool Overlaps(UnmanagedHashSet<TKey> other) {
-        ArgumentNullException.ThrowIfNull(other);
-        foreach(var item in other) {
-            if(this.Contains(item)) {
-                return true;
-            }
-        }
-        return false;
-    }
-    public bool SetEquals(UnmanagedHashSet<TKey> other) {
-        ArgumentNullException.ThrowIfNull(other);
-        if(this.GetLongCount()!=other.GetLongCount())
-            return false;
-        foreach(var Key in this) {
-            if(!other.Contains(Key)) {
-                return false;
-            }
-        }
-        return true;
-    }
+    public partial bool IsSubsetOf(UnmanagedHashSet<TKey> other);
+    public partial bool IsSupersetOf(UnmanagedHashSet<TKey> other);
+    public partial bool IsProperSubsetOf(UnmanagedHashSet<TKey> other);
+    public partial bool IsProperSupersetOf(UnmanagedHashSet<TKey> other);
+    public partial bool Overlaps(UnmanagedHashSet<TKey> other);
+    public partial bool SetEquals(UnmanagedHashSet<TKey> other);
     public partial void SymmetricExceptWith(UnmanagedHashSet<TKey> other);
-    public void UnionWith(UnmanagedHashSet<TKey> other) {
-        ArgumentNullException.ThrowIfNull(other);
-#if TSAVORITE2_0BETA3
-        this.UnionWithZeroCopy(other);
-#else
-        foreach(var item in other) {
-            this.Add(item);
-        }
-#endif
-    }
+    public partial void UnionWith(UnmanagedHashSet<TKey> other);
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     IEnumerator<TKey> IEnumerable<TKey>.GetEnumerator() => this.GetEnumerator();
     public override bool IsDisposed => this.disposed;
