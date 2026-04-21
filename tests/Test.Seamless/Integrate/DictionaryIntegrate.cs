@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -23,7 +23,8 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
     protected abstract string TestClassName { get; }
     protected abstract TKey MakeKey(int i);
     protected abstract TValue MakeValue(int i);
-    protected virtual TValue MakeSegmentCreatedValue(int i) => MakeValue(i);
+    protected virtual TValue MakeSegmentCreatedValue(int i) =>
+        this.MakeValue(i);
     protected abstract Handle CreateHandle(string rootDir,string? checkpointDir=null,bool deleteOnDispose=true);
     protected virtual int SegmentsCreatedMaxInserts => 5000;
     protected virtual int SegmentsCreatedCheckInterval => 500;
@@ -33,7 +34,7 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
     protected virtual int CheckpointDataSize => 200;
 
     private string TestDir(string methodName) =>
-        Path.Combine(AppContext.BaseDirectory,TestClassName,methodName,Guid.NewGuid().ToString("N"));
+        Path.Combine(AppContext.BaseDirectory,this.TestClassName,methodName,Guid.NewGuid().ToString("N"));
 
     protected abstract class Handle : IDisposable {
         protected readonly string rootDir;
@@ -49,7 +50,7 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
             this.objDevice=Devices.CreateLogDevice(Path.Combine(rootDir,"obj"),deleteOnClose: false);
         }
 
-        public int CountSegmentFiles() => Directory.GetFiles(rootDir,"log.*").Length;
+        public int CountSegmentFiles() => Directory.GetFiles(this.rootDir,"log.*").Length;
         /// <summary>SegmentsCreatedDuringDataInsertion でのチェック前フラッシュ。既定は no-op。</summary>
         public virtual void Flush() { }
         public abstract ISeamlessDictionary<TKey,TValue> Create();
@@ -58,32 +59,32 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
         protected abstract void DisposeStore();
 
         public void Dispose() {
-            DisposeStore();
-            logDevice.Dispose();
-            objDevice.Dispose();
-            if(deleteOnDispose) try { Directory.Delete(rootDir,true); } catch { }
+            this.DisposeStore();
+            this.logDevice.Dispose();
+            this.objDevice.Dispose();
+            if(this.deleteOnDispose) try { Directory.Delete(this.rootDir,true); } catch { }
         }
     }
 
     [Fact]
     public void データ挿入中にセグメントファイルが増加することを確認する() {
-        var storeDir=TestDir(nameof(データ挿入中にセグメントファイルが増加することを確認する));
-        using var handle=CreateHandle(storeDir);
+        var storeDir=this.TestDir(nameof(this.データ挿入中にセグメントファイルが増加することを確認する));
+        using var handle=this.CreateHandle(storeDir);
         using var dict=handle.Create();
 
         var initialSegmentCount=handle.CountSegmentFiles();
-        output.WriteLine($"[Initial] Segment files: {initialSegmentCount}");
+        this.output.WriteLine($"[Initial] Segment files: {initialSegmentCount}");
 
         var firstGrowthAt=-1;
         try {
-            for(int i=0; i<SegmentsCreatedMaxInserts; i++) {
-                dict.Add(MakeKey(i),MakeSegmentCreatedValue(i));
+            for(int i=0; i<this.SegmentsCreatedMaxInserts; i++) {
+                dict.Add(this.MakeKey(i),this.MakeSegmentCreatedValue(i));
 
-                if((i+1)%SegmentsCreatedCheckInterval==0) {
+                if((i+1)%this.SegmentsCreatedCheckInterval==0) {
                     handle.Flush();
                     var segmentCount=handle.CountSegmentFiles();
-                    output.WriteLine($"[After {i+1} inserts] Segment files: {segmentCount}");
-                    if(SegmentsCreatedBreakOnFirstGrowth && segmentCount>initialSegmentCount) {
+                    this.output.WriteLine($"[After {i+1} inserts] Segment files: {segmentCount}");
+                    if(this.SegmentsCreatedBreakOnFirstGrowth && segmentCount>initialSegmentCount) {
                         firstGrowthAt=i+1;
                         break;
                     }
@@ -91,35 +92,35 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
             }
 
             var finalSegmentCount=handle.CountSegmentFiles();
-            output.WriteLine($"[Final] Segment files: {finalSegmentCount}");
+            this.output.WriteLine($"[Final] Segment files: {finalSegmentCount}");
             if(firstGrowthAt>=0)
-                output.WriteLine($"✓ First segment growth observed at {firstGrowthAt} inserts");
-            output.WriteLine($"✓ Segments created: {finalSegmentCount} files");
+                this.output.WriteLine($"✓ First segment growth observed at {firstGrowthAt} inserts");
+            this.output.WriteLine($"✓ Segments created: {finalSegmentCount} files");
 
             Assert.True(finalSegmentCount>initialSegmentCount,
-                $"Expected more segments than initial ({initialSegmentCount}), but got {finalSegmentCount} after {SegmentsCreatedMaxInserts} inserts");
+                $"Expected more segments than initial ({initialSegmentCount}), but got {finalSegmentCount} after {this.SegmentsCreatedMaxInserts} inserts");
         }
         finally { }
     }
 
     [Fact]
     public void セグメント数がデータ挿入に伴い単調増加することを確認する() {
-        var storeDir=TestDir(nameof(セグメント数がデータ挿入に伴い単調増加することを確認する));
-        using var handle=CreateHandle(storeDir);
+        var storeDir=this.TestDir(nameof(this.セグメント数がデータ挿入に伴い単調増加することを確認する));
+        using var handle=this.CreateHandle(storeDir);
         using var dict=handle.Create();
 
         var segmentCounts=new List<int>();
         var insertCountAtSnapshots=new List<int>();
 
         try {
-            for(int i=0; i<SegmentGrowthDataSize; i++) {
-                dict.Add(MakeKey(i),MakeValue(i));
+            for(int i=0; i<this.SegmentGrowthDataSize; i++) {
+                dict.Add(this.MakeKey(i),this.MakeValue(i));
 
-                if((i+1)%SegmentGrowthCheckInterval==0) {
+                if((i+1)%this.SegmentGrowthCheckInterval==0) {
                     var count=handle.CountSegmentFiles();
                     segmentCounts.Add(count);
                     insertCountAtSnapshots.Add(i+1);
-                    output.WriteLine($"[{i+1} inserts] Segments: {count}");
+                    this.output.WriteLine($"[{i+1} inserts] Segments: {count}");
                 }
             }
 
@@ -127,31 +128,30 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
                 Assert.True(segmentCounts[i]>=segmentCounts[i-1],
                     $"Segment count decreased at iteration {i}: {segmentCounts[i-1]} -> {segmentCounts[i]}");
             }
-
-            output.WriteLine($"✓ Segment growth is progressive: {string.Join(" -> ",segmentCounts)} files");
+            this.output.WriteLine($"✓ Segment growth is progressive: {string.Join(" -> ",segmentCounts)} files");
         }
         finally { }
     }
 
     [Fact]
     public void チェックポイントと復元() {
-        var storeDir=TestDir(nameof(チェックポイントと復元));
+        var storeDir=this.TestDir(nameof(this.チェックポイントと復元));
         var checkpointDir=Path.Combine(storeDir,"checkpoint");
         Directory.CreateDirectory(storeDir);
         Directory.CreateDirectory(checkpointDir);
 
-        var dataSize=CheckpointDataSize;
+        var dataSize=this.CheckpointDataSize;
         Guid token=default;
 
         // データを書き込んでチェックポイントを保存
         {
-            var handle=CreateHandle(storeDir,checkpointDir,deleteOnDispose: false);
+            var handle=this.CreateHandle(storeDir,checkpointDir,deleteOnDispose: false);
             try {
                 using var dict=handle.Create();
                 for(int i=0; i<dataSize; i++)
-                    dict.Add(MakeKey(i),MakeValue(i));
+                    dict.Add(this.MakeKey(i),this.MakeValue(i));
                 token=handle.Save();
-                output.WriteLine($"✓ Checkpoint saved: {token}");
+                this.output.WriteLine($"✓ Checkpoint saved: {token}");
             }
             finally {
                 handle.Dispose();
@@ -160,15 +160,15 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
 
         // チェックポイントから復元してデータを検証
         {
-            var handle=CreateHandle(storeDir,checkpointDir,deleteOnDispose: false);
+            var handle=this.CreateHandle(storeDir,checkpointDir,deleteOnDispose: false);
             try {
                 handle.Load(token);
                 using var dict=handle.Create();
                 for(int i=0; i<dataSize; i++) {
-                    Assert.True(dict.TryGetValue(MakeKey(i),out var val),$"Key {MakeKey(i)} not found after restore");
-                    Assert.Equal(MakeValue(i),val!);
+                    Assert.True(dict.TryGetValue(this.MakeKey(i),out var val),$"Key {this.MakeKey(i)} not found after restore");
+                    Assert.Equal(this.MakeValue(i),val!);
                 }
-                output.WriteLine($"✓ All {dataSize} entries verified after restore");
+                this.output.WriteLine($"✓ All {dataSize} entries verified after restore");
             }
             finally {
                 handle.Dispose();
@@ -206,17 +206,21 @@ public class ManagementDictionary(ITestOutputHelper output) : DictionaryIntegrat
                 MutableFraction: 0.05,
                 CheckpointDir: checkpointDir
             );
-            this.store=factory.Create<string,string>(logDevice,objDevice,new ManagedTag(),new ManagedTag());
+            this.store=factory.Create<string,string>(this.logDevice,this.objDevice,new ManagedTag(),new ManagedTag());
         }
 
-        public override ISeamlessDictionary<string,string> Create() => store.Create();
-        public override void Flush() => store.Store.Log.Flush(wait: true);
-        public override Guid Save() => store.Save();
-        public override void Load(Guid token) => store.Load(token);
+        public override ISeamlessDictionary<string,string> Create() =>
+            this.store.Create();
+        public override void Flush() =>
+            this.store.Store.Log.Flush(wait: true);
+        public override Guid Save() =>
+            this.store.Save();
+        public override void Load(Guid token) =>
+            this.store.Load(token);
 
         protected override void DisposeStore() {
-            store.Store.Log.FlushAndEvict(wait: true);
-            store.Dispose();
+            this.store.Store.Log.FlushAndEvict(wait: true);
+            this.store.Dispose();
         }
     }
 }
@@ -246,16 +250,19 @@ public class UnmanagementDictionary(ITestOutputHelper output) : DictionaryIntegr
                 MutableFraction: 0.05,
                 CheckpointDir: checkpointDir
             );
-            this.store=factory.Create<int,int>(logDevice,objDevice,new UnmanagedTag(),new UnmanagedTag());
+            this.store=factory.Create<int,int>(this.logDevice,this.objDevice,new UnmanagedTag(),new UnmanagedTag());
         }
 
-        public override ISeamlessDictionary<int,int> Create() => store.Create();
-        public override Guid Save() => store.Save();
-        public override void Load(Guid token) => store.Load(token);
+        public override ISeamlessDictionary<int,int> Create() =>
+            this.store.Create();
+        public override Guid Save() =>
+            this.store.Save();
+        public override void Load(Guid token) =>
+            this.store.Load(token);
 
         protected override void DisposeStore() {
-            store.Store.Log.FlushAndEvict(wait: true);
-            store.Dispose();
+            this.store.Store.Log.FlushAndEvict(wait: true);
+            this.store.Dispose();
         }
     }
 }

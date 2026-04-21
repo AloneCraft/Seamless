@@ -119,8 +119,11 @@ public class CollectionStore {
         static void CreateOrphan() {
             _=Factory.Create().Create<int,string>();
         }
-        CreateOrphan();
+        for(var i = 0; i<16; i++) {
+            CreateOrphan();
+        }
         GC.Collect(GC.MaxGeneration,GCCollectionMode.Forced,blocking: true);
         GC.WaitForPendingFinalizers();
+        using var store = Factory.Create().Create<int,string>();
     }
 }

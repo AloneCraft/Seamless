@@ -38,7 +38,7 @@ public partial class UnmanagedDictionary<
                 DefaultRecordDisposer<TKey,TValue>
             >
         >
-    > Remove_TKey_TValue_ClientSession { get; set; }
+    > Remove_TKey_TValue_ClientSession { get; }
     private ClientSession<
         TKey,
         TValue,
@@ -92,19 +92,19 @@ public partial class UnmanagedDictionary<
             TKey,
             TValue
         >
-    > GetEnumerator() => new(this.ReadClientSession,new());
+    > GetEnumerator() => new(this.ReadSession,new());
     IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<KeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadMemoryClientSession,new(),this.HeadAddress);
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator iterator)
-    where TIterator : ScanIteratorFunctions<T,TKey,TValue> {
-        using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
+    where TIterator : ScanIteratorFunctions<T> {
+        using var e = new Enumerator<TIterator,T>(this.ReadSession,iterator);
         while(e.MoveNext()) {
             yield return e.Current;
         }
     }
     private List<T> CreateCollection<TIterator, T>(TIterator iterator)
-        where TIterator : ScanIteratorFunctions<T,TKey,TValue> {
+        where TIterator : ScanIteratorFunctions<T> {
         var collection = new List<T>();
-        using var e = new Enumerator<TIterator,T>(this.ReadClientSession,iterator);
+        using var e = new Enumerator<TIterator,T>(this.ReadSession,iterator);
         while(e.MoveNext()) {
             collection.Add(e.Current);
         }
@@ -145,7 +145,7 @@ public partial class UnmanagedDictionary<
 
         if(this.WouldOverflowMutable(Unsafe.SizeOf<TKey>(),Unsafe.SizeOf<TValue>()))
             throw this.ThrowLogFull();
-        var session = this.AddClientSession;
+        var session = this.Add_ClientSession;
 
 
         var status = session.BasicContext.Upsert(ref key,ref value);

@@ -1,5 +1,7 @@
 ﻿using Seamless.SessionFunctions;
 using Seamless.Stores;
+
+using static System.Collections.Specialized.BitVector32;
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。
@@ -10,7 +12,6 @@ public partial class ManagedHashSet<TKey>
     where TKey : IEquatable<TKey> {
     private readonly ClientSession<
         FixedSpanByteKey,//TKey
-                         //
         EqualityEmpty,//TInput
         EqualityEmpty,//TOutput
         EqualityEmpty,//TContext
@@ -20,7 +21,6 @@ public partial class ManagedHashSet<TKey>
     > IntersectWith_ClientSession;
     private readonly ClientSession<
         FixedSpanByteKey,//TKey
-                         //
         EqualityEmpty,//TInput
         EqualityEmpty,//TOutput
         EqualityEmpty,//TContext
@@ -48,24 +48,42 @@ public partial class ManagedHashSet<TKey>
     public Enumerator<
         KeyIterator,
         TKey
-    > GetEnumerator() => new(this.ReadClientSession,new());
+    > GetEnumerator() => new(this.ReadSession,new());
     IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<MemoryKeyIterator,TKey>(this.ReadMemoryClientSession,new(),this.HeadAddress);
-    private void ExceptWithZeroCopy(ManagedHashSet<TKey> other) {
-        ExceptWith(this,other,other.IntersectWith_ClientSession,this.ContainsDeleteClientSession);
-    }
-    private void UnionWithZeroCopy(ManagedHashSet<TKey> other) {
-        UnionWith(this,other,other.IntersectWith_ClientSession,this.AddClientSession);
+    public partial void ExceptWith(ManagedHashSet<TKey> other) {
+        var ReadSession = other.ReadSession;
+        var ContainsDeleteSession = this.ContainsDeleteSession;
+        var cursor = 0L;
+        var Iterator = new ScanIteratorFunctions_ExceptWith(ContainsDeleteSession);
+        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        ReadSession.BasicContext.CompletePending(wait: true);
+        ContainsDeleteSession.BasicContext.CompletePending(wait: true);
     }
     public partial void IntersectWith(ManagedHashSet<TKey> other) {
-        //2.0はMaagedもUnmanagedも共通なのでCollectionで定義している
         IntersectWith(this,other,this.IntersectWith_ClientSession);
-        //
-        //
-        //
-        //
     }
+    public partial bool IsProperSubsetOf(ManagedHashSet<TKey> other) => IsProperSubsetOfSet(this,other);
+    public partial bool IsProperSupersetOf(ManagedHashSet<TKey> other) => IsProperSupersetOfSet(this,other);
+    public partial bool IsSubsetOf(ManagedHashSet<TKey> other) => IsSubsetOfSet(this,other);
+    public partial bool IsSupersetOf(ManagedHashSet<TKey> other) => IsSupersetOfSet(this,other);
+    public partial bool Overlaps(ManagedHashSet<TKey> other) => OverlapsSet(this,other);
+    public partial bool SetEquals(ManagedHashSet<TKey> other) => SetEqualsSet(this,other);
     public partial void SymmetricExceptWith(ManagedHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
-        SymmetricExceptWith(this,other,other.IntersectWith_ClientSession,this.SymmetricExceptWith_ClientSession);
+        var ReadSession = other.ReadSession;
+        var cursor = 0L;
+        var Iterator = new ScanIteratorFunctions_SymmetricExceptWith(this.SymmetricExceptWith_ClientSession);
+        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        ReadSession.BasicContext.CompletePending(wait: true);
+        this.SymmetricExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
+    }
+    public partial void UnionWith(ManagedHashSet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        var ReadSession = other.ReadSession;
+        var Cursor = 0L;
+        var Iterator = new ScanIteratorFunctions_UnionWith(this.Add_ClientSession);
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        ReadSession.BasicContext.CompletePending(wait: true);
+        this.Add_ClientSession.BasicContext.CompletePending(wait: true);
     }
 }

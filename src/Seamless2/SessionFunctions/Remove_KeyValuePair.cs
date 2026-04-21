@@ -12,13 +12,15 @@ public readonly struct Remove_KeyValuePair<TValue, TValueSerializer>:
     where TValueSerializer : ISerializer<TValue> {
     [ExcludeFromCodeCoverage]
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref ReadInfo readInfo) where TSourceLogRecord : ISourceLogRecord =>
-        throw new NotSupportedException("Read");
+        // Read 操作は使用しない。
+        throw new NotSupportedException();
     public bool NeedInitialUpdate<TKey>(TKey key,ref TValue input,ref bool output,ref RMWInfo rmwInfo) where TKey : IKey, allows ref struct {
         return false;
     }
     [ExcludeFromCodeCoverage]
     public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
-        throw new NotSupportedException("NeedInitialUpdateがfalseを返すので呼ばれない");
+        // NeedInitialUpdate が false を返すため到達しない。
+        throw new NotSupportedException();
     }
     // キー存在時（Mutable）は Value が一致する場合のみ ExpireAndStop で論理削除
     public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
@@ -31,7 +33,8 @@ public readonly struct Remove_KeyValuePair<TValue, TValueSerializer>:
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
-        throw new NotSupportedException("InitialUpdaterが呼ばれないので呼ばれない");
+        // NeedInitialUpdate が false のため InitialUpdater も呼ばれず、到達しない。
+        throw new NotSupportedException();
     }
     // キー存在時（ReadOnly/Disk）は値が一致した場合のみ Mutable に削除レコードを追加する
     public bool NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord : ISourceLogRecord {
@@ -45,57 +48,69 @@ public readonly struct Remove_KeyValuePair<TValue, TValueSerializer>:
     }
     [ExcludeFromCodeCoverage]
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord : ISourceLogRecord {
-        throw new NotSupportedException("CopyUpdaterがfalseを返すのでここは呼ばれない");
+        // CopyUpdater が false を返して処理を打ち切るため、到達しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,in TSourceLogRecord inputLogRecord,ref bool output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref TValue input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,in TSourceLogRecord inputLogRecord,ref bool output,ref UpsertInfo upsertInfo) where TSourceLogRecord : ISourceLogRecord {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,in TSourceLogRecord inputLogRecord,ref bool output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref TValue input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
         where TKey : IKey, allows ref struct
         where TEpochAccessor : IEpochAccessor {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref TValue input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
         where TKey : IKey, allows ref struct
         where TEpochAccessor : IEpochAccessor {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
@@ -119,7 +134,8 @@ public readonly struct Remove_KeyValuePair<TValue, TValueSerializer>:
     }
     [ExcludeFromCodeCoverage]
     public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
-        throw new NotSupportedException("Read");
+        // Read 操作は使用しない。
+        throw new NotSupportedException();
     }
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input)
         where TSourceLogRecord : ISourceLogRecord {
@@ -128,23 +144,27 @@ public readonly struct Remove_KeyValuePair<TValue, TValueSerializer>:
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref TValue input)
         where TKey : IKey, allows ref struct {
-        throw new NotSupportedException("NeedInitialUpdateがfalseを返すので呼ばれない");
+        // NeedInitialUpdate が false を返すため到達しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref TValue input)
         where TKey : IKey, allows ref struct {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,IHeapObject value,ref TValue input)
         where TKey : IKey, allows ref struct {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey, TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref TValue input)
         where TKey : IKey, allows ref struct
         where TSourceLogRecord : ISourceLogRecord {
-        throw new NotSupportedException("Upsert");
+        // Upsert 操作は使用しない。
+        throw new NotSupportedException();
     }
     public void ConvertOutputToHeap(ref TValue input,ref bool output) {
     }

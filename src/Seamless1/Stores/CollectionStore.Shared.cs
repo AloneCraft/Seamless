@@ -18,6 +18,7 @@ public abstract partial class CollectionStore<
     public double MutableFraction { get; }
     internal OverflowMutableStrategyKind OverflowMutableStrategyKind { get; }
     private bool Disposed;
+    private bool UsesStorageDevice => this.Settings.LogDevice is not MemoryOnlyDevice||this.Settings.ObjectLogDevice is not MemoryOnlyDevice;
 
     private protected CollectionStore(
         TStoreFunctions StoreFunctions,
@@ -114,9 +115,13 @@ public abstract partial class CollectionStore<
         if(this.Disposed) return;
         this.Disposed=true;
         if(disposing) {
-            this.Store.Dispose();
-            this.Settings.Dispose();
+            // Tsavorite の LocalStorageDevice は pending read を残したまま Dispose から戻ることがある。
+            if(this.UsesStorageDevice) {
+                this.Store.Log.FlushAndEvict(wait: true);
+            }
         }
+        this.Store.Dispose();
+        this.Settings.Dispose();
     }
 
     ~CollectionStore() => this.Dispose(false);

@@ -8,8 +8,6 @@ namespace Seamless.Collections;
 public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>:Collection<
     TKey,//TKey
     TValue,//TValue
-
-
     TValue,//TReadOutput
     TValue,//TAddInput
     ManagedRead<TValue,TValueSerializer>,//TReadFunctions
@@ -26,11 +24,11 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    public sealed class MemoryKeyIterator:MemoryScanIteratorFunctions<TKey> {
+    private protected sealed class MemoryKeyIterator:MemoryScanIteratorFunctions<TKey> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    internal sealed class ValueIterator:ScanIteratorFunctions<TValue> {
+    private protected sealed class ValueIterator:ScanIteratorFunctions<TValue> {
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
@@ -41,7 +39,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
             return new(Key,Value);
         }
     }
-    public sealed class MemoryKeyValueIterator:MemoryScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
+    private protected sealed class MemoryKeyValueIterator:MemoryScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
             var Key = TKeySerializer.Deserialize(logRecord.Key);
             var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
@@ -51,7 +49,6 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     public struct Enumerator<TIterator, T>(
         ClientSession<
             FixedSpanByteKey,//TKey
-                             //
             EqualityEmpty,//TInput
             TValue,//TOutput
             EqualityEmpty,//TContext
@@ -80,18 +77,20 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
                 return false;
             }
             Iterator.Count=0;
-            // ScanCursor can deliver one late callback after the requested count, so keep one slot free.
-            var requestCount = Math.Max(1,Const.Chunk_Length-1);
-            var r = Session.ScanCursor(ref this.Cursor,requestCount,Iterator,resetCursor: false);
+            var 最後まで読み切ったか = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
             Session.BasicContext.CompletePending(wait: true);
+            //// ScanCursor can deliver one late callback after the requested count, so keep one slot free.
+            //var requestCount = Math.Max(1,Const.Chunk_Length-1);
+            //var r = Session.ScanCursor(ref this.Cursor,requestCount,Iterator,resetCursor: false);
+            //Session.BasicContext.CompletePending(wait: true);
             var Count = Iterator.Count;
             this.Count=Count;
-            if(!r&&Count==0)
-                this.Done=true;
-            if(Count>0) {
-                this.Index=0;
-                return true;
-            }
+            //if(!r&&Count==0)
+            //    this.Done=true;
+            //if(Count>0) {
+            //    this.Index=0;
+            //    return true;
+            //}
             this.Index=-1;
             return false;
         }
@@ -106,44 +105,55 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     }
     private protected ManagedCollection(ManagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
     }
-    public bool Contains(TKey Key) {
-        //
-        //
+    public bool ContainsKey(TKey Key) {
         return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     }
-    public bool ContainsKey(TKey Key) => this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
-    private protected override Status Read(TKey Key,out TValue Value) {
+    public bool Contains(TKey Key) {
+        return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
+    }
+    private protected override unsafe Status Read(TKey Key,out TValue Value) {
         var KeyBytes = TKeySerializer.Serialize(ref Key);
-        var Session = this.ReadClientSession;
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
+        var Session = this.ReadSession;
         TValue Output = default!;
-        var Status = Session.BasicContext.Read(FixedKey,ref Output);
-        Status=Pending(Session,Status,ref Output);
+        Status Status;
+        fixed(byte* _ = KeyBytes) {
+            var FixedKey = (FixedSpanByteKey)KeyBytes;
+            Status=Session.BasicContext.Read(FixedKey,ref Output);
+            Status=Pending(Session,Status,ref Output);
+        }
         Debug.Assert(Status.IsCompleted);
-        Value=Status.Found ? Output : default!;
+        if(Status.Found)
+            Value=Output;
+        else
+            Value=default!;
         return Status;
     }
-    public bool Remove(TKey key) {
-        var ClientSession = this.ContainsDeleteClientSession;
+    public unsafe bool Remove(TKey key) {
+        var ClientSession = this.ContainsDeleteSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
-        //1.0はFixedKey
         var Input = default(EqualityEmpty);
         var Output = false;
-        var Status = ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
-        Status=Pending(ClientSession,Status,ref Output);
+        Status Status;
+        fixed(byte* _ = KeyBytes) {
+            Status=ClientSession.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
+            Status=Pending(ClientSession,Status,ref Output);
+        }
         Debug.Assert(Status.IsCompleted);
         return Output;
     }
-    private protected override TryAddResult PrivateTryAdd(TKey key,TValue value) {
+    private protected override unsafe TryAddResult PrivateTryAdd(TKey key,TValue value) {
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var serializedValueSize = TValueSerializer.Serialize(ref value).Length;
         if(this.WouldOverflowMutable(KeyBytes.Length,serializedValueSize))
             return TryAddResult.LogFull;
-        var ClientSession = this.AddClientSession;
-        var FixedKey = (FixedSpanByteKey)KeyBytes;
+        var ClientSession = this.Add_ClientSession;
         var Output = false;
-        var Status = ClientSession.BasicContext.RMW(FixedKey,ref value,ref Output);
-        Status=Pending(ClientSession,Status,ref Output);
+        Status Status;
+        fixed(byte* _ = KeyBytes) {
+            var FixedKey = (FixedSpanByteKey)KeyBytes;
+            Status=ClientSession.BasicContext.RMW(FixedKey,ref value,ref Output);
+            Status=Pending(ClientSession,Status,ref Output);
+        }
         Debug.Assert(Status.IsCompleted);
         if(Output)
             return TryAddResult.Success;

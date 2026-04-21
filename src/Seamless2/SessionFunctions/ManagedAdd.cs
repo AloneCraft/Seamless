@@ -2,6 +2,8 @@
 using Seamless.Stores;
 namespace Seamless.SessionFunctions;
 
+using System.Diagnostics.CodeAnalysis;
+
 /// <summary>
 /// ManagedCollection 用セッション関数。ManagedAdd は RMW と Upsert の両方で使われる。RMWではAddセマンティクス（キー既存時は拒否）。
 /// 内部でシリアライズするため、呼び側で PinnedSpanByte や GCHandle のピン止めが不要。
@@ -12,13 +14,31 @@ public readonly struct ManagedAdd<TValue, TValueSerializer>:
     where TValue : IEquatable<TValue>
     where TValueSerializer : ISerializer<TValue> {
     public static ManagedAdd<TValue,TValueSerializer> Create() => new();
+    [ExcludeFromCodeCoverage]
+    [DoesNotReturn]
+    private static void ThrowReadDeleteEntryPoint() {
+        // ManagedAdd は RMW / Upsert にだけバインドされる。直接 Read / Delete のコールバックには到達しない。
+        throw new NotSupportedException();
+    }
+    [ExcludeFromCodeCoverage]
+    [DoesNotReturn]
+    private static T ThrowReadDeleteEntryPoint<T>() {
+        // ManagedAdd は RMW / Upsert にだけバインドされる。直接 Read / Delete のコールバックには到達しない。
+        throw new NotSupportedException();
+    }
+    [ExcludeFromCodeCoverage]
+    [DoesNotReturn]
+    private static T ThrowCopyUpdateEntryPoint<T>() {
+        // NeedCopyUpdate が常に false のため、CopyUpdater 系には到達しない。
+        throw new NotSupportedException();
+    }
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        throw new NotSupportedException("ManagedAddクラスのRMWでのみ使われる");
+        return ThrowReadDeleteEntryPoint<bool>();
     }
 
     public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
-        throw new NotSupportedException("ManagedAddクラスのRMWでのみ使われる");
+        ThrowReadDeleteEntryPoint();
     }
 
     public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
@@ -94,12 +114,12 @@ public readonly struct ManagedAdd<TValue, TValueSerializer>:
 
     public bool CopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        throw new NotSupportedException("NeedCopyUpdateがfalseを返すので呼ばれない");
+        return ThrowCopyUpdateEntryPoint<bool>();
     }
 
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        throw new NotSupportedException("NeedCopyUpdateがfalseを返すので呼ばれない");
+        return ThrowCopyUpdateEntryPoint<bool>();
     }
 
     /// <summary>
@@ -118,21 +138,21 @@ public readonly struct ManagedAdd<TValue, TValueSerializer>:
     }
 
     public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
-        throw new NotSupportedException("ManagedAddクラスのRMWでのみ使われる");
+        return ThrowReadDeleteEntryPoint<bool>();
     }
 
     public void PostInitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
-        throw new NotSupportedException("ManagedAddクラスのRMWでのみ使われる");
+        ThrowReadDeleteEntryPoint();
     }
 
     public bool InPlaceDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
-        throw new NotSupportedException("ManagedAddクラスのRMWでのみ使われる");
+        return ThrowReadDeleteEntryPoint<bool>();
     }
 
     public void PostDeleteOperation<TKey, TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
         where TKey : IKey, allows ref struct
         where TEpochAccessor : IEpochAccessor {
-        throw new NotSupportedException("ManagedAddクラスのRMWでのみ使われる");
+        ThrowReadDeleteEntryPoint();
     }
 
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input)

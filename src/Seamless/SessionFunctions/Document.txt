@@ -1,4 +1,71 @@
-﻿セッション数: アプリケーション内で同時に実行されるスレッドやタスクの数。
+﻿                    v1.1.1                           v2.0.0-beta.3
+─────────────────────────────────────────────────────────────────────────
+セッション型    LogScanCursorFunctions              NoOpSessionFunctions
+
+validateCursor  iter.SnapCursorToLogicalAddress     !iter.SnapCursorToLogicalAddress
+                   (戻り値無視)                        → false なら goto IterationComplete
+
+イテレーション  iter.GetNext(out var recordInfo)    iter.GetNext()
+tombstone判定   recordInfo.Tombstone                iter.Info.Tombstone
+
+ConditionalScanPush 内コールバック:
+ mutable領域    ConcurrentReader(ref key, ref val,  Reader(in srcLogRecord,           
+ readonly領域   SingleReader(ref key, ref val,       Reader(in srcLogRecord,
+                 recordMetadata, count, out r)        recordMetadata, count, out r)
+
+フラグ処理      ↓ 以下は完全に同一 ↓
+                if (stop) scanCursorState.stop = true
+                else {
+                  if (r & Accept)          acceptedCount++
+                  if (r & EndBatch)        endBatch = true
+                  if (r & RetryLastRecord) retryLastRecord = true
+                }
+
+カーソル更新    cursor = retryLastRecord             同一
+                  ? CurrentAddress : NextAddress
+
+終了判定        acceptedCount >= count               同一
+                || endBatch → return true
+                stop → goto IterationComplete
+
+IterationComplete  if (resetCursor) cursor = 0       同一
+                   return false
+─────────────────────────────────────────────────────────────────────────
+                    v1.1.1                           v2.0.0-beta.3
+─────────────────────────────────────────────────────────────────────────
+Dispose 時の     CompletePending(wait:true)          CompletePending(wait:true)
+IO 完了動作      → SingleReader 呼ばれる             → Reader 呼ばれる
+
+Count 状態       Chunk_Length 以上                   Chunk_Length-1 以下
+                 → index>=Chunk_Length               → index == Chunk_Length-1
+                 → RetryLastRecord セット             → Chunk[最終スロット]に書ける
+                 → ScanLookup は return 済み          → ここで重複チェックが必要
+                 → フラグ破棄（無害）                → LastAcceptedAddress ガード必要
+─────────────────────────────────────────────────────────────────────────
+
+
+
+Seamless1 (IterateLookup)    Seamless2 (ScanCursor)
+遅延コールバックの発生       あり (Dispose 時)    あり (Dispose 時)
+遅延コールバックの影響       無害（ScanLookup return 後にフラグ変更→破棄）    有害になりうる（Chunk の最終スロットに実際に書き込まれる）
+LastAcceptedAddressの必要性  不要                          必要（無限ループ防止）
+
+return cursorRecordResult               acceptedCount cursor         IterateLookup戻り値 用途
+true   Accept                           +1            NextAddress    継続中              通常Accept
+true   Skip                              0            変化なし       NextAddress         通常Skip
+true   Accept|EndBatch                  +1            NextAddress    true                最後の1件を受け入れてバッチ終了
+true   EndBatch                         変化なし      NextAddress    true                このレコードを飛ばしてバッチ終了
+true   Skip|EndBatch|RetryLastRecord    変化なし      CurrentAddress true                バッファ満杯・このレコードを次回再試行
+true   Accept\|EndBatch|RetryLastRecord +1            CurrentAddress true                受け入れた上でバッチ終了・再試行
+true   RetryLastRecord (単独)           変化なし      CurrentAddress 継続中              非推奨：EndBatchなしで使うと後続レコードのカーソル管理が狂う
+false                                   変化なし      0              false               即座に中断・スキャン打ち切り
+
+IteratorLookup戻り値
+    true	イテレーションが完了した（全レコードを走査し終えた）
+    false	途中で終了した（IScanIteratorFunctions のいずれかのコールバックが false を返した＝チャンクが上限に達したなど）
+
+
+セッション数: アプリケーション内で同時に実行されるスレッドやタスクの数。
 epoch 数: 各スレッドが同期のために使用する LightEpoch のインスタンスや状態。
 LightEpochの上限は16
     LightEpoch.cs
