@@ -24,9 +24,6 @@ public abstract class CommonWith<TKey,TSet>
             this.ResetWithRange(hashSetB,setB,b);
             this.With(setA,setB);
             this.ExpectedWith(hashSetA,hashSetB);
-            var a=setA.ToArray();
-            var c=setB.ToArray();
-            var cc=setA.Count;
             Assert.Equal(hashSetA.Count,setA.Count);
             Assert.Equal(hashSetB.Count,setB.Count);
         }

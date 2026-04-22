@@ -385,8 +385,8 @@ public partial class UnmanagedHashSet<TKey>
     public partial void IntersectWith(UnmanagedHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var cursor = 0L;
-        var ReadSession = other.ReadSession;
-        var Iterator = new ScanIteratorFunctions_IntersectWith(this,this.IntersectWith_ClientSession);
+        var ReadSession = this.ReadSession;
+        var Iterator = new ScanIteratorFunctions_IntersectWith(other,this.IntersectWith_ClientSession);
         ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.IntersectWith_ClientSession.BasicContext.CompletePending(wait: true);
