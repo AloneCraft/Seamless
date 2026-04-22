@@ -53,7 +53,7 @@ public abstract class Collection<
         TSessionValue,
         TStoreFunctions
     > {
-    public abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions<TSessionKey,TSessionValue> {
+    public abstract class ScanIteratorFunctions_Chunk<T>:IScanIteratorFunctions<TSessionKey,TSessionValue> {
         public readonly T[] Chunk = new T[Const.Chunk_Length];
         public int Count;
         private long LastAcceptedAddress;
@@ -148,7 +148,7 @@ public abstract class Collection<
         }
         Debug.Assert(Result==TryAddResult.Success);
     }
-    public sealed class CounterIterator:IScanIteratorFunctions<TSessionKey,TSessionValue> {
+    public sealed class ScanIteratorFunctions_Counter:IScanIteratorFunctions<TSessionKey,TSessionValue> {
         public long Counter;
         public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             cursorRecordResult=CursorRecordResult.Accept;
@@ -168,7 +168,7 @@ public abstract class Collection<
         }
     }
     public long GetLongCount() {
-        var Iterator = new CounterIterator();
+        var Iterator = new ScanIteratorFunctions_Counter();
         var Cursor = 0L;
         this.ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         this.ReadSession.BasicContext.CompletePending(wait: true);
@@ -404,9 +404,8 @@ public abstract class Collection<
         this.disposed=true;
     }
     ~Collection() => this.Dispose(false);
-    private protected const int SetOperationBatchSize = 512;
     //Collection
-    private struct IsSubsetOfScanIteratorFunctions<TCollection>(TCollection other):IScanIteratorFunctions<TSessionKey,TSessionValue>
+    private struct ScanIteratorFunctions_IsSubsetOf<TCollection>(TCollection other):IScanIteratorFunctions<TSessionKey,TSessionValue>
         where TCollection : Collection<
             TKey,
             TValue,
@@ -440,7 +439,7 @@ public abstract class Collection<
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
     }
-    private struct OverlapsScanIteratorFunctions<TCollection>(TCollection self):IScanIteratorFunctions<TSessionKey,TSessionValue>
+    private struct ScanIteratorFunctions_Overlaps<TCollection>(TCollection self):IScanIteratorFunctions<TSessionKey,TSessionValue>
         where TCollection : Collection<
             TKey,
             TValue,
@@ -492,7 +491,7 @@ public abstract class Collection<
         var ScanSession = Self.ReadSession;
         var Cursor = 0L;
         while(true) {
-            var Iterator = new IsSubsetOfScanIteratorFunctions<TCollection>(Other);
+            var Iterator = new ScanIteratorFunctions_IsSubsetOf<TCollection>(Other);
             var 最後まで読み切ったか = ScanSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
             ScanSession.BasicContext.CompletePending(wait: true);
             if(!Iterator.IsSubset) {
@@ -578,7 +577,7 @@ public abstract class Collection<
         var ScanSession = Other.ReadSession;
         var Cursor = 0L;
         while(true) {
-            var Iterator = new OverlapsScanIteratorFunctions<TCollection>(Self);
+            var Iterator = new ScanIteratorFunctions_Overlaps<TCollection>(Self);
             var 最後まで読み切ったか = ScanSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
             ScanSession.BasicContext.CompletePending(wait: true);
             if(Iterator.FoundOverlap) {

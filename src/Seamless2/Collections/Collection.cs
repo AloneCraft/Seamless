@@ -624,8 +624,6 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(other);
-        //this.ExceptWith(this,other,this.ContainsDeleteSession);
-
         var ReadSession = other.ReadSession;
         var ContainsDeleteSession = this.ContainsDeleteSession;
         var cursor = 0L;
@@ -633,21 +631,6 @@ public abstract class Collection<
         ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         ContainsDeleteSession.BasicContext.CompletePending(wait: true);
-        //if(ReferenceEquals(Self,Other)) {
-        //    Self.Clear();
-        //    return;
-        //}
-        //var ReadSession = Other.ReadSession;
-        //var Cursor = 0L;
-        //while(true) {
-        //    var Iterator = new ExceptWithFunctions(Session,SetOperationBatchSize);
-        //    var 最後まで読み切ったか = ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-        //    ReadSession.BasicContext.CompletePending(wait: true);
-        //    Session.BasicContext.CompletePending(wait: true);
-        //    if(最後まで読み切ったか) {
-        //        return;
-        //    }
-        //}
     }
     private readonly struct IntersectWithFunctions<TCollection>(
         TCollection self,

@@ -92,7 +92,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         KeyValuePair<TKey,TValue>
     > GetEnumerator() => new(this.ReadSession,new());
     IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<KeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadMemoryClientSession,new(),this.HeadAddress);
-    private List<T> CreateCollection<TIterator, T>(TIterator Iterator) where TIterator : ScanIteratorFunctions<T>{
+    private List<T> CreateCollection<TIterator, T>(TIterator Iterator) where TIterator : ScanIteratorFunctions_Chunk<T>{
         var Collection = new List<T>();
         using var e = new Enumerator<TIterator,T>(this.ReadSession,Iterator);
         while(e.MoveNext()) {
@@ -101,7 +101,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         return Collection;
     }
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator Iterator)
-        where TIterator : ScanIteratorFunctions<T> {
+        where TIterator : ScanIteratorFunctions_Chunk<T> {
         using var e = new Enumerator<TIterator,T>(this.ReadSession,Iterator);
         while(e.MoveNext())
             yield return e.Current;

@@ -131,11 +131,11 @@ public class SpanByteIterateLookupChunkTests(ITestOutputHelper output) {
     // SingleReader  = ReadOnly またはディスク領域のレコード
     // ConcurrentReader = Mutable 領域のレコード
     // ----------------------------------------------------------------
-    private class ChunkScanFunctions:IScanIteratorFunctions<int,int> {
+    private class ScanIteratorFunctions_Chunk:IScanIteratorFunctions<int,int> {
         public readonly Entry[] Chunk;
         public int Count;
 
-        public ChunkScanFunctions(int chunkSize) {
+        public ScanIteratorFunctions_Chunk(int chunkSize) {
             this.Chunk=new Entry[chunkSize];
             this.Count=0;
         }
@@ -269,7 +269,7 @@ public class SpanByteIterateLookupChunkTests(ITestOutputHelper output) {
         var batchIndex = 0;
 
         while(true) {
-            var funcs = new ChunkScanFunctions(ChunkSize);
+            var funcs = new ScanIteratorFunctions_Chunk(ChunkSize);
             var completed = session.IterateLookup(ref funcs,ref cursor,scanUntil,resetCursor: false);
             // Pending の問題を防ぐため: IterateLookup がディスク I/O を発行した場合、
             // ここで Pending を完結させないと次バッチで不正なコールバックが発生しうる。

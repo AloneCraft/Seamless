@@ -1,5 +1,4 @@
-﻿using Seamless.SessionFunctions;
-using Seamless.Stores;
+﻿using Seamless.Stores;
 namespace Seamless.Collections;
 
 /// <summary>
@@ -13,7 +12,7 @@ public partial class UnmanagedHashSet<TKey>
         EqualityEmpty,//TInput
         EqualityEmpty,//TOutput
         EqualityEmpty,//TContext
-        UnmanagedExceptWith<
+        SessionFunctions.UnmanagedExceptWith<
             TKey
         >,
         StoreFunctions<
@@ -49,7 +48,7 @@ public partial class UnmanagedHashSet<TKey>
         EqualityEmpty,//TInput
         EqualityEmpty,//TOutput
         EqualityEmpty,//TContext
-        UnmanagedIntersectWith<
+        SessionFunctions.UnmanagedIntersectWith<
             TKey
         >,
         StoreFunctions<
@@ -85,7 +84,7 @@ public partial class UnmanagedHashSet<TKey>
         EqualityEmpty,//TInput
         EqualityEmpty,//TOutput
         EqualityEmpty,//TContext
-        UnmanagedSymmetricExceptWith<
+        SessionFunctions.UnmanagedSymmetricExceptWith<
             TKey,
             EqualityEmpty
         >,
@@ -134,7 +133,7 @@ public partial class UnmanagedHashSet<TKey>
             EqualityEmpty,
             EqualityEmpty,
             EqualityEmpty,
-            UnmanagedExceptWith<
+            SessionFunctions.UnmanagedExceptWith<
                 TKey
             >
         >(new());
@@ -143,7 +142,7 @@ public partial class UnmanagedHashSet<TKey>
             EqualityEmpty,
             EqualityEmpty,
             EqualityEmpty,
-            UnmanagedIntersectWith<
+            SessionFunctions.UnmanagedIntersectWith<
                 TKey
             >
         >(new());
@@ -152,7 +151,7 @@ public partial class UnmanagedHashSet<TKey>
             EqualityEmpty,
             EqualityEmpty,
             EqualityEmpty,
-            UnmanagedSymmetricExceptWith<
+            SessionFunctions.UnmanagedSymmetricExceptWith<
                 TKey,
                 EqualityEmpty
             >
@@ -163,16 +162,42 @@ public partial class UnmanagedHashSet<TKey>
         TKey
     > GetEnumerator() => new(this.ReadSession,new());
     IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<KeyIterator,TKey>(this.ReadMemoryClientSession,new(),this.HeadAddress);
-    private readonly struct ExceptWithFunctions(
+    private readonly struct ScanIteratorFunctions_ExceptWith(
         ClientSession<
             TKey,
             EqualityEmpty,
             EqualityEmpty,
             EqualityEmpty,
             EqualityEmpty,
-            UnmanagedExceptWith<TKey>,
-            StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>,
-            BlittableAllocator<TKey,EqualityEmpty,StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>>
+            SessionFunctions.UnmanagedExceptWith<
+                TKey
+            >,
+            StoreFunctions<
+                TKey,
+                EqualityEmpty,
+                UnmanagedKeyComparer<
+                    TKey
+                >,
+                DefaultRecordDisposer<
+                    TKey,
+                    EqualityEmpty
+                >
+            >,
+            BlittableAllocator<
+                TKey,
+                EqualityEmpty,
+                StoreFunctions<
+                    TKey,
+                    EqualityEmpty,
+                    UnmanagedKeyComparer<
+                        TKey
+                    >,
+                    DefaultRecordDisposer<
+                        TKey,
+                        EqualityEmpty
+                    >
+                >
+            >
         > Session
     ):IScanIteratorFunctions<TKey,EqualityEmpty> {
         public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
@@ -186,7 +211,7 @@ public partial class UnmanagedHashSet<TKey>
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
     }
-    private struct IntersectWithFunctions(
+    private readonly struct ScanIteratorFunctions_IntersectWith(
         UnmanagedHashSet<TKey> other,
         ClientSession<
             TKey,
@@ -194,21 +219,40 @@ public partial class UnmanagedHashSet<TKey>
             EqualityEmpty,
             EqualityEmpty,
             EqualityEmpty,
-            UnmanagedIntersectWith<TKey>,
-            StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>,
-            BlittableAllocator<TKey,EqualityEmpty,StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>>
-        > Session,
-        int RemainingCount
+            SessionFunctions.UnmanagedIntersectWith<
+                TKey
+            >,
+            StoreFunctions<
+                TKey,
+                EqualityEmpty,
+                UnmanagedKeyComparer<
+                    TKey
+                >,
+                DefaultRecordDisposer<
+                    TKey,
+                    EqualityEmpty
+                >
+            >,
+            BlittableAllocator<
+                TKey,
+                EqualityEmpty,
+                StoreFunctions<
+                    TKey,
+                    EqualityEmpty,
+                    UnmanagedKeyComparer<
+                        TKey
+                    >,
+                    DefaultRecordDisposer<
+                        TKey,
+                        EqualityEmpty
+                    >
+                >
+            >
+        > Session
     ):IScanIteratorFunctions<TKey,EqualityEmpty> {
         public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
-            if(RemainingCount<=0) {
-                cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
-                return true;
-            }
-            RemainingCount--;
             if(other.PrivateProtectedContainsKey(ref key)) {
-            }
-            else {
+            }else {
                 var input = default(EqualityEmpty);
                 var output = default(EqualityEmpty);
                 Session.BasicContext.RMW(ref key,ref input,ref output);
@@ -229,9 +273,36 @@ public partial class UnmanagedHashSet<TKey>
             EqualityEmpty,
             EqualityEmpty,
             EqualityEmpty,
-            UnmanagedSymmetricExceptWith<TKey,EqualityEmpty>,
-            StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>,
-            BlittableAllocator<TKey,EqualityEmpty,StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>>
+            SessionFunctions.UnmanagedSymmetricExceptWith<
+                TKey,
+                EqualityEmpty
+            >,
+            StoreFunctions<
+                TKey,
+                EqualityEmpty,
+                UnmanagedKeyComparer<
+                    TKey
+                >,
+                DefaultRecordDisposer<
+                    TKey,
+                    EqualityEmpty
+                >
+            >,
+            BlittableAllocator<
+                TKey,
+                EqualityEmpty,
+                StoreFunctions<
+                    TKey,
+                    EqualityEmpty,
+                    UnmanagedKeyComparer<
+                        TKey
+                    >,
+                    DefaultRecordDisposer<
+                        TKey,
+                        EqualityEmpty
+                    >
+                >
+            >
         > Session
     ):IScanIteratorFunctions<TKey,EqualityEmpty> {
         public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
@@ -256,9 +327,36 @@ public partial class UnmanagedHashSet<TKey>
             EqualityEmpty,
             bool,
             EqualityEmpty,
-            UnmanagedAdd<TKey,EqualityEmpty>,
-            StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>,
-            BlittableAllocator<TKey,EqualityEmpty,StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>>
+            SessionFunctions.UnmanagedAdd<
+                TKey,
+                EqualityEmpty
+            >,
+            StoreFunctions<
+                TKey,
+                EqualityEmpty,
+                UnmanagedKeyComparer<
+                    TKey
+                >,
+                DefaultRecordDisposer<
+                    TKey,
+                    EqualityEmpty
+                >
+            >,
+            BlittableAllocator<
+                TKey,
+                EqualityEmpty,
+                StoreFunctions<
+                    TKey,
+                    EqualityEmpty,
+                    UnmanagedKeyComparer<
+                        TKey
+                    >,
+                    DefaultRecordDisposer<
+                        TKey,
+                        EqualityEmpty
+                    >
+                >
+            >
         > Session
     ):IScanIteratorFunctions<TKey,EqualityEmpty> {
         public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
@@ -279,7 +377,7 @@ public partial class UnmanagedHashSet<TKey>
         var ReadSession = other.ReadSession;
         var ExceptWith_ClientSession = this.ExceptWith_ClientSession;
         var cursor = 0L;
-        var Iterator = new ExceptWithFunctions(ExceptWith_ClientSession);
+        var Iterator = new ScanIteratorFunctions_ExceptWith(ExceptWith_ClientSession);
         ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         ExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
@@ -288,7 +386,7 @@ public partial class UnmanagedHashSet<TKey>
         ArgumentNullException.ThrowIfNull(other);
         var cursor = 0L;
         var ReadSession = other.ReadSession;
-        var Iterator = new IntersectWithFunctions(this,this.IntersectWith_ClientSession,SetOperationBatchSize);
+        var Iterator = new ScanIteratorFunctions_IntersectWith(this,this.IntersectWith_ClientSession);
         ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.IntersectWith_ClientSession.BasicContext.CompletePending(wait: true);
