@@ -97,7 +97,7 @@ public abstract class Collection<
         TReadFunctions,
         TStoreFunctions,
         TAllocator
-    > ReadSession { get; private set; }
+    > ReadSession { get; private set; } = null!;
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -107,7 +107,7 @@ public abstract class Collection<
         TReadFunctions,
         TStoreFunctions,
         TAllocator
-    > ReadMemoryClientSession { get; private set; }
+    > ReadMemoryClientSession { get; private set; } = null!;
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -117,7 +117,7 @@ public abstract class Collection<
         TAddFunctions,
         TStoreFunctions,
         TAllocator
-    > Add_ClientSession { get; private set; }
+    > Add_ClientSession { get; private set; } = null!;
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -127,7 +127,7 @@ public abstract class Collection<
         TContainsDeleteFunctions,
         TStoreFunctions,
         TAllocator
-    > ContainsDeleteSession { get; private set; }
+    > ContainsDeleteSession { get; private set; } = null!;
     private readonly CollectionStore<
         TKey,
         TValue,
@@ -136,6 +136,7 @@ public abstract class Collection<
         TStoreFunctions,
         TAllocator
     > CollectionStore;
+    private protected TsavoriteKV<TSessionKey,TSessionValue,TStoreFunctions,TAllocator> Store => this.CollectionStore.Store;
     public TryAddResult TryAdd(TKey Key,TValue Value) => this.PrivateTryAdd(Key,Value);
     public void Add(TKey Key,TValue Value) {
         var Result = this.TryAdd(Key,Value);
@@ -148,6 +149,7 @@ public abstract class Collection<
         Debug.Assert(Result==TryAddResult.Success);
     }
     public sealed class CounterIterator:IScanIteratorFunctions<TSessionKey,TSessionValue> {
+        public long Counter;
         public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -156,7 +158,6 @@ public abstract class Collection<
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public long Counter;
         public bool OnStart(long beginAddress,long endAddress) {
             return true;
         }
@@ -191,7 +192,10 @@ public abstract class Collection<
         > CollectionStore
     ) {
         this.CollectionStore=CollectionStore;
-        var Store = CollectionStore.Store;
+        this.RecreateCoreSessions();
+    }
+    private void RecreateCoreSessions() {
+        var Store = this.CollectionStore.Store;
         this.ReadSession=Store.NewSession<
             EqualityEmpty,
 
@@ -221,83 +225,51 @@ public abstract class Collection<
             TContainsDeleteFunctions
         >(TContainsDeleteFunctions.Create());
     }
-    private static void CompletePendingAndDispose(
-        ClientSession<
-            TSessionKey,
-            TSessionValue,
-            EqualityEmpty,
-            TReadOutput,
-            EqualityEmpty,
-            TReadFunctions,
-            TStoreFunctions,
-            TAllocator
-        > session) {
-        session.BasicContext.CompletePending(wait: true);
-        session.Dispose();
-    }
-    private static void CompletePendingAndDispose(
-        ClientSession<
-            TSessionKey,
-            TSessionValue,
-            TAddInput,
-            bool,
-            EqualityEmpty,
-            TAddFunctions,
-            TStoreFunctions,
-            TAllocator
-        > session) {
-        session.BasicContext.CompletePending(wait: true);
-        session.Dispose();
-    }
-    private static void CompletePendingAndDispose(
-        ClientSession<
-            TSessionKey,
-            TSessionValue,
-            EqualityEmpty,
-            bool,
-            EqualityEmpty,
-            TContainsDeleteFunctions,
-            TStoreFunctions,
-            TAllocator
-        > session) {
-        session.BasicContext.CompletePending(wait: true);
-        session.Dispose();
-    }
-    public void Clear() {
+    private void DisposeCoreSessions() {
         CompletePendingAndDispose(this.ReadSession);
         CompletePendingAndDispose(this.ReadMemoryClientSession);
         CompletePendingAndDispose(this.Add_ClientSession);
         CompletePendingAndDispose(this.ContainsDeleteSession);
-        var Store = this.CollectionStore.Store;
-        Store.Reset();
-        this.ReadSession=Store.NewSession<
-
-            EqualityEmpty,
-            TReadOutput,
-            EqualityEmpty,
-            TReadFunctions
-        >(TReadFunctions.Create());
-        this.ReadMemoryClientSession=Store.NewSession<
-
-            EqualityEmpty,
-            TReadOutput,
-            EqualityEmpty,
-            TReadFunctions
-        >(TReadFunctions.Create());
-        this.Add_ClientSession=Store.NewSession<
-
-            TAddInput,
-            bool,
-            EqualityEmpty,
-            TAddFunctions
-        >(TAddFunctions.Create());
-        this.ContainsDeleteSession=Store.NewSession<
-
-            EqualityEmpty,
-            bool,
-            EqualityEmpty,
-            TContainsDeleteFunctions
-        >(TContainsDeleteFunctions.Create());
+    }
+    private protected virtual void DisposeAdditionalSessions() {
+    }
+    private protected virtual void RecreateAdditionalSessions() {
+    }
+    private protected static void CompletePendingAndDispose<TInput0, TOutput0, TContext0, TSessionFunctions0>(
+        ClientSession<
+            TSessionKey,
+            TSessionValue,
+            TInput0,
+            TOutput0,
+            TContext0,
+            TSessionFunctions0,
+            TStoreFunctions,
+            TAllocator
+        > session)
+        where TSessionFunctions0 : struct, ISessionFunctions<
+            TSessionKey,
+            TSessionValue,
+            TInput0,
+            TOutput0,
+            TContext0
+        > {
+        session.BasicContext.CompletePending(wait: true);
+        session.Dispose();
+    }
+    public void Clear() {
+        this.DisposeAdditionalSessions();
+        this.DisposeCoreSessions();
+        this.CollectionStore.Store.Reset();
+        this.RecreateCoreSessions();
+        this.RecreateAdditionalSessions();
+    }
+    public virtual void Refresh() {
+        // Tsavorite 1.1.1 でも古い session は旧世代の epoch 参照を引きずりうるため、
+        // session を張り替えて pending を解消し、log truncation を進めやすくする。
+        this.DisposeAdditionalSessions();
+        this.DisposeCoreSessions();
+        this.RecreateCoreSessions();
+        this.RecreateAdditionalSessions();
     }
     public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
         var Status = this.Read(Key,out Value);
@@ -426,10 +398,8 @@ public abstract class Collection<
             return;
         }
         if(disposing) {
-            CompletePendingAndDispose(this.ReadSession);
-            CompletePendingAndDispose(this.ReadMemoryClientSession);
-            CompletePendingAndDispose(this.Add_ClientSession);
-            CompletePendingAndDispose(this.ContainsDeleteSession);
+            this.DisposeAdditionalSessions();
+            this.DisposeCoreSessions();
         }
         this.disposed=true;
     }

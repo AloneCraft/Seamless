@@ -51,6 +51,8 @@
     <Compile Include="Unit\ScanIteratorFunctions\ValueIterator.cs" />
     <Compile Include="Unit\SessionFunctions\AddTests.cs" />
     <Compile Include="Unit\SessionFunctions\Delete.cs" />
+    <Compile Include="Unit\SessionFunctions\CommonWith.cs" />
+    <Compile Include="Unit\SessionFunctions\ExceptWith.cs" />
     <Compile Include="Unit\SessionFunctions\IntersectWith.cs" />
     <Compile Include="Unit\SessionFunctions\ManagedAdd.cs" />
     <Compile Include="Unit\SessionFunctions\Remove_KeyValuePair.cs" />

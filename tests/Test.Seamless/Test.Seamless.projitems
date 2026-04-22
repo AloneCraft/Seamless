@@ -35,6 +35,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Unit\ScanIteratorFunctions\ValueIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\AddTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\Delete.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\CommonWith.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\ExceptWith.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\IntersectWith.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\ManagedAdd.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\Remove_KeyValuePair.cs" />

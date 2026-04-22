@@ -1,8 +1,6 @@
 ﻿using System.Diagnostics;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
-
-using static System.Collections.Specialized.BitVector32;
 namespace Seamless.Collections;
 
 /// <summary>
@@ -13,7 +11,16 @@ namespace Seamless.Collections;
 [DebuggerTypeProxy(typeof(UnmanagedHashSetDebugView<>))]
 public partial class UnmanagedHashSet<TKey>
     where TKey : unmanaged, IEquatable<TKey> {
-    private readonly ClientSession<
+    private ClientSession<
+        FixedSpanByteKey,//TKey
+        EqualityEmpty,//TInput
+        EqualityEmpty,//TOutput
+        EqualityEmpty,//TContext
+        ExceptWith,//TFunctions
+        UnmanagedStoreFunctions,
+        UnmanagedAllocator
+    > ExceptWith_ClientSession = null!;
+    private ClientSession<
         FixedSpanByteKey,//TKey
         EqualityEmpty,//TInput
         EqualityEmpty,//TOutput
@@ -21,8 +28,8 @@ public partial class UnmanagedHashSet<TKey>
         IntersectWith,//TFunctions
         UnmanagedStoreFunctions,//TStoreFunctions
         UnmanagedAllocator
-    > IntersectWith_ClientSession;
-    private readonly ClientSession<
+    > IntersectWith_ClientSession = null!;
+    private ClientSession<
         FixedSpanByteKey,//TKey
         EqualityEmpty,//TInput
         EqualityEmpty,//TOutput
@@ -30,9 +37,27 @@ public partial class UnmanagedHashSet<TKey>
         SymmetricExceptWith,//TFunctions
         UnmanagedStoreFunctions,
         UnmanagedAllocator
-    > SymmetricExceptWith_ClientSession;
+    > SymmetricExceptWith_ClientSession = null!;
     internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
-        var Store = CollectionStore.Store;
+        this.CreateAdditionalSessions();
+    }
+    private protected override void DisposeAdditionalSessions() {
+        CompletePendingAndDispose(this.ExceptWith_ClientSession);
+        CompletePendingAndDispose(this.IntersectWith_ClientSession);
+        CompletePendingAndDispose(this.SymmetricExceptWith_ClientSession);
+    }
+    private protected override void RecreateAdditionalSessions() {
+        this.CreateAdditionalSessions();
+    }
+    private void CreateAdditionalSessions() {
+        var Store = this.Store;
+        this.ExceptWith_ClientSession=Store.NewSession<
+            FixedSpanByteKey,//TKey
+            EqualityEmpty,//TInput
+            EqualityEmpty,//TOutput
+            EqualityEmpty,//TContext
+            ExceptWith//TFunctions
+        >(new());
         this.IntersectWith_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
             EqualityEmpty,//TInput
@@ -53,17 +78,38 @@ public partial class UnmanagedHashSet<TKey>
         TKey
     > GetEnumerator() => new(this.ReadSession,new());
     IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<MemoryKeyIterator,TKey>(this.ReadMemoryClientSession,new(),this.HeadAddress);
+    private readonly struct ExceptWithScanIteratorFunctions(
+        ClientSession<
+            FixedSpanByteKey,
+            EqualityEmpty,
+            EqualityEmpty,
+            EqualityEmpty,
+            ExceptWith,
+            UnmanagedStoreFunctions,
+            UnmanagedAllocator
+        > Session
+    ):IScanIteratorFunctions {
+        public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+            where TSourceLogRecord : ISourceLogRecord {
+            Session.BasicContext.Delete((FixedSpanByteKey)logRecord.Key);
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
+        public bool OnStart(long beginAddress,long endAddress) => true;
+        public void OnException(Exception exception,long numberOfRecords) { }
+        public void OnStop(bool completed,long numberOfRecords) { }
+    }
     public partial void ExceptWith(UnmanagedHashSet<TKey> other) {
         var ReadSession = other.ReadSession;
-        var ContainsDeleteSession = this.ContainsDeleteSession;
+        var ExceptWith_ClientSession = this.ExceptWith_ClientSession;
         var cursor = 0L;
-        var Iterator = new ScanIteratorFunctions_ExceptWith(ContainsDeleteSession);
+        var Iterator = new ExceptWithScanIteratorFunctions(ExceptWith_ClientSession);
         ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
-        ContainsDeleteSession.BasicContext.CompletePending(wait: true);
+        ExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
     public partial void IntersectWith(UnmanagedHashSet<TKey> other) {
-        IntersectWith(this,other,this.IntersectWith_ClientSession);
+        this.IntersectWith(this,other,this.IntersectWith_ClientSession);
     }
     public partial bool IsProperSubsetOf(UnmanagedHashSet<TKey> other) => IsProperSubsetOfSet(this,other);
     public partial bool IsProperSupersetOf(UnmanagedHashSet<TKey> other) => IsProperSupersetOfSet(this,other);
@@ -75,7 +121,7 @@ public partial class UnmanagedHashSet<TKey>
         var ReadSession = other.ReadSession;
         var Cursor = 0L;
         var Iterator = new ScanIteratorFunctions_SymmetricExceptWith(this.SymmetricExceptWith_ClientSession);
-        var 最後まで読み切ったか = ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.SymmetricExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
@@ -84,8 +130,8 @@ public partial class UnmanagedHashSet<TKey>
         var ReadSession = other.ReadSession;
         var cursor = 0L;
         var Iterator = new ScanIteratorFunctions_UnionWith(this.Add_ClientSession);
-        var 最後まで読み切ったか = ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         other.ReadSession.BasicContext.CompletePending(wait: true);
-        SymmetricExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
+        this.Add_ClientSession.BasicContext.CompletePending(wait: true);
     }
 }

@@ -13,6 +13,7 @@ namespace Test.Seamless.Integrate;
 public abstract class HashSetIntegrateBase<TKey>
     where TKey : IEquatable<TKey>
 {
+    private static int TestDirSequence;
     private readonly ITestOutputHelper output;
 
     protected HashSetIntegrateBase(ITestOutputHelper output) {
@@ -32,9 +33,11 @@ public abstract class HashSetIntegrateBase<TKey>
     protected virtual int SegmentSteadyStateWorkingSetSize => 1024;
     protected virtual int SegmentSizeBytes => 4096;
     protected virtual int CheckpointDataSize => 200;
+    protected virtual int RefreshDataSize => 4096;
+    protected virtual int RefreshWorkingSetSize => 128;
 
     private string TestDir(string methodName) =>
-        Path.Combine(AppContext.BaseDirectory,this.TestClassName,methodName,Guid.NewGuid().ToString("N"));
+        Path.Combine(AppContext.BaseDirectory,this.TestClassName,$"t{Interlocked.Increment(ref TestDirSequence):D4}_{Guid.NewGuid():N}");
 
     protected abstract class Handle : IDisposable {
         protected readonly string rootDir;
@@ -52,6 +55,7 @@ public abstract class HashSetIntegrateBase<TKey>
 
         public int CountSegmentFiles() => Directory.GetFiles(this.rootDir,"log.*").Length;
         public virtual void Flush() { }
+        public virtual void FlushAndEvict() { }
         public virtual void Compact() { }
         public virtual long GetBeginAddress() => 0;
         public virtual long GetTailAddress() => 0;
@@ -182,6 +186,98 @@ public abstract class HashSetIntegrateBase<TKey>
             $"Expected compaction to reduce active segment growth, but got {withoutCompaction.ActiveSegments} vs {withCompaction.ActiveSegments}");
     }
 
+    [Fact(Skip = "Long-running Tsavorite truncation observation test. Run manually when investigating Refresh/truncation behavior.")]
+    public void 複数HashSetで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される() {
+        var storeDir=this.TestDir(nameof(this.複数HashSetで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される));
+        try {
+            using var handle=this.CreateHandle(storeDir);
+            using var owner=handle.Create();
+            using var sibling1=handle.Create();
+            using var sibling2=handle.Create();
+
+            for(int i=0; i<this.RefreshWorkingSetSize; i++) {
+                Assert.True(owner.Add(this.MakeKey(i)),$"Expected initial add for key {this.MakeKey(i)} to succeed");
+            }
+            for(int i=0; i<this.RefreshWorkingSetSize; i++) {
+                Assert.True(sibling1.Contains(this.MakeKey(i)),$"Expected sibling1 to observe key {this.MakeKey(i)} before churn");
+                Assert.True(sibling2.Contains(this.MakeKey(i)),$"Expected sibling2 to observe key {this.MakeKey(i)} before churn");
+            }
+
+            for(int i=this.RefreshWorkingSetSize; i<this.RefreshDataSize; i++) {
+                Assert.True(owner.Add(this.MakeKey(i)),$"Expected add for key {this.MakeKey(i)} to succeed during churn");
+                Assert.True(owner.Remove(this.MakeKey(i-this.RefreshWorkingSetSize)),
+                    $"Expected key {this.MakeKey(i-this.RefreshWorkingSetSize)} to exist before removal during churn");
+            }
+
+            var liveKey=this.MakeKey(this.RefreshDataSize-1);
+
+            owner.Refresh();
+            sibling1.Refresh();
+            Assert.True(owner.Contains(liveKey),$"Expected owner to observe live key {liveKey} after partial refresh");
+            Assert.True(sibling1.Contains(liveKey),$"Expected sibling1 to observe live key {liveKey} after partial refresh");
+
+            handle.Flush();
+            handle.Compact();
+            handle.FlushAndEvict();
+
+            var beginAddressWithStaleSibling=handle.GetBeginAddress();
+            var segmentFilesWithStaleSibling=handle.CountSegmentFiles();
+            this.output.WriteLine($"[with_stale_sibling] BeginAddress after compact: {beginAddressWithStaleSibling}, Segment files: {segmentFilesWithStaleSibling}");
+
+            sibling2.Refresh();
+            Assert.True(sibling2.Contains(liveKey),$"Expected sibling2 to observe live key {liveKey} after final refresh");
+
+            handle.Flush();
+            handle.Compact();
+            handle.FlushAndEvict();
+
+            var beginAddressAfterAllRefresh=handle.GetBeginAddress();
+            var segmentFilesAfterAllRefresh=handle.CountSegmentFiles();
+            this.output.WriteLine($"[after_all_refresh] BeginAddress after compact: {beginAddressAfterAllRefresh}, Segment files: {segmentFilesAfterAllRefresh}");
+
+            Assert.True(beginAddressAfterAllRefresh>beginAddressWithStaleSibling,
+                $"Expected final Refresh to advance BeginAddress further, but got {beginAddressWithStaleSibling} vs {beginAddressAfterAllRefresh}");
+        }
+        finally {
+            try { Directory.Delete(storeDir,true); } catch { }
+        }
+    }
+
+    [Fact]
+    public void 複数HashSetでRefresh後も共有ストアのデータを継続参照できる() {
+        var storeDir=this.TestDir(nameof(this.複数HashSetでRefresh後も共有ストアのデータを継続参照できる));
+        using var handle=this.CreateHandle(storeDir);
+        using var owner=handle.Create();
+        using var sibling1=handle.Create();
+        using var sibling2=handle.Create();
+
+        var count=Math.Min(32,this.RefreshWorkingSetSize);
+        for(int i=0; i<count; i++) {
+            Assert.True(owner.Add(this.MakeKey(i)),$"Expected initial add for key {this.MakeKey(i)} to succeed");
+        }
+
+        for(int i=0; i<count; i++) {
+            Assert.True(sibling1.Contains(this.MakeKey(i)),$"Expected sibling1 to observe key {this.MakeKey(i)} before refresh");
+            Assert.True(sibling2.Contains(this.MakeKey(i)),$"Expected sibling2 to observe key {this.MakeKey(i)} before refresh");
+        }
+
+        owner.Refresh();
+        sibling1.Refresh();
+        sibling2.Refresh();
+
+        for(int i=0; i<count; i++) {
+            Assert.True(owner.Contains(this.MakeKey(i)),$"Expected owner to observe key {this.MakeKey(i)} after refresh");
+            Assert.True(sibling1.Contains(this.MakeKey(i)),$"Expected sibling1 to observe key {this.MakeKey(i)} after refresh");
+            Assert.True(sibling2.Contains(this.MakeKey(i)),$"Expected sibling2 to observe key {this.MakeKey(i)} after refresh");
+        }
+
+        var extraKey=this.MakeKey(count+1);
+        Assert.True(owner.Add(extraKey),$"Expected add for key {extraKey} after refresh to succeed");
+        Assert.True(sibling1.Contains(extraKey),$"Expected sibling1 to observe key {extraKey} after refresh");
+        Assert.True(sibling2.Contains(extraKey),$"Expected sibling2 to observe key {extraKey} after refresh");
+        Assert.True(owner.Remove(extraKey),$"Expected remove for key {extraKey} after refresh to succeed");
+    }
+
     [Fact]
     public void チェックポイントと復元() {
         var storeDir=this.TestDir(nameof(this.チェックポイントと復元));
@@ -239,6 +335,8 @@ public class ManagementHashSet(ITestOutputHelper output) : HashSetIntegrateBase<
     protected override int SegmentSteadyStateDataSize => 1024;
     protected override int SegmentSteadyStateCheckInterval => 256;
     protected override int SegmentSteadyStateWorkingSetSize => 64;
+    protected override int RefreshDataSize => 2048;
+    protected override int RefreshWorkingSetSize => 64;
 
     protected override Handle CreateHandle(string rootDir,string? checkpointDir=null,bool deleteOnDispose=true) =>
         new ManagedHandle(rootDir,checkpointDir,deleteOnDispose);
@@ -262,6 +360,8 @@ public class ManagementHashSet(ITestOutputHelper output) : HashSetIntegrateBase<
             this.store.Create();
         public override void Flush() =>
             this.store.Store.Log.Flush(wait: true);
+        public override void FlushAndEvict() =>
+            this.store.Store.Log.FlushAndEvict(wait: true);
         public override void Compact() {
             this.store.Store.Log.ShiftReadOnlyAddress(this.store.Store.Log.TailAddress,true);
             this.store.CompactWithLookup();
@@ -293,6 +393,8 @@ public class UnmanagementHashSet(ITestOutputHelper output) : HashSetIntegrateBas
     protected override int SegmentSteadyStateCheckInterval => 256;
     protected override int SegmentSteadyStateWorkingSetSize => 128;
     protected override int CheckpointDataSize => 500;
+    protected override int RefreshDataSize => 4096;
+    protected override int RefreshWorkingSetSize => 128;
 
     protected override Handle CreateHandle(string rootDir,string? checkpointDir=null,bool deleteOnDispose=true) =>
         new UnmanagedHandle(rootDir,checkpointDir,deleteOnDispose);
@@ -316,6 +418,8 @@ public class UnmanagementHashSet(ITestOutputHelper output) : HashSetIntegrateBas
             this.store.Create();
         public override void Flush() =>
             this.store.Store.Log.Flush(wait: true);
+        public override void FlushAndEvict() =>
+            this.store.Store.Log.FlushAndEvict(wait: true);
         public override void Compact() {
             this.store.Store.Log.ShiftReadOnlyAddress(this.store.Store.Log.TailAddress,true);
             this.store.CompactWithLookup();
