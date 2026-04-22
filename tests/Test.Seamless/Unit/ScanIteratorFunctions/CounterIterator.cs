@@ -1,4 +1,4 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Seamless.Stores;
 namespace Test.Seamless.Unit.ScanIteratorFunctions;
 
@@ -20,7 +20,7 @@ public class CounterIterator{
 #if TSAVORITE2_0BETA3
         var iter=new ManagedHashSet<int>.CounterIterator();
 #elif TSAVORITE1_1_1
-        var iter=new ManagedHashSet<int>.CounterIterator();
+        var iter=new ManagedHashSet<int>.ScanIteratorFunctions_Counter();
 #endif
         iter.OnException(new Exception("test"),0);
     }

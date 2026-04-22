@@ -104,14 +104,14 @@ public partial class UnmanagedDictionary<
     > GetEnumerator() => new(this.ReadSession,new());
     IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<KeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadMemoryClientSession,new(),this.HeadAddress);
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator iterator)
-    where TIterator : ScanIteratorFunctions<T> {
+    where TIterator : ScanIteratorFunctions_Chunk<T> {
         using var e = new Enumerator<TIterator,T>(this.ReadSession,iterator);
         while(e.MoveNext()) {
             yield return e.Current;
         }
     }
     private List<T> CreateCollection<TIterator, T>(TIterator iterator)
-        where TIterator : ScanIteratorFunctions<T> {
+        where TIterator : ScanIteratorFunctions_Chunk<T> {
         var collection = new List<T>();
         using var e = new Enumerator<TIterator,T>(this.ReadSession,iterator);
         while(e.MoveNext()) {

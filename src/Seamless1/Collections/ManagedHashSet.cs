@@ -1,5 +1,4 @@
-﻿//using Seamless.SessionFunctions;
-using Seamless.Stores;
+﻿using Seamless.Stores;
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。
@@ -77,8 +76,8 @@ public partial class ManagedHashSet<TKey>
         TKey
     > GetEnumerator() => new(this.ReadSession,new());
     IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<KeyIterator,TKey>(this.ReadMemoryClientSession,new(),this.HeadAddress);
-    private readonly struct ExceptWithScanIteratorFunctions:IScanIteratorFunctions<SpanByte,SpanByte> {
-        private readonly ClientSession<
+    private readonly struct ScanIteratorFunctions_ExceptWith(
+        ClientSession<
             SpanByte,
             SpanByte,
             EqualityEmpty,
@@ -87,25 +86,10 @@ public partial class ManagedHashSet<TKey>
             SessionFunctions.ExceptWith,
             ManagedStoreFunctions,
             ManagedAllocator
-        > session;
-
-        public ExceptWithScanIteratorFunctions(
-            ClientSession<
-                SpanByte,
-                SpanByte,
-                EqualityEmpty,
-                EqualityEmpty,
-                EqualityEmpty,
-                SessionFunctions.ExceptWith,
-                ManagedStoreFunctions,
-                ManagedAllocator
-            > session
-        ) {
-            this.session=session;
-        }
-
+        > Session
+    ):IScanIteratorFunctions<SpanByte,SpanByte>{
         public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
-            this.session.BasicContext.Delete(ref key);
+            Session.BasicContext.Delete(ref key);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
@@ -115,9 +99,9 @@ public partial class ManagedHashSet<TKey>
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
     }
-    private struct IntersectWithScanIteratorFunctions:IScanIteratorFunctions<SpanByte,SpanByte> {
-        private readonly ManagedHashSet<TKey> other;
-        private readonly ClientSession<
+    private readonly struct ScanIteratorFunctions_IntersectWith(
+        ManagedHashSet<TKey> other,
+        ClientSession<
             SpanByte,
             SpanByte,
             EqualityEmpty,
@@ -126,40 +110,14 @@ public partial class ManagedHashSet<TKey>
             SessionFunctions.ManagedIntersectWith,
             ManagedStoreFunctions,
             ManagedAllocator
-        > session;
-        private int remainingCount;
-
-        public IntersectWithScanIteratorFunctions(
-            ManagedHashSet<TKey> other,
-            ClientSession<
-                SpanByte,
-                SpanByte,
-                EqualityEmpty,
-                EqualityEmpty,
-                EqualityEmpty,
-                SessionFunctions.ManagedIntersectWith,
-                ManagedStoreFunctions,
-                ManagedAllocator
-            > session,
-            int remainingCount
-        ) {
-            this.other=other;
-            this.session=session;
-            this.remainingCount=remainingCount;
-        }
-
+        > Session
+    ):IScanIteratorFunctions<SpanByte,SpanByte>{
         public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
-            if(this.remainingCount<=0) {
-                cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
-                return true;
-            }
-            this.remainingCount--;
-            if(this.other.PrivateProtectedContainsKey(ref key)) {
-            }
-            else {
+            if(other.PrivateProtectedContainsKey(ref key)) {
+            }else{
                 var input = default(EqualityEmpty);
                 var output = default(EqualityEmpty);
-                this.session.BasicContext.RMW(ref key,ref input,ref output);
+                Session.BasicContext.RMW(ref key,ref input,ref output);
             }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -170,9 +128,8 @@ public partial class ManagedHashSet<TKey>
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
     }
-    private struct SymmetricExceptWithScanIteratorFunctions:IScanIteratorFunctions<SpanByte,SpanByte> {
-        private readonly ManagedHashSet<TKey> self;
-        private readonly ClientSession<
+    private readonly struct ScanIteratorFunctions_SymmetricExceptWith(
+        ClientSession<
             SpanByte,
             SpanByte,
             SpanByte,
@@ -181,39 +138,12 @@ public partial class ManagedHashSet<TKey>
             SessionFunctions.SymmetricExceptWith,
             ManagedStoreFunctions,
             ManagedAllocator
-        > session;
-        private int remainingCount;
-
-        public SymmetricExceptWithScanIteratorFunctions(
-            ManagedHashSet<TKey> self,
-            ClientSession<
-                SpanByte,
-                SpanByte,
-                SpanByte,
-                EqualityEmpty,
-                EqualityEmpty,
-                SessionFunctions.SymmetricExceptWith,
-                ManagedStoreFunctions,
-                ManagedAllocator
-            > session,
-            int remainingCount
-        ) {
-            this.self=self;
-            this.session=session;
-            this.remainingCount=remainingCount;
-        }
-
+        > Session
+    ):IScanIteratorFunctions<SpanByte,SpanByte>{
         public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
-            if(this.remainingCount<=0) {
-                cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
-                return true;
-            }
-            this.remainingCount--;
-            if(this.self.WouldOverflowMutable(key.Length,1))
-                throw this.self.ThrowLogFull();
             var input = default(SpanByte);
             var output = default(EqualityEmpty);
-            this.session.BasicContext.RMW(ref key,ref input,ref output);
+            Session.BasicContext.RMW(ref key,ref input,ref output);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
@@ -254,7 +184,7 @@ public partial class ManagedHashSet<TKey>
         }
         var ReadSession = other.ReadSession;
         var cursor = 0L;
-        var iterator = new ExceptWithScanIteratorFunctions(this.ExceptWith_ClientSession);
+        var iterator = new ScanIteratorFunctions_ExceptWith(this.ExceptWith_ClientSession);
         ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.ExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
@@ -263,7 +193,7 @@ public partial class ManagedHashSet<TKey>
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = this.ReadSession;
         var cursor = 0L;
-        var iterator = new IntersectWithScanIteratorFunctions(other,this.IntersectWith_ClientSession,SetOperationBatchSize);
+        var iterator = new ScanIteratorFunctions_IntersectWith(other,this.IntersectWith_ClientSession);
         var 最後まで読み切ったか = ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.IntersectWith_ClientSession.BasicContext.CompletePending(wait: true);
@@ -278,26 +208,10 @@ public partial class ManagedHashSet<TKey>
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = other.ReadSession;
         var cursor = 0L;
-        var Iterator = new SymmetricExceptWithScanIteratorFunctions(this,this.SymmetricExceptWith_ClientSession,SetOperationBatchSize);
+        var Iterator = new ScanIteratorFunctions_SymmetricExceptWith(this.SymmetricExceptWith_ClientSession);
         ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.SymmetricExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
-        //if(ReferenceEquals(this,other)) {
-        //    this.Clear();
-        //    return;
-        //}
-        //var scanSession = other.ReadSession;
-        //var session = this.SymmetricExceptWith_ClientSession;
-        //var cursor = 0L;
-        //while(true) {
-        //    var iterator = new SymmetricExceptWithScanIteratorFunctions(this,session,SetOperationBatchSize);
-        //    var 最後まで読み切ったか = scanSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
-        //    scanSession.BasicContext.CompletePending(wait: true);
-        //    session.BasicContext.CompletePending(wait: true);
-        //    if(最後まで読み切ったか) {
-        //        return;
-        //    }
-        //}
     }
     public partial void UnionWith(ManagedHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
@@ -307,20 +221,5 @@ public partial class ManagedHashSet<TKey>
         ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.Add_ClientSession.BasicContext.CompletePending(wait: true);
-        //if(ReferenceEquals(this,other)) {
-        //    return;
-        //}
-        //var scanSession = other.ReadSession;
-        //var session = this.Add_ClientSession;
-        //var cursor = 0L;
-        //while(true) {
-        //    var iterator = new ScanIteratorFunctions_UnionWith(this,session,SetOperationBatchSize);
-        //    var 最後まで読み切ったか = scanSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
-        //    scanSession.BasicContext.CompletePending(wait: true);
-        //    session.BasicContext.CompletePending(wait: true);
-        //    if(最後まで読み切ったか) {
-        //        return;
-        //    }
-        //}
     }
 }

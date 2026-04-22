@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using Seamless;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -108,12 +108,16 @@ public class Enumerator {
             using var objDevice = Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var store = Factory.Create().Create<int>(logDevice,objDevice);
             using var set = store.Create();
-            var expected = Enumerable.Range(0,2048).ToArray();
+            var expected = Enumerable.Range(0,256).ToArray();
             foreach(var value in expected)
                 set.Add(value);
+            var count0=set.Count;
+            //Tsavorite 1.1.3 の BufferAndLoad が epoch.Resume() を保持したまま BumpCurrentEpoch を呼ぶ epoch デッドロックバグがある
+            // FlushAndEvict は HeadAddress=TailAddress にするため IterateLookup でスキャン不可。
+            // ShiftReadOnlyAddress でディスクに書き出しつつ HeadAddress は変えない。
+            store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
 
-            store.Store.Log.FlushAndEvict(wait: true);
-
+            var count1=set.Count;
             var enumerated = new HashSet<int>();
             foreach(var value in set)
                 enumerated.Add(value);
