@@ -1,5 +1,4 @@
 ﻿using Seamless.SessionFunctions;
-using Seamless.ScanIteratorFunctions;
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 namespace Seamless.Collections;
@@ -14,7 +13,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         ManagedRemove_TKey_TValue,//TFunctions
         ManagedStoreFunctions,//TStoreFunctions
         ManagedAllocator//TAllocator
-    > Remove_TKey_TValue_ClientSession { get; set; }
+    > Remove_TKey_TValue_ClientSession { get; set; } = null!;
     private ClientSession<
         SpanByte,
         SpanByte,
@@ -24,9 +23,19 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         ManagedRemove_KeyValuePair,
         ManagedStoreFunctions,
         ManagedAllocator
-    > Remove_KeyValuePair_ClientSession { get; }
+    > Remove_KeyValuePair_ClientSession { get; set; } = null!;
     internal ManagedDictionary(ManagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
-        var Store = CollectionStore.Store;
+        this.CreateAdditionalSessions();
+    }
+    private protected override void DisposeAdditionalSessions() {
+        CompletePendingAndDispose(this.Remove_TKey_TValue_ClientSession);
+        CompletePendingAndDispose(this.Remove_KeyValuePair_ClientSession);
+    }
+    private protected override void RecreateAdditionalSessions() {
+        this.CreateAdditionalSessions();
+    }
+    private void CreateAdditionalSessions() {
+        var Store = this.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<
             EqualityEmpty,//TKey
             SpanByteAndMemory,//TValue
@@ -55,7 +64,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
             var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
             var Input = SpanByte.FromPinnedSpan(ValueBytes);
             Status=Session.BasicContext.RMW(ref FixedKey,ref Input,ref Output);
-            Status=Pending(Session,Status,ref Output);
+            Pending(Session,Status,ref Output);
         }
         return Output;
     }
@@ -68,7 +77,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         fixed(byte* _ = KeyBytes) {
             var FixedKey = SpanByte.FromPinnedSpan(KeyBytes);
             Status=Session.BasicContext.RMW(ref FixedKey,ref Input,ref Output);
-            Status=Pending(Session,Status,ref Output);
+            Pending(Session,Status,ref Output);
         }
         // output.Length>0 は InPlaceUpdater/CopyUpdater で値がコピーされた＝成功
         if(Output.Length>0) {
@@ -118,7 +127,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
                     Status=ClientSession.BasicContext.Upsert(FixedKey,FixedValue);
                 }
             }
-            Status=Pending(ClientSession,Status);
+            Pending(ClientSession,Status);
         }
     }
 }

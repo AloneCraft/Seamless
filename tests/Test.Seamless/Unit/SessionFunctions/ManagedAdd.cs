@@ -163,7 +163,7 @@ public sealed class ManagedAdd:AddTests<int,string> {
             where TSourceLogRecord:ISourceLogRecord {
             cursorRecordResult=CursorRecordResult.Accept;
             var bc=session.BasicContext;
-            var input=default(string);
+            var input=default(string)!;
             var output=false;
             var options=default(UpsertOptions);
             if(externalKeyBytes is not null){

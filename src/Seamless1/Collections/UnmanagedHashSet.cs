@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using Seamless.SessionFunctions;
+﻿using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
 
@@ -8,7 +7,43 @@ namespace Seamless.Collections;
 /// </summary>
 public partial class UnmanagedHashSet<TKey>
     where TKey : unmanaged, IEquatable<TKey> {
-    private readonly ClientSession<
+    private ClientSession<
+        TKey,
+        EqualityEmpty,
+        EqualityEmpty,//TInput
+        EqualityEmpty,//TOutput
+        EqualityEmpty,//TContext
+        UnmanagedExceptWith<
+            TKey
+        >,
+        StoreFunctions<
+            TKey,
+            EqualityEmpty,
+            UnmanagedKeyComparer<
+                TKey
+            >,
+            DefaultRecordDisposer<
+                TKey,
+                EqualityEmpty
+            >
+        >,
+        BlittableAllocator<
+            TKey,
+            EqualityEmpty,
+            StoreFunctions<
+                TKey,
+                EqualityEmpty,
+                UnmanagedKeyComparer<
+                    TKey
+                >,
+                DefaultRecordDisposer<
+                    TKey,
+                    EqualityEmpty
+                >
+            >
+        >
+    > ExceptWith_ClientSession = null!;
+    private ClientSession<
         TKey,
         EqualityEmpty,
         EqualityEmpty,//TInput
@@ -43,8 +78,8 @@ public partial class UnmanagedHashSet<TKey>
                 >
             >
         >
-    > IntersectWith_ClientSession;
-    private readonly ClientSession<
+    > IntersectWith_ClientSession = null!;
+    private ClientSession<
         TKey,
         EqualityEmpty,
         EqualityEmpty,//TInput
@@ -80,9 +115,29 @@ public partial class UnmanagedHashSet<TKey>
                 >
             >
         >
-    > SymmetricExceptWith_ClientSession;
+    > SymmetricExceptWith_ClientSession = null!;
     internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
-        var Store = CollectionStore.Store;
+        this.CreateAdditionalSessions();
+    }
+    private protected override void DisposeAdditionalSessions() {
+        CompletePendingAndDispose(this.ExceptWith_ClientSession);
+        CompletePendingAndDispose(this.IntersectWith_ClientSession);
+        CompletePendingAndDispose(this.SymmetricExceptWith_ClientSession);
+    }
+    private protected override void RecreateAdditionalSessions() {
+        this.CreateAdditionalSessions();
+    }
+    private void CreateAdditionalSessions() {
+        var Store = this.Store;
+        this.ExceptWith_ClientSession=Store.NewSession<
+
+            EqualityEmpty,
+            EqualityEmpty,
+            EqualityEmpty,
+            UnmanagedExceptWith<
+                TKey
+            >
+        >(new());
         this.IntersectWith_ClientSession=Store.NewSession<
 
             EqualityEmpty,
@@ -113,15 +168,15 @@ public partial class UnmanagedHashSet<TKey>
             TKey,
             EqualityEmpty,
             EqualityEmpty,
-            bool,
             EqualityEmpty,
-            UnmanagedContainsDelete<TKey,EqualityEmpty>,
+            EqualityEmpty,
+            UnmanagedExceptWith<TKey>,
             StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>,
             BlittableAllocator<TKey,EqualityEmpty,StoreFunctions<TKey,EqualityEmpty,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,EqualityEmpty>>>
         > Session
     ):IScanIteratorFunctions<TKey,EqualityEmpty> {
         public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
-            Session.BasicContext.Upsert(ref key,ref value);
+            Session.BasicContext.Delete(ref key);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
@@ -156,22 +211,8 @@ public partial class UnmanagedHashSet<TKey>
             else {
                 var input = default(EqualityEmpty);
                 var output = default(EqualityEmpty);
-                var Status = Session.BasicContext.RMW(ref key,ref input,ref output);
-                var Output = default(EqualityEmpty);
-                Pending(Session,Status,ref Output);
+                Session.BasicContext.RMW(ref key,ref input,ref output);
             }
-            cursorRecordResult=CursorRecordResult.Accept;
-            return true;
-        }
-        public bool ConcurrentReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
-        public bool OnStart(long beginAddress,long endAddress) => true;
-        public void OnStop(bool completed,long numberOfRecords) { }
-        public void OnException(Exception exception,long numberOfRecords) { }
-    }
-    private struct IntersectWithFunctions0(
-    ):IScanIteratorFunctions<TKey,EqualityEmpty> {
-        public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
@@ -236,58 +277,21 @@ public partial class UnmanagedHashSet<TKey>
     public partial void ExceptWith(UnmanagedHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = other.ReadSession;
-        var ContainsDeleteSession = this.ContainsDeleteSession;
+        var ExceptWith_ClientSession = this.ExceptWith_ClientSession;
         var cursor = 0L;
-        var Iterator = new ExceptWithFunctions(ContainsDeleteSession);
+        var Iterator = new ExceptWithFunctions(ExceptWith_ClientSession);
         ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
-        ContainsDeleteSession.BasicContext.CompletePending(wait: true);
-    }
-    public void 動作確認(UnmanagedHashSet<TKey> other) {
-        var ReadSession = other.ReadSession;
-        var IntersectWithSession = this.IntersectWith_ClientSession;
-        foreach(var a in other) {
-
-        }
-        var cursor = 0L;
-        while(true) {
-            var Iterator = new KeyIterator();
-            var 最後まで読み切ったか = ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
-            ReadSession.BasicContext.CompletePending(wait: true);
-            IntersectWithSession.BasicContext.CompletePending(wait: true);
-
-            var Count = Iterator.Count;
-            // this.Count=Count;
-            // if(最後まで読み切ったか) {
-            // }
-            // else {
-            //     this.Done=true;
-            // }
-            // if(Count>0) {
-            //     this.Index=0;
-            //     return true;
-            // }
-            // this.Index=-1;
-
-
-
-            if(最後まで読み切ったか) {
-                return;
-            }
-        }
+        ExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
     public partial void IntersectWith(UnmanagedHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
-        //this.動作確認(other);
         var cursor = 0L;
         var ReadSession = other.ReadSession;
-        var IntersectWithSession = this.IntersectWith_ClientSession;
-        var Iterator = new IntersectWithFunctions(this,IntersectWithSession,SetOperationBatchSize);
-        //var Iterator = new IntersectWithFunctions0();
-        //var Iterator = new KeyIterator();
-        var 最後まで読み切ったか = ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        var Iterator = new IntersectWithFunctions(this,this.IntersectWith_ClientSession,SetOperationBatchSize);
+        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
-        IntersectWithSession.BasicContext.CompletePending(wait: true);
+        this.IntersectWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
     public partial bool IsSubsetOf(UnmanagedHashSet<TKey> other) => IsSubsetOfSet(this,other);
     public partial bool IsSupersetOf(UnmanagedHashSet<TKey> other) => IsSupersetOfSet(this,other);
@@ -300,7 +304,7 @@ public partial class UnmanagedHashSet<TKey>
         var ReadSession = other.ReadSession;
         var cursor = 0L;
         var Iterator = new ScanIteratorFunctions_SymmetricExceptWith(this.SymmetricExceptWith_ClientSession);
-        var 最後まで読み切ったか = ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.SymmetricExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
@@ -309,7 +313,7 @@ public partial class UnmanagedHashSet<TKey>
         var ReadSession = other.ReadSession;
         var cursor = 0L;
         var Iterator = new ScanIteratorFunctions_UnionWith(this.Add_ClientSession);
-        var 最後まで読み切ったか = ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.Add_ClientSession.BasicContext.CompletePending(wait: true);
     }

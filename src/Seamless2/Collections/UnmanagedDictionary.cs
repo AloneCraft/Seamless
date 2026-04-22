@@ -1,5 +1,4 @@
-﻿using Seamless.ScanIteratorFunctions;
-using Seamless.SessionFunctions;
+﻿using Seamless.SessionFunctions;
 
 using Seamless.Stores;
 namespace Seamless.Collections;
@@ -38,7 +37,7 @@ public partial class UnmanagedDictionary<
 
 
 
-    > Remove_TKey_TValue_ClientSession { get; set; }
+    > Remove_TKey_TValue_ClientSession { get; set; } = null!;
     private ClientSession<
         FixedSpanByteKey,
 
@@ -62,9 +61,19 @@ public partial class UnmanagedDictionary<
 
 
 
-    > Remove_KeyValuePair_ClientSession { get; set; }
+    > Remove_KeyValuePair_ClientSession { get; set; } = null!;
     internal UnmanagedDictionary(UnmanagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
-        var Store = CollectionStore.Store;
+        this.CreateAdditionalSessions();
+    }
+    private protected override void DisposeAdditionalSessions() {
+        CompletePendingAndDispose(this.Remove_TKey_TValue_ClientSession);
+        CompletePendingAndDispose(this.Remove_KeyValuePair_ClientSession);
+    }
+    private protected override void RecreateAdditionalSessions() {
+        this.CreateAdditionalSessions();
+    }
+    private void CreateAdditionalSessions() {
+        var Store = this.Store;
         this.Remove_TKey_TValue_ClientSession=Store.NewSession<
             FixedSpanByteKey,
             EqualityEmpty,
@@ -120,7 +129,7 @@ public partial class UnmanagedDictionary<
         fixed(byte* _ = KeyBytes) {
             var FixedKey = (FixedSpanByteKey)KeyBytes;
             Status=Session.BasicContext.RMW(FixedKey,ref Value,ref Output);
-            Status=Pending(Session,Status,ref Output);
+            Pending(Session,Status,ref Output);
         }
         return Output;
     }
@@ -157,6 +166,6 @@ public partial class UnmanagedDictionary<
                 Status=ClientSession.BasicContext.Upsert(FixedKey,Input);
             }
         }
-        Status=Pending(ClientSession,Status);
+        Pending(ClientSession,Status);
     }
 }

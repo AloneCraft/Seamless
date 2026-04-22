@@ -1,5 +1,4 @@
 ﻿//using Seamless.SessionFunctions;
-using Seamless;
 using Seamless.Stores;
 namespace Seamless.Collections;
 /// <summary>
@@ -9,7 +8,17 @@ namespace Seamless.Collections;
 /// </summary>
 public partial class ManagedHashSet<TKey>
     where TKey : IEquatable<TKey> {
-    private readonly ClientSession<
+    private ClientSession<
+        SpanByte,//TKey
+        SpanByte,//TValue
+        EqualityEmpty,//TInput
+        EqualityEmpty,//TOutput
+        EqualityEmpty,//TContext
+        SessionFunctions.ExceptWith,
+        ManagedStoreFunctions,
+        ManagedAllocator
+    > ExceptWith_ClientSession = null!;
+    private ClientSession<
         SpanByte,//TKey
         SpanByte,//TValue
         EqualityEmpty,//TInput
@@ -18,8 +27,8 @@ public partial class ManagedHashSet<TKey>
         SessionFunctions.ManagedIntersectWith,
         ManagedStoreFunctions,
         ManagedAllocator
-    > IntersectWith_ClientSession;
-    private readonly ClientSession<
+    > IntersectWith_ClientSession = null!;
+    private ClientSession<
         SpanByte,//TKey
         SpanByte,//TValue
         SpanByte,//TInput
@@ -28,9 +37,26 @@ public partial class ManagedHashSet<TKey>
         SessionFunctions.SymmetricExceptWith,
         ManagedStoreFunctions,
         ManagedAllocator
-    > SymmetricExceptWith_ClientSession;
+    > SymmetricExceptWith_ClientSession = null!;
     internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
-        var Store = CollectionStore.Store;
+        this.CreateAdditionalSessions();
+    }
+    private protected override void DisposeAdditionalSessions() {
+        CompletePendingAndDispose(this.ExceptWith_ClientSession);
+        CompletePendingAndDispose(this.IntersectWith_ClientSession);
+        CompletePendingAndDispose(this.SymmetricExceptWith_ClientSession);
+    }
+    private protected override void RecreateAdditionalSessions() {
+        this.CreateAdditionalSessions();
+    }
+    private void CreateAdditionalSessions() {
+        var Store = this.Store;
+        this.ExceptWith_ClientSession=Store.NewSession<
+            EqualityEmpty,//TInput
+            EqualityEmpty,//TOutput
+            EqualityEmpty,//TContext
+            SessionFunctions.ExceptWith//TFunctions
+        >(new());
         this.IntersectWith_ClientSession=Store.NewSession<
             EqualityEmpty,//TKey
                           //
@@ -51,45 +77,35 @@ public partial class ManagedHashSet<TKey>
         TKey
     > GetEnumerator() => new(this.ReadSession,new());
     IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<KeyIterator,TKey>(this.ReadMemoryClientSession,new(),this.HeadAddress);
-    private struct ExceptWithScanIteratorFunctions:IScanIteratorFunctions<SpanByte,SpanByte> {
+    private readonly struct ExceptWithScanIteratorFunctions:IScanIteratorFunctions<SpanByte,SpanByte> {
         private readonly ClientSession<
             SpanByte,
             SpanByte,
             EqualityEmpty,
-            bool,
             EqualityEmpty,
-            SessionFunctions.ManagedContainsDelete,
+            EqualityEmpty,
+            SessionFunctions.ExceptWith,
             ManagedStoreFunctions,
             ManagedAllocator
         > session;
-        private int remainingCount;
 
         public ExceptWithScanIteratorFunctions(
             ClientSession<
                 SpanByte,
                 SpanByte,
                 EqualityEmpty,
-                bool,
                 EqualityEmpty,
-                SessionFunctions.ManagedContainsDelete,
+                EqualityEmpty,
+                SessionFunctions.ExceptWith,
                 ManagedStoreFunctions,
                 ManagedAllocator
-            > session,
-            int remainingCount
+            > session
         ) {
             this.session=session;
-            this.remainingCount=remainingCount;
         }
 
         public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
-            if(this.remainingCount<=0) {
-                cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
-                return true;
-            }
-            this.remainingCount--;
-            var input = default(EqualityEmpty);
-            var output = false;
-            this.session.BasicContext.RMW(ref key,ref input,ref output);
+            this.session.BasicContext.Delete(ref key);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
@@ -237,32 +253,20 @@ public partial class ManagedHashSet<TKey>
             return;
         }
         var ReadSession = other.ReadSession;
-        var session = this.ContainsDeleteSession;
         var cursor = 0L;
-        while(true) {
-            var iterator = new ExceptWithScanIteratorFunctions(session,SetOperationBatchSize);
-            var 最後まで読み切ったか = ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
-            ReadSession.BasicContext.CompletePending(wait: true);
-            session.BasicContext.CompletePending(wait: true);
-            if(最後まで読み切ったか) {
-                return;
-            }
-        }
+        var iterator = new ExceptWithScanIteratorFunctions(this.ExceptWith_ClientSession);
+        ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+        ReadSession.BasicContext.CompletePending(wait: true);
+        this.ExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
     public partial void IntersectWith(ManagedHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
-        var scanSession = this.ReadSession;
-        var session = this.IntersectWith_ClientSession;
+        var ReadSession = this.ReadSession;
         var cursor = 0L;
-        while(true) {
-            var iterator = new IntersectWithScanIteratorFunctions(other,session,SetOperationBatchSize);
-            var 最後まで読み切ったか = scanSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
-            scanSession.BasicContext.CompletePending(wait: true);
-            session.BasicContext.CompletePending(wait: true);
-            if(最後まで読み切ったか) {
-                return;
-            }
-        }
+        var iterator = new IntersectWithScanIteratorFunctions(other,this.IntersectWith_ClientSession,SetOperationBatchSize);
+        var 最後まで読み切ったか = ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+        ReadSession.BasicContext.CompletePending(wait: true);
+        this.IntersectWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
     public partial bool IsProperSubsetOf(ManagedHashSet<TKey> other) => IsProperSubsetOfSet(this,other);
     public partial bool IsProperSupersetOf(ManagedHashSet<TKey> other) => IsProperSupersetOfSet(this,other);
@@ -275,7 +279,7 @@ public partial class ManagedHashSet<TKey>
         var ReadSession = other.ReadSession;
         var cursor = 0L;
         var Iterator = new SymmetricExceptWithScanIteratorFunctions(this,this.SymmetricExceptWith_ClientSession,SetOperationBatchSize);
-        var 最後まで読み切ったか = ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.SymmetricExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
         //if(ReferenceEquals(this,other)) {
@@ -300,7 +304,7 @@ public partial class ManagedHashSet<TKey>
         var ReadSession = other.ReadSession;
         var cursor = 0L;
         var Iterator = new ScanIteratorFunctions_UnionWith(this.Add_ClientSession);
-        var 最後まで読み切ったか = ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.Add_ClientSession.BasicContext.CompletePending(wait: true);
         //if(ReferenceEquals(this,other)) {
