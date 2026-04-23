@@ -17,7 +17,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Helpers\Collections\IDictionaryTestBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Helpers\Collections\HashSetStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Helpers\Collections\HashSetTestBase.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\DebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\Dictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\DictionaryIReadOnly.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\StoreHandle.cs" />
@@ -34,8 +33,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Unit\ScanIteratorFunctions\ScanIteratorFunctions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\ScanIteratorFunctions\ValueIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\AddTests.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\Delete.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\CommonWith.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\Delete.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\ExceptWith.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\IntersectWith.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\ManagedAdd.cs" />
@@ -56,8 +55,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stress\ParallelRandomStressTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stress\SetOperationStressTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Tsavorite\LightEpochLimitTests.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Integrate\DictionaryIntegrate.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Integrate\HashSetIntegrate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Test.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestTypes.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />

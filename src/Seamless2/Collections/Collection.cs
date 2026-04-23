@@ -160,7 +160,6 @@ public abstract class Collection<
         var Cursor = 0L;
         this.ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         this.ReadSession.BasicContext.CompletePending(wait: true);
-
         return Iterator.Counter;
     }
     private protected unsafe bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes) {
@@ -384,7 +383,7 @@ public abstract class Collection<
         this.disposed=true;
     }
     ~Collection() => this.Dispose(false);
-    private struct IsSubsetOfScanIteratorFunctions<TCollection>(TCollection other):IScanIteratorFunctions
+    private struct ScanIteratorFunctions_IsSubsetOf<TCollection>(TCollection other):IScanIteratorFunctions
         where TCollection : Collection<
             TKey,
             TValue,
@@ -415,7 +414,7 @@ public abstract class Collection<
         public void OnException(Exception exception,long numberOfRecords) { }
         public void OnStop(bool completed,long numberOfRecords) { }
     }
-    private struct OverlapsScanIteratorFunctions<TCollection>(TCollection self):IScanIteratorFunctions
+    private struct ScanIteratorFunctions_Overlaps<TCollection>(TCollection self):IScanIteratorFunctions
         where TCollection : Collection<
             TKey,
             TValue,
@@ -446,7 +445,7 @@ public abstract class Collection<
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
     }
-    private protected static bool IsSubsetOfSet<TCollection>(TCollection Self,TCollection Other)
+    private protected static bool IsSubsetOfSet<TCollection>(TCollection self,TCollection other)
         where TCollection : Collection<
             TKey,
             TValue,
@@ -458,20 +457,13 @@ public abstract class Collection<
             TStoreFunctions,
             TAllocator
         > {
-        ArgumentNullException.ThrowIfNull(Other);
-        var ScanSession = Self.ReadSession;
+        ArgumentNullException.ThrowIfNull(other);
+        var ReadSession = self.ReadSession;
+        var Iterator = new ScanIteratorFunctions_IsSubsetOf<TCollection>(other);
         var Cursor = 0L;
-        while(true) {
-            var Iterator = new IsSubsetOfScanIteratorFunctions<TCollection>(Other);
-            var Completed = ScanSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-            ScanSession.BasicContext.CompletePending(wait: true);
-            if(!Iterator.IsSubset) {
-                return false;
-            }
-            if(!Completed) {
-                return true;
-            }
-        }
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        ReadSession.BasicContext.CompletePending(wait: true);
+        return Iterator.IsSubset;
     }
     private protected static bool IsSupersetOfSet<TCollection>(TCollection Self,TCollection Other)
         where TCollection : Collection<
@@ -524,7 +516,7 @@ public abstract class Collection<
         }
         return IsSupersetOfSet(Self,Other);
     }
-    private protected static bool OverlapsSet<TCollection>(TCollection Self,TCollection Other)
+    private protected static bool OverlapsSet<TCollection>(TCollection self,TCollection other)
         where TCollection : Collection<
             TKey,
             TValue,
@@ -536,20 +528,13 @@ public abstract class Collection<
             TStoreFunctions,
             TAllocator
         > {
-        ArgumentNullException.ThrowIfNull(Other);
-        var ScanSession = Other.ReadSession;
-        var Cursor = 0L;
-        while(true) {
-            var Iterator = new OverlapsScanIteratorFunctions<TCollection>(Self);
-            var Completed = ScanSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-            ScanSession.BasicContext.CompletePending(wait: true);
-            if(Iterator.FoundOverlap) {
-                return true;
-            }
-            if(!Completed) {
-                return false;
-            }
-        }
+        ArgumentNullException.ThrowIfNull(other);
+        var ReadSession=other.ReadSession;
+        var Iterator=new ScanIteratorFunctions_Overlaps<TCollection>(self);
+        var Cursor=0L;
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        ReadSession.BasicContext.CompletePending(wait: true);
+        return Iterator.FoundOverlap;
     }
     private protected static bool SetEqualsSet<TCollection>(TCollection Self,TCollection Other)
         where TCollection : Collection<
@@ -573,11 +558,11 @@ public abstract class Collection<
     /// ManagedHashSet,UnmanagedHashSetが使う
     /// </summary>
     /// <typeparam name="TCollection"></typeparam>
-    /// <param name="Self"></param>
+    /// <param name="self"></param>
     /// <param name="other"></param>
     /// <param name="Session"></param>
     private protected void IntersectWith<TCollection>(
-        TCollection Self,
+        TCollection self,
         TCollection other,
         ClientSession<
             FixedSpanByteKey,
@@ -601,13 +586,12 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(other);
-        var ReadSession = Self.ReadSession;
+        var ReadSession = self.ReadSession;
         // IntersectWith は走査しながら RMW で tombstone を追記するため、
         // 走査開始時の TailAddress を上限に固定して新規追記分を再走査しない。
-        var scanUntil = Self.CollectionStore.Address.TailAddress;
+        var Iterator = new ScanIteratorFunctions_IntersectWith<TCollection>(self,other,Session);
         var Cursor = 0L;
-        var Iterator = new IntersectWithFunctions<TCollection>(Self,other,Session);
-        var 最後まで読み切ったか = ReadSession.IterateLookup(ref Iterator,ref Cursor,scanUntil,resetCursor: false);
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,self.CollectionStore.Address.TailAddress,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         Session.BasicContext.CompletePending(wait: true);
     }
@@ -625,14 +609,13 @@ public abstract class Collection<
         > {
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = other.ReadSession;
-        var ContainsDeleteSession = this.ContainsDeleteSession;
-        var cursor = 0L;
-        var Iterator = new ScanIteratorFunctions_ExceptWith(ContainsDeleteSession);
-        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        var Iterator = new ScanIteratorFunctions_ExceptWith(this.ContainsDeleteSession);
+        var Cursor = 0L;
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
-        ContainsDeleteSession.BasicContext.CompletePending(wait: true);
+        this.ContainsDeleteSession.BasicContext.CompletePending(wait: true);
     }
-    private readonly struct IntersectWithFunctions<TCollection>(
+    private readonly struct ScanIteratorFunctions_IntersectWith<TCollection>(
         TCollection self,
         TCollection other,
         ClientSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith,TStoreFunctions,TAllocator> Session

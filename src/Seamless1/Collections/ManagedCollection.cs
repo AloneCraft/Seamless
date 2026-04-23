@@ -67,11 +67,11 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
                 return false;
             }
             Iterator.Count=0;
-            var 最後まで読み切ったか = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            var Completed=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
             Session.BasicContext.CompletePending(wait: true);
             var Count = Iterator.Count;
             this.Count=Count;
-            if(最後まで読み切ったか){
+            if(Completed){
             } else{
                 this.Done=true;
             }

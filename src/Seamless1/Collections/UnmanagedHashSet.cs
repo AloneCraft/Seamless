@@ -1,4 +1,6 @@
 ﻿using Seamless.Stores;
+
+using System.Diagnostics;
 namespace Seamless.Collections;
 
 /// <summary>
@@ -199,14 +201,23 @@ public partial class UnmanagedHashSet<TKey>
                 >
             >
         > Session
+        ,object syncRoot
     ):IScanIteratorFunctions<TKey,EqualityEmpty> {
-        public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        private bool ReaderCore(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             Session.BasicContext.Delete(ref key);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public bool ConcurrentReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+        public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
+        public bool ConcurrentReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
@@ -249,10 +260,12 @@ public partial class UnmanagedHashSet<TKey>
                 >
             >
         > Session
+        ,object syncRoot
     ):IScanIteratorFunctions<TKey,EqualityEmpty> {
-        public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        private bool ReaderCore(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             if(other.PrivateProtectedContainsKey(ref key)) {
-            }else {
+            }
+            else {
                 var input = default(EqualityEmpty);
                 var output = default(EqualityEmpty);
                 Session.BasicContext.RMW(ref key,ref input,ref output);
@@ -260,8 +273,16 @@ public partial class UnmanagedHashSet<TKey>
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public bool ConcurrentReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+        public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
+        public bool ConcurrentReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
@@ -304,8 +325,9 @@ public partial class UnmanagedHashSet<TKey>
                 >
             >
         > Session
+        ,object syncRoot
     ):IScanIteratorFunctions<TKey,EqualityEmpty> {
-        public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        private bool ReaderCore(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             //ここでif(this.self.WouldOverflowMutable(key.Length,1))
             //    throw this.self.ThrowLogFull();
             var input = default(EqualityEmpty);
@@ -314,8 +336,16 @@ public partial class UnmanagedHashSet<TKey>
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public bool ConcurrentReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+        public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
+        public bool ConcurrentReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
@@ -358,16 +388,25 @@ public partial class UnmanagedHashSet<TKey>
                 >
             >
         > Session
+        ,object syncRoot
     ):IScanIteratorFunctions<TKey,EqualityEmpty> {
-        public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        private bool ReaderCore(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             var input = default(EqualityEmpty);
             var output = false;
             Session.BasicContext.RMW(ref key,ref input,ref output);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public bool ConcurrentReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+        public bool SingleReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
+        public bool ConcurrentReader(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
@@ -375,19 +414,18 @@ public partial class UnmanagedHashSet<TKey>
     public partial void ExceptWith(UnmanagedHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = other.ReadSession;
-        var ExceptWith_ClientSession = this.ExceptWith_ClientSession;
-        var cursor = 0L;
-        var Iterator = new ScanIteratorFunctions_ExceptWith(ExceptWith_ClientSession);
-        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        var Iterator = new ScanIteratorFunctions_ExceptWith(this.ExceptWith_ClientSession,new object());
+        var Cursor = 0L;
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
-        ExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
+        this.ExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
     public partial void IntersectWith(UnmanagedHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
-        var cursor = 0L;
         var ReadSession = this.ReadSession;
-        var Iterator = new ScanIteratorFunctions_IntersectWith(other,this.IntersectWith_ClientSession);
-        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        var Iterator = new ScanIteratorFunctions_IntersectWith(other,this.IntersectWith_ClientSession,new object());
+        var Cursor = 0L;
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.IntersectWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
@@ -400,18 +438,18 @@ public partial class UnmanagedHashSet<TKey>
     public partial void SymmetricExceptWith(UnmanagedHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = other.ReadSession;
-        var cursor = 0L;
-        var Iterator = new ScanIteratorFunctions_SymmetricExceptWith(this.SymmetricExceptWith_ClientSession);
-        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        var Iterator = new ScanIteratorFunctions_SymmetricExceptWith(this.SymmetricExceptWith_ClientSession,new object());
+        var Cursor = 0L;
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.SymmetricExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
     public partial void UnionWith(UnmanagedHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = other.ReadSession;
-        var cursor = 0L;
-        var Iterator = new ScanIteratorFunctions_UnionWith(this.Add_ClientSession);
-        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        var Iterator = new ScanIteratorFunctions_UnionWith(this.Add_ClientSession,new object());
+        var Cursor = 0L;
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.Add_ClientSession.BasicContext.CompletePending(wait: true);
     }

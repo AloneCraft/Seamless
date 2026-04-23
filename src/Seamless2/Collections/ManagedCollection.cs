@@ -77,11 +77,13 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
                 return false;
             }
             Iterator.Count=0;
-            var 最後まで読み切ったか = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            // ScanCursor can deliver one late callback after the requested count, so keep one slot free.
+            var requestCount = Math.Max(1,Const.Chunk_Length-1);
+            var scanCompleted = Session.ScanCursor(ref this.Cursor,requestCount,Iterator,resetCursor: false);
             Session.BasicContext.CompletePending(wait: true);
             var Count = Iterator.Count;
             this.Count=Count;
-            if(最後まで読み切ったか&&Count==0)
+            if(!scanCompleted&&Count==0)
                 this.Done=true;
             if(Count>0) {
                 this.Index=0;

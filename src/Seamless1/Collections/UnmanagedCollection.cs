@@ -133,8 +133,7 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
             var Count = Iterator.Count;
             this.Count=Count;
             if(最後まで読み切ったか) {
-            }
-            else {
+            }else{
                 this.Done=true;
             }
             if(Count>0) {

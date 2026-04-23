@@ -1,4 +1,9 @@
-﻿                    v1.1.1                           v2.0.0-beta.3
+﻿Reader戻り値 CursorRecordResult IterateLookup戻り値 状態
+false       （無視）	        false               強制停止（ユーザーによる打ち切り）
+true         Accept/Skip        false               自然終了（最後まで到達）
+true         EndBatch	        true                一時中断（カーソル更新済み、続きあり）
+
+v1.1.1                           v2.0.0-beta.3
 ─────────────────────────────────────────────────────────────────────────
 セッション型    LogScanCursorFunctions              NoOpSessionFunctions
 

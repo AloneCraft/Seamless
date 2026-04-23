@@ -64,6 +64,7 @@ public abstract class Collection<
             if(index>=Const.Chunk_Length) {
                 Volatile.Write(ref this.Count,Const.Chunk_Length);
                 var lastAcceptedAddress = Volatile.Read(ref this.LastAcceptedAddress);
+                //trueを返す条件はrecordMetadata.Address==lastAcceptedAddressのときのみで、これはPendingの影響で重複して読まされる最後のレコードに対してだけ起こりうる。
                 if(recordMetadata.Address==lastAcceptedAddress)
                     cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;//Pendingの影響で重複 → RetryLastRecord 付けない
                 else
@@ -170,7 +171,8 @@ public abstract class Collection<
     public long GetLongCount() {
         var Iterator = new ScanIteratorFunctions_Counter();
         var Cursor = 0L;
-        this.ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        var Completed= this.ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        Debug.Assert(!Completed);
         this.ReadSession.BasicContext.CompletePending(wait: true);
         return Iterator.Counter;
     }
@@ -405,7 +407,7 @@ public abstract class Collection<
     }
     ~Collection() => this.Dispose(false);
     //Collection
-    private struct ScanIteratorFunctions_IsSubsetOf<TCollection>(TCollection other):IScanIteratorFunctions<TSessionKey,TSessionValue>
+    private struct ScanIteratorFunctions_IsSubsetOf<TCollection>(TCollection other,object syncRoot):IScanIteratorFunctions<TSessionKey,TSessionValue>
         where TCollection : Collection<
             TKey,
             TValue,
@@ -419,12 +421,17 @@ public abstract class Collection<
             TStoreFunctions,
             TAllocator
         > {
-        public bool IsSubset=true;
-        public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        public bool IsSubset = true;
+        private bool ReaderCore(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             if(!this.IsSubset) {
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
                 return true;
             }
+            // IsSubset itself is only a monotonic true -> false flag, so the assignment below is not
+            // why syncRoot exists. The lock is for the Tsavorite 1.1.1 case where ConcurrentReader and
+            // pending-completion SingleReader can interleave while both touch Other's session state.
+            // As an alternative design, we could prepare another contains/delete session
+            // (for example ContainsDeleteSession1) and split reader paths by session.
             if(other.PrivateProtectedContainsKey(ref key)) {
                 cursorRecordResult=CursorRecordResult.Accept;
                 return true;
@@ -433,13 +440,21 @@ public abstract class Collection<
             cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
             return true;
         }
-        public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+        public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
+        public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
     }
-    private struct ScanIteratorFunctions_Overlaps<TCollection>(TCollection self):IScanIteratorFunctions<TSessionKey,TSessionValue>
+    private struct ScanIteratorFunctions_Overlaps<TCollection>(TCollection self,object syncRoot):IScanIteratorFunctions<TSessionKey,TSessionValue>
         where TCollection : Collection<
             TKey,
             TValue,
@@ -453,27 +468,36 @@ public abstract class Collection<
             TStoreFunctions,
             TAllocator
         > {
-        public bool FoundOverlap=false;
-        public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        public bool FoundOverlap = false;
+        private bool ReaderCore(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             if(this.FoundOverlap) {
-                cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
-                return true;
+                Debug.Fail("ここは呼ばれることはないはず");
+                //cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
+                //return true;
             }
             if(self.PrivateProtectedContainsKey(ref key)) {
                 this.FoundOverlap=true;
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
-                return true;
+            } else{
+                cursorRecordResult=CursorRecordResult.Accept;
             }
-            cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+        public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
+        public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
     }
-    private protected static bool IsSubsetOfSet<TCollection>(TCollection Self,TCollection Other)
+    private protected static bool IsSubsetOfSet<TCollection>(TCollection self,TCollection Other)
         where TCollection : Collection<
             TKey,
             TValue,
@@ -488,19 +512,12 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(Other);
-        var ScanSession = Self.ReadSession;
+        var ReadSession=self.ReadSession;
+        var Iterator = new ScanIteratorFunctions_IsSubsetOf<TCollection>(Other,new object());
         var Cursor = 0L;
-        while(true) {
-            var Iterator = new ScanIteratorFunctions_IsSubsetOf<TCollection>(Other);
-            var 最後まで読み切ったか = ScanSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-            ScanSession.BasicContext.CompletePending(wait: true);
-            if(!Iterator.IsSubset) {
-                return false;
-            }
-            if(最後まで読み切ったか) {
-                return true;
-            }
-        }
+        var Completed= ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        Debug.Assert(!Completed);
+        return Iterator.IsSubset;
     }
     private protected static bool IsSupersetOfSet<TCollection>(TCollection Self,TCollection Other)
         where TCollection : Collection<
@@ -559,7 +576,7 @@ public abstract class Collection<
         }
         return IsSupersetOfSet(Self,Other);
     }
-    private protected static bool OverlapsSet<TCollection>(TCollection Self,TCollection Other)
+    private protected static bool OverlapsSet<TCollection>(TCollection Self,TCollection other)
         where TCollection : Collection<
             TKey,
             TValue,
@@ -573,20 +590,26 @@ public abstract class Collection<
             TStoreFunctions,
             TAllocator
         > {
-        ArgumentNullException.ThrowIfNull(Other);
-        var ScanSession = Other.ReadSession;
-        var Cursor = 0L;
-        while(true) {
-            var Iterator = new ScanIteratorFunctions_Overlaps<TCollection>(Self);
-            var 最後まで読み切ったか = ScanSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-            ScanSession.BasicContext.CompletePending(wait: true);
-            if(Iterator.FoundOverlap) {
-                return true;
-            }
-            if(最後まで読み切ったか) {
-                return false;
-            }
-        }
+        ArgumentNullException.ThrowIfNull(other);
+        //var ReadSession=other.ReadSession;
+        //var Iterator = new ScanIteratorFunctions_Overlaps<TCollection>(Self,new object());
+        //var Cursor = 0L;
+        //var Completed=ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        //Debug.Assert(!Completed);
+        //ReadSession.BasicContext.CompletePending(wait: true);
+        //return Iterator.FoundOverlap;
+        var ReadSession=other.ReadSession;
+        var Iterator=new ScanIteratorFunctions_Overlaps<TCollection>(Self,new object());
+        var Cursor=0L;
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        ReadSession.BasicContext.CompletePending(wait: true);
+        return Iterator.FoundOverlap;
+        //if(Iterator.FoundOverlap) {
+        //    return true;
+        //}
+        //if(まだ継続するか) {
+        //    return false;
+        //}
     }
     private protected static bool SetEqualsSet<TCollection>(TCollection Self,TCollection Other)
         where TCollection : Collection<
@@ -603,9 +626,8 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(Other);
-        if(Self.GetLongCount()!=Other.GetLongCount()) {
+        if(Self.GetLongCount()!=Other.GetLongCount())
             return false;
-        }
         return IsSubsetOfSet(Self,Other);
     }
 }

@@ -7,7 +7,7 @@ using StoreFunc = Tsavorite.core.StoreFunctions<
     int,
     int,
     Seamless.Collections.UnmanagedKeyComparer<int>,
-    Tsavorite.core.DefaultRecordDisposer<int, int>>;
+    Tsavorite.core.DefaultRecordDisposer<int,int>>;
 using OA = Tsavorite.core.BlittableAllocator<
     int,
     int,
@@ -15,7 +15,7 @@ using OA = Tsavorite.core.BlittableAllocator<
         int,
         int,
         Seamless.Collections.UnmanagedKeyComparer<int>,
-        Tsavorite.core.DefaultRecordDisposer<int, int>>>;
+        Tsavorite.core.DefaultRecordDisposer<int,int>>>;
 
 namespace Test.Seamless.TsavoriteLimits;
 
@@ -36,99 +36,84 @@ namespace Test.Seamless.TsavoriteLimits;
 /// </list>
 /// </summary>
 [Collection("TsavoriteTests")]
-public class IterateLookupChunkTests(ITestOutputHelper output)
-{
+public class IterateLookupChunkTests(ITestOutputHelper output) {
     private const int ChunkSize = 10;   // 1 バッチで処理するレコード数
     private const int TotalKeys = 25;   // 挿入するキー総数
-    private readonly record struct Entry(int Key, int Value);
+    private readonly record struct Entry(int Key,int Value);
 
     // ----------------------------------------------------------------
     // セッション関数: RMW で int 値を固定長で保存する
     // ----------------------------------------------------------------
-    private struct SimpleUpsertFunctions : ISessionFunctions<int, int, int, int, Empty>
-    {
+    private struct SimpleUpsertFunctions:ISessionFunctions<int,int,int,int,Empty> {
         // ---- Read ----
-        public bool SingleReader(ref int key, ref int input, ref int value, ref int dst, ref ReadInfo readInfo)
-        {
-            dst = value;
+        public bool SingleReader(ref int key,ref int input,ref int value,ref int dst,ref ReadInfo readInfo) {
+            dst=value;
             return true;
         }
-        public bool ConcurrentReader(ref int key, ref int input, ref int value, ref int dst, ref ReadInfo readInfo, ref RecordInfo recordInfo)
-        {
-            dst = value;
+        public bool ConcurrentReader(ref int key,ref int input,ref int value,ref int dst,ref ReadInfo readInfo,ref RecordInfo recordInfo) {
+            dst=value;
             return true;
         }
-        public void ReadCompletionCallback(ref int key, ref int input, ref int output, Empty ctx, Status status, RecordMetadata recordMetadata)
-        {
-            if (!status.Found)
-            {
-                output = default;
+        public void ReadCompletionCallback(ref int key,ref int input,ref int output,Empty ctx,Status status,RecordMetadata recordMetadata) {
+            if(!status.Found) {
+                output=default;
             }
         }
 
         // ---- Upsert ----
-        public int GetUpsertValueLength(ref int value, ref int input) => sizeof(int);
-        public bool SingleWriter(ref int key, ref int input, ref int src, ref int dst,
-            ref int output, ref UpsertInfo upsertInfo, WriteReason reason, ref RecordInfo recordInfo)
-        {
-            dst = src;
-            output = src;
+        public int GetUpsertValueLength(ref int value,ref int input) => sizeof(int);
+        public bool SingleWriter(ref int key,ref int input,ref int src,ref int dst,
+            ref int output,ref UpsertInfo upsertInfo,WriteReason reason,ref RecordInfo recordInfo) {
+            dst=src;
+            output=src;
             return true;
         }
-        public void PostSingleWriter(ref int key, ref int input, ref int src, ref int dst,
-            ref int output, ref UpsertInfo upsertInfo, WriteReason reason)
-        { }
-        public bool ConcurrentWriter(ref int key, ref int input, ref int src, ref int dst,
-            ref int output, ref UpsertInfo upsertInfo, ref RecordInfo recordInfo)
-        {
-            dst = src;
-            output = src;
+        public void PostSingleWriter(ref int key,ref int input,ref int src,ref int dst,
+            ref int output,ref UpsertInfo upsertInfo,WriteReason reason) { }
+        public bool ConcurrentWriter(ref int key,ref int input,ref int src,ref int dst,
+            ref int output,ref UpsertInfo upsertInfo,ref RecordInfo recordInfo) {
+            dst=src;
+            output=src;
             return true;
         }
-        void ISessionFunctions<int, int, int, int, Empty>.PostUpsertOperation<TEpochAccessor>(
-            ref int key, ref int input, ref int src, ref UpsertInfo upsertInfo, TEpochAccessor epoch)
-        { }
-        public void ConvertOutputToHeap(ref int input, ref int output) { }
+        void ISessionFunctions<int,int,int,int,Empty>.PostUpsertOperation<TEpochAccessor>(
+            ref int key,ref int input,ref int src,ref UpsertInfo upsertInfo,TEpochAccessor epoch) { }
+        public void ConvertOutputToHeap(ref int input,ref int output) { }
 
         // ---- RMW ----
-        bool ISessionFunctions<int, int, int, int, Empty>.NeedInitialUpdate(ref int key, ref int input, ref int output, ref RMWInfo rmwInfo) => true;
-        bool ISessionFunctions<int, int, int, int, Empty>.InitialUpdater(ref int key, ref int input, ref int value, ref int output, ref RMWInfo rmwInfo, ref RecordInfo recordInfo)
-        {
-            value = input;
+        bool ISessionFunctions<int,int,int,int,Empty>.NeedInitialUpdate(ref int key,ref int input,ref int output,ref RMWInfo rmwInfo) => true;
+        bool ISessionFunctions<int,int,int,int,Empty>.InitialUpdater(ref int key,ref int input,ref int value,ref int output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
+            value=input;
             return true;
         }
-        void ISessionFunctions<int, int, int, int, Empty>.PostInitialUpdater(ref int key, ref int input, ref int value, ref int output, ref RMWInfo rmwInfo)
-        {
-            output = input;
+        void ISessionFunctions<int,int,int,int,Empty>.PostInitialUpdater(ref int key,ref int input,ref int value,ref int output,ref RMWInfo rmwInfo) {
+            output=input;
         }
-        bool ISessionFunctions<int, int, int, int, Empty>.NeedCopyUpdate(ref int key, ref int input, ref int value, ref int output, ref RMWInfo rmwInfo) => false;
-        bool ISessionFunctions<int, int, int, int, Empty>.CopyUpdater(ref int key, ref int input, ref int oldValue, ref int newValue, ref int output, ref RMWInfo rmwInfo, ref RecordInfo recordInfo)
-        {
-            newValue = input;
-            output = input;
+        bool ISessionFunctions<int,int,int,int,Empty>.NeedCopyUpdate(ref int key,ref int input,ref int value,ref int output,ref RMWInfo rmwInfo) => false;
+        bool ISessionFunctions<int,int,int,int,Empty>.CopyUpdater(ref int key,ref int input,ref int oldValue,ref int newValue,ref int output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
+            newValue=input;
+            output=input;
             return true;
         }
-        bool ISessionFunctions<int, int, int, int, Empty>.PostCopyUpdater(ref int key, ref int input, ref int oldValue, ref int newValue, ref int output, ref RMWInfo rmwInfo)
-        {
-            output = input;
+        bool ISessionFunctions<int,int,int,int,Empty>.PostCopyUpdater(ref int key,ref int input,ref int oldValue,ref int newValue,ref int output,ref RMWInfo rmwInfo) {
+            output=input;
             return true;
         }
-        bool ISessionFunctions<int, int, int, int, Empty>.InPlaceUpdater(ref int key, ref int input, ref int value, ref int output, ref RMWInfo rmwInfo, ref RecordInfo recordInfo)
-        {
-            value = input;
-            output = input;
+        bool ISessionFunctions<int,int,int,int,Empty>.InPlaceUpdater(ref int key,ref int input,ref int value,ref int output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
+            value=input;
+            output=input;
             return true;
         }
-        int ISessionFunctions<int, int, int, int, Empty>.GetRMWModifiedValueLength(ref int value, ref int input) => sizeof(int);
-        int ISessionFunctions<int, int, int, int, Empty>.GetRMWInitialValueLength(ref int input) => sizeof(int);
-        void ISessionFunctions<int, int, int, int, Empty>.PostRMWOperation<TEpochAccessor>(ref int key, ref int input, ref RMWInfo rmwInfo, TEpochAccessor epoch) { }
-        void ISessionFunctions<int, int, int, int, Empty>.RMWCompletionCallback(ref int key, ref int input, ref int output, Empty ctx, Status status, RecordMetadata recordMetadata) { }
+        int ISessionFunctions<int,int,int,int,Empty>.GetRMWModifiedValueLength(ref int value,ref int input) => sizeof(int);
+        int ISessionFunctions<int,int,int,int,Empty>.GetRMWInitialValueLength(ref int input) => sizeof(int);
+        void ISessionFunctions<int,int,int,int,Empty>.PostRMWOperation<TEpochAccessor>(ref int key,ref int input,ref RMWInfo rmwInfo,TEpochAccessor epoch) { }
+        void ISessionFunctions<int,int,int,int,Empty>.RMWCompletionCallback(ref int key,ref int input,ref int output,Empty ctx,Status status,RecordMetadata recordMetadata) { }
 
         // ---- Delete (使用しない) ----
-        bool ISessionFunctions<int, int, int, int, Empty>.SingleDeleter(ref int key, ref int value, ref DeleteInfo deleteInfo, ref RecordInfo recordInfo) => throw new NotSupportedException();
-        void ISessionFunctions<int, int, int, int, Empty>.PostSingleDeleter(ref int key, ref DeleteInfo deleteInfo) => throw new NotSupportedException();
-        bool ISessionFunctions<int, int, int, int, Empty>.ConcurrentDeleter(ref int key, ref int value, ref DeleteInfo deleteInfo, ref RecordInfo recordInfo) => throw new NotSupportedException();
-        void ISessionFunctions<int, int, int, int, Empty>.PostDeleteOperation<TEpochAccessor>(ref int key, ref DeleteInfo deleteInfo, TEpochAccessor epoch) => throw new NotSupportedException();
+        bool ISessionFunctions<int,int,int,int,Empty>.SingleDeleter(ref int key,ref int value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) => throw new NotSupportedException();
+        void ISessionFunctions<int,int,int,int,Empty>.PostSingleDeleter(ref int key,ref DeleteInfo deleteInfo) => throw new NotSupportedException();
+        bool ISessionFunctions<int,int,int,int,Empty>.ConcurrentDeleter(ref int key,ref int value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) => throw new NotSupportedException();
+        void ISessionFunctions<int,int,int,int,Empty>.PostDeleteOperation<TEpochAccessor>(ref int key,ref DeleteInfo deleteInfo,TEpochAccessor epoch) => throw new NotSupportedException();
     }
 
     // ----------------------------------------------------------------
@@ -146,93 +131,106 @@ public class IterateLookupChunkTests(ITestOutputHelper output)
     // SingleReader  = ReadOnly またはディスク領域のレコード
     // ConcurrentReader = Mutable 領域のレコード
     // ----------------------------------------------------------------
-    private class ScanIteratorFunctions_Chunk : IScanIteratorFunctions<int, int>
-    {
+    private class ScanIteratorFunctions_Chunk:IScanIteratorFunctions<int,int> {
         public readonly Entry[] Chunk;
         public int Count;
 
-        public ScanIteratorFunctions_Chunk(int chunkSize)
-        {
-            this.Chunk = new Entry[chunkSize];
-            this.Count = 0;
+        public ScanIteratorFunctions_Chunk(int chunkSize) {
+            this.Chunk=new Entry[chunkSize];
+            this.Count=0;
         }
 
-        public bool SingleReader(ref int key, ref int value, RecordMetadata recordMetadata,
-            long numberOfRecords, out CursorRecordResult cursorRecordResult)
-        {
+        public bool SingleReader(ref int key,ref int value,RecordMetadata recordMetadata,
+            long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             // Chunk.Length == ChunkSize で上限管理。remaining は Count と冗長なので不要。
-            if (this.Count >= this.Chunk.Length)
-            {
-                cursorRecordResult = CursorRecordResult.Skip | CursorRecordResult.EndBatch | CursorRecordResult.RetryLastRecord;
+            if(this.Count>=this.Chunk.Length) {
+                cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
                 return true;
             }
-            this.Chunk[this.Count++] = new Entry(key, value);
-            cursorRecordResult = CursorRecordResult.Accept;
+            this.Chunk[this.Count++]=new Entry(key,value);
+            cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
 
         // Mutable 領域のレコードは ConcurrentReader で処理する (内容は SingleReader と同じ)
-        public bool ConcurrentReader(ref int key, ref int value, RecordMetadata recordMetadata,
-            long numberOfRecords, out CursorRecordResult cursorRecordResult)
+        public bool ConcurrentReader(ref int key,ref int value,RecordMetadata recordMetadata,
+            long numberOfRecords,out CursorRecordResult cursorRecordResult)
             =>
-                this.SingleReader(ref key, ref value, recordMetadata, numberOfRecords, out cursorRecordResult);
+                this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
 
-        public bool OnStart(long beginAddress, long endAddress) => true;
-        public void OnStop(bool completed, long numberOfRecords) { }
-        public void OnException(Exception exception, long numberOfRecords) { }
+        public bool OnStart(long beginAddress,long endAddress) => true;
+        public void OnStop(bool completed,long numberOfRecords) { }
+        public void OnException(Exception exception,long numberOfRecords) { }
+    }
+
+    private sealed class CountingConcurrentReaderFunctions:IScanIteratorFunctions<int,int> {
+        public int SingleReaderCalls;
+        public int ConcurrentReaderCalls;
+
+        public bool SingleReader(ref int key,ref int value,RecordMetadata recordMetadata,
+            long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            Interlocked.Increment(ref this.SingleReaderCalls);
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
+
+        public bool ConcurrentReader(ref int key,ref int value,RecordMetadata recordMetadata,
+            long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            Interlocked.Increment(ref this.ConcurrentReaderCalls);
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
+
+        public bool OnStart(long beginAddress,long endAddress) => true;
+        public void OnStop(bool completed,long numberOfRecords) { }
+        public void OnException(Exception exception,long numberOfRecords) { }
     }
 
     // ----------------------------------------------------------------
     // ストア / セッション生成ヘルパー
     // ----------------------------------------------------------------
-    private static TsavoriteKV<int, int, StoreFunc, OA> CreateStore(KVSettings<int, int> settings)
-    {
+    private static TsavoriteKV<int,int,StoreFunc,OA> CreateStore(KVSettings<int,int> settings) {
         var sf = new StoreFunc(
             new UnmanagedKeyComparer<int>(),
             () => null,
             () => null,
-            DefaultRecordDisposer<int, int>.Instance);
-        return new TsavoriteKV<int, int, StoreFunc, OA>(
-            settings, sf,
-            static (a, f) => new OA(a, f));
+            DefaultRecordDisposer<int,int>.Instance);
+        return new TsavoriteKV<int,int,StoreFunc,OA>(
+            settings,sf,
+            static (a,f) => new OA(a,f));
     }
 
-    private static ClientSession<int, int, int, int, Empty, SimpleUpsertFunctions, StoreFunc, OA>
-        CreateSession(TsavoriteKV<int, int, StoreFunc, OA> store) =>
-        store.NewSession<int, int, Empty, SimpleUpsertFunctions>(new SimpleUpsertFunctions());
+    private static ClientSession<int,int,int,int,Empty,SimpleUpsertFunctions,StoreFunc,OA>
+        CreateSession(TsavoriteKV<int,int,StoreFunc,OA> store) =>
+        store.NewSession<int,int,Empty,SimpleUpsertFunctions>(new SimpleUpsertFunctions());
 
     private static Status CompletePending(
-        ClientSession<int, int, int, int, Empty, SimpleUpsertFunctions, StoreFunc, OA> session,
+        ClientSession<int,int,int,int,Empty,SimpleUpsertFunctions,StoreFunc,OA> session,
         Status status,
-        ref int output)
-    {
-        if (!status.IsPending)
-        {
+        ref int output) {
+        if(!status.IsPending) {
             return status;
         }
-        session.BasicContext.CompletePendingWithOutputs(out var completedOutputs, wait: true);
-        using (completedOutputs)
-        {
-            if (!completedOutputs.Next())
-            {
+        session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
+        using(completedOutputs) {
+            if(!completedOutputs.Next()) {
                 return status;
             }
-            status = completedOutputs.Current.Status;
-            output = completedOutputs.Current.Output;
+            status=completedOutputs.Current.Status;
+            output=completedOutputs.Current.Output;
         }
         return status;
     }
 
     private static void UpsertValue(
-        ClientSession<int, int, int, int, Empty, SimpleUpsertFunctions, StoreFunc, OA> session,
+        ClientSession<int,int,int,int,Empty,SimpleUpsertFunctions,StoreFunc,OA> session,
         int keyValue,
-        int value)
-    {
+        int value) {
         var key = keyValue;
         var input = value;
         var output = default(int);
-        var status = session.BasicContext.RMW(ref key, ref input, ref output);
-        status = CompletePending(session, status, ref output);
+        var status = session.BasicContext.RMW(ref key,ref input,ref output);
+        status=CompletePending(session,status,ref output);
         Assert.True(status.IsCompleted);
     }
 
@@ -249,37 +247,34 @@ public class IterateLookupChunkTests(ITestOutputHelper output)
     // スキャン中に Upsert でログが伸びても元の範囲のみスキャンできる。
     // ----------------------------------------------------------------
     private int RunChunkedIterateLookup(
-        TsavoriteKV<int, int, StoreFunc, OA> store,
-        ClientSession<int, int, int, int, Empty, SimpleUpsertFunctions, StoreFunc, OA> session,
-        Action<Entry[], int>? chunkProcessor = null)
-    {
+        TsavoriteKV<int,int,StoreFunc,OA> store,
+        ClientSession<int,int,int,int,Empty,SimpleUpsertFunctions,StoreFunc,OA> session,
+        Action<Entry[],int>? chunkProcessor = null) {
         var scanUntil = store.Log.TailAddress;   // スキャン範囲の上限をキャプチャ
         var cursor = 0L;
         var totalVisited = 0;
         var batchIndex = 0;
 
-        while (true)
-        {
+        while(true) {
             var funcs = new ScanIteratorFunctions_Chunk(ChunkSize);
-            var completed = session.IterateLookup(ref funcs, ref cursor, scanUntil, resetCursor: false);
+            var completed = session.IterateLookup(ref funcs,ref cursor,scanUntil,resetCursor: false);
             // Pending の問題を防ぐため: IterateLookup がディスク I/O を発行した場合、
             // ここで Pending を完結させないと次バッチで不正なコールバックが発生しうる。
             session.BasicContext.CompletePending(wait: true);
 
-            totalVisited += funcs.Count;
+            totalVisited+=funcs.Count;
             batchIndex++;
             output.WriteLine($"batch={batchIndex} count={funcs.Count} cursor={cursor} completed={completed}");
 
-            if (funcs.Count > 0)
-            {
-                chunkProcessor?.Invoke(funcs.Chunk, funcs.Count);
+            if(funcs.Count>0) {
+                chunkProcessor?.Invoke(funcs.Chunk,funcs.Count);
             }
 
             // Tsavorite 1.1.1 の IterateLookup 戻り値:
             //   true  = EndBatch 打ち切り → ループ継続 (cursor は次バッチ先頭)
             //   false = スキャン自然終了 (untilAddress 到達) → ループ終了
-            if (funcs.Count == 0) break;    // 安全網: 空バッチ
-            if (!completed) break;          // 自然終了
+            if(funcs.Count==0) break;    // 安全網: 空バッチ
+            if(!completed) break;          // 自然終了
         }
         return totalVisited;
     }
@@ -290,48 +285,79 @@ public class IterateLookupChunkTests(ITestOutputHelper output)
     // Chunk から key をデシリアライズして全件が取得できることを確認する。
     // ================================================================
     [Fact]
-    public void InMemory_Chunk10_VisitsAll25Records()
-    {
-        var folder = Path.Combine(Path.GetTempPath(), "IterateLookupInMem1_" + Guid.NewGuid().ToString("N"));
-        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder, "log.data"), deleteOnClose: true);
+    public void InMemory_Chunk10_VisitsAll25Records() {
+        var folder = Path.Combine(Path.GetTempPath(),"IterateLookupInMem1_"+Guid.NewGuid().ToString("N"));
+        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
 
-        using var settings = new KVSettings<int, int>
-        {
-            IndexSize = 1L << 16,   // 65536 bytes = 1024 hash buckets (衝突なし)
-            PageSize = 1L << 12,   // 4 KB
-            SegmentSize = 1L << 20,
-            MemorySize = 1L << 20,   // 1 MB
-            MutableFraction = 1.0,
-            LogDevice = logDevice,
+        using var settings = new KVSettings<int,int> {
+            IndexSize=1L<<16,   // 65536 bytes = 1024 hash buckets (衝突なし)
+            PageSize=1L<<12,   // 4 KB
+            SegmentSize=1L<<20,
+            MemorySize=1L<<20,   // 1 MB
+            MutableFraction=1.0,
+            LogDevice=logDevice,
         };
         using var store = CreateStore(settings);
         using var session = CreateSession(store);
 
         // key/value とも固定長なので、呼び出し側のシリアライズは不要。
-        for (var i = 0; i < TotalKeys; i++)
-        {
-            UpsertValue(session, i, i * 100);
+        for(var i = 0; i<TotalKeys; i++) {
+            UpsertValue(session,i,i*100);
         }
 
         var visitedKeys = new List<int>();
         var visitedValues = new List<int>();
-        void CollectKeys(Entry[] chunk, int count)
-        {
-            for (var ci = 0; ci < count; ci++)
-            {
+        void CollectKeys(Entry[] chunk,int count) {
+            for(var ci = 0; ci<count; ci++) {
                 visitedKeys.Add(chunk[ci].Key);
                 visitedValues.Add(chunk[ci].Value);
             }
         }
 
-        var total = this.RunChunkedIterateLookup(store, session, CollectKeys);
+        var total = this.RunChunkedIterateLookup(store,session,CollectKeys);
 
-        Assert.Equal(TotalKeys, total);
+        Assert.Equal(TotalKeys,total);
         // 全 25 件のキー (0..24) が過不足なく取得できていることを確認する。
-        Assert.Equal(TotalKeys, visitedKeys.Distinct().Count());
-        Assert.Equal(visitedKeys.OrderBy(static key => key).Select(static key => key * 100), visitedValues.OrderBy(static value => value));
+        Assert.Equal(TotalKeys,visitedKeys.Distinct().Count());
+        Assert.Equal(visitedKeys.OrderBy(static key => key).Select(static key => key*100),visitedValues.OrderBy(static value => value));
 
         store.Log.FlushAndEvict(wait: true);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void InMemory_MutableOnlyScan_UsesConcurrentReader() {
+        var folder = Path.Combine(Path.GetTempPath(),"IterateLookupConcurrent1_"+Guid.NewGuid().ToString("N"));
+        try {
+            using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
+
+            using var settings = new KVSettings<int,int> {
+                IndexSize=1L<<16,
+                PageSize=1L<<12,
+                SegmentSize=1L<<20,
+                MemorySize=1L<<20,
+                MutableFraction=1.0,
+                LogDevice=logDevice,
+            };
+            using var store = CreateStore(settings);
+            using var session = CreateSession(store);
+
+            for(var i = 0; i<TotalKeys; i++) {
+                UpsertValue(session,i,i*100);
+            }
+
+            var cursor = 0L;
+            var funcs = new CountingConcurrentReaderFunctions();
+            _=session.IterateLookup(ref funcs,ref cursor,store.Log.TailAddress,resetCursor: false);
+            session.BasicContext.CompletePending(wait: true);
+
+            Assert.Equal(0,funcs.SingleReaderCalls);
+            Assert.Equal(TotalKeys,funcs.ConcurrentReaderCalls);
+
+            store.Log.FlushAndEvict(wait: true);
+        }
+        finally {
+            try { Directory.Delete(folder,true); } catch { }
+        }
     }
 
     // ================================================================
@@ -342,53 +368,48 @@ public class IterateLookupChunkTests(ITestOutputHelper output)
     // CompletePending を正しい位置で呼ぶ Pending 処理パターンを示す。
     // ================================================================
     [Fact]
-    [SuppressMessage("Interoperability", "CA1416:プラットフォームの互換性", Justification = "<互換性>")]
-    public void DiskSpill_Chunk10_VisitsAll25Records_PendingPattern()
-    {
+    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
+    public void DiskSpill_Chunk10_VisitsAll25Records_PendingPattern() {
         var folder = Path.Combine(
             Path.GetTempPath(),
-            "IterateLookupTest1_" + Guid.NewGuid().ToString("N"));
+            "IterateLookupTest1_"+Guid.NewGuid().ToString("N"));
 
         using var logDevice = Devices.CreateLogDevice(
-            Path.Combine(folder, "log.data"), deleteOnClose: true);
+            Path.Combine(folder,"log.data"),deleteOnClose: true);
 
-        using var settings = new KVSettings<int, int>
-        {
-            IndexSize = 64,
-            PageSize = 1L << 12,   // 4 KB
-            SegmentSize = 1L << 22,
-            MemorySize = 1L << 22,   // 4 MB
-            MutableFraction = 1.0,
-            LogDevice = logDevice,
+        using var settings = new KVSettings<int,int> {
+            IndexSize=64,
+            PageSize=1L<<12,   // 4 KB
+            SegmentSize=1L<<22,
+            MemorySize=1L<<22,   // 4 MB
+            MutableFraction=1.0,
+            LogDevice=logDevice,
         };
         using var store = CreateStore(settings);
         using var session = CreateSession(store);
 
-        for (var i = 0; i < TotalKeys; i++)
-        {
-            UpsertValue(session, i, i * 100);
+        for(var i = 0; i<TotalKeys; i++) {
+            UpsertValue(session,i,i*100);
         }
         // Note: FlushAndEvict は HeadAddress=TailAddress にしてしまい、
         //       IterateLookup がスキャン対象を見つけられなくなるため使わない
-        store.Log.ShiftReadOnlyAddress(store.Log.TailAddress, wait: true);
+        store.Log.ShiftReadOnlyAddress(store.Log.TailAddress,wait: true);
 
         var visitedKeys = new List<int>();
         var visitedValues = new List<int>();
-        void CollectKeys(Entry[] chunk, int count)
-        {
-            for (var ci = 0; ci < count; ci++)
-            {
+        void CollectKeys(Entry[] chunk,int count) {
+            for(var ci = 0; ci<count; ci++) {
                 visitedKeys.Add(chunk[ci].Key);
                 visitedValues.Add(chunk[ci].Value);
             }
         }
 
-        var total = this.RunChunkedIterateLookup(store, session, CollectKeys);
+        var total = this.RunChunkedIterateLookup(store,session,CollectKeys);
         output.WriteLine($"DiskSpill total={total} distinct={visitedKeys.Distinct().Count()}");
 
-        Assert.Equal(TotalKeys, total);
-        Assert.Equal(TotalKeys, visitedKeys.Distinct().Count());
-        Assert.Equal(visitedKeys.OrderBy(static key => key).Select(static key => key * 100), visitedValues.OrderBy(static value => value));
+        Assert.Equal(TotalKeys,total);
+        Assert.Equal(TotalKeys,visitedKeys.Distinct().Count());
+        Assert.Equal(visitedKeys.OrderBy(static key => key).Select(static key => key*100),visitedValues.OrderBy(static value => value));
 
         store.Log.FlushAndEvict(wait: true);
     }
@@ -405,37 +426,34 @@ public class IterateLookupChunkTests(ITestOutputHelper output)
     //     のシンプルな実装を確認する。
     // ================================================================
     [Fact]
-    [SuppressMessage("Interoperability", "CA1416:プラットフォームの互換性", Justification = "<互換性>")]
-    public void DiskSpill_UpsertFromChunk_PendingHandled()
-    {
+    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
+    public void DiskSpill_UpsertFromChunk_PendingHandled() {
         var folder = Path.Combine(
             Path.GetTempPath(),
-            "IterateLookupUpsert1_" + Guid.NewGuid().ToString("N"));
+            "IterateLookupUpsert1_"+Guid.NewGuid().ToString("N"));
 
         using var logDevice = Devices.CreateLogDevice(
-            Path.Combine(folder, "log.data"), deleteOnClose: true);
+            Path.Combine(folder,"log.data"),deleteOnClose: true);
 
-        using var settings = new KVSettings<int, int>
-        {
-            IndexSize = 64,
-            PageSize = 1L << 12,   // 4 KB
-            SegmentSize = 1L << 22,
-            MemorySize = 1L << 22,   // 4 MB
-            MutableFraction = 1.0,
-            LogDevice = logDevice,
+        using var settings = new KVSettings<int,int> {
+            IndexSize=64,
+            PageSize=1L<<12,   // 4 KB
+            SegmentSize=1L<<22,
+            MemorySize=1L<<22,   // 4 MB
+            MutableFraction=1.0,
+            LogDevice=logDevice,
         };
         using var store = CreateStore(settings);
         using var scanSession = CreateSession(store);
         using var upsertSession = CreateSession(store);
 
         // 初期値 0 で 25 件挿入
-        for (var i = 0; i < TotalKeys; i++)
-        {
-            UpsertValue(scanSession, i, 0);
+        for(var i = 0; i<TotalKeys; i++) {
+            UpsertValue(scanSession,i,0);
         }
 
         // 全レコードを ReadOnly 領域へ移動
-        store.Log.ShiftReadOnlyAddress(store.Log.TailAddress, wait: true);
+        store.Log.ShiftReadOnlyAddress(store.Log.TailAddress,wait: true);
 
         var totalUpserted = 0;
 
@@ -445,18 +463,16 @@ public class IterateLookupChunkTests(ITestOutputHelper output)
         //   3. 各キーをそのまま RMW し、Pending をその場で解消
         // RunChunkedIterateLookup が store.Log.TailAddress をキャプチャするため、
         // Upsert でログが伸びても初期 TailAddress までのスキャンに限定される。
-        var total = this.RunChunkedIterateLookup(store, scanSession, (chunk, count) =>
-        {
-            for (var ci = 0; ci < count; ci++)
-            {
-                UpsertValue(upsertSession, chunk[ci].Key, 1);
+        var total = this.RunChunkedIterateLookup(store,scanSession,(chunk,count) => {
+            for(var ci = 0; ci<count; ci++) {
+                UpsertValue(upsertSession,chunk[ci].Key,1);
             }
-            totalUpserted += count;
+            totalUpserted+=count;
         });
 
         output.WriteLine($"DiskSpill+Upsert total={total} upserted={totalUpserted}");
-        Assert.Equal(TotalKeys, total);
-        Assert.Equal(TotalKeys, totalUpserted);
+        Assert.Equal(TotalKeys,total);
+        Assert.Equal(TotalKeys,totalUpserted);
 
         store.Log.FlushAndEvict(wait: true);
     }
