@@ -54,8 +54,9 @@ public class DictionaryStoreBenchmark {
         for(var i = 0; i<this.keys.Length; i++)
             dict.Add(this.keys[i],this.keys[i]);
 
-        foreach(var t in this.keys)
-            dict.Remove(t);
+        for(var i = 0; i<this.keys.Length; i++)
+            dict.Remove(this.keys[i]);
+
         return dict.GetLongCount();
     }
 
@@ -71,8 +72,9 @@ public class DictionaryStoreBenchmark {
         using var store = this.CreateStore(checkpointDir,logDevice,objDevice);
         using var dict = store.Create();
 
-        foreach(var t in this.keys)
-            dict.Add(t,t);
+        for(var i = 0; i<this.keys.Length; i++)
+            dict.Add(this.keys[i],this.keys[i]);
+
         return store.Save();
     }
 
@@ -88,8 +90,8 @@ public class DictionaryStoreBenchmark {
         using var store = this.CreateStore(this.loadCheckpointDir,logDevice,objDevice);
         using var dict = store.Create();
 
-        foreach(var t in this.keys)
-            dict.Add(t,t);
+        for(var i = 0; i<this.keys.Length; i++)
+            dict.Add(this.keys[i],this.keys[i]);
 
         this.loadToken=store.Save();
     }

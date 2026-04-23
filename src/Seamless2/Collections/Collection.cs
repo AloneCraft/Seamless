@@ -94,15 +94,6 @@ public abstract class Collection<
     > ReadSession { get; private set; } = null!;
     private protected ClientSession<
         FixedSpanByteKey,
-        EqualityEmpty,
-        TReadOutput,
-        EqualityEmpty,
-        TReadFunctions,
-        TStoreFunctions,
-        TAllocator
-    > ReadMemoryClientSession { get; private set; } = null!;
-    private protected ClientSession<
-        FixedSpanByteKey,
         TAddInput,
         bool,
         EqualityEmpty,
@@ -137,7 +128,7 @@ public abstract class Collection<
         }
         Debug.Assert(Result==TryAddResult.Success);
     }
-    public sealed class CounterIterator:IScanIteratorFunctions {
+    internal sealed class CounterIterator:IScanIteratorFunctions {
         public long Counter;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
@@ -155,12 +146,13 @@ public abstract class Collection<
             this.Counter=numberOfRecords;
         }
     }
+    private readonly CounterIterator _counterIterator = new();
     public long GetLongCount() {
-        var Iterator = new CounterIterator();
+        var Iterator = this._counterIterator;
         var Cursor = 0L;
         this.ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         this.ReadSession.BasicContext.CompletePending(wait: true);
-        return Iterator.Counter;
+        return _counterIterator.Counter;
     }
     private protected unsafe bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes) {
         var Session = this.ContainsDeleteSession;
@@ -194,13 +186,6 @@ public abstract class Collection<
             EqualityEmpty,
             TReadFunctions
         >(TReadFunctions.Create());
-        this.ReadMemoryClientSession=Store.NewSession<
-            FixedSpanByteKey,
-            EqualityEmpty,
-            TReadOutput,
-            EqualityEmpty,
-            TReadFunctions
-        >(TReadFunctions.Create());
         this.Add_ClientSession=Store.NewSession<
             FixedSpanByteKey,
             TAddInput,
@@ -218,7 +203,6 @@ public abstract class Collection<
     }
     private void DisposeCoreSessions() {
         CompletePendingAndDispose(this.ReadSession);
-        CompletePendingAndDispose(this.ReadMemoryClientSession);
         CompletePendingAndDispose(this.Add_ClientSession);
         CompletePendingAndDispose(this.ContainsDeleteSession);
     }
@@ -587,12 +571,68 @@ public abstract class Collection<
         > {
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = self.ReadSession;
+        var keysToExpire = new List<byte[]>();
+        var Iterator = new ScanIteratorFunctions_IntersectWith<TCollection>(other,keysToExpire);
+        var untilAddress = self.CollectionStore.Address.TailAddress;
         // IntersectWith は走査しながら RMW で tombstone を追記するため、
         // 走査開始時の TailAddress を上限に固定して新規追記分を再走査しない。
-        var Iterator = new ScanIteratorFunctions_IntersectWith<TCollection>(self,other,Session);
         var Cursor = 0L;
-        ReadSession.IterateLookup(ref Iterator,ref Cursor,self.CollectionStore.Address.TailAddress,resetCursor: false);
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,untilAddress,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
+        foreach(var keyBytes in keysToExpire) {
+            var input = default(EqualityEmpty);
+            var output = default(EqualityEmpty);
+            Status status;
+            unsafe {
+                fixed(byte* _ = keyBytes) {
+                    status=Session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref output);
+                    Pending(Session,status,ref output);
+                }
+            }
+        }
+        Session.BasicContext.CompletePending(wait: true);
+    }
+    private protected void SymmetricExceptWith<TCollection>(
+        TCollection other,
+        ClientSession<
+            FixedSpanByteKey,
+            EqualityEmpty,
+            EqualityEmpty,
+            EqualityEmpty,
+            SymmetricExceptWith,
+            TStoreFunctions,
+            TAllocator
+        > Session
+    )
+        where TCollection : Collection<
+            TKey,
+            TValue,
+            TReadOutput,
+            TAddInput,
+            TReadFunctions,
+            TAddFunctions,
+            TContainsDeleteFunctions,
+            TStoreFunctions,
+            TAllocator
+        > {
+        ArgumentNullException.ThrowIfNull(other);
+        var ReadSession = other.ReadSession;
+        var keysToToggle = new List<byte[]>();
+        var Iterator = new ScanIteratorFunctions_SymmetricExceptWith(keysToToggle);
+        var Cursor = 0L;
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        ReadSession.BasicContext.CompletePending(wait: true);
+        foreach(var keyBytes in keysToToggle) {
+            var input = default(EqualityEmpty);
+            var output = default(EqualityEmpty);
+            Status status;
+            unsafe {
+                fixed(byte* _ = keyBytes) {
+                    status=Session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref output);
+                    Pending(Session,status,ref output);
+                }
+            }
+        }
         Session.BasicContext.CompletePending(wait: true);
     }
     private protected void ExceptWith<TCollection>(TCollection other)
@@ -616,9 +656,8 @@ public abstract class Collection<
         this.ContainsDeleteSession.BasicContext.CompletePending(wait: true);
     }
     private readonly struct ScanIteratorFunctions_IntersectWith<TCollection>(
-        TCollection self,
         TCollection other,
-        ClientSession<FixedSpanByteKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,IntersectWith,TStoreFunctions,TAllocator> Session
+        List<byte[]> keysToExpire
     ):IScanIteratorFunctions
         where TCollection : Collection<
             TKey,
@@ -636,9 +675,7 @@ public abstract class Collection<
             var KeyBytes = logRecord.Key;
             if(other.PrivateProtectedContainsKey(KeyBytes)) {
             }else{
-                var Input = default(EqualityEmpty);
-                var Output = default(EqualityEmpty);
-                Session.BasicContext.RMW((FixedSpanByteKey)KeyBytes,ref Input,ref Output);
+                keysToExpire.Add(KeyBytes.ToArray());
             }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -647,7 +684,7 @@ public abstract class Collection<
         public void OnException(Exception exception,long numberOfRecords) { }
         public void OnStop(bool completed,long numberOfRecords) { }
     }
-    private protected readonly struct ScanIteratorFunctions_ExceptWith(
+    private sealed class ScanIteratorFunctions_ExceptWith(
         ClientSession<
             FixedSpanByteKey,
             EqualityEmpty,
@@ -658,15 +695,26 @@ public abstract class Collection<
             TAllocator
         > Session
     ):IScanIteratorFunctions {
+        public int Count;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
+            if(this.Count>=Const.Chunk_Length) {
+                cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
+                return true;
+            }
             var Input = default(EqualityEmpty);
             var Output = false;
-            Session.BasicContext.RMW((FixedSpanByteKey)logRecord.Key,ref Input,ref Output);
+            var status = Session.BasicContext.RMW((FixedSpanByteKey)logRecord.Key,ref Input,ref Output);
+            if(status.IsPending)
+                Session.BasicContext.CompletePending(wait: true);
+            this.Count++;
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public bool OnStart(long beginAddress,long endAddress) => true;
+        public bool OnStart(long beginAddress,long endAddress) {
+            this.Count=0;
+            return true;
+        }
         public void OnException(Exception exception,long numberOfRecords) { }
         public void OnStop(bool completed,long numberOfRecords) { }
     }
@@ -683,7 +731,9 @@ public abstract class Collection<
     ):IScanIteratorFunctions {
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            Session.BasicContext.Upsert((FixedSpanByteKey)logRecord.Key,logRecord);
+            var status = Session.BasicContext.Upsert((FixedSpanByteKey)logRecord.Key,logRecord);
+            if(status.IsPending)
+                Session.BasicContext.CompletePending(wait: true);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
@@ -692,21 +742,11 @@ public abstract class Collection<
         public void OnStop(bool completed,long numberOfRecords) { }
     }
     private protected readonly struct ScanIteratorFunctions_SymmetricExceptWith(
-        ClientSession<
-            FixedSpanByteKey,
-            EqualityEmpty,
-            EqualityEmpty,
-            EqualityEmpty,
-            SymmetricExceptWith,
-            TStoreFunctions,
-            TAllocator
-        > Session
+        List<byte[]> keysToToggle
     ):IScanIteratorFunctions {
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            var Input = default(EqualityEmpty);
-            var Output = default(EqualityEmpty);
-            Session.BasicContext.RMW((FixedSpanByteKey)logRecord.Key,ref Input,ref Output);
+            keysToToggle.Add(logRecord.Key.ToArray());
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }

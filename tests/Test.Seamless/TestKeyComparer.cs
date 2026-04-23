@@ -1,5 +1,6 @@
 using Xunit;
 using MemoryPack;
+using Test.Seamless.Collections;
 namespace Seamless.Collections.Tests;
 public abstract class TestKeyComparer<T> where T:IEquatable<T>{
 	protected abstract T Equal1{get;}

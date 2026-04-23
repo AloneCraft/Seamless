@@ -126,10 +126,12 @@ public sealed class ManagedAdd:AddTests<int,string> {
             var f=new global::Seamless.SessionFunctions.ManagedAdd<string,ManagedSerializer<string>>();
             var lr=default(LogRecord);
             var si=default(RecordSizeInfo);
-            var inp=default(string);
+            string inp=null!;
             var outp=false;
             var ui=default(UpsertInfo);
+#pragma warning disable CS8601
             f.PostInitialWriter(ref lr,in si,ref inp,(IHeapObject)new DummyHeapObject(),ref outp,ref ui);
+#pragma warning restore CS8601
         }
     }
 #endif

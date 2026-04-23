@@ -85,7 +85,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         KeyValueIterator,
         KeyValuePair<TKey,TValue>
     > GetEnumerator() => new(this.ReadSession,new());
-    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadMemoryClientSession,new(),this.HeadAddress);
+    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new(),this.HeadAddress);
     private List<T> CreateCollection<TIterator, T>(TIterator Iterator) where TIterator : ScanIteratorFunctions<T> {
         var Collection = new List<T>();
         using var e = new Enumerator<TIterator,T>(this.ReadSession,Iterator);

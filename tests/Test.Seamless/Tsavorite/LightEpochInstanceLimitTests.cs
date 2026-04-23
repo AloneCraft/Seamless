@@ -2,7 +2,7 @@ using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
 
-namespace Test.Seamless.Tsavorite;
+namespace Test.Seamless.TsavoriteLimits;
 
 /// <summary>
 /// Tsavorite の LightEpoch MaxInstances = 16 の制限をテストする。
@@ -83,7 +83,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output)
             }
 
             // 17個すべて作成できたら失敗（元々限界に達しているはず）
-            Assert.False(true, "Expected InvalidOperationException when creating 17th store, but all 17 were created");
+            Assert.Fail("Expected InvalidOperationException when creating 17th store, but all 17 were created");
         }
         finally
         {
