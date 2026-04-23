@@ -17,7 +17,7 @@ using OA = Tsavorite.core.BlittableAllocator<
         Seamless.Collections.UnmanagedKeyComparer<int>,
         Tsavorite.core.DefaultRecordDisposer<int,int>>>;
 
-namespace Test.Seamless.TsavoriteLimits;
+namespace Test.Seamless.Tsavorite;
 
 /// <summary>
 /// IterateLookup で Chunk 配列にレコードを蓄積し、バッチ単位で後処理するパターン。

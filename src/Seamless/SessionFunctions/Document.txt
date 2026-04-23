@@ -1,4 +1,32 @@
-﻿IterateLookupで内部のSesionFunctionでRMWを使って自身を削除できない
+﻿Enumeratorでイテレーションが全部できない理由
+    ScanLookup（IterateLookup の内部実装）のこの箇所が問題です：
+    // numPending == count - acceptedCount  ← count=long.MaxValue のとき実質 ∞ で発動しない
+    // numPending > 256                     ← 256件溜まって初めて drain
+    if (numPending == count - scanCursorState.acceptedCount || numPending > 256)
+    {
+        bContext.CompletePending(wait: true);
+        numPending = 0;
+    }
+    IterateLookup は count: long.MaxValue で ScanCursor を呼ぶため、最大256件の Pending I/O が同時に溜まってから一括 drain されます。
+    問題は drain 後の cursor 更新処理です：
+    // Update the cursor to point to the next record.
+    if (scanCursorState.retryLastRecord)
+        cursor = iter.CurrentAddress;
+    else
+        cursor = iter.NextAddress;
+    drain される 256件の CompletePending が完了するとき、その完了コールバック（SingleReader(ref int, ref int, ref int, ref int, ref ReadInfo)）の中で endBatch や retryLastRecord がセットされます。しかし cursor の更新は CompletePending より後ではなく、if(status.IsPending) の外側ループで行われています。つまり：
+    1.	レコードAを処理 → IsPending → numPending++ → cursor = A.NextAddress
+    2.	レコードB,C,...,257を処理 → 次々 IsPending → cursor は最後のレコードの NextAddress に更新される
+    3.	numPending > 256 で CompletePending(wait:true) 実行
+    4.	レコードAのコールバックで endBatch=true にセットされていても、cursor はすでに257件分進んでしまっている
+    結果として、Pending I/O の結果（endBatch/retryLastRecord）が正しく cursor に反映されず、cursor が飛びすぎ、その後の Count が0のまま IterateLookup が false を返します。これで if(!Completed && Count==0) の条件が成立し Done=true → 途中で列挙終了。
+    これは Tsavorite の設計上の制約であり、count=long.MaxValue で ScanCursor を使う際に Pending が発生するディスクスキャンでは正しく動作しないのです。
+    修正方針
+    IterateLookup に戻しつつ、正しく動かすには maxAddress を使って Pending の発生を防ぐ か、あるいは IterateLookup の maxAddress パラメータに HeadAddress を渡すことでメモリ内のレコードのみを Conditional に使う ことができます。
+    しかし最も確実な方法は、IterateLookup の untilAddress にスキャン開始時点の TailAddress を渡し、かつ maxAddress も TailAddress に制限することです。これにより Conditional Look-up がディスク I/O を発行しなくなります。
+    実は IterateLookup には maxAddress パラメータがあります：
+
+IterateLookupで内部のSesionFunctionでRMWを使って自身を削除できない
     untilAddress は我々の実装でも既に使っています（self.CollectionStore.Address.TailAddress を取ってから渡している）。それでも失敗しました。なぜかを正確に説明します。
 
     untilAddress が防げること・防げないこと

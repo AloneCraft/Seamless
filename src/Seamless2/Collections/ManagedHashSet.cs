@@ -76,7 +76,7 @@ public partial class ManagedHashSet<TKey>
         KeyIterator,
         TKey
     > GetEnumerator() => new(this.ReadSession,new());
-    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<MemoryKeyIterator,TKey>(this.ReadSession,new(),this.HeadAddress);
+    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<MemoryKeyIterator,TKey>(this.ReadSession,new());
     private readonly struct ExceptWithScanIteratorFunctions(
         ClientSession<
             FixedSpanByteKey,

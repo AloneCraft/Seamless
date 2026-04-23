@@ -17,7 +17,7 @@ using OA = Tsavorite.core.BlittableAllocator<
         Seamless.Collections.UnmanagedKeyComparer<int>,
         Tsavorite.core.DefaultRecordDisposer<int,int>>>;
 
-namespace Test.Seamless.TsavoriteLimits;
+namespace Test.Seamless.Tsavorite;
 
 /// <summary>
 /// IterateLookup で Chunk 配列にレコードを蓄積し、バッチ単位で後処理するパターン。
@@ -131,7 +131,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
     // SingleReader  = ReadOnly またはディスク領域のレコード
     // ConcurrentReader = Mutable 領域のレコード
     // ----------------------------------------------------------------
-    private class ScanIteratorFunctions_Chunk:IScanIteratorFunctions<int,int> {
+    private sealed class ScanIteratorFunctions_Chunk:IScanIteratorFunctions<int,int> {
         public readonly Entry[] Chunk;
         public int Count;
 
@@ -142,7 +142,6 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
 
         public bool SingleReader(ref int key,ref int value,RecordMetadata recordMetadata,
             long numberOfRecords,out CursorRecordResult cursorRecordResult) {
-            // Chunk.Length == ChunkSize で上限管理。remaining は Count と冗長なので不要。
             if(this.Count>=this.Chunk.Length) {
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
                 return true;
@@ -402,16 +401,22 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
     //       fixed-length key/value のまま RMW → Pending をその場で解消
     //     のシンプルな実装を確認する。
     // ================================================================
-    [Fact]
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(8)]
+    [InlineData(16)]
+    [InlineData(32)]
+    [InlineData(64)]
+    [InlineData(128)]
+    [InlineData(256)]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
-    public void DiskSpill_UpsertFromChunk_PendingHandled() {
+    public void DiskSpill_UpsertFromChunk_PendingHandled(int Count) {
         var folder = Path.Combine(
             Path.GetTempPath(),
-            "IterateLookupUpsert1_"+Guid.NewGuid().ToString("N"));
-
-        using var logDevice = Devices.CreateLogDevice(
-            Path.Combine(folder,"log.data"),deleteOnClose: true);
-
+            $"{nameof(this.DiskSpill_UpsertFromChunk_PendingHandled)}_{Count}_"+Guid.NewGuid().ToString("N"));
+        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
         using var settings = new KVSettings<int,int> {
             IndexSize=64,
             PageSize=1L<<12,   // 4 KB
@@ -425,7 +430,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
         using var upsertSession = CreateSession(store);
 
         // 初期値 0 で 25 件挿入
-        for(var i = 0; i<TotalKeys; i++) {
+        for(var i = 0; i<Count; i++) {
             UpsertValue(scanSession,i,0);
         }
 
@@ -447,9 +452,9 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
             totalUpserted+=count;
         });
 
-        output.WriteLine($"DiskSpill+Upsert total={total} upserted={totalUpserted}");
-        Assert.Equal(TotalKeys,total);
-        Assert.Equal(TotalKeys,totalUpserted);
+        output.WriteLine($"DiskSpill+Upsert Count={Count} total={total} upserted={totalUpserted}");
+        Assert.Equal(Count,total);
+        Assert.Equal(Count,totalUpserted);
 
         store.Log.FlushAndEvict(wait: true);
     }

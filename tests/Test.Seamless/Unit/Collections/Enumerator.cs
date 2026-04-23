@@ -92,20 +92,20 @@ public class Enumerator {
     public void MoveNext_HashSet_MultiChunk_ThreeItems() {
         using var store = Factory.Create().Create<int>();
         using var set = store.Create();
-        set.Add(1);
-        set.Add(2);
-        set.Add(3);
+        const int Count=3000;
+        for(var a=0;a<Count;a++)
+            set.Add(a);
         var count = 0;
         foreach(var _ in set) count++;
-        Assert.Equal(3,count);
+        Assert.Equal(Count,count);
     }
 
     [Fact, Trait("Category","Unit")]
     public void HashSet_AfterFlushAndEvict_Unmanaged_PublicEnumerationAndCopyToEnumerateAll() {
         var folder = CreateDiskFolder();
         try {
-            using var logDevice = Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-            using var objDevice = Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+            using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+            using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var store = Factory.Create().Create<int>(logDevice,objDevice);
             using var set = store.Create();
             var expected = Enumerable.Range(0,256).ToArray();
@@ -147,12 +147,12 @@ public class Enumerator {
     public void HashSet_AfterFlushAndEvict_Managed_PublicEnumerationAndCopyToEnumerateAll() {
         var folder = CreateDiskFolder();
         try {
-            using var logDevice = Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-            using var objDevice = Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+            using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+            using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var store = Factory.Create().Create<string>(logDevice,objDevice,new ManagedTag());
             using var set = store.Create();
 #if TSAVORITE1_1_1
-            var expected = Enumerable.Range(0,64).Select(i => "s"+i).ToArray();
+            var expected = Enumerable.Range(0,2048).Select(i => "s"+i).ToArray();
 #else
             var expected = Enumerable.Range(0,2048).Select(i => "s"+i).ToArray();
 #endif

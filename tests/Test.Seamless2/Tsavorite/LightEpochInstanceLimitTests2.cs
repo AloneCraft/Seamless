@@ -1,7 +1,7 @@
-using Seamless;
+﻿using Seamless;
 using Tsavorite.core;
 
-namespace Test.Seamless.TsavoriteLimits;
+namespace Test.Seamless.Tsavorite;
 
 /// <summary>
 /// Tsavorite 2.0.0-beta3 の LightEpoch MaxInstances = 16 の制限をテストする。

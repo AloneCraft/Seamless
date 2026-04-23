@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Tsavorite.core;
 
@@ -64,8 +64,8 @@ public abstract class AddTests<TKey,TValue>
     [Fact,Trait("Category","Unit")]
     public void RMWCompletionCallback(){
         var folder=CreateDiskFolder();
-        using var logDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose:true,capacity:Const.MinObjectLogCapacity);
-        using var objDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose:true,capacity:Const.MinObjectLogCapacity);
+        using var logDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose:true,capacity: Const.MinObjectLogCapacity);
+        using var objDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose:true,capacity: Const.MinObjectLogCapacity);
         var(dict,store)=this.CreateDisk(logDevice,objDevice);
         using var _store=store;
         using var _dict=(IDisposable)dict;
@@ -77,8 +77,8 @@ public abstract class AddTests<TKey,TValue>
     [Fact,Trait("Category","Unit")]
     public void ReadCompletionCallback(){
         var folder=CreateDiskFolder();
-        using var logDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose:true,capacity:Const.MinObjectLogCapacity);
-        using var objDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose:true,capacity:Const.MinObjectLogCapacity);
+        using var logDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose:true,capacity: Const.MinObjectLogCapacity);
+        using var objDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose:true,capacity: Const.MinObjectLogCapacity);
         var(dict,store)=this.CreateDisk(logDevice,objDevice);
         using var _store=store;
         using var _dict=(IDisposable)dict;
@@ -91,8 +91,8 @@ public abstract class AddTests<TKey,TValue>
     [Fact,Trait("Category","Unit")]
     public void ConvertOutputToHeap(){
         var folder=CreateDiskFolder();
-        using var logDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose:true,capacity:Const.MinObjectLogCapacity);
-        using var objDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose:true,capacity:Const.MinObjectLogCapacity);
+        using var logDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose:true,capacity: Const.MinObjectLogCapacity);
+        using var objDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose:true,capacity: Const.MinObjectLogCapacity);
         var(dict,store)=this.CreateDisk(logDevice,objDevice);
         using var _store=store;
         using var _dict=(IDisposable)dict;
