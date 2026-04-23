@@ -86,15 +86,24 @@ public partial class ManagedHashSet<TKey>
             SessionFunctions.ExceptWith,
             ManagedStoreFunctions,
             ManagedAllocator
-        > Session
-    ):IScanIteratorFunctions<SpanByte,SpanByte>{
-        public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        > Session,
+        object syncRoot
+    ):IScanIteratorFunctions<SpanByte,SpanByte> {
+        private bool ReaderCore(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             Session.BasicContext.Delete(ref key);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public bool ConcurrentReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-           => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+        public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
+        public bool ConcurrentReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
@@ -110,11 +119,12 @@ public partial class ManagedHashSet<TKey>
             SessionFunctions.ManagedIntersectWith,
             ManagedStoreFunctions,
             ManagedAllocator
-        > Session
-    ):IScanIteratorFunctions<SpanByte,SpanByte>{
-        public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        > Session,
+        object syncRoot
+    ):IScanIteratorFunctions<SpanByte,SpanByte> {
+        private bool ReaderCore(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             if(other.PrivateProtectedContainsKey(ref key)) {
-            }else{
+            }else {
                 var input = default(EqualityEmpty);
                 var output = default(EqualityEmpty);
                 Session.BasicContext.RMW(ref key,ref input,ref output);
@@ -122,8 +132,16 @@ public partial class ManagedHashSet<TKey>
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public bool ConcurrentReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-           => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+        public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
+        public bool ConcurrentReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
@@ -138,17 +156,26 @@ public partial class ManagedHashSet<TKey>
             SessionFunctions.SymmetricExceptWith,
             ManagedStoreFunctions,
             ManagedAllocator
-        > Session
-    ):IScanIteratorFunctions<SpanByte,SpanByte>{
-        public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        > Session,
+        object syncRoot
+    ):IScanIteratorFunctions<SpanByte,SpanByte> {
+        private bool ReaderCore(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             var input = default(SpanByte);
             var output = default(EqualityEmpty);
             Session.BasicContext.RMW(ref key,ref input,ref output);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public bool ConcurrentReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-           => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+        public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
+        public bool ConcurrentReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
@@ -163,15 +190,24 @@ public partial class ManagedHashSet<TKey>
             SessionFunctions.ManagedAdd,
             ManagedStoreFunctions,
             ManagedAllocator
-        > Session
+        > Session,
+        object syncRoot
     ):IScanIteratorFunctions<SpanByte,SpanByte> {
-        public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+        private bool ReaderCore(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             Session.BasicContext.Upsert(ref key,ref value);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public bool ConcurrentReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-           => this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+        public bool SingleReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
+        public bool ConcurrentReader(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            lock(syncRoot) {
+                return this.ReaderCore(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            }
+        }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
@@ -184,7 +220,7 @@ public partial class ManagedHashSet<TKey>
         }
         var ReadSession = other.ReadSession;
         var cursor = 0L;
-        var iterator = new ScanIteratorFunctions_ExceptWith(this.ExceptWith_ClientSession);
+        var iterator = new ScanIteratorFunctions_ExceptWith(this.ExceptWith_ClientSession,new object());
         ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.ExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
@@ -193,8 +229,8 @@ public partial class ManagedHashSet<TKey>
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = this.ReadSession;
         var cursor = 0L;
-        var iterator = new ScanIteratorFunctions_IntersectWith(other,this.IntersectWith_ClientSession);
-        var 最後まで読み切ったか = ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+        var iterator = new ScanIteratorFunctions_IntersectWith(other,this.IntersectWith_ClientSession,new object());
+        _=ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.IntersectWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
@@ -208,7 +244,7 @@ public partial class ManagedHashSet<TKey>
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = other.ReadSession;
         var cursor = 0L;
-        var Iterator = new ScanIteratorFunctions_SymmetricExceptWith(this.SymmetricExceptWith_ClientSession);
+        var Iterator = new ScanIteratorFunctions_SymmetricExceptWith(this.SymmetricExceptWith_ClientSession,new object());
         ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.SymmetricExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
@@ -217,7 +253,7 @@ public partial class ManagedHashSet<TKey>
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = other.ReadSession;
         var cursor = 0L;
-        var Iterator = new ScanIteratorFunctions_UnionWith(this.Add_ClientSession);
+        var Iterator = new ScanIteratorFunctions_UnionWith(this.Add_ClientSession,new object());
         ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.Add_ClientSession.BasicContext.CompletePending(wait: true);

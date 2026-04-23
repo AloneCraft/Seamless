@@ -100,12 +100,11 @@ public partial class ManagedHashSet<TKey>
     }
     public partial void ExceptWith(ManagedHashSet<TKey> other) {
         var ReadSession = other.ReadSession;
-        var ExceptWith_ClientSession = this.ExceptWith_ClientSession;
-        var cursor = 0L;
-        var Iterator = new ExceptWithScanIteratorFunctions(ExceptWith_ClientSession);
-        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        var Cursor = 0L;
+        var Iterator = new ExceptWithScanIteratorFunctions(this.ExceptWith_ClientSession);
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
-        ExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
+        this.ExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
     public partial void IntersectWith(ManagedHashSet<TKey> other) {
         IntersectWith(this,other,this.IntersectWith_ClientSession);
@@ -118,20 +117,18 @@ public partial class ManagedHashSet<TKey>
     public partial bool SetEquals(ManagedHashSet<TKey> other) => SetEqualsSet(this,other);
     public partial void SymmetricExceptWith(ManagedHashSet<TKey> other) {
         var ReadSession = other.ReadSession;
-        var SymmetricExceptWith_ClientSession = this.SymmetricExceptWith_ClientSession;
-        var cursor = 0L;
-        var Iterator = new ScanIteratorFunctions_SymmetricExceptWith(SymmetricExceptWith_ClientSession);
-        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        var Iterator=new ScanIteratorFunctions_SymmetricExceptWith(this.SymmetricExceptWith_ClientSession);
+        var Cursor=0L;
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         other.ReadSession.BasicContext.CompletePending(wait: true);
-        SymmetricExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
+        this.SymmetricExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
     public partial void UnionWith(ManagedHashSet<TKey> other) {
         var ReadSession = other.ReadSession;
-        var Add_ClientSession = this.Add_ClientSession;
+        var Iterator = new ScanIteratorFunctions_UnionWith(this.Add_ClientSession);
         var Cursor = 0L;
-        var Iterator = new ScanIteratorFunctions_UnionWith(Add_ClientSession);
         ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
-        Add_ClientSession.BasicContext.CompletePending(wait: true);
+        this.Add_ClientSession.BasicContext.CompletePending(wait: true);
     }
 }

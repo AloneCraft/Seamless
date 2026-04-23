@@ -351,11 +351,12 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         while(true) {
             var funcs = new ChunkScanFunctions(ChunkSize);
             var completed = session.IterateLookup(ref funcs,ref cursor,scanUntil,resetCursor: false);
-            session.BasicContext.CompletePending(wait: true);
+            var pendingCompleted = session.BasicContext.CompletePending(wait: true);
+            Assert.True(pendingCompleted);
 
             totalVisited+=funcs.Count;
             batchIndex++;
-            output.WriteLine($"batch={batchIndex} count={funcs.Count} cursor={cursor} completed={completed}");
+            output.WriteLine($"batch={batchIndex} count={funcs.Count} cursor={cursor} completed={completed} pendingCompleted={pendingCompleted}");
 
             if(funcs.Count>0) {
                 chunkProcessor?.Invoke(funcs.Chunk,funcs.Count);

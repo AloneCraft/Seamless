@@ -78,7 +78,7 @@ public partial class UnmanagedHashSet<TKey>
         TKey
     > GetEnumerator() => new(this.ReadSession,new());
     IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<MemoryKeyIterator,TKey>(this.ReadMemoryClientSession,new(),this.HeadAddress);
-    private readonly struct ExceptWithScanIteratorFunctions(
+    private readonly struct ScanIteratorFunctions_ExceptWith(
         ClientSession<
             FixedSpanByteKey,
             EqualityEmpty,
@@ -88,7 +88,7 @@ public partial class UnmanagedHashSet<TKey>
             UnmanagedStoreFunctions,
             UnmanagedAllocator
         > Session
-    ):IScanIteratorFunctions {
+    ):IScanIteratorFunctions{
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
             Session.BasicContext.Delete((FixedSpanByteKey)logRecord.Key);
@@ -101,12 +101,11 @@ public partial class UnmanagedHashSet<TKey>
     }
     public partial void ExceptWith(UnmanagedHashSet<TKey> other) {
         var ReadSession = other.ReadSession;
-        var ExceptWith_ClientSession = this.ExceptWith_ClientSession;
-        var cursor = 0L;
-        var Iterator = new ExceptWithScanIteratorFunctions(ExceptWith_ClientSession);
-        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
+        var Iterator = new ScanIteratorFunctions_ExceptWith(this.ExceptWith_ClientSession);
+        var Cursor = 0L;
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
-        ExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
+        this.ExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
     }
     public partial void IntersectWith(UnmanagedHashSet<TKey> other) {
         this.IntersectWith(this,other,this.IntersectWith_ClientSession);
@@ -119,8 +118,8 @@ public partial class UnmanagedHashSet<TKey>
     public partial bool SetEquals(UnmanagedHashSet<TKey> other) => SetEqualsSet(this,other);
     public partial void SymmetricExceptWith(UnmanagedHashSet<TKey> other) {
         var ReadSession = other.ReadSession;
-        var Cursor = 0L;
         var Iterator = new ScanIteratorFunctions_SymmetricExceptWith(this.SymmetricExceptWith_ClientSession);
+        var Cursor = 0L;
         ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         this.SymmetricExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
@@ -128,10 +127,10 @@ public partial class UnmanagedHashSet<TKey>
     public partial void UnionWith(UnmanagedHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = other.ReadSession;
-        var cursor = 0L;
         var Iterator = new ScanIteratorFunctions_UnionWith(this.Add_ClientSession);
-        ReadSession.IterateLookup(ref Iterator,ref cursor,resetCursor: false);
-        other.ReadSession.BasicContext.CompletePending(wait: true);
+        var Cursor = 0L;
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        ReadSession.BasicContext.CompletePending(wait: true);
         this.Add_ClientSession.BasicContext.CompletePending(wait: true);
     }
 }

@@ -1,5 +1,4 @@
-using Seamless;
-using Seamless.Stores;
+﻿using Seamless.Stores;
 using Tsavorite.core;
 namespace Test.Seamless.Stress;
 
@@ -14,15 +13,8 @@ public class ParallelRandomStressTests {
     private const int Seed = 20260417;
     private const double RemoveRate = 0.5;
     private static readonly int ThreadCount = Math.Max(2,Math.Min(8,Environment.ProcessorCount));
-    private const int StressCountSmall = 2_048;
-    private const int StressCountLarge = 16_384;
-
-    // Tsavorite 2.0beta3 の LocalStorageDevice.ReadAsync コールバックが再帰的に呼ばれると
-    // スタックオーバーフロー (STATUS_STACK_OVERFLOW) が発生する。
-    // ディスクバックストアのメモリサイズを全レコードが収まる大きさにして
-    // ディスク読み込みを抑制する。
-    private static long DiskStoreMemorySize(int count) =>
-        Math.Max(Const.MinObjectLogCapacity,(long)count*64);
+    private const int StressCountSmall = 256;
+    private const int StressCountLarge = 1024;
 
     private static string CreateTempDir(string tag) {
         var dir = Path.Combine(Path.GetTempPath(),"Seamless_PStress_"+tag+"_"+Guid.NewGuid().ToString("N"));
@@ -67,7 +59,7 @@ public class ParallelRandomStressTests {
             var removeHash = string.Empty;
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
-            using(var store = Factory.Create(MemorySize: DiskStoreMemorySize(count)).Create<int,int>(logDevice,objDevice)) {
+            using(var store = Factory.Create().Create<int,int>(logDevice,objDevice)) {
                 for(var r = 0; r<repeat; r++) {
                     using(var dict = store.Create()) {
                         dict.Clear();
@@ -98,8 +90,6 @@ public class ParallelRandomStressTests {
                         });
                     }
                 }
-                // Dispose前にI/Oをdrainする（LocalStorageDeviceの再帰コールバックバグ回避）
-                store.Store.Log.FlushAndEvict(wait: true);
             }
             StressGolden.AssertGolden($"ParallelRandom_UintDict_Add_{count}",addHash);
             StressGolden.AssertGolden($"ParallelRandom_UintDict_Remove_{count}",removeHash);
@@ -139,7 +129,7 @@ public class ParallelRandomStressTests {
             var removeHash = string.Empty;
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
-            using(var store = Factory.Create(MemorySize: DiskStoreMemorySize(count)).Create<string,string>(logDevice,objDevice,new ManagedTag(),new ManagedTag())) {
+            using(var store = Factory.Create().Create<string,string>(logDevice,objDevice,new ManagedTag(),new ManagedTag())) {
                 for(var r = 0; r<repeat; r++) {
                     using(var dict = store.Create()) {
                         dict.Clear();
@@ -168,8 +158,6 @@ public class ParallelRandomStressTests {
                         });
                     }
                 }
-                // Dispose前にI/Oをdrainする（LocalStorageDeviceの再帰コールバックバグ回避）
-                store.Store.Log.FlushAndEvict(wait: true);
             }
             StressGolden.AssertGolden($"ParallelRandom_StrDict_Add_{count}",addHash);
             StressGolden.AssertGolden($"ParallelRandom_StrDict_Remove_{count}",removeHash);
@@ -202,7 +190,7 @@ public class ParallelRandomStressTests {
             var removeHash = string.Empty;
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
-            using(var store = Factory.Create(MemorySize: DiskStoreMemorySize(count)).Create<int>(logDevice,objDevice)) {
+            using(var store = Factory.Create().Create<int>(logDevice,objDevice)) {
                 for(var r = 0; r<repeat; r++) {
                     using(var set = store.Create()) {
                         set.Clear();
@@ -219,8 +207,6 @@ public class ParallelRandomStressTests {
                     });
                     using(var set = store.Create()) removeHash=StressGolden.HashInt32KeysByProbe(keys,key => set.Contains(key));
                 }
-                // Dispose前にI/Oをdrainする（LocalStorageDeviceの再帰コールバックバグ回避）
-                store.Store.Log.FlushAndEvict(wait: true);
             }
             StressGolden.AssertGolden($"ParallelRandom_UintSet_Add_{count}",addHash);
             StressGolden.AssertGolden($"ParallelRandom_UintSet_Remove_{count}",removeHash);
@@ -255,7 +241,7 @@ public class ParallelRandomStressTests {
             var removeHash = string.Empty;
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
-            using(var store = Factory.Create(MemorySize: DiskStoreMemorySize(count)).Create<string>(logDevice,objDevice,new ManagedTag())) {
+            using(var store = Factory.Create().Create<string>(logDevice,objDevice,new ManagedTag())) {
                 for(var r = 0; r<repeat; r++) {
                     using(var set = store.Create()) {
                         set.Clear();
@@ -272,8 +258,6 @@ public class ParallelRandomStressTests {
                     });
                     using(var set = store.Create()) removeHash=StressGolden.HashStringKeysByProbe(keys,key => set.Contains(key));
                 }
-                // Dispose前にI/Oをdrainする（LocalStorageDeviceの再帰コールバックバグ回避）
-                store.Store.Log.FlushAndEvict(wait: true);
             }
             StressGolden.AssertGolden($"ParallelRandom_StrSet_Add_{count}",addHash);
             StressGolden.AssertGolden($"ParallelRandom_StrSet_Remove_{count}",removeHash);

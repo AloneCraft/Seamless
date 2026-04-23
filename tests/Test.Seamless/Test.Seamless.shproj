@@ -26,6 +26,7 @@
     <Compile Include="TestKeyComparer.cs" />
     <Compile Include="TestRelation.cs" />
     <Compile Include="TestTypes.cs" />
+    <Compile Include="Tsavorite\LightEpochInstanceLimitTests.cs" />
     <Compile Include="Tsavorite\LightEpochLimitTests.cs" />
     <Compile Include="Integrate\DictionaryIntegrate.cs" />
     <Compile Include="Integrate\HashSetIntegrate.cs" />

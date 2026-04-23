@@ -111,13 +111,13 @@ public class Enumerator {
             var expected = Enumerable.Range(0,256).ToArray();
             foreach(var value in expected)
                 set.Add(value);
-            var count0=set.Count;
+            var count0 = set.Count;
             //Tsavorite 1.1.3 の BufferAndLoad が epoch.Resume() を保持したまま BumpCurrentEpoch を呼ぶ epoch デッドロックバグがある
             // FlushAndEvict は HeadAddress=TailAddress にするため IterateLookup でスキャン不可。
             // ShiftReadOnlyAddress でディスクに書き出しつつ HeadAddress は変えない。
             store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
 
-            var count1=set.Count;
+            var count1 = set.Count;
             var enumerated = new HashSet<int>();
             foreach(var value in set)
                 enumerated.Add(value);
@@ -145,22 +145,23 @@ public class Enumerator {
 
     [Fact, Trait("Category","Unit")]
     public void HashSet_AfterFlushAndEvict_Managed_PublicEnumerationAndCopyToEnumerateAll() {
-#if TSAVORITE1_1_1
-        // Tsavorite 1.1.1 の SpanByte + IterateLookup public enumeration は FlushAndEvict 後に
-        // HeadAddress 未満の managed key を全件は返せない。全件列挙 regression は 2.0 側で保証する。
-        return;
-#endif
         var folder = CreateDiskFolder();
         try {
             using var logDevice = Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var objDevice = Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var store = Factory.Create().Create<string>(logDevice,objDevice,new ManagedTag());
             using var set = store.Create();
+#if TSAVORITE1_1_1
+            var expected = Enumerable.Range(0,64).Select(i => "s"+i).ToArray();
+#else
             var expected = Enumerable.Range(0,2048).Select(i => "s"+i).ToArray();
+#endif
             foreach(var value in expected)
                 set.Add(value);
 
+#if TSAVORITE2_0BETA3
             store.Store.Log.FlushAndEvict(wait: true);
+#endif
 
             var enumerated = new HashSet<string>(StringComparer.Ordinal);
             foreach(var value in set)
@@ -179,7 +180,9 @@ public class Enumerator {
             Assert.Equal(expected.Length,toArraySet.Count);
             Assert.All(expected,value => Assert.Contains(value,toArraySet));
 
+#if TSAVORITE2_0BETA3
             store.Store.Log.FlushAndEvict(wait: true);
+#endif
         }
         finally {
             try { Directory.Delete(folder,true); } catch { }
