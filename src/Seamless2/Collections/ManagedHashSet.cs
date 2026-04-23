@@ -76,7 +76,7 @@ public partial class ManagedHashSet<TKey>
         KeyIterator,
         TKey
     > GetEnumerator() => new(this.ReadSession,new());
-    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<MemoryKeyIterator,TKey>(this.ReadMemoryClientSession,new(),this.HeadAddress);
+    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<MemoryKeyIterator,TKey>(this.ReadSession,new(),this.HeadAddress);
     private readonly struct ExceptWithScanIteratorFunctions(
         ClientSession<
             FixedSpanByteKey,
@@ -116,12 +116,7 @@ public partial class ManagedHashSet<TKey>
     public partial bool Overlaps(ManagedHashSet<TKey> other) => OverlapsSet(this,other);
     public partial bool SetEquals(ManagedHashSet<TKey> other) => SetEqualsSet(this,other);
     public partial void SymmetricExceptWith(ManagedHashSet<TKey> other) {
-        var ReadSession = other.ReadSession;
-        var Iterator=new ScanIteratorFunctions_SymmetricExceptWith(this.SymmetricExceptWith_ClientSession);
-        var Cursor=0L;
-        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-        other.ReadSession.BasicContext.CompletePending(wait: true);
-        this.SymmetricExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
+        base.SymmetricExceptWith(other,this.SymmetricExceptWith_ClientSession);
     }
     public partial void UnionWith(ManagedHashSet<TKey> other) {
         var ReadSession = other.ReadSession;

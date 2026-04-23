@@ -17,8 +17,9 @@
     <None Remove="Garnet\**" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="CheckpointRecoveryTests.cs" />
-    <Compile Remove="TestKeyComparer.cs" />
+    <Compile Remove="..\Test.Seamless\CheckpointRecoveryTests.cs" />
+    <Compile Remove="..\Test.Seamless\TestKeyComparer.cs" />
+    <Compile Remove="..\Test.Seamless\TestRelation.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="8.0.1">
@@ -39,6 +40,9 @@
   </ItemGroup>
   <Import Project="..\Test.Seamless\Test.Seamless.projitems" Label="Shared" />
   <ItemGroup>
+    <Compile Remove="..\Test.Seamless\CheckpointRecoveryTests.cs" />
+    <Compile Remove="..\Test.Seamless\TestKeyComparer.cs" />
+    <Compile Remove="..\Test.Seamless\TestRelation.cs" />
     <Compile Remove="..\Test.Seamless\SessionFunctions\ManagedAdd.cs" />
     <Compile Remove="..\Test.Seamless\SessionFunctions\UnmanagedAdd.cs" />
   </ItemGroup>

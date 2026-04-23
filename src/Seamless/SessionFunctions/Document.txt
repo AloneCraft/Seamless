@@ -1,4 +1,35 @@
-﻿Reader戻り値 CursorRecordResult IterateLookup戻り値 状態
+﻿IterateLookupで内部のSesionFunctionでRMWを使って自身を削除できない
+    untilAddress は我々の実装でも既に使っています（self.CollectionStore.Address.TailAddress を取ってから渡している）。それでも失敗しました。なぜかを正確に説明します。
+
+    untilAddress が防げること・防げないこと
+    防げること
+    untilAddress は「チャンク間の RMW で書いた tombstone（address > untilAddress）を次チャンクが "alive なキー" として再スキャンする」ことを防ぎます。これがないと無限ループ等が発生します。
+
+    防げないこと：ハッシュチェーンのカーソル不整合
+    IterateLookup はハッシュバケット単位でカーソルを持ち、各バケットのハッシュチェーン先頭からレコードを辿ります。
+
+    ここで問題になるのは bucket 75 ではなく、オーバーフローバケットやハッシュ衝突チェーンを通じて bucket 128 以降が影響を受ける場合です。Tsavorite のハッシュテーブルはオーバーフローバケット（拡張スロット）を持ち、ある bucket への新規エントリ追加が隣接するオーバーフロースロットの配置を変えることがあります。
+
+    また、RetryLastRecord で再開した際に：
+
+    これが「ある確率でキーが tombstone されずに残る」結果になります。
+    IntersectWith のチャンク問題の根本原因は「自分自身をスキャンしながら自分自身を削除（tombstone）する」ことです。これがハッシュチェーンを壊します。
+
+    SymmetricExceptWith はスキャン対象（other = B）と書き込み先（self = A）が別ストアなので、ハッシュチェーン破壊は原理上発生しません。我々のチャンク実装で失敗したのは、SymmetricExceptWith の場合はチャンク境界のループ終了ロジックのバグが原因であり、IntersectWith とは失敗の理由が異なります。
+
+    つまり：
+
+    IntersectWith のチャンク化 → Tsavorite 設計上の根本的な制約、直せない
+    SymmetricExceptWith のチャンク化 → 実装バグの修正で成立できる可能性がある
+
+まとめ
+手法	untilAddress の効果	カーソル不整合	結果
+Chunk + untilAddress	tombstone の再スキャン防止 ✓	発生する	キーが漏れる → テスト失敗
+全件収集 → 後更新	不要	発生しない (走査完了後に変更)	正しく動作
+根本原因は IterateLookup がハッシュ構造を辿るスキャンであり、スキャン完了前にそのストアへ書き込むと、untilAddress の有無に関わらずカーソルが不整合になりうることです。これは Tsavorite 2.0 の IterateLookup 設計上の制約であり、2 フェーズが唯一安全な方法です。
+
+
+Reader戻り値 CursorRecordResult IterateLookup戻り値 状態
 false       （無視）	        false               強制停止（ユーザーによる打ち切り）
 true         Accept/Skip        false               自然終了（最後まで到達）
 true         EndBatch	        true                一時中断（カーソル更新済み、続きあり）

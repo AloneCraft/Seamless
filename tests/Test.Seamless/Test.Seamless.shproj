@@ -19,7 +19,7 @@
     <Compile Include="Stress\ParallelRandomStressTests.cs" />
     <Compile Include="Stress\SerialRandomStressTests.cs" />
     <Compile Include="Stress\SetOperationStressTests.cs" />
-    <Compile Include="Stress\StressGolden.cs" />
+    <Compile Include="Stress\StressReferenceAssert.cs" />
     <Compile Include="Stress\StressScale.cs" />
     <Compile Include="Stress\StressScript.cs" />
     <Compile Include="Test.cs" />
@@ -65,20 +65,6 @@
     <Compile Include="Unit\Stores\CollectionStore.cs" />
     <Compile Include="Unit\Stores\Factory.cs" />
     <Compile Include="Unit\Stores\KindDictionarySize.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Stress\Goldens\SerialRandom_StrDict_Add_1024.sha256" />
-    <None Include="Stress\Goldens\SerialRandom_StrDict_Add_256.sha256" />
-    <None Include="Stress\Goldens\SerialRandom_StrDict_Remove_1024.sha256" />
-    <None Include="Stress\Goldens\SerialRandom_StrDict_Remove_256.sha256" />
-    <None Include="Stress\Goldens\SerialRandom_UintDict_Add_1024.sha256" />
-    <None Include="Stress\Goldens\SerialRandom_UintDict_Add_256.sha256" />
-    <None Include="Stress\Goldens\SerialRandom_UintDict_Remove_1024.sha256" />
-    <None Include="Stress\Goldens\SerialRandom_UintDict_Remove_256.sha256" />
-    <None Include="Stress\Goldens\SerialRandom_UintSet_Add_1024.sha256" />
-    <None Include="Stress\Goldens\SerialRandom_UintSet_Add_256.sha256" />
-    <None Include="Stress\Goldens\SerialRandom_UintSet_Remove_1024.sha256" />
-    <None Include="Stress\Goldens\SerialRandom_UintSet_Remove_256.sha256" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.CSharp.targets" />
 </Project>

@@ -36,7 +36,8 @@ public class SetOperationStressTests {
             var objA = Path.Combine(temp,"objA");
             var logB = Path.Combine(temp,"logB");
             var objB = Path.Combine(temp,"objB");
-            var hash = string.Empty;
+            var probeKeys = new HashSet<int>(keysA);
+            probeKeys.UnionWith(keysB);
             using(var logDevA = Devices.CreateLogDevice(logA))
             using(var objDevA = Devices.CreateLogDevice(objA))
             using(var logDevB = Devices.CreateLogDevice(logB))
@@ -45,20 +46,45 @@ public class SetOperationStressTests {
             using(var storeB = Factory.Create().Create<int>(logDevB,objDevB))
             using(var setA = storeA.Create())
             using(var setB = storeB.Create()) {
-                for(var r = 0; r<repeat; r++) {
-                    setA.Clear();
-                    setB.Clear();
-                    foreach(var k in keysA) setA.Add(k);
-                    foreach(var k in keysB) setB.Add(k);
+                try {
+                    for(var r = 0; r<repeat; r++) {
+                        setA.Clear();
+                        setB.Clear();
+                        foreach(var k in keysA) setA.Add(k);
+                        foreach(var k in keysB) setB.Add(k);
+                        storeA.Store.Log.FlushAndEvict(wait: true);
+                        storeB.Store.Log.FlushAndEvict(wait: true);
+                        op(setA,setB);
+                        var expected = new HashSet<int>(keysA);
+                        expected.UnionWith(keysB);
+                        switch(opName) {
+                            case "IntersectWith":
+                                expected=new HashSet<int>(keysA);
+                                expected.IntersectWith(keysB);
+                                break;
+                            case "SymmetricExceptWith":
+                                expected=new HashSet<int>(keysA);
+                                expected.SymmetricExceptWith(keysB);
+                                break;
+                            case "UnionWith":
+                                expected=new HashSet<int>(keysA);
+                                expected.UnionWith(keysB);
+                                break;
+                            case "ExceptWith":
+                                expected=new HashSet<int>(keysA);
+                                expected.ExceptWith(keysB);
+                                break;
+                            default:
+                                throw new ArgumentOutOfRangeException(nameof(opName),opName,null);
+                        }
+                        StressReferenceAssert.SetEquals(probeKeys,expected,key => setA.Contains(key));
+                    }
+                }
+                finally {
                     storeA.Store.Log.FlushAndEvict(wait: true);
                     storeB.Store.Log.FlushAndEvict(wait: true);
-                    op(setA,setB);
-                    var probeKeys = new HashSet<int>(keysA);
-                    probeKeys.UnionWith(keysB);
-                    hash=StressGolden.HashInt32KeysByProbe(probeKeys,key => setA.Contains(key));
                 }
             }
-            StressGolden.AssertGolden($"SetOp_UintSet_{opName}_{count}",hash);
         }
         finally {
             TryCleanup(temp);
@@ -121,7 +147,8 @@ public class SetOperationStressTests {
             var objA = Path.Combine(temp,"objA");
             var logB = Path.Combine(temp,"logB");
             var objB = Path.Combine(temp,"objB");
-            var hash = string.Empty;
+            var probeKeys = new HashSet<string>(keysA,StringComparer.Ordinal);
+            probeKeys.UnionWith(keysB);
             using(var logDevA = Devices.CreateLogDevice(logA))
             using(var objDevA = Devices.CreateLogDevice(objA))
             using(var logDevB = Devices.CreateLogDevice(logB))
@@ -130,20 +157,40 @@ public class SetOperationStressTests {
             using(var storeB = Factory.Create().Create<string>(logDevB,objDevB,new ManagedTag()))
             using(var setA = storeA.Create())
             using(var setB = storeB.Create()) {
-                for(var r = 0; r<repeat; r++) {
-                    setA.Clear();
-                    setB.Clear();
-                    foreach(var k in keysA) setA.Add(k);
-                    foreach(var k in keysB) setB.Add(k);
+                try {
+                    for(var r = 0; r<repeat; r++) {
+                        setA.Clear();
+                        setB.Clear();
+                        foreach(var k in keysA) setA.Add(k);
+                        foreach(var k in keysB) setB.Add(k);
+                        storeA.Store.Log.FlushAndEvict(wait: true);
+                        storeB.Store.Log.FlushAndEvict(wait: true);
+                        op(setA,setB);
+                        var expected = new HashSet<string>(keysA,StringComparer.Ordinal);
+                        switch(opName) {
+                            case "IntersectWith":
+                                expected.IntersectWith(keysB);
+                                break;
+                            case "SymmetricExceptWith":
+                                expected.SymmetricExceptWith(keysB);
+                                break;
+                            case "UnionWith":
+                                expected.UnionWith(keysB);
+                                break;
+                            case "ExceptWith":
+                                expected.ExceptWith(keysB);
+                                break;
+                            default:
+                                throw new ArgumentOutOfRangeException(nameof(opName),opName,null);
+                        }
+                        StressReferenceAssert.SetEquals(probeKeys,expected,key => setA.Contains(key));
+                    }
+                }
+                finally {
                     storeA.Store.Log.FlushAndEvict(wait: true);
                     storeB.Store.Log.FlushAndEvict(wait: true);
-                    op(setA,setB);
-                    var probeKeys = new HashSet<string>(keysA,StringComparer.Ordinal);
-                    probeKeys.UnionWith(keysB);
-                    hash=StressGolden.HashStringKeysByProbe(probeKeys,key => setA.Contains(key));
                 }
             }
-            StressGolden.AssertGolden($"SetOp_StrSet_{opName}_{count}",hash);
         }
         finally {
             TryCleanup(temp);

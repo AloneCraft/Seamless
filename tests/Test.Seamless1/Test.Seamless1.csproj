@@ -42,6 +42,8 @@
 	<Import Project="..\Test.Seamless\Test.Seamless.projitems" Label="Shared" />
 
 	<ItemGroup>
+	  <Compile Remove="..\Test.Seamless\TestKeyComparer.cs" />
+	  <Compile Remove="..\Test.Seamless\TestRelation.cs" />
 	  <Compile Remove="..\Test.Seamless\SessionFunctions\ManagedAdd.cs" />
 	  <Compile Remove="..\Test.Seamless\SessionFunctions\UnmanagedAdd.cs" />
 	</ItemGroup>

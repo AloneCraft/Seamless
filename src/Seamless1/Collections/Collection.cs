@@ -171,8 +171,7 @@ public abstract class Collection<
     public long GetLongCount() {
         var Iterator = new ScanIteratorFunctions_Counter();
         var Cursor = 0L;
-        var Completed= this.ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-        Debug.Assert(!Completed);
+        this.ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         this.ReadSession.BasicContext.CompletePending(wait: true);
         return Iterator.Counter;
     }
@@ -515,8 +514,7 @@ public abstract class Collection<
         var ReadSession=self.ReadSession;
         var Iterator = new ScanIteratorFunctions_IsSubsetOf<TCollection>(Other,new object());
         var Cursor = 0L;
-        var Completed= ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-        Debug.Assert(!Completed);
+        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         return Iterator.IsSubset;
     }
     private protected static bool IsSupersetOfSet<TCollection>(TCollection Self,TCollection Other)
@@ -591,25 +589,12 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(other);
-        //var ReadSession=other.ReadSession;
-        //var Iterator = new ScanIteratorFunctions_Overlaps<TCollection>(Self,new object());
-        //var Cursor = 0L;
-        //var Completed=ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-        //Debug.Assert(!Completed);
-        //ReadSession.BasicContext.CompletePending(wait: true);
-        //return Iterator.FoundOverlap;
         var ReadSession=other.ReadSession;
         var Iterator=new ScanIteratorFunctions_Overlaps<TCollection>(Self,new object());
         var Cursor=0L;
         ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         return Iterator.FoundOverlap;
-        //if(Iterator.FoundOverlap) {
-        //    return true;
-        //}
-        //if(まだ継続するか) {
-        //    return false;
-        //}
     }
     private protected static bool SetEqualsSet<TCollection>(TCollection Self,TCollection Other)
         where TCollection : Collection<

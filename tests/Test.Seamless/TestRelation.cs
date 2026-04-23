@@ -43,7 +43,7 @@ public class TestRelation{
             return false;
         }
     }
-    private partial struct UnmanagedValue0:ITuple<UnmanagedKey0>,IEquatable<UnmanagedValue0>{
+    private partial struct UnmanagedValue0:IEquatable<UnmanagedValue0>{
         private struct Unmanaged{
             public int Id0;
             public int Id1;
@@ -116,7 +116,7 @@ public class TestRelation{
             return false;
         }
     }
-    private partial struct ManagedValue1:ITuple<UnmanagedKey1>,IEquatable<ManagedValue1>{
+    private partial struct ManagedValue1:IEquatable<ManagedValue1>{
         private struct Unmanaged{
             public int Id0;
             public int Id1;

@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 namespace Seamless.SessionFunctions;
 
 internal readonly struct SymmetricExceptWith:
@@ -138,11 +139,11 @@ internal readonly struct SymmetricExceptWith:
     }
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input)
         where TSourceLogRecord : ISourceLogRecord {
-        return new() { KeySize=srcLogRecord.Key.Length,ValueSize=0 };
+        return new() { KeySize=srcLogRecord.Key.Length,ValueSize=Unsafe.SizeOf<EqualityEmpty>() };
     }
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref EqualityEmpty input)
         where TKey : IKey, allows ref struct {
-        return new() { KeySize=key.KeyBytes.Length,ValueSize=0 };
+        return new() { KeySize=key.KeyBytes.Length,ValueSize=Unsafe.SizeOf<EqualityEmpty>() };
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref EqualityEmpty input)

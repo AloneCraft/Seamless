@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using System.Diagnostics;
-using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
@@ -46,7 +45,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
             return new(Key,Value);
         }
     }
-    public struct Enumerator<TIterator, T>(
+    public struct Enumerator<TIterator,T>(
         ClientSession<
             FixedSpanByteKey,//TKey
             EqualityEmpty,//TInput
@@ -77,9 +76,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
                 return false;
             }
             Iterator.Count=0;
-            // ScanCursor can deliver one late callback after the requested count, so keep one slot free.
-            var requestCount = Math.Max(1,Const.Chunk_Length-1);
-            var scanCompleted = Session.ScanCursor(ref this.Cursor,requestCount,Iterator,resetCursor: false);
+            var scanCompleted = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
             Session.BasicContext.CompletePending(wait: true);
             var Count = Iterator.Count;
             this.Count=Count;

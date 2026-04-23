@@ -35,8 +35,12 @@ public class SerialRandomStressTests {
             var objPath = Path.Combine(temp,"obj");
             var keys = StressScript.SampleKeys(Seed,count*4,count);
             var removeMask = StressScript.RemoveMask(Seed^0x5a5a,count,RemoveRate);
-            var addHash = string.Empty;
-            var removeHash = string.Empty;
+            var expected = keys.ToDictionary(key => key,key => key*2);
+            var expectedAfterRemove = new Dictionary<int,int>(expected);
+            for(var i = 0; i<keys.Length; i++) {
+                if(removeMask[i])
+                    expectedAfterRemove.Remove(keys[i]);
+            }
             for(var r = 0; r<repeat; r++) {
                 Guid token;
                 // Measured section: deterministic add/save/load/remove flow.
@@ -60,7 +64,7 @@ public class SerialRandomStressTests {
                     using var dict = store.Create();
                     foreach(var t in keys)
                         Assert.True(dict.ContainsKey(t),$"Missing key {t}");
-                    addHash=StressGolden.HashInt32PairsByProbe(keys,key => {
+                    StressReferenceAssert.DictionaryEquals(keys,expected,key => {
                         var found = dict.TryGetValue(key,out var value);
                         return (found,value);
                     });
@@ -68,14 +72,12 @@ public class SerialRandomStressTests {
                         if(removeMask[i])
                             Assert.True(dict.Remove(keys[i]));
                     }
-                    removeHash=StressGolden.HashInt32PairsByProbe(keys,key => {
+                    StressReferenceAssert.DictionaryEquals(keys,expectedAfterRemove,key => {
                         var found = dict.TryGetValue(key,out var value);
                         return (found,value);
                     });
                 }
             }
-            StressGolden.AssertGolden($"SerialRandom_UintDict_Add_{count}",addHash);
-            StressGolden.AssertGolden($"SerialRandom_UintDict_Remove_{count}",removeHash);
         }
         finally {
             TryCleanup(temp);
@@ -96,8 +98,14 @@ public class SerialRandomStressTests {
             var removeMask = StressScript.RemoveMask(Seed^0x5a5a,count,RemoveRate);
             var keys = rawKeys.Select(k => "k"+k).ToArray();
             var values = rawKeys.Select(k => "v"+k).ToArray();
-            var addHash = string.Empty;
-            var removeHash = string.Empty;
+            var expected = new Dictionary<string,string>(count,StringComparer.Ordinal);
+            for(var i = 0; i<keys.Length; i++)
+                expected[keys[i]]=values[i];
+            var expectedAfterRemove = new Dictionary<string,string>(expected,StringComparer.Ordinal);
+            for(var i = 0; i<keys.Length; i++) {
+                if(removeMask[i])
+                    expectedAfterRemove.Remove(keys[i]);
+            }
             for(var r = 0; r<repeat; r++) {
                 Guid token;
                 {
@@ -120,7 +128,7 @@ public class SerialRandomStressTests {
                     using var dict = store.Create();
                     foreach(var t in keys)
                         Assert.True(dict.ContainsKey(t),$"Missing key {t}");
-                    addHash=StressGolden.HashStringPairsByProbe(keys,key => {
+                    StressReferenceAssert.DictionaryEquals(keys,expected,key => {
                         var found = dict.TryGetValue(key,out var value);
                         return (found,value??string.Empty);
                     });
@@ -128,14 +136,12 @@ public class SerialRandomStressTests {
                         if(removeMask[i])
                             Assert.True(dict.Remove(keys[i]));
                     }
-                    removeHash=StressGolden.HashStringPairsByProbe(keys,key => {
+                    StressReferenceAssert.DictionaryEquals(keys,expectedAfterRemove,key => {
                         var found = dict.TryGetValue(key,out var value);
                         return (found,value??string.Empty);
                     });
                 }
             }
-            StressGolden.AssertGolden($"SerialRandom_StrDict_Add_{count}",addHash);
-            StressGolden.AssertGolden($"SerialRandom_StrDict_Remove_{count}",removeHash);
         }
         finally {
             TryCleanup(temp);
@@ -154,8 +160,12 @@ public class SerialRandomStressTests {
             var objPath = Path.Combine(temp,"obj");
             var keys = StressScript.SampleKeys(Seed,count*4,count);
             var removeMask = StressScript.RemoveMask(Seed^0x5a5a,count,RemoveRate);
-            var addHash = string.Empty;
-            var removeHash = string.Empty;
+            var expected = new HashSet<int>(keys);
+            var expectedAfterRemove = new HashSet<int>(expected);
+            for(var i = 0; i<keys.Length; i++) {
+                if(removeMask[i])
+                    expectedAfterRemove.Remove(keys[i]);
+            }
             for(var r = 0; r<repeat; r++) {
                 Guid token;
                 {
@@ -178,16 +188,14 @@ public class SerialRandomStressTests {
                     using var set = store.Create();
                     foreach(var t in keys)
                         Assert.True(set.Contains(t),$"Missing key {t}");
-                    addHash=StressGolden.HashInt32KeysByProbe(keys,set.Contains);
+                    StressReferenceAssert.SetEquals(keys,expected,set.Contains);
                     for(var i = 0; i<keys.Length; i++) {
                         if(removeMask[i])
                             Assert.True(set.Remove(keys[i]));
                     }
-                    removeHash=StressGolden.HashInt32KeysByProbe(keys,set.Contains);
+                    StressReferenceAssert.SetEquals(keys,expectedAfterRemove,set.Contains);
                 }
             }
-            StressGolden.AssertGolden($"SerialRandom_UintSet_Add_{count}",addHash);
-            StressGolden.AssertGolden($"SerialRandom_UintSet_Remove_{count}",removeHash);
         }
         finally {
             TryCleanup(temp);
@@ -212,8 +220,12 @@ public class SerialRandomStressTests {
             var rawKeys = StressScript.SampleKeys(Seed,count*4,count);
             var removeMask = StressScript.RemoveMask(Seed^0x5a5a,count,RemoveRate);
             var keys = rawKeys.Select(k => "s"+k).ToArray();
-            var addHash = string.Empty;
-            var removeHash = string.Empty;
+            var expected = new HashSet<string>(keys,StringComparer.Ordinal);
+            var expectedAfterRemove = new HashSet<string>(expected,StringComparer.Ordinal);
+            for(var i = 0; i<keys.Length; i++) {
+                if(removeMask[i])
+                    expectedAfterRemove.Remove(keys[i]);
+            }
             for(var r = 0; r<repeat; r++) {
                 Guid token;
                 {
@@ -236,16 +248,14 @@ public class SerialRandomStressTests {
                     using var set = store.Create();
                     for(var i = 0; i<keys.Length; i++)
                         Assert.True(set.Contains(keys[i]),$"Missing key {keys[i]}");
-                    addHash=StressGolden.HashStringKeysByProbe(keys,key => set.Contains(key));
+                    StressReferenceAssert.SetEquals(keys,expected,key => set.Contains(key));
                     for(var i = 0; i<keys.Length; i++) {
                         if(removeMask[i])
                             Assert.True(set.Remove(keys[i]));
                     }
-                    removeHash=StressGolden.HashStringKeysByProbe(keys,key => set.Contains(key));
+                    StressReferenceAssert.SetEquals(keys,expectedAfterRemove,key => set.Contains(key));
                 }
             }
-            StressGolden.AssertGolden($"SerialRandom_StrSet_Add_{count}",addHash);
-            StressGolden.AssertGolden($"SerialRandom_StrSet_Remove_{count}",removeHash);
         }
         finally {
             TryCleanup(temp);
