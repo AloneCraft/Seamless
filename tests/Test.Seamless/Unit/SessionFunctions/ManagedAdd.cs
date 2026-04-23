@@ -250,8 +250,8 @@ public sealed class ManagedAdd:AddTests<int,string> {
     [Fact, Trait("Category","Unit")]
     public void RMWCompletionCallback_Managed(){
         var folder=CreateDiskFolder();
-        using var LogDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var ObjDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var store=Factory.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
         using var dict=store.Create();
         dict.Add(0,"target");
@@ -261,8 +261,8 @@ public sealed class ManagedAdd:AddTests<int,string> {
     [Fact, Trait("Category","Unit")]
     public void ReadCompletionCallback_Managed(){
         var folder=CreateDiskFolder();
-        using var LogDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var ObjDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var store=Factory.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
         using var dict=store.Create();
         dict[0]="target";
@@ -273,8 +273,8 @@ public sealed class ManagedAdd:AddTests<int,string> {
     [Fact, Trait("Category","Unit")]
     public void ConvertOutputToHeap_Managed(){
         var folder=CreateDiskFolder();
-        using var LogDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var ObjDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var store=Factory.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
         using var dict=store.Create();
         dict.Add(0,"target");
@@ -302,8 +302,8 @@ public sealed class ManagedAdd:AddTests<int,string> {
 #if TSAVORITE1_1_1
         // ShiftReadOnlyAddress �̓y�[�W�t���b�V���𔺂����� ManagedLocalStorageDevice ���K�v
         var folder=CreateDiskFolder();
-        using var LogDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var ObjDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var store=Factory.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
         using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.SessionFunctions.ManagedAdd>(default);
         var bc=session.BasicContext;

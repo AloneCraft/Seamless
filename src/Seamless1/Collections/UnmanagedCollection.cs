@@ -71,7 +71,7 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
                 value
             );
     }
-    public struct Enumerator<TIterator, T>(
+    public struct Enumerator<TIterator,T>(
         ClientSession<
             TKey,//TKey
             TValue,//TValue

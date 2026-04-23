@@ -55,45 +55,39 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
             ManagedStoreFunctions,
             ManagedAllocator
         > Session,
-        TIterator Iterator,
-        long InitialCursor = 0
+        TIterator Iterator
     ):IEnumerator<T>
         where TIterator : ScanIteratorFunctions<
             T
 
 
         > {
-        private long Cursor = InitialCursor, Count;
-        private int Index = -1;
-        private bool Done;
+        private long Cursor=0,Count=Const.Chunk_Length;
+        private int Index=Const.Chunk_Length-1;
         public readonly T Current => Iterator.Chunk[this.Index];
         readonly object? IEnumerator.Current => this.Current;
         public bool MoveNext() {
             if(++this.Index<this.Count)
                 return true;
-            if(this.Done) {
-                this.Index=-1;
+            if(this.Count<Const.Chunk_Length)
                 return false;
-            }
-            Iterator.Count=0;
-            var scanCompleted = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            _=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            var count0=Iterator.Count;
             Session.BasicContext.CompletePending(wait: true);
-            var Count = Iterator.Count;
-            this.Count=Count;
-            if(!scanCompleted&&Count==0)
-                this.Done=true;
-            if(Count>0) {
-                this.Index=0;
-                return true;
+            var count=Iterator.Count;
+            if(count0!=count) {
+
             }
-            this.Index=-1;
-            return false;
+            if(count==0)
+                return false;
+            this.Count=count;
+            this.Index=0;
+            return true;
         }
         public void Reset() {
             this.Cursor=0;
             this.Count=0;
             this.Index=-1;
-            this.Done=false;
         }
         public readonly void Dispose() {
         }

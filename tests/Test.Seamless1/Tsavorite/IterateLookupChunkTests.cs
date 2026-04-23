@@ -37,8 +37,8 @@ namespace Test.Seamless.TsavoriteLimits;
 /// </summary>
 [Collection("TsavoriteTests")]
 public class IterateLookupChunkTests(ITestOutputHelper output) {
-    private const int ChunkSize = 10;   // 1 バッチで処理するレコード数
-    private const int TotalKeys = 25;   // 挿入するキー総数
+    private const int ChunkSize = 2;   // 1 バッチで処理するレコード数
+    private const int TotalKeys = 2500;   // 挿入するキー総数
     private readonly record struct Entry(int Key,int Value);
 
     // ----------------------------------------------------------------

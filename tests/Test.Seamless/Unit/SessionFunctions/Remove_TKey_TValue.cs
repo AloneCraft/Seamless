@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -39,8 +39,8 @@ public abstract class RemoveTKeyTValueTests<TKey,TValue>
 
     private void DiskSpill(){
         var folder=CreateDiskFolder();
-        using var logDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose:true,capacity:TestMemorySize);
-        using var objDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose:true,capacity:TestMemorySize);
+        using var logDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose:true,capacity: TestMemorySize);
+        using var objDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose:true,capacity: TestMemorySize);
         var(dict,store)=this.CreateDiskSpill(logDevice,objDevice);
         using var _store=store;
         using var _dict=dict;
@@ -63,8 +63,8 @@ public abstract class RemoveTKeyTValueTests<TKey,TValue>
 
     private void FlushAndEvictPath(){
         var folder=CreateDiskFolder();
-        using var logDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose:true,capacity:TestMemorySize);
-        using var objDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose:true,capacity:TestMemorySize);
+        using var logDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose:true,capacity: TestMemorySize);
+        using var objDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose:true,capacity: TestMemorySize);
         var(dict,store)=this.CreateDisk(logDevice,objDevice);
         using var _store=store;
         using var _dict=dict;

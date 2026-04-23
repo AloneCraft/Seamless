@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -109,8 +109,8 @@ public sealed class UnmanagedAdd:AddTests<int,long>{
     protected override void DoSingleReader(){
 #if TSAVORITE1_1_1
         var folder=CreateDiskFolder();
-        using var logDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var objDevice=Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var logDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var objDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         var (dict,store)=this.CreateDisk(logDevice,objDevice);
         using var _store=store;
         using var _dict=(IDisposable)dict;

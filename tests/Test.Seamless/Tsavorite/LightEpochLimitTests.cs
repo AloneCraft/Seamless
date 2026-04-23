@@ -1,5 +1,5 @@
 ﻿using Seamless.Stores;
-namespace Test.Seamless.TsavoriteLimits;
+namespace Test.Seamless.Tsavorite;
 
 /// <summary>
 /// LightEpoch の制限を確認するテスト。

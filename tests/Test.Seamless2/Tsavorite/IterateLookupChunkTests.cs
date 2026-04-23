@@ -1,4 +1,5 @@
 ﻿using System.Buffers.Binary;
+using System.Collections;
 using Garnet.common;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -14,7 +15,7 @@ using TAlloc = Tsavorite.core.SpanByteAllocator<
         Tsavorite.core.SpanByteComparer,
         Tsavorite.core.DefaultRecordDisposer>>;
 
-namespace Test.Seamless.TsavoriteLimits;
+namespace Test.Seamless.Tsavorite;
 
 /// <summary>
 /// IterateLookup で Tsavorite API のみを使ったチャンク 10 件単位のスキャンと
@@ -49,6 +50,10 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
 
     private static int DeserializeValue(ReadOnlySpan<byte> source) =>
         BinaryPrimitives.ReadInt32LittleEndian(source);
+
+    private static class Const {
+        public const int Chunk_Length = ChunkSize;
+    }
 
     // ----------------------------------------------------------------
     // セッション関数: RMW で int 値をログへ保存し、Read で int に戻す
@@ -207,14 +212,13 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
     // ISourceLogRecord から Key / ValueSpan を取得できる。
     // 各バッチ (ChunkSize 件) 後に EndBatch を返して IterateLookup を中断できる。
     // ----------------------------------------------------------------
-    private sealed class ChunkScanFunctions:IScanIteratorFunctions {
-        public readonly Entry[] Chunk;
+    private abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions {
+        public readonly T[] Chunk = new T[Const.Chunk_Length];
         public int Count;
+        private long LastAcceptedAddress;
 
-        public ChunkScanFunctions(int chunkSize) {
-            this.Chunk=new Entry[chunkSize];
-            this.Count=0;
-        }
+        private protected abstract T Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)
+            where TSourceLogRecord : ISourceLogRecord;
 
         public bool Reader<TSourceLogRecord>(
             in TSourceLogRecord logRecord,
@@ -222,28 +226,95 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
             long numberOfRecords,
             out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            // Chunk.Length == ChunkSize で上限管理。remaining は Count と冗長なので不要。
-            if(this.Count>=this.Chunk.Length) {
-                // チャンク上限到達。cursor をこのレコードの直前に巻き戻して終了。
-                // RetryLastRecord により次回の IterateLookup が同じレコードから再開する。
-                cursorRecordResult=
-                    CursorRecordResult.Skip|
-                    CursorRecordResult.EndBatch|
-                    CursorRecordResult.RetryLastRecord;
+            var index = Interlocked.Increment(ref this.Count)-1;
+            if(index>=Const.Chunk_Length) {
+                Volatile.Write(ref this.Count,Const.Chunk_Length);
+                var lastAcceptedAddress = Volatile.Read(ref this.LastAcceptedAddress);
+                if(recordMetadata.Address==lastAcceptedAddress) {
+                    cursorRecordResult=
+                        CursorRecordResult.Skip|
+                        CursorRecordResult.EndBatch;
+                } else {
+                    cursorRecordResult=
+                        CursorRecordResult.Skip|
+                        CursorRecordResult.EndBatch|
+                        CursorRecordResult.RetryLastRecord;
+                }
                 return true;
             }
-            // Pending の問題を防ぐため: Key / ValueSpan はコールバック内でのみ有効。
-            // Span を保持せず、ここで型へデシリアライズして値コピーしておく。
-            this.Chunk[this.Count++]=new Entry(
-                DeserializeKey(logRecord.Key),
-                DeserializeValue(logRecord.ValueSpan));
+            this.Chunk[index]=this.Deserialize(logRecord);
+            Volatile.Write(ref this.LastAcceptedAddress,recordMetadata.Address);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
 
-        public bool OnStart(long beginAddress,long endAddress) => true;
+        public bool OnStart(long beginAddress,long endAddress) {
+            Volatile.Write(ref this.Count,0);
+            Volatile.Write(ref this.LastAcceptedAddress,0);
+            return true;
+        }
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
+    }
+
+    private sealed class ScanIteratorFunctions_Chunk:ScanIteratorFunctions<Entry> {
+        private protected override Entry Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
+            return new Entry(
+                DeserializeKey(logRecord.Key),
+                DeserializeValue(logRecord.ValueSpan));
+        }
+    }
+
+    private struct Enumerator<TIterator, T>(
+        ClientSession<
+            FixedSpanByteKey,
+            int,
+            int,
+            Empty,
+            SimpleUpsertFunctions,
+            TStoreFuncs,
+            TAlloc
+        > Session,
+        TIterator Iterator,
+        long ScanUntil = 0
+    ):IEnumerator<T>
+        where TIterator : ScanIteratorFunctions<T> {
+        private long Cursor = 0, Count;
+        private int Index = -1;
+        private bool Done;
+        public readonly T Current => Iterator.Chunk[this.Index];
+        readonly object? IEnumerator.Current => this.Current;
+        public bool MoveNext() {
+            if(++this.Index<this.Count)
+                return true;
+            if(this.Done) {
+                this.Index=-1;
+                return false;
+            }
+            Iterator.Count=0;
+            var completed =
+                ScanUntil==0
+                ? Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false)
+                : Session.IterateLookup(ref Iterator,ref this.Cursor,ScanUntil,resetCursor: false);
+            Session.BasicContext.CompletePending(wait: true);
+            this.Count=Iterator.Count;
+            if(!completed&&this.Count==0)
+                this.Done=true;
+            if(this.Count==0) {
+                this.Index=-1;
+                return false;
+            }
+            this.Index=0;
+            return true;
+        }
+        public void Reset() {
+            this.Cursor=0;
+            this.Count=0;
+            this.Index=-1;
+            this.Done=false;
+        }
+        public readonly void Dispose() {
+        }
     }
 
     // ----------------------------------------------------------------
@@ -320,155 +391,74 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         status=CompletePending(session,status,ref output);
         Assert.True(status.IsCompleted);
     }
-
-    // ----------------------------------------------------------------
-    // IterateLookup チャンクループ本体
-    //   戻り値: 訪問できた総レコード数
+    // ================================================================
+    // テスト1b: データ件数を 1,2,4,8,... と増やして Enumerator 走査を検証
     //
-    // IterateLookup 戻り値の意味 (Tsavorite 2.0):
-    //   false = スキャン自然終了 (scanUntil 到達) → ループ終了
-    //   true  = EndBatch 打ち切り → ループ継続 (cursor は次バッチ先頭)
-    //
-    // store.Log.TailAddress を呼び出し時に一度だけキャプチャして scanUntil に渡す。
-    // スキャン中に Upsert でログが伸びても元の範囲のみスキャンできる。
-    // ----------------------------------------------------------------
-    private int RunChunkedIterateLookup(
-        TsavoriteKV<TStoreFuncs,TAlloc> store,
-        ClientSession<
-            FixedSpanByteKey,
-            int,
-            int,
-            Empty,
-            SimpleUpsertFunctions,
-            TStoreFuncs,
-            TAlloc> session,
-        Action<Entry[],int>? chunkProcessor = null) {
-        var scanUntil = store.Log.TailAddress;   // スキャン範囲の上限をキャプチャ
-        var cursor = 0L;
-        var totalVisited = 0;
-        var batchIndex = 0;
-
-        while(true) {
-            var funcs = new ChunkScanFunctions(ChunkSize);
-            var completed = session.IterateLookup(ref funcs,ref cursor,scanUntil,resetCursor: false);
-            var pendingCompleted = session.BasicContext.CompletePending(wait: true);
-            Assert.True(pendingCompleted);
-
-            totalVisited+=funcs.Count;
-            batchIndex++;
-            output.WriteLine($"batch={batchIndex} count={funcs.Count} cursor={cursor} completed={completed} pendingCompleted={pendingCompleted}");
-
-            if(funcs.Count>0) {
-                chunkProcessor?.Invoke(funcs.Chunk,funcs.Count);
-            }
-
-            // Tsavorite 2.0 の IterateLookup 戻り値:
-            //   true  = EndBatch 打ち切り → ループ継続 (cursor は次バッチ先頭)
-            //   false = スキャン自然終了 (scanUntil 到達) → ループ終了
-            if(funcs.Count==0) break;    // 安全網: 空バッチ
-            if(!completed) break;          // 自然終了
-        }
-        return totalVisited;
-    }
-
+    // 目的:
+    //   - Enumerator + ScanIteratorFunctions_Chunk の組み合わせで
+    //     ストレージ経路の列挙挙動を件数スケールごとに確認する
     // ================================================================
-    // テスト1: オンメモリ ─ 全 25 件をチャンク 10 件で走査
-    // MutableFraction=1.0 なので Reader<TSourceLogRecord> が呼ばれる。
-    // Chunk から key をデシリアライズして全件が取得できることを確認する。
-    // ================================================================
-    [Fact]
-    public void InMemory_Chunk10_VisitsAll25Records() {
-        var folder = Path.Combine(Path.GetTempPath(),"IterateLookupInMem2_"+Guid.NewGuid().ToString("N"));
-        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
-
-        using var settings = new KVSettings {
-            IndexSize=1L<<16,   // 65536 bytes
-            PageSize=1L<<12,    // 4 KB
-            SegmentSize=1L<<20,
-            LogMemorySize=1L<<20,   // 1 MB
-            MutableFraction=1.0,
-            LogDevice=logDevice,
-        };
-        using var store = CreateStore(settings);
-        using var session = CreateSession(store);
-
-        // キーは呼び出し側で stackalloc シリアライズし、そのヘルパー内で Pending を解消する。
-        // 値のシリアライズは SimpleUpsertFunctions 内で行う。
-        for(var i = 0; i<TotalKeys; i++) {
-            UpsertValue(session,i,i*100);
-        }
-
-        var visitedKeys = new List<int>();
-        var visitedValues = new List<int>();
-        void CollectKeys(Entry[] chunk,int count) {
-            for(var ci = 0; ci<count; ci++) {
-                visitedKeys.Add(chunk[ci].Key);
-                visitedValues.Add(chunk[ci].Value);
-            }
-        }
-
-        var total = this.RunChunkedIterateLookup(store,session,CollectKeys);
-
-        Assert.Equal(TotalKeys,total);
-        // 全 25 件のキー (0..24) が過不足なく取得できていることを確認
-        Assert.Equal(TotalKeys,visitedKeys.Distinct().Count());
-        Assert.Equal(visitedKeys.OrderBy(static key => key).Select(static key => key*100),visitedValues.OrderBy(static value => value));
-
-        store.Log.FlushAndEvict(wait: true);
-    }
-
-    // ================================================================
-    // テスト2: ディスクスピル ─ ReadOnly 移動後の全 25 件をチャンク 10 件で走査
-    //
-    // ShiftReadOnlyAddress でレコードを ReadOnly に移動してから IterateLookup を呼ぶ。
-    // Reader<TSourceLogRecord> (ReadOnly 領域) が呼ばれ、Chunk 配列に蓄積される。
-    // CompletePending を正しい位置で呼ぶ Pending 処理パターンを示す。
-    // ================================================================
-    [Fact]
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(8)]
+    [InlineData(16)]
+    [InlineData(32)]
+    [InlineData(64)]
+    [InlineData(128)]
+    [InlineData(256)]
+    [InlineData(512)]
+    [InlineData(1024)]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
-    public void DiskSpill_Chunk10_VisitsAll25Records_PendingPattern() {
-        var folder = Path.Combine(
-            Path.GetTempPath(),
-            "IterateLookupTest2_"+Guid.NewGuid().ToString("N"));
-
-        using var logDevice = Devices.CreateLogDevice(
-            Path.Combine(folder,"log.data"),deleteOnClose: true);
+    public void DiskBacked_Enumerator_PowerOfTwoDataSizes(int totalKeys) {
+        var folder = Path.Combine(Environment.CurrentDirectory,
+            nameof(DiskBacked_Enumerator_PowerOfTwoDataSizes));
+        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: false);
 
         using var settings = new KVSettings {
             IndexSize=64,
-            PageSize=1L<<12,    // 4 KB
-            SegmentSize=1L<<22,
-            LogMemorySize=1L<<22,   // 4 MB
-            MutableFraction=1.0,
+            PageSize=1L<<12,       // 4 KB
+            SegmentSize=1L<<12,    // 4 KB
+            LogMemorySize=1L<<15,  // 32 KB: 1024 件ケースでも列挙ロジックのみを検証できる最小側設定
+            MutableFraction=0.05,
             LogDevice=logDevice,
         };
         using var store = CreateStore(settings);
         using var session = CreateSession(store);
 
-        for(var i = 0; i<TotalKeys; i++) {
-            UpsertValue(session,i,i*100);
+        for(var i = 0; i<totalKeys; i++) {
+            UpsertValue(session,i,i*10);
         }
 
-        // 全レコードを ReadOnly 領域へ移動 (メモリ上に留まるが ReadOnly)
-        // Note: FlushAndEvict は HeadAddress=TailAddress にしてしまい
-        //       IterateLookup がスキャン対象を見つけられなくなるため使わない
         store.Log.ShiftReadOnlyAddress(store.Log.TailAddress,wait: true);
+        store.Log.Flush(wait: true);
 
         var visitedKeys = new List<int>();
         var visitedValues = new List<int>();
-        void CollectKeys(Entry[] chunk,int count) {
-            for(var ci = 0; ci<count; ci++) {
-                visitedKeys.Add(chunk[ci].Key);
-                visitedValues.Add(chunk[ci].Value);
-            }
+        using var scanEnumerator = new Enumerator<ScanIteratorFunctions_Chunk,Entry>(
+            session,
+            new(),
+            store.Log.TailAddress);
+        var total = 0;
+        var safetyLimit = totalKeys*4;
+        while(scanEnumerator.MoveNext()) {
+            total++;
+            Assert.True(total<=safetyLimit,
+                $"Enumerator did not terminate at totalKeys={totalKeys}. "+
+                "Likely cause: Iterator.Count is not reset before IterateLookup, "+
+                "so Reader returns EndBatch immediately and stale chunk is replayed.");
+            var current = scanEnumerator.Current;
+            visitedKeys.Add(current.Key);
+            visitedValues.Add(current.Value);
         }
 
-        var total = this.RunChunkedIterateLookup(store,session,CollectKeys);
-        output.WriteLine($"DiskSpill total={total} distinct={visitedKeys.Distinct().Count()}");
-
-        Assert.Equal(TotalKeys,total);
-        Assert.Equal(TotalKeys,visitedKeys.Distinct().Count());
-        Assert.Equal(visitedKeys.OrderBy(static key => key).Select(static key => key*100),visitedValues.OrderBy(static value => value));
+        Assert.Equal(totalKeys,total);
+        Assert.Equal(totalKeys,visitedKeys.Distinct().Count());
+        Assert.Equal(Enumerable.Range(0,totalKeys),visitedKeys.OrderBy(static key => key));
+        Assert.Equal(
+            Enumerable.Range(0,totalKeys).Select(static key => key*10),
+            visitedValues.OrderBy(static value => value));
 
         store.Log.FlushAndEvict(wait: true);
     }
@@ -484,15 +474,28 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
     //       key を stackalloc シリアライズ → RMW → Pending をその場で解消
     //     で key/value の責務を分離する。
     // ================================================================
-    [Fact]
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(8)]
+    [InlineData(16)]
+    [InlineData(32)]
+    [InlineData(64)]
+    [InlineData(128)]
+    [InlineData(256)]
+    [InlineData(512)]
+    [InlineData(1024)]
+    [InlineData(2048)]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
-    public void DiskSpill_UpsertFromChunk_PendingHandled() {
+    public void DiskSpill_UpsertFromChunk_PendingHandled(int Count) {
+        Assert.True(Count>0);
         var folder = Path.Combine(
-            Path.GetTempPath(),
-            "IterateLookupUpsert2_"+Guid.NewGuid().ToString("N"));
+            Environment.CurrentDirectory,
+            nameof(this.DiskSpill_UpsertFromChunk_PendingHandled));
 
         using var logDevice = Devices.CreateLogDevice(
-            Path.Combine(folder,"log.data"),deleteOnClose: true);
+            Path.Combine(folder,"log.data"),deleteOnClose: false,preallocateFile:true);
 
         using var settings = new KVSettings {
             IndexSize=64,
@@ -506,8 +509,8 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         using var scanSession = CreateSession(store);
         using var upsertSession = CreateSession(store);
 
-        // 初期値 0 で 25 件挿入
-        for(var i = 0; i<TotalKeys; i++) {
+        // 初期値 0 で Count 件挿入
+        for(var i = 0; i<Count; i++) {
             UpsertValue(scanSession,i,0);
         }
 
@@ -516,17 +519,21 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
 
         var totalUpserted = 0;
 
-        var total = this.RunChunkedIterateLookup(store,scanSession,(chunk,count) => {
-            // Chunk 配列から取り出したキーを別セッションで Upsert する
-            for(var ci = 0; ci<count; ci++) {
-                UpsertValue(upsertSession,chunk[ci].Key,1);
-            }
-            totalUpserted+=count;
-        });
+        var total = 0;
+        using var scanEnumerator = new Enumerator<ScanIteratorFunctions_Chunk,Entry>(
+            scanSession,
+            new(),
+            store.Log.TailAddress);
+        while(scanEnumerator.MoveNext()) {
+            total++;
+            var current = scanEnumerator.Current;
+            UpsertValue(upsertSession,current.Key,1);
+            totalUpserted++;
+        }
 
-        output.WriteLine($"DiskSpill+Upsert total={total} upserted={totalUpserted}");
-        Assert.Equal(TotalKeys,total);
-        Assert.Equal(TotalKeys,totalUpserted);
+        output.WriteLine($"DiskSpill+Upsert Count={Count} total={total} upserted={totalUpserted}");
+        Assert.Equal(Count,total);
+        Assert.Equal(Count,totalUpserted);
 
         store.Log.FlushAndEvict(wait: true);
     }
