@@ -19,12 +19,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output){
         try{
             for(int i=0;i<16;i++){
                 var dir=TempDir($"store-{i}");
-                var store=Factory.Create(
-                    IndexSize:16,
-                    MutableFraction:0.1,
-                    MemorySize:1024*1024,
-                    CheckpointDir:Path.Combine(dir,"checkpoint")
-                ).Create<int>(
+                var store=Factory.Create(CheckpointDir:Path.Combine(dir,"checkpoint")).Create<int>(
                     Devices.CreateLogDevice(Path.Combine(dir,"log")),
                     Devices.CreateLogDevice(Path.Combine(dir,"obj")),
                     new UnmanagedTag()
@@ -48,12 +43,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output){
             for(int i=0;i<17;i++){
                 var dir=TempDir($"store-{i}");
                 try{
-                    var store=Factory.Create(
-                        IndexSize:16,
-                        MutableFraction:0.1,
-                        MemorySize:1024*1024,
-                        CheckpointDir:Path.Combine(dir,"checkpoint")
-                    ).Create<int>(
+                    var store=Factory.Create(CheckpointDir:Path.Combine(dir,"checkpoint")).Create<int>(
                         Devices.CreateLogDevice(Path.Combine(dir,"log")),
                         Devices.CreateLogDevice(Path.Combine(dir,"obj")),
                         new UnmanagedTag()
@@ -86,12 +76,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output){
             // バッチ 1: 16 ストアを作成
             for(int i=0;i<16;i++){
                 var dir=TempDir($"batch1-store-{i}");
-                var store=Factory.Create(
-                    IndexSize:16,
-                    MutableFraction:0.1,
-                    MemorySize:1024*1024,
-                    CheckpointDir:Path.Combine(dir,"checkpoint")
-                ).Create<int>(
+                var store=Factory.Create(CheckpointDir:Path.Combine(dir,"checkpoint")).Create<int>(
                     Devices.CreateLogDevice(Path.Combine(dir,"log")),
                     Devices.CreateLogDevice(Path.Combine(dir,"obj")),
                     new UnmanagedTag()
@@ -111,9 +96,6 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output){
             for(int i=0;i<16;i++){
                 var dir=TempDir($"batch2-store-{i}");
                 var store=Factory.Create(
-                    IndexSize:16,
-                    MutableFraction:0.1,
-                    MemorySize:1024*1024,
                     CheckpointDir:Path.Combine(dir,"checkpoint")
                 ).Create<int>(
                     Devices.CreateLogDevice(Path.Combine(dir,"log")),
@@ -141,9 +123,6 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output){
             for(int i=0;i<8;i++){
                 var dir=TempDir($"interleaved-{i}");
                 var store=Factory.Create(
-                    IndexSize:16,
-                    MutableFraction:0.1,
-                    MemorySize:1024*1024,
                     CheckpointDir:Path.Combine(dir,"checkpoint")
                 ).Create<int>(
                     Devices.CreateLogDevice(Path.Combine(dir,"log")),
@@ -157,12 +136,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output){
             // さらに 8 個作成 → 合計 16 個
             for(int i=0;i<8;i++){
                 var dir=TempDir($"interleaved-{8+i}");
-                var store=Factory.Create(
-                    IndexSize:16,
-                    MutableFraction:0.1,
-                    MemorySize:1024*1024,
-                    CheckpointDir:Path.Combine(dir,"checkpoint")
-                ).Create<int>(
+                var store=Factory.Create(CheckpointDir:Path.Combine(dir,"checkpoint")).Create<int>(
                     Devices.CreateLogDevice(Path.Combine(dir,"log")),
                     Devices.CreateLogDevice(Path.Combine(dir,"obj")),
                     new UnmanagedTag()
@@ -179,9 +153,6 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output){
             // 1 個作成 → スロット復帰
             var dir9=TempDir($"interleaved-reuse");
             var store9=Factory.Create(
-                IndexSize:16,
-                MutableFraction:0.1,
-                MemorySize:1024*1024,
                 CheckpointDir:Path.Combine(dir9,"checkpoint")
             ).Create<int>(
                 Devices.CreateLogDevice(Path.Combine(dir9,"log")),
@@ -195,9 +166,6 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output){
             var ex=Assert.Throws<InvalidOperationException>(()=>{
                 var dir17=TempDir($"interleaved-overflow");
                 Factory.Create(
-                    IndexSize:16,
-                    MutableFraction:0.1,
-                    MemorySize:1024*1024,
                     CheckpointDir:Path.Combine(dir17,"checkpoint")
                 ).Create<int>(
                     Devices.CreateLogDevice(Path.Combine(dir17,"log")),

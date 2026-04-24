@@ -1,7 +1,11 @@
-﻿using System.Diagnostics;
+﻿using Seamless.Stores;
+
+using System.Collections;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using Seamless.Stores;
+
+using static System.Collections.Specialized.BitVector32;
 
 namespace Seamless.Collections;
 
@@ -87,6 +91,56 @@ public abstract class Collection<
         public void OnStop(bool completed,long numberOfRecords) {
         }
         public void OnException(Exception exception,long numberOfRecords) {
+        }
+    }
+    public struct Enumerator<TIterator, T>(
+        ClientSession<
+            TSessionKey,
+            TSessionValue,
+            EqualityEmpty,
+            TReadOutput,
+            EqualityEmpty,
+            TReadFunctions,
+            TStoreFunctions,
+            TAllocator
+        > Session,
+        TIterator Iterator,
+        long initialCursor = 0
+    ):IEnumerator<T>
+        where TIterator : ScanIteratorFunctions_Chunk<T> {
+        private readonly long InitialCursor = initialCursor;
+        private long Cursor = initialCursor, Count;
+        private int Index = -1;
+        private bool Done;
+        public readonly T Current => Iterator.Chunk[this.Index];
+        readonly object? IEnumerator.Current => this.Current;
+        public bool MoveNext() {
+            if(++this.Index<this.Count)
+                return true;
+            if(this.Done) {
+                this.Index=-1;
+                return false;
+            }
+            Iterator.Count=0;
+            var Completed = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            Session.BasicContext.CompletePending(wait: true);
+            this.Count=Iterator.Count;
+            if(this.Count==0) {
+                this.Done=true;
+                this.Index=-1;
+                return false;
+            }
+            this.Done=!Completed;
+            this.Index=0;
+            return true;
+        }
+        public void Reset() {
+            this.Cursor=InitialCursor;
+            this.Count=0;
+            this.Index=-1;
+            this.Done=false;
+        }
+        public readonly void Dispose() {
         }
     }
     private protected ClientSession<
@@ -371,6 +425,7 @@ public abstract class Collection<
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private protected bool WouldOverflowMutable(int KeyLength,int ValueLength) {
+        return false;
         Debug.Assert(this.LogMemorySize>=8192);
         var Log = this.CollectionStore.Store.Log;
         return this.CollectionStore.OverflowMutableStrategyKind switch {
@@ -477,7 +532,8 @@ public abstract class Collection<
             if(self.PrivateProtectedContainsKey(ref key)) {
                 this.FoundOverlap=true;
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
-            } else{
+            }
+            else {
                 cursorRecordResult=CursorRecordResult.Accept;
             }
             return true;
@@ -511,7 +567,7 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(Other);
-        var ReadSession=self.ReadSession;
+        var ReadSession = self.ReadSession;
         var Iterator = new ScanIteratorFunctions_IsSubsetOf<TCollection>(Other,new object());
         var Cursor = 0L;
         ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
@@ -589,9 +645,9 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(other);
-        var ReadSession=other.ReadSession;
-        var Iterator=new ScanIteratorFunctions_Overlaps<TCollection>(Self,new object());
-        var Cursor=0L;
+        var ReadSession = other.ReadSession;
+        var Iterator = new ScanIteratorFunctions_Overlaps<TCollection>(Self,new object());
+        var Cursor = 0L;
         ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         return Iterator.FoundOverlap;

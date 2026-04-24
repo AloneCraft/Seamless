@@ -148,7 +148,6 @@ public abstract class HashSetIntegrateBase<TKey>
             var storeDir=this.TestDir($"{nameof(this.追加と削除を繰り返すとコンパクションで利用セグメント範囲の増え方を抑えられることを確認する)}_{scenarioName}");
             using var handle=this.CreateHandle(storeDir);
             using var hashset=handle.Create();
-            var compacted = false;
 
             for(int i=0; i<this.SegmentSteadyStateWorkingSetSize; i++) {
                 hashset.Add(this.MakeKey(i));
@@ -158,13 +157,11 @@ public abstract class HashSetIntegrateBase<TKey>
                 hashset.Add(this.MakeKey(i));
                 Assert.True(hashset.Remove(this.MakeKey(i-this.SegmentSteadyStateWorkingSetSize)),
                     $"Expected key {this.MakeKey(i-this.SegmentSteadyStateWorkingSetSize)} to exist before removal");
-
-                if(compact&&!compacted&&(i+1-this.SegmentSteadyStateWorkingSetSize)>=this.SegmentSteadyStateCheckInterval) {
-                    handle.Compact();
-                    compacted=true;
-                }
             }
 
+            if(compact) {
+                handle.Compact();
+            }
             handle.Flush();
 
             var segmentFiles=handle.CountSegmentFiles();

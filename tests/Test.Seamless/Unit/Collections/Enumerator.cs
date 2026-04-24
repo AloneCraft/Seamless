@@ -90,14 +90,41 @@ public class Enumerator {
     // HashSet における KeyEnumerable struct GetEnumerator() パス
     [Fact, Trait("Category","Unit")]
     public void MoveNext_HashSet_MultiChunk_ThreeItems() {
-        using var store = Factory.Create().Create<int>();
-        using var set = store.Create();
-        const int Count=3000;
-        for(var a=0;a<Count;a++)
-            set.Add(a);
-        var count = 0;
-        foreach(var _ in set) count++;
-        Assert.Equal(Count,count);
+        var folder = CreateDiskFolder();
+        try {
+            using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+            using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+            using var store = Factory.Create(MemorySize: Const.LogMemorySize*4,CheckpointDir: folder).Create<int>(logDevice,objDevice);
+            using var set = store.Create();
+
+            const int Count = 625;
+            var added = 0;
+            for(var i = 0; i<Count; i++) {
+                if(set.Add(i))
+                    added++;
+            }
+            Assert.Equal(Count,added);
+
+            for(var i = 0; i<Count; i++)
+                Assert.True(set.Contains(i));
+
+            var enumerated = new HashSet<int>();
+            using var e = set.GetEnumerator();
+            var steps = 0;
+            while(e.MoveNext()) {
+                steps++;
+                if(steps>Count*2)
+                    throw new Xunit.Sdk.XunitException($"Enumerator did not finish within expected steps. steps={steps}, unique={enumerated.Count}");
+                enumerated.Add(e.Current);
+            }
+            Assert.Equal(Count,enumerated.Count);
+
+            store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
+        }
+        finally {
+            try { Directory.Delete(folder,true); } catch { }
+            try { Directory.Delete(folder+"_obj",true); } catch { }
+        }
     }
 
     [Fact, Trait("Category","Unit")]

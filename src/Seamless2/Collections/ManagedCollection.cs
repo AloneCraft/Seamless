@@ -45,7 +45,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
             return new(Key,Value);
         }
     }
-    public struct Enumerator<TIterator,T>(
+    public struct Enumerator<TIterator, T>(
         ClientSession<
             FixedSpanByteKey,//TKey
             EqualityEmpty,//TInput
@@ -62,8 +62,8 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
 
 
         > {
-        private long Cursor=0,Count=Const.Chunk_Length;
-        private int Index=Const.Chunk_Length-1;
+        private long Cursor = 0, Count = Const.Chunk_Length;
+        private int Index = Const.Chunk_Length-1;
         public readonly T Current => Iterator.Chunk[this.Index];
         readonly object? IEnumerator.Current => this.Current;
         public bool MoveNext() {
@@ -71,10 +71,10 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
                 return true;
             if(this.Count<Const.Chunk_Length)
                 return false;
-            _=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
-            var count0=Iterator.Count;
+            Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            var count0 = Iterator.Count;
             Session.BasicContext.CompletePending(wait: true);
-            var count=Iterator.Count;
+            var count = Iterator.Count;
             if(count0!=count) {
 
             }

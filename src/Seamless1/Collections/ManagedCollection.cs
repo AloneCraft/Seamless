@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using System.Diagnostics;
-using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
@@ -35,60 +34,6 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
             var Key = TKeySerializer.Deserialize(key.AsReadOnlySpan());
             var Value = TValueSerializer.Deserialize(value.AsReadOnlySpan());
             return new(Key,Value);
-        }
-    }
-    public struct Enumerator<TIterator, T>(
-        ClientSession<
-            SpanByte,//TKey
-            SpanByte,//TValue
-            EqualityEmpty,//TInput
-            SpanByteAndMemory,//TOutput
-            EqualityEmpty,//TContext
-            ManagedRead,
-            ManagedStoreFunctions,
-            ManagedAllocator
-        > Session,
-        TIterator Iterator,
-        long InitialCursor = 0
-    ):IEnumerator<T>
-        where TIterator : ScanIteratorFunctions_Chunk<
-            T
-        > {
-        private long Cursor = InitialCursor, Count;
-        private int Index = -1;
-        private bool Done;
-        public readonly T Current => Iterator.Chunk[this.Index];
-        readonly object? IEnumerator.Current => this.Current;
-        public bool MoveNext() {
-            if(++this.Index<this.Count)
-                return true;
-            if(this.Done) {
-                this.Index=-1;
-                return false;
-            }
-            Iterator.Count=0;
-            var Completed=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
-            Session.BasicContext.CompletePending(wait: true);
-            var Count = Iterator.Count;
-            this.Count=Count;
-            if(Completed){
-            } else{
-                this.Done=true;
-            }
-            if(Count>0) {
-                this.Index=0;
-                return true;
-            }
-            this.Index=-1;
-            return false;
-        }
-        public void Reset() {
-            this.Cursor=0;
-            this.Count=0;
-            this.Index=-1;
-            this.Done=false;
-        }
-        public readonly void Dispose() {
         }
     }
     private protected ManagedCollection(ManagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {

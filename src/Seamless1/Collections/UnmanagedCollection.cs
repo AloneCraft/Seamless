@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using Seamless.ScanIteratorFunctions;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
@@ -70,87 +69,6 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
                 key,
                 value
             );
-    }
-    public struct Enumerator<TIterator,T>(
-        ClientSession<
-            TKey,//TKey
-            TValue,//TValue
-            EqualityEmpty,//TInput
-            TValue,//TOutput
-            EqualityEmpty,//TContext
-            UnmanagedRead<
-                TKey,
-                TValue
-            >,//TReadFunctions
-            StoreFunctions<
-                TKey,
-                TValue,
-                UnmanagedKeyComparer<
-                    TKey
-                >,
-                DefaultRecordDisposer<
-                    TKey,
-                    TValue
-                >
-            >,//TStoreFunctions
-            BlittableAllocator<
-                TKey,
-                TValue,
-                StoreFunctions<
-                    TKey,
-                    TValue,
-                    UnmanagedKeyComparer<
-                        TKey
-                    >,
-                    DefaultRecordDisposer<
-                        TKey,
-                        TValue
-                    >
-                >
-            >//TAllocator
-        > Session,
-        TIterator Iterator,
-        long InitialCursor = 0
-    ):IEnumerator<T>
-        where TIterator : ScanIteratorFunctions_Chunk<
-            T
-        > {
-        private long Cursor = InitialCursor, Count;
-        private int Index = -1;
-        private bool Done;
-        public readonly T Current => Iterator.Chunk[this.Index];
-        readonly object? IEnumerator.Current => this.Current;
-        public bool MoveNext() {
-            if(++this.Index<this.Count)
-                return true;
-            if(this.Done) {
-                this.Index=-1;
-                return false;
-            }
-            Iterator.Count=0;
-            var Completed = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
-            Session.BasicContext.CompletePending(wait: true);
-            var Count = Iterator.Count;
-            this.Count=Count;
-            if(Completed) {
-            }else{
-                this.Done=true;
-            }
-            if(Count>0) {
-                this.Index=0;
-                return true;
-            }
-            this.Index=-1;
-            return false;
-        }
-        public void Reset() {
-            this.Cursor=0;
-            this.Count=0;
-            this.Index=-1;
-            this.Done=false;
-        }
-        public readonly void Dispose() {
-        }
     }
     private protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
     }
