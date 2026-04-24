@@ -163,7 +163,7 @@ public partial class UnmanagedHashSet<TKey>
         KeyIterator,
         TKey
     > GetEnumerator() => new(this.ReadSession,new());
-    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<KeyIterator,TKey>(this.ReadMemoryClientSession,new(),this.HeadAddress);
+    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<KeyIterator,TKey>(this.ReadMemoryClientSession,new());
     private readonly struct ScanIteratorFunctions_ExceptWith(
         ClientSession<
             TKey,

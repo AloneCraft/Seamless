@@ -102,7 +102,7 @@ public partial class UnmanagedDictionary<
             TValue
         >
     > GetEnumerator() => new(this.ReadSession,new());
-    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<KeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadMemoryClientSession,new(),this.HeadAddress);
+    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<KeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadMemoryClientSession,new());
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator iterator)
     where TIterator : ScanIteratorFunctions_Chunk<T> {
         using var e = new Enumerator<TIterator,T>(this.ReadSession,iterator);

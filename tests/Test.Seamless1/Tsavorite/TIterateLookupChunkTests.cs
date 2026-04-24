@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using Seamless.Collections;
 using Tsavorite.core;
 
@@ -161,6 +162,98 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
         public void OnStop(bool completed,long numberOfRecords) { }
         public void OnException(Exception exception,long numberOfRecords) { }
     }
+
+    private class KeyScanIteratorFunctions_Chunk:IScanIteratorFunctions<int,int> {
+        public readonly int[] Chunk;
+        public int Count;
+        private long LastAcceptedAddress;
+
+        public KeyScanIteratorFunctions_Chunk(int chunkSize) {
+            this.Chunk=new int[chunkSize];
+            this.Count=0;
+        }
+
+        public bool SingleReader(ref int key,ref int value,RecordMetadata recordMetadata,
+            long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            var index = Interlocked.Increment(ref this.Count)-1;
+            if(index>=this.Chunk.Length) {
+                Volatile.Write(ref this.Count,this.Chunk.Length);
+                var lastAcceptedAddress = Volatile.Read(ref this.LastAcceptedAddress);
+                if(recordMetadata.Address==lastAcceptedAddress)
+                    cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
+                else
+                    cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
+                return true;
+            }
+            this.Chunk[index]=key;
+            Volatile.Write(ref this.LastAcceptedAddress,recordMetadata.Address);
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
+
+        public bool ConcurrentReader(ref int key,ref int value,RecordMetadata recordMetadata,
+            long numberOfRecords,out CursorRecordResult cursorRecordResult)
+            =>
+                this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+
+        public bool OnStart(long beginAddress,long endAddress) {
+            Volatile.Write(ref this.Count,0);
+            Volatile.Write(ref this.LastAcceptedAddress,0);
+            return true;
+        }
+
+        public void OnStop(bool completed,long numberOfRecords) { }
+        public void OnException(Exception exception,long numberOfRecords) { }
+    }
+
+    private struct Enumerator(
+        ClientSession<int,int,int,int,Empty,SimpleUpsertFunctions,StoreFunc,OA> session,
+        KeyScanIteratorFunctions_Chunk iterator,
+        long initialCursor = 0
+    ):IEnumerator<int> {
+        private long Cursor = initialCursor, Count;
+        private int Index = -1;
+        private bool Done;
+        public int PendingCompletionCount;
+        public readonly int Current => iterator.Chunk[this.Index];
+        readonly object? IEnumerator.Current => this.Current;
+
+        public bool MoveNext() {
+            if(++this.Index<this.Count)
+                return true;
+            if(this.Done) {
+                this.Index=-1;
+                return false;
+            }
+
+            iterator.Count=0;
+            var まだデータがある = session.IterateLookup(ref iterator,ref this.Cursor,resetCursor: false);
+            var pendingResult = session.BasicContext.CompletePending(wait: true);
+            this.PendingCompletionCount+=GetPendingCompletionCount(pendingResult);
+            this.Count=iterator.Count;
+            if(this.Count==0) {
+                this.Done=true;
+                this.Index=-1;
+                return false;
+            }
+
+            this.Done=!まだデータがある;
+
+            this.Index=0;
+            return true;
+        }
+
+        public void Reset() {
+            this.Cursor=0;
+            this.Count=0;
+            this.Index=-1;
+            this.Done=false;
+            this.PendingCompletionCount=0;
+        }
+
+        public readonly void Dispose() {
+        }
+    }
     //private class ChunkScanFunctions:IScanIteratorFunctions<SpanByte,SpanByte> {
     //    public readonly Entry[] Chunk;
     //    public int Count;
@@ -246,6 +339,36 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
         Assert.True(status.IsCompleted);
     }
 
+    private static int ReadValue(
+        ClientSession<int,int,int,int,Empty,SimpleUpsertFunctions,StoreFunc,OA> session,
+        int keyValue) {
+        var key = keyValue;
+        var output = default(int);
+        var status = session.BasicContext.Read(ref key,ref output);
+        status=CompletePending(session,status,ref output);
+        Assert.True(status.Found,$"Key {keyValue} was not found.");
+        return output;
+    }
+
+    private static void AssertEqualByKey(IReadOnlyDictionary<int,int> expected,IReadOnlyDictionary<int,int> actual) {
+        Assert.Equal(expected.Count,actual.Count);
+        Assert.Equal(
+            expected.OrderBy(static pair => pair.Key).Select(static pair => pair.Key),
+            actual.OrderBy(static pair => pair.Key).Select(static pair => pair.Key));
+        Assert.Equal(
+            expected.OrderBy(static pair => pair.Key).Select(static pair => pair.Value),
+            actual.OrderBy(static pair => pair.Key).Select(static pair => pair.Value));
+    }
+
+    private static int GetPendingCompletionCount(object? pendingResult) => pendingResult switch {
+        bool hadPending => hadPending ? 1 : 0,
+        byte count => count,
+        short count => count,
+        int count => count,
+        long count => checked((int)count),
+        _ => 0,
+    };
+
 
     // ----------------------------------------------------------------
     // IterateLookup チャンクループ本体
@@ -269,14 +392,14 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
 
         while(true) {
             var funcs = new ScanIteratorFunctions_Chunk(ChunkSize);
-            var completed = session.IterateLookup(ref funcs,ref cursor,scanUntil,resetCursor: false);
+            var まだデータがある = session.IterateLookup(ref funcs,ref cursor,scanUntil,resetCursor: false);
             // Pending の問題を防ぐため: IterateLookup がディスク I/O を発行した場合、
             // ここで Pending を完結させないと次バッチで不正なコールバックが発生しうる。
             session.BasicContext.CompletePending(wait: true);
 
             totalVisited+=funcs.Count;
             batchIndex++;
-            output.WriteLine($"batch={batchIndex} count={funcs.Count} cursor={cursor} completed={completed}");
+            output.WriteLine($"batch={batchIndex} count={funcs.Count} cursor={cursor} completed={まだデータがある}");
 
             if(funcs.Count>0) {
                 chunkProcessor?.Invoke(funcs.Chunk,funcs.Count);
@@ -286,7 +409,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
             //   true  = EndBatch 打ち切り → ループ継続 (cursor は次バッチ先頭)
             //   false = スキャン自然終了 (untilAddress 到達) → ループ終了
             if(funcs.Count==0) break;    // 安全網: 空バッチ
-            if(!completed) break;          // 自然終了
+            if(!まだデータがある) break;          // 自然終了
         }
         return totalVisited;
     }
@@ -334,6 +457,113 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
         Assert.Equal(visitedKeys.OrderBy(static key => key).Select(static key => key*100),visitedValues.OrderBy(static value => value));
 
         store.Log.FlushAndEvict(wait: true);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(8)]
+    [InlineData(16)]
+    [InlineData(32)]
+    [InlineData(64)]
+    [InlineData(128)]
+    [InlineData(256)]
+    [InlineData(512)]
+    [InlineData(1024)]
+    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
+    public void DiskBacked_Enumerator_PowerOfTwoDataSizes(int totalKeys) {
+        var folder = Path.Combine(Path.GetTempPath(),$"IterateLookupEnumerator1_{Guid.NewGuid():N}");
+        try {
+            using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
+            using var settings = new KVSettings<int,int> {
+                IndexSize=64,
+                PageSize=1L<<12,
+                SegmentSize=1L<<12,
+                MemorySize=1L<<15,
+                MutableFraction=0.05,
+                LogDevice=logDevice,
+            };
+            using var store = CreateStore(settings);
+            using var session = CreateSession(store);
+            var expected = new Dictionary<int,int>(totalKeys);
+            for(var i = 0; i<totalKeys; i++) {
+                var value = i+1;
+                UpsertValue(session,i,value);
+                expected.Add(i,value);
+            }
+
+            store.Log.ShiftReadOnlyAddress(store.Log.TailAddress,wait: true);
+            store.Log.Flush(wait: true);
+
+            var visited = new Dictionary<int,int>(totalKeys);
+            using var scanEnumerator = new Enumerator(session,new(ChunkSize),store.Log.TailAddress);
+            var total = 0;
+            var safetyLimit = totalKeys*4;
+            while(scanEnumerator.MoveNext()) {
+                total++;
+                Assert.True(total<=safetyLimit,$"Enumerator did not terminate at totalKeys={totalKeys}.");
+                var key = scanEnumerator.Current;
+                Assert.True(expected.TryGetValue(key,out var expectedValue),$"Unexpected key {key}.");
+                var actualValue = ReadValue(session,key);
+                Assert.Equal(expectedValue,actualValue);
+                Assert.True(visited.TryAdd(key,actualValue),$"Duplicate key {key} was enumerated.");
+            }
+
+            Assert.Equal(totalKeys,total);
+            AssertEqualByKey(expected,visited);
+
+            store.Log.FlushAndEvict(wait: true);
+        }
+        finally {
+            try { Directory.Delete(folder,true); } catch { }
+        }
+    }
+
+    [Fact]
+    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
+    public void DiskBacked_Enumerator_ObservesPending() {
+        const int totalKeys = 1024;
+        var folder = Path.Combine(Path.GetTempPath(),$"IterateLookupEnumeratorPending1_{Guid.NewGuid():N}");
+        try {
+            using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
+            using var settings = new KVSettings<int,int> {
+                IndexSize=64,
+                PageSize=1L<<12,
+                SegmentSize=1L<<12,
+                MemorySize=1L<<15,
+                MutableFraction=0.05,
+                LogDevice=logDevice,
+            };
+            using var store = CreateStore(settings);
+            using var session = CreateSession(store);
+            for(var i = 0; i<totalKeys; i++) {
+                UpsertValue(session,i,i+1);
+            }
+
+            store.Log.ShiftReadOnlyAddress(store.Log.TailAddress,wait: true);
+            store.Log.Flush(wait: true);
+
+            using var scanEnumerator = new Enumerator(session,new(ChunkSize),store.Log.TailAddress);
+            var count = 0;
+            var safetyLimit = totalKeys*4;
+            while(scanEnumerator.MoveNext()) {
+                _=scanEnumerator.Current;
+                count++;
+                Assert.True(count<=safetyLimit,
+                    $"Enumerator did not terminate in pending-path check. count={count} totalKeys={totalKeys}");
+            }
+
+            Assert.Equal(totalKeys,count);
+            output.WriteLine($"pending-count={scanEnumerator.PendingCompletionCount} total={count}");
+            Assert.True(scanEnumerator.PendingCompletionCount>0,
+                "Enumerator did not observe pending disk reads. Increase spill pressure if this regresses.");
+
+            store.Log.FlushAndEvict(wait: true);
+        }
+        finally {
+            try { Directory.Delete(folder,true); } catch { }
+        }
     }
 
     // ================================================================
@@ -428,33 +658,38 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
         using var store = CreateStore(settings);
         using var scanSession = CreateSession(store);
         using var upsertSession = CreateSession(store);
+        var expected = new Dictionary<int,int>(Count);
 
-        // 初期値 0 で 25 件挿入
         for(var i = 0; i<Count; i++) {
-            UpsertValue(scanSession,i,0);
+            var value = i+1;
+            UpsertValue(scanSession,i,value);
+            expected.Add(i,value);
         }
 
         // 全レコードを ReadOnly 領域へ移動
         store.Log.ShiftReadOnlyAddress(store.Log.TailAddress,wait: true);
+        store.Log.Flush(wait: true);
 
         var totalUpserted = 0;
+        var visited = new Dictionary<int,int>(Count);
 
-        // バッチ処理:
-        //   1. IterateLookup で Chunk に Entry を蓄積 (SingleReader)
-        //   2. CompletePending で IterateLookup の Pending を完結
-        //   3. 各キーをそのまま RMW し、Pending をその場で解消
-        // RunChunkedIterateLookup が store.Log.TailAddress をキャプチャするため、
-        // Upsert でログが伸びても初期 TailAddress までのスキャンに限定される。
-        var total = this.RunChunkedIterateLookup(store,scanSession,(chunk,count) => {
-            for(var ci = 0; ci<count; ci++) {
-                UpsertValue(upsertSession,chunk[ci].Key,1);
-            }
-            totalUpserted+=count;
-        });
+        using var scanEnumerator = new Enumerator(scanSession,new(ChunkSize),store.Log.TailAddress);
+        var total = 0;
+        while(scanEnumerator.MoveNext()) {
+            total++;
+            var key = scanEnumerator.Current;
+            Assert.True(expected.TryGetValue(key,out var expectedValue),$"Unexpected key {key}.");
+            var actualValue = ReadValue(upsertSession,key);
+            Assert.Equal(expectedValue,actualValue);
+            Assert.True(visited.TryAdd(key,actualValue),$"Duplicate key {key} was enumerated.");
+            UpsertValue(upsertSession,key,1);
+            totalUpserted++;
+        }
 
-        output.WriteLine($"DiskSpill+Upsert Count={Count} total={total} upserted={totalUpserted}");
+        output.WriteLine($"DiskSpill+Upsert Count={Count} total={total} upserted={totalUpserted} pending={scanEnumerator.PendingCompletionCount}");
         Assert.Equal(Count,total);
         Assert.Equal(Count,totalUpserted);
+        AssertEqualByKey(expected,visited);
 
         store.Log.FlushAndEvict(wait: true);
     }
