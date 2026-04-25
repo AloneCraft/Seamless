@@ -312,7 +312,7 @@ public sealed class ManagedHashSetBenchmark(ITestOutputHelper output):HashSetBen
             this.segmentSize=segmentSize;
             this.memorySizeBits=memorySizeBits;
             this.pageSizeBits=pageSizeBits;
-            this.rootDir=Path.Combine(Path.GetTempPath(),"Seamless-Benchmark-Test",Guid.NewGuid().ToString("N"));
+            this.rootDir=Path.Combine(Environment.CurrentDirectory,"Seamless-Benchmark-Test",Guid.NewGuid().ToString("N"));
             var checkpointDir = Path.Combine(this.rootDir,"checkpoint");
             var logPath = Path.Combine(this.rootDir,"log");
             var objPath = Path.Combine(this.rootDir,"obj");
@@ -394,7 +394,7 @@ public sealed class UnmanagedHashSetBenchmark(ITestOutputHelper output):HashSetB
             this.segmentSize=segmentSize;
             this.memorySizeBits=memorySizeBits;
             this.pageSizeBits=pageSizeBits;
-            this.rootDir=Path.Combine(Path.GetTempPath(),"Seamless-Benchmark-Test",Guid.NewGuid().ToString("N"));
+            this.rootDir=Path.Combine(Environment.CurrentDirectory,"Seamless-Benchmark-Test",Guid.NewGuid().ToString("N"));
             var checkpointDir = Path.Combine(this.rootDir,"checkpoint");
             var logPath = Path.Combine(this.rootDir,"log");
             var objPath = Path.Combine(this.rootDir,"obj");

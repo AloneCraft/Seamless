@@ -23,7 +23,7 @@ public interface ISeamlessHashSet<T>:IMemoryCollection<T>, IDisposable
     }
     void IntersectWith(ISeamlessHashSet<T> other) {
         ArgumentNullException.ThrowIfNull(other);
-        var toRemove = new List<T>();
+        var toRemove = new global::System.Collections.Generic.List<T>();
         foreach(var item in (ICollection<T>)this) if(!other.Contains(item)) toRemove.Add(item);
         foreach(var item in toRemove) this.Remove(item);
     }
@@ -60,8 +60,8 @@ public interface ISeamlessHashSet<T>:IMemoryCollection<T>, IDisposable
     }
     void SymmetricExceptWith(ISeamlessHashSet<T> other) {
         ArgumentNullException.ThrowIfNull(other);
-        var toAdd = new List<T>();
-        var toRemove = new List<T>();
+        var toAdd = new global::System.Collections.Generic.List<T>();
+        var toRemove = new global::System.Collections.Generic.List<T>();
         foreach(var item in (ICollection<T>)other) {
             if(this.Contains(item)) toRemove.Add(item);
             else toAdd.Add(item);

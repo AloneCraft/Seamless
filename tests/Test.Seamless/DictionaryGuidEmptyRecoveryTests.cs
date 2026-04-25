@@ -22,7 +22,7 @@ namespace Test.Seamless;
 /// - LoadLatest() はログのみチェックポイント（SaveLogOnly）との組み合わせで安全に使用可能。
 /// </summary>
 public class DictionaryGuidEmptyRecoveryTests{
-    private static string CreateFolder()=>Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    private static string CreateFolder()=>Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
 
     [Fact,Trait("Category","Unit")]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]

@@ -118,46 +118,42 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
 
 
             UnmanagedAllocator//TAllocator
-        > session,
-        TIterator Iterator,
-        long InitialCursor = 0
+        > Session,
+        TIterator Iterator
     ):IEnumerator<T>
         where TIterator : ScanIteratorFunctions<
             T
 
 
         > {
-        private long Cursor = InitialCursor, Count;
+        private long Cursor = 0, Count;
         private int Index = -1;
-        private bool Done;
+        private bool 最後のデータ配列か;
         public readonly T Current => Iterator.Chunk[this.Index];
         readonly object? IEnumerator.Current => this.Current;
         public bool MoveNext() {
             if(++this.Index<this.Count)
                 return true;
-            if(this.Done) {
-                this.Index=-1;
+            if(this.最後のデータ配列か) {
                 return false;
             }
-            Iterator.Count=0;
-            var r = session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
-            session.BasicContext.CompletePending(wait: true);
+            var まだデータがある = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            Session.BasicContext.CompletePending(wait: true);
             var Count = Iterator.Count;
             this.Count=Count;
-            if(!r&&Count==0)
-                this.Done=true;
+            if(!まだデータがある&&Count==0)
+                this.最後のデータ配列か=true;
             if(Count>0) {
                 this.Index=0;
                 return true;
             }
-            this.Index=-1;
             return false;
         }
         public void Reset() {
             this.Cursor=0;
             this.Count=0;
             this.Index=-1;
-            this.Done=false;
+            this.最後のデータ配列か=false;
         }
         public readonly void Dispose() {
         }

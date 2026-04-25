@@ -99,7 +99,7 @@ public class DictionaryApiSurfaceBenchmark {
             this.stringValues[i]="v"+i;
         }
 
-        this.checkpointRoot=Path.Combine(Path.GetTempPath(),"Seamless-Benchmark-Api",Guid.NewGuid().ToString("N"));
+        this.checkpointRoot=Path.Combine(Environment.CurrentDirectory,"Seamless-Benchmark-Api",Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(this.checkpointRoot);
     }
 

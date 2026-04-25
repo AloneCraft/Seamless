@@ -20,4 +20,8 @@
     <Compile Remove="G:\GitHub\Seamless\Seamless\src\Seamless\Collections\ICreate.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="ScanIteratorFunctions\" />
+  </ItemGroup>
+
 </Project>

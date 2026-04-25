@@ -28,6 +28,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\Enumerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\HashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\HashSetDebugView.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\ListTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\StoreHandle.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\UnmanagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Devices\MemoryOnlyDevice.cs" />

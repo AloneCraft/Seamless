@@ -59,33 +59,43 @@ public abstract class Collection<
     > {
     public abstract class ScanIteratorFunctions_Chunk<T>:IScanIteratorFunctions<TSessionKey,TSessionValue> {
         public readonly T[] Chunk = new T[Const.Chunk_Length];
-        public int Count;
-        private long LastAcceptedAddress;
+        public long Count;
         private protected abstract T Deserialize(ref TSessionKey key,ref TSessionValue value);
         public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
-            Debug.Assert(!recordMetadata.RecordInfo.Tombstone);
-            var index = Interlocked.Increment(ref this.Count)-1;
-            if(index>=Const.Chunk_Length) {
-                Volatile.Write(ref this.Count,Const.Chunk_Length);
-                var lastAcceptedAddress = Volatile.Read(ref this.LastAcceptedAddress);
-                //trueを返す条件はrecordMetadata.Address==lastAcceptedAddressのときのみで、これはPendingの影響で重複して読まされる最後のレコードに対してだけ起こりうる。
-                if(recordMetadata.Address==lastAcceptedAddress)
-                    cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;//Pendingの影響で重複 → RetryLastRecord 付けない
-                else
-                    cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
-                return true;
+            Debug.Assert(this.Count<=Const.Chunk_Length);
+            var Index = this.Count;
+            this.Chunk[Index]=this.Deserialize(ref key,ref value);
+            Index++;
+            if(Index==Const.Chunk_Length) {
+                cursorRecordResult=CursorRecordResult.Accept|CursorRecordResult.EndBatch;
             }
-            this.Chunk[index]=this.Deserialize(ref key,ref value);
-            Volatile.Write(ref this.LastAcceptedAddress,recordMetadata.Address);
-            cursorRecordResult=CursorRecordResult.Accept;
+            else {
+                cursorRecordResult=CursorRecordResult.Accept;
+            }
+            this.Count=Index;
             return true;
+            //Debug.Assert(!recordMetadata.RecordInfo.Tombstone);
+            //var index = Interlocked.Increment(ref this.Count)-1;
+            //if(index>=Const.Chunk_Length) {
+            //    Volatile.Write(ref this.Count,Const.Chunk_Length);
+            //    var lastAcceptedAddress = Volatile.Read(ref this.LastAcceptedAddress);
+            //    //trueを返す条件はrecordMetadata.Address==lastAcceptedAddressのときのみで、これはPendingの影響で重複して読まされる最後のレコードに対してだけ起こりうる。
+            //    if(recordMetadata.Address==lastAcceptedAddress)
+            //        cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;//Pendingの影響で重複 → RetryLastRecord 付けない
+            //    else
+            //        cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
+            //    return true;
+            //}
+            //this.Chunk[index]=this.Deserialize(ref key,ref value);
+            //Volatile.Write(ref this.LastAcceptedAddress,recordMetadata.Address);
+            //cursorRecordResult=CursorRecordResult.Accept;
+            //return true;
         }
         public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             return this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
         }
         public bool OnStart(long beginAddress,long endAddress) {
             Volatile.Write(ref this.Count,0);
-            Volatile.Write(ref this.LastAcceptedAddress,0);
             return true;
         }
         public void OnStop(bool completed,long numberOfRecords) {
@@ -104,41 +114,37 @@ public abstract class Collection<
             TStoreFunctions,
             TAllocator
         > Session,
-        TIterator Iterator,
-        long initialCursor = 0
+        TIterator Iterator
     ):IEnumerator<T>
         where TIterator : ScanIteratorFunctions_Chunk<T> {
-        private readonly long InitialCursor = initialCursor;
-        private long Cursor = initialCursor, Count;
+        private long Cursor,Count;
         private int Index = -1;
-        private bool Done;
+        private bool 最後のデータ配列か;
         public readonly T Current => Iterator.Chunk[this.Index];
         readonly object? IEnumerator.Current => this.Current;
         public bool MoveNext() {
             if(++this.Index<this.Count)
                 return true;
-            if(this.Done) {
-                this.Index=-1;
+            if(this.最後のデータ配列か) {
                 return false;
             }
-            Iterator.Count=0;
-            var Completed = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
-            Session.BasicContext.CompletePending(wait: true);
-            this.Count=Iterator.Count;
-            if(this.Count==0) {
-                this.Done=true;
-                this.Index=-1;
-                return false;
+            var まだデータがある=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            //Session.BasicContext.CompletePending(wait: true);
+            var Count = Iterator.Count;
+            this.Count=Count;
+            if(!まだデータがある&&Count==0)
+                this.最後のデータ配列か=true;
+            if(Count>0) {
+                this.Index=0;
+                return true;
             }
-            this.Done=!Completed;
-            this.Index=0;
-            return true;
+            return false;
         }
         public void Reset() {
-            this.Cursor=InitialCursor;
+            this.Cursor=0;
             this.Count=0;
             this.Index=-1;
-            this.Done=false;
+            this.最後のデータ配列か=false;
         }
         public readonly void Dispose() {
         }
@@ -441,7 +447,6 @@ public abstract class Collection<
     }
     public int Count => (int)this.GetLongCount();
     public long EntryCount => this.CollectionStore.Store.EntryCount;
-    private protected long HeadAddress => this.CollectionStore.Address.HeadAddress;
     private protected abstract Status Read(TKey Key,out TValue Output);
     public abstract bool IsDisposed { get; }
     private bool disposed;

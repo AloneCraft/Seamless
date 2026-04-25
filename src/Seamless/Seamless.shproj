@@ -11,12 +11,16 @@
   <ItemGroup>
     <Compile Include="Collections\DebugView.cs" />
     <Compile Include="Collections\EqualityEmpty.cs" />
+    <Compile Include="Collections\IMemoryCollection.cs" />
     <Compile Include="Collections\ISeamlessDictionary.cs" />
     <Compile Include="Collections\ISeamlessHashSet.cs" />
     <Compile Include="Collections\ISet.cs" />
     <Compile Include="Collections\CollectionKinds.cs" />
+    <Compile Include="Collections\List.cs" />
     <Compile Include="Collections\ManagedDictionary.cs" />
     <Compile Include="Collections\ManagedHashSet.cs" />
+    <Compile Include="Collections\ManagedList.cs" />
+    <Compile Include="Collections\UnmanagedList.cs" />
     <Compile Include="Collections\UnmanagedUnmanagedDictionary.cs" />
     <Compile Include="Collections\ManagedUnmanagedDictionary.cs" />
     <Compile Include="Collections\UnmanagedManagedDictionary.cs" />

@@ -42,9 +42,9 @@ ISeamlessDictionary<TKey,TValue>
     }
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
-    public List<KeyValuePair<TKey,TValue>> ToList() {
+    public global::System.Collections.Generic.List<KeyValuePair<TKey,TValue>> ToList() {
         using var Enumerator = this.GetEnumerator();
-        var List = new List<KeyValuePair<TKey,TValue>>();
+        var List = new global::System.Collections.Generic.List<KeyValuePair<TKey,TValue>>();
         while(Enumerator.MoveNext()) {
             List.Add(Enumerator.Current);
         }

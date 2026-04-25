@@ -14,7 +14,7 @@ public abstract class RemoveTKeyTValueTests<TKey,TValue>
     protected abstract(ISeamlessDictionary<TKey,TValue> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice);
     protected abstract void FlushAndEvict(IDisposable store);
 
-    protected static string CreateDiskFolder()=>Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    protected static string CreateDiskFolder()=>Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize=Const.MinObjectLogCapacity;
 
     private void InMemory(){

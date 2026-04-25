@@ -14,7 +14,7 @@ public class SerialRandomStressTests {
     private const int StressCountLarge = 1024;
 
     private static string CreateTempDir(string tag) {
-        var dir = Path.Combine(Path.GetTempPath(),"Seamless_Stress_"+tag+"_"+Guid.NewGuid().ToString("N"));
+        var dir = Path.Combine(Environment.CurrentDirectory,"Seamless_Stress_"+tag+"_"+Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         return dir;
     }

@@ -14,12 +14,12 @@ public abstract class DebugView<TKey> {
     [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
     public string[] Items {
         get {
-            var items = new List<string?>(Math.Min(64,MaxItems));
+            var items = new global::System.Collections.Generic.List<string?>(Math.Min(64,MaxItems));
             foreach(var item in this.Collection) {
-               if(items.Count>=MaxItems)
-                   break;
-               Debug.Assert(item!=null,nameof(item)+" != null");
-               items.Add(item.ToString());
+                if(items.Count>=MaxItems)
+                    break;
+                Debug.Assert(item!=null,nameof(item)+" != null");
+                items.Add(item.ToString());
             }
             //items.Add("abc");
             return items.ToArray()!;

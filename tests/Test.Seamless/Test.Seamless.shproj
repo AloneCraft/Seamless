@@ -37,6 +37,7 @@
     <Compile Include="Unit\Collections\Enumerator.cs" />
     <Compile Include="Unit\Collections\HashSet.cs" />
     <Compile Include="Unit\Collections\HashSetDebugView.cs" />
+    <Compile Include="Unit\Collections\ListTests.cs" />
     <Compile Include="Unit\Collections\StoreHandle.cs" />
     <Compile Include="Unit\Collections\UnmanagedHashSet.cs" />
     <Compile Include="Unit\Devices\MemoryOnlyDevice.cs" />
