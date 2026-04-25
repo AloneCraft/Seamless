@@ -208,10 +208,9 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
 
     private struct Enumerator(
         ClientSession<int,int,int,int,Empty,SimpleUpsertFunctions,StoreFunc,OA> session,
-        KeyScanIteratorFunctions_Chunk iterator,
-        long initialCursor = 0
+        KeyScanIteratorFunctions_Chunk iterator
     ):IEnumerator<int> {
-        private long Cursor = initialCursor, Count;
+        private long Cursor = 0, Count;
         private int Index = -1;
         private bool Done;
         public int PendingCompletionCount;
@@ -228,8 +227,8 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
 
             iterator.Count=0;
             var まだデータがある = session.IterateLookup(ref iterator,ref this.Cursor,resetCursor: false);
-            var pendingResult = session.BasicContext.CompletePending(wait: true);
-            this.PendingCompletionCount+=GetPendingCompletionCount(pendingResult);
+            if(session.BasicContext.CompletePending(wait: true))
+                this.PendingCompletionCount++;
             this.Count=iterator.Count;
             if(this.Count==0) {
                 this.Done=true;
@@ -359,17 +358,6 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
             expected.OrderBy(static pair => pair.Key).Select(static pair => pair.Value),
             actual.OrderBy(static pair => pair.Key).Select(static pair => pair.Value));
     }
-
-    private static int GetPendingCompletionCount(object? pendingResult) => pendingResult switch {
-        bool hadPending => hadPending ? 1 : 0,
-        byte count => count,
-        short count => count,
-        int count => count,
-        long count => checked((int)count),
-        _ => 0,
-    };
-
-
     // ----------------------------------------------------------------
     // IterateLookup チャンクループ本体
     //   戻り値: 訪問できた総レコード数
@@ -421,7 +409,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
     // ================================================================
     [Fact]
     public void InMemory_Chunk10_VisitsAll25Records() {
-        var folder = Path.Combine(Path.GetTempPath(),"IterateLookupInMem1_"+Guid.NewGuid().ToString("N"));
+        var folder = Path.Combine(Environment.CurrentDirectory,"IterateLookupInMem1_"+Guid.NewGuid().ToString("N"));
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
 
         using var settings = new KVSettings<int,int> {
@@ -440,8 +428,8 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
             UpsertValue(session,i,i*100);
         }
 
-        var visitedKeys = new List<int>();
-        var visitedValues = new List<int>();
+        var visitedKeys = new global::System.Collections.Generic.List<int>();
+        var visitedValues = new global::System.Collections.Generic.List<int>();
         void CollectKeys(Entry[] chunk,int count) {
             for(var ci = 0; ci<count; ci++) {
                 visitedKeys.Add(chunk[ci].Key);
@@ -473,7 +461,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
     [InlineData(1024)]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void DiskBacked_Enumerator_PowerOfTwoDataSizes(int totalKeys) {
-        var folder = Path.Combine(Path.GetTempPath(),$"IterateLookupEnumerator1_{Guid.NewGuid():N}");
+        var folder = Path.Combine(Environment.CurrentDirectory,$"IterateLookupEnumerator1_{Guid.NewGuid():N}");
         try {
             using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
             using var settings = new KVSettings<int,int> {
@@ -497,7 +485,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
             store.Log.Flush(wait: true);
 
             var visited = new Dictionary<int,int>(totalKeys);
-            using var scanEnumerator = new Enumerator(session,new(ChunkSize),store.Log.TailAddress);
+            using var scanEnumerator = new Enumerator(session,new(ChunkSize));
             var total = 0;
             var safetyLimit = totalKeys*4;
             while(scanEnumerator.MoveNext()) {
@@ -524,7 +512,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void DiskBacked_Enumerator_ObservesPending() {
         const int totalKeys = 1024;
-        var folder = Path.Combine(Path.GetTempPath(),$"IterateLookupEnumeratorPending1_{Guid.NewGuid():N}");
+        var folder = Path.Combine(Environment.CurrentDirectory,$"IterateLookupEnumeratorPending1_{Guid.NewGuid():N}");
         try {
             using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
             using var settings = new KVSettings<int,int> {
@@ -544,7 +532,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
             store.Log.ShiftReadOnlyAddress(store.Log.TailAddress,wait: true);
             store.Log.Flush(wait: true);
 
-            using var scanEnumerator = new Enumerator(session,new(ChunkSize),store.Log.TailAddress);
+            using var scanEnumerator = new Enumerator(session,new(ChunkSize));
             var count = 0;
             var safetyLimit = totalKeys*4;
             while(scanEnumerator.MoveNext()) {
@@ -577,7 +565,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void DiskSpill_Chunk10_VisitsAll25Records_PendingPattern() {
         var folder = Path.Combine(
-            Path.GetTempPath(),
+            Environment.CurrentDirectory,
             "IterateLookupTest1_"+Guid.NewGuid().ToString("N"));
 
         using var logDevice = Devices.CreateLogDevice(
@@ -601,8 +589,8 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
         //       IterateLookup がスキャン対象を見つけられなくなるため使わない
         store.Log.ShiftReadOnlyAddress(store.Log.TailAddress,wait: true);
 
-        var visitedKeys = new List<int>();
-        var visitedValues = new List<int>();
+        var visitedKeys = new global::System.Collections.Generic.List<int>();
+        var visitedValues = new global::System.Collections.Generic.List<int>();
         void CollectKeys(Entry[] chunk,int count) {
             for(var ci = 0; ci<count; ci++) {
                 visitedKeys.Add(chunk[ci].Key);
@@ -644,7 +632,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void DiskSpill_UpsertFromChunk_PendingHandled(int Count) {
         var folder = Path.Combine(
-            Path.GetTempPath(),
+            Environment.CurrentDirectory,
             $"{nameof(this.DiskSpill_UpsertFromChunk_PendingHandled)}_{Count}_"+Guid.NewGuid().ToString("N"));
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
         using var settings = new KVSettings<int,int> {
@@ -673,7 +661,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
         var totalUpserted = 0;
         var visited = new Dictionary<int,int>(Count);
 
-        using var scanEnumerator = new Enumerator(scanSession,new(ChunkSize),store.Log.TailAddress);
+        using var scanEnumerator = new Enumerator(scanSession,new(ChunkSize));
         var total = 0;
         while(scanEnumerator.MoveNext()) {
             total++;

@@ -81,14 +81,14 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         value=default;
         return false;
     }
-    public Enumerator<
+    public PublicEnumerator<
         KeyValueIterator,
         KeyValuePair<TKey,TValue>
-    > GetEnumerator() => new(this.ReadSession,new());
+    > GetEnumerator() => new(this.Add_ClientSession,new());
     IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new());
-    private List<T> CreateCollection<TIterator, T>(TIterator Iterator) where TIterator : ScanIteratorFunctions<T> {
-        var Collection = new List<T>();
-        using var e = new Enumerator<TIterator,T>(this.ReadSession,Iterator);
+    private global::System.Collections.Generic.List<T> CreateCollection<TIterator, T>(TIterator Iterator) where TIterator : ScanIteratorFunctions<T> {
+        var Collection = new global::System.Collections.Generic.List<T>();
+        using var e = new PublicEnumerator<TIterator,T>(this.Add_ClientSession,Iterator);
         while(e.MoveNext()) {
             Collection.Add(e.Current);
         }
@@ -96,7 +96,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
     }
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator Iterator)
         where TIterator : ScanIteratorFunctions<T> {
-        using var e = new Enumerator<TIterator,T>(this.ReadSession,Iterator);
+        using var e = new PublicEnumerator<TIterator,T>(this.Add_ClientSession,Iterator);
         while(e.MoveNext())
             yield return e.Current;
     }

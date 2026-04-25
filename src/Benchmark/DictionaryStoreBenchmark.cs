@@ -25,7 +25,7 @@ public class DictionaryStoreBenchmark {
         for(var i = 0; i<this.keys.Length; i++)
             this.keys[i]=i;
 
-        this.checkpointRoot=Path.Combine(Path.GetTempPath(),"Seamless-Benchmark-Checkpoints",Guid.NewGuid().ToString("N"));
+        this.checkpointRoot=Path.Combine(Environment.CurrentDirectory,"Seamless-Benchmark-Checkpoints",Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(this.checkpointRoot);
     }
 

@@ -299,7 +299,7 @@ public class SpanByteIterateLookupChunkTests(ITestOutputHelper output) {
     // ================================================================
     [Fact]
     public void InMemory_Chunk10_VisitsAll25Records() {
-        var folder = Path.Combine(Path.GetTempPath(),"IterateLookupInMem1_"+Guid.NewGuid().ToString("N"));
+        var folder = Path.Combine(Environment.CurrentDirectory,"IterateLookupInMem1_"+Guid.NewGuid().ToString("N"));
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
 
         using var settings = new KVSettings<int,int> {
@@ -318,8 +318,8 @@ public class SpanByteIterateLookupChunkTests(ITestOutputHelper output) {
             UpsertValue(session,i,i*100);
         }
 
-        var visitedKeys = new List<int>();
-        var visitedValues = new List<int>();
+        var visitedKeys = new global::System.Collections.Generic.List<int>();
+        var visitedValues = new global::System.Collections.Generic.List<int>();
         void CollectKeys(Entry[] chunk,int count) {
             for(var ci = 0; ci<count; ci++) {
                 visitedKeys.Add(chunk[ci].Key);

@@ -42,40 +42,113 @@ public abstract class Collection<
     > {
     public abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions {
         public readonly T[] Chunk = new T[Const.Chunk_Length];
-        public int Count;
-        private long LastAcceptedAddress;
+        public int Count, Sum;
+        public long LastAcceptedAddress;
+        public bool SkipLastAcceptedAddressOnce;
+        public bool ストレージにデータがあるか;
+        private readonly object Sync = new();
         private protected virtual bool ShouldRead<TSourceLogRecord>(in TSourceLogRecord logRecord)
             where TSourceLogRecord : ISourceLogRecord => true;
+        internal bool CanRead<TSourceLogRecord>(in TSourceLogRecord logRecord)
+            where TSourceLogRecord : ISourceLogRecord => this.ShouldRead(logRecord);
+        internal T Project<TSourceLogRecord>(in TSourceLogRecord logRecord)
+            where TSourceLogRecord : ISourceLogRecord => this.Deserialize(logRecord);
         private protected abstract T Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) where TSourceLogRecord : ISourceLogRecord;
+        /// <summary>
+        /// Reader は IterateLookup から callback される。
+        /// acceptedCount は callback 後に進むため、Chunk 上限到達時は現在レコードを次回へ回す必要がある。
+        /// そのため上限到達時は Skip | EndBatch | RetryLastRecord を返し、Count は callback 側では増やさない。
+        /// </summary>
+        /// <typeparam name="TSourceLogRecord"></typeparam>
+        /// <param name="logRecord"></param>
+        /// <param name="recordMetadata"></param>
+        /// <param name="numberOfRecords"></param>
+        /// <param name="cursorRecordResult"></param>
+        /// <returns></returns>
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) where TSourceLogRecord : ISourceLogRecord {
-            if(!this.ShouldRead(logRecord)) {
+            if(this.Count>=Const.Chunk_Length) {
+                //メモリで完結する場合はここは通らない。
+                //ここを通るのは、ストレージを伴う場合で、かつChunkの上限に達した場合。
+                //this.LastAcceptedAddress=recordMetadata.Address;//次回の走査でこのレコードを再度読むため、RetryLastRecord を返す。
+                cursorRecordResult=CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;//ストレージの場合はここは無視されるが、念のため EndBatch も返す。
+                this.ストレージにデータがあるか=true;
+                return false;
+            }
+            if(this.SkipLastAcceptedAddressOnce&&recordMetadata.Address==this.LastAcceptedAddress) {
+                this.SkipLastAcceptedAddressOnce=false;
                 cursorRecordResult=CursorRecordResult.Skip;
                 return true;
             }
-            Debug.Assert(!logRecord.Info.Tombstone);
-            var Index = Interlocked.Increment(ref this.Count)-1;
-            if(Index>=Const.Chunk_Length) {
-                Volatile.Write(ref this.Count,Const.Chunk_Length);
-                var lastAcceptedAddress = Volatile.Read(ref this.LastAcceptedAddress);
-                if(recordMetadata.Address==lastAcceptedAddress)
-                    cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;//Pendingの影響で重複 → RetryLastRecord 付けない
-                else
-                    cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
+            // 重複読み込み防止（以前の議論のロジック）
+            if(recordMetadata.Address==this.LastAcceptedAddress) {
+                cursorRecordResult=CursorRecordResult.Skip;
                 return true;
             }
-            this.Chunk[Index]=this.Deserialize(logRecord);
-            Volatile.Write(ref this.LastAcceptedAddress,recordMetadata.Address);
+            // データの処理
+            this.Chunk[this.Count]=this.Deserialize(logRecord);
+            this.Count++;
+            this.LastAcceptedAddress=recordMetadata.Address;
+            if(this.Count==Const.Chunk_Length) {
+                cursorRecordResult=CursorRecordResult.EndBatch;
+                return true;
+            }
+
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
+            // lock(this.Sync) {
+            //     Debug.Assert(!logRecord.Info.Tombstone);
+            //     if(!this.ShouldRead(logRecord)) {
+            //         cursorRecordResult=CursorRecordResult.Skip;
+            //         return true;
+            //     }
+            //     Debug.Assert(this.Count<=Const.Chunk_Length);
+            //     var Index = this.Count;
+            //     this.Chunk[Index]=this.Deserialize(logRecord);
+            //     Index++;
+            //     if(Index==Const.Chunk_Length) {
+            //         cursorRecordResult=CursorRecordResult.Accept|CursorRecordResult.EndBatch;
+            //     }
+            //     else {
+            //         cursorRecordResult=CursorRecordResult.Accept;
+            //     }
+            //     this.Count=Index;
+            //     this.Sum++;
+            //     return true;
+            // }
         }
         public bool OnStart(long beginAddress,long endAddress) {
-            Volatile.Write(ref this.Count,0);
-            Volatile.Write(ref this.LastAcceptedAddress,0);
+            lock(this.Sync)
+                this.Count=0;
+            this.SkipLastAcceptedAddressOnce=false;
+            this.ストレージにデータがあるか=false;
             return true;
         }
         public void OnStop(bool completed,long numberOfRecords) {
         }
         public void OnException(Exception exception,long numberOfRecords) {
+        }
+    }
+
+    internal sealed class MaterializedScanIteratorFunctions<TIterator, T>(TIterator iterator):IScanIteratorFunctions
+        where TIterator : ScanIteratorFunctions<T> {
+        private readonly object Sync = new();
+        internal global::System.Collections.Generic.List<T> Items { get; } = [];
+        public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+            where TSourceLogRecord : ISourceLogRecord {
+            if(!iterator.CanRead(logRecord)||logRecord.Info.Tombstone) {
+                cursorRecordResult=CursorRecordResult.Skip;
+                return true;
+            }
+            lock(this.Sync)
+                this.Items.Add(iterator.Project(logRecord));
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
+        public bool OnStart(long beginAddress,long endAddress) => true;
+        public void OnStop(bool completed,long numberOfRecords) {
+        }
+        public void OnException(Exception exception,long numberOfRecords) {
+            throw exception;
         }
     }
 
@@ -347,7 +420,6 @@ public abstract class Collection<
     }
     public int Count => (int)this.GetLongCount();
     public long EntryCount => this.CollectionStore.Store.EntryCount;
-    private protected long HeadAddress => this.CollectionStore.Address.HeadAddress;
     private protected abstract Status Read(TKey Key,out TValue Output);
     public abstract bool IsDisposed { get; }
     private bool disposed;
@@ -513,9 +585,9 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(other);
-        var ReadSession=other.ReadSession;
-        var Iterator=new ScanIteratorFunctions_Overlaps<TCollection>(self);
-        var Cursor=0L;
+        var ReadSession = other.ReadSession;
+        var Iterator = new ScanIteratorFunctions_Overlaps<TCollection>(self);
+        var Cursor = 0L;
         ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
         return Iterator.FoundOverlap;
@@ -571,7 +643,7 @@ public abstract class Collection<
         > {
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = self.ReadSession;
-        var keysToExpire = new List<byte[]>();
+        var keysToExpire = new global::System.Collections.Generic.List<byte[]>();
         var Iterator = new ScanIteratorFunctions_IntersectWith<TCollection>(other,keysToExpire);
         var untilAddress = self.CollectionStore.Address.TailAddress;
         // IntersectWith は走査しながら RMW で tombstone を追記するため、
@@ -582,10 +654,9 @@ public abstract class Collection<
         foreach(var keyBytes in keysToExpire) {
             var input = default(EqualityEmpty);
             var output = default(EqualityEmpty);
-            Status status;
             unsafe {
                 fixed(byte* _ = keyBytes) {
-                    status=Session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref output);
+                    var status = Session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref output);
                     Pending(Session,status,ref output);
                 }
             }
@@ -617,7 +688,7 @@ public abstract class Collection<
         > {
         ArgumentNullException.ThrowIfNull(other);
         var ReadSession = other.ReadSession;
-        var keysToToggle = new List<byte[]>();
+        var keysToToggle = new global::System.Collections.Generic.List<byte[]>();
         var Iterator = new ScanIteratorFunctions_SymmetricExceptWith(keysToToggle);
         var Cursor = 0L;
         ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
@@ -625,10 +696,9 @@ public abstract class Collection<
         foreach(var keyBytes in keysToToggle) {
             var input = default(EqualityEmpty);
             var output = default(EqualityEmpty);
-            Status status;
             unsafe {
                 fixed(byte* _ = keyBytes) {
-                    status=Session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref output);
+                    var status = Session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref output);
                     Pending(Session,status,ref output);
                 }
             }
@@ -657,7 +727,7 @@ public abstract class Collection<
     }
     private readonly struct ScanIteratorFunctions_IntersectWith<TCollection>(
         TCollection other,
-        List<byte[]> keysToExpire
+        global::System.Collections.Generic.List<byte[]> keysToExpire
     ):IScanIteratorFunctions
         where TCollection : Collection<
             TKey,
@@ -674,7 +744,8 @@ public abstract class Collection<
             where TSourceLogRecord : ISourceLogRecord {
             var KeyBytes = logRecord.Key;
             if(other.PrivateProtectedContainsKey(KeyBytes)) {
-            }else{
+            }
+            else {
                 keysToExpire.Add(KeyBytes.ToArray());
             }
             cursorRecordResult=CursorRecordResult.Accept;
@@ -742,7 +813,7 @@ public abstract class Collection<
         public void OnStop(bool completed,long numberOfRecords) { }
     }
     private protected readonly struct ScanIteratorFunctions_SymmetricExceptWith(
-        List<byte[]> keysToToggle
+        global::System.Collections.Generic.List<byte[]> keysToToggle
     ):IScanIteratorFunctions {
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {

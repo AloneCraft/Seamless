@@ -13,11 +13,14 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\List.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedList.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\CollectionKinds.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedUnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedList.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\UnmanagedUnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\KindHashSets.cs" />

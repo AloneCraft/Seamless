@@ -11,7 +11,7 @@ namespace Test.Seamless.Tsavorite;
 [Collection("TsavoriteTests")]
 public class LightEpochInstanceLimitTests2(ITestOutputHelper output) {
     private static string TempDir(string name) =>
-        Path.Combine(Path.GetTempPath(),"LightEpochTest",Guid.NewGuid().ToString("N"),name);
+        Path.Combine(Environment.CurrentDirectory,"LightEpochTest",Guid.NewGuid().ToString("N"),name);
 
     private sealed class NativeStoreHandle:IDisposable {
         private readonly string rootDir;
@@ -63,7 +63,7 @@ public class LightEpochInstanceLimitTests2(ITestOutputHelper output) {
 
     [Fact]
     public void Can_Create_16_Stores() {
-        var stores = new List<NativeStoreHandle>();
+        var stores = new global::System.Collections.Generic.List<NativeStoreHandle>();
         try {
             for(int i = 0; i<16; i++) {
                 var store = CreateNativeStore($"store-{i}");
@@ -81,7 +81,7 @@ public class LightEpochInstanceLimitTests2(ITestOutputHelper output) {
 
     [Fact]
     public void Cannot_Create_17_Stores_Simultaneously() {
-        var stores = new List<NativeStoreHandle>();
+        var stores = new global::System.Collections.Generic.List<NativeStoreHandle>();
 
         try {
             for(int i = 0; i<17; i++) {
@@ -111,7 +111,7 @@ public class LightEpochInstanceLimitTests2(ITestOutputHelper output) {
 
     [Fact]
     public void Can_Reuse_Slots_After_Dispose() {
-        var stores = new List<NativeStoreHandle>();
+        var stores = new global::System.Collections.Generic.List<NativeStoreHandle>();
 
         try {
             // バッチ 1: 16 ストアを作成

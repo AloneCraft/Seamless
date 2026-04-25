@@ -5,8 +5,8 @@ namespace Test.Seamless.Collections;
 
 public class StoreCheckpoint
 {
-    //private static string CreateFolder()=>Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
-    private static string CreateFolder() => Path.Combine(Path.GetTempPath(), "SeamlessTest");
+    //private static string CreateFolder()=>Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    private static string CreateFolder() => Path.Combine(Environment.CurrentDirectory, "SeamlessTest");
     [Fact, Trait("Category", "Unit")]
     public async Task SaveAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー()
     {

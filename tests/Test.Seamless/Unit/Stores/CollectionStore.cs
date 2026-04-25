@@ -7,7 +7,7 @@ namespace Test.Seamless.Unit.Stores;
 /// </summary>
 
 public class CollectionStore {
-    private static string CreateFolder() => Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    private static string CreateFolder() => Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     private const long TestMemorySize = global::Seamless.Const.MinObjectLogCapacity;
     //CollectionStore �R���X�g���N�^: ObjectLogDevice.Capacity<0 �̕���
     //Capacity=-1�̃f�o�C�X��n����ObjectLogSegmentSize=Const.MinObjectLogCapacity�ɂȂ�

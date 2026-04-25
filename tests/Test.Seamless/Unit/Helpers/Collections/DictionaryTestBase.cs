@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Tsavorite.core;
 namespace Test.Seamless.Unit.Helpers.Collections;
@@ -12,7 +12,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
     private static string CreateDiskFolder() =>
-        Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+        Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     [Fact, Trait("Category","Unit")]
     public void TryAdd(){
         {

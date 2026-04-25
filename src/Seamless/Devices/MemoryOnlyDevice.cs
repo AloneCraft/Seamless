@@ -23,7 +23,7 @@ public sealed class MemoryOnlyDevice:StorageDeviceBase{
     /// <param name="context"></param>
     /// <exception cref="IOException"></exception>
     public override void WriteAsync(IntPtr sourceAddress,int segmentId,ulong destinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object context){
-        throw new IOException(nameof(WriteAsync));
+        throw new OutOfMemoryException(nameof(WriteAsync));
     }
     /// <summary>
     /// HandCapacity を超える書き込み要求があった場合に呼び出される。セグメントに属するページをすべて解放し、確保量を減算する。

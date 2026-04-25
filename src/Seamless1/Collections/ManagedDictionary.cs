@@ -91,9 +91,9 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         KeyValueIterator,
         KeyValuePair<TKey,TValue>
     > GetEnumerator() => new(this.ReadSession,new());
-    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<KeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadMemoryClientSession,new(),this.HeadAddress);
-    private List<T> CreateCollection<TIterator, T>(TIterator Iterator) where TIterator : ScanIteratorFunctions_Chunk<T>{
-        var Collection = new List<T>();
+    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<KeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadMemoryClientSession,new());
+    private global::System.Collections.Generic.List<T> CreateCollection<TIterator, T>(TIterator Iterator) where TIterator : ScanIteratorFunctions_Chunk<T> {
+        var Collection = new global::System.Collections.Generic.List<T>();
         using var e = new Enumerator<TIterator,T>(this.ReadSession,Iterator);
         while(e.MoveNext()) {
             Collection.Add(e.Current);

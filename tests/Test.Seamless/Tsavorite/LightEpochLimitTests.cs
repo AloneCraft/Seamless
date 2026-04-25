@@ -17,13 +17,14 @@ public class LightEpochLimitTests {
     /// </summary>
     [Fact]
     public void MaxInstances_16Stores_AllSucceed() {
-        var stores = new List<UnmanagedUnmanagedDictionaryStore<int,int>>();
+        var stores = new global::System.Collections.Generic.List<UnmanagedUnmanagedDictionaryStore<int,int>>();
         try {
-            for(var i = 0;i < 16;i++) {
+            for(var i = 0; i<16; i++) {
                 stores.Add(Factory.Create().Create<int,int>());
             }
             Assert.Equal(16,stores.Count);
-        } finally {
+        }
+        finally {
             foreach(var s in stores) s.Dispose();
         }
     }
@@ -35,15 +36,16 @@ public class LightEpochLimitTests {
     /// </summary>
     [Fact]
     public void MaxInstances_17thStore_ThrowsException() {
-        var stores = new List<UnmanagedUnmanagedDictionaryStore<int,int>>();
+        var stores = new global::System.Collections.Generic.List<UnmanagedUnmanagedDictionaryStore<int,int>>();
         try {
-            for(var i = 0;i < 16;i++) {
+            for(var i = 0; i<16; i++) {
                 stores.Add(Factory.Create().Create<int,int>());
             }
             Assert.ThrowsAny<Exception>(() => {
                 using var extra = Factory.Create().Create<int,int>();
             });
-        } finally {
+        }
+        finally {
             foreach(var s in stores) s.Dispose();
         }
     }
@@ -65,7 +67,8 @@ public class LightEpochLimitTests {
                 barrier.SignalAndWait();
                 using var dict = store.Create();
                 dict.Add(i,i);
-            } catch(Exception ex) {
+            }
+            catch(Exception ex) {
                 errors.Add(ex);
             }
         })).ToArray();
@@ -92,13 +95,14 @@ public class LightEpochLimitTests {
     [Fact]
     public void SessionCount_25Dicts_AllSucceed() {
         using var store = Factory.Create().Create<int,int>();
-        var dicts = new List<IDisposable>();
+        var dicts = new global::System.Collections.Generic.List<IDisposable>();
         try {
-            for(var i = 0;i < 25;i++) {
+            for(var i = 0; i<25; i++) {
                 dicts.Add(store.Create());
             }
             Assert.Equal(25,dicts.Count);
-        } finally {
+        }
+        finally {
             foreach(var d in dicts) d.Dispose();
         }
     }
@@ -111,13 +115,14 @@ public class LightEpochLimitTests {
         // kTableSize = 128 はセッション生成数の上限ではなく、
         // 同時 epoch 保持スレッド数の上限。26 dict (130 session) でも作成は成功する。
         using var store = Factory.Create().Create<int,int>();
-        var dicts = new List<IDisposable>();
+        var dicts = new global::System.Collections.Generic.List<IDisposable>();
         try {
-            for(var i = 0;i < 26;i++) {
+            for(var i = 0; i<26; i++) {
                 dicts.Add(store.Create());
             }
             Assert.Equal(26,dicts.Count);
-        } finally {
+        }
+        finally {
             foreach(var d in dicts) d.Dispose();
         }
     }
@@ -129,14 +134,15 @@ public class LightEpochLimitTests {
     public void SessionCount_DisposeAndRecreate_Succeeds() {
         using var store = Factory.Create().Create<int,int>();
         // 25 個作成 → 全 Dispose → 再び 25 個作成できる
-        for(var round = 0;round < 2;round++) {
-            var dicts = new List<IDisposable>();
+        for(var round = 0; round<2; round++) {
+            var dicts = new global::System.Collections.Generic.List<IDisposable>();
             try {
-                for(var i = 0;i < 25;i++) {
+                for(var i = 0; i<25; i++) {
                     dicts.Add(store.Create());
                 }
                 Assert.Equal(25,dicts.Count);
-            } finally {
+            }
+            finally {
                 foreach(var d in dicts) d.Dispose();
             }
         }

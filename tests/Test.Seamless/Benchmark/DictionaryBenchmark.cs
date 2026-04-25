@@ -160,7 +160,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
             dict => {
-                var list = new List<KeyValuePair<TKey,TValue>>((int)Scaled);
+                var list = new global::System.Collections.Generic.List<KeyValuePair<TKey,TValue>>((int)Scaled);
                 foreach(var kv in dict) list.Add(kv);
             },
             nameof(this.Dictionary_ToList));
@@ -385,7 +385,7 @@ public sealed class ManagedDictionaryBenchmark(ITestOutputHelper output):Diction
             this.segmentSize=segmentSize;
             this.memorySizeBits=memorySizeBits;
             this.pageSizeBits=pageSizeBits;
-            this.rootDir=Path.Combine(Path.GetTempPath(),"Seamless-Benchmark-Test",Guid.NewGuid().ToString("N"));
+            this.rootDir=Path.Combine(Environment.CurrentDirectory,"Seamless-Benchmark-Test",Guid.NewGuid().ToString("N"));
             var checkpointDir = Path.Combine(this.rootDir,"checkpoint");
             var logPath = Path.Combine(this.rootDir,"log");
             var objPath = Path.Combine(this.rootDir,"obj");
@@ -456,7 +456,7 @@ public sealed class UnmanagedDictionaryBenchmark(ITestOutputHelper output):Dicti
             this.segmentSize=segmentSize;
             this.memorySizeBits=memorySizeBits;
             this.pageSizeBits=pageSizeBits;
-            this.rootDir=Path.Combine(Path.GetTempPath(),"Seamless-Benchmark-Test",Guid.NewGuid().ToString("N"));
+            this.rootDir=Path.Combine(Environment.CurrentDirectory,"Seamless-Benchmark-Test",Guid.NewGuid().ToString("N"));
             var checkpointDir = Path.Combine(this.rootDir,"checkpoint");
             var logPath = Path.Combine(this.rootDir,"log");
             var objPath = Path.Combine(this.rootDir,"obj");

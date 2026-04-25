@@ -11,8 +11,7 @@ namespace Test.Seamless.Integrate;
 /// セグメントファイルがどんどん作成される様子をテストする。
 /// </summary>
 public abstract class HashSetIntegrateBase<TKey>
-    where TKey : IEquatable<TKey>
-{
+    where TKey : IEquatable<TKey> {
     private static int TestDirSequence;
     private readonly ITestOutputHelper output;
 
@@ -22,7 +21,7 @@ public abstract class HashSetIntegrateBase<TKey>
 
     protected abstract string TestClassName { get; }
     protected abstract TKey MakeKey(int i);
-    protected abstract Handle CreateHandle(string rootDir,string? checkpointDir=null,bool deleteOnDispose=true);
+    protected abstract Handle CreateHandle(string rootDir,string? checkpointDir = null,bool deleteOnDispose = true);
     protected virtual int SegmentsCreatedDataSize => 5000;
     protected virtual int SegmentsCreatedCheckInterval => 500;
     protected virtual int SegmentGrowthDataSize => 3000;
@@ -39,13 +38,13 @@ public abstract class HashSetIntegrateBase<TKey>
     private string TestDir(string methodName) =>
         Path.Combine(AppContext.BaseDirectory,this.TestClassName,$"t{Interlocked.Increment(ref TestDirSequence):D4}_{Guid.NewGuid():N}");
 
-    protected abstract class Handle : IDisposable {
+    protected abstract class Handle:IDisposable {
         protected readonly string rootDir;
         protected readonly IDevice logDevice;
         protected readonly IDevice objDevice;
         private readonly bool deleteOnDispose;
 
-        protected Handle(string rootDir,bool deleteOnDispose=true) {
+        protected Handle(string rootDir,bool deleteOnDispose = true) {
             this.rootDir=rootDir;
             this.deleteOnDispose=deleteOnDispose;
             Directory.CreateDirectory(rootDir);
@@ -73,33 +72,33 @@ public abstract class HashSetIntegrateBase<TKey>
     }
 
     private int GetActiveSegmentCount(Handle handle) {
-        var beginAddress=handle.GetBeginAddress();
-        var tailAddress=handle.GetTailAddress();
-        var bytesInUse=Math.Max(0,tailAddress-beginAddress);
-        var segmentCount=(bytesInUse+this.SegmentSizeBytes-1)/this.SegmentSizeBytes;
+        var beginAddress = handle.GetBeginAddress();
+        var tailAddress = handle.GetTailAddress();
+        var bytesInUse = Math.Max(0,tailAddress-beginAddress);
+        var segmentCount = (bytesInUse+this.SegmentSizeBytes-1)/this.SegmentSizeBytes;
         return Math.Max(1,(int)segmentCount);
     }
 
     [Fact]
     public void データ追加中にセグメントファイルが増加することを確認する() {
-        var storeDir=this.TestDir(nameof(this.データ追加中にセグメントファイルが増加することを確認する));
-        using var handle=this.CreateHandle(storeDir);
-        using var hashset=handle.Create();
+        var storeDir = this.TestDir(nameof(this.データ追加中にセグメントファイルが増加することを確認する));
+        using var handle = this.CreateHandle(storeDir);
+        using var hashset = handle.Create();
 
-        var initialSegmentCount=handle.CountSegmentFiles();
+        var initialSegmentCount = handle.CountSegmentFiles();
         this.output.WriteLine($"[Initial] Segment files: {initialSegmentCount}");
 
         try {
-            for(int i=0; i<this.SegmentsCreatedDataSize; i++) {
+            for(int i = 0; i<this.SegmentsCreatedDataSize; i++) {
                 hashset.Add(this.MakeKey(i));
 
                 if((i+1)%this.SegmentsCreatedCheckInterval==0) {
-                    var segmentCount=handle.CountSegmentFiles();
+                    var segmentCount = handle.CountSegmentFiles();
                     this.output.WriteLine($"[After {i+1} adds] Segment files: {segmentCount}");
                 }
             }
 
-            var finalSegmentCount=handle.CountSegmentFiles();
+            var finalSegmentCount = handle.CountSegmentFiles();
             this.output.WriteLine($"[Final] Segment files: {finalSegmentCount}");
             this.output.WriteLine($"✓ Segments created: {finalSegmentCount} files");
 
@@ -111,26 +110,26 @@ public abstract class HashSetIntegrateBase<TKey>
 
     [Fact]
     public void セグメント数がデータ追加に伴い単調増加することを確認する() {
-        var storeDir=this.TestDir(nameof(this.セグメント数がデータ追加に伴い単調増加することを確認する));
-        using var handle=this.CreateHandle(storeDir);
-        using var hashset=handle.Create();
+        var storeDir = this.TestDir(nameof(this.セグメント数がデータ追加に伴い単調増加することを確認する));
+        using var handle = this.CreateHandle(storeDir);
+        using var hashset = handle.Create();
 
-        var segmentCounts=new List<int>();
-        var addCountAtSnapshots=new List<int>();
+        var segmentCounts = new global::System.Collections.Generic.List<int>();
+        var addCountAtSnapshots = new global::System.Collections.Generic.List<int>();
 
         try {
-            for(int i=0; i<this.SegmentGrowthDataSize; i++) {
+            for(int i = 0; i<this.SegmentGrowthDataSize; i++) {
                 hashset.Add(this.MakeKey(i));
 
                 if((i+1)%this.SegmentGrowthCheckInterval==0) {
-                    var count=handle.CountSegmentFiles();
+                    var count = handle.CountSegmentFiles();
                     segmentCounts.Add(count);
                     addCountAtSnapshots.Add(i+1);
                     this.output.WriteLine($"[{i+1} adds] Segments: {count}");
                 }
             }
 
-            for(int i=1; i<segmentCounts.Count; i++) {
+            for(int i = 1; i<segmentCounts.Count; i++) {
                 Assert.True(segmentCounts[i]>=segmentCounts[i-1],
                     $"Segment count decreased at iteration {i}: {segmentCounts[i-1]} -> {segmentCounts[i]}");
             }
@@ -145,15 +144,15 @@ public abstract class HashSetIntegrateBase<TKey>
             $"Expected SegmentSteadyStateDataSize ({this.SegmentSteadyStateDataSize}) to exceed working set size ({this.SegmentSteadyStateWorkingSetSize})");
 
         (int SegmentFiles,int ActiveSegments,long BeginAddress,int Count) RunScenario(string scenarioName,bool compact) {
-            var storeDir=this.TestDir($"{nameof(this.追加と削除を繰り返すとコンパクションで利用セグメント範囲の増え方を抑えられることを確認する)}_{scenarioName}");
-            using var handle=this.CreateHandle(storeDir);
-            using var hashset=handle.Create();
+            var storeDir = this.TestDir($"{nameof(this.追加と削除を繰り返すとコンパクションで利用セグメント範囲の増え方を抑えられることを確認する)}_{scenarioName}");
+            using var handle = this.CreateHandle(storeDir);
+            using var hashset = handle.Create();
 
-            for(int i=0; i<this.SegmentSteadyStateWorkingSetSize; i++) {
+            for(int i = 0; i<this.SegmentSteadyStateWorkingSetSize; i++) {
                 hashset.Add(this.MakeKey(i));
             }
 
-            for(int i=this.SegmentSteadyStateWorkingSetSize; i<this.SegmentSteadyStateDataSize; i++) {
+            for(int i = this.SegmentSteadyStateWorkingSetSize; i<this.SegmentSteadyStateDataSize; i++) {
                 hashset.Add(this.MakeKey(i));
                 Assert.True(hashset.Remove(this.MakeKey(i-this.SegmentSteadyStateWorkingSetSize)),
                     $"Expected key {this.MakeKey(i-this.SegmentSteadyStateWorkingSetSize)} to exist before removal");
@@ -164,16 +163,16 @@ public abstract class HashSetIntegrateBase<TKey>
             }
             handle.Flush();
 
-            var segmentFiles=handle.CountSegmentFiles();
-            var activeSegments=this.GetActiveSegmentCount(handle);
-            var beginAddress=handle.GetBeginAddress();
+            var segmentFiles = handle.CountSegmentFiles();
+            var activeSegments = this.GetActiveSegmentCount(handle);
+            var beginAddress = handle.GetBeginAddress();
             this.output.WriteLine($"[{scenarioName}] Segment files: {segmentFiles}, Active segments: {activeSegments}, BeginAddress: {beginAddress}, Count: {hashset.Count}");
 
             return (segmentFiles,activeSegments,beginAddress,hashset.Count);
         }
 
-        var withoutCompaction=RunScenario("without_compaction",compact: false);
-        var withCompaction=RunScenario("with_compaction",compact: true);
+        var withoutCompaction = RunScenario("without_compaction",compact: false);
+        var withCompaction = RunScenario("with_compaction",compact: true);
 
         Assert.Equal(this.SegmentSteadyStateWorkingSetSize,withoutCompaction.Count);
         Assert.Equal(this.SegmentSteadyStateWorkingSetSize,withCompaction.Count);
@@ -185,28 +184,28 @@ public abstract class HashSetIntegrateBase<TKey>
 
     [Fact(Skip = "Long-running Tsavorite truncation observation test. Run manually when investigating Refresh/truncation behavior.")]
     public void 複数HashSetで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される() {
-        var storeDir=this.TestDir(nameof(this.複数HashSetで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される));
+        var storeDir = this.TestDir(nameof(this.複数HashSetで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される));
         try {
-            using var handle=this.CreateHandle(storeDir);
-            using var owner=handle.Create();
-            using var sibling1=handle.Create();
-            using var sibling2=handle.Create();
+            using var handle = this.CreateHandle(storeDir);
+            using var owner = handle.Create();
+            using var sibling1 = handle.Create();
+            using var sibling2 = handle.Create();
 
-            for(int i=0; i<this.RefreshWorkingSetSize; i++) {
+            for(int i = 0; i<this.RefreshWorkingSetSize; i++) {
                 Assert.True(owner.Add(this.MakeKey(i)),$"Expected initial add for key {this.MakeKey(i)} to succeed");
             }
-            for(int i=0; i<this.RefreshWorkingSetSize; i++) {
+            for(int i = 0; i<this.RefreshWorkingSetSize; i++) {
                 Assert.True(sibling1.Contains(this.MakeKey(i)),$"Expected sibling1 to observe key {this.MakeKey(i)} before churn");
                 Assert.True(sibling2.Contains(this.MakeKey(i)),$"Expected sibling2 to observe key {this.MakeKey(i)} before churn");
             }
 
-            for(int i=this.RefreshWorkingSetSize; i<this.RefreshDataSize; i++) {
+            for(int i = this.RefreshWorkingSetSize; i<this.RefreshDataSize; i++) {
                 Assert.True(owner.Add(this.MakeKey(i)),$"Expected add for key {this.MakeKey(i)} to succeed during churn");
                 Assert.True(owner.Remove(this.MakeKey(i-this.RefreshWorkingSetSize)),
                     $"Expected key {this.MakeKey(i-this.RefreshWorkingSetSize)} to exist before removal during churn");
             }
 
-            var liveKey=this.MakeKey(this.RefreshDataSize-1);
+            var liveKey = this.MakeKey(this.RefreshDataSize-1);
 
             owner.Refresh();
             sibling1.Refresh();
@@ -217,8 +216,8 @@ public abstract class HashSetIntegrateBase<TKey>
             handle.Compact();
             handle.FlushAndEvict();
 
-            var beginAddressWithStaleSibling=handle.GetBeginAddress();
-            var segmentFilesWithStaleSibling=handle.CountSegmentFiles();
+            var beginAddressWithStaleSibling = handle.GetBeginAddress();
+            var segmentFilesWithStaleSibling = handle.CountSegmentFiles();
             this.output.WriteLine($"[with_stale_sibling] BeginAddress after compact: {beginAddressWithStaleSibling}, Segment files: {segmentFilesWithStaleSibling}");
 
             sibling2.Refresh();
@@ -228,8 +227,8 @@ public abstract class HashSetIntegrateBase<TKey>
             handle.Compact();
             handle.FlushAndEvict();
 
-            var beginAddressAfterAllRefresh=handle.GetBeginAddress();
-            var segmentFilesAfterAllRefresh=handle.CountSegmentFiles();
+            var beginAddressAfterAllRefresh = handle.GetBeginAddress();
+            var segmentFilesAfterAllRefresh = handle.CountSegmentFiles();
             this.output.WriteLine($"[after_all_refresh] BeginAddress after compact: {beginAddressAfterAllRefresh}, Segment files: {segmentFilesAfterAllRefresh}");
 
             Assert.True(beginAddressAfterAllRefresh>beginAddressWithStaleSibling,
@@ -242,18 +241,18 @@ public abstract class HashSetIntegrateBase<TKey>
 
     [Fact]
     public void 複数HashSetでRefresh後も共有ストアのデータを継続参照できる() {
-        var storeDir=this.TestDir(nameof(this.複数HashSetでRefresh後も共有ストアのデータを継続参照できる));
-        using var handle=this.CreateHandle(storeDir);
-        using var owner=handle.Create();
-        using var sibling1=handle.Create();
-        using var sibling2=handle.Create();
+        var storeDir = this.TestDir(nameof(this.複数HashSetでRefresh後も共有ストアのデータを継続参照できる));
+        using var handle = this.CreateHandle(storeDir);
+        using var owner = handle.Create();
+        using var sibling1 = handle.Create();
+        using var sibling2 = handle.Create();
 
-        var count=Math.Min(32,this.RefreshWorkingSetSize);
-        for(int i=0; i<count; i++) {
+        var count = Math.Min(32,this.RefreshWorkingSetSize);
+        for(int i = 0; i<count; i++) {
             Assert.True(owner.Add(this.MakeKey(i)),$"Expected initial add for key {this.MakeKey(i)} to succeed");
         }
 
-        for(int i=0; i<count; i++) {
+        for(int i = 0; i<count; i++) {
             Assert.True(sibling1.Contains(this.MakeKey(i)),$"Expected sibling1 to observe key {this.MakeKey(i)} before refresh");
             Assert.True(sibling2.Contains(this.MakeKey(i)),$"Expected sibling2 to observe key {this.MakeKey(i)} before refresh");
         }
@@ -262,13 +261,13 @@ public abstract class HashSetIntegrateBase<TKey>
         sibling1.Refresh();
         sibling2.Refresh();
 
-        for(int i=0; i<count; i++) {
+        for(int i = 0; i<count; i++) {
             Assert.True(owner.Contains(this.MakeKey(i)),$"Expected owner to observe key {this.MakeKey(i)} after refresh");
             Assert.True(sibling1.Contains(this.MakeKey(i)),$"Expected sibling1 to observe key {this.MakeKey(i)} after refresh");
             Assert.True(sibling2.Contains(this.MakeKey(i)),$"Expected sibling2 to observe key {this.MakeKey(i)} after refresh");
         }
 
-        var extraKey=this.MakeKey(count+1);
+        var extraKey = this.MakeKey(count+1);
         Assert.True(owner.Add(extraKey),$"Expected add for key {extraKey} after refresh to succeed");
         Assert.True(sibling1.Contains(extraKey),$"Expected sibling1 to observe key {extraKey} after refresh");
         Assert.True(sibling2.Contains(extraKey),$"Expected sibling2 to observe key {extraKey} after refresh");
@@ -277,20 +276,20 @@ public abstract class HashSetIntegrateBase<TKey>
 
     [Fact]
     public void チェックポイントと復元() {
-        var storeDir=this.TestDir(nameof(this.チェックポイントと復元));
-        var checkpointDir=Path.Combine(storeDir,"checkpoint");
+        var storeDir = this.TestDir(nameof(this.チェックポイントと復元));
+        var checkpointDir = Path.Combine(storeDir,"checkpoint");
         Directory.CreateDirectory(storeDir);
         Directory.CreateDirectory(checkpointDir);
 
-        var dataSize=this.CheckpointDataSize;
-        Guid token=default;
+        var dataSize = this.CheckpointDataSize;
+        Guid token = default;
 
         // データを書き込んでチェックポイントを保存
         {
-            var handle=this.CreateHandle(storeDir,checkpointDir,deleteOnDispose: false);
+            var handle = this.CreateHandle(storeDir,checkpointDir,deleteOnDispose: false);
             try {
-                using var hashset=handle.Create();
-                for(int i=0; i<dataSize; i++)
+                using var hashset = handle.Create();
+                for(int i = 0; i<dataSize; i++)
                     hashset.Add(this.MakeKey(i));
                 token=handle.Save();
                 this.output.WriteLine($"✓ Checkpoint saved: {token}");
@@ -302,11 +301,11 @@ public abstract class HashSetIntegrateBase<TKey>
 
         // チェックポイントから復元してデータを検証
         {
-            var handle=this.CreateHandle(storeDir,checkpointDir,deleteOnDispose: false);
+            var handle = this.CreateHandle(storeDir,checkpointDir,deleteOnDispose: false);
             try {
                 handle.Load(token);
-                using var hashset=handle.Create();
-                for(int i=0; i<dataSize; i++)
+                using var hashset = handle.Create();
+                for(int i = 0; i<dataSize; i++)
                     Assert.True(hashset.Contains(this.MakeKey(i)),$"Key {this.MakeKey(i)} not found after restore");
                 this.output.WriteLine($"✓ All {dataSize} entries verified after restore");
             }
@@ -322,7 +321,7 @@ public abstract class HashSetIntegrateBase<TKey>
 /// ManagementHashSet: Seamless HashSet (Managed Key) のセグメント管理テスト
 /// </summary>
 [Collection("IntegrateTests")]
-public class ManagementHashSet(ITestOutputHelper output) : HashSetIntegrateBase<string>(output) {
+public class ManagementHashSet(ITestOutputHelper output):HashSetIntegrateBase<string>(output) {
     protected override string TestClassName => "Test.Seamless.Integrate.ManagementHashSet";
     protected override string MakeKey(int i) => $"hashset_key_{i:D6}_"+new string('a',50);
     protected override int SegmentsCreatedDataSize => 10000;
@@ -335,14 +334,14 @@ public class ManagementHashSet(ITestOutputHelper output) : HashSetIntegrateBase<
     protected override int RefreshDataSize => 2048;
     protected override int RefreshWorkingSetSize => 64;
 
-    protected override Handle CreateHandle(string rootDir,string? checkpointDir=null,bool deleteOnDispose=true) =>
+    protected override Handle CreateHandle(string rootDir,string? checkpointDir = null,bool deleteOnDispose = true) =>
         new ManagedHandle(rootDir,checkpointDir,deleteOnDispose);
 
-    private sealed class ManagedHandle : Handle {
+    private sealed class ManagedHandle:Handle {
         private readonly ManagedUnmanagedHashSetStore<string> store;
 
         public ManagedHandle(string rootDir,string? checkpointDir,bool deleteOnDispose) : base(rootDir,deleteOnDispose) {
-            var factory=Factory.Create(
+            var factory = Factory.Create(
                 IndexSize: 64,
                 PageSize: 4096,
                 SegmentSize: 4096,
@@ -383,7 +382,7 @@ public class ManagementHashSet(ITestOutputHelper output) : HashSetIntegrateBase<
 /// UnmanagementHashSet: Seamless HashSet (Unmanaged Key) のセグメント管理テスト
 /// </summary>
 [Collection("IntegrateTests")]
-public class UnmanagementHashSet(ITestOutputHelper output) : HashSetIntegrateBase<int>(output) {
+public class UnmanagementHashSet(ITestOutputHelper output):HashSetIntegrateBase<int>(output) {
     protected override string TestClassName => "Test.Seamless.Integrate.UnmanagementHashSet";
     protected override int MakeKey(int i) => i;
     protected override int SegmentSteadyStateDataSize => 2048;
@@ -393,14 +392,14 @@ public class UnmanagementHashSet(ITestOutputHelper output) : HashSetIntegrateBas
     protected override int RefreshDataSize => 4096;
     protected override int RefreshWorkingSetSize => 128;
 
-    protected override Handle CreateHandle(string rootDir,string? checkpointDir=null,bool deleteOnDispose=true) =>
+    protected override Handle CreateHandle(string rootDir,string? checkpointDir = null,bool deleteOnDispose = true) =>
         new UnmanagedHandle(rootDir,checkpointDir,deleteOnDispose);
 
-    private sealed class UnmanagedHandle : Handle {
+    private sealed class UnmanagedHandle:Handle {
         private readonly UnmanagedUnmanagedHashSetStore<int> store;
 
         public UnmanagedHandle(string rootDir,string? checkpointDir,bool deleteOnDispose) : base(rootDir,deleteOnDispose) {
-            var factory=Factory.Create(
+            var factory = Factory.Create(
                 IndexSize: 64,
                 PageSize: 4096,
                 SegmentSize: 4096,

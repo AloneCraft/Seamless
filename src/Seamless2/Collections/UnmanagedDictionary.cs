@@ -102,7 +102,7 @@ public partial class UnmanagedDictionary<
             TValue
         >
     > GetEnumerator() => new(this.ReadSession,new());
-    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new(),this.HeadAddress);
+    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new());
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator iterator)
     where TIterator : ScanIteratorFunctions<T> {
         using var e = new Enumerator<TIterator,T>(this.ReadSession,iterator);
@@ -110,9 +110,9 @@ public partial class UnmanagedDictionary<
             yield return e.Current;
         }
     }
-    private List<T> CreateCollection<TIterator, T>(TIterator iterator)
+    private global::System.Collections.Generic.List<T> CreateCollection<TIterator, T>(TIterator iterator)
         where TIterator : ScanIteratorFunctions<T> {
-        var collection = new List<T>();
+        var collection = new global::System.Collections.Generic.List<T>();
         using var e = new Enumerator<TIterator,T>(this.ReadSession,iterator);
         while(e.MoveNext()) {
             collection.Add(e.Current);

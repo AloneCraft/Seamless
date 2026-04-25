@@ -110,9 +110,9 @@ public partial class UnmanagedDictionary<
             yield return e.Current;
         }
     }
-    private List<T> CreateCollection<TIterator, T>(TIterator iterator)
+    private global::System.Collections.Generic.List<T> CreateCollection<TIterator, T>(TIterator iterator)
         where TIterator : ScanIteratorFunctions_Chunk<T> {
-        var collection = new List<T>();
+        var collection = new global::System.Collections.Generic.List<T>();
         using var e = new Enumerator<TIterator,T>(this.ReadSession,iterator);
         while(e.MoveNext()) {
             collection.Add(e.Current);

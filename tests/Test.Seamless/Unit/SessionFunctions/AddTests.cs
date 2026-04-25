@@ -23,7 +23,7 @@ public abstract class AddTests<TKey,TValue>
     protected abstract void DoConcurrentReaderEmpty();
 
     protected static string CreateDiskFolder()=>
-        Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+        Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
 
     private void AddAndGet(){
         var(dict,store)=this.CreateMemory();

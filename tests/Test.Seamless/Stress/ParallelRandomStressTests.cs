@@ -17,7 +17,7 @@ public class ParallelRandomStressTests {
     private const int StressCountLarge = 1024;
 
     private static string CreateTempDir(string tag) {
-        var dir = Path.Combine(Path.GetTempPath(),"Seamless_PStress_"+tag+"_"+Guid.NewGuid().ToString("N"));
+        var dir = Path.Combine(Environment.CurrentDirectory,"Seamless_PStress_"+tag+"_"+Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -28,8 +28,8 @@ public class ParallelRandomStressTests {
 
     /// <summary>キーをスレッド数で mod 分割する。</summary>
     private static int[][] Partition(int[] keys,int threads) {
-        var buckets = new List<int>[threads];
-        for(var t = 0; t<threads; t++) buckets[t]=new List<int>();
+        var buckets = new global::System.Collections.Generic.List<int>[threads];
+        for(var t = 0; t<threads; t++) buckets[t]=new global::System.Collections.Generic.List<int>();
         for(var i = 0; i<keys.Length; i++)
             buckets[((uint)keys[i].GetHashCode())%(uint)threads].Add(keys[i]);
         var result = new int[threads][];

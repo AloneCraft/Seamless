@@ -14,7 +14,7 @@ public class SetOperationStressTests {
     private const int StressSetOpCount = 2_048;
 
     private static string CreateTempDir(string tag) {
-        var dir = Path.Combine(Path.GetTempPath(),"Seamless_SetStress_"+tag+"_"+Guid.NewGuid().ToString("N"));
+        var dir = Path.Combine(Environment.CurrentDirectory,"Seamless_SetStress_"+tag+"_"+Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         return dir;
     }

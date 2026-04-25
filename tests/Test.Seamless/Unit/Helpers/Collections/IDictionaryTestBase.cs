@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
@@ -14,7 +14,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
     private static string CreateDiskFolder() =>
-        Path.Combine(Path.GetTempPath(),"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+        Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
     [Fact, Trait("Category","Unit")]
     public void IsReadOnly(){
         using var sh = TStrategy.CreateMemoryStore();

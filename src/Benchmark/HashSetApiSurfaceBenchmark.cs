@@ -1,4 +1,4 @@
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Order;
 using Seamless.Collections;
@@ -94,7 +94,7 @@ public class HashSetApiSurfaceBenchmark {
             this.stringOtherKeys[i]="s"+(i+(this.CountValue/2));
         }
 
-        this.checkpointRoot=Path.Combine(Path.GetTempPath(),"Seamless-Benchmark-Api-Set",Guid.NewGuid().ToString("N"));
+        this.checkpointRoot=Path.Combine(Environment.CurrentDirectory,"Seamless-Benchmark-Api-Set",Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(this.checkpointRoot);
     }
 
