@@ -8,16 +8,20 @@ namespace Seamless.Collections;
 public sealed class UnmanagedList<T>:List<T>
     where T : unmanaged {
     private readonly int elementSize = Unsafe.SizeOf<T>();
-    private readonly FileStream stream;
+    private FileStream stream = null!;
     private MemoryMappedFile mappedFile = null!;
     private MemoryMappedViewAccessor accessor = null!;
-    public TempListAccessPattern AccessPattern { get; private set; } = TempListAccessPattern.Sequential;
+    private unsafe byte* pointer;
+    private TempListTuning tuning = new(FileAccess.ReadWrite,FileOptions.SequentialScan);
 
-    public UnmanagedList(string path,long initialCapacity = 16) : base(path) {
+    public override FileAccess OptimizationMode => this.tuning.OptimizationMode;
+    public override FileOptions AccessPattern => this.tuning.AccessPattern;
+
+    internal UnmanagedList(string path,long initialCapacity = 16) : base(path) {
         if(initialCapacity<1)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity));
 
-        this.stream=MemoryMappedListTuning.OpenFileStream(path,this.AccessPattern);
+        this.stream=this.OpenStream();
         if(this.stream.Length==0) {
             this.Count=0;
             this.Capacity=this.AlignCapacity(initialCapacity);
@@ -29,15 +33,22 @@ public sealed class UnmanagedList<T>:List<T>
             this.LoadState();
         }
 
-        this.ApplyAccessPattern();
+        this.ApplyTuning();
     }
 
-    public void SetAccessPattern(TempListAccessPattern accessPattern) {
+    public override void SetTuning(TempListTuning tuning) {
         this.ThrowIfDisposed();
-        if(this.AccessPattern==accessPattern)
+        if(this.tuning.Equals(tuning))
             return;
-        this.AccessPattern=accessPattern;
-        this.ApplyAccessPattern();
+
+        var requiresReopen = MemoryMappedListTuning.RequiresReopen(this.tuning,tuning);
+        this.tuning=tuning;
+        if(requiresReopen) {
+            this.ReopenMapping();
+            return;
+        }
+
+        this.ApplyTuning();
     }
 
     public override void Add(T item) {
@@ -45,6 +56,18 @@ public sealed class UnmanagedList<T>:List<T>
         this.WriteUnchecked(this.Count,item);
         this.Count++;
     }
+
+    public new ref T this[int index] => ref this[checked((long)index)];
+
+    public new ref T this[long index] {
+        get {
+            this.ThrowIfDisposed();
+            if((ulong)index>=(ulong)this.Count)
+                throw new ArgumentOutOfRangeException(nameof(index));
+            return ref this.GetItemReferenceUnchecked(index);
+        }
+    }
+
     public T RemoveLast() {
         if(!this.TryRemoveLast(out var item))
             throw new InvalidOperationException("The list is empty.");
@@ -63,6 +86,19 @@ public sealed class UnmanagedList<T>:List<T>
         this.Count=lastIndex;
         this.OnCountChanged();
         return true;
+    }
+
+    public override ReadOnlySpan<T> AsSpan(long start,int length) {
+        this.ThrowIfDisposed();
+        this.ValidateSpanRange(start,length);
+        if(length==0)
+            return ReadOnlySpan<T>.Empty;
+
+        var items = new T[length];
+        var readCount = this.accessor.ReadArray(this.GetItemOffset(start),items,0,length);
+        if(readCount!=length)
+            throw new EndOfStreamException("Failed to read the requested span.");
+        return items;
     }
 
     public void Sort() {
@@ -109,6 +145,18 @@ public sealed class UnmanagedList<T>:List<T>
     private void CreateMapping() {
         this.mappedFile=MemoryMappedFile.CreateFromFile(this.stream,null,this.stream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
         this.accessor=this.mappedFile.CreateViewAccessor(0,this.stream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.AcquirePointer();
+    }
+
+    private void ReopenMapping() {
+        this.accessor.Flush();
+        this.ReleasePointer();
+        this.accessor.Dispose();
+        this.mappedFile.Dispose();
+        this.stream.Dispose();
+        this.stream=this.OpenStream();
+        this.CreateMapping();
+        this.ApplyTuning();
     }
 
     private void EnsureCapacity(long minimumCapacity) {
@@ -120,12 +168,13 @@ public sealed class UnmanagedList<T>:List<T>
 
     private void Remap(long newCapacity) {
         this.accessor.Flush();
+        this.ReleasePointer();
         this.accessor.Dispose();
         this.mappedFile.Dispose();
         this.Capacity=newCapacity;
         this.stream.SetLength(this.GetFileLength(newCapacity));
         this.CreateMapping();
-        this.ApplyAccessPattern();
+        this.ApplyTuning();
     }
 
     private void SortByBits() {
@@ -187,13 +236,14 @@ public sealed class UnmanagedList<T>:List<T>
         return leftBytes.SequenceCompareTo(rightBytes);
     }
 
-    protected override T GetItem(long index) => this.ReadUnchecked(index);
+    protected override T GetItem(long index) => this.GetItemReferenceUnchecked(index);
 
     protected override void OnCountChanged() {
     }
 
     protected override void DisposeCore() {
         this.accessor.Flush();
+        this.ReleasePointer();
         this.accessor.Dispose();
         this.mappedFile.Dispose();
         this.stream.SetLength(this.GetFileLength(this.Count));
@@ -204,16 +254,38 @@ public sealed class UnmanagedList<T>:List<T>
     private long GetFileLength(long capacity) => checked(capacity*this.elementSize);
     private long GetItemOffset(long index) => checked(index*this.elementSize);
 
-    private void ApplyAccessPattern() {
-        MemoryMappedListTuning.ApplyAccessPattern(this.stream,this.accessor,this.AccessPattern);
+    private FileStream OpenStream() {
+        return new(this.Path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,BufferSize,MemoryMappedListTuning.GetFileOptions(this.Tuning));
     }
 
-    private T ReadUnchecked(long index) {
-        this.accessor.Read(this.GetItemOffset(index),out T value);
-        return value;
+    private void ApplyTuning() {
+        MemoryMappedListTuning.ApplyTuning(this.stream,this.accessor,this.Tuning);
     }
+
+    private unsafe void AcquirePointer() {
+        byte* pointer = null;
+        this.accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref pointer);
+        this.pointer=pointer;
+    }
+
+    private unsafe void ReleasePointer() {
+        if(this.pointer is null)
+            return;
+        this.accessor.SafeMemoryMappedViewHandle.ReleasePointer();
+        this.pointer=null;
+    }
+
+    private unsafe ref T GetItemReferenceUnchecked(long index) {
+        if(this.pointer is null)
+            throw new InvalidOperationException("The list is not mapped.");
+
+        ref var firstByte = ref Unsafe.AsRef<byte>(this.pointer);
+        return ref Unsafe.As<byte,T>(ref Unsafe.AddByteOffset(ref firstByte,(nint)this.GetItemOffset(index)));
+    }
+
+    private T ReadUnchecked(long index) => this.GetItemReferenceUnchecked(index);
 
     private void WriteUnchecked(long index,T value) {
-        this.accessor.Write(this.GetItemOffset(index),ref value);
+        this.GetItemReferenceUnchecked(index)=value;
     }
 }

@@ -181,7 +181,7 @@ public abstract class HashSetIntegrateBase<TKey>
             $"Expected compaction to reduce active segment growth, but got {withoutCompaction.ActiveSegments} vs {withCompaction.ActiveSegments}");
     }
 
-    [Fact(Skip = "Long-running Tsavorite truncation observation test. Run manually when investigating Refresh/truncation behavior.")]
+    [Fact]
     public void 複数HashSetで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される() {
         var storeDir = this.TestDir(nameof(this.複数HashSetで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される));
         try {

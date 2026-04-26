@@ -49,7 +49,7 @@
     <Compile Include="Stores\UnmanagedHashSetStore.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="SessionFunctions\Document.txt" />
+    <Content Include="Document.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.CSharp.targets" />
 </Project>
