@@ -131,7 +131,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
             DeleteTemporaryWorkListPath(workListPath);
         }
     }
-    private IEnumerable<T> Enumerate<TIterator, T>(TIterator iterator)
+    private IEnumerable<T> Enumerable<TIterator, T>(TIterator iterator)
         where TIterator : ScanIteratorFunctions_List<T,ManagedList<T>> =>
         this.CreateCollection<TIterator,T>(iterator);
     public TValue this[TKey Key] {

@@ -20,6 +20,7 @@
     <Compile Include="Collections\ManagedDictionary.cs" />
     <Compile Include="Collections\ManagedHashSet.cs" />
     <Compile Include="Collections\ManagedList.cs" />
+    <Compile Include="Collections\TempList.cs" />
     <Compile Include="Collections\UnmanagedList.cs" />
     <Compile Include="Collections\UnmanagedUnmanagedDictionary.cs" />
     <Compile Include="Collections\ManagedUnmanagedDictionary.cs" />
@@ -35,6 +36,7 @@
     <Compile Include="Collections\UnmanagedHashSet.cs" />
     <Compile Include="Const.cs" />
     <Compile Include="Devices\MemoryOnlyDevice.cs" />
+    <Compile Include="Stores\HashStore.cs" />
     <Compile Include="Stores\ICreate.cs" />
     <Compile Include="Stores\CollectionStore.cs" />
     <Compile Include="Stores\Factory.cs" />
