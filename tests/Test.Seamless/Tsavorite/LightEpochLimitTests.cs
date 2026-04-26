@@ -17,7 +17,7 @@ public class LightEpochLimitTests {
     /// </summary>
     [Fact]
     public void MaxInstances_16Stores_AllSucceed() {
-        var stores = new global::System.Collections.Generic.List<UnmanagedUnmanagedDictionaryStore<int,int>>();
+        var stores = new global::System.Collections.Generic.List<UnmanagedDictionaryStore<int,int>>();
         try {
             for(var i = 0; i<16; i++) {
                 stores.Add(HashStore.Create().Create<int,int>());
@@ -36,7 +36,7 @@ public class LightEpochLimitTests {
     /// </summary>
     [Fact]
     public void MaxInstances_17thStore_ThrowsException() {
-        var stores = new global::System.Collections.Generic.List<UnmanagedUnmanagedDictionaryStore<int,int>>();
+        var stores = new global::System.Collections.Generic.List<UnmanagedDictionaryStore<int,int>>();
         try {
             for(var i = 0; i<16; i++) {
                 stores.Add(HashStore.Create().Create<int,int>());

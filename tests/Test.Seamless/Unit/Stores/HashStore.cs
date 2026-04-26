@@ -7,55 +7,55 @@ public class HashStoreTests {
     [Fact, Trait("Category","Unit")]
     public void Create_UnmanagedKey_UnmanagedValue_ReturnsUnmanagedDictionaryStore() {
         using var store = HashStore.Create().Create<int,long>();
-        Assert.IsType<UnmanagedUnmanagedDictionaryStore<int,long>>(store);
+        Assert.IsType<UnmanagedDictionaryStore<int,long>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Create_UnmanagedKey_ManagedValue_ReturnsUnmanagedAndManagedSerializers() {
         using var store = HashStore.Create().Create<int,string>();
-        Assert.IsType<UnmanagedManagedDictionaryStore<int,string>>(store);
+        Assert.IsType<ManagedDictionaryStore<int,string>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Create_ManagedKey_UnmanagedValue_ReturnsManagedAndUnmanagedSerializers() {
         using var store = HashStore.Create().Create<string,int>();
-        Assert.IsType<ManagedUnmanagedDictionaryStore<string,int>>(store);
+        Assert.IsType<ManagedDictionaryStore<string,int>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Create_ManagedKey_ManagedValue_ReturnsManagedSerializer() {
         using var store = HashStore.Create().Create<string,string>();
-        Assert.IsType<ManagedManagedDictionaryStore<string,string>>(store);
+        Assert.IsType<ManagedDictionaryStore<string,string>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Create_ManagedTagExplicit_UnmanagedKey_UnmanagedValue_ReturnsManagedSerializer() {
         using var store = HashStore.Create().Create<int,int>(new ManagedTag(),new ManagedTag());
-        Assert.IsType<ManagedManagedDictionaryStore<int,int>>(store);
+        Assert.IsType<ManagedDictionaryStore<int,int>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Create_UnmanagedStruct_UnmanagedStruct_ReturnsUnmanagedDictionaryStore() {
         using var store = HashStore.Create().Create<UnmanagedStruct,UnmanagedStruct>();
-        Assert.IsType<UnmanagedUnmanagedDictionaryStore<UnmanagedStruct,UnmanagedStruct>>(store);
+        Assert.IsType<UnmanagedDictionaryStore<UnmanagedStruct,UnmanagedStruct>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Create_ManagedStruct_ManagedStruct_ReturnsManagedSerializer() {
         using var store = HashStore.Create().Create<ManagedStruct,ManagedStruct>();
-        Assert.IsType<ManagedManagedDictionaryStore<ManagedStruct,ManagedStruct>>(store);
+        Assert.IsType<ManagedDictionaryStore<ManagedStruct,ManagedStruct>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Create_UnmanagedStruct_ManagedStruct_ReturnsUnmanagedAndManagedSerializers() {
         using var store = HashStore.Create().Create<UnmanagedStruct,ManagedStruct>();
-        Assert.IsType<UnmanagedManagedDictionaryStore<UnmanagedStruct,ManagedStruct>>(store);
+        Assert.IsType<ManagedDictionaryStore<UnmanagedStruct,ManagedStruct>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Create_ManagedStruct_UnmanagedStruct_ReturnsManagedAndUnmanagedSerializers() {
         using var store = HashStore.Create().Create<ManagedStruct,UnmanagedStruct>();
-        Assert.IsType<ManagedUnmanagedDictionaryStore<ManagedStruct,UnmanagedStruct>>(store);
+        Assert.IsType<ManagedDictionaryStore<ManagedStruct,UnmanagedStruct>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -90,13 +90,13 @@ public class HashStoreTests {
     public void CreateManagedUnmanagedHashSet_ReturnsManagedUnmanagedHashSet() {
         using var store = HashStore.Create().Create<string>(new ManagedTag());
         using var set = store.Create();
-        Assert.IsType<ManagedUnmanagedHashSet<string>>(set);
+        Assert.IsType<ManagedHashSet<string>>(set);
     }
 
     [Fact, Trait("Category","Unit")]
     public void CreateUnmanagedUnmanagedHashSet_ReturnsUnmanagedUnmanagedHashSet() {
         using var store = HashStore.Create().Create<int>();
         using var set = store.Create();
-        Assert.IsType<UnmanagedUnmanagedHashSet<int>>(set);
+        Assert.IsType<UnmanagedHashSet<int>>(set);
     }
 }

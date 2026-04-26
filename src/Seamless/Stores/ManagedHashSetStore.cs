@@ -14,13 +14,13 @@ public class ManagedHashSetStore<TKey>:ManagedCollectionStore<TKey,EqualityEmpty
     public ManagedHashSet<TKey> Create() => new(this);
 }
 
-public class ManagedUnmanagedHashSetStore<TKey>:ManagedHashSetStore<TKey>
-    where TKey : IEquatable<TKey> {
-    internal ManagedUnmanagedHashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) :
-        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir){ }
+//public class ManagedUnmanagedHashSetStore<TKey>:ManagedHashSetStore<TKey>
+//    where TKey : IEquatable<TKey> {
+//    internal ManagedUnmanagedHashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) :
+//        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir){ }
 
-    internal ManagedUnmanagedHashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction) :
-        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction){ }
+//    internal ManagedUnmanagedHashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction) :
+//        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction){ }
 
-    public new ManagedUnmanagedHashSet<TKey> Create() => new(this);
-}
+//    public new ManagedUnmanagedHashSet<TKey> Create() => new(this);
+//}

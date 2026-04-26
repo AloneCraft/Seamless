@@ -1,7 +1,10 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
 namespace Seamless.Collections;
-
+/// <summary>
+/// これはSystem.Collections.Generic.List<T>に使えるならそれに置き換えてこれは削除して
+/// </summary>
+/// <typeparam name="T"></typeparam>
 public sealed class InMemoryList<T>:List<T> {
     private readonly global::System.Collections.Generic.List<T> items;
     private TempListTuning tuning = new(FileAccess.ReadWrite,FileOptions.SequentialScan);

@@ -42,7 +42,7 @@ public sealed class ListTests {
         var path = CreatePath();
         const int 行のバイト数 = 4096;
         const int 行の文字数 = 行のバイト数/sizeof(char);
-        using var list = TempList.Create<char>(path);
+        using var list = ListStore.Create<char>(path);
         var chars = new char[行の文字数];
         for(var 列 = 0; 列<行の文字数; 列++)
             chars[列]=' ';
@@ -78,7 +78,7 @@ public sealed class ListTests {
     public void Add_Enumerate_AndIndexer() {
         var path = CreatePath();
         try {
-            using var list = TempList.Create<long>(path);
+            using var list = ListStore.Create<long>(path);
             list.Add(10);
             list.Add(20);
             list.Add(30);
@@ -103,7 +103,7 @@ public sealed class ListTests {
     public void Remove_DeletesTailOnly() {
         var path = CreatePath();
         try {
-            using var list = TempList.Create<int>(path); ;
+            using var list = ListStore.Create<int>(path); ;
             list.Add(1);
             list.Add(2);
             list.Add(3);
@@ -123,7 +123,7 @@ public sealed class ListTests {
     public void DuplicateRemoval_SortsAndDeduplicates() {
         var path = CreatePath();
         try {
-            using var list = TempList.Create<int>(path,initialCapacity: 1);
+            using var list = ListStore.Create<int>(path,initialCapacity: 1);
             list.Add(5);
             list.Add(3);
             list.Add(5);
@@ -143,13 +143,13 @@ public sealed class ListTests {
     public void Reopen_PreservesCountAndValues() {
         var path = CreatePath();
         try {
-            using(var list = TempList.Create<int>(path,initialCapacity: 1)) {
+            using(var list = ListStore.Create<int>(path,initialCapacity: 1)) {
                 for(var i = 0; i<8; i++) {
                     list.Add(i*2);
                 }
             }
 
-            using var reopened = TempList.Create<int>(path); ;
+            using var reopened = ListStore.Create<int>(path); ;
             Assert.Equal(8L,reopened.Count);
             Assert.Equal(new[] { 0,2,4,6,8,10,12,14 },reopened.ToArray());
         }
@@ -162,7 +162,7 @@ public sealed class ListTests {
     public void UnmanagedList_SetTuning_AfterConstruction_PreservesValues() {
         var path = CreatePath();
         try {
-            global::Seamless.Collections.List<int> list = TempList.Create<int>(path,initialCapacity: 1);
+            global::Seamless.Collections.List<int> list = ListStore.Create<int>(path,initialCapacity: 1);
             list.Add(1);
             list.Add(2);
 
@@ -190,7 +190,7 @@ public sealed class ListTests {
     public void ManagedList_AddT_AddSpanByte_AndDuplicateRemoval() {
         var path = CreatePath();
         try {
-            using var list = TempList.Create<string>(path,initialCapacity: 1,initialDataCapacity: 32);
+            using var list = ListStore.Create<string>(path,initialCapacity: 1,initialDataCapacity: 32);
             var bravo = CreateFixedWidthUnicodeLine(1);
             var alpha = CreateFixedWidthUnicodeLine(0);
             list.Add(bravo);
@@ -217,7 +217,7 @@ public sealed class ListTests {
     public void ManagedList_SetTuning_AfterConstruction_PreservesValues() {
         var path = CreatePath();
         try {
-            global::Seamless.Collections.List<string> list = TempList.Create<string>(path,initialCapacity: 1,initialDataCapacity: 64);
+            global::Seamless.Collections.List<string> list = ListStore.Create<string>(path,initialCapacity: 1,initialDataCapacity: 64);
             var alpha = CreateFixedWidthUnicodeLine(0);
             var bravo = CreateFixedWidthUnicodeLine(1);
 
@@ -251,12 +251,12 @@ public sealed class ListTests {
             CreateFixedWidthUnicodeLine(2),
         };
         try {
-            using(var list = TempList.Create<string>(path,initialCapacity: 1,initialDataCapacity: 32)) {
+            using(var list = ListStore.Create<string>(path,initialCapacity: 1,initialDataCapacity: 32)) {
                 foreach(var value in values)
                     list.Add(value);
             }
 
-            using var reopened = TempList.Create<string>(path);
+            using var reopened = ListStore.Create<string>(path);
             Assert.Equal(3L,reopened.Count);
             Assert.True(reopened.ToArray().SequenceEqual(values));
         }
@@ -272,7 +272,7 @@ public sealed class ListTests {
         var alpha = CreateFixedWidthUnicodeLine(0);
         var charlie = CreateFixedWidthUnicodeLine(2);
         try {
-            using(var list = TempList.Create<string>(path,initialCapacity: 4,initialDataCapacity: 64)) {
+            using(var list = ListStore.Create<string>(path,initialCapacity: 4,initialDataCapacity: 64)) {
                 list.Add(bravo);
                 list.Add(alpha);
                 list.Add(bravo);
@@ -281,7 +281,7 @@ public sealed class ListTests {
                 list.DuplicateRemoval();
             }
 
-            using var reopened = TempList.Create<string>(path);
+            using var reopened = ListStore.Create<string>(path);
             Assert.Equal(3L,reopened.Count);
             Assert.True(reopened.ToHashSet().SetEquals(new[] { alpha,bravo,charlie }));
         }

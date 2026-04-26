@@ -1,16 +1,44 @@
 {
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "Benchmark 2.*": {
+    "Benchmark 2.* (Dictionary)": {
       "commandName": "Project",
       "commandLineArgs": "--filter *Dictionary*",
       "environmentVariables": {
         "SEAMLESS_BENCHMARK_TARGET": "2.0beta3"
       }
     },
-    "Benchmark 1.*": {
+    "Benchmark 1.* (Dictionary)": {
       "commandName": "Project",
       "commandLineArgs": "--filter *Dictionary*",
+      "environmentVariables": {
+        "SEAMLESS_BENCHMARK_TARGET": "1.1.1"
+      }
+    },
+    "Benchmark 2.* (List)": {
+      "commandName": "Project",
+      "commandLineArgs": "--filter *List*",
+      "environmentVariables": {
+        "SEAMLESS_BENCHMARK_TARGET": "2.0beta3"
+      }
+    },
+    "Benchmark 1.* (List)": {
+      "commandName": "Project",
+      "commandLineArgs": "--filter *List*",
+      "environmentVariables": {
+        "SEAMLESS_BENCHMARK_TARGET": "1.1.1"
+      }
+    },
+    "Benchmark 2.* (All)": {
+      "commandName": "Project",
+      "commandLineArgs": "",
+      "environmentVariables": {
+        "SEAMLESS_BENCHMARK_TARGET": "2.0beta3"
+      }
+    },
+    "Benchmark 1.* (All)": {
+      "commandName": "Project",
+      "commandLineArgs": "",
       "environmentVariables": {
         "SEAMLESS_BENCHMARK_TARGET": "1.1.1"
       }

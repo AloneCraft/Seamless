@@ -300,7 +300,7 @@ public class ManagementDictionary(ITestOutputHelper output):DictionaryIntegrateB
         new ManagedHandle(rootDir,checkpointDir,deleteOnDispose);
 
     private sealed class ManagedHandle:Handle {
-        private readonly ManagedManagedDictionaryStore<string,string> store;
+        private readonly ManagedDictionaryStore<string,string> store;
 
         public ManagedHandle(string rootDir,string? checkpointDir,bool deleteOnDispose) : base(rootDir,deleteOnDispose) {
             var factory = HashStore.Create(
@@ -354,7 +354,7 @@ public class UnmanagementDictionary(ITestOutputHelper output):DictionaryIntegrat
         new UnmanagedHandle(rootDir,checkpointDir,deleteOnDispose);
 
     private sealed class UnmanagedHandle:Handle {
-        private readonly UnmanagedUnmanagedDictionaryStore<int,int> store;
+        private readonly UnmanagedDictionaryStore<int,int> store;
 
         public UnmanagedHandle(string rootDir,string? checkpointDir,bool deleteOnDispose) : base(rootDir,deleteOnDispose) {
             var factory = HashStore.Create(

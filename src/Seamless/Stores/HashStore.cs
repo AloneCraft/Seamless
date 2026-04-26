@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 namespace Seamless.Stores;
 
 /// <summary>Managed/Unmanaged オーバーロード解決用タグ。</summary>
@@ -40,7 +40,7 @@ public readonly struct HashStore {
 
     // ── Memory Dictionary ──────────────────────────────────────────
     /// <summary>Managed Key × Managed Value</summary>
-    public ManagedManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+    public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         ManagedTag _0 = default,
         ManagedTag _1 = default
     )
@@ -49,7 +49,7 @@ public readonly struct HashStore {
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Managed Key × Unmanaged Value</summary>
     [OverloadResolutionPriority(1)]
-    public ManagedUnmanagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+    public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         ManagedTag _0 = default,
         UnmanagedTag _1 = default
     )
@@ -58,7 +58,7 @@ public readonly struct HashStore {
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Unmanaged Key × Managed Value</summary>
     [OverloadResolutionPriority(1)]
-    public UnmanagedManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+    public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         UnmanagedTag _0 = default,
         ManagedTag _1 = default
     )
@@ -67,7 +67,7 @@ public readonly struct HashStore {
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Unmanaged Key × Unmanaged Value</summary>
     [OverloadResolutionPriority(2)]
-    public UnmanagedUnmanagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+    public UnmanagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         UnmanagedTag _0 = default,
         UnmanagedTag _1 = default
     )
@@ -77,7 +77,7 @@ public readonly struct HashStore {
 
     // ── Storage Dictionary ─────────────────────────────────────────
     /// <summary>Managed Key × Managed Value（ストレージ付き）</summary>
-    public ManagedManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+    public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
         ManagedTag _0 = default,
@@ -88,7 +88,7 @@ public readonly struct HashStore {
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
     /// <summary>Managed Key × Unmanaged Value（ストレージ付き）</summary>
     [OverloadResolutionPriority(1)]
-    public ManagedUnmanagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+    public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
         ManagedTag _0 = default,
@@ -99,7 +99,7 @@ public readonly struct HashStore {
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
     /// <summary>Unmanaged Key × Managed Value（ストレージ付き）</summary>
     [OverloadResolutionPriority(1)]
-    public UnmanagedManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+    public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
         UnmanagedTag _0 = default,
@@ -110,7 +110,7 @@ public readonly struct HashStore {
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
     /// <summary>Unmanaged Key × Unmanaged Value（ストレージ付き）</summary>
     [OverloadResolutionPriority(2)]
-    public UnmanagedUnmanagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+    public UnmanagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
         UnmanagedTag _0 = default,
@@ -122,11 +122,11 @@ public readonly struct HashStore {
 
     // ── Managed HashSet ────────────────────────────────────────────
     /// <summary>Memory ManagedHashSet</summary>
-    public ManagedUnmanagedHashSetStore<TKey> Create<TKey>(ManagedTag _0 = default)
+    public ManagedHashSetStore<TKey> Create<TKey>(ManagedTag _0 = default)
         where TKey : IEquatable<TKey> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Storage ManagedHashSet</summary>
-    public ManagedUnmanagedHashSetStore<TKey> Create<TKey>(
+    public ManagedHashSetStore<TKey> Create<TKey>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
         ManagedTag _0 = default
@@ -137,12 +137,12 @@ public readonly struct HashStore {
     // ── Unmanaged HashSet ──────────────────────────────────────────
     /// <summary>Memory UnmanagedHashSet</summary>
     [OverloadResolutionPriority(1)]
-    public UnmanagedUnmanagedHashSetStore<TKey> Create<TKey>(UnmanagedTag _0 = default)
+    public UnmanagedHashSetStore<TKey> Create<TKey>(UnmanagedTag _0 = default)
         where TKey : unmanaged, IEquatable<TKey> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Storage UnmanagedHashSet</summary>
     [OverloadResolutionPriority(1)]
-    public UnmanagedUnmanagedHashSetStore<TKey> Create<TKey>(
+    public UnmanagedHashSetStore<TKey> Create<TKey>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
         UnmanagedTag _0 = default

@@ -6,4 +6,3 @@ BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, new DebugInPr
 #else
 BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
 #endif
-Console.ReadKey();

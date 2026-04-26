@@ -1,9 +1,9 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using Seamless.Stores;
 
 namespace Seamless.Collections;
 
-public static class TempList {
+public static class ListStore {
     public static ManagedList<T> Create<T>(
         string path,
         long initialCapacity = 16,

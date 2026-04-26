@@ -296,8 +296,8 @@ public sealed class ManagedHashSetBenchmark(ITestOutputHelper output):HashSetBen
         return new H(mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits);
     }
     private sealed class H:Handle {
-        private readonly ManagedUnmanagedHashSetStore<string> store;
-        private readonly ManagedUnmanagedHashSet<string> set;
+        private readonly ManagedHashSetStore<string> store;
+        private readonly ManagedHashSet<string> set;
         private readonly double mf;
         private readonly long indexSize;
         private readonly long segmentSize;
@@ -380,8 +380,8 @@ public sealed class UnmanagedHashSetBenchmark(ITestOutputHelper output):HashSetB
         return new H(mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits);
     }
     private sealed class H:Handle {
-        private readonly UnmanagedUnmanagedHashSetStore<int> store;
-        private readonly UnmanagedUnmanagedHashSet<int> set;
+        private readonly UnmanagedHashSetStore<int> store;
+        private readonly UnmanagedHashSet<int> set;
         private readonly double mf;
         private readonly long indexSize;
         private readonly long segmentSize;
