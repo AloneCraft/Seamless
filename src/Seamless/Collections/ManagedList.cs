@@ -1,6 +1,6 @@
 ﻿using System.Collections;
 using System.IO.MemoryMappedFiles;
-
+using Garnet.networking;
 namespace Seamless.Collections;
 
 public sealed class ManagedList<T>:ManagedList<T,ManagedSerializer<T>> {
@@ -12,28 +12,30 @@ public class ManagedList<T, TSerializer>:List<T>
     where TSerializer : ISerializer<T> {
     private const long UnusedIndex = -1;
 
-    private readonly FileStream indexStream;
+    private FileStream indexStream = null!;
     private MemoryMappedFile indexMappedFile = null!;
     private MemoryMappedViewAccessor indexAccessor = null!;
-    private readonly FileStream dataStream;
+    private FileStream dataStream = null!;
     private MemoryMappedFile dataMappedFile = null!;
     private MemoryMappedViewAccessor dataAccessor = null!;
     private long persistedCount;
+    private TempListTuning tuning = new(FileAccess.ReadWrite,FileOptions.SequentialScan);
 
     public string IndexPath { get; }
     public long DataLength { get; private set; }
     public long DataCapacity { get; private set; }
-    public TempListAccessPattern AccessPattern { get; private set; } = TempListAccessPattern.Sequential;
+    public override FileAccess OptimizationMode => this.tuning.OptimizationMode;
+    public override FileOptions AccessPattern => this.tuning.AccessPattern;
 
-    public ManagedList(string path,long initialCapacity = 16,long initialDataCapacity = 4096) : base(path) {
+    internal ManagedList(string path,long initialCapacity = 16,long initialDataCapacity = 4096) : base(path) {
         if(initialCapacity<1)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity));
         if(initialDataCapacity<1)
             throw new ArgumentOutOfRangeException(nameof(initialDataCapacity));
 
         this.IndexPath=path+".index";
-        this.indexStream=MemoryMappedListTuning.OpenFileStream(this.IndexPath,this.AccessPattern);
-        this.dataStream=MemoryMappedListTuning.OpenFileStream(this.Path,this.AccessPattern);
+        this.indexStream=this.OpenStream(this.IndexPath);
+        this.dataStream=this.OpenStream(this.Path);
 
         if(this.indexStream.Length==0&&this.dataStream.Length==0) {
             this.Count=0;
@@ -53,15 +55,22 @@ public class ManagedList<T, TSerializer>:List<T>
             this.LoadState();
         }
 
-        this.ApplyAccessPattern();
+        this.ApplyTuning();
     }
 
-    public void SetAccessPattern(TempListAccessPattern accessPattern) {
+    public override void SetTuning(TempListTuning tuning) {
         this.ThrowIfDisposed();
-        if(this.AccessPattern==accessPattern)
+        if(this.tuning.Equals(tuning))
             return;
-        this.AccessPattern=accessPattern;
-        this.ApplyAccessPattern();
+
+        var requiresReopen = MemoryMappedListTuning.RequiresReopen(this.tuning,tuning);
+        this.tuning=tuning;
+        if(requiresReopen) {
+            this.ReopenMappings();
+            return;
+        }
+
+        this.ApplyTuning();
     }
 
     public override void Add(T item) {
@@ -135,6 +144,21 @@ public class ManagedList<T, TSerializer>:List<T>
         this.dataAccessor=this.dataMappedFile.CreateViewAccessor(0,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite);
     }
 
+    private void ReopenMappings() {
+        this.indexAccessor.Flush();
+        this.dataAccessor.Flush();
+        this.indexAccessor.Dispose();
+        this.indexMappedFile.Dispose();
+        this.indexStream.Dispose();
+        this.dataAccessor.Dispose();
+        this.dataMappedFile.Dispose();
+        this.dataStream.Dispose();
+        this.indexStream=this.OpenStream(this.IndexPath);
+        this.dataStream=this.OpenStream(this.Path);
+        this.CreateMappings();
+        this.ApplyTuning();
+    }
+
     private void AppendRecord(byte[] bytes) {
         this.EnsureIndexCapacity(this.Count+1);
         var recordOffset = this.DataLength;
@@ -171,7 +195,7 @@ public class ManagedList<T, TSerializer>:List<T>
         this.indexMappedFile=MemoryMappedFile.CreateFromFile(this.indexStream,null,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
         this.indexAccessor=this.indexMappedFile.CreateViewAccessor(0,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite);
         this.InitializeIndexRange(oldCapacity,newCapacity);
-        this.ApplyAccessPattern();
+        this.ApplyTuning();
     }
 
     private void RemapData(long newCapacity) {
@@ -182,7 +206,7 @@ public class ManagedList<T, TSerializer>:List<T>
         this.dataStream.SetLength(this.GetDataFileLength(newCapacity));
         this.dataMappedFile=MemoryMappedFile.CreateFromFile(this.dataStream,null,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
         this.dataAccessor=this.dataMappedFile.CreateViewAccessor(0,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite);
-        this.ApplyAccessPattern();
+        this.ApplyTuning();
     }
 
     private void SortBySerializedBits() {
@@ -322,9 +346,13 @@ public class ManagedList<T, TSerializer>:List<T>
     private long AlignIndexCapacity(long capacity) => MemoryMappedListTuning.AlignElementCapacity(capacity,sizeof(long));
     private long AlignDataCapacity(long capacity) => MemoryMappedListTuning.AlignBytes(capacity);
 
-    private void ApplyAccessPattern() {
-        MemoryMappedListTuning.ApplyAccessPattern(this.indexStream,this.indexAccessor,this.AccessPattern);
-        MemoryMappedListTuning.ApplyAccessPattern(this.dataStream,this.dataAccessor,this.AccessPattern);
+    private FileStream OpenStream(string path) {
+        return new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,BufferSize,MemoryMappedListTuning.GetFileOptions(this.Tuning));
+    }
+
+    private void ApplyTuning() {
+        MemoryMappedListTuning.ApplyTuning(this.indexStream,this.indexAccessor,this.Tuning);
+        MemoryMappedListTuning.ApplyTuning(this.dataStream,this.dataAccessor,this.Tuning);
     }
 
     private long ReadIndexUnchecked(long index) => this.indexAccessor.ReadInt64(this.GetIndexOffset(index));

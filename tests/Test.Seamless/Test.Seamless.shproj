@@ -24,6 +24,7 @@
     <Compile Include="Stress\StressScript.cs" />
     <Compile Include="Test.cs" />
     <Compile Include="TestKeyComparer.cs" />
+    <Compile Include="TestPath.cs" />
     <Compile Include="TestRelation.cs" />
     <Compile Include="TestTypes.cs" />
     <Compile Include="Tsavorite\LightEpochInstanceLimitTests.cs" />

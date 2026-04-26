@@ -4,12 +4,28 @@ using System.Runtime.InteropServices;
 
 namespace Seamless.Collections;
 
-public enum TempListAccessPattern {
-    Sequential,
-    Random,
+public readonly record struct TempListTuning(FileAccess OptimizationMode,FileOptions accessPattern) {
+    public FileAccess OptimizationMode { get; } = ValidateOptimizationMode(OptimizationMode);
+    public FileOptions AccessPattern { get; } = ValidateAccessPattern(accessPattern);
+
+    private static FileAccess ValidateOptimizationMode(FileAccess optimizationMode) =>
+        optimizationMode is FileAccess.Read or FileAccess.Write or FileAccess.ReadWrite
+            ? optimizationMode
+            : throw new ArgumentOutOfRangeException(nameof(optimizationMode));
+
+    private static FileOptions ValidateAccessPattern(FileOptions accessPattern) {
+        const FileOptions supportedAccessPatterns = FileOptions.SequentialScan|FileOptions.RandomAccess;
+
+        if((accessPattern&~supportedAccessPatterns)!=0)
+            throw new ArgumentOutOfRangeException(nameof(accessPattern));
+        if(accessPattern==supportedAccessPatterns)
+            throw new ArgumentException("SequentialScan and RandomAccess cannot be combined.",nameof(accessPattern));
+        return accessPattern;
+    }
 }
 
 public abstract class List<T>:IReadOnlyList<T>, IDisposable {
+    private protected const int BufferSize = 4096;
     public string Path { get; }
     public long Count { get; protected set; }
     public long Capacity { get; protected set; }
@@ -29,6 +45,26 @@ public abstract class List<T>:IReadOnlyList<T>, IDisposable {
         }
     }
 
+    public ReadOnlySpan<T> AsSpan(long start) {
+        this.ThrowIfDisposed();
+        if((ulong)start>(ulong)this.Count)
+            throw new ArgumentOutOfRangeException(nameof(start));
+        return this.AsSpan(start,checked((int)(this.Count-start)));
+    }
+
+    public virtual ReadOnlySpan<T> AsSpan(long start,int length) {
+        this.ThrowIfDisposed();
+        this.ValidateSpanRange(start,length);
+        if(length==0)
+            return ReadOnlySpan<T>.Empty;
+
+        var items = new T[length];
+        for(var index = 0; index<length; index++) {
+            items[index]=this.GetItem(start+index);
+        }
+        return items;
+    }
+
     private protected List() {
         this.Path=string.Empty;
     }
@@ -44,6 +80,19 @@ public abstract class List<T>:IReadOnlyList<T>, IDisposable {
         this.Path=path;
     }
     public abstract void Add(T item);
+
+    public abstract FileAccess OptimizationMode { get; }
+    public abstract FileOptions AccessPattern { get; }
+    public TempListTuning Tuning => new(this.OptimizationMode,this.AccessPattern);
+    public void SetOptimizationMode(FileAccess optimizationMode) {
+        this.SetTuning(new(optimizationMode,this.AccessPattern));
+    }
+
+    public void SetAccessPattern(FileOptions accessPattern) {
+        this.SetTuning(new(this.OptimizationMode,accessPattern));
+    }
+
+    public abstract void SetTuning(TempListTuning tuning);
 
     //public abstract void Add(scoped ReadOnlySpan<byte> item);
 
@@ -77,6 +126,17 @@ public abstract class List<T>:IReadOnlyList<T>, IDisposable {
         ObjectDisposedException.ThrowIf(this.IsDisposed,this);
     }
 
+    private protected void ValidateSpanRange(long start,int length) {
+        if(start<0)
+            throw new ArgumentOutOfRangeException(nameof(start));
+        if(length<0)
+            throw new ArgumentOutOfRangeException(nameof(length));
+        if(start>this.Count)
+            throw new ArgumentOutOfRangeException(nameof(start));
+        if(length>this.Count-start)
+            throw new ArgumentOutOfRangeException(nameof(length));
+    }
+
     protected abstract T GetItem(long index);
     protected abstract void OnCountChanged();
     protected abstract void DisposeCore();
@@ -105,11 +165,14 @@ public abstract class List<T>:IReadOnlyList<T>, IDisposable {
 }
 
 internal static class MemoryMappedListTuning {
+    private const int PosixFadvNormal = 0;
     private const int PosixFadvRandom = 1;
     private const int PosixFadvSequential = 2;
+    private const int PosixFadvWillNeed = 3;
+    private const int MadvNormal = 0;
     private const int MadvRandom = 1;
     private const int MadvSequential = 2;
-    private const int DefaultFileBufferSize = 4096;
+    private const int MadvWillNeed = 3;
 
     [StructLayout(LayoutKind.Sequential)]
     private readonly struct Win32MemoryRangeEntry {
@@ -121,10 +184,6 @@ internal static class MemoryMappedListTuning {
             this.NumberOfBytes=numberOfBytes;
         }
     }
-
-    public static FileStream OpenFileStream(string path,TempListAccessPattern accessPattern = TempListAccessPattern.Sequential) =>
-        new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,DefaultFileBufferSize,GetFileOptions(accessPattern));
-
     public static long AlignBytes(long byteLength) {
         if(byteLength<1)
             throw new ArgumentOutOfRangeException(nameof(byteLength));
@@ -146,7 +205,19 @@ internal static class MemoryMappedListTuning {
         return AlignBytes(bytes)/elementSize;
     }
 
-    public static void ApplyAccessPattern(FileStream stream,MemoryMappedViewAccessor accessor,TempListAccessPattern accessPattern) {
+    public static FileOptions GetFileOptions(TempListTuning tuning) {
+        if(!OperatingSystem.IsWindows())
+            return FileOptions.None;
+
+        return tuning.AccessPattern;
+    }
+
+    public static bool RequiresReopen(TempListTuning currentTuning,TempListTuning nextTuning) {
+        return OperatingSystem.IsWindows()
+            &&currentTuning.AccessPattern!=nextTuning.AccessPattern;
+    }
+
+    public static void ApplyTuning(FileStream stream,MemoryMappedViewAccessor accessor,TempListTuning tuning) {
         ArgumentNullException.ThrowIfNull(stream);
         ArgumentNullException.ThrowIfNull(accessor);
 
@@ -154,42 +225,47 @@ internal static class MemoryMappedListTuning {
             return;
 
         if(OperatingSystem.IsWindows()) {
-            if(accessPattern==TempListAccessPattern.Sequential) {
+            if(tuning.OptimizationMode==FileAccess.Read
+                &&tuning.AccessPattern==FileOptions.SequentialScan) {
                 PrefetchWindows(accessor);
             }
             return;
         }
 
         if(OperatingSystem.IsLinux()||OperatingSystem.IsMacOS()) {
-            ApplyPosixFileHint(stream,accessPattern);
-            ApplyPosixMemoryHint(accessor,accessPattern);
+            ApplyPosixFileHint(stream,tuning);
+            ApplyPosixMemoryHint(accessor,tuning);
         }
     }
 
-    private static FileOptions GetFileOptions(TempListAccessPattern accessPattern) => accessPattern switch {
-        TempListAccessPattern.Random => FileOptions.RandomAccess,
-        _ => FileOptions.SequentialScan,
-    };
 
-    private static void ApplyPosixFileHint(FileStream stream,TempListAccessPattern accessPattern) {
+    private static void ApplyPosixFileHint(FileStream stream,TempListTuning tuning) {
         try {
             var fileDescriptor = unchecked((int)stream.SafeFileHandle.DangerousGetHandle());
-            var advice = accessPattern==TempListAccessPattern.Sequential ? PosixFadvSequential : PosixFadvRandom;
+            var advice = tuning.OptimizationMode==FileAccess.Write
+                ? PosixFadvNormal
+                : GetPosixFileAdvice(tuning.AccessPattern);
             _=posix_fadvise(fileDescriptor,0,0,advice);
+            if(tuning.OptimizationMode==FileAccess.Read)
+                _=posix_fadvise(fileDescriptor,0,0,PosixFadvWillNeed);
         }
         catch {
         }
     }
 
-    private static unsafe void ApplyPosixMemoryHint(MemoryMappedViewAccessor accessor,TempListAccessPattern accessPattern) {
+    private static unsafe void ApplyPosixMemoryHint(MemoryMappedViewAccessor accessor,TempListTuning tuning) {
         byte* pointer = null;
         accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref pointer);
         try {
             if(pointer is null)
                 return;
 
-            var advice = accessPattern==TempListAccessPattern.Sequential ? MadvSequential : MadvRandom;
+            var advice = tuning.OptimizationMode==FileAccess.Write
+                ? MadvNormal
+                : GetPosixMemoryAdvice(tuning.AccessPattern);
             _=madvise((nint)pointer,checked((nuint)accessor.Capacity),advice);
+            if(tuning.OptimizationMode==FileAccess.Read)
+                _=madvise((nint)pointer,checked((nuint)accessor.Capacity),MadvWillNeed);
         }
         catch {
         }
@@ -198,6 +274,18 @@ internal static class MemoryMappedListTuning {
                 accessor.SafeMemoryMappedViewHandle.ReleasePointer();
         }
     }
+
+    private static int GetPosixFileAdvice(FileOptions accessPattern) => accessPattern switch {
+        FileOptions.SequentialScan => PosixFadvSequential,
+        FileOptions.RandomAccess => PosixFadvRandom,
+        _ => PosixFadvNormal,
+    };
+
+    private static int GetPosixMemoryAdvice(FileOptions accessPattern) => accessPattern switch {
+        FileOptions.SequentialScan => MadvSequential,
+        FileOptions.RandomAccess => MadvRandom,
+        _ => MadvNormal,
+    };
 
     private static unsafe void PrefetchWindows(MemoryMappedViewAccessor accessor) {
         byte* pointer = null;

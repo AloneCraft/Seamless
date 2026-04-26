@@ -1,7 +1,13 @@
+using System.Runtime.InteropServices;
+
 namespace Seamless.Collections;
 
 public sealed class InMemoryList<T>:List<T> {
     private readonly global::System.Collections.Generic.List<T> items;
+    private TempListTuning tuning = new(FileAccess.ReadWrite,FileOptions.SequentialScan);
+
+    public override FileAccess OptimizationMode => this.tuning.OptimizationMode;
+    public override FileOptions AccessPattern => this.tuning.AccessPattern;
 
     public InMemoryList(long initialCapacity = 16) {
         if(initialCapacity<1)
@@ -19,6 +25,28 @@ public sealed class InMemoryList<T>:List<T> {
         this.items.Add(item);
         this.Count=this.items.Count;
         this.Capacity=this.items.Capacity;
+    }
+
+    public override void SetTuning(TempListTuning tuning) {
+        this.ThrowIfDisposed();
+        this.tuning=tuning;
+    }
+
+    public new ref T this[int index] => ref this[checked((long)index)];
+
+    public new ref T this[long index] {
+        get {
+            this.ThrowIfDisposed();
+            if((ulong)index>=(ulong)this.Count)
+                throw new ArgumentOutOfRangeException(nameof(index));
+            return ref CollectionsMarshal.AsSpan(this.items)[checked((int)index)];
+        }
+    }
+
+    public override ReadOnlySpan<T> AsSpan(long start,int length) {
+        this.ThrowIfDisposed();
+        this.ValidateSpanRange(start,length);
+        return CollectionsMarshal.AsSpan(this.items).Slice(checked((int)start),length);
     }
 
     protected override T GetItem(long index) =>
