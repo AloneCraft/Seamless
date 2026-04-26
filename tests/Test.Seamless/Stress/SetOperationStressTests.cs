@@ -27,7 +27,7 @@ public class SetOperationStressTests {
         string opName,
         int count,
         int repeat,
-        Action<UnmanagedUnmanagedHashSet<int>,UnmanagedUnmanagedHashSet<int>> op) {
+        Action<UnmanagedHashSet<int>,UnmanagedHashSet<int>> op) {
         var temp = CreateTempDir("uintset_"+opName);
         try {
             var keysA = StressScript.SampleKeys(SeedA,count*4,count);

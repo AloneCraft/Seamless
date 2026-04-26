@@ -371,7 +371,7 @@ public sealed class ManagedDictionaryBenchmark(ITestOutputHelper output):Diction
         return new H(mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits);
     }
     private sealed class H:Handle {
-        private readonly ManagedManagedDictionaryStore<string,string> store;
+        private readonly ManagedDictionaryStore<string,string> store;
         private readonly ISeamlessDictionary<string,string> dict;
         private readonly long indexSize;
         private readonly long segmentSize;
@@ -444,7 +444,7 @@ public sealed class UnmanagedDictionaryBenchmark(ITestOutputHelper output):Dicti
         return new H(mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits);
     }
     private sealed class H:Handle {
-        private readonly UnmanagedUnmanagedDictionaryStore<int,int> store;
+        private readonly UnmanagedDictionaryStore<int,int> store;
         private readonly ISeamlessDictionary<int,int> dict;
         private readonly long indexSize;
         private readonly long segmentSize;

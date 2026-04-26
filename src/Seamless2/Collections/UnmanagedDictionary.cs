@@ -98,7 +98,7 @@ public partial class UnmanagedDictionary<
     public UnmanagedList<KeyValuePair<TKey,TValue>>.Enumerator GetEnumerator() {
         var workListPath = CreateTemporaryWorkListPath("unmanaged-dictionary-enumerator");
         try {
-            var items = TempList.Create<KeyValuePair<TKey,TValue>>(workListPath,initialCapacity: Const.Chunk_Length);
+            var items = ListStore.Create<KeyValuePair<TKey,TValue>>(workListPath,initialCapacity: Const.Chunk_Length);
             var iterator = new KeyValueIterator();
             iterator.SetList(items);
             var cursor = 0L;
@@ -114,7 +114,7 @@ public partial class UnmanagedDictionary<
     IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() {
         var workListPath = CreateTemporaryWorkListPath("unmanaged-dictionary-memory-enumerator");
         try {
-            var items = TempList.Create<KeyValuePair<TKey,TValue>>(workListPath,initialCapacity: Const.Chunk_Length);
+            var items = ListStore.Create<KeyValuePair<TKey,TValue>>(workListPath,initialCapacity: Const.Chunk_Length);
             var iterator = new MemoryKeyValueIterator();
             iterator.SetList(items);
             var cursor = 0L;
@@ -136,7 +136,7 @@ public partial class UnmanagedDictionary<
         where T : unmanaged {
         var workListPath = CreateTemporaryWorkListPath("unmanaged-dictionary-collection");
         try {
-            using var items = TempList.Create<T>(workListPath,initialCapacity: Const.Chunk_Length);
+            using var items = ListStore.Create<T>(workListPath,initialCapacity: Const.Chunk_Length);
             iterator.SetList(items);
             var cursor = 0L;
             this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);

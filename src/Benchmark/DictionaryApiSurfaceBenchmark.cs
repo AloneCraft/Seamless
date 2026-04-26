@@ -51,8 +51,8 @@ public class DictionaryApiSurfaceBenchmark {
 
     private ISeamlessDictionary<int,int>? unmanagedDict;
     private ISeamlessDictionary<string,string>? managedDict;
-    private UnmanagedUnmanagedDictionaryStore<int,int>? unmanagedStore;
-    private ManagedManagedDictionaryStore<string,string>? managedStore;
+    private UnmanagedDictionaryStore<int,int>? unmanagedStore;
+    private ManagedDictionaryStore<string,string>? managedStore;
     private IDevice? logDevice;
     private IDevice? objDevice;
     private string? loadCheckpointDir;

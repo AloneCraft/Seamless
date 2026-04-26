@@ -105,7 +105,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         where TIterator : ScanIteratorFunctions_List<T,List<T>> {
         var workListPath = CreateTemporaryWorkListPath("managed-dictionary-collection");
         try {
-            using var items = TempList.Create<T>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            using var items = ListStore.Create<T>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
             iterator.SetList(items);
             this.IterateLookupAll(this.ReadSession,ref iterator);
             var collection = new global::System.Collections.Generic.List<T>(checked((int)items.Count));

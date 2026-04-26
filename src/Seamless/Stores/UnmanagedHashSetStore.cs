@@ -50,41 +50,41 @@ public class UnmanagedHashSetStore<TKey>
     public UnmanagedHashSet<TKey> Create() => new(this);
 }
 
-public class UnmanagedUnmanagedHashSetStore<TKey>:UnmanagedHashSetStore<TKey>
-    where TKey : unmanaged, IEquatable<TKey> {
-    internal UnmanagedUnmanagedHashSetStore(
-        long IndexSize,
-        long PageSize,
-        long SegmentSize,
-        long MemorySize,
-        double MutableFraction,
-        IDevice LogDevice,
-        IDevice ObjectLogDevice,
-        string? CheckpointDir
-    ) : base(
-        IndexSize,
-        PageSize,
-        SegmentSize,
-        MemorySize,
-        MutableFraction,
-        LogDevice,
-        ObjectLogDevice,
-        CheckpointDir
-    ){ }
+//public class UnmanagedUnmanagedHashSetStore<TKey>:UnmanagedHashSetStore<TKey>
+//    where TKey : unmanaged, IEquatable<TKey> {
+//    internal UnmanagedUnmanagedHashSetStore(
+//        long IndexSize,
+//        long PageSize,
+//        long SegmentSize,
+//        long MemorySize,
+//        double MutableFraction,
+//        IDevice LogDevice,
+//        IDevice ObjectLogDevice,
+//        string? CheckpointDir
+//    ) : base(
+//        IndexSize,
+//        PageSize,
+//        SegmentSize,
+//        MemorySize,
+//        MutableFraction,
+//        LogDevice,
+//        ObjectLogDevice,
+//        CheckpointDir
+//    ){ }
 
-    internal UnmanagedUnmanagedHashSetStore(
-        long IndexSize,
-        long PageSize,
-        long SegmentSize,
-        long MemorySize,
-        double MutableFraction
-    ) : base(
-        IndexSize,
-        PageSize,
-        SegmentSize,
-        MemorySize,
-        MutableFraction
-    ){ }
+//    internal UnmanagedUnmanagedHashSetStore(
+//        long IndexSize,
+//        long PageSize,
+//        long SegmentSize,
+//        long MemorySize,
+//        double MutableFraction
+//    ) : base(
+//        IndexSize,
+//        PageSize,
+//        SegmentSize,
+//        MemorySize,
+//        MutableFraction
+//    ){ }
 
-    public new UnmanagedUnmanagedHashSet<TKey> Create() => new(this);
-}
+//    public new UnmanagedUnmanagedHashSet<TKey> Create() => new(this);
+//}

@@ -337,7 +337,7 @@ public class ManagementHashSet(ITestOutputHelper output):HashSetIntegrateBase<st
         new ManagedHandle(rootDir,checkpointDir,deleteOnDispose);
 
     private sealed class ManagedHandle:Handle {
-        private readonly ManagedUnmanagedHashSetStore<string> store;
+        private readonly ManagedHashSetStore<string> store;
 
         public ManagedHandle(string rootDir,string? checkpointDir,bool deleteOnDispose) : base(rootDir,deleteOnDispose) {
             var factory = HashStore.Create(
@@ -395,7 +395,7 @@ public class UnmanagementHashSet(ITestOutputHelper output):HashSetIntegrateBase<
         new UnmanagedHandle(rootDir,checkpointDir,deleteOnDispose);
 
     private sealed class UnmanagedHandle:Handle {
-        private readonly UnmanagedUnmanagedHashSetStore<int> store;
+        private readonly UnmanagedHashSetStore<int> store;
 
         public UnmanagedHandle(string rootDir,string? checkpointDir,bool deleteOnDispose) : base(rootDir,deleteOnDispose) {
             var factory = HashStore.Create(

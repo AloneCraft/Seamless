@@ -42,10 +42,10 @@ public class HashSetApiSurfaceBenchmark {
     private ISeamlessHashSet<string>? managedSet;
     private ISeamlessHashSet<string>? managedOther;
 
-    private UnmanagedUnmanagedHashSetStore<int>? unmanagedStore;
-    private UnmanagedUnmanagedHashSetStore<int>? unmanagedOtherStore;
-    private ManagedUnmanagedHashSetStore<string>? managedStore;
-    private ManagedUnmanagedHashSetStore<string>? managedOtherStore;
+    private UnmanagedHashSetStore<int>? unmanagedStore;
+    private UnmanagedHashSetStore<int>? unmanagedOtherStore;
+    private ManagedHashSetStore<string>? managedStore;
+    private ManagedHashSetStore<string>? managedOtherStore;
     private IDevice? logA;
     private IDevice? objA;
     private IDevice? logB;
