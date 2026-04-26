@@ -55,109 +55,115 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
     where TValue : unmanaged, IEquatable<TValue>
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-    public sealed partial class KeyIterator:ScanIteratorFunctions<TKey> {
+    public sealed partial class KeyIterator:ScanIteratorFunctions_List<TKey,UnmanagedList<TKey>> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    public sealed class MemoryKeyIterator:MemoryScanIteratorFunctions<TKey> {
+    public sealed class MemoryKeyIterator:MemoryScanIteratorFunctions<TKey,UnmanagedList<TKey>> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    internal sealed partial class ValueIterator:ScanIteratorFunctions<TValue> {
+    internal sealed partial class ValueIterator:ScanIteratorFunctions_List<TValue,UnmanagedList<TValue>> {
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
-    public sealed partial class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
+    public sealed partial class KeyValueIterator:ScanIteratorFunctions_List<KeyValuePair<TKey,TValue>,UnmanagedList<KeyValuePair<TKey,TValue>>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             new(
                 TKeySerializer.Deserialize(logRecord.Key),
                 TValueSerializer.Deserialize(logRecord.ValueSpan)
             );
     }
-    public sealed class MemoryKeyValueIterator:MemoryScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
+    public sealed class MemoryKeyValueIterator:MemoryScanIteratorFunctions<KeyValuePair<TKey,TValue>,UnmanagedList<KeyValuePair<TKey,TValue>>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             new(
                 TKeySerializer.Deserialize(logRecord.Key),
                 TValueSerializer.Deserialize(logRecord.ValueSpan)
             );
     }
-    public struct Enumerator<TIterator, T>(
-        ClientSession<
-            FixedSpanByteKey,//TKey
-
-            EqualityEmpty,//TInput
-            TValue,//TOutput
-            EqualityEmpty,//TContext
-            UnmanagedRead<
-                TKey,
-                TValue
-            >,//TReadFunctions
-
-
-
-
-
-
-
-
-
-
-            UnmanagedStoreFunctions,//TStoreFunctions
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            UnmanagedAllocator//TAllocator
-        > Session,
-        TIterator Iterator
-    ):IEnumerator<T>
-        where TIterator : ScanIteratorFunctions<
-            T
-
-
-        > {
-        private long Cursor = 0, Count;
-        private int Index = -1;
-        private bool 最後のデータ配列か;
-        public readonly T Current => Iterator.Chunk[this.Index];
-        readonly object? IEnumerator.Current => this.Current;
-        public bool MoveNext() {
-            if(++this.Index<this.Count)
-                return true;
-            if(this.最後のデータ配列か) {
-                return false;
-            }
-            var まだデータがある = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
-            Session.BasicContext.CompletePending(wait: true);
-            var Count = Iterator.Count;
-            this.Count=Count;
-            if(!まだデータがある&&Count==0)
-                this.最後のデータ配列か=true;
-            if(Count>0) {
-                this.Index=0;
-                return true;
-            }
-            return false;
-        }
-        public void Reset() {
-            this.Cursor=0;
-            this.Count=0;
-            this.Index=-1;
-            this.最後のデータ配列か=false;
-        }
-        public readonly void Dispose() {
-        }
-    }
+    //public struct Enumerator<TIterator, T>:IEnumerator<T>
+    //    where TIterator : ScanIteratorFunctions_List<T> {
+    //    private global::Seamless.Collections.ManagedList<T>? Items;
+    //    private string? WorkListPath;
+    //    private long Index = -1;
+    //    private T CurrentValue = default!;
+    //    private readonly ClientSession<
+    //        FixedSpanByteKey,//TKey
+    //        EqualityEmpty,//TInput
+    //        TValue,//TOutput
+    //        EqualityEmpty,//TContext
+    //        UnmanagedRead<
+    //            TKey,
+    //            TValue
+    //        >,//TReadFunctions
+    //        UnmanagedStoreFunctions,//TStoreFunctions
+    //        UnmanagedAllocator//TAllocator
+    //    > _session;
+    //    private readonly TIterator _iterator;
+    //    public Enumerator(
+    //        ClientSession<
+    //            FixedSpanByteKey,//TKey
+    //            EqualityEmpty,//TInput
+    //            TValue,//TOutput
+    //            EqualityEmpty,//TContext
+    //            UnmanagedRead<
+    //                TKey,
+    //                TValue
+    //            >,//TReadFunctions
+    //            UnmanagedStoreFunctions,//TStoreFunctions
+    //            UnmanagedAllocator//TAllocator
+    //        > session,
+    //        TIterator iterator
+    //    ) {
+    //        this._session=session;
+    //        this._iterator=iterator;
+    //        this.Items=null;
+    //        this.WorkListPath=null;
+    //        this.Index=-1;
+    //        this.CurrentValue=default!;
+    //        this.WorkListPath=CreateTemporaryWorkListPath("unmanaged-enumerator");
+    //        try {
+    //            var items = new global::Seamless.Collections.ManagedList<T>(this.WorkListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+    //            this._iterator.SetList(items);
+    //            var scanFunctions = this._iterator;
+    //            var cursor = 0L;
+    //            this._session.IterateLookup(ref scanFunctions,ref cursor,resetCursor: false);
+    //            this._session.BasicContext.CompletePending(wait: true);
+    //            this.Items=items;
+    //        }
+    //        catch {
+    //            this.DisposeItems();
+    //            throw;
+    //        }
+    //    }
+    //    public readonly T Current => this.CurrentValue;
+    //    readonly object? IEnumerator.Current => this.Current;
+    //    public bool MoveNext() {
+    //        if(this.Items is null)
+    //            return false;
+    //        var nextIndex = this.Index+1;
+    //        if(nextIndex>=this.Items.Count)
+    //            return false;
+    //        this.Index=nextIndex;
+    //        this.CurrentValue=this.Items[this.Index];
+    //        return true;
+    //    }
+    //    private void DisposeItems() {
+    //        this.Items?.Dispose();
+    //        this.Items=null;
+    //        if(this.WorkListPath is null)
+    //            return;
+    //        DeleteTemporaryWorkListPath(this.WorkListPath);
+    //        this.WorkListPath=null;
+    //    }
+    //    public void Reset() {
+    //        this.Index=-1;
+    //        this.CurrentValue=default!;
+    //    }
+    //    public void Dispose() {
+    //        this.DisposeItems();
+    //    }
+    //}
     protected UnmanagedCollection(UnmanagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
     }
     public bool ContainsKey(TKey Key) {

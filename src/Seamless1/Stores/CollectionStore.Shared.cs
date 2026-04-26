@@ -18,7 +18,8 @@ public abstract partial class CollectionStore<
     public double MutableFraction { get; }
     internal OverflowMutableStrategyKind OverflowMutableStrategyKind { get; }
     private bool Disposed;
-    private bool UsesStorageDevice => this.Settings.LogDevice is not MemoryOnlyDevice||this.Settings.ObjectLogDevice is not MemoryOnlyDevice;
+    private int CheckpointInProgress;
+    private bool UsesStorageDevice => this.Settings is not null&&(this.Settings.LogDevice is not MemoryOnlyDevice||this.Settings.ObjectLogDevice is not MemoryOnlyDevice);
 
     private protected CollectionStore(
         TStoreFunctions StoreFunctions,
@@ -37,11 +38,17 @@ public abstract partial class CollectionStore<
     /// </summary>
     public async ValueTask<Guid> SaveAsync(CheckpointType CheckpointType = CheckpointType.Snapshot,CancellationToken ct = default) {
         this.AssertCheckpointDir();
-        var (success,token)=await this.Store.TakeFullCheckpointAsync(CheckpointType,ct);
-        await this.Store.CompleteCheckpointAsync(ct);
-        if(success)
-            return token;
-        throw new InvalidOperationException($"{nameof(this.Save)}Checkpoint failed.");
+        this.ThrowIfCheckpointInProgress();
+        try {
+            var (success,token)=await this.Store.TakeFullCheckpointAsync(CheckpointType,ct);
+            await this.Store.CompleteCheckpointAsync(ct);
+            if(success)
+                return token;
+            throw new InvalidOperationException($"{nameof(this.Save)}Checkpoint failed.");
+        }
+        finally {
+            this.ReleaseCheckpoint();
+        }
     }
 
     /// <summary>
@@ -56,11 +63,26 @@ public abstract partial class CollectionStore<
     /// </summary>
     public async ValueTask<Guid> SaveLogOnlyAsync(CheckpointType CheckpointType = CheckpointType.Snapshot,CancellationToken ct = default) {
         this.AssertCheckpointDir();
-        var (success,token)=await this.Store.TakeHybridLogCheckpointAsync(CheckpointType,cancellationToken: ct);
-        await this.Store.CompleteCheckpointAsync(ct);
-        if(success)
-            return token;
-        throw new InvalidOperationException($"{nameof(this.SaveLogOnly)}Checkpoint failed.");
+        this.ThrowIfCheckpointInProgress();
+        try {
+            var (success,token)=await this.Store.TakeHybridLogCheckpointAsync(CheckpointType,cancellationToken: ct);
+            await this.Store.CompleteCheckpointAsync(ct);
+            if(success)
+                return token;
+            throw new InvalidOperationException($"{nameof(this.SaveLogOnly)}Checkpoint failed.");
+        }
+        finally {
+            this.ReleaseCheckpoint();
+        }
+    }
+
+    private void ThrowIfCheckpointInProgress() {
+        if(System.Threading.Interlocked.CompareExchange(ref this.CheckpointInProgress,1,0)!=0)
+            throw new InvalidOperationException("Checkpoint already in progress.");
+    }
+
+    private void ReleaseCheckpoint() {
+        System.Threading.Volatile.Write(ref this.CheckpointInProgress,0);
     }
 
     /// <summary>
@@ -116,12 +138,12 @@ public abstract partial class CollectionStore<
         this.Disposed=true;
         if(disposing) {
             // Tsavorite の LocalStorageDevice は pending read を残したまま Dispose から戻ることがある。
-            if(this.UsesStorageDevice) {
+            if(this.Store is not null&&this.UsesStorageDevice) {
                 this.Store.Log.FlushAndEvict(wait: true);
             }
         }
-        this.Store.Dispose();
-        this.Settings.Dispose();
+        this.Store?.Dispose();
+        this.Settings?.Dispose();
     }
 
     ~CollectionStore() => this.Dispose(false);

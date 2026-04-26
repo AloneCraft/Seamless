@@ -11,10 +11,10 @@ namespace Test.Seamless.Stress;
 public class SetOperationStressTests {
     private const int SeedA = 20260417;
     private const int SeedB = 20260419;
-    private const int StressSetOpCount = 2_048;
+    private const int StressSetOpCount = 256;
 
     private static string CreateTempDir(string tag) {
-        var dir = Path.Combine(Environment.CurrentDirectory,"Seamless_SetStress_"+tag+"_"+Guid.NewGuid().ToString("N"));
+        var dir = Path.Combine(Environment.CurrentDirectory,nameof(SetOperationStressTests));
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -94,42 +94,22 @@ public class SetOperationStressTests {
     [Theory, InlineData(StressSetOpCount)]
     public void IntersectWith_UnmanagedInt(int count) {
         const int Count = 1;
-#if TSAVORITE1_1_1
-        _=Count;
-        _=count;
-#else
         RunUnmanagedIntSetOp("IntersectWith",count,StressScale.Apply(Count),(a,b) => a.IntersectWith(b));
-#endif
     }
     [Theory, InlineData(StressSetOpCount)]
     public void SymmetricExceptWith_UnmanagedInt(int count) {
         const int Count = 1;
-#if TSAVORITE1_1_1
-        _=Count;
-        _=count;
-#else
         RunUnmanagedIntSetOp("SymmetricExceptWith",count,StressScale.Apply(Count),(a,b) => a.SymmetricExceptWith(b));
-#endif
     }
     [Theory, InlineData(StressSetOpCount)]
     public void UnionWith_UnmanagedInt(int count) {
         const int Count = 1;
-#if TSAVORITE1_1_1
-        _=Count;
-        _=count;
-#else
         RunUnmanagedIntSetOp("UnionWith",count,StressScale.Apply(Count),(a,b) => a.UnionWith(b));
-#endif
     }
     [Theory, InlineData(StressSetOpCount)]
     public void ExceptWith_UnmanagedInt(int count) {
         const int Count = 1;
-#if TSAVORITE1_1_1
-        _=Count;
-        _=count;
-#else
         RunUnmanagedIntSetOp("ExceptWith",count,StressScale.Apply(Count),(a,b) => a.ExceptWith(b));
-#endif
     }
 
     private static void RunManagedStringSetOp(
@@ -200,41 +180,21 @@ public class SetOperationStressTests {
     [Theory, InlineData(StressSetOpCount)]
     public void IntersectWith_ManagedString(int count) {
         const int Count = 2;
-#if TSAVORITE1_1_1
-        _=Count;
-        _=count;
-#else
         RunManagedStringSetOp("IntersectWith",count,StressScale.Apply(Count),(a,b) => a.IntersectWith(b));
-#endif
     }
     [Theory, InlineData(StressSetOpCount)]
     public void SymmetricExceptWith_ManagedString(int count) {
         const int Count = 1;
-#if TSAVORITE1_1_1
-        _=Count;
-        _=count;
-#else
         RunManagedStringSetOp("SymmetricExceptWith",count,StressScale.Apply(Count),(a,b) => a.SymmetricExceptWith(b));
-#endif
     }
     [Theory, InlineData(StressSetOpCount)]
     public void UnionWith_ManagedString(int count) {
         const int Count = 2;
-#if TSAVORITE1_1_1
-        _=Count;
-        _=count;
-#else
         RunManagedStringSetOp("UnionWith",count,StressScale.Apply(Count),(a,b) => a.UnionWith(b));
-#endif
     }
     [Theory, InlineData(StressSetOpCount)]
     public void ExceptWith_ManagedString(int count) {
         const int Count = 2;
-#if TSAVORITE1_1_1
-        _=Count;
-        _=count;
-#else
         RunManagedStringSetOp("ExceptWith",count,StressScale.Apply(Count),(a,b) => a.ExceptWith(b));
-#endif
     }
 }

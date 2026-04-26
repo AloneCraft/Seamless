@@ -71,11 +71,35 @@ public partial class ManagedHashSet<TKey>
             SessionFunctions.SymmetricExceptWith//TFunctions
         >(new());
     }
-    public Enumerator<
-        KeyIterator,
-        TKey
-    > GetEnumerator() => new(this.ReadSession,new());
-    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<KeyIterator,TKey>(this.ReadMemoryClientSession,new());
+    public ManagedList<TKey>.Enumerator GetEnumerator() {
+        var workListPath = CreateTemporaryWorkListPath("managed-hashset-enumerator");
+        try {
+            var items = new ManagedList<TKey>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            var iterator = new KeyIterator();
+            iterator.SetList(items);
+            this.IterateLookupAll(this.ReadSession,ref iterator);
+            return new ManagedList<TKey>.Enumerator(items,ownsList: true,disposeAction: () => DeleteTemporaryWorkListPath(workListPath));
+        }
+        catch {
+            DeleteTemporaryWorkListPath(workListPath);
+            throw;
+        }
+    }
+
+    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() {
+        var workListPath = CreateTemporaryWorkListPath("managed-hashset-memory-enumerator");
+        try {
+            var items = new ManagedList<TKey>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            var iterator = new KeyIterator();
+            iterator.SetList(items);
+            this.IterateLookupAll(this.ReadMemoryClientSession,ref iterator);
+            return new ManagedList<TKey>.Enumerator(items,ownsList: true,disposeAction: () => DeleteTemporaryWorkListPath(workListPath));
+        }
+        catch {
+            DeleteTemporaryWorkListPath(workListPath);
+            throw;
+        }
+    }
     private readonly struct ScanIteratorFunctions_ExceptWith(
         ClientSession<
             SpanByte,
@@ -124,7 +148,8 @@ public partial class ManagedHashSet<TKey>
     ):IScanIteratorFunctions<SpanByte,SpanByte> {
         private bool ReaderCore(ref SpanByte key,ref SpanByte value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             if(other.PrivateProtectedContainsKey(ref key)) {
-            }else {
+            }
+            else {
                 var input = default(EqualityEmpty);
                 var output = default(EqualityEmpty);
                 Session.BasicContext.RMW(ref key,ref input,ref output);

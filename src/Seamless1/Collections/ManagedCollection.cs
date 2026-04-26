@@ -21,15 +21,15 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     where TValue : IEquatable<TValue>
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-    public sealed class KeyIterator:ScanIteratorFunctions_Chunk<TKey> {
+    public sealed class KeyIterator:ScanIteratorFunctions_List<TKey,ManagedList<TKey>> {
         private protected override TKey Deserialize(ref SpanByte key,ref SpanByte value) =>
             TKeySerializer.Deserialize(key.AsReadOnlySpan());
     }
-    internal sealed class ValueIterator:ScanIteratorFunctions_Chunk<TValue> {
+    internal sealed class ValueIterator:ScanIteratorFunctions_List<TValue,ManagedList<TValue>> {
         private protected override TValue Deserialize(ref SpanByte key,ref SpanByte value) =>
             TValueSerializer.Deserialize(value.AsReadOnlySpan());
     }
-    public sealed class KeyValueIterator:ScanIteratorFunctions_Chunk<KeyValuePair<TKey,TValue>> {
+    public sealed class KeyValueIterator:ScanIteratorFunctions_List<KeyValuePair<TKey,TValue>,ManagedList<KeyValuePair<TKey,TValue>>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize(ref SpanByte key,ref SpanByte value) {
             var Key = TKeySerializer.Deserialize(key.AsReadOnlySpan());
             var Value = TValueSerializer.Deserialize(value.AsReadOnlySpan());
@@ -66,7 +66,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         return Status;
     }
     public unsafe bool Remove(TKey key) {
-        var ClientSession = this.ContainsDeleteSession;
+        var ClientSession = this.DeleteSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var Input = default(EqualityEmpty);
         var Output = false;

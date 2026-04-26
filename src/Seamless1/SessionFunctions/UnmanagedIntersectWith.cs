@@ -69,10 +69,9 @@ internal readonly struct UnmanagedIntersectWith<TKey>:
     public void PostRMWOperation<TEpochAccessor>(ref TKey Key,ref EqualityEmpty Input,ref RMWInfo RmwInfo,TEpochAccessor Epoch)
         where TEpochAccessor : IEpochAccessor {
     }
-    [ExcludeFromCodeCoverage]
     public void RMWCompletionCallback(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Output,EqualityEmpty Ctx,Status Status,RecordMetadata RecordMetadata) {
-        // IterateLookup でメモリ上のキーを走査して RMW しているため、ここで非同期完了にはならない。
-        throw new NotSupportedException();
+        // IterateLookup 走査中の RMW は read-only 領域やディスク上レコードで Pending 完了になりうる。
+        // IntersectWith は完了通知の出力を参照しないため、待機側で完了させるだけでよい。
     }
     [ExcludeFromCodeCoverage]
     public bool SingleDeleter(ref TKey key,ref EqualityEmpty value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) {
@@ -114,7 +113,6 @@ internal readonly struct UnmanagedIntersectWith<TKey>:
         throw new NotSupportedException();
     }
     public void ConvertOutputToHeap(ref EqualityEmpty Input,ref EqualityEmpty Output) {
-        // IterateLookup はディスク上レコードも返すため、RMW が IsPending になることがある。
-        // EqualityEmpty はヒープデータを持たないため変換不要。
+        // Pending 完了時に呼ばれうるが、EqualityEmpty はヒープ化不要。
     }
 }

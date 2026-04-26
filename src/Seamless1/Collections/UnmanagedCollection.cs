@@ -55,15 +55,15 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
     where TValue : unmanaged, IEquatable<TValue>
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-    public sealed partial class KeyIterator:ScanIteratorFunctions_Chunk<TKey> {
+    public sealed partial class KeyIterator:ScanIteratorFunctions_List<TKey,UnmanagedList<TKey>> {
         private protected override TKey Deserialize(ref TKey key,ref TValue value) =>
             key;
     }
-    internal sealed partial class ValueIterator:ScanIteratorFunctions_Chunk<TValue> {
+    internal sealed partial class ValueIterator:ScanIteratorFunctions_List<TValue,UnmanagedList<TValue>> {
         private protected override TValue Deserialize(ref TKey key,ref TValue value) =>
             value;
     }
-    public sealed partial class KeyValueIterator:ScanIteratorFunctions_Chunk<KeyValuePair<TKey,TValue>> {
+    public sealed partial class KeyValueIterator:ScanIteratorFunctions_List<KeyValuePair<TKey,TValue>,UnmanagedList<KeyValuePair<TKey,TValue>>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize(ref TKey key,ref TValue value) =>
             new(
                 key,
@@ -95,7 +95,7 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
 
 
     public bool Remove(TKey key) {
-        var ClientSession = this.ContainsDeleteSession;
+        var ClientSession = this.DeleteSession;
 
 
         var Input = default(EqualityEmpty);

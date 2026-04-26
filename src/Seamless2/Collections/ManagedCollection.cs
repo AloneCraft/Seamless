@@ -19,77 +19,39 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     where TValue : IEquatable<TValue>
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-    public sealed class KeyIterator:ScanIteratorFunctions<TKey> {
+    public sealed class KeyIterator:ScanIteratorFunctions_List<TKey,ManagedList<TKey>> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    private protected sealed class MemoryKeyIterator:MemoryScanIteratorFunctions<TKey> {
+    private protected sealed class MemoryKeyIterator:MemoryScanIteratorFunctions<TKey,ManagedList<TKey>> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    private protected sealed class ValueIterator:ScanIteratorFunctions<TValue> {
+    private protected sealed class ValueIterator:ScanIteratorFunctions_List<TValue,ManagedList<TValue>> {
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
-    public sealed class KeyValueIterator:ScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
+    public sealed class KeyValueIterator:ScanIteratorFunctions_List<KeyValuePair<TKey,TValue>,ManagedList<KeyValuePair<TKey,TValue>>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
             var Key = TKeySerializer.Deserialize(logRecord.Key);
             var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
             return new(Key,Value);
         }
     }
-    private protected sealed class MemoryKeyValueIterator:MemoryScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
+    private protected sealed class MemoryKeyValueIterator:MemoryScanIteratorFunctions<KeyValuePair<TKey,TValue>,ManagedList<KeyValuePair<TKey,TValue>>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
             var Key = TKeySerializer.Deserialize(logRecord.Key);
             var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
             return new(Key,Value);
         }
     }
-    public struct PublicEnumerator<TIterator, T>(
-        ClientSession<
-            FixedSpanByteKey,
-            TValue,
-            bool,
-            EqualityEmpty,
-            ManagedAdd<TValue,TValueSerializer>,
-            ManagedStoreFunctions,
-            ManagedAllocator
-        > Session,
-        TIterator Iterator
-    ):IEnumerator<T>
-        where TIterator : ScanIteratorFunctions<
-            T
-        > {
-        private T[]? Items;
-        private int Index = -1;
+    public struct Enumerator<TIterator, T>:IEnumerator<T>
+        where TIterator : ScanIteratorFunctions_List<T,ManagedList<T>> {
+        private global::Seamless.Collections.ManagedList<T>? Items;
+        private string? WorkListPath;
+        private long Index = -1;
         private T CurrentValue = default!;
-        public readonly T Current => this.CurrentValue;
-        readonly object? IEnumerator.Current => this.Current;
-        public bool MoveNext() {
-            this.Items??=this.Materialize();
-            var NextIndex = this.Index+1;
-            if(NextIndex>=this.Items.Length)
-                return false;
-            this.Index=NextIndex;
-            this.CurrentValue=this.Items[this.Index];
-            return true;
-        }
-        private T[] Materialize() {
-            var ScanFunctions = new MaterializedScanIteratorFunctions<TIterator,T>(Iterator);
-            _=Session.Iterate(ref ScanFunctions);
-            _=Session.BasicContext.CompletePending(wait: true);
-            return [.. ScanFunctions.Items];
-        }
-        public void Reset() {
-            this.Items=null;
-            this.Index=-1;
-            this.CurrentValue=default!;
-        }
-        public readonly void Dispose() {
-        }
-    }
-    public struct Enumerator<TIterator, T>(
-        ClientSession<
+        private readonly ClientSession<
             FixedSpanByteKey,//TKey
             EqualityEmpty,//TInput
             TValue,//TOutput
@@ -97,73 +59,63 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
             ManagedRead<TValue,TValueSerializer>,
             ManagedStoreFunctions,
             ManagedAllocator
-        > Session,
-        TIterator Iterator
-    ):IEnumerator<T>
-        where TIterator : ScanIteratorFunctions<
-            T
-
-
-        > {
-        private long Cursor, Count;
-        private int Index = -1;
-        private bool 最後のデータ配列か;
-        public readonly T Current => Iterator.Chunk[this.Index];
+        > _session;
+        private readonly TIterator _iterator;
+        public Enumerator(ClientSession<
+            FixedSpanByteKey,//TKey
+            EqualityEmpty,//TInput
+            TValue,//TOutput
+            EqualityEmpty,//TContext
+            ManagedRead<TValue,TValueSerializer>,
+            ManagedStoreFunctions,
+            ManagedAllocator
+        > session,
+        TIterator iterator) {
+            this._session=session;
+            this._iterator=iterator;
+            this.WorkListPath=CreateTemporaryWorkListPath("managed-enumerator");
+            try {
+                var Items = new ManagedList<T>(this.WorkListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+                this._iterator.SetList(Items);
+                var ScanFunctions = this._iterator;
+                var cursor = 0L;
+                this._session.IterateLookup(ref ScanFunctions,ref cursor,resetCursor: false);
+                this._session.BasicContext.CompletePending(wait: true);
+                this.Items=Items;
+            }
+            catch {
+                this.DisposeItems();
+                throw;
+            }
+        }
+        public readonly T Current => this.CurrentValue;
         readonly object? IEnumerator.Current => this.Current;
         public bool MoveNext() {
-            if(++this.Index<this.Count)
-                return true;
-            if(this.最後のデータ配列か) {
+            if(this.Items is null)
+                return false;
+            var NextIndex = this.Index+1;
+            if(NextIndex>=this.Items.Count) {
                 this.Index=-1;
                 return false;
             }
-            while(true) {
-                if(Iterator.ストレージにデータがあるか) {
-                    this.Cursor=Iterator.LastAcceptedAddress;
-                    Iterator.SkipLastAcceptedAddressOnce=true;
-                    Iterator.ストレージにデータがあるか=false;
-                }
-                Iterator.Count=0;
-                var まだデータがある = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
-                Session.BasicContext.CompletePending(wait: true);
-                this.Count=Iterator.Count;
-                if(this.Count>0) {
-                    this.Index=0;
-                    return true;
-                }
-                if(!まだデータがある&&!Iterator.ストレージにデータがあるか) {
-                    this.最後のデータ配列か=true;
-                    this.Index=-1;
-                    return false;
-                }
-            }
-            // Iterator.Count=0;
-            // var まだデータがある = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
-            // Session.BasicContext.CompletePending(wait: true);
-            // var Count = Iterator.Count;
-            // this.Count=Count;
-            // if(!まだデータがある&&Count==0) {
-            //     this.最後のデータ配列か=true;
-            //     this.Index=-1;
-            //     return false;
-            // }
-            // if(Count>0) {
-            //     this.Index=0;
-            //     return true;
-            // }
-            // return false;
+            this.Index=NextIndex;
+            this.CurrentValue=this.Items[this.Index];
+            return true;
+        }
+        private void DisposeItems() {
+            this.Items?.Dispose();
+            this.Items=null;
+            if(this.WorkListPath is null)
+                return;
+            DeleteTemporaryWorkListPath(this.WorkListPath);
+            this.WorkListPath=null;
         }
         public void Reset() {
-            this.Cursor=0;
-            this.Count=0;
             this.Index=-1;
-            this.最後のデータ配列か=false;
-            Iterator.Count=0;
-            Iterator.LastAcceptedAddress=0;
-            Iterator.SkipLastAcceptedAddressOnce=false;
-            Iterator.ストレージにデータがあるか=false;
+            this.CurrentValue=default!;
         }
-        public readonly void Dispose() {
+        public void Dispose() {
+            this.DisposeItems();
         }
     }
     private protected ManagedCollection(ManagedCollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {

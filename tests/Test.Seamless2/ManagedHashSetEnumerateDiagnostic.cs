@@ -26,7 +26,10 @@ public class ManagedHashSetEnumerateDiagnostic {
             var distinct = enumerated.Distinct(StringComparer.Ordinal).OrderBy(static value => value,StringComparer.Ordinal).ToArray();
             var missingFromEnumeration = expected.Where(value => !distinct.Contains(value,StringComparer.Ordinal)).ToArray();
             var missingFromContains = expected.Where(value => !set.Contains(value)).ToArray();
-            throw new Xunit.Sdk.XunitException($"count={enumerated.Count}, distinct={distinct.Length}, values=[{string.Join(",",distinct)}], missingEnum=[{string.Join(",",missingFromEnumeration)}], missingContains=[{string.Join(",",missingFromContains)}]");
+            Assert.Equal(expected.Length,enumerated.Count);
+            Assert.Equal(expected.Length,distinct.Length);
+            Assert.Empty(missingFromEnumeration);
+            Assert.Empty(missingFromContains);
         }
         finally {
             try {
