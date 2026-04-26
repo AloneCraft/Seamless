@@ -22,7 +22,7 @@ public abstract class List<T>:IReadOnlyList<T>, IDisposable {
         }
     }
 
-    protected List(string path) {
+    private protected List(string path) {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         var directoryPath = System.IO.Path.GetDirectoryName(path);
