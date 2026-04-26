@@ -13,7 +13,7 @@ public abstract partial class CollectionStore<
     where TKey : IEquatable<TKey>
     where TStoreFunctions : IStoreFunctions<TSessionKey,TSessionValue>
     where TAllocator : IAllocator<TSessionKey,TSessionValue,TStoreFunctions> {
-    private KVSettings<TSessionKey,TSessionValue> Settings {get;}
+    private KVSettings<TSessionKey,TSessionValue> Settings { get; }
     public readonly TsavoriteKV<TSessionKey,TSessionValue,TStoreFunctions,TAllocator> Store;
     /// <summary>テスト専用シーム: TakeCheckpointAsync 完了後・CompleteCheckpointAsync 前に呼び出されるコールバック。</summary>
     private protected CollectionStore(
@@ -40,13 +40,25 @@ public abstract partial class CollectionStore<
             MemorySize=MemorySize,
             PageSize=PageSize,
             SegmentSize=SegmentSize,
-
             MutableFraction=MutableFraction,
             LogDevice=LogDevice,
             ObjectLogDevice=ObjectLogDevice,
 
             CheckpointDir=CheckpointDir,
         };
+        if(
+            OverflowMutableStrategyKind==OverflowMutableStrategyKind.Storage
+            &&typeof(TAllocator).IsGenericType
+            &&typeof(TAllocator).GetGenericTypeDefinition()==typeof(BlittableAllocator<,,>)
+        ) {
+            this.Settings.ReadCopyOptions=new ReadCopyOptions {
+                CopyFrom=ReadCopyFrom.Device,
+                CopyTo=ReadCopyTo.ReadCache,
+            };
+            this.Settings.ReadCacheEnabled=true;
+            this.Settings.ReadCachePageSize=PageSize;
+            this.Settings.ReadCacheMemorySize=MemorySize;
+        }
         this.Store=new TsavoriteKV<TSessionKey,TSessionValue,TStoreFunctions,TAllocator>(
             this.Settings,
             StoreFunctions,

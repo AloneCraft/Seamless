@@ -69,10 +69,9 @@ internal readonly struct ManagedIntersectWith:
         // RMW の成否にかかわらず呼ばれるが、IntersectWith では後処理は不要。
 
     }
-    [ExcludeFromCodeCoverage]
     public void RMWCompletionCallback(ref SpanByte Key,ref EqualityEmpty Input,ref EqualityEmpty Output,EqualityEmpty Ctx,Status Status,RecordMetadata RecordMetadata) {
-        // IterateLookup でメモリ上のキーを走査して RMW しているため、ここで非同期完了にはならない。
-        throw new NotSupportedException();
+        // IterateLookup 走査中の RMW は read-only 領域やディスク上レコードで Pending 完了になりうる。
+        // IntersectWith は完了通知の出力を参照しないため、待機側で完了させるだけでよい。
     }
     [ExcludeFromCodeCoverage]
     public bool SingleDeleter(ref SpanByte key,ref SpanByte value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) {
@@ -113,9 +112,7 @@ internal readonly struct ManagedIntersectWith:
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
     }
-    [ExcludeFromCodeCoverage]
     public void ConvertOutputToHeap(ref EqualityEmpty Input,ref EqualityEmpty Output) {
-        // IntersectWith は IterateLookup でメモリ上のキーに対してだけ RMW するため、Pending 完了用のヒープ変換には到達しない。
-        throw new NotSupportedException();
+        // Pending 完了時に呼ばれうるが、EqualityEmpty はヒープ化不要。
     }
 }

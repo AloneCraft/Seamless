@@ -3,14 +3,14 @@ namespace Seamless.Devices;
 /// <summary>
 /// ディスクI/Oを行わず、退避ページをヒープ上のバイト配列に保持するデバイス。
 /// </summary>
-public sealed class MemoryOnlyDevice:StorageDeviceBase{
-    private const string DeviceName="memory-only";
-    private const uint DefaultSectorSize=512;
-    public MemoryOnlyDevice(long Capacity):base(DeviceName,DefaultSectorSize,Capacity){}
-    public override void ReadAsync(int segmentId,ulong sourceAddress,IntPtr destinationAddress,uint readLength,DeviceIOCompletionCallback callback,object context){
+public sealed class MemoryOnlyDevice:StorageDeviceBase {
+    private const string DeviceName = "memory-only";
+    private const uint DefaultSectorSize = 512;
+    public MemoryOnlyDevice(long Capacity) : base(DeviceName,DefaultSectorSize,Capacity) { }
+    public override void ReadAsync(int segmentId,ulong sourceAddress,IntPtr destinationAddress,uint readLength,DeviceIOCompletionCallback callback,object context) {
         throw new IOException(nameof(ReadAsync));
     }
-    public override void Dispose(){
+    public override void Dispose() {
     }
     /// <summary>
     /// メモリ上のバイト配列に書き込む。既存のページがあれば上書きするが、容量を超える場合は例外を投げる。
@@ -21,8 +21,8 @@ public sealed class MemoryOnlyDevice:StorageDeviceBase{
     /// <param name="numBytesToWrite"></param>
     /// <param name="callback"></param>
     /// <param name="context"></param>
-    /// <exception cref="IOException"></exception>
-    public override void WriteAsync(IntPtr sourceAddress,int segmentId,ulong destinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object context){
+    /// <exception cref="OutOfMemoryException"></exception>
+    public override void WriteAsync(IntPtr sourceAddress,int segmentId,ulong destinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object context) {
         throw new OutOfMemoryException(nameof(WriteAsync));
     }
     /// <summary>
@@ -33,7 +33,7 @@ public sealed class MemoryOnlyDevice:StorageDeviceBase{
     /// <param name="segment"></param>
     /// <param name="callback"></param>
     /// <param name="result"></param>
-    public override void RemoveSegmentAsync(int segment,AsyncCallback callback,IAsyncResult result){
+    public override void RemoveSegmentAsync(int segment,AsyncCallback callback,IAsyncResult result) {
         Trace.WriteLine(nameof(this.RemoveSegmentAsync));
     }
 }

@@ -57,45 +57,105 @@ public abstract class Collection<
         TSessionValue,
         TStoreFunctions
     > {
-    public abstract class ScanIteratorFunctions_Chunk<T>:IScanIteratorFunctions<TSessionKey,TSessionValue> {
-        public readonly T[] Chunk = new T[Const.Chunk_Length];
-        public long Count;
+    //public abstract class ScanIteratorFunctions_Chunk<T>:IScanIteratorFunctions<TSessionKey,TSessionValue> {
+    //    public readonly T[] Chunk = new T[Const.Chunk_Length];
+    //    public int Count;
+    //    public long LastAcceptedAddress;
+    //    public bool SkipLastAcceptedAddressOnce;
+    //    public bool ストレージにデータがあるか;
+    //    private protected abstract T Deserialize(ref TSessionKey key,ref TSessionValue value);
+    //    public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+    //        if(this.Count>=Const.Chunk_Length) {
+    //            //メモリで完結する場合はここは通らない。
+    //            //ここを通るのは、ストレージを伴う場合で、かつChunkの上限に達した場合。
+    //            //this.LastAcceptedAddress=recordMetadata.Address;//次回の走査でこのレコードを再度読むため、RetryLastRecord を返す。
+    //            if(this.Count==Const.Chunk_Length){
+    //                this.LastAcceptedAddress=recordMetadata.Address;
+    //                this.ストレージにデータがあるか=true;
+    //            }else{
+    //            }
+    //            cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;//ストレージの場合はここは無視されるが、念のため EndBatch も返す。
+    //            return false;
+    //        }
+    //        if(this.SkipLastAcceptedAddressOnce&&recordMetadata.Address==this.LastAcceptedAddress) {
+    //            this.SkipLastAcceptedAddressOnce=false;
+    //            cursorRecordResult=CursorRecordResult.Skip;
+    //            return true;
+    //        }
+    //        // 重複読み込み防止（以前の議論のロジック）
+    //        if(recordMetadata.Address==this.LastAcceptedAddress) {
+    //            cursorRecordResult=CursorRecordResult.Skip;
+    //            return true;
+    //        }
+    //        // データの処理
+    //        this.Chunk[this.Count]=this.Deserialize(ref key,ref value);
+    //        this.Count++;
+    //        cursorRecordResult=CursorRecordResult.Accept;
+    //        return true;
+    //        //Debug.Assert(this.Count<=Const.Chunk_Length);
+    //        //var Index = this.Count;
+    //        //this.Chunk[Index]=this.Deserialize(ref key,ref value);
+    //        //Index++;
+    //        //if(Index==Const.Chunk_Length) {
+    //        //    cursorRecordResult=CursorRecordResult.Accept|CursorRecordResult.EndBatch;
+    //        //}
+    //        //else {
+    //        //    cursorRecordResult=CursorRecordResult.Accept;
+    //        //}
+    //        //this.Count=Index;
+    //        //return true;
+    //        //Debug.Assert(!recordMetadata.RecordInfo.Tombstone);
+    //        //var index = Interlocked.Increment(ref this.Count)-1;
+    //        //if(index>=Const.Chunk_Length) {
+    //        //    Volatile.Write(ref this.Count,Const.Chunk_Length);
+    //        //    var lastAcceptedAddress = Volatile.Read(ref this.LastAcceptedAddress);
+    //        //    //trueを返す条件はrecordMetadata.Address==lastAcceptedAddressのときのみで、これはPendingの影響で重複して読まされる最後のレコードに対してだけ起こりうる。
+    //        //    if(recordMetadata.Address==lastAcceptedAddress)
+    //        //        cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;//Pendingの影響で重複 → RetryLastRecord 付けない
+    //        //    else
+    //        //        cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
+    //        //    return true;
+    //        //}
+    //        //this.Chunk[index]=this.Deserialize(ref key,ref value);
+    //        //Volatile.Write(ref this.LastAcceptedAddress,recordMetadata.Address);
+    //        //cursorRecordResult=CursorRecordResult.Accept;
+    //        //return true;
+    //    }
+    //    public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+    //        lock(this)
+    //            return this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+    //    }
+    //    public bool OnStart(long beginAddress,long endAddress) {
+    //        Volatile.Write(ref this.Count,0);
+    //        return true;
+    //    }
+    //    public void OnStop(bool completed,long numberOfRecords) {
+    //    }
+    //    public void OnException(Exception exception,long numberOfRecords) {
+    //    }
+    //}
+    public abstract class ScanIteratorFunctions_List<T, TList>:IScanIteratorFunctions<TSessionKey,TSessionValue>
+        where TList : List<T> {
+        private TList? List;
+        private readonly object Sync = new();
+        public void SetList(TList list) {
+            this.List=list;
+        }
         private protected abstract T Deserialize(ref TSessionKey key,ref TSessionValue value);
         public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
-            Debug.Assert(this.Count<=Const.Chunk_Length);
-            var Index = this.Count;
-            this.Chunk[Index]=this.Deserialize(ref key,ref value);
-            Index++;
-            if(Index==Const.Chunk_Length) {
-                cursorRecordResult=CursorRecordResult.Accept|CursorRecordResult.EndBatch;
+            if(recordMetadata.RecordInfo.Tombstone) {
+                cursorRecordResult=CursorRecordResult.Skip;
+                return true;
             }
-            else {
-                cursorRecordResult=CursorRecordResult.Accept;
-            }
-            this.Count=Index;
+            this.List!.Add(this.Deserialize(ref key,ref value));
+            cursorRecordResult=CursorRecordResult.Accept;
             return true;
-            //Debug.Assert(!recordMetadata.RecordInfo.Tombstone);
-            //var index = Interlocked.Increment(ref this.Count)-1;
-            //if(index>=Const.Chunk_Length) {
-            //    Volatile.Write(ref this.Count,Const.Chunk_Length);
-            //    var lastAcceptedAddress = Volatile.Read(ref this.LastAcceptedAddress);
-            //    //trueを返す条件はrecordMetadata.Address==lastAcceptedAddressのときのみで、これはPendingの影響で重複して読まされる最後のレコードに対してだけ起こりうる。
-            //    if(recordMetadata.Address==lastAcceptedAddress)
-            //        cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;//Pendingの影響で重複 → RetryLastRecord 付けない
-            //    else
-            //        cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
-            //    return true;
-            //}
-            //this.Chunk[index]=this.Deserialize(ref key,ref value);
-            //Volatile.Write(ref this.LastAcceptedAddress,recordMetadata.Address);
-            //cursorRecordResult=CursorRecordResult.Accept;
-            //return true;
         }
         public bool ConcurrentReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
-            return this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
+            lock(this.Sync)
+                return this.SingleReader(ref key,ref value,recordMetadata,numberOfRecords,out cursorRecordResult);
         }
         public bool OnStart(long beginAddress,long endAddress) {
-            Volatile.Write(ref this.Count,0);
             return true;
         }
         public void OnStop(bool completed,long numberOfRecords) {
@@ -103,7 +163,27 @@ public abstract class Collection<
         public void OnException(Exception exception,long numberOfRecords) {
         }
     }
-    public struct Enumerator<TIterator, T>(
+    private protected static string CreateTemporaryWorkListPath(string operationName) {
+        var directoryPath = global::System.IO.Path.Combine(
+            global::System.IO.Path.GetTempPath(),
+            "Seamless",
+            "worklists",
+            operationName,
+            Guid.NewGuid().ToString("N"));
+        global::System.IO.Directory.CreateDirectory(directoryPath);
+        return global::System.IO.Path.Combine(directoryPath,"items.dat");
+    }
+    private protected static void DeleteTemporaryWorkListPath(string path) {
+        var directoryPath = global::System.IO.Path.GetDirectoryName(path);
+        if(string.IsNullOrEmpty(directoryPath))
+            return;
+        try {
+            global::System.IO.Directory.Delete(directoryPath,recursive: true);
+        }
+        catch {
+        }
+    }
+    private protected void IterateLookupAll<TIterator>(
         ClientSession<
             TSessionKey,
             TSessionValue,
@@ -113,42 +193,66 @@ public abstract class Collection<
             TReadFunctions,
             TStoreFunctions,
             TAllocator
-        > Session,
-        TIterator Iterator
-    ):IEnumerator<T>
-        where TIterator : ScanIteratorFunctions_Chunk<T> {
-        private long Cursor,Count;
-        private int Index = -1;
-        private bool 最後のデータ配列か;
-        public readonly T Current => Iterator.Chunk[this.Index];
-        readonly object? IEnumerator.Current => this.Current;
-        public bool MoveNext() {
-            if(++this.Index<this.Count)
-                return true;
-            if(this.最後のデータ配列か) {
-                return false;
-            }
-            var まだデータがある=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
-            //Session.BasicContext.CompletePending(wait: true);
-            var Count = Iterator.Count;
-            this.Count=Count;
-            if(!まだデータがある&&Count==0)
-                this.最後のデータ配列か=true;
-            if(Count>0) {
-                this.Index=0;
-                return true;
-            }
-            return false;
-        }
-        public void Reset() {
-            this.Cursor=0;
-            this.Count=0;
-            this.Index=-1;
-            this.最後のデータ配列か=false;
-        }
-        public readonly void Dispose() {
+        > session,
+        ref TIterator iterator
+    )
+        where TIterator : IScanIteratorFunctions<TSessionKey,TSessionValue> {
+        var cursor = 0L;
+        {
+            var hasMore = session.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+            session.BasicContext.CompletePending(wait: true);
         }
     }
+    //public struct Enumerator<TIterator,T,TList>(
+    //    ClientSession<
+    //        TSessionKey,
+    //        TSessionValue,
+    //        EqualityEmpty,
+    //        TReadOutput,
+    //        EqualityEmpty,
+    //        TReadFunctions,
+    //        TStoreFunctions,
+    //        TAllocator
+    //    > Session,
+    //    TIterator Iterator,
+    //    TList List
+    //):IEnumerator<T>
+    //    where TIterator : ScanIteratorFunctions_List<T,TList>
+    //    where TList:List<T>{
+    //    private long Cursor,Count;
+    //    private int Index = -1;
+    //    private bool 最後のデータ配列か;
+    //    public readonly T Current => Iterator.Chunk[this.Index];
+    //    readonly object? IEnumerator.Current => this.Current;
+    //    public bool MoveNext() {
+    //        if(++this.Index<this.Count)
+    //            return true;
+    //        if(this.最後のデータ配列か) {
+    //            return false;
+    //        }
+    //        var まだデータがある=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+    //        //Session.BasicContext.CompletePending(wait: true);
+    //        var Count = Iterator.Count;
+    //        if(Iterator.LastAcceptedAddress>0)
+    //            this.Cursor=Iterator.LastAcceptedAddress;
+    //        this.Count=Count;
+    //        if(!まだデータがある&&Count==0)
+    //            this.最後のデータ配列か=true;
+    //        if(Count>0) {
+    //            this.Index=0;
+    //            return true;
+    //        }
+    //        return false;
+    //    }
+    //    public void Reset() {
+    //        this.Cursor=0;
+    //        this.Count=0;
+    //        this.Index=-1;
+    //        this.最後のデータ配列か=false;
+    //    }
+    //    public readonly void Dispose() {
+    //    }
+    //}
     private protected ClientSession<
         TSessionKey,
         TSessionValue,
@@ -188,7 +292,7 @@ public abstract class Collection<
         TContainsDeleteFunctions,
         TStoreFunctions,
         TAllocator
-    > ContainsDeleteSession { get; private set; } = null!;
+    > DeleteSession { get; private set; } = null!;
     private readonly CollectionStore<
         TKey,
         TValue,
@@ -236,10 +340,10 @@ public abstract class Collection<
         return Iterator.Counter;
     }
     private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey) {
-        var ContainsDeleteSession = this.ContainsDeleteSession;
-        var Output = false;
-        var Status = ContainsDeleteSession.BasicContext.Read(ref SessionKey,ref Output);
-        Status=Pending(ContainsDeleteSession,Status,ref Output);
+        var ReadSession = this.ReadSession;
+        var Output = default(TReadOutput)!;
+        var Status = ReadSession.BasicContext.Read(ref SessionKey,ref Output);
+        Status=Pending(ReadSession,Status,ref Output);
         return Status.Found;
     }
     protected Collection(
@@ -278,7 +382,7 @@ public abstract class Collection<
             EqualityEmpty,
             TAddFunctions
         >(TAddFunctions.Create());
-        this.ContainsDeleteSession=Store.NewSession<
+        this.DeleteSession=Store.NewSession<
 
             EqualityEmpty,
             bool,
@@ -290,7 +394,7 @@ public abstract class Collection<
         CompletePendingAndDispose(this.ReadSession);
         CompletePendingAndDispose(this.ReadMemoryClientSession);
         CompletePendingAndDispose(this.Add_ClientSession);
-        CompletePendingAndDispose(this.ContainsDeleteSession);
+        CompletePendingAndDispose(this.DeleteSession);
     }
     private protected virtual void DisposeAdditionalSessions() {
     }

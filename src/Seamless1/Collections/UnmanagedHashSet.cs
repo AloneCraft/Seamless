@@ -159,11 +159,34 @@ public partial class UnmanagedHashSet<TKey>
             >
         >(new());
     }
-    public Enumerator<
-        KeyIterator,
-        TKey
-    > GetEnumerator() => new(this.ReadSession,new());
-    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<KeyIterator,TKey>(this.ReadMemoryClientSession,new());
+    public UnmanagedList<TKey>.Enumerator GetEnumerator() {
+        var workListPath = CreateTemporaryWorkListPath("unmanaged-hashset-enumerator");
+        try {
+            var items = new UnmanagedList<TKey>(workListPath,initialCapacity: Const.Chunk_Length);
+            var iterator = new KeyIterator();
+            iterator.SetList(items);
+            this.IterateLookupAll(this.ReadSession,ref iterator);
+            return new UnmanagedList<TKey>.Enumerator(items,ownsList: true,disposeAction: () => DeleteTemporaryWorkListPath(workListPath));
+        }
+        catch {
+            DeleteTemporaryWorkListPath(workListPath);
+            throw;
+        }
+    }
+    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() {
+        var workListPath = CreateTemporaryWorkListPath("unmanaged-hashset-memory-enumerator");
+        try {
+            var items = new UnmanagedList<TKey>(workListPath,initialCapacity: Const.Chunk_Length);
+            var iterator = new KeyIterator();
+            iterator.SetList(items);
+            this.IterateLookupAll(this.ReadMemoryClientSession,ref iterator);
+            return new UnmanagedList<TKey>.Enumerator(items,ownsList: true,disposeAction: () => DeleteTemporaryWorkListPath(workListPath));
+        }
+        catch {
+            DeleteTemporaryWorkListPath(workListPath);
+            throw;
+        }
+    }
     private readonly struct ScanIteratorFunctions_ExceptWith(
         ClientSession<
             TKey,

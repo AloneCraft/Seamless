@@ -24,7 +24,7 @@ public abstract class HashSetIntegrateBase<TKey>
     protected abstract Handle CreateHandle(string rootDir,string? checkpointDir = null,bool deleteOnDispose = true);
     protected virtual int SegmentsCreatedDataSize => 5000;
     protected virtual int SegmentsCreatedCheckInterval => 500;
-    protected virtual int SegmentGrowthDataSize => 3000;
+    protected virtual int SegmentGrowthDataSize => 300;
     protected virtual int SegmentGrowthCheckInterval => 300;
     protected virtual int SegmentSteadyStateDataSize => 20000;
     protected virtual int SegmentSteadyStateCheckInterval => 1000;

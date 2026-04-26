@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 
 namespace Seamless.Collections;
 
@@ -32,6 +32,11 @@ public abstract class List<T>:IReadOnlyList<T>, IDisposable {
 
         this.Path=path;
     }
+    public abstract void Add(T item);
+
+    //public abstract void Add(scoped ReadOnlySpan<byte> item);
+
+    //public abstract void Add(global::Tsavorite.core.SpanByte item);
 
     public bool Remove() {
         this.ThrowIfDisposed();
@@ -65,7 +70,7 @@ public abstract class List<T>:IReadOnlyList<T>, IDisposable {
     protected abstract void OnCountChanged();
     protected abstract void DisposeCore();
 
-    public struct Enumerator(List<T> list):IEnumerator<T> {
+    public struct Enumerator(List<T> list,bool ownsList = false,global::System.Action? disposeAction = null):IEnumerator<T> {
         private long index = -1;
         public T Current => list[this.index];
         object IEnumerator.Current => this.Current!;
@@ -80,6 +85,10 @@ public abstract class List<T>:IReadOnlyList<T>, IDisposable {
             this.index=-1;
         }
         public readonly void Dispose() {
+            if(ownsList) {
+                list.Dispose();
+            }
+            disposeAction?.Invoke();
         }
     }
 }

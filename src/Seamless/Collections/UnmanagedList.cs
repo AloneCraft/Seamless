@@ -5,17 +5,8 @@ using System.Runtime.InteropServices;
 
 namespace Seamless.Collections;
 
-public class UnmanagedList<T>:List<T>
+public sealed class UnmanagedList<T>:List<T>
     where T : unmanaged {
-    private const long Magic = 0x53454D554E4C5354;
-    private const int Version = 1;
-    private const long MagicOffset = 0;
-    private const long VersionOffset = 8;
-    private const long ElementSizeOffset = 12;
-    private const long CountOffset = 16;
-    private const long CapacityOffset = 24;
-    private const int HeaderSize = 32;
-
     private readonly int elementSize = Unsafe.SizeOf<T>();
     private readonly FileStream stream;
     private MemoryMappedFile mappedFile = null!;
@@ -27,26 +18,22 @@ public class UnmanagedList<T>:List<T>
 
         this.stream=new FileStream(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read);
         if(this.stream.Length==0) {
-            this.Capacity=initialCapacity;
             this.Count=0;
+            this.Capacity=initialCapacity;
             this.stream.SetLength(this.GetFileLength(this.Capacity));
             this.CreateMapping();
-            this.WriteHeader();
         }
         else {
             this.CreateMapping();
-            this.LoadHeader();
+            this.LoadState();
         }
     }
 
-    public void Add(T item) {
-        this.ThrowIfDisposed();
+    public override void Add(T item) {
         this.EnsureCapacity(this.Count+1);
         this.WriteUnchecked(this.Count,item);
         this.Count++;
-        this.OnCountChanged();
     }
-
     public T RemoveLast() {
         if(!this.TryRemoveLast(out var item))
             throw new InvalidOperationException("The list is empty.");
@@ -100,25 +87,12 @@ public class UnmanagedList<T>:List<T>
         this.accessor.Flush();
     }
 
-    private void LoadHeader() {
-        var magic = this.accessor.ReadInt64(MagicOffset);
-        if(magic!=Magic)
-            throw new InvalidDataException("The memory-mapped file is not a Seamless.Collections.UnmanagedList file.");
+    private void LoadState() {
+        if(this.stream.Length%this.elementSize!=0)
+            throw new InvalidDataException("The unmanaged list file length is invalid.");
 
-        var version = this.accessor.ReadInt32(VersionOffset);
-        if(version!=Version)
-            throw new InvalidDataException($"Unsupported list file version: {version}.");
-
-        var fileElementSize = this.accessor.ReadInt32(ElementSizeOffset);
-        if(fileElementSize!=this.elementSize)
-            throw new InvalidDataException($"Element size mismatch. File={fileElementSize}, Current={this.elementSize}.");
-
-        this.Count=this.accessor.ReadInt64(CountOffset);
-        this.Capacity=this.accessor.ReadInt64(CapacityOffset);
-        if(this.Count<0||this.Capacity<1||this.Count>this.Capacity)
-            throw new InvalidDataException("The list header is invalid.");
-        if(this.stream.Length<this.GetFileLength(this.Capacity))
-            throw new InvalidDataException("The list file is truncated.");
+        this.Capacity=this.stream.Length/this.elementSize;
+        this.Count=this.Capacity;
     }
 
     private void CreateMapping() {
@@ -140,7 +114,6 @@ public class UnmanagedList<T>:List<T>
         this.Capacity=newCapacity;
         this.stream.SetLength(this.GetFileLength(newCapacity));
         this.CreateMapping();
-        this.WriteHeader();
     }
 
     private void SortByBits() {
@@ -205,18 +178,18 @@ public class UnmanagedList<T>:List<T>
     protected override T GetItem(long index) => this.ReadUnchecked(index);
 
     protected override void OnCountChanged() {
-        this.WriteHeader();
     }
 
     protected override void DisposeCore() {
         this.accessor.Flush();
         this.accessor.Dispose();
         this.mappedFile.Dispose();
+        this.stream.SetLength(this.GetFileLength(this.Count));
         this.stream.Dispose();
     }
 
-    private long GetFileLength(long capacity) => checked(HeaderSize+(capacity*this.elementSize));
-    private long GetItemOffset(long index) => checked(HeaderSize+(index*this.elementSize));
+    private long GetFileLength(long capacity) => checked(capacity*this.elementSize);
+    private long GetItemOffset(long index) => checked(index*this.elementSize);
 
     private T ReadUnchecked(long index) {
         this.accessor.Read(this.GetItemOffset(index),out T value);
@@ -225,13 +198,5 @@ public class UnmanagedList<T>:List<T>
 
     private void WriteUnchecked(long index,T value) {
         this.accessor.Write(this.GetItemOffset(index),ref value);
-    }
-
-    private void WriteHeader() {
-        this.accessor.Write(MagicOffset,Magic);
-        this.accessor.Write(VersionOffset,Version);
-        this.accessor.Write(ElementSizeOffset,this.elementSize);
-        this.accessor.Write(CountOffset,this.Count);
-        this.accessor.Write(CapacityOffset,this.Capacity);
     }
 }

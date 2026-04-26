@@ -206,11 +206,6 @@ public class SerialRandomStressTests {
     [Theory, InlineData(StressCountSmall), InlineData(StressCountLarge)]
     public void ManagedStringHashSet_AddEvictSaveLoadRemove_Deterministic(int count) {
         const int Count = 5;
-#if TSAVORITE1_1_1
-        _=Count;
-        _=count;
-        return;
-#else
         var repeat = StressScale.Apply(Count);
         var temp = CreateTempDir("strset");
         try {
@@ -260,6 +255,5 @@ public class SerialRandomStressTests {
         finally {
             TryCleanup(temp);
         }
-#endif
     }
 }

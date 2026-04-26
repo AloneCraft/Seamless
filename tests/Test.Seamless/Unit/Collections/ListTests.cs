@@ -136,6 +136,28 @@ public sealed class ListTests {
         }
     }
 
+    [Fact, Trait("Category","Unit")]
+    public void ManagedList_Reopen_AfterCountShrink_PreservesOnlyLiveValues() {
+        var path = CreatePath();
+        try {
+            using(var list = new StringList(path,initialCapacity: 4,initialDataCapacity: 64)) {
+                list.Add("bravo");
+                list.Add("alpha");
+                list.Add("bravo");
+                list.Add("charlie");
+
+                list.DuplicateRemoval();
+            }
+
+            using var reopened = new StringList(path);
+            Assert.Equal(3L,reopened.Count);
+            Assert.True(reopened.ToHashSet().SetEquals(new[] { "alpha","bravo","charlie" }));
+        }
+        finally {
+            TryDeleteDirectory(path);
+        }
+    }
+
     private static void TryDeleteDirectory(string path) {
         var directoryPath = Path.GetDirectoryName(path);
         if(string.IsNullOrEmpty(directoryPath))

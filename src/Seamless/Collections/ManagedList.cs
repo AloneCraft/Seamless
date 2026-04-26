@@ -3,30 +3,22 @@ using System.IO.MemoryMappedFiles;
 
 namespace Seamless.Collections;
 
-public class ManagedList<T>:ManagedList<T,ManagedSerializer<T>> {
+public sealed class ManagedList<T>:ManagedList<T,ManagedSerializer<T>> {
     public ManagedList(string path,long initialCapacity = 16,long initialDataCapacity = 4096) :
         base(path,initialCapacity,initialDataCapacity) { }
 }
 
 public class ManagedList<T, TSerializer>:List<T>
     where TSerializer : ISerializer<T> {
-    private const long IndexMagic = 0x53454D4C49445831;
-    private const long DataMagic = 0x53454D4C44415431;
-    private const int Version = 1;
-    private const long MagicOffset = 0;
-    private const long VersionOffset = 8;
-    private const long CountOffset = 16;
-    private const long CapacityOffset = 24;
-    private const long DataLengthOffset = 16;
-    private const long DataCapacityOffset = 24;
-    private const int HeaderSize = 32;
+    private const long UnusedIndex = -1;
 
-    private FileStream indexStream;
+    private readonly FileStream indexStream;
     private MemoryMappedFile indexMappedFile = null!;
     private MemoryMappedViewAccessor indexAccessor = null!;
-    private FileStream dataStream;
+    private readonly FileStream dataStream;
     private MemoryMappedFile dataMappedFile = null!;
     private MemoryMappedViewAccessor dataAccessor = null!;
+    private long persistedCount;
 
     public string IndexPath { get; }
     public long DataLength { get; private set; }
@@ -50,27 +42,32 @@ public class ManagedList<T, TSerializer>:List<T>
             this.indexStream.SetLength(this.GetIndexFileLength(this.Capacity));
             this.dataStream.SetLength(this.GetDataFileLength(this.DataCapacity));
             this.CreateMappings();
-            this.WriteIndexHeader();
-            this.WriteDataHeader();
+            this.InitializeIndexRange(0,this.Capacity);
+            this.persistedCount=0;
         }
         else {
             if(this.indexStream.Length==0||this.dataStream.Length==0)
                 throw new InvalidDataException("ManagedList companion files are incomplete.");
             this.CreateMappings();
-            this.LoadHeaders();
+            this.LoadState();
         }
     }
 
-    public void Add(T item) {
+    public override void Add(T item) {
         this.ThrowIfDisposed();
         var bytes = TSerializer.Serialize(ref item);
         this.AppendRecord(bytes.ToArray());
     }
 
-    public void Add(scoped ReadOnlySpan<byte> item) {
+    public void Add(byte[] item) {
         this.ThrowIfDisposed();
-        this.AppendRecord(item.ToArray());
+        this.AppendRecord(item.AsSpan().ToArray());
     }
+
+    //    public override void Add(scoped ReadOnlySpan<byte> item) {
+    //        this.ThrowIfDisposed();
+    //        this.AppendRecord(item.ToArray());
+    //    }
 
 #if TSAVORITE1_1_1
     public void Add(global::Tsavorite.core.SpanByte item) {
@@ -104,34 +101,20 @@ public class ManagedList<T, TSerializer>:List<T>
         this.indexAccessor.Flush();
     }
 
-    private void LoadHeaders() {
-        var indexMagic = this.indexAccessor.ReadInt64(MagicOffset);
-        if(indexMagic!=IndexMagic)
-            throw new InvalidDataException("The companion index file is not a Seamless.Collections.ManagedList index file.");
-        var indexVersion = this.indexAccessor.ReadInt32(VersionOffset);
-        if(indexVersion!=Version)
-            throw new InvalidDataException($"Unsupported index file version: {indexVersion}.");
+    private void LoadState() {
+        if(this.indexStream.Length%sizeof(long)!=0)
+            throw new InvalidDataException("The managed list index file length is invalid.");
 
-        var dataMagic = this.dataAccessor.ReadInt64(MagicOffset);
-        if(dataMagic!=DataMagic)
-            throw new InvalidDataException("The managed list data file is invalid.");
-        var dataVersion = this.dataAccessor.ReadInt32(VersionOffset);
-        if(dataVersion!=Version)
-            throw new InvalidDataException($"Unsupported data file version: {dataVersion}.");
+        this.Capacity=this.indexStream.Length/sizeof(long);
+        this.DataCapacity=this.dataStream.Length;
+        if(this.Capacity<1)
+            throw new InvalidDataException("The managed list index file is empty.");
+        if(this.DataCapacity<1)
+            throw new InvalidDataException("The managed list data file is empty.");
 
-        this.Count=this.indexAccessor.ReadInt64(CountOffset);
-        this.Capacity=this.indexAccessor.ReadInt64(CapacityOffset);
-        this.DataLength=this.dataAccessor.ReadInt64(DataLengthOffset);
-        this.DataCapacity=this.dataAccessor.ReadInt64(DataCapacityOffset);
-
-        if(this.Count<0||this.Capacity<1||this.Count>this.Capacity)
-            throw new InvalidDataException("The managed list index header is invalid.");
-        if(this.DataLength<0||this.DataCapacity<1||this.DataLength>this.DataCapacity)
-            throw new InvalidDataException("The managed list data header is invalid.");
-        if(this.indexStream.Length<this.GetIndexFileLength(this.Capacity))
-            throw new InvalidDataException("The managed list index file is truncated.");
-        if(this.dataStream.Length<this.GetDataFileLength(this.DataCapacity))
-            throw new InvalidDataException("The managed list data file is truncated.");
+        this.Count=this.LoadCount();
+        this.DataLength=this.LoadDataLength();
+        this.persistedCount=this.Count;
     }
 
     private void CreateMappings() {
@@ -150,7 +133,6 @@ public class ManagedList<T, TSerializer>:List<T>
         this.WriteIndexUnchecked(this.Count,recordOffset);
         this.Count++;
         this.DataLength=recordOffset+recordLength;
-        this.WriteDataHeader();
         this.OnCountChanged();
     }
 
@@ -169,6 +151,7 @@ public class ManagedList<T, TSerializer>:List<T>
     }
 
     private void RemapIndex(long newCapacity) {
+        var oldCapacity = this.Capacity;
         this.indexAccessor.Flush();
         this.indexAccessor.Dispose();
         this.indexMappedFile.Dispose();
@@ -176,7 +159,7 @@ public class ManagedList<T, TSerializer>:List<T>
         this.indexStream.SetLength(this.GetIndexFileLength(newCapacity));
         this.indexMappedFile=MemoryMappedFile.CreateFromFile(this.indexStream,null,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
         this.indexAccessor=this.indexMappedFile.CreateViewAccessor(0,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite);
-        this.WriteIndexHeader();
+        this.InitializeIndexRange(oldCapacity,newCapacity);
     }
 
     private void RemapData(long newCapacity) {
@@ -187,7 +170,6 @@ public class ManagedList<T, TSerializer>:List<T>
         this.dataStream.SetLength(this.GetDataFileLength(newCapacity));
         this.dataMappedFile=MemoryMappedFile.CreateFromFile(this.dataStream,null,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
         this.dataAccessor=this.dataMappedFile.CreateViewAccessor(0,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite);
-        this.WriteDataHeader();
     }
 
     private void SortBySerializedBits() {
@@ -268,7 +250,10 @@ public class ManagedList<T, TSerializer>:List<T>
     }
 
     protected override void OnCountChanged() {
-        this.WriteIndexHeader();
+        if(this.Count<this.persistedCount) {
+            this.InitializeIndexRange(this.Count,this.persistedCount);
+        }
+        this.persistedCount=this.Count;
     }
 
     protected override void DisposeCore() {
@@ -296,12 +281,14 @@ public class ManagedList<T, TSerializer>:List<T>
         return bytes;
     }
 
-    private int ReadRecordLength(long recordOffset) {
-        if(recordOffset<0||recordOffset>this.DataLength-sizeof(int))
+    private int ReadRecordLength(long recordOffset) => this.ReadRecordLength(recordOffset,this.DataLength);
+
+    private int ReadRecordLength(long recordOffset,long dataLength) {
+        if(recordOffset<0||recordOffset>dataLength-sizeof(int))
             throw new InvalidDataException("The managed list record offset is invalid.");
 
         var length = this.dataAccessor.ReadInt32(this.GetRecordPosition(recordOffset));
-        if(length<0||recordOffset+sizeof(int)+(long)length>this.DataLength)
+        if(length<0||recordOffset+sizeof(int)+(long)length>dataLength)
             throw new InvalidDataException("The managed list record length is invalid.");
         return length;
     }
@@ -314,10 +301,10 @@ public class ManagedList<T, TSerializer>:List<T>
         }
     }
 
-    private long GetIndexFileLength(long capacity) => checked(HeaderSize+(capacity*sizeof(long)));
-    private long GetDataFileLength(long dataCapacity) => checked(HeaderSize+dataCapacity);
-    private long GetIndexOffset(long index) => checked(HeaderSize+(index*sizeof(long)));
-    private long GetRecordPosition(long recordOffset) => checked(HeaderSize+recordOffset);
+    private long GetIndexFileLength(long capacity) => checked(capacity*sizeof(long));
+    private long GetDataFileLength(long dataCapacity) => dataCapacity;
+    private long GetIndexOffset(long index) => checked(index*sizeof(long));
+    private long GetRecordPosition(long recordOffset) => recordOffset;
 
     private long ReadIndexUnchecked(long index) => this.indexAccessor.ReadInt64(this.GetIndexOffset(index));
 
@@ -325,17 +312,39 @@ public class ManagedList<T, TSerializer>:List<T>
         this.indexAccessor.Write(this.GetIndexOffset(index),recordOffset);
     }
 
-    private void WriteIndexHeader() {
-        this.indexAccessor.Write(MagicOffset,IndexMagic);
-        this.indexAccessor.Write(VersionOffset,Version);
-        this.indexAccessor.Write(CountOffset,this.Count);
-        this.indexAccessor.Write(CapacityOffset,this.Capacity);
+    private long LoadCount() {
+        var count = 0L;
+        var foundUnused = false;
+        for(var index = 0L; index<this.Capacity; index++) {
+            var recordOffset = this.ReadIndexUnchecked(index);
+            if(recordOffset==UnusedIndex) {
+                foundUnused=true;
+                continue;
+            }
+            if(recordOffset<0)
+                throw new InvalidDataException("The managed list index file contains an invalid offset.");
+            if(foundUnused)
+                throw new InvalidDataException("The managed list index file contains a gap between live entries.");
+            count++;
+        }
+        return count;
     }
 
-    private void WriteDataHeader() {
-        this.dataAccessor.Write(MagicOffset,DataMagic);
-        this.dataAccessor.Write(VersionOffset,Version);
-        this.dataAccessor.Write(DataLengthOffset,this.DataLength);
-        this.dataAccessor.Write(DataCapacityOffset,this.DataCapacity);
+    private long LoadDataLength() {
+        var dataLength = 0L;
+        for(var index = 0L; index<this.Count; index++) {
+            var recordOffset = this.ReadIndexUnchecked(index);
+            var recordLength = this.ReadRecordLength(recordOffset,this.DataCapacity);
+            var recordEnd = checked(recordOffset+sizeof(int)+(long)recordLength);
+            if(recordEnd>dataLength)
+                dataLength=recordEnd;
+        }
+        return dataLength;
+    }
+
+    private void InitializeIndexRange(long startIndex,long endIndexExclusive) {
+        for(var index = startIndex; index<endIndexExclusive; index++) {
+            this.WriteIndexUnchecked(index,UnusedIndex);
+        }
     }
 }

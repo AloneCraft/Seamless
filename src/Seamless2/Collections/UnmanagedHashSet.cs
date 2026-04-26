@@ -73,11 +73,38 @@ public partial class UnmanagedHashSet<TKey>
             SymmetricExceptWith//TFunctions
         >(new());
     }
-    public Enumerator<
-        KeyIterator,
-        TKey
-    > GetEnumerator() => new(this.ReadSession,new());
-    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<MemoryKeyIterator,TKey>(this.ReadSession,new());
+    public UnmanagedList<TKey>.Enumerator GetEnumerator() {
+        var workListPath = CreateTemporaryWorkListPath("unmanaged-hashset-enumerator");
+        try {
+            var items = new UnmanagedList<TKey>(workListPath,initialCapacity: Const.Chunk_Length);
+            var iterator = new KeyIterator();
+            iterator.SetList(items);
+            var cursor = 0L;
+            this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+            this.ReadSession.BasicContext.CompletePending(wait: true);
+            return new(items,ownsList: true,disposeAction: () => DeleteTemporaryWorkListPath(workListPath));
+        }
+        catch {
+            DeleteTemporaryWorkListPath(workListPath);
+            throw;
+        }
+    }
+    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() {
+        var workListPath = CreateTemporaryWorkListPath("unmanaged-hashset-memory-enumerator");
+        try {
+            var items = new UnmanagedList<TKey>(workListPath,initialCapacity: Const.Chunk_Length);
+            var iterator = new MemoryKeyIterator();
+            iterator.SetList(items);
+            var cursor = 0L;
+            this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+            this.ReadSession.BasicContext.CompletePending(wait: true);
+            return new UnmanagedList<TKey>.Enumerator(items,ownsList: true,disposeAction: () => DeleteTemporaryWorkListPath(workListPath));
+        }
+        catch {
+            DeleteTemporaryWorkListPath(workListPath);
+            throw;
+        }
+    }
     private readonly struct ScanIteratorFunctions_ExceptWith(
         ClientSession<
             FixedSpanByteKey,
