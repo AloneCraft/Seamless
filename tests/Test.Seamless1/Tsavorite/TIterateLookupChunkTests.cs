@@ -409,7 +409,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
     // ================================================================
     [Fact]
     public void InMemory_Chunk10_VisitsAll25Records() {
-        var folder = Path.Combine(Environment.CurrentDirectory,"IterateLookupInMem1_"+Guid.NewGuid().ToString("N"));
+        var folder = global::Test.Seamless.TestPath.Directory(this);
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
 
         using var settings = new KVSettings<int,int> {
@@ -461,7 +461,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
     [InlineData(1024)]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void DiskBacked_Enumerator_PowerOfTwoDataSizes(int totalKeys) {
-        var folder = Path.Combine(Environment.CurrentDirectory,$"IterateLookupEnumerator1_{Guid.NewGuid():N}");
+        var folder = global::Test.Seamless.TestPath.Directory(this,totalKeys.ToString());
         try {
             using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
             using var settings = new KVSettings<int,int> {
@@ -512,7 +512,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void DiskBacked_Enumerator_ObservesPending() {
         const int totalKeys = 1024;
-        var folder = Path.Combine(Environment.CurrentDirectory,$"IterateLookupEnumeratorPending1_{Guid.NewGuid():N}");
+        var folder = global::Test.Seamless.TestPath.Directory(this);
         try {
             using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
             using var settings = new KVSettings<int,int> {
@@ -564,9 +564,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
     [Fact]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void DiskSpill_Chunk10_VisitsAll25Records_PendingPattern() {
-        var folder = Path.Combine(
-            Environment.CurrentDirectory,
-            "IterateLookupTest1_"+Guid.NewGuid().ToString("N"));
+        var folder = global::Test.Seamless.TestPath.Directory(this);
 
         using var logDevice = Devices.CreateLogDevice(
             Path.Combine(folder,"log.data"),deleteOnClose: true);
@@ -631,9 +629,7 @@ public class TIterateLookupChunkTests(ITestOutputHelper output) {
     [InlineData(256)]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void DiskSpill_UpsertFromChunk_PendingHandled(int Count) {
-        var folder = Path.Combine(
-            Environment.CurrentDirectory,
-            $"{nameof(this.DiskSpill_UpsertFromChunk_PendingHandled)}_{Count}_"+Guid.NewGuid().ToString("N"));
+        var folder = global::Test.Seamless.TestPath.Directory(this,Count.ToString());
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
         using var settings = new KVSettings<int,int> {
             IndexSize=64,

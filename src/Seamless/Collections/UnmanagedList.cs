@@ -11,15 +11,16 @@ public sealed class UnmanagedList<T>:List<T>
     private readonly FileStream stream;
     private MemoryMappedFile mappedFile = null!;
     private MemoryMappedViewAccessor accessor = null!;
+    public TempListAccessPattern AccessPattern { get; private set; } = TempListAccessPattern.Sequential;
 
     public UnmanagedList(string path,long initialCapacity = 16) : base(path) {
         if(initialCapacity<1)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity));
 
-        this.stream=new FileStream(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read);
+        this.stream=MemoryMappedListTuning.OpenFileStream(path,this.AccessPattern);
         if(this.stream.Length==0) {
             this.Count=0;
-            this.Capacity=initialCapacity;
+            this.Capacity=this.AlignCapacity(initialCapacity);
             this.stream.SetLength(this.GetFileLength(this.Capacity));
             this.CreateMapping();
         }
@@ -27,6 +28,16 @@ public sealed class UnmanagedList<T>:List<T>
             this.CreateMapping();
             this.LoadState();
         }
+
+        this.ApplyAccessPattern();
+    }
+
+    public void SetAccessPattern(TempListAccessPattern accessPattern) {
+        this.ThrowIfDisposed();
+        if(this.AccessPattern==accessPattern)
+            return;
+        this.AccessPattern=accessPattern;
+        this.ApplyAccessPattern();
     }
 
     public override void Add(T item) {
@@ -103,7 +114,7 @@ public sealed class UnmanagedList<T>:List<T>
     private void EnsureCapacity(long minimumCapacity) {
         if(minimumCapacity<=this.Capacity)
             return;
-        var newCapacity = Math.Max(this.Capacity*2,minimumCapacity);
+        var newCapacity = this.AlignCapacity(Math.Max(this.Capacity*2,minimumCapacity));
         this.Remap(newCapacity);
     }
 
@@ -114,6 +125,7 @@ public sealed class UnmanagedList<T>:List<T>
         this.Capacity=newCapacity;
         this.stream.SetLength(this.GetFileLength(newCapacity));
         this.CreateMapping();
+        this.ApplyAccessPattern();
     }
 
     private void SortByBits() {
@@ -188,8 +200,13 @@ public sealed class UnmanagedList<T>:List<T>
         this.stream.Dispose();
     }
 
+    private long AlignCapacity(long capacity) => MemoryMappedListTuning.AlignElementCapacity(capacity,this.elementSize);
     private long GetFileLength(long capacity) => checked(capacity*this.elementSize);
     private long GetItemOffset(long index) => checked(index*this.elementSize);
+
+    private void ApplyAccessPattern() {
+        MemoryMappedListTuning.ApplyAccessPattern(this.stream,this.accessor,this.AccessPattern);
+    }
 
     private T ReadUnchecked(long index) {
         this.accessor.Read(this.GetItemOffset(index),out T value);

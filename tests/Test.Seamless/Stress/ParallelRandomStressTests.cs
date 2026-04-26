@@ -1,4 +1,4 @@
-﻿using Seamless.Stores;
+using Seamless.Stores;
 using Tsavorite.core;
 namespace Test.Seamless.Stress;
 
@@ -17,7 +17,7 @@ public class ParallelRandomStressTests {
     private const int StressCountLarge = 1024;
 
     private static string CreateTempDir(string tag) {
-        var dir = Path.Combine(Environment.CurrentDirectory,"Seamless_PStress_"+tag+"_"+Guid.NewGuid().ToString("N"));
+        var dir = global::Test.Seamless.TestPath.Directory<ParallelRandomStressTests>(tag);
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -46,7 +46,7 @@ public class ParallelRandomStressTests {
         return;
 #else
         var repeat = StressScale.Apply(Count);
-        var temp = CreateTempDir("uintdict");
+        var temp = CreateTempDir($"uintdict-{count}");
         try {
             var logPath = Path.Combine(temp,"log");
             var objPath = Path.Combine(temp,"obj");
@@ -63,7 +63,7 @@ public class ParallelRandomStressTests {
             }
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
-            using(var store = Factory.Create().Create<int,int>(logDevice,objDevice)) {
+            using(var store = HashStore.Create().Create<int,int>(logDevice,objDevice)) {
                 for(var r = 0; r<repeat; r++) {
                     using(var dict = store.Create()) {
                         dict.Clear();
@@ -111,7 +111,7 @@ public class ParallelRandomStressTests {
         return;
 #else
         var repeat = StressScale.Apply(Count);
-        var temp = CreateTempDir("strdict");
+        var temp = CreateTempDir($"strdict-{count}");
         try {
             var logPath = Path.Combine(temp,"log");
             var objPath = Path.Combine(temp,"obj");
@@ -137,7 +137,7 @@ public class ParallelRandomStressTests {
             }
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
-            using(var store = Factory.Create().Create<string,string>(logDevice,objDevice,new ManagedTag(),new ManagedTag())) {
+            using(var store = HashStore.Create().Create<string,string>(logDevice,objDevice,new ManagedTag(),new ManagedTag())) {
                 for(var r = 0; r<repeat; r++) {
                     using(var dict = store.Create()) {
                         dict.Clear();
@@ -183,7 +183,7 @@ public class ParallelRandomStressTests {
         return;
 #else
         var repeat = StressScale.Apply(Count);
-        var temp = CreateTempDir("uintset");
+        var temp = CreateTempDir($"uintset-{count}");
         try {
             var logPath = Path.Combine(temp,"log");
             var objPath = Path.Combine(temp,"obj");
@@ -200,7 +200,7 @@ public class ParallelRandomStressTests {
             }
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
-            using(var store = Factory.Create().Create<int>(logDevice,objDevice)) {
+            using(var store = HashStore.Create().Create<int>(logDevice,objDevice)) {
                 for(var r = 0; r<repeat; r++) {
                     using(var set = store.Create()) {
                         set.Clear();
@@ -234,7 +234,7 @@ public class ParallelRandomStressTests {
         return;
 #else
         var repeat = StressScale.Apply(Count);
-        var temp = CreateTempDir("strset");
+        var temp = CreateTempDir($"strset-{count}");
         try {
             var logPath = Path.Combine(temp,"log");
             var objPath = Path.Combine(temp,"obj");
@@ -253,7 +253,7 @@ public class ParallelRandomStressTests {
             }
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
-            using(var store = Factory.Create().Create<string>(logDevice,objDevice,new ManagedTag())) {
+            using(var store = HashStore.Create().Create<string>(logDevice,objDevice,new ManagedTag())) {
                 for(var r = 0; r<repeat; r++) {
                     using(var set = store.Create()) {
                         set.Clear();

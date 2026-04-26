@@ -76,7 +76,7 @@ public partial class UnmanagedHashSet<TKey>
     public UnmanagedList<TKey>.Enumerator GetEnumerator() {
         var workListPath = CreateTemporaryWorkListPath("unmanaged-hashset-enumerator");
         try {
-            var items = new UnmanagedList<TKey>(workListPath,initialCapacity: Const.Chunk_Length);
+            var items = TempList.Create<TKey>(workListPath,initialCapacity: Const.Chunk_Length);
             var iterator = new KeyIterator();
             iterator.SetList(items);
             var cursor = 0L;
@@ -92,7 +92,7 @@ public partial class UnmanagedHashSet<TKey>
     IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() {
         var workListPath = CreateTemporaryWorkListPath("unmanaged-hashset-memory-enumerator");
         try {
-            var items = new UnmanagedList<TKey>(workListPath,initialCapacity: Const.Chunk_Length);
+            var items = TempList.Create<TKey>(workListPath,initialCapacity: Const.Chunk_Length);
             var iterator = new MemoryKeyIterator();
             iterator.SetList(items);
             var cursor = 0L;

@@ -13,8 +13,10 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\InMemoryList.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\List.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedList.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\TempList.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\CollectionKinds.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ManagedUnmanagedDictionary.cs" />
@@ -34,7 +36,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Const.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Devices\MemoryOnlyDevice.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\CollectionStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Stores\Factory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\HashStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ICreate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedDictionaryStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedDictionaryStoreExtensions.cs" />

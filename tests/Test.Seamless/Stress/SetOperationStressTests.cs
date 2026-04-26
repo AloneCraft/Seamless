@@ -1,4 +1,4 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
 namespace Test.Seamless.Stress;
@@ -14,7 +14,7 @@ public class SetOperationStressTests {
     private const int StressSetOpCount = 256;
 
     private static string CreateTempDir(string tag) {
-        var dir = Path.Combine(Environment.CurrentDirectory,nameof(SetOperationStressTests));
+        var dir = global::Test.Seamless.TestPath.Directory<SetOperationStressTests>(tag);
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -42,8 +42,8 @@ public class SetOperationStressTests {
             using(var objDevA = Devices.CreateLogDevice(objA))
             using(var logDevB = Devices.CreateLogDevice(logB))
             using(var objDevB = Devices.CreateLogDevice(objB))
-            using(var storeA = Factory.Create().Create<int>(logDevA,objDevA))
-            using(var storeB = Factory.Create().Create<int>(logDevB,objDevB))
+            using(var storeA = HashStore.Create().Create<int>(logDevA,objDevA))
+            using(var storeB = HashStore.Create().Create<int>(logDevB,objDevB))
             using(var setA = storeA.Create())
             using(var setB = storeB.Create()) {
                 try {
@@ -133,8 +133,8 @@ public class SetOperationStressTests {
             using(var objDevA = Devices.CreateLogDevice(objA))
             using(var logDevB = Devices.CreateLogDevice(logB))
             using(var objDevB = Devices.CreateLogDevice(objB))
-            using(var storeA = Factory.Create().Create<string>(logDevA,objDevA,new ManagedTag()))
-            using(var storeB = Factory.Create().Create<string>(logDevB,objDevB,new ManagedTag()))
+            using(var storeA = HashStore.Create().Create<string>(logDevA,objDevA,new ManagedTag()))
+            using(var storeB = HashStore.Create().Create<string>(logDevB,objDevB,new ManagedTag()))
             using(var setA = storeA.Create())
             using(var setB = storeB.Create()) {
                 try {

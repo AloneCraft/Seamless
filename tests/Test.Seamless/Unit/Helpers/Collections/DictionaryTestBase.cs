@@ -3,27 +3,27 @@ using Seamless.Collections;
 using Tsavorite.core;
 namespace Test.Seamless.Unit.Helpers.Collections;
 /// <summary>
-/// <see cref="ISeamlessDictionary{TKey,TValue}"/> �ŗL�̃e�X�g���N���X�B
-/// <see cref="IDictionary{TKey,TValue}"/> �݊��e�X�g�� <see cref="IDictionaryTestBase{TStrategy,TKey,TValue}"/> �ɏW�񂳂�Ă���A
-/// ���̃N���X�͂����p������ TryAdd�ARemove_OutValue�ADispose�AEntryCount ��ǉ�����B
+/// <see cref="ISeamlessDictionary{TKey,TValue}"/> 固有のテスト基底クラス。
+/// <see cref="IDictionary{TKey,TValue}"/> 共通テストは <see cref="IDictionaryTestBase{TStrategy,TKey,TValue}"/> に集約されており、
+/// このクラスでは追加で TryAdd、Remove(out value)、Dispose、EntryCount を確認する。
 /// </summary>
 public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTestBase<TStrategy,TKey,TValue>
     where TStrategy : IDictTestStrategy<TKey,TValue>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
-    private static string CreateDiskFolder() =>
-        Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    private string CreateDiskFolder() =>
+        global::Test.Seamless.TestPath.Directory(this);
     [Fact, Trait("Category","Unit")]
-    public void TryAdd(){
+    public void TryAdd() {
         {
-            // �V�K�L�[�̒ǉ��� Success
+            // 新規キーの追加は Success
             using var sh = TStrategy.CreateMemoryStore();
             using var dict = sh.NewDict();
             var result = dict.TryAdd(TStrategy.K(1),TStrategy.V(1));
             Assert.Equal(TryAddResult.Success,result);
         }
         {
-            // �d���L�[�̒ǉ��� KeyAlreadyExists
+            // 重複キーの追加は KeyAlreadyExists
             using var sh = TStrategy.CreateMemoryStore();
             using var dict = sh.NewDict();
             dict.Add(TStrategy.K(1),TStrategy.V(1));
@@ -31,7 +31,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
             Assert.Equal(TryAddResult.KeyAlreadyExists,result);
         }
         {
-            // �R�[���h�f�[�^�ǂݍ��݌�̏d���ǉ��ł� KeyAlreadyExists
+            // コールドデータ読み込み後の重複追加でも KeyAlreadyExists
             var folder = CreateDiskFolder();
             using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
@@ -43,9 +43,9 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void Remove_key_value(){
+    public void Remove_key_value() {
         {
-            // ���݂���L�[�͍폜�l��Ԃ�
+            // 存在するキーは削除値を返す
             using var sh = TStrategy.CreateMemoryStore();
             using var dict = sh.NewDict();
             dict.Add(TStrategy.K(1),TStrategy.V(1));
@@ -55,7 +55,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
             Assert.False(dict.ContainsKey(TStrategy.K(1)));
         }
         {
-            // ���݂��Ȃ��L�[�� false �� default ��Ԃ�
+            // 存在しないキーは false と default を返す
             using var sh = TStrategy.CreateMemoryStore();
             using var dict = sh.NewDict();
             var removed = dict.Remove(TStrategy.K(99),out var value);
@@ -64,11 +64,11 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void Dispose(){
+    public void Dispose() {
         var sh = TStrategy.CreateMemoryStore();
         var dict = sh.NewDict();
         {
-            // Dispose �͕�����Ă�ł���S�Ȃ���
+            // Dispose は複数回呼んでも安全なこと
             Assert.False(dict.IsDisposed);
             dict.Dispose();
             Assert.True(dict.IsDisposed);
@@ -77,12 +77,12 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void EntryCount(){
+    public void EntryCount() {
         using var sh = TStrategy.CreateMemoryStore();
         using var dict = sh.NewDict();
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         {
-            // �X�g�A��̌����� 1 �ȏ�ł��邱��
+            // ストア上の件数が 1 以上であること
             Assert.True(dict.EntryCount>=1);
         }
     }

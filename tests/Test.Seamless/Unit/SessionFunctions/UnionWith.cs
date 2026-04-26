@@ -1,4 +1,4 @@
-﻿using Seamless;
+using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -120,15 +120,15 @@ namespace Test.Seamless.Unit.SessionFunctions;
 //public sealed class ManagedUnionWith:UnionWithTests<int> {
 //    protected override int Key(int seed) => seed;
 //    protected override (ManagedHashSet<int> Set,IDisposable Store) CreateMemory() {
-//        var store = Factory.Create().Create<int>(new ManagedTag());
+//        var store = HashStore.Create().Create<int>(new ManagedTag());
 //        return (store.Create(),store);
 //    }
 //    protected override (ManagedHashSet<int> Set,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
-//        var store = Factory.Create(MemorySize: Const.MinObjectLogCapacity).Create<int>(logDevice,objDevice,new ManagedTag());
+//        var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity).Create<int>(logDevice,objDevice,new ManagedTag());
 //        return (store.Create(),store);
 //    }
 //    protected override (ManagedHashSet<int> Set,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
-//        var store = Factory.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDevice,objDevice,new ManagedTag());
+//        var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDevice,objDevice,new ManagedTag());
 //        return (store.Create(),store);
 //    }
 //    protected override void ShiftReadOnly(IDisposable store) {
@@ -153,7 +153,7 @@ public abstract class UnionWith<TKey, TSet>:CommonWith<TKey,TSet>
 public sealed class ManagedUnionWith:UnionWith<string,ManagedHashSet<string>> {
     protected override string CreateKey(int seed) => seed.ToString();
     protected override (ManagedHashSet<string> Set,IDisposable Store) CreateSet() {
-        var store = Factory.Create().Create<string>(new ManagedTag());
+        var store = HashStore.Create().Create<string>(new ManagedTag());
         return (store.Create(),store);
     }
     protected override void With(ManagedHashSet<string> set,ManagedHashSet<string> other) => set.UnionWith(other);
@@ -163,7 +163,7 @@ public sealed class ManagedUnionWith:UnionWith<string,ManagedHashSet<string>> {
 public sealed class UnmanagedUnionWith:UnionWith<int,UnmanagedHashSet<int>> {
     protected override int CreateKey(int seed) => seed;
     protected override (UnmanagedHashSet<int> Set,IDisposable Store) CreateSet() {
-        var store = Factory.Create().Create<int>();
+        var store = HashStore.Create().Create<int>();
         return (store.Create(),store);
     }
     protected override void With(UnmanagedHashSet<int> set,UnmanagedHashSet<int> other) => set.UnionWith(other);

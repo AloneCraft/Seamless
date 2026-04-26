@@ -1,13 +1,31 @@
-﻿using IntList = global::Seamless.Collections.UnmanagedList<int>;
+﻿using System.Globalization;
+using System.Text;
+using IntList = global::Seamless.Collections.UnmanagedList<int>;
 using StringList = global::Seamless.Collections.ManagedList<string>;
 
 namespace Test.Seamless.Unit.Collections;
 
 public sealed class ListTests {
+    private const int UnicodeLineBytes = 4*1024;
+    private static readonly Encoding Utf16NoBom = new UnicodeEncoding(bigEndian: false,byteOrderMark: false);
+
     private static string CreatePath() {
         var directoryPath = Path.Combine(Environment.CurrentDirectory,nameof(ListTests));
         Directory.CreateDirectory(directoryPath);
         return Path.Combine(directoryPath,"list.dat");
+    }
+
+    private static string CreateFixedWidthUnicodeLine(int lineIndex) {
+        var offset = lineIndex*UnicodeLineBytes;
+        var prefix = offset.ToString(CultureInfo.InvariantCulture)+":";
+        var suffix = "\r\n";
+        var fillerLength = (UnicodeLineBytes/2)-prefix.Length-suffix.Length;
+        var line = prefix+new string((char)('A'+(lineIndex%26)),fillerLength)+suffix;
+
+        Assert.Equal(UnicodeLineBytes,Utf16NoBom.GetByteCount(line));
+        Assert.StartsWith(prefix,line,StringComparison.Ordinal);
+        Assert.EndsWith(suffix,line,StringComparison.Ordinal);
+        return line;
     }
 
     [Fact, Trait("Category","Unit")]
@@ -96,8 +114,9 @@ public sealed class ListTests {
         var path = CreatePath();
         try {
             using var list = new StringList(path,initialCapacity: 1,initialDataCapacity: 32);
-            list.Add("bravo");
-            var alpha = "alpha";
+            var bravo = CreateFixedWidthUnicodeLine(1);
+            var alpha = CreateFixedWidthUnicodeLine(0);
+            list.Add(bravo);
             var alphaBytes = global::Seamless.Collections.ManagedSerializer<string>.Serialize(ref alpha).ToArray();
 #if TSAVORITE1_1_1
             list.Add(global::Tsavorite.core.SpanByte.FromPinnedSpan(alphaBytes));
@@ -109,8 +128,8 @@ public sealed class ListTests {
             list.DuplicateRemoval();
 
             Assert.Equal(2L,list.Count);
-            Assert.Equal("alpha",list[0]);
-            Assert.Equal("bravo",list[1]);
+            Assert.Equal(alpha,list[0]);
+            Assert.Equal(bravo,list[1]);
         }
         finally {
             TryDeleteDirectory(path);
@@ -120,16 +139,20 @@ public sealed class ListTests {
     [Fact, Trait("Category","Unit")]
     public void ManagedList_Reopen_PreservesCountAndValues() {
         var path = CreatePath();
+        var values = new[] {
+            CreateFixedWidthUnicodeLine(0),
+            CreateFixedWidthUnicodeLine(1),
+            CreateFixedWidthUnicodeLine(2),
+        };
         try {
             using(var list = new StringList(path,initialCapacity: 1,initialDataCapacity: 32)) {
-                list.Add("x");
-                list.Add("yy");
-                list.Add("zzz");
+                foreach(var value in values)
+                    list.Add(value);
             }
 
             using var reopened = new StringList(path);
             Assert.Equal(3L,reopened.Count);
-            Assert.True(reopened.ToArray().SequenceEqual(new[] { "x","yy","zzz" }));
+            Assert.True(reopened.ToArray().SequenceEqual(values));
         }
         finally {
             TryDeleteDirectory(path);
@@ -139,19 +162,22 @@ public sealed class ListTests {
     [Fact, Trait("Category","Unit")]
     public void ManagedList_Reopen_AfterCountShrink_PreservesOnlyLiveValues() {
         var path = CreatePath();
+        var bravo = CreateFixedWidthUnicodeLine(1);
+        var alpha = CreateFixedWidthUnicodeLine(0);
+        var charlie = CreateFixedWidthUnicodeLine(2);
         try {
             using(var list = new StringList(path,initialCapacity: 4,initialDataCapacity: 64)) {
-                list.Add("bravo");
-                list.Add("alpha");
-                list.Add("bravo");
-                list.Add("charlie");
+                list.Add(bravo);
+                list.Add(alpha);
+                list.Add(bravo);
+                list.Add(charlie);
 
                 list.DuplicateRemoval();
             }
 
             using var reopened = new StringList(path);
             Assert.Equal(3L,reopened.Count);
-            Assert.True(reopened.ToHashSet().SetEquals(new[] { "alpha","bravo","charlie" }));
+            Assert.True(reopened.ToHashSet().SetEquals(new[] { alpha,bravo,charlie }));
         }
         finally {
             TryDeleteDirectory(path);

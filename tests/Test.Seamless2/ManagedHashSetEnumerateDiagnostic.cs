@@ -6,12 +6,12 @@ namespace Test.Seamless.Diagnostics;
 public class ManagedHashSetEnumerateDiagnostic {
     [Fact]
     public void ManagedHashSet_AfterFlushAndEvict_PublicEnumeration_Diagnostic() {
-        var folder = Path.Combine(Environment.CurrentDirectory,"ManagedHashSetEnumerateDiagnostic",Guid.NewGuid().ToString("N"));
+        var folder = global::Test.Seamless.TestPath.Directory(this);
         Directory.CreateDirectory(folder);
         try {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-            using var store = Factory.Create().Create<string>(logDevice,objDevice,new ManagedTag());
+            using var store = HashStore.Create().Create<string>(logDevice,objDevice,new ManagedTag());
             using var set = store.Create();
             var expected = Enumerable.Range(0,128).Select(i => "s"+i).ToArray();
             foreach(var value in expected)

@@ -11,7 +11,7 @@ namespace Test.Seamless.Tsavorite;
 [Collection("TsavoriteTests")]
 public class LightEpochInstanceLimitTests2(ITestOutputHelper output) {
     private static string TempDir(string name) =>
-        Path.Combine(Environment.CurrentDirectory,"LightEpochTest",Guid.NewGuid().ToString("N"),name);
+        global::Test.Seamless.TestPath.Directory<LightEpochInstanceLimitTests2>(name);
 
     private sealed class NativeStoreHandle:IDisposable {
         private readonly string rootDir;

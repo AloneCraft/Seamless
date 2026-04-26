@@ -15,6 +15,7 @@
     <Compile Include="Collections\ISeamlessDictionary.cs" />
     <Compile Include="Collections\ISeamlessHashSet.cs" />
     <Compile Include="Collections\ISet.cs" />
+    <Compile Include="Collections\InMemoryList.cs" />
     <Compile Include="Collections\CollectionKinds.cs" />
     <Compile Include="Collections\List.cs" />
     <Compile Include="Collections\ManagedDictionary.cs" />
@@ -39,7 +40,6 @@
     <Compile Include="Stores\HashStore.cs" />
     <Compile Include="Stores\ICreate.cs" />
     <Compile Include="Stores\CollectionStore.cs" />
-    <Compile Include="Stores\Factory.cs" />
     <Compile Include="Stores\ManagedDictionaryStore.cs" />
     <Compile Include="Stores\ManagedDictionaryStoreExtensions.cs" />
     <Compile Include="Stores\ManagedHashSetStore.cs" />

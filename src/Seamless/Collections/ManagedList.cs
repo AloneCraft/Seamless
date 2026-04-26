@@ -23,6 +23,7 @@ public class ManagedList<T, TSerializer>:List<T>
     public string IndexPath { get; }
     public long DataLength { get; private set; }
     public long DataCapacity { get; private set; }
+    public TempListAccessPattern AccessPattern { get; private set; } = TempListAccessPattern.Sequential;
 
     public ManagedList(string path,long initialCapacity = 16,long initialDataCapacity = 4096) : base(path) {
         if(initialCapacity<1)
@@ -31,14 +32,14 @@ public class ManagedList<T, TSerializer>:List<T>
             throw new ArgumentOutOfRangeException(nameof(initialDataCapacity));
 
         this.IndexPath=path+".index";
-        this.indexStream=new FileStream(this.IndexPath,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read);
-        this.dataStream=new FileStream(this.Path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read);
+        this.indexStream=MemoryMappedListTuning.OpenFileStream(this.IndexPath,this.AccessPattern);
+        this.dataStream=MemoryMappedListTuning.OpenFileStream(this.Path,this.AccessPattern);
 
         if(this.indexStream.Length==0&&this.dataStream.Length==0) {
             this.Count=0;
-            this.Capacity=initialCapacity;
+            this.Capacity=this.AlignIndexCapacity(initialCapacity);
             this.DataLength=0;
-            this.DataCapacity=initialDataCapacity;
+            this.DataCapacity=this.AlignDataCapacity(initialDataCapacity);
             this.indexStream.SetLength(this.GetIndexFileLength(this.Capacity));
             this.dataStream.SetLength(this.GetDataFileLength(this.DataCapacity));
             this.CreateMappings();
@@ -51,6 +52,16 @@ public class ManagedList<T, TSerializer>:List<T>
             this.CreateMappings();
             this.LoadState();
         }
+
+        this.ApplyAccessPattern();
+    }
+
+    public void SetAccessPattern(TempListAccessPattern accessPattern) {
+        this.ThrowIfDisposed();
+        if(this.AccessPattern==accessPattern)
+            return;
+        this.AccessPattern=accessPattern;
+        this.ApplyAccessPattern();
     }
 
     public override void Add(T item) {
@@ -139,14 +150,14 @@ public class ManagedList<T, TSerializer>:List<T>
     private void EnsureIndexCapacity(long minimumCapacity) {
         if(minimumCapacity<=this.Capacity)
             return;
-        var newCapacity = Math.Max(this.Capacity*2,minimumCapacity);
+        var newCapacity = this.AlignIndexCapacity(Math.Max(this.Capacity*2,minimumCapacity));
         this.RemapIndex(newCapacity);
     }
 
     private void EnsureDataCapacity(long minimumLength) {
         if(minimumLength<=this.DataCapacity)
             return;
-        var newCapacity = Math.Max(this.DataCapacity*2,minimumLength);
+        var newCapacity = this.AlignDataCapacity(Math.Max(this.DataCapacity*2,minimumLength));
         this.RemapData(newCapacity);
     }
 
@@ -160,6 +171,7 @@ public class ManagedList<T, TSerializer>:List<T>
         this.indexMappedFile=MemoryMappedFile.CreateFromFile(this.indexStream,null,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
         this.indexAccessor=this.indexMappedFile.CreateViewAccessor(0,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite);
         this.InitializeIndexRange(oldCapacity,newCapacity);
+        this.ApplyAccessPattern();
     }
 
     private void RemapData(long newCapacity) {
@@ -170,6 +182,7 @@ public class ManagedList<T, TSerializer>:List<T>
         this.dataStream.SetLength(this.GetDataFileLength(newCapacity));
         this.dataMappedFile=MemoryMappedFile.CreateFromFile(this.dataStream,null,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
         this.dataAccessor=this.dataMappedFile.CreateViewAccessor(0,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.ApplyAccessPattern();
     }
 
     private void SortBySerializedBits() {
@@ -305,6 +318,14 @@ public class ManagedList<T, TSerializer>:List<T>
     private long GetDataFileLength(long dataCapacity) => dataCapacity;
     private long GetIndexOffset(long index) => checked(index*sizeof(long));
     private long GetRecordPosition(long recordOffset) => recordOffset;
+
+    private long AlignIndexCapacity(long capacity) => MemoryMappedListTuning.AlignElementCapacity(capacity,sizeof(long));
+    private long AlignDataCapacity(long capacity) => MemoryMappedListTuning.AlignBytes(capacity);
+
+    private void ApplyAccessPattern() {
+        MemoryMappedListTuning.ApplyAccessPattern(this.indexStream,this.indexAccessor,this.AccessPattern);
+        MemoryMappedListTuning.ApplyAccessPattern(this.dataStream,this.dataAccessor,this.AccessPattern);
+    }
 
     private long ReadIndexUnchecked(long index) => this.indexAccessor.ReadInt64(this.GetIndexOffset(index));
 

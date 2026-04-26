@@ -1,4 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Order;
 using Seamless.Collections;
@@ -116,7 +116,7 @@ public class HashSetApiSurfaceBenchmark {
             this.objB=Devices.CreateLogDevice(Path.Combine(dir,"objB"));
         }
 
-        var factory = Factory.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: mutableFraction);
+        var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: mutableFraction);
 
         if(this.Impl==CollectionImplKind.Unmanaged) {
             this.unmanagedStore=useStorage

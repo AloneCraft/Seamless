@@ -1,4 +1,21 @@
-﻿Enumeratorでイテレーションが全部できない理由
+﻿ボトルネック
+    Test.Seamless1 2314
+        Integrate 2256
+            UnmanagementHashSet 905
+                データ追加中にセグメントファイルが増加することを確認する 552
+                追加と削除を繰り返すとコンパクションで利用セグメント範囲の増え方を抑えられることを確認する 352
+        Unit
+            Devices
+                MemoryOnlyDevice 0(この原因探せ)
+        
+    Test.Seamless2  531
+        Integrate  383
+            UnmanagementHashSet 91
+                データ追加中にセグメントファイルが増加することを確認する  74
+                追加と削除を繰り返すとコンパクションで利用セグメント範囲の増え方を抑えられることを確認する  16
+
+
+Enumeratorでイテレーションが全部できない理由
     ScanLookup（IterateLookup の内部実装）のこの箇所が問題です：
     // numPending == count - acceptedCount  ← count=long.MaxValue のとき実質 ∞ で発動しない
     // numPending > 256                     ← 256件溜まって初めて drain

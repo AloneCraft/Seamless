@@ -64,7 +64,7 @@
     <Compile Include="Unit\SessionFunctions\UnionWith.cs" />
     <Compile Include="Unit\SessionFunctions\UnmanagedAdd.cs" />
     <Compile Include="Unit\Stores\CollectionStore.cs" />
-    <Compile Include="Unit\Stores\Factory.cs" />
+    <Compile Include="Unit\Stores\HashStore.cs" />
     <Compile Include="Unit\Stores\KindDictionarySize.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.CSharp.targets" />

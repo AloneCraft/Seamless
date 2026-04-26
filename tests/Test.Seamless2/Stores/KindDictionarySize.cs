@@ -1,4 +1,4 @@
-﻿using Seamless.Stores;
+using Seamless.Stores;
 namespace Test.Seamless.Unit.Stores;
 
 /// <summary>
@@ -7,11 +7,11 @@ namespace Test.Seamless.Unit.Stores;
 /// </summary>
 public partial class KindDictionarySize {
     public partial void UnmanagedUnmanaged_vs_ManagedManaged_SizeIsSmaller() {
-        using var uuStore = Factory.Create(MemorySize: MemorySize).Create<int,int>();
+        using var uuStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>();
         using var uuDict = uuStore.Create();
         var uuBytes = MeasureLogBytes(() => uuStore.Store.Log.TailAddress,uuDict);
 
-        using var mmStore = Factory.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
+        using var mmStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
         using var mmDict = mmStore.Create();
         var mmBytes = MeasureLogBytes(() => mmStore.Store.Log.TailAddress,mmDict);
 
@@ -20,11 +20,11 @@ public partial class KindDictionarySize {
             $"UnmanagedUnmanaged({uuBytes}) > ManagedManaged({mmBytes})");
     }
     public partial void ManagedUnmanaged_vs_ManagedManaged_ValuePartDiffers() {
-        using var muStore = Factory.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),default);
+        using var muStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),default);
         using var muDict = muStore.Create();
         var muBytes = MeasureLogBytes(() => muStore.Store.Log.TailAddress,muDict);
 
-        using var mmStore = Factory.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
+        using var mmStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
         using var mmDict = mmStore.Create();
         var mmBytes = MeasureLogBytes(() => mmStore.Store.Log.TailAddress,mmDict);
 
@@ -33,11 +33,11 @@ public partial class KindDictionarySize {
             $"ManagedUnmanaged({muBytes}) > ManagedManaged({mmBytes})");
     }
     public partial void UnmanagedManaged_vs_ManagedManaged_ValuePartDiffers() {
-        using var muStore = Factory.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
+        using var muStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
         using var muDict = muStore.Create();
         var muBytes = MeasureLogBytes(() => muStore.Store.Log.TailAddress,muDict);
 
-        using var mmStore = Factory.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),default);
+        using var mmStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),default);
         using var mmDict = mmStore.Create();
         var mmBytes = MeasureLogBytes(() => mmStore.Store.Log.TailAddress,mmDict);
 
@@ -51,22 +51,22 @@ public partial class KindDictionarySize {
         var sizes = new System.Collections.Generic.Dictionary<string,long>();
 
         {
-            using var store = Factory.Create(MemorySize: MemorySize).Create<int,int>();
+            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>();
             using var dict = store.Create();
             sizes["UnmanagedUnmanaged"]=MeasureLogBytes(() => store.Store.Log.TailAddress,dict);
         }
         {
-            using var store = Factory.Create(MemorySize: MemorySize).Create<int,int>(default,new ManagedTag());
+            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>(default,new ManagedTag());
             using var dict = store.Create();
             sizes["UnmanagedManaged"]=MeasureLogBytes(() => store.Store.Log.TailAddress,dict);
         }
         {
-            using var store = Factory.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),default);
+            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),default);
             using var dict = store.Create();
             sizes["ManagedUnmanaged"]=MeasureLogBytes(() => store.Store.Log.TailAddress,dict);
         }
         {
-            using var store = Factory.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
+            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
             using var dict = store.Create();
             sizes["ManagedManaged"]=MeasureLogBytes(() => store.Store.Log.TailAddress,dict);
         }

@@ -1,11 +1,11 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
 using Seamless.Stores;
 namespace Test.Seamless.Unit.ScanIteratorFunctions;
 
 public class CounterIterator{
     private static void Common(){
         const int Count=300;
-        using var s=Factory.Create().Create<int>();
+        using var s=HashStore.Create().Create<int>();
         using var h=s.Create();
         for(var a=0; a<Count; a++){
             h.Add(a);

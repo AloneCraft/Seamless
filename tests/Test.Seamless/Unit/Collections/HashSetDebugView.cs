@@ -4,8 +4,8 @@
 
 //public class HashSetDebugView{
 //    [Fact,Trait("Category","Unit")]
-//    public void Items_‘SƒGƒ“ƒgƒŠ‚ð•Ô‚·(){
-//        using var store=Factory.Create().CreateUnmanagedHashSet<int>();
+//    public void Items_ï¿½Sï¿½Gï¿½ï¿½ï¿½gï¿½ï¿½ï¿½ï¿½Ô‚ï¿½(){
+//        using var store=HashStore.Create().CreateUnmanagedHashSet<int>();
 //        using UnmanagedHashSet<int> set=store.Create();
 //        set.Add(10);
 //        set.Add(20);
@@ -16,7 +16,7 @@
 //        Assert.Contains(20,items);
 //    }
 //    [Fact,Trait("Category","Unit")]
-//    public void ctor_null_—áŠO(){
+//    public void ctor_null_ï¿½ï¿½O(){
 //        Assert.Throws<ArgumentNullException>(()=>new DebugView<int>(null!));
 //    }
 //}

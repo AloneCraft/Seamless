@@ -1,4 +1,4 @@
-﻿using Seamless.Stores;
+using Seamless.Stores;
 using Tsavorite.core;
 namespace Test.Seamless.Unit.Stores;
 /// <summary>
@@ -7,7 +7,7 @@ namespace Test.Seamless.Unit.Stores;
 /// </summary>
 
 public class CollectionStore {
-    private static string CreateFolder() => Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    private static string CreateFolder() => global::Test.Seamless.TestPath.Directory<CollectionStore>();
     private const long TestMemorySize = global::Seamless.Const.MinObjectLogCapacity;
     //CollectionStore �R���X�g���N�^: ObjectLogDevice.Capacity<0 �̕���
     //Capacity=-1�̃f�o�C�X��n����ObjectLogSegmentSize=Const.MinObjectLogCapacity�ɂȂ�
@@ -18,7 +18,7 @@ public class CollectionStore {
         //Capacity��w�肵�Ȃ��ƃf�t�H���g=-1�ɂȂ�(Capacity<0�����ʂ�)
         using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true);
         //Capacity<0 �� ObjectLogSegmentSize=Const.MinObjectLogCapacity �Ƃ��Đ���ɍ\�z����邱��
-        using var store = Factory.Create(MemorySize: TestMemorySize).Create<int,string>(LogDevice,ObjDevice);
+        using var store = HashStore.Create(MemorySize: TestMemorySize).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
         dict.Add(1,"a");
         Assert.Equal("a",dict[1]);
@@ -31,7 +31,7 @@ public class CollectionStore {
         var folder = CreateFolder();
         using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Const.MinObjectLogCapacity);
-        using var store = Factory.Create(MemorySize: TestMemorySize,MutableFraction: 0.1).Create<int,string>(LogDevice,ObjDevice);
+        using var store = HashStore.Create(MemorySize: TestMemorySize,MutableFraction: 0.1).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
         //�f�[�^����������CompactWithLookup����s
         for(var a = 0; a<1000; a++) {
@@ -63,7 +63,7 @@ public class CollectionStore {
         var folder = CreateFolder();
         using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Const.MinObjectLogCapacity);
-        using var store = Factory.Create(MemorySize: TestMemorySize,MutableFraction: 0.1).Create<int,string>(LogDevice,ObjDevice);
+        using var store = HashStore.Create(MemorySize: TestMemorySize,MutableFraction: 0.1).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
         //�f�[�^����������CompactWithLookup����s
         for(var a = 0; a<1000; a++) {
@@ -97,7 +97,7 @@ public class CollectionStore {
         using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Const.MinObjectLogCapacity);
         //MutableFraction=0�őS�f�[�^�𑦎��ǂݎ���p�ɂ���
-        using var store = Factory.Create(MemorySize: TestMemorySize,MutableFraction: 0).Create<int,string>(LogDevice,ObjDevice);
+        using var store = HashStore.Create(MemorySize: TestMemorySize,MutableFraction: 0).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
         //���ʂ̃f�[�^��ǉ�����SafeReadOnlyAddress��SegmentSize�ȉ��ɂȂ�󋵂���
         dict.Add(1,"a");
@@ -110,20 +110,20 @@ public class CollectionStore {
     }
     [Fact, Trait("Category","Unit")]
     public void Dispose_DoubleCall_Idempotent() {
-        var store = Factory.Create().Create<int>();
+        var store = HashStore.Create().Create<int>();
         store.Dispose();
         store.Dispose();
     }
     [Fact, Trait("Category","Unit")]
     public void Finalize_GcAsyncDispose() {
         static void CreateOrphan() {
-            _=Factory.Create().Create<int,string>();
+            _=HashStore.Create().Create<int,string>();
         }
         for(var i = 0; i<16; i++) {
             CreateOrphan();
         }
         GC.Collect(GC.MaxGeneration,GCCollectionMode.Forced,blocking: true);
         GC.WaitForPendingFinalizers();
-        using var store = Factory.Create().Create<int,string>();
+        using var store = HashStore.Create().Create<int,string>();
     }
 }

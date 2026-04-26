@@ -1,6 +1,13 @@
 ﻿using System.Collections;
+using System.IO.MemoryMappedFiles;
+using System.Runtime.InteropServices;
 
 namespace Seamless.Collections;
+
+public enum TempListAccessPattern {
+    Sequential,
+    Random,
+}
 
 public abstract class List<T>:IReadOnlyList<T>, IDisposable {
     public string Path { get; }
@@ -20,6 +27,10 @@ public abstract class List<T>:IReadOnlyList<T>, IDisposable {
                 throw new ArgumentOutOfRangeException(nameof(index));
             return this.GetItem(index);
         }
+    }
+
+    private protected List() {
+        this.Path=string.Empty;
     }
 
     private protected List(string path) {
@@ -91,4 +102,133 @@ public abstract class List<T>:IReadOnlyList<T>, IDisposable {
             disposeAction?.Invoke();
         }
     }
+}
+
+internal static class MemoryMappedListTuning {
+    private const int PosixFadvRandom = 1;
+    private const int PosixFadvSequential = 2;
+    private const int MadvRandom = 1;
+    private const int MadvSequential = 2;
+    private const int DefaultFileBufferSize = 4096;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly struct Win32MemoryRangeEntry {
+        public readonly nuint VirtualAddress;
+        public readonly nuint NumberOfBytes;
+
+        public Win32MemoryRangeEntry(nuint virtualAddress,nuint numberOfBytes) {
+            this.VirtualAddress=virtualAddress;
+            this.NumberOfBytes=numberOfBytes;
+        }
+    }
+
+    public static FileStream OpenFileStream(string path,TempListAccessPattern accessPattern = TempListAccessPattern.Sequential) =>
+        new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,DefaultFileBufferSize,GetFileOptions(accessPattern));
+
+    public static long AlignBytes(long byteLength) {
+        if(byteLength<1)
+            throw new ArgumentOutOfRangeException(nameof(byteLength));
+
+        var pageSize = Math.Max(Environment.SystemPageSize,1);
+        var remainder = byteLength%pageSize;
+        return remainder==0
+            ? byteLength
+            : checked(byteLength+(pageSize-remainder));
+    }
+
+    public static long AlignElementCapacity(long capacity,int elementSize) {
+        if(capacity<1)
+            throw new ArgumentOutOfRangeException(nameof(capacity));
+        if(elementSize<1)
+            throw new ArgumentOutOfRangeException(nameof(elementSize));
+
+        var bytes = checked(capacity*(long)elementSize);
+        return AlignBytes(bytes)/elementSize;
+    }
+
+    public static void ApplyAccessPattern(FileStream stream,MemoryMappedViewAccessor accessor,TempListAccessPattern accessPattern) {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(accessor);
+
+        if(accessor.Capacity<=0)
+            return;
+
+        if(OperatingSystem.IsWindows()) {
+            if(accessPattern==TempListAccessPattern.Sequential) {
+                PrefetchWindows(accessor);
+            }
+            return;
+        }
+
+        if(OperatingSystem.IsLinux()||OperatingSystem.IsMacOS()) {
+            ApplyPosixFileHint(stream,accessPattern);
+            ApplyPosixMemoryHint(accessor,accessPattern);
+        }
+    }
+
+    private static FileOptions GetFileOptions(TempListAccessPattern accessPattern) => accessPattern switch {
+        TempListAccessPattern.Random => FileOptions.RandomAccess,
+        _ => FileOptions.SequentialScan,
+    };
+
+    private static void ApplyPosixFileHint(FileStream stream,TempListAccessPattern accessPattern) {
+        try {
+            var fileDescriptor = unchecked((int)stream.SafeFileHandle.DangerousGetHandle());
+            var advice = accessPattern==TempListAccessPattern.Sequential ? PosixFadvSequential : PosixFadvRandom;
+            _=posix_fadvise(fileDescriptor,0,0,advice);
+        }
+        catch {
+        }
+    }
+
+    private static unsafe void ApplyPosixMemoryHint(MemoryMappedViewAccessor accessor,TempListAccessPattern accessPattern) {
+        byte* pointer = null;
+        accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref pointer);
+        try {
+            if(pointer is null)
+                return;
+
+            var advice = accessPattern==TempListAccessPattern.Sequential ? MadvSequential : MadvRandom;
+            _=madvise((nint)pointer,checked((nuint)accessor.Capacity),advice);
+        }
+        catch {
+        }
+        finally {
+            if(pointer is not null)
+                accessor.SafeMemoryMappedViewHandle.ReleasePointer();
+        }
+    }
+
+    private static unsafe void PrefetchWindows(MemoryMappedViewAccessor accessor) {
+        byte* pointer = null;
+        accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref pointer);
+        try {
+            if(pointer is null)
+                return;
+
+            var ranges = new[] {
+                new Win32MemoryRangeEntry((nuint)pointer,checked((nuint)accessor.Capacity))
+            };
+            _=PrefetchVirtualMemory(GetCurrentProcess(),(nuint)ranges.Length,ranges,0);
+        }
+        catch {
+        }
+        finally {
+            if(pointer is not null)
+                accessor.SafeMemoryMappedViewHandle.ReleasePointer();
+        }
+    }
+
+    [DllImport("kernel32.dll",SetLastError = true)]
+    private static extern IntPtr GetCurrentProcess();
+
+    [DllImport("kernel32.dll",SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool PrefetchVirtualMemory(IntPtr hProcess,nuint numberOfEntries,[In] Win32MemoryRangeEntry[] virtualAddresses,uint flags);
+
+    [DllImport("libc",SetLastError = true)]
+    private static extern int posix_fadvise(int fd,long offset,long length,int advice);
+
+    [DllImport("libc",SetLastError = true)]
+    private static extern int madvise(nint addr,nuint length,int advice);
 }

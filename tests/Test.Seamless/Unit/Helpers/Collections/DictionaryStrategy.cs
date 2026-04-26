@@ -72,7 +72,7 @@ public readonly struct ManagedStoreDictionaryStrategy<TKeyProvider, TValueProvid
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0) {
-        var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new ManagedTag(),new ManagedTag());
+        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new ManagedTag(),new ManagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -83,7 +83,7 @@ public readonly struct ManagedStoreDictionaryStrategy<TKeyProvider, TValueProvid
         double mutableFraction = 1.0,
         string? checkpointDir = null,
         bool recoverDevice = false) {
-        var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new ManagedTag(),new ManagedTag());
+        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new ManagedTag(),new ManagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -100,7 +100,7 @@ public readonly struct UnmanagedKeyDictionaryStrategy<TKeyProvider, TValueProvid
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0) {
-        var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new UnmanagedTag(),new ManagedTag());
+        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new UnmanagedTag(),new ManagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -111,7 +111,7 @@ public readonly struct UnmanagedKeyDictionaryStrategy<TKeyProvider, TValueProvid
         double mutableFraction = 1.0,
         string? checkpointDir = null,
         bool recoverDevice = false) {
-        var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new UnmanagedTag(),new ManagedTag());
+        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new UnmanagedTag(),new ManagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -128,7 +128,7 @@ public readonly struct UnmanagedValueDictionaryStrategy<TKeyProvider, TValueProv
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0) {
-        var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new ManagedTag(),new UnmanagedTag());
+        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new ManagedTag(),new UnmanagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -139,7 +139,7 @@ public readonly struct UnmanagedValueDictionaryStrategy<TKeyProvider, TValueProv
         double mutableFraction = 1.0,
         string? checkpointDir = null,
         bool recoverDevice = false) {
-        var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new ManagedTag(),new UnmanagedTag());
+        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new ManagedTag(),new UnmanagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -157,7 +157,7 @@ public readonly struct UnmanagedStoreDictionaryStrategy<TKeyProvider, TValueProv
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0
     ) {
-        var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new UnmanagedTag(),new UnmanagedTag());
+        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new UnmanagedTag(),new UnmanagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -169,7 +169,7 @@ public readonly struct UnmanagedStoreDictionaryStrategy<TKeyProvider, TValueProv
         string? checkpointDir = null,
         bool recoverDevice = false
     ) {
-        var store = Factory.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new UnmanagedTag(),new UnmanagedTag());
+        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new UnmanagedTag(),new UnmanagedTag());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);

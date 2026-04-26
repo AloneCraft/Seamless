@@ -86,7 +86,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         KeyValuePair<TKey,TValue>
     > GetEnumerator() => new(this.ReadSession,new());
     IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new());
-    private global::System.Collections.Generic.List<T> CreateCollection<TIterator, T>(TIterator Iterator) where TIterator : ScanIteratorFunctions_List<T,ManagedList<T>> {
+    private global::System.Collections.Generic.List<T> CreateCollection<TIterator, T>(TIterator Iterator) where TIterator : ScanIteratorFunctions_List<T,List<T>> {
         var Collection = new global::System.Collections.Generic.List<T>();
         using var e = new Enumerator<TIterator,T>(this.ReadSession,Iterator);
         while(e.MoveNext()) {
@@ -95,7 +95,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         return Collection;
     }
     private IEnumerable<T> Enumerate<TIterator, T>(TIterator Iterator)
-        where TIterator : ScanIteratorFunctions_List<T,ManagedList<T>> {
+        where TIterator : ScanIteratorFunctions_List<T,List<T>> {
         using var e = new Enumerator<TIterator,T>(this.ReadSession,Iterator);
         while(e.MoveNext())
             yield return e.Current;

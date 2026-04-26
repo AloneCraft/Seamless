@@ -1,4 +1,4 @@
-﻿using Seamless.Stores;
+using Seamless.Stores;
 namespace Test.Seamless.Tsavorite;
 
 /// <summary>
@@ -20,7 +20,7 @@ public class LightEpochLimitTests {
         var stores = new global::System.Collections.Generic.List<UnmanagedUnmanagedDictionaryStore<int,int>>();
         try {
             for(var i = 0; i<16; i++) {
-                stores.Add(Factory.Create().Create<int,int>());
+                stores.Add(HashStore.Create().Create<int,int>());
             }
             Assert.Equal(16,stores.Count);
         }
@@ -39,10 +39,10 @@ public class LightEpochLimitTests {
         var stores = new global::System.Collections.Generic.List<UnmanagedUnmanagedDictionaryStore<int,int>>();
         try {
             for(var i = 0; i<16; i++) {
-                stores.Add(Factory.Create().Create<int,int>());
+                stores.Add(HashStore.Create().Create<int,int>());
             }
             Assert.ThrowsAny<Exception>(() => {
-                using var extra = Factory.Create().Create<int,int>();
+                using var extra = HashStore.Create().Create<int,int>();
             });
         }
         finally {
@@ -58,7 +58,7 @@ public class LightEpochLimitTests {
     /// </summary>
     [Fact]
     public void kTableSize_128Threads_AllSucceed() {
-        using var store = Factory.Create().Create<int,int>();
+        using var store = HashStore.Create().Create<int,int>();
         const int ThreadCount = 128;
         var errors = new System.Collections.Concurrent.ConcurrentBag<Exception>();
         var barrier = new Barrier(ThreadCount);
@@ -94,7 +94,7 @@ public class LightEpochLimitTests {
     /// </summary>
     [Fact]
     public void SessionCount_25Dicts_AllSucceed() {
-        using var store = Factory.Create().Create<int,int>();
+        using var store = HashStore.Create().Create<int,int>();
         var dicts = new global::System.Collections.Generic.List<IDisposable>();
         try {
             for(var i = 0; i<25; i++) {
@@ -114,7 +114,7 @@ public class LightEpochLimitTests {
     public void SessionCount_26Dicts_AllSucceed() {
         // kTableSize = 128 はセッション生成数の上限ではなく、
         // 同時 epoch 保持スレッド数の上限。26 dict (130 session) でも作成は成功する。
-        using var store = Factory.Create().Create<int,int>();
+        using var store = HashStore.Create().Create<int,int>();
         var dicts = new global::System.Collections.Generic.List<IDisposable>();
         try {
             for(var i = 0; i<26; i++) {
@@ -132,7 +132,7 @@ public class LightEpochLimitTests {
     /// </summary>
     [Fact]
     public void SessionCount_DisposeAndRecreate_Succeeds() {
-        using var store = Factory.Create().Create<int,int>();
+        using var store = HashStore.Create().Create<int,int>();
         // 25 個作成 → 全 Dispose → 再び 25 個作成できる
         for(var round = 0; round<2; round++) {
             var dicts = new global::System.Collections.Generic.List<IDisposable>();
