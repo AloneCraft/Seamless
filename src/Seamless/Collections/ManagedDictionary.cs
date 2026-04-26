@@ -53,8 +53,8 @@ public abstract partial class ManagedDictionary<
     }
     public ICollection<TKey> Keys => this.CreateCollection<KeyIterator,TKey>(new());
     public ICollection<TValue> Values => this.CreateCollection<ValueIterator,TValue>(new());
-    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Enumerable<KeyIterator,TKey>(new());
-    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Enumerable<ValueIterator,TValue>(new());
+    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.CreateCollection<KeyIterator,TKey>(new());
+    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.CreateCollection<ValueIterator,TValue>(new());
     public override bool IsDisposed => this.disposed;
     private bool disposed;
     protected override void Dispose(bool disposing) {

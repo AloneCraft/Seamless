@@ -318,7 +318,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output)
     [Fact]
     public void InMemory_Chunk10_VisitsAll25Records()
     {
-        var folder = Path.Combine(Path.GetTempPath(), "IterateLookupInMem1_" + Guid.NewGuid().ToString("N"));
+        var folder = global::Test.Seamless.TestPath.Directory(this);
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder, "log.data"), deleteOnClose: true);
 
         using var settings = new KVSettings<int, int>
@@ -363,7 +363,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output)
     [Fact, Trait("Category", "Unit")]
     public void InMemory_MutableOnlyScan_UsesConcurrentReader()
     {
-        var folder = Path.Combine(Path.GetTempPath(), "IterateLookupConcurrent1_" + Guid.NewGuid().ToString("N"));
+        var folder = global::Test.Seamless.TestPath.Directory(this);
         try
         {
             using var logDevice = Devices.CreateLogDevice(Path.Combine(folder, "log.data"), deleteOnClose: true);
@@ -412,9 +412,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output)
     [SuppressMessage("Interoperability", "CA1416:プラットフォームの互換性", Justification = "<互換性>")]
     public void DiskSpill_Chunk10_VisitsAll25Records_PendingPattern()
     {
-        var folder = Path.Combine(
-            Path.GetTempPath(),
-            "IterateLookupTest1_" + Guid.NewGuid().ToString("N"));
+        var folder = global::Test.Seamless.TestPath.Directory(this);
 
         using var logDevice = Devices.CreateLogDevice(
             Path.Combine(folder, "log.data"), deleteOnClose: true);
@@ -475,9 +473,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output)
     [SuppressMessage("Interoperability", "CA1416:プラットフォームの互換性", Justification = "<互換性>")]
     public void DiskSpill_UpsertFromChunk_PendingHandled()
     {
-        var folder = Path.Combine(
-            Path.GetTempPath(),
-            "IterateLookupUpsert1_" + Guid.NewGuid().ToString("N"));
+        var folder = global::Test.Seamless.TestPath.Directory(this);
 
         using var logDevice = Devices.CreateLogDevice(
             Path.Combine(folder, "log.data"), deleteOnClose: true);

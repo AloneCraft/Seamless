@@ -1,4 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Order;
 using Seamless.Collections;
@@ -122,7 +122,7 @@ public class DictionaryApiSurfaceBenchmark {
             this.objDevice=Devices.CreateLogDevice(objPath);
         }
 
-        var factory = Factory.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir);
+        var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir);
 
         if(this.Impl==CollectionImplKind.Unmanaged) {
             this.unmanagedStore=useStorage
@@ -212,7 +212,7 @@ public class DictionaryApiSurfaceBenchmark {
 
         var indexSize = Math.Max(2048,this.CountValue*2);
         var memorySize = Math.Max(4L*1024*1024,this.CountValue*128L);
-        var factory = Factory.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: this.loadCheckpointDir);
+        var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: this.loadCheckpointDir);
 
         if(this.Impl==CollectionImplKind.Unmanaged) {
             using var store = factory.Create<int,int>(log,obj);
@@ -460,7 +460,7 @@ public class DictionaryApiSurfaceBenchmark {
 
         var indexSize = Math.Max(2048,this.CountValue*2);
         var memorySize = Math.Max(4L*1024*1024,this.CountValue*128L);
-        var factory = Factory.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: this.loadCheckpointDir);
+        var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: this.loadCheckpointDir);
 
         if(this.Impl==CollectionImplKind.Unmanaged) {
             using var store = factory.Create<int,int>(log,obj);

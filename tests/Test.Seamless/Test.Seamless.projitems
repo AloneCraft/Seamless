@@ -15,6 +15,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\DictionaryBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)StoreCheckpoint.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestPath.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestKeyComparer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestRelation.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Tsavorite\LightEpochInstanceLimitTests.cs" />
@@ -55,7 +56,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\UnionWith.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\UnmanagedAdd.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Stores\CollectionStore.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Unit\Stores\Factory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\Stores\HashStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Stores\KindDictionarySize.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stress\StressReferenceAssert.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stress\StressScale.cs" />

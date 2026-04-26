@@ -299,7 +299,7 @@ public class SpanByteIterateLookupChunkTests(ITestOutputHelper output) {
     // ================================================================
     [Fact]
     public void InMemory_Chunk10_VisitsAll25Records() {
-        var folder = Path.Combine(Environment.CurrentDirectory,"IterateLookupInMem1_"+Guid.NewGuid().ToString("N"));
+        var folder = global::Test.Seamless.TestPath.Directory(this);
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
 
         using var settings = new KVSettings<int,int> {

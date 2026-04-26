@@ -14,7 +14,7 @@ public class SerialRandomStressTests {
     private const int StressCountLarge = 1024;
 
     private static string CreateTempDir(string tag) {
-        var dir = Path.Combine(Environment.CurrentDirectory,"Seamless_Stress_"+tag+"_"+Guid.NewGuid().ToString("N"));
+        var dir = global::Test.Seamless.TestPath.Directory<SerialRandomStressTests>(tag);
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -28,7 +28,7 @@ public class SerialRandomStressTests {
     public void UnmanagedIntDictionary_AddEvictSaveLoadRemove_Deterministic(int count) {
         const int Count = 1;
         var repeat = StressScale.Apply(Count);
-        var temp = CreateTempDir("uintdict");
+        var temp = CreateTempDir($"uintdict-{count}");
         try {
             var checkpointDir = Path.Combine(temp,"cp");
             var logPath = Path.Combine(temp,"log");
@@ -47,7 +47,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
-                    using var store = Factory.Create(CheckpointDir: checkpointDir)
+                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
                         .Create<int,int>(logDevice,objDevice);
                     using var dict = store.Create();
                     foreach(var t in keys)
@@ -58,7 +58,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
-                    using var store = Factory.Create(CheckpointDir: checkpointDir)
+                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
                         .Create<int,int>(logDevice,objDevice);
                     store.Load(token);
                     using var dict = store.Create();
@@ -89,7 +89,7 @@ public class SerialRandomStressTests {
     public void ManagedStringDictionary_AddEvictSaveLoadRemove_Deterministic(int count) {
         const int Count = 3;
         var repeat = StressScale.Apply(Count);
-        var temp = CreateTempDir("strdict");
+        var temp = CreateTempDir($"strdict-{count}");
         try {
             var checkpointDir = Path.Combine(temp,"cp");
             var logPath = Path.Combine(temp,"log");
@@ -111,7 +111,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
-                    using var store = Factory.Create(CheckpointDir: checkpointDir)
+                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
                         .Create<string,string>(logDevice,objDevice,new ManagedTag(),new ManagedTag());
                     using var dict = store.Create();
                     for(var i = 0; i<keys.Length; i++)
@@ -122,7 +122,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
-                    using var store = Factory.Create(CheckpointDir: checkpointDir)
+                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
                         .Create<string,string>(logDevice,objDevice,new ManagedTag(),new ManagedTag());
                     store.Load(token);
                     using var dict = store.Create();
@@ -153,7 +153,7 @@ public class SerialRandomStressTests {
     public void UnmanagedIntHashSet_AddEvictSaveLoadRemove_Deterministic(int count) {
         const int Count = 1;
         var repeat = StressScale.Apply(Count);
-        var temp = CreateTempDir("uintset");
+        var temp = CreateTempDir($"uintset-{count}");
         try {
             var checkpointDir = Path.Combine(temp,"cp");
             var logPath = Path.Combine(temp,"log");
@@ -171,7 +171,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
-                    using var store = Factory.Create(CheckpointDir: checkpointDir)
+                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
                         .Create<int>(logDevice,objDevice);
                     using var set = store.Create();
                     foreach(var t in keys)
@@ -182,7 +182,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
-                    using var store = Factory.Create(CheckpointDir: checkpointDir)
+                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
                         .Create<int>(logDevice,objDevice);
                     store.Load(token);
                     using var set = store.Create();
@@ -207,7 +207,7 @@ public class SerialRandomStressTests {
     public void ManagedStringHashSet_AddEvictSaveLoadRemove_Deterministic(int count) {
         const int Count = 5;
         var repeat = StressScale.Apply(Count);
-        var temp = CreateTempDir("strset");
+        var temp = CreateTempDir($"strset-{count}");
         try {
             var checkpointDir = Path.Combine(temp,"cp");
             var logPath = Path.Combine(temp,"log");
@@ -226,7 +226,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
-                    using var store = Factory.Create(CheckpointDir: checkpointDir)
+                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
                         .Create<string>(logDevice,objDevice,new ManagedTag());
                     using var set = store.Create();
                     for(var i = 0; i<keys.Length; i++)
@@ -237,7 +237,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
-                    using var store = Factory.Create(CheckpointDir: checkpointDir)
+                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
                         .Create<string>(logDevice,objDevice,new ManagedTag());
                     store.Load(token);
                     using var set = store.Create();

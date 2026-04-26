@@ -98,7 +98,7 @@ public partial class UnmanagedDictionary<
     public UnmanagedList<KeyValuePair<TKey,TValue>>.Enumerator GetEnumerator() {
         var workListPath = CreateTemporaryWorkListPath("unmanaged-dictionary-enumerator");
         try {
-            var items = new UnmanagedList<KeyValuePair<TKey,TValue>>(workListPath,initialCapacity: Const.Chunk_Length);
+            var items = TempList.Create<KeyValuePair<TKey,TValue>>(workListPath,initialCapacity: Const.Chunk_Length);
             var iterator = new KeyValueIterator();
             iterator.SetList(items);
             this.IterateLookupAll(this.ReadSession,ref iterator);
@@ -113,7 +113,7 @@ public partial class UnmanagedDictionary<
     IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() {
         var workListPath = CreateTemporaryWorkListPath("unmanaged-dictionary-memory-enumerator");
         try {
-            var items = new UnmanagedList<KeyValuePair<TKey,TValue>>(workListPath,initialCapacity: Const.Chunk_Length);
+            var items = TempList.Create<KeyValuePair<TKey,TValue>>(workListPath,initialCapacity: Const.Chunk_Length);
             var iterator = new KeyValueIterator();
             iterator.SetList(items);
             this.IterateLookupAll(this.ReadMemoryClientSession,ref iterator);
@@ -129,7 +129,7 @@ public partial class UnmanagedDictionary<
         where T : unmanaged {
         var workListPath = CreateTemporaryWorkListPath("unmanaged-dictionary-collection");
         try {
-            using var items = new UnmanagedList<T>(workListPath,initialCapacity: Const.Chunk_Length);
+            using var items = TempList.Create<T>(workListPath,initialCapacity: Const.Chunk_Length);
             iterator.SetList(items);
             this.IterateLookupAll(this.ReadSession,ref iterator);
             var collection = new global::System.Collections.Generic.List<T>(checked((int)items.Count));

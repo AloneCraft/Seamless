@@ -19,26 +19,26 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     where TValue : IEquatable<TValue>
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-    public sealed class KeyIterator:ScanIteratorFunctions_List<TKey,ManagedList<TKey>> {
+    public sealed class KeyIterator:ScanIteratorFunctions_List<TKey,List<TKey>> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    private protected sealed class MemoryKeyIterator:MemoryScanIteratorFunctions<TKey,ManagedList<TKey>> {
+    private protected sealed class MemoryKeyIterator:MemoryScanIteratorFunctions<TKey,List<TKey>> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    private protected sealed class ValueIterator:ScanIteratorFunctions_List<TValue,ManagedList<TValue>> {
+    private protected sealed class ValueIterator:ScanIteratorFunctions_List<TValue,List<TValue>> {
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
-    public sealed class KeyValueIterator:ScanIteratorFunctions_List<KeyValuePair<TKey,TValue>,ManagedList<KeyValuePair<TKey,TValue>>> {
+    public sealed class KeyValueIterator:ScanIteratorFunctions_List<KeyValuePair<TKey,TValue>,List<KeyValuePair<TKey,TValue>>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
             var Key = TKeySerializer.Deserialize(logRecord.Key);
             var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
             return new(Key,Value);
         }
     }
-    private protected sealed class MemoryKeyValueIterator:MemoryScanIteratorFunctions<KeyValuePair<TKey,TValue>,ManagedList<KeyValuePair<TKey,TValue>>> {
+    private protected sealed class MemoryKeyValueIterator:MemoryScanIteratorFunctions<KeyValuePair<TKey,TValue>,List<KeyValuePair<TKey,TValue>>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
             var Key = TKeySerializer.Deserialize(logRecord.Key);
             var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
@@ -46,9 +46,8 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         }
     }
     public struct Enumerator<TIterator, T>:IEnumerator<T>
-        where TIterator : ScanIteratorFunctions_List<T,ManagedList<T>> {
-        private global::Seamless.Collections.ManagedList<T>? Items;
-        private string? WorkListPath;
+        where TIterator : ScanIteratorFunctions_List<T,List<T>> {
+        private global::Seamless.Collections.List<T>? Items;
         private long Index = -1;
         private T CurrentValue = default!;
         private readonly ClientSession<
@@ -73,9 +72,8 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         TIterator iterator) {
             this._session=session;
             this._iterator=iterator;
-            this.WorkListPath=CreateTemporaryWorkListPath("managed-enumerator");
             try {
-                var Items = new ManagedList<T>(this.WorkListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+                var Items = new InMemoryList<T>(Const.Chunk_Length);
                 this._iterator.SetList(Items);
                 var ScanFunctions = this._iterator;
                 var cursor = 0L;
@@ -105,10 +103,6 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         private void DisposeItems() {
             this.Items?.Dispose();
             this.Items=null;
-            if(this.WorkListPath is null)
-                return;
-            DeleteTemporaryWorkListPath(this.WorkListPath);
-            this.WorkListPath=null;
         }
         public void Reset() {
             this.Index=-1;

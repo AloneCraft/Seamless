@@ -1,4 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Order;
 using Seamless.Stores;
@@ -126,12 +126,12 @@ public class DictionaryStoreBenchmark {
     private UnmanagedUnmanagedDictionaryStore<int,int> CreateStore(string? checkpointDir = null) {
         var indexSize = Math.Max(2048,this.Count*2);
         var memorySize = Math.Max(4L*1024*1024,this.Count*128L);
-        return Factory.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: checkpointDir).Create<int,int>();
+        return HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: checkpointDir).Create<int,int>();
     }
 
     private UnmanagedUnmanagedDictionaryStore<int,int> CreateStore(string checkpointDir,IDevice logDevice,IDevice objDevice) {
         var indexSize = Math.Max(2048,this.Count*2);
         var memorySize = Math.Max(4L*1024*1024,this.Count*128L);
-        return Factory.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: checkpointDir).Create<int,int>(logDevice,objDevice);
+        return HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: checkpointDir).Create<int,int>(logDevice,objDevice);
     }
 }

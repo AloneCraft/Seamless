@@ -1,4 +1,4 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
 
@@ -306,20 +306,22 @@ public sealed class ManagedHashSetBenchmark(ITestOutputHelper output):HashSetBen
         private readonly IDevice logDevice;
         private readonly IDevice objDevice;
         private readonly string rootDir;
+        private static int directorySequence;
         public H(double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits) {
             this.mf=mutableFraction;
             this.indexSize=indexSize;
             this.segmentSize=segmentSize;
             this.memorySizeBits=memorySizeBits;
             this.pageSizeBits=pageSizeBits;
-            this.rootDir=Path.Combine(Environment.CurrentDirectory,"Seamless-Benchmark-Test",Guid.NewGuid().ToString("N"));
+            var directoryId = System.Threading.Interlocked.Increment(ref directorySequence);
+            this.rootDir=global::Test.Seamless.TestPath.Directory<ManagedHashSetBenchmark>($"h{directoryId:D4}");
             var checkpointDir = Path.Combine(this.rootDir,"checkpoint");
             var logPath = Path.Combine(this.rootDir,"log");
             var objPath = Path.Combine(this.rootDir,"obj");
             Directory.CreateDirectory(checkpointDir);
             this.logDevice=Devices.CreateLogDevice(logPath);
             this.objDevice=Devices.CreateLogDevice(objPath);
-            this.store=Factory.Create(
+            this.store=HashStore.Create(
                 IndexSize: indexSize,
                 PageSize: 1L<<pageSizeBits,
                 SegmentSize: segmentSize,
@@ -388,20 +390,22 @@ public sealed class UnmanagedHashSetBenchmark(ITestOutputHelper output):HashSetB
         private readonly IDevice logDevice;
         private readonly IDevice objDevice;
         private readonly string rootDir;
+        private static int directorySequence;
         public H(double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits) {
             this.mf=mutableFraction;
             this.indexSize=indexSize;
             this.segmentSize=segmentSize;
             this.memorySizeBits=memorySizeBits;
             this.pageSizeBits=pageSizeBits;
-            this.rootDir=Path.Combine(Environment.CurrentDirectory,"Seamless-Benchmark-Test",Guid.NewGuid().ToString("N"));
+            var directoryId = System.Threading.Interlocked.Increment(ref directorySequence);
+            this.rootDir=global::Test.Seamless.TestPath.Directory<UnmanagedHashSetBenchmark>($"h{directoryId:D4}");
             var checkpointDir = Path.Combine(this.rootDir,"checkpoint");
             var logPath = Path.Combine(this.rootDir,"log");
             var objPath = Path.Combine(this.rootDir,"obj");
             Directory.CreateDirectory(checkpointDir);
             this.logDevice=Devices.CreateLogDevice(logPath);
             this.objDevice=Devices.CreateLogDevice(objPath);
-            this.store=Factory.Create(
+            this.store=HashStore.Create(
                 IndexSize: indexSize,
                 PageSize: 1L<<pageSizeBits,
                 SegmentSize: segmentSize,

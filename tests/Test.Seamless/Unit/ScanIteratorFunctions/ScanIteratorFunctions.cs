@@ -5,7 +5,7 @@ namespace Test.Seamless.Unit.ScanIteratorFunctions;
 public class ScanIteratorFunctions{
     private static void Common(){
         const int Count=300;
-        using var s=Factory.Create().Create<int,int>();
+        using var s=HashStore.Create().Create<int,int>();
         using var h=s.Create();
         for(var a=0; a<Count; a++){
             h.Add(a,a);

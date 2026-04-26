@@ -20,6 +20,10 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
         TKey,
         TValue
     >,
+    UnmanagedContains<
+        TKey,
+        TValue
+    >,
     UnmanagedContainsDelete<
         TKey,
         TValue

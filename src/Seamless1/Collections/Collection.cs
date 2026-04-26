@@ -19,6 +19,7 @@ public abstract class Collection<
     TAddInput,
     TReadFunctions,
     TAddFunctions,
+    TContainsFunctions,
     TContainsDeleteFunctions,
     TStoreFunctions,
     TAllocator
@@ -40,6 +41,14 @@ public abstract class Collection<
         EqualityEmpty
     >,
     ICreate<TAddFunctions>
+    where TContainsFunctions : struct, ISessionFunctions<
+        TSessionKey,
+        TSessionValue,
+        EqualityEmpty,
+        bool,
+        EqualityEmpty
+    >,
+    ICreate<TContainsFunctions>
     where TContainsDeleteFunctions : struct, ISessionFunctions<
         TSessionKey,
         TSessionValue,
@@ -289,6 +298,16 @@ public abstract class Collection<
         EqualityEmpty,
         bool,
         EqualityEmpty,
+        TContainsFunctions,
+        TStoreFunctions,
+        TAllocator
+    > ContainsSession { get; private set; } = null!;
+    private protected ClientSession<
+        TSessionKey,
+        TSessionValue,
+        EqualityEmpty,
+        bool,
+        EqualityEmpty,
         TContainsDeleteFunctions,
         TStoreFunctions,
         TAllocator
@@ -340,10 +359,10 @@ public abstract class Collection<
         return Iterator.Counter;
     }
     private protected bool PrivateProtectedContainsKey(ref TSessionKey SessionKey) {
-        var ReadSession = this.ReadSession;
-        var Output = default(TReadOutput)!;
-        var Status = ReadSession.BasicContext.Read(ref SessionKey,ref Output);
-        Status=Pending(ReadSession,Status,ref Output);
+        var ContainsSession = this.ContainsSession;
+        var Output = false;
+        var Status = ContainsSession.BasicContext.Read(ref SessionKey,ref Output);
+        Status=Pending(ContainsSession,Status,ref Output);
         return Status.Found;
     }
     protected Collection(
@@ -382,6 +401,13 @@ public abstract class Collection<
             EqualityEmpty,
             TAddFunctions
         >(TAddFunctions.Create());
+        this.ContainsSession=Store.NewSession<
+
+            EqualityEmpty,
+            bool,
+            EqualityEmpty,
+            TContainsFunctions
+        >(TContainsFunctions.Create());
         this.DeleteSession=Store.NewSession<
 
             EqualityEmpty,
@@ -394,6 +420,7 @@ public abstract class Collection<
         CompletePendingAndDispose(this.ReadSession);
         CompletePendingAndDispose(this.ReadMemoryClientSession);
         CompletePendingAndDispose(this.Add_ClientSession);
+        CompletePendingAndDispose(this.ContainsSession);
         CompletePendingAndDispose(this.DeleteSession);
     }
     private protected virtual void DisposeAdditionalSessions() {
@@ -580,6 +607,7 @@ public abstract class Collection<
             TAddInput,
             TReadFunctions,
             TAddFunctions,
+            TContainsFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
             TAllocator
@@ -627,6 +655,7 @@ public abstract class Collection<
             TAddInput,
             TReadFunctions,
             TAddFunctions,
+            TContainsFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
             TAllocator
@@ -671,6 +700,7 @@ public abstract class Collection<
             TAddInput,
             TReadFunctions,
             TAddFunctions,
+            TContainsFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
             TAllocator
@@ -692,6 +722,7 @@ public abstract class Collection<
             TAddInput,
             TReadFunctions,
             TAddFunctions,
+            TContainsFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
             TAllocator
@@ -709,6 +740,7 @@ public abstract class Collection<
             TAddInput,
             TReadFunctions,
             TAddFunctions,
+            TContainsFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
             TAllocator
@@ -729,6 +761,7 @@ public abstract class Collection<
             TAddInput,
             TReadFunctions,
             TAddFunctions,
+            TContainsFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
             TAllocator
@@ -749,6 +782,7 @@ public abstract class Collection<
             TAddInput,
             TReadFunctions,
             TAddFunctions,
+            TContainsFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
             TAllocator
@@ -771,6 +805,7 @@ public abstract class Collection<
             TAddInput,
             TReadFunctions,
             TAddFunctions,
+            TContainsFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
             TAllocator

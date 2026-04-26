@@ -1,4 +1,4 @@
-﻿using Azure;
+using Azure;
 
 using Seamless;
 using Seamless.Collections;
@@ -20,7 +20,7 @@ public abstract class IntersectWith<TKey, TSet>:CommonWith<TKey,TSet>
 public sealed class ManagedIntersectWith:IntersectWith<string,ManagedHashSet<string>> {
     protected override string CreateKey(int seed) => seed.ToString();
     protected override (ManagedHashSet<string> Set,IDisposable Store) CreateSet() {
-        var store = Factory.Create().Create<string>(new ManagedTag());
+        var store = HashStore.Create().Create<string>(new ManagedTag());
         return (store.Create(),store);
     }
     protected override void With(ManagedHashSet<string> set,ManagedHashSet<string> other) => set.IntersectWith(other);
@@ -30,14 +30,14 @@ public sealed class ManagedIntersectWith:IntersectWith<string,ManagedHashSet<str
     [Fact, Trait("Category","Unit")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification="Storage-backed Tsavorite test path is Windows-only in this workspace")]
     public void FlushAndEvict後もIntersectWithで共通要素だけ残る() {
-        var folderA = Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
-        var folderB = Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+        var folderA = global::Test.Seamless.TestPath.Directory(this,"A");
+        var folderB = global::Test.Seamless.TestPath.Directory(this,"B");
         using var logDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var objDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var logDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var objDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var storeA = Factory.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceA,objDeviceA,new ManagedTag());
-        using var storeB = Factory.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceB,objDeviceB,new ManagedTag());
+        using var storeA = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceA,objDeviceA,new ManagedTag());
+        using var storeB = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceB,objDeviceB,new ManagedTag());
         using var setA = storeA.Create();
         using var setB = storeB.Create();
 
@@ -67,7 +67,7 @@ public sealed class ManagedIntersectWith:IntersectWith<string,ManagedHashSet<str
 public sealed class UnmanagedIntersectWith:IntersectWith<int,UnmanagedHashSet<int>> {
     protected override int CreateKey(int seed) => seed;
     protected override (UnmanagedHashSet<int> Set,IDisposable Store) CreateSet() {
-        var store = Factory.Create().Create<int>();
+        var store = HashStore.Create().Create<int>();
         return (store.Create(),store);
     }
     protected override void With(UnmanagedHashSet<int> set,UnmanagedHashSet<int> other) => set.IntersectWith(other);
@@ -77,14 +77,14 @@ public sealed class UnmanagedIntersectWith:IntersectWith<int,UnmanagedHashSet<in
     [Fact, Trait("Category","Unit")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification="Storage-backed Tsavorite test path is Windows-only in this workspace")]
     public void FlushAndEvict後もIntersectWithで共通要素だけ残る() {
-        var folderA = Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
-        var folderB = Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+        var folderA = global::Test.Seamless.TestPath.Directory(this,"A");
+        var folderB = global::Test.Seamless.TestPath.Directory(this,"B");
         using var logDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var objDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var logDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var objDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var storeA = Factory.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceA,objDeviceA,new UnmanagedTag());
-        using var storeB = Factory.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceB,objDeviceB,new UnmanagedTag());
+        using var storeA = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceA,objDeviceA,new UnmanagedTag());
+        using var storeB = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceB,objDeviceB,new UnmanagedTag());
         using var setA = storeA.Create();
         using var setB = storeB.Create();
 

@@ -72,33 +72,19 @@ public partial class ManagedHashSet<TKey>
         >(new());
     }
     public ManagedList<TKey>.Enumerator GetEnumerator() {
-        var workListPath = CreateTemporaryWorkListPath("managed-hashset-enumerator");
-        try {
-            var items = new ManagedList<TKey>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
-            var iterator = new KeyIterator();
-            iterator.SetList(items);
-            this.IterateLookupAll(this.ReadSession,ref iterator);
-            return new ManagedList<TKey>.Enumerator(items,ownsList: true,disposeAction: () => DeleteTemporaryWorkListPath(workListPath));
-        }
-        catch {
-            DeleteTemporaryWorkListPath(workListPath);
-            throw;
-        }
+        var items = new InMemoryList<TKey>(Const.Chunk_Length);
+        var iterator = new KeyIterator();
+        iterator.SetList(items);
+        this.IterateLookupAll(this.ReadSession,ref iterator);
+        return new ManagedList<TKey>.Enumerator(items,ownsList: true);
     }
 
     IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() {
-        var workListPath = CreateTemporaryWorkListPath("managed-hashset-memory-enumerator");
-        try {
-            var items = new ManagedList<TKey>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
-            var iterator = new KeyIterator();
-            iterator.SetList(items);
-            this.IterateLookupAll(this.ReadMemoryClientSession,ref iterator);
-            return new ManagedList<TKey>.Enumerator(items,ownsList: true,disposeAction: () => DeleteTemporaryWorkListPath(workListPath));
-        }
-        catch {
-            DeleteTemporaryWorkListPath(workListPath);
-            throw;
-        }
+        var items = new InMemoryList<TKey>(Const.Chunk_Length);
+        var iterator = new KeyIterator();
+        iterator.SetList(items);
+        this.IterateLookupAll(this.ReadMemoryClientSession,ref iterator);
+        return new ManagedList<TKey>.Enumerator(items,ownsList: true);
     }
     private readonly struct ScanIteratorFunctions_ExceptWith(
         ClientSession<

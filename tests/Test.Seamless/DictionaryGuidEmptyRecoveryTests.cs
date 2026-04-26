@@ -1,4 +1,4 @@
-﻿using Tsavorite.core;
+using Tsavorite.core;
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 namespace Test.Seamless;
@@ -21,33 +21,34 @@ namespace Test.Seamless;
 /// - 確実な復元には Load(token) を使う（内部で Guid.EqualityEmpty + logToken で復元）。
 /// - LoadLatest() はログのみチェックポイント（SaveLogOnly）との組み合わせで安全に使用可能。
 /// </summary>
-public class DictionaryGuidEmptyRecoveryTests{
-    private static string CreateFolder()=>Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+public class DictionaryGuidEmptyRecoveryTests {
+    private static string CreateFolder() => global::Test.Seamless.TestPath.Directory<DictionaryGuidEmptyRecoveryTests>();
 
-    [Fact,Trait("Category","Unit")]
-    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    public void SaveLogOnly_Loadで指定検出(){
+    [Fact, Trait("Category","Unit")]
+    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
+    public void SaveLogOnly_Loadで指定検出() {
         // TakeHybridLogCheckpointAsync はログのみ保存（インデックスチェックポイントは作られない）
         // Load は内部で RecoverAsync(Guid.EqualityEmpty, logToken) を呼ぶ
         // → インデックスチェックポイントが無いのでログを先頭から再生して再構築
-        var folder=CreateFolder();
-        var checkpointDir=folder+"_checkpoint";
+        var folder = CreateFolder();
+        var checkpointDir = folder+"_checkpoint";
         Guid logToken;
         {
-            using var LogDevice=Devices.CreateLogDevice(folder);
-            using var LogObjDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
-            using var dict=store.Create();
+            using var LogDevice = Devices.CreateLogDevice(folder);
+            using var LogObjDevice = Devices.CreateLogDevice(folder+"_obj");
+            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
+            using var dict = store.Create();
             dict[1]=11;
             dict[2]=22;
             dict[3]=33;
             logToken=store.SaveLogOnly();
-        }{
-            using var LogDevice=Devices.CreateLogDevice(folder);
-            using var LogObjDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
+        }
+        {
+            using var LogDevice = Devices.CreateLogDevice(folder);
+            using var LogObjDevice = Devices.CreateLogDevice(folder+"_obj");
+            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
             store.Load(logToken);
-            using var dict=store.Create();
+            using var dict = store.Create();
             Assert.True(dict.Contains(1));
             Assert.True(dict.Contains(2));
             Assert.True(dict.Contains(3));
@@ -55,30 +56,31 @@ public class DictionaryGuidEmptyRecoveryTests{
         }
     }
 
-    [Fact,Trait("Category","Unit")]
-    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification="<保留中>")]
-    public void SaveLogOnly_Load自動検出(){
+    [Fact, Trait("Category","Unit")]
+    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
+    public void SaveLogOnly_Load自動検出() {
         // SaveLogOnly → LoadLatest: インデックスチェックポイントが無い場合、
         // FindRecoveryInfo が "No index checkpoint found, recovering from beginning of log" で
         // Guid.EqualityEmpty と同等の動作（ログから再構築）を自動的に行う
-        var folder=CreateFolder();
-        var checkpointDir=folder+"_checkpoint";
+        var folder = CreateFolder();
+        var checkpointDir = folder+"_checkpoint";
         {
-            using var LogDevice=Devices.CreateLogDevice(folder);
-            using var LogObjDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
-            using var dict=store.Create();
+            using var LogDevice = Devices.CreateLogDevice(folder);
+            using var LogObjDevice = Devices.CreateLogDevice(folder+"_obj");
+            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
+            using var dict = store.Create();
             dict[10]=1000;
             dict[20]=2000;
             store.SaveLogOnly();
-        }{
-            using var LogDevice=Devices.CreateLogDevice(folder);
-            using var LogObjDevice=Devices.CreateLogDevice(folder+"_obj");
-            using var store=Factory.Create(CheckpointDir:checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
+        }
+        {
+            using var LogDevice = Devices.CreateLogDevice(folder);
+            using var LogObjDevice = Devices.CreateLogDevice(folder+"_obj");
+            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
             // トークンを指定せず自動検出で復元
             // インデックスチェックポイントが無いのでログから再構築（Guid.EqualityEmptyと同等）
             store.Load();
-            using var dict=store.Create();
+            using var dict = store.Create();
             Assert.Equal(1000,dict[10]);
             Assert.Equal(2000,dict[20]);
             Assert.False(dict.Contains(99));

@@ -5,30 +5,30 @@ using System.Diagnostics.CodeAnalysis;
 using Tsavorite.core;
 namespace Test.Seamless.Unit.Helpers.Collections;
 /// <summary>
-/// <see cref="IDictionary{TKey,TValue}"/> �C���^�[�t�F�[�X�o�R�ł̃e�X�g���N���X�B
-/// <see cref="DictionaryTestBase{TStrategy,TKey,TValue}"/> �͂��̃N���X��p�����A
-/// <see cref="ISeamlessDictionary{TKey,TValue}"/> �ŗL�̃e�X�g��ǉ�����B
+/// <see cref="IDictionary{TKey,TValue}"/> インターフェース経由のテスト基底クラス。
+/// <see cref="DictionaryTestBase{TStrategy,TKey,TValue}"/> はこのクラスを利用し、
+/// <see cref="ISeamlessDictionary{TKey,TValue}"/> 固有のテストを追加する。
 /// </summary>
 public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     where TStrategy : IDictTestStrategy<TKey,TValue>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
-    private static string CreateDiskFolder() =>
-        Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
+    private string CreateDiskFolder() =>
+        global::Test.Seamless.TestPath.Directory(this);
     [Fact, Trait("Category","Unit")]
-    public void IsReadOnly(){
+    public void IsReadOnly() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
         IDictionary<TKey,TValue> dict = rawDict;
         {
-            // �ǂݎ���p�ł͂Ȃ�����
+            // 読み取り専用ではないこと
             Assert.False(dict.IsReadOnly);
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void Add(){
+    public void Add() {
         {
-            // �ǉ����������邱��
+            // 追加できること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -36,7 +36,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.True(dict.ContainsKey(TStrategy.K(1)));
         }
         {
-            // �d���L�[�ł͗�O�ɂȂ邱��
+            // 重複キーでは例外になること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -44,7 +44,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Throws<ArgumentException>(() => dict.Add(TStrategy.K(1),TStrategy.V(2)));
         }
         {
-            // ���O���t���͗�O�ɂȂ邱��
+            // ログが満杯になると例外になること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -54,9 +54,9 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void Add_KeyValuePair(){
+    public void Add_KeyValuePair() {
         {
-            // KeyValuePair �Œǉ��ł��邱��
+            // KeyValuePair で追加できること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -65,9 +65,9 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void Contains(){
+    public void Contains() {
         {
-            // �L�[�ƒl����v����v�f�� true
+            // キーと値が一致する要素は true
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -75,7 +75,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.True(dict.Contains(new KeyValuePair<TKey,TValue>(TStrategy.K(1),TStrategy.V(1))));
         }
         {
-            // �s��v�v�f�� false
+            // 不一致要素は false
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -83,9 +83,9 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void CopyTo(){
+    public void CopyTo() {
         {
-            // �S�v�f��z��ɃR�s�[�ł��邱��
+            // 全要素を配列にコピーできること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -96,21 +96,21 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(2,array.Length);
         }
         {
-            // null �z��͗�O
+            // null 配列は例外
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<ArgumentNullException>(() => dict.CopyTo(null!,0));
         }
         {
-            // ���̃C���f�b�N�X�͗�O
+            // 負のインデックスは例外
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<ArgumentOutOfRangeException>(() => dict.CopyTo(new KeyValuePair<TKey,TValue>[2],-1));
         }
         {
-            // �z�񂪏���������Ɨ�O
+            // 配列が小さすぎると例外
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -120,7 +120,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void ToList(){
+    public void ToList() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
         IDictionary<TKey,TValue> dict = rawDict;
@@ -128,38 +128,38 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         var list = dict.ToList();
         {
-            // �S�G���g����Ԃ�����
+            // 全エントリを返すこと
             Assert.Equal(2,list.Count);
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void Keys(){
+    public void Keys() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
         IDictionary<TKey,TValue> dict = rawDict;
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
-            // �L�[�ꗗ��擾�ł��邱��
+            // キー一覧を取得できること
             Assert.Equivalent(new[] { TStrategy.K(1),TStrategy.K(2) },dict.Keys);
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void Values(){
+    public void Values() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
         IDictionary<TKey,TValue> dict = rawDict;
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
-            // �l�ꗗ��擾�ł��邱��
+            // 値一覧を取得できること
             Assert.Equivalent(new[] { TStrategy.V(1),TStrategy.V(2) },dict.Values);
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void ContainsKey(){
+    public void ContainsKey() {
         {
-            // ���݂���L�[�� true
+            // 存在するキーは true
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -167,7 +167,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.True(dict.ContainsKey(TStrategy.K(1)));
         }
         {
-            // ���݂��Ȃ��L�[�� false
+            // 存在しないキーは false
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -175,9 +175,9 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void TryGetValue(){
+    public void TryGetValue() {
         {
-            // �L�[����v����Ƃ��̃e�X�g
+            // キーが存在する時のテスト
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -186,7 +186,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(TStrategy.V(3),val);
         }
         {
-            // �L�[����v���Ȃ��Ƃ��̃e�X�g
+            // キーが存在しない時のテスト
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -194,7 +194,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(default,val);
         }
         {
-            // ��������ł� Read �p�X���������邱��
+            // 追加直後でも読み出せること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -203,7 +203,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(TStrategy.V(1),v);
         }
         {
-            // FlushAndEvict ��̃R�[���h�f�[�^��ǂ߂邱��
+            // FlushAndEvict 後もコールドデータを読めること
             var folder = CreateDiskFolder();
             using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
@@ -217,9 +217,9 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void Item(){
+    public void Item() {
         {
-            // setter �Œl��ݒ�ł��邱��
+            // setter で値を設定できること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -228,7 +228,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(TStrategy.V(10),v);
         }
         {
-            // getter �ŕs���݃L�[�Q�Ǝ��͗�O
+            // getter で不存在キー参照時は例外
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -237,7 +237,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             });
         }
         {
-            // ���O���t���� setter �͗�O
+            // ログ満杯時の setter は例外
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -247,9 +247,9 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void Remove(){
+    public void Remove() {
         {
-            // ���݃L�[�̍폜���������邱��
+            // 存在キーの削除に成功すること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -258,14 +258,14 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.False(dict.ContainsKey(TStrategy.K(1)));
         }
         {
-            // ���݂��Ȃ��L�[�� false
+            // 存在しないキーは false
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
             Assert.False(dict.Remove(TStrategy.K(99)));
         }
         {
-            // Write �p�X�̍폜���������邱��
+            // Write パスの削除に成功すること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -274,20 +274,20 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void Remove_KeyValuePair(){
+    public void Remove_KeyValuePair() {
         {
-            // �L�[�ƒl����v����ƍ폜����
+            // キーと値が一致すると削除される
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             var removed = dict.Remove(new KeyValuePair<TKey,TValue>(TStrategy.K(1),TStrategy.V(1)));
-            foreach(var _ in dict){ }
+            foreach(var _ in dict) { }
             Assert.True(removed);
             Assert.False(dict.ContainsKey(TStrategy.K(1)));
         }
         {
-            // �l�s��v�Ȃ�폜���Ȃ�
+            // 値が不一致なら削除されない
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -297,7 +297,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.True(dict.ContainsKey(TStrategy.K(1)));
         }
         {
-            // �L�[�s���݂Ȃ� false
+            // キーが存在しなければ false
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -306,34 +306,34 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void Clear(){
+    public void Clear() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
         IDictionary<TKey,TValue> dict = rawDict;
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
-            // �N���A��͌����� 0 �ɂȂ邱��
+            // クリア後は件数が 0 になること
             dict.Clear();
             Assert.Empty(dict);
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void Count(){
+    public void Count() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
         IDictionary<TKey,TValue> dict = rawDict;
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
-            // �������ǉ����ƈ�v���邱��
+            // 追加数と一致すること
             Assert.Equal(2,dict.Count);
         }
     }
     [Fact, Trait("Category","Unit")]
-    public void GetEnumerator(){
+    public void GetEnumerator() {
         {
-            // IEnumerable<T> �o�R�ŗ񋓂ł��邱��
+            // IEnumerable<T> 経由で列挙できること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -342,7 +342,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Single(e);
         }
         {
-            // IEnumerable �o�R�ŗ񋓂ł��邱��
+            // IEnumerable 経由で列挙できること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -355,10 +355,10 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
     }
     [Fact, Trait("Category","Unit")]
-    [SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification = "<�ۗ���>")]
-    public void WouldOverflowMutable(){
+    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<保留中>")]
+    public void WouldOverflowMutable() {
         {
-            // mutableFraction=0 �ł��{����ł��邱��
+            // mutableFraction=0 でも格納できること
             var folder = CreateDiskFolder();
             using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
@@ -369,7 +369,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(TStrategy.V(1),dict[TStrategy.K(1)]);
         }
         {
-            // mutable �̈��g���؂�� OutOfMemoryException
+            // mutable 領域を使い切ると OutOfMemoryException
             using var sh = TStrategy.CreateMemoryStore(memorySize: Const.LogMemorySize,mutableFraction: 0.5);
             using var rawDict = sh.NewDict();
             IDictionary<TKey,TValue> dict = rawDict;
@@ -379,8 +379,8 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
     }
     [Fact, Trait("Category","Unit")]
-    [SuppressMessage("Interoperability","CA1416:�v���b�g�t�H�[���̌݊��������",Justification = "<�ۗ���>")]
-    public void SaveLoad(){
+    [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<保留中>")]
+    public void SaveLoad() {
         var folder = CreateDiskFolder();
         var checkpointDir = folder+"_checkpoint";
         Guid token;

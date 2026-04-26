@@ -88,38 +88,24 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         return false;
     }
     public ManagedList<KeyValuePair<TKey,TValue>>.Enumerator GetEnumerator() {
-        var workListPath = CreateTemporaryWorkListPath("managed-dictionary-enumerator");
-        try {
-            var items = new ManagedList<KeyValuePair<TKey,TValue>>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
-            var iterator = new KeyValueIterator();
-            iterator.SetList(items);
-            this.IterateLookupAll(this.ReadSession,ref iterator);
-            return new ManagedList<KeyValuePair<TKey,TValue>>.Enumerator(items,ownsList: true,disposeAction: () => DeleteTemporaryWorkListPath(workListPath));
-        }
-        catch {
-            DeleteTemporaryWorkListPath(workListPath);
-            throw;
-        }
+        var items = new InMemoryList<KeyValuePair<TKey,TValue>>(Const.Chunk_Length);
+        var iterator = new KeyValueIterator();
+        iterator.SetList(items);
+        this.IterateLookupAll(this.ReadSession,ref iterator);
+        return new ManagedList<KeyValuePair<TKey,TValue>>.Enumerator(items,ownsList: true);
     }
     IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() {
-        var workListPath = CreateTemporaryWorkListPath("managed-dictionary-memory-enumerator");
-        try {
-            var items = new ManagedList<KeyValuePair<TKey,TValue>>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
-            var iterator = new KeyValueIterator();
-            iterator.SetList(items);
-            this.IterateLookupAll(this.ReadMemoryClientSession,ref iterator);
-            return new ManagedList<KeyValuePair<TKey,TValue>>.Enumerator(items,ownsList: true,disposeAction: () => DeleteTemporaryWorkListPath(workListPath));
-        }
-        catch {
-            DeleteTemporaryWorkListPath(workListPath);
-            throw;
-        }
+        var items = new InMemoryList<KeyValuePair<TKey,TValue>>(Const.Chunk_Length);
+        var iterator = new KeyValueIterator();
+        iterator.SetList(items);
+        this.IterateLookupAll(this.ReadMemoryClientSession,ref iterator);
+        return new ManagedList<KeyValuePair<TKey,TValue>>.Enumerator(items,ownsList: true);
     }
     private global::System.Collections.Generic.List<T> CreateCollection<TIterator, T>(TIterator iterator)
-        where TIterator : ScanIteratorFunctions_List<T,ManagedList<T>> {
+        where TIterator : ScanIteratorFunctions_List<T,List<T>> {
         var workListPath = CreateTemporaryWorkListPath("managed-dictionary-collection");
         try {
-            using var items = new ManagedList<T>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            using var items = TempList.Create<T>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
             iterator.SetList(items);
             this.IterateLookupAll(this.ReadSession,ref iterator);
             var collection = new global::System.Collections.Generic.List<T>(checked((int)items.Count));
@@ -132,7 +118,7 @@ public partial class ManagedDictionary<TKey, TValue, TKeySerializer, TValueSeria
         }
     }
     private IEnumerable<T> Enumerable<TIterator, T>(TIterator iterator)
-        where TIterator : ScanIteratorFunctions_List<T,ManagedList<T>> =>
+        where TIterator : ScanIteratorFunctions_List<T,List<T>> =>
         this.CreateCollection<TIterator,T>(iterator);
     public TValue this[TKey Key] {
         get {

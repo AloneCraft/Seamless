@@ -1,4 +1,4 @@
-﻿using Seamless;
+using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -13,7 +13,6 @@ namespace Test.Seamless.Integrate;
 public abstract class DictionaryIntegrateBase<TKey, TValue>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
-    private static int TestDirSequence;
     private readonly ITestOutputHelper output;
 
     protected DictionaryIntegrateBase(ITestOutputHelper output) {
@@ -36,7 +35,7 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
     protected virtual int RefreshWorkingSetSize => 128;
 
     private string TestDir(string methodName) =>
-        Path.Combine(AppContext.BaseDirectory,this.TestClassName,$"t{Interlocked.Increment(ref TestDirSequence):D4}_{Guid.NewGuid():N}");
+        global::Test.Seamless.TestPath.Directory(this.TestClassName,methodName);
 
     protected abstract class Handle:IDisposable {
         protected readonly string rootDir;
@@ -304,7 +303,7 @@ public class ManagementDictionary(ITestOutputHelper output):DictionaryIntegrateB
         private readonly ManagedManagedDictionaryStore<string,string> store;
 
         public ManagedHandle(string rootDir,string? checkpointDir,bool deleteOnDispose) : base(rootDir,deleteOnDispose) {
-            var factory = Factory.Create(
+            var factory = HashStore.Create(
                 IndexSize: 64,
                 PageSize: 4096,
                 SegmentSize: 4096,
@@ -358,7 +357,7 @@ public class UnmanagementDictionary(ITestOutputHelper output):DictionaryIntegrat
         private readonly UnmanagedUnmanagedDictionaryStore<int,int> store;
 
         public UnmanagedHandle(string rootDir,string? checkpointDir,bool deleteOnDispose) : base(rootDir,deleteOnDispose) {
-            var factory = Factory.Create(
+            var factory = HashStore.Create(
                 IndexSize: 64,
                 PageSize: 4096,
                 SegmentSize: 4096,
