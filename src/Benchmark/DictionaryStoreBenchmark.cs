@@ -60,6 +60,8 @@ public class DictionaryStoreBenchmark {
         return dict.GetLongCount();
     }
 
+    [WarmupCount(1)]
+    [IterationCount(1)]
     [Benchmark(Description = "Store Save")]
     public Guid Save() {
         var checkpointDir = Path.Combine(this.checkpointRoot,"save-"+Guid.NewGuid().ToString("N"));
@@ -108,6 +110,8 @@ public class DictionaryStoreBenchmark {
         this.loadToken=Guid.Empty;
     }
 
+    [WarmupCount(1)]
+    [IterationCount(1)]
     [Benchmark(Description = "Store Load")]
     public long Load() {
         if(this.loadCheckpointDir is null)

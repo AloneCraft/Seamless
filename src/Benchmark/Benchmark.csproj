@@ -12,8 +12,6 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <SeamlessBenchmarkOutputLabel Condition="'$(SeamlessBenchmarkTarget)' == '1.1.1'">1.1.1-1.x-latest</SeamlessBenchmarkOutputLabel>
-    <SeamlessBenchmarkOutputLabel Condition="'$(SeamlessBenchmarkTarget)' == '2.0beta3'">2.0beta3-2.x-latest</SeamlessBenchmarkOutputLabel>
     <SeamlessBenchmarkOutputLabel Condition="'$(SeamlessBenchmarkOutputLabel)' == ''">$(SeamlessBenchmarkTarget)</SeamlessBenchmarkOutputLabel>
 
     <SeamlessBenchmarkOutputFrameworkLabel Condition="'$(SeamlessTargetFramework)' == 'net8.0'">net8</SeamlessBenchmarkOutputFrameworkLabel>
