@@ -1,4 +1,4 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
 using Seamless.Stores;
 namespace Seamless.SessionFunctions;
 
@@ -78,12 +78,32 @@ public readonly struct ManagedAdd<TValue, TValueSerializer>:
     }
 
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref TValue input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+
+    #if NET10_0_OR_GREATER
+
         where TKey : IKey, allows ref struct
+
+    #else
+
+        where TKey : IKey
+
+    #endif
+
         where TEpochAccessor : IEpochAccessor {
     }
 
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref TValue input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+
+    #if NET10_0_OR_GREATER
+
         where TKey : IKey, allows ref struct
+
+    #else
+
+        where TKey : IKey
+
+    #endif
+
         where TEpochAccessor : IEpochAccessor {
     }
 
@@ -91,7 +111,11 @@ public readonly struct ManagedAdd<TValue, TValueSerializer>:
     /// キー未存在時は新規作成する
     /// </summary>
     public bool NeedInitialUpdate<TKey>(TKey key,ref TValue input,ref bool output,ref RMWInfo rmwInfo)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         return true;
     }
 
@@ -130,7 +154,17 @@ public readonly struct ManagedAdd<TValue, TValueSerializer>:
     }
 
     public void PostRMWOperation<TKey, TEpochAccessor>(TKey key,ref TValue input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
+
+    #if NET10_0_OR_GREATER
+
         where TKey : IKey, allows ref struct
+
+    #else
+
+        where TKey : IKey
+
+    #endif
+
         where TEpochAccessor : IEpochAccessor {
     }
 
@@ -150,7 +184,17 @@ public readonly struct ManagedAdd<TValue, TValueSerializer>:
     }
 
     public void PostDeleteOperation<TKey, TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
+
+    #if NET10_0_OR_GREATER
+
         where TKey : IKey, allows ref struct
+
+    #else
+
+        where TKey : IKey
+
+    #endif
+
         where TEpochAccessor : IEpochAccessor {
         ThrowReadDeleteEntryPoint();
     }
@@ -161,22 +205,38 @@ public readonly struct ManagedAdd<TValue, TValueSerializer>:
     }
 
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref TValue input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         return new() { KeySize=key.KeyBytes.Length,ValueSize=TValueSerializer.Serialize(ref input).Length };
     }
 
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref TValue input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         return new() { KeySize=key.KeyBytes.Length,ValueSize=value.Length };
     }
 
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,IHeapObject value,ref TValue input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         return new() { KeySize=key.KeyBytes.Length,ValueSize=ObjectIdMap.ObjectIdSize,ValueIsObject=true };
     }
 
     public RecordFieldInfo GetUpsertFieldInfo<TKey, TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref TValue input)
+        #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+        #else
+        where TKey : IKey
+        #endif
         where TSourceLogRecord : ISourceLogRecord {
         return new() { KeySize=key.KeyBytes.Length,ValueSize=inputLogRecord.Info.ValueIsObject ? ObjectIdMap.ObjectIdSize : inputLogRecord.ValueSpan.Length,ValueIsObject=inputLogRecord.Info.ValueIsObject };
     }

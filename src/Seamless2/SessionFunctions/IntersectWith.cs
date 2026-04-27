@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 namespace Seamless.SessionFunctions;
 
 /// <summary>
@@ -60,14 +60,22 @@ internal readonly struct IntersectWith:
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
@@ -87,19 +95,31 @@ internal readonly struct IntersectWith:
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,IHeapObject value,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey, TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref EqualityEmpty input)
+        #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+        #else
+        where TKey : IKey
+        #endif
         where TSourceLogRecord : ISourceLogRecord {
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
@@ -123,7 +143,11 @@ internal readonly struct IntersectWith:
     }
     [ExcludeFromCodeCoverage]
     public void PostDeleteOperation<TKey, TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
         // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
         throw new NotSupportedException();
@@ -131,7 +155,11 @@ internal readonly struct IntersectWith:
 
     // ── RMW（IntersectWith 本体）──────────────────────────────────
     public bool NeedInitialUpdate<TKey>(TKey key,ref EqualityEmpty input,ref EqualityEmpty output,ref RMWInfo rmwInfo)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         // キーが存在しない場合は新規作成しない（NOTFOUND を返させる）。
         // Tsavorite は doingCU=false のとき（例：Tombstoneレコード完了後）このメソッドを呼ぶ。
         return false;
@@ -166,7 +194,11 @@ internal readonly struct IntersectWith:
         throw new NotSupportedException();
     }
     public void PostRMWOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
     }
     public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref EqualityEmpty output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
@@ -179,7 +211,11 @@ internal readonly struct IntersectWith:
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         // IntersectWith では RMW で新規レコードを作成しない。NeedInitialUpdate が false を返すため到達しない。
         throw new NotSupportedException();
     }

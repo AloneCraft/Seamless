@@ -1,4 +1,4 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
 using Seamless.Stores;
 namespace Seamless.SessionFunctions;
 
@@ -59,13 +59,21 @@ public readonly struct ManagedRead<TValue, TValueSerializer>():
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
         ThrowReadOnlyEntryPoint();
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
         ThrowReadOnlyEntryPoint();
     }
@@ -84,7 +92,11 @@ public readonly struct ManagedRead<TValue, TValueSerializer>():
     }
     [ExcludeFromCodeCoverage]
     public bool NeedInitialUpdate<TKey>(TKey key,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         return ThrowReadOnlyEntryPoint<bool>();
     }
     [ExcludeFromCodeCoverage]
@@ -116,7 +128,11 @@ public readonly struct ManagedRead<TValue, TValueSerializer>():
     }
     [ExcludeFromCodeCoverage]
     public void PostRMWOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
         ThrowReadOnlyEntryPoint();
     }
@@ -138,7 +154,11 @@ public readonly struct ManagedRead<TValue, TValueSerializer>():
     }
     [ExcludeFromCodeCoverage]
     public void PostDeleteOperation<TKey, TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
         ThrowReadOnlyEntryPoint();
     }
@@ -153,22 +173,38 @@ public readonly struct ManagedRead<TValue, TValueSerializer>():
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         return ThrowReadOnlyEntryPoint<RecordFieldInfo>();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         return ThrowReadOnlyEntryPoint<RecordFieldInfo>();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,IHeapObject value,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         return ThrowReadOnlyEntryPoint<RecordFieldInfo>();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey, TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref EqualityEmpty input)
+        #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+        #else
+        where TKey : IKey
+        #endif
         where TSourceLogRecord : ISourceLogRecord {
         return ThrowReadOnlyEntryPoint<RecordFieldInfo>();
     }

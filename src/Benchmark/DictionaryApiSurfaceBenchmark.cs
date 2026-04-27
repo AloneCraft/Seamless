@@ -1,4 +1,4 @@
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Order;
 using Seamless.Collections;
@@ -99,7 +99,7 @@ public class DictionaryApiSurfaceBenchmark {
             this.stringValues[i]="v"+i;
         }
 
-        this.checkpointRoot=Path.Combine(Environment.CurrentDirectory,"Seamless-Benchmark-Api",Guid.NewGuid().ToString("N"));
+        this.checkpointRoot=BenchmarkOutputLayout.CreateCategoryWorkspaceRoot("Dictionary");
         Directory.CreateDirectory(this.checkpointRoot);
     }
 
@@ -107,8 +107,8 @@ public class DictionaryApiSurfaceBenchmark {
     public void IterationSetup() {
         this.DisposeIterationResources();
 
-        var indexSize = Math.Max(2048,this.CountValue*2);
-        var memorySize = Math.Max(4L*1024*1024,this.CountValue*128L);
+        var indexSize = BenchmarkHashStoreSizing.GetIndexSize(this.CountValue);
+        var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.CountValue*128L);
         var mutableFraction = this.Region==RegionKind.Immutable ? 0.2 : 1.0;
 
         var useStorage = this.Region==RegionKind.Storage||this.Operation is DictionaryOperation.Save or DictionaryOperation.Load;
@@ -210,8 +210,8 @@ public class DictionaryApiSurfaceBenchmark {
         using var log = Devices.CreateLogDevice(logPath);
         using var obj = Devices.CreateLogDevice(objPath);
 
-        var indexSize = Math.Max(2048,this.CountValue*2);
-        var memorySize = Math.Max(4L*1024*1024,this.CountValue*128L);
+        var indexSize = BenchmarkHashStoreSizing.GetIndexSize(this.CountValue);
+        var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.CountValue*128L);
         var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: this.loadCheckpointDir);
 
         if(this.Impl==CollectionImplKind.Unmanaged) {
@@ -458,8 +458,8 @@ public class DictionaryApiSurfaceBenchmark {
         using var log = Devices.CreateLogDevice(logPath);
         using var obj = Devices.CreateLogDevice(objPath);
 
-        var indexSize = Math.Max(2048,this.CountValue*2);
-        var memorySize = Math.Max(4L*1024*1024,this.CountValue*128L);
+        var indexSize = BenchmarkHashStoreSizing.GetIndexSize(this.CountValue);
+        var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.CountValue*128L);
         var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: this.loadCheckpointDir);
 
         if(this.Impl==CollectionImplKind.Unmanaged) {

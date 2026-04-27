@@ -1,13 +1,19 @@
 <Project>
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Directory.Build.props" />
+
   <PropertyGroup>
-    <!--
-      Benchmark1.csproj と Benchmark2.csproj が同じフォルダを共有するため、
-      NuGet restore が同じ obj/project.assets.json を上書きし合って
-      Tsavorite.core 1/2 の解決が衝突する。
-      MSBuildProjectName ごとに obj/bin を分離して衝突を防ぐ。
-      Microsoft.Common.props より前にインポートする必要があるため Directory.Build.props で設定する。
-    -->
+    <SeamlessBenchmarkTarget Condition="'$(MSBuildProjectName)' == 'Benchmark' and '$(SeamlessBenchmarkTarget)' == '' and '$(SEAMLESS_BENCHMARK_TARGET)' != ''">$(SEAMLESS_BENCHMARK_TARGET)</SeamlessBenchmarkTarget>
+    <SeamlessBenchmarkTarget Condition="'$(MSBuildProjectName)' == 'Benchmark' and '$(SeamlessBenchmarkTarget)' == '' and ('$(SeamlessConfigurationName)' == 'Debug1' or '$(SeamlessConfigurationName)' == 'Release1')">1.1.1</SeamlessBenchmarkTarget>
+    <SeamlessBenchmarkTarget Condition="'$(MSBuildProjectName)' == 'Benchmark' and '$(SeamlessBenchmarkTarget)' == '' and ('$(SeamlessConfigurationName)' == 'Debug2' or '$(SeamlessConfigurationName)' == 'Release2')">2.0beta3</SeamlessBenchmarkTarget>
+    <SeamlessBenchmarkTarget Condition="'$(MSBuildProjectName)' == 'Benchmark' and '$(SeamlessBenchmarkTarget)' == ''">2.0beta3</SeamlessBenchmarkTarget>
+
+    <!-- Keep Benchmark outputs separated by target so launch-profile switches do not reuse stale binaries. -->
     <BaseIntermediateOutputPath>obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <BaseOutputPath>bin\$(MSBuildProjectName)\</BaseOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Benchmark'">
+    <BaseIntermediateOutputPath>obj\$(MSBuildProjectName)\$(SeamlessBenchmarkTarget)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin\$(MSBuildProjectName)\$(SeamlessBenchmarkTarget)\</BaseOutputPath>
   </PropertyGroup>
 </Project>

@@ -3,9 +3,7 @@
     <File Path="copilot-instructions.md" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/Benchmark/Benchmark.shproj" Id="b2f3a4c5-d6e7-4a8b-9c0d-1e2f3a4b5c6d" />
-    <Project Path="src/Benchmark/Benchmark1.csproj" />
-    <Project Path="src/Benchmark/Benchmark2.csproj" />
+    <Project Path="src/Benchmark/Benchmark.csproj" />
     <Project Path="src/Seamless.Reasoning/Seamless.Reasoning.csproj" />
     <Project Path="src/Seamless/Seamless.shproj" Id="d44340ba-6972-46d3-a092-3ccb4c79df64" />
     <Project Path="src/Seamless1/Seamless1.csproj" />

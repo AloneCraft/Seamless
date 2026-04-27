@@ -695,9 +695,10 @@ public abstract class Collection<
             foreach(var keyBytes in keysToExpire) {
                 var input = default(EqualityEmpty);
                 var output = default(EqualityEmpty);
+                ReadOnlySpan<byte> keyBytesSpan = keyBytes;
                 unsafe {
-                    fixed(byte* _ = keyBytes) {
-                        var status = Session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref output);
+                    fixed(byte* _ = keyBytesSpan) {
+                        var status = Session.BasicContext.RMW((FixedSpanByteKey)keyBytesSpan,ref input,ref output);
                         Pending(Session,status,ref output);
                     }
                 }
@@ -741,9 +742,10 @@ public abstract class Collection<
         foreach(var keyBytes in keysToToggle) {
             var input = default(EqualityEmpty);
             var output = default(EqualityEmpty);
+            ReadOnlySpan<byte> keyBytesSpan = keyBytes;
             unsafe {
-                fixed(byte* _ = keyBytes) {
-                    var status = Session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref output);
+                fixed(byte* _ = keyBytesSpan) {
+                    var status = Session.BasicContext.RMW((FixedSpanByteKey)keyBytesSpan,ref input,ref output);
                     Pending(Session,status,ref output);
                 }
             }
@@ -787,7 +789,7 @@ public abstract class Collection<
         > {
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            var KeyBytes = logRecord.Key;
+            ReadOnlySpan<byte> KeyBytes = logRecord.KeyBytes;
             if(other.PrivateProtectedContainsKey(KeyBytes)) {
             }
             else {
@@ -812,7 +814,7 @@ public abstract class Collection<
         > Session
     ):IScanIteratorFunctions {
         public int Count;
-        public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+        public unsafe bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
             if(this.Count>=Const.Chunk_Length) {
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
@@ -820,7 +822,11 @@ public abstract class Collection<
             }
             var Input = default(EqualityEmpty);
             var Output = false;
-            var status = Session.BasicContext.RMW((FixedSpanByteKey)logRecord.Key,ref Input,ref Output);
+            ReadOnlySpan<byte> keyBytes = logRecord.KeyBytes;
+            Status status;
+            fixed(byte* _ = keyBytes) {
+                status=Session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref Input,ref Output);
+            }
             if(status.IsPending)
                 Session.BasicContext.CompletePending(wait: true);
             this.Count++;
@@ -845,9 +851,13 @@ public abstract class Collection<
             TAllocator
         > Session
     ):IScanIteratorFunctions {
-        public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+        public unsafe bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            var status = Session.BasicContext.Upsert((FixedSpanByteKey)logRecord.Key,logRecord);
+            ReadOnlySpan<byte> keyBytes = logRecord.KeyBytes;
+            Status status;
+            fixed(byte* _ = keyBytes) {
+                status=Session.BasicContext.Upsert((FixedSpanByteKey)keyBytes,logRecord);
+            }
             if(status.IsPending)
                 Session.BasicContext.CompletePending(wait: true);
             cursorRecordResult=CursorRecordResult.Accept;

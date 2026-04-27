@@ -94,7 +94,7 @@ public class HashSetApiSurfaceBenchmark {
             this.stringOtherKeys[i]="s"+(i+(this.CountValue/2));
         }
 
-        this.checkpointRoot=Path.Combine(Environment.CurrentDirectory,"Seamless-Benchmark-Api-Set",Guid.NewGuid().ToString("N"));
+        this.checkpointRoot=BenchmarkOutputLayout.CreateCategoryWorkspaceRoot("HashSet");
         Directory.CreateDirectory(this.checkpointRoot);
     }
 
@@ -102,8 +102,8 @@ public class HashSetApiSurfaceBenchmark {
     public void IterationSetup() {
         this.DisposeIterationResources();
 
-        var indexSize = Math.Max(2048,this.CountValue*2);
-        var memorySize = Math.Max(4L*1024*1024,this.CountValue*96L);
+        var indexSize = BenchmarkHashStoreSizing.GetIndexSize(this.CountValue);
+        var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.CountValue*96L);
         var mutableFraction = this.Region==RegionKind.Immutable ? 0.2 : 1.0;
 
         var useStorage = this.Region==RegionKind.Storage;

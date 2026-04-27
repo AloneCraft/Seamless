@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using Seamless.Collections;
 namespace Seamless.SessionFunctions;
 
@@ -17,7 +17,11 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
         throw new NotSupportedException();
     }
     public bool NeedInitialUpdate<TKey>(TKey key,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         return false;
     }
     [ExcludeFromCodeCoverage]
@@ -101,14 +105,22 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
@@ -127,12 +139,20 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
     }
     [ExcludeFromCodeCoverage]
     public void PostDeleteOperation<TKey, TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
         throw new NotSupportedException();
     }
     public void PostRMWOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
     }
     public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref TValue output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
@@ -150,25 +170,41 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         // NeedInitialUpdate が false を返すため到達しない。
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,IHeapObject value,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey, TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref EqualityEmpty input)
+        #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+        #else
+        where TKey : IKey
+        #endif
         where TSourceLogRecord : ISourceLogRecord {
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
