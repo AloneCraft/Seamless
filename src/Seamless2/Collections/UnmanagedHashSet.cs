@@ -105,32 +105,8 @@ public partial class UnmanagedHashSet<TKey>
             throw;
         }
     }
-    private readonly struct ScanIteratorFunctions_ExceptWith(
-        ClientSession<
-            FixedSpanByteKey,
-            EqualityEmpty,
-            EqualityEmpty,
-            EqualityEmpty,
-            ExceptWith,
-            UnmanagedStoreFunctions,
-            UnmanagedAllocator
-        > Session
-    ):IScanIteratorFunctions {
-        public unsafe bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            where TSourceLogRecord : ISourceLogRecord {
-            ReadOnlySpan<byte> keyBytes = logRecord.KeyBytes;
-            fixed(byte* _ = keyBytes) {
-                Session.BasicContext.Delete((FixedSpanByteKey)keyBytes);
-            }
-            cursorRecordResult=CursorRecordResult.Accept;
-            return true;
-        }
-        public bool OnStart(long beginAddress,long endAddress) => true;
-        public void OnException(Exception exception,long numberOfRecords) { }
-        public void OnStop(bool completed,long numberOfRecords) { }
-    }
-    private readonly struct ScanIteratorFunctions_UnionWith_Unmanaged(
-        ClientSession<
+    private readonly struct UnionWithForEachStrategy:IForEachStrategy<UnionWithForEachStrategy> {
+        private readonly ClientSession<
             FixedSpanByteKey,
             EqualityEmpty,
             bool,
@@ -138,33 +114,41 @@ public partial class UnmanagedHashSet<TKey>
             UnmanagedAdd<TKey,EqualityEmpty>,
             UnmanagedStoreFunctions,
             UnmanagedAllocator
-        > Session
-    ):IScanIteratorFunctions {
-        public unsafe bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+        > _session;
+        public UnionWithForEachStrategy(
+            ClientSession<
+                FixedSpanByteKey,
+                EqualityEmpty,
+                bool,
+                EqualityEmpty,
+                UnmanagedAdd<TKey,EqualityEmpty>,
+                UnmanagedStoreFunctions,
+                UnmanagedAllocator
+            > session) {
+            this._session=session;
+        }
+        public static unsafe bool Reader<TSourceLogRecord>(
+            ref UnionWithForEachStrategy self,
+            in TSourceLogRecord logRecord,
+            RecordMetadata recordMetadata,
+            long numberOfRecords,
+            out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
             var input = default(EqualityEmpty);
             var output = false;
             ReadOnlySpan<byte> keyBytes = logRecord.KeyBytes;
             Status status;
             fixed(byte* _ = keyBytes) {
-                status=Session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref output);
+                status=self._session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref output);
             }
             if(status.IsPending)
-                Session.BasicContext.CompletePending(wait: true);
+                self._session.BasicContext.CompletePending(wait: true);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
-        public bool OnStart(long beginAddress,long endAddress) => true;
-        public void OnException(Exception exception,long numberOfRecords) { }
-        public void OnStop(bool completed,long numberOfRecords) { }
     }
     public partial void ExceptWith(UnmanagedHashSet<TKey> other) {
-        var ReadSession = other.ReadSession;
-        var Iterator = new ScanIteratorFunctions_ExceptWith(this.ExceptWith_ClientSession);
-        var Cursor = 0L;
-        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-        ReadSession.BasicContext.CompletePending(wait: true);
-        this.ExceptWith_ClientSession.BasicContext.CompletePending(wait: true);
+        base.ExceptWith(other,this.ExceptWith_ClientSession);
     }
     public partial void IntersectWith(UnmanagedHashSet<TKey> other) {
         this.IntersectWith(this,other,this.IntersectWith_ClientSession);
@@ -179,12 +163,8 @@ public partial class UnmanagedHashSet<TKey>
         base.SymmetricExceptWith(other,this.SymmetricExceptWith_ClientSession);
     }
     public partial void UnionWith(UnmanagedHashSet<TKey> other) {
-        ArgumentNullException.ThrowIfNull(other);
-        var ReadSession = other.ReadSession;
-        var Iterator = new ScanIteratorFunctions_UnionWith_Unmanaged(this.Add_ClientSession);
-        var Cursor = 0L;
-        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-        ReadSession.BasicContext.CompletePending(wait: true);
+        var strategy = new UnionWithForEachStrategy(this.Add_ClientSession);
+        ForEach(other,ref strategy);
         this.Add_ClientSession.BasicContext.CompletePending(wait: true);
     }
 }

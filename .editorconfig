@@ -1,4 +1,4 @@
-root = true
+﻿root = true
 
 [*.cs]
 indent_style = space
@@ -24,3 +24,8 @@ csharp_space_around_binary_operators = none
 csharp_space_around_declaration_statements = false
 csharp_space_before_colon_in_inheritance_clause = false
 csharp_space_after_colon_in_inheritance_clause = false
+# カンマ後のスペースも排除（現在は before/after 両方が false なので、それに合わせる）
+dotnet_style_parentheses_in_arithmetic_binary_operators = never_if_unnecessary:silent
+
+# 以下の設定で「型キャスト」の後のスペースも詰められます
+csharp_space_after_cast = false

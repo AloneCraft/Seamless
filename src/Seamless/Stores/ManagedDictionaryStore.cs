@@ -12,6 +12,11 @@ public class ManagedDictionaryStore<TKey, TValue>:ManagedCollectionStore<TKey,TV
     internal ManagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) :
         base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,OverflowMutableStrategyKind.Storage){ }
 
+    private protected override long GetRecoveryEntryCount() {
+        using var dictionary = this.Create();
+        return dictionary.GetLongCount();
+    }
+
 }
 
 //public class ManagedManagedDictionaryStore<TKey, TValue>

@@ -1,4 +1,4 @@
-using global::Seamless.Collections;
+﻿using global::Seamless.Collections;
 using System.IO.MemoryMappedFiles;
 
 namespace Test.Seamless.Benchmarks;

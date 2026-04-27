@@ -1,5 +1,4 @@
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Order;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -62,6 +61,7 @@ public class DictionaryStoreBenchmark {
 
     [WarmupCount(1)]
     [IterationCount(1)]
+    [InvocationCount(1)]
     [Benchmark(Description = "Store Save")]
     public Guid Save() {
         var checkpointDir = Path.Combine(this.checkpointRoot,"save-"+Guid.NewGuid().ToString("N"));
@@ -112,6 +112,7 @@ public class DictionaryStoreBenchmark {
 
     [WarmupCount(1)]
     [IterationCount(1)]
+    [InvocationCount(1)]
     [Benchmark(Description = "Store Load")]
     public long Load() {
         if(this.loadCheckpointDir is null)
@@ -121,7 +122,11 @@ public class DictionaryStoreBenchmark {
         var objPath = Path.Combine(this.loadCheckpointDir,"obj");
         using var logDevice = Devices.CreateLogDevice(logPath);
         using var objDevice = Devices.CreateLogDevice(objPath);
-        using var store = this.CreateStore(this.loadCheckpointDir,logDevice,objDevice);
+        var indexSize = BenchmarkHashStoreSizing.GetIndexSize(this.Count);
+        var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.Count*128L);
+        var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: this.loadCheckpointDir)
+            .WithRecoveryIndexSize(this.loadToken);
+        using var store = factory.Create<int,int>(logDevice,objDevice);
         store.Load(this.loadToken);
         using var dict = store.Create();
         return dict.GetLongCount();

@@ -12,6 +12,8 @@
   </PropertyGroup>
 
   <PropertyGroup>
+    <SeamlessBenchmarkOutputLabel Condition="'$(SeamlessBenchmarkOutputLabel)' == '' and $([System.String]::Copy('$(SeamlessBenchmarkTarget)').StartsWith('1.'))">1.*</SeamlessBenchmarkOutputLabel>
+    <SeamlessBenchmarkOutputLabel Condition="'$(SeamlessBenchmarkOutputLabel)' == '' and $([System.String]::Copy('$(SeamlessBenchmarkTarget)').StartsWith('2.'))">2.*</SeamlessBenchmarkOutputLabel>
     <SeamlessBenchmarkOutputLabel Condition="'$(SeamlessBenchmarkOutputLabel)' == ''">$(SeamlessBenchmarkTarget)</SeamlessBenchmarkOutputLabel>
 
     <SeamlessBenchmarkOutputFrameworkLabel Condition="'$(SeamlessTargetFramework)' == 'net8.0'">net8</SeamlessBenchmarkOutputFrameworkLabel>
