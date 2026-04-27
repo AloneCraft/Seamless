@@ -1,0 +1,43 @@
+<Project>
+  <PropertyGroup>
+    <SeamlessConfigurationName Condition="'$(SeamlessConfigurationName)' == ''">$(Configuration)</SeamlessConfigurationName>
+
+    <SeamlessTargetFramework Condition="'$(SeamlessTargetFramework)' == '' and $([System.String]::Copy('$(SeamlessConfigurationName)').EndsWith('Net8'))">net8.0</SeamlessTargetFramework>
+    <SeamlessTargetFramework Condition="'$(SeamlessTargetFramework)' == '' and $([System.String]::Copy('$(SeamlessConfigurationName)').EndsWith('Net9'))">net9.0</SeamlessTargetFramework>
+    <SeamlessTargetFramework Condition="'$(SeamlessTargetFramework)' == '' and $([System.String]::Copy('$(SeamlessConfigurationName)').EndsWith('Net10'))">net10.0</SeamlessTargetFramework>
+    <SeamlessTargetFramework Condition="'$(SeamlessTargetFramework)' == ''">net10.0</SeamlessTargetFramework>
+
+    <SeamlessBaseConfiguration Condition="'$(SeamlessBaseConfiguration)' == '' and $([System.String]::Copy('$(SeamlessConfigurationName)').EndsWith('Net8'))">$([System.String]::Copy('$(SeamlessConfigurationName)').Replace('Net8',''))</SeamlessBaseConfiguration>
+    <SeamlessBaseConfiguration Condition="'$(SeamlessBaseConfiguration)' == '' and $([System.String]::Copy('$(SeamlessConfigurationName)').EndsWith('Net9'))">$([System.String]::Copy('$(SeamlessConfigurationName)').Replace('Net9',''))</SeamlessBaseConfiguration>
+    <SeamlessBaseConfiguration Condition="'$(SeamlessBaseConfiguration)' == '' and $([System.String]::Copy('$(SeamlessConfigurationName)').EndsWith('Net10'))">$([System.String]::Copy('$(SeamlessConfigurationName)').Replace('Net10',''))</SeamlessBaseConfiguration>
+    <SeamlessBaseConfiguration Condition="'$(SeamlessBaseConfiguration)' == ''">$(SeamlessConfigurationName)</SeamlessBaseConfiguration>
+
+    <LangVersion Condition="'$(LangVersion)' == '' and '$(SeamlessTargetFramework)' != 'net10.0'">13.0</LangVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(SeamlessBaseConfiguration)' == 'Debug'">
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <Optimize>false</Optimize>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.String]::Copy('$(SeamlessBaseConfiguration)').StartsWith('Debug')) and '$(SeamlessBaseConfiguration)' != 'Debug'">
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <Optimize>false</Optimize>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(SeamlessBaseConfiguration)' == 'Release'">
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.String]::Copy('$(SeamlessBaseConfiguration)').StartsWith('Release')) and '$(SeamlessBaseConfiguration)' != 'Release'">
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+</Project>

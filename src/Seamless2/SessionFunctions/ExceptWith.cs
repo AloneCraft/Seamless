@@ -49,13 +49,21 @@ internal readonly struct ExceptWith:
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
         throw new NotSupportedException();
     }
@@ -74,24 +82,40 @@ internal readonly struct ExceptWith:
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,IHeapObject value,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey, TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref EqualityEmpty input)
+        #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+        #else
+        where TKey : IKey
+        #endif
         where TSourceLogRecord : ISourceLogRecord {
         throw new NotSupportedException();
     }
 
     [ExcludeFromCodeCoverage]
     public bool NeedInitialUpdate<TKey>(TKey key,ref EqualityEmpty input,ref EqualityEmpty output,ref RMWInfo rmwInfo)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -123,7 +147,11 @@ internal readonly struct ExceptWith:
     }
     [ExcludeFromCodeCoverage]
     public void PostRMWOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
         throw new NotSupportedException();
     }
@@ -138,7 +166,11 @@ internal readonly struct ExceptWith:
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref EqualityEmpty input)
-        where TKey : IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct{
+        #else
+        where TKey : IKey{
+        #endif
         throw new NotSupportedException();
     }
 
@@ -151,7 +183,11 @@ internal readonly struct ExceptWith:
         return true;
     }
     public void PostDeleteOperation<TKey, TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
+    #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
+    #else
+        where TKey : IKey
+    #endif
         where TEpochAccessor : IEpochAccessor {
     }
 

@@ -16,3 +16,23 @@ public static class BenchmarkScale {
         return scaled<1 ? 1 : scaled;
     }
 }
+
+internal static class BenchmarkHashStoreSizing {
+    public static long GetIndexSize(int count) {
+        return RoundUpToPowerOfTwo(2048L,checked((long)count*2));
+    }
+
+    public static long GetMemorySize(long requiredSize) {
+        return RoundUpToPowerOfTwo(4L*1024*1024,requiredSize);
+    }
+
+    private static long RoundUpToPowerOfTwo(long minimum,long requiredSize) {
+        var targetSize = Math.Max(minimum,requiredSize);
+        long size = minimum;
+        while(size<targetSize) {
+            size<<=1;
+        }
+
+        return size;
+    }
+}

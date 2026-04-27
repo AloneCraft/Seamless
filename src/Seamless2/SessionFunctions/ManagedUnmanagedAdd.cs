@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Seamless.Stores;
 namespace Seamless.SessionFunctions;
@@ -39,11 +39,19 @@ public readonly struct ManagedUnmanagedAdd<TValue>:
         return dstLogRecord.TryCopyFrom(in inputLogRecord,in sizeInfo);
     }
     public void PostUpsertOperation<TKey0,TEpochAccessor>(TKey0 key,ref TValue input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
-        where TKey0:IKey, allows ref struct
+    #if NET10_0_OR_GREATER
+        where TKey0 : IKey, allows ref struct
+    #else
+        where TKey0 : IKey
+    #endif
         where TEpochAccessor:IEpochAccessor {
     }
     public void PostUpsertOperation<TKey0,TEpochAccessor>(TKey0 key,ref TValue input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
-        where TKey0:IKey, allows ref struct
+    #if NET10_0_OR_GREATER
+        where TKey0 : IKey, allows ref struct
+    #else
+        where TKey0 : IKey
+    #endif
         where TEpochAccessor:IEpochAccessor {
     }
     public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo){
@@ -54,7 +62,11 @@ public readonly struct ManagedUnmanagedAdd<TValue>:
         where TSourceLogRecord:ISourceLogRecord {
     }
     public bool NeedInitialUpdate<TKey0>(TKey0 key,ref TValue input,ref bool output,ref RMWInfo rmwInfo)
-        where TKey0:IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey0 : IKey, allows ref struct{
+        #else
+        where TKey0 : IKey{
+        #endif
         return true;
     }
     public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo){
@@ -82,7 +94,11 @@ public readonly struct ManagedUnmanagedAdd<TValue>:
         throw new NotSupportedException();
     }
     public void PostRMWOperation<TKey0,TEpochAccessor>(TKey0 key,ref TValue input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
-        where TKey0:IKey, allows ref struct
+    #if NET10_0_OR_GREATER
+        where TKey0 : IKey, allows ref struct
+    #else
+        where TKey0 : IKey
+    #endif
         where TEpochAccessor:IEpochAccessor {
     }
     public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
@@ -100,7 +116,11 @@ public readonly struct ManagedUnmanagedAdd<TValue>:
         throw new NotSupportedException();
     }
     public void PostDeleteOperation<TKey0,TEpochAccessor>(TKey0 key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
-        where TKey0:IKey, allows ref struct
+    #if NET10_0_OR_GREATER
+        where TKey0 : IKey, allows ref struct
+    #else
+        where TKey0 : IKey
+    #endif
         where TEpochAccessor:IEpochAccessor {
         // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
         throw new NotSupportedException();
@@ -112,19 +132,35 @@ public readonly struct ManagedUnmanagedAdd<TValue>:
         return new(){ KeySize=srcLogRecord.KeyBytes.Length,ValueSize=Unsafe.SizeOf<TValue>() };
     }
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey0>(TKey0 key,ref TValue input)
-        where TKey0:IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey0 : IKey, allows ref struct{
+        #else
+        where TKey0 : IKey{
+        #endif
         return new(){ KeySize=key.KeyBytes.Length,ValueSize=Unsafe.SizeOf<TValue>() };
     }
     public RecordFieldInfo GetUpsertFieldInfo<TKey0>(TKey0 key,ReadOnlySpan<byte> value,ref TValue input)
-        where TKey0:IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey0 : IKey, allows ref struct{
+        #else
+        where TKey0 : IKey{
+        #endif
         return new(){ KeySize=key.KeyBytes.Length,ValueSize=Unsafe.SizeOf<TValue>() };
     }
     public RecordFieldInfo GetUpsertFieldInfo<TKey0>(TKey0 key,IHeapObject value,ref TValue input)
-        where TKey0:IKey, allows ref struct {
+        #if NET10_0_OR_GREATER
+        where TKey0 : IKey, allows ref struct{
+        #else
+        where TKey0 : IKey{
+        #endif
         return new(){ KeySize=key.KeyBytes.Length,ValueSize=Unsafe.SizeOf<TValue>(),ValueIsObject=true };
     }
     public RecordFieldInfo GetUpsertFieldInfo<TKey0,TSourceLogRecord>(TKey0 key,in TSourceLogRecord inputLogRecord,ref TValue input)
-        where TKey0:IKey, allows ref struct
+        #if NET10_0_OR_GREATER
+        where TKey0 : IKey, allows ref struct
+        #else
+        where TKey0 : IKey
+        #endif
         where TSourceLogRecord:ISourceLogRecord {
         return new(){ KeySize=key.KeyBytes.Length,ValueSize=inputLogRecord.Info.ValueIsObject ? ObjectIdMap.ObjectIdSize:Unsafe.SizeOf<TValue>(),ValueIsObject=inputLogRecord.Info.ValueIsObject };
     }

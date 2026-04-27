@@ -1,10 +1,8 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Order;
-using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
-using System.IO.MemoryMappedFiles;
 
 namespace BenchmarkExe.Benchmarks;
 
@@ -12,9 +10,11 @@ namespace BenchmarkExe.Benchmarks;
 [RankColumn]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [SimpleJob(warmupCount: 1,iterationCount: 5)]
-public class Benchmark {
+public class DictionaryStoreBenchmark {
     private int[] keys = null!;
-    private string listRoot = null!;
+    private string checkpointRoot = null!;
+    private string? loadCheckpointDir;
+    private Guid loadToken;
 
     [Params(10_000,100_000)]
     public int Count { get; set; }
@@ -25,18 +25,18 @@ public class Benchmark {
         for(var i = 0; i<this.keys.Length; i++)
             this.keys[i]=i;
 
-        this.listRoot=Path.Combine(Environment.CurrentDirectory,"Seamless-Benchmark-List",Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(this.listRoot);
+        this.checkpointRoot=BenchmarkOutputLayout.CreateCategoryWorkspaceRoot("Dictionary");
+        Directory.CreateDirectory(this.checkpointRoot);
     }
 
     [GlobalCleanup]
     public void GlobalCleanup() {
-        if(Directory.Exists(this.listRoot))
-            Directory.Delete(this.listRoot,recursive: true);
+        if(Directory.Exists(this.checkpointRoot))
+            Directory.Delete(this.checkpointRoot,recursive: true);
     }
 
-    [Benchmark(Description = "Dictionary_Add")]
-    public long Dictionary_Add() {
+    [Benchmark(Description = "Dictionary Add")]
+    public long Add() {
         using var store = this.CreateStore();
         using var dict = store.Create();
 
@@ -46,8 +46,8 @@ public class Benchmark {
         return dict.GetLongCount();
     }
 
-    [Benchmark(Description = "Dictionary_Remove")]
-    public long Dictionary_Remove() {
+    [Benchmark(Description = "Dictionary Remove")]
+    public long Remove() {
         using var store = this.CreateStore();
         using var dict = store.Create();
 
@@ -60,33 +60,78 @@ public class Benchmark {
         return dict.GetLongCount();
     }
 
-    [Benchmark(Description = "List_Add")]
-    public long List_Add() {
-        using var list = this.CreateList(Path.Combine(this.listRoot,"list-add-"+Guid.NewGuid().ToString("N")+".data"));
+    [Benchmark(Description = "Store Save")]
+    public Guid Save() {
+        var checkpointDir = Path.Combine(this.checkpointRoot,"save-"+Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(checkpointDir);
+
+        var logPath = Path.Combine(checkpointDir,"log");
+        var objPath = Path.Combine(checkpointDir,"obj");
+        using var logDevice = Devices.CreateLogDevice(logPath);
+        using var objDevice = Devices.CreateLogDevice(objPath);
+        using var store = this.CreateStore(checkpointDir,logDevice,objDevice);
+        using var dict = store.Create();
+
         for(var i = 0; i<this.keys.Length; i++)
-            list.Add(this.keys[i]);
-        return list.Count;
+            dict.Add(this.keys[i],this.keys[i]);
+
+        return store.Save();
     }
 
-    [Benchmark(Description = "List_Remove")]
-    public long List_Remove() {
-        using var list = this.CreateList(Path.Combine(this.listRoot,"list-remove-"+Guid.NewGuid().ToString("N")+".data"));
+    [IterationSetup(Target = nameof(Load))]
+    public void PrepareLoadCheckpoint() {
+        this.loadCheckpointDir=Path.Combine(this.checkpointRoot,"load-"+Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(this.loadCheckpointDir);
+
+        var logPath = Path.Combine(this.loadCheckpointDir,"log");
+        var objPath = Path.Combine(this.loadCheckpointDir,"obj");
+        using var logDevice = Devices.CreateLogDevice(logPath);
+        using var objDevice = Devices.CreateLogDevice(objPath);
+        using var store = this.CreateStore(this.loadCheckpointDir,logDevice,objDevice);
+        using var dict = store.Create();
+
         for(var i = 0; i<this.keys.Length; i++)
-            list.Add(this.keys[i]);
-        for(var i = 0; i<this.keys.Length; i++)
-            list.Remove();
-        return list.Count;
+            dict.Add(this.keys[i],this.keys[i]);
+
+        this.loadToken=store.Save();
     }
 
-    private UnmanagedDictionaryStore<int,int> CreateStore() {
-        var indexSize = Math.Max(2048,this.Count*2);
-        var memorySize = Math.Max(4L*1024*1024,this.Count*128L);
-        return HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0).Create<int,int>();
+    [IterationCleanup(Target = nameof(Load))]
+    public void CleanupLoadCheckpoint() {
+        if(this.loadCheckpointDir is null)
+            return;
+
+        if(Directory.Exists(this.loadCheckpointDir))
+            Directory.Delete(this.loadCheckpointDir,recursive: true);
+
+        this.loadCheckpointDir=null;
+        this.loadToken=Guid.Empty;
     }
 
-    private UnmanagedList<int> CreateList(string listPath) {
-        var list = ListStore.Create<int>(listPath,initialCapacity: Math.Max(16,this.Count),new UnmanagedTag());
-        list.SetTuning(new TempListTuning(FileAccess.ReadWrite,FileOptions.SequentialScan));
-        return list;
+    [Benchmark(Description = "Store Load")]
+    public long Load() {
+        if(this.loadCheckpointDir is null)
+            throw new InvalidOperationException("Load benchmark checkpoint is not prepared.");
+
+        var logPath = Path.Combine(this.loadCheckpointDir,"log");
+        var objPath = Path.Combine(this.loadCheckpointDir,"obj");
+        using var logDevice = Devices.CreateLogDevice(logPath);
+        using var objDevice = Devices.CreateLogDevice(objPath);
+        using var store = this.CreateStore(this.loadCheckpointDir,logDevice,objDevice);
+        store.Load(this.loadToken);
+        using var dict = store.Create();
+        return dict.GetLongCount();
+    }
+
+    private UnmanagedDictionaryStore<int,int> CreateStore(string? checkpointDir = null) {
+        var indexSize = BenchmarkHashStoreSizing.GetIndexSize(this.Count);
+        var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.Count*128L);
+        return HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: checkpointDir).Create<int,int>();
+    }
+
+    private UnmanagedDictionaryStore<int,int> CreateStore(string checkpointDir,IDevice logDevice,IDevice objDevice) {
+        var indexSize = BenchmarkHashStoreSizing.GetIndexSize(this.Count);
+        var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.Count*128L);
+        return HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: checkpointDir).Create<int,int>(logDevice,objDevice);
     }
 }

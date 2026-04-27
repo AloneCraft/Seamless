@@ -88,9 +88,12 @@ public partial class ManagedHashSet<TKey>
             ManagedAllocator
         > Session
     ):IScanIteratorFunctions {
-        public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+        public unsafe bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            Session.BasicContext.Delete((FixedSpanByteKey)logRecord.Key);
+            ReadOnlySpan<byte> keyBytes = logRecord.KeyBytes;
+            fixed(byte* _ = keyBytes) {
+                Session.BasicContext.Delete((FixedSpanByteKey)keyBytes);
+            }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }

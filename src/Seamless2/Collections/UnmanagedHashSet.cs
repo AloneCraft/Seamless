@@ -116,9 +116,12 @@ public partial class UnmanagedHashSet<TKey>
             UnmanagedAllocator
         > Session
     ):IScanIteratorFunctions {
-        public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+        public unsafe bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            Session.BasicContext.Delete((FixedSpanByteKey)logRecord.Key);
+            ReadOnlySpan<byte> keyBytes = logRecord.KeyBytes;
+            fixed(byte* _ = keyBytes) {
+                Session.BasicContext.Delete((FixedSpanByteKey)keyBytes);
+            }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
@@ -137,11 +140,15 @@ public partial class UnmanagedHashSet<TKey>
             UnmanagedAllocator
         > Session
     ):IScanIteratorFunctions {
-        public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+        public unsafe bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
             var input = default(EqualityEmpty);
             var output = false;
-            var status = Session.BasicContext.RMW((FixedSpanByteKey)logRecord.Key,ref input,ref output);
+            ReadOnlySpan<byte> keyBytes = logRecord.KeyBytes;
+            Status status;
+            fixed(byte* _ = keyBytes) {
+                status=Session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref output);
+            }
             if(status.IsPending)
                 Session.BasicContext.CompletePending(wait: true);
             cursorRecordResult=CursorRecordResult.Accept;

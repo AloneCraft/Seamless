@@ -2,46 +2,52 @@
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
     "Benchmark 2.* (Dictionary)": {
-      "commandName": "Project",
-      "commandLineArgs": "--filter *Dictionary*",
-      "environmentVariables": {
-        "SEAMLESS_BENCHMARK_TARGET": "2.0beta3"
-      }
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "workingDirectory": ".",
+      "commandLineArgs": "run --project .\\Benchmark.csproj --no-launch-profile --no-cache --property:SeamlessBenchmarkTarget=2.0beta3 -- --filter *Dictionary*"
     },
     "Benchmark 1.* (Dictionary)": {
-      "commandName": "Project",
-      "commandLineArgs": "--filter *Dictionary*",
-      "environmentVariables": {
-        "SEAMLESS_BENCHMARK_TARGET": "1.1.1"
-      }
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "workingDirectory": ".",
+      "commandLineArgs": "run --project .\\Benchmark.csproj --no-launch-profile --no-cache --property:SeamlessBenchmarkTarget=1.1.1 -- --filter *Dictionary*"
+    },
+    "Benchmark 2.* (HashSet)": {
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "workingDirectory": ".",
+      "commandLineArgs": "run --project .\\Benchmark.csproj --no-launch-profile --no-cache --property:SeamlessBenchmarkTarget=2.0beta3 -- --filter *HashSet*"
+    },
+    "Benchmark 1.* (HashSet)": {
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "workingDirectory": ".",
+      "commandLineArgs": "run --project .\\Benchmark.csproj --no-launch-profile --no-cache --property:SeamlessBenchmarkTarget=1.1.1 -- --filter *HashSet*"
     },
     "Benchmark 2.* (List)": {
-      "commandName": "Project",
-      "commandLineArgs": "--filter *List*",
-      "environmentVariables": {
-        "SEAMLESS_BENCHMARK_TARGET": "2.0beta3"
-      }
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "workingDirectory": ".",
+      "commandLineArgs": "run --project .\\Benchmark.csproj --no-launch-profile --no-cache --property:SeamlessBenchmarkTarget=2.0beta3 -- --filter *List*"
     },
     "Benchmark 1.* (List)": {
-      "commandName": "Project",
-      "commandLineArgs": "--filter *List*",
-      "environmentVariables": {
-        "SEAMLESS_BENCHMARK_TARGET": "1.1.1"
-      }
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "workingDirectory": ".",
+      "commandLineArgs": "run --project .\\Benchmark.csproj --no-launch-profile --no-cache --property:SeamlessBenchmarkTarget=1.1.1 -- --filter *List*"
     },
     "Benchmark 2.* (All)": {
-      "commandName": "Project",
-      "commandLineArgs": "",
-      "environmentVariables": {
-        "SEAMLESS_BENCHMARK_TARGET": "2.0beta3"
-      }
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "workingDirectory": ".",
+      "commandLineArgs": "run --project .\\Benchmark.csproj --no-launch-profile --no-cache --property:SeamlessBenchmarkTarget=2.0beta3"
     },
     "Benchmark 1.* (All)": {
-      "commandName": "Project",
-      "commandLineArgs": "",
-      "environmentVariables": {
-        "SEAMLESS_BENCHMARK_TARGET": "1.1.1"
-      }
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "workingDirectory": ".",
+      "commandLineArgs": "run --project .\\Benchmark.csproj --no-launch-profile --no-cache --property:SeamlessBenchmarkTarget=1.1.1"
     }
   }
 }
