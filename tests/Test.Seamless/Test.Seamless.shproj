@@ -14,6 +14,9 @@
     <Compile Include="Benchmark\Benchmark.cs" />
     <Compile Include="Benchmark\DictionaryBenchmark.cs" />
     <Compile Include="Benchmark\HashSetBenchmark.cs" />
+    <Compile Include="Benchmark\ListBenchmark.cs" />
+    <Compile Include="Database\Simple.cs" />
+    <Compile Include="Database\TPC_H.cs" />
     <Compile Include="DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Include="StoreCheckpoint.cs" />
     <Compile Include="Stress\ParallelRandomStressTests.cs" />

@@ -8,4 +8,6 @@ public abstract class CollectionStore{
         Debug.Assert(value>0,$"{paramName} must be positive");
         Debug.Assert((value&(value-1))==0,$"{paramName} must be a power of 2, but was {value}");
     }
+
+    private protected abstract long GetRecoveryEntryCount();
 }

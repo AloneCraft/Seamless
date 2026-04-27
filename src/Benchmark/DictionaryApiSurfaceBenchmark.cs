@@ -217,8 +217,8 @@ public class DictionaryApiSurfaceBenchmark {
         if(this.Impl==CollectionImplKind.Unmanaged) {
             using var store = factory.Create<int,int>(log,obj);
             using var dict = store.Create();
-            for(var i = 0; i<this.intKeys.Length; i++) {
-                dict[this.intKeys[i]]=this.intKeys[i]*2;
+            foreach(var t in this.intKeys){
+                dict[t]=t*2;
             }
             this.loadToken=store.Save();
         }
@@ -241,15 +241,15 @@ public class DictionaryApiSurfaceBenchmark {
         return this.Operation switch {
             DictionaryOperation.Add => this.RunLoop(() => {
                 dict.Clear();
-                for(var i = 0; i<this.intKeys.Length; i++) {
-                    dict.Add(this.intKeys[i],this.intKeys[i]);
+                foreach(var t in this.intKeys){
+                    dict.Add(t,t);
                 }
                 return dict.Count;
             }),
             DictionaryOperation.Remove => this.RunLoop(() => {
                 var removed = 0;
-                for(var i = 0; i<this.intKeys.Length; i++) {
-                    if(dict.Remove(this.intKeys[i])) {
+                foreach(var t in this.intKeys){
+                    if(dict.Remove(t)) {
                         removed++;
                     }
                 }
@@ -258,17 +258,17 @@ public class DictionaryApiSurfaceBenchmark {
             DictionaryOperation.ContainsKey => this.RunLoop(() => this.CountTrue(this.intKeys,dict.ContainsKey)),
             DictionaryOperation.TryGetValue => this.RunLoop(() => this.CountTryGet(this.intKeys,key => dict.TryGetValue(key,out _))),
             DictionaryOperation.IndexerGet => this.RunLoop(() => this.SumInt(this.intKeys,key => dict[key])),
-            DictionaryOperation.IndexerSet => this.RunLoop(() => {
-                for(var i = 0; i<this.intKeys.Length; i++) {
-                    iDict[this.intKeys[i]]=this.intKeys[i]+1;
+            DictionaryOperation.IndexerSet => this.RunLoop(() =>{
+                foreach(var t in this.intKeys){
+                    iDict[t]=t+1;
                 }
                 return iDict.Count;
             }),
             DictionaryOperation.TryAdd => this.RunLoop(() => {
                 var ok = 0;
                 dict.Clear();
-                for(var i = 0; i<this.intKeys.Length; i++) {
-                    if(dict.TryAdd(this.intKeys[i],this.intKeys[i])==TryAddResult.Success) {
+                foreach(var t in this.intKeys){
+                    if(dict.TryAdd(t,t)==TryAddResult.Success) {
                         ok++;
                     }
                 }
@@ -276,8 +276,8 @@ public class DictionaryApiSurfaceBenchmark {
             }),
             DictionaryOperation.RemoveWithValue => this.RunLoop(() => {
                 var ok = 0;
-                for(var i = 0; i<this.intKeys.Length; i++) {
-                    if(dict.Remove(this.intKeys[i],out _)) {
+                foreach(var t in this.intKeys){
+                    if(dict.Remove(t,out _)) {
                         ok++;
                     }
                 }
@@ -460,7 +460,8 @@ public class DictionaryApiSurfaceBenchmark {
 
         var indexSize = BenchmarkHashStoreSizing.GetIndexSize(this.CountValue);
         var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.CountValue*128L);
-        var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: this.loadCheckpointDir);
+        var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: this.loadCheckpointDir)
+            .WithRecoveryIndexSize(this.loadToken);
 
         if(this.Impl==CollectionImplKind.Unmanaged) {
             using var store = factory.Create<int,int>(log,obj);
@@ -468,8 +469,8 @@ public class DictionaryApiSurfaceBenchmark {
             using var dict = store.Create();
             return dict.Count;
         }
-
-        using(var mstore = factory.Create<string,string>(log,obj,new ManagedTag(),new ManagedTag())) {
+        using var mstore = factory.Create<string,string>(log,obj,new ManagedTag(),new ManagedTag());
+        {
             mstore.Load(this.loadToken);
             using var dict = mstore.Create();
             return dict.Count;

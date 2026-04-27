@@ -1,3 +1,5 @@
+using Seamless.Stores;
+
 namespace BenchmarkExe.Benchmarks;
 
 /// <summary>
@@ -19,7 +21,7 @@ public static class BenchmarkScale {
 
 internal static class BenchmarkHashStoreSizing {
     public static long GetIndexSize(int count) {
-        return RoundUpToPowerOfTwo(2048L,checked((long)count*2));
+        return HashStore.GetIndexSizeForCapacity(checked((long)count*2),2048L);
     }
 
     public static long GetMemorySize(long requiredSize) {
@@ -35,4 +37,5 @@ internal static class BenchmarkHashStoreSizing {
 
         return size;
     }
+
 }

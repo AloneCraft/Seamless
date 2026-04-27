@@ -47,6 +47,11 @@ public class UnmanagedHashSetStore<TKey>
         OverflowMutableStrategyKind.Memory
     ){ }
 
+    private protected override long GetRecoveryEntryCount() {
+        using var set = this.Create();
+        return set.GetLongCount();
+    }
+
     public UnmanagedHashSet<TKey> Create() => new(this);
 }
 

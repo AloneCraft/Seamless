@@ -14,6 +14,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\HashSetBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\DictionaryBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\ListBenchmark.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Database\Simple.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Database\TPC_H.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)StoreCheckpoint.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestPath.cs" />

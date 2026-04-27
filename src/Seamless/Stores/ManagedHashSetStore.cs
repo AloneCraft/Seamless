@@ -11,6 +11,11 @@ public class ManagedHashSetStore<TKey>:ManagedCollectionStore<TKey,EqualityEmpty
     internal ManagedHashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction) :
         base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory){ }
 
+    private protected override long GetRecoveryEntryCount() {
+        using var set = this.Create();
+        return set.GetLongCount();
+    }
+
     public ManagedHashSet<TKey> Create() => new(this);
 }
 

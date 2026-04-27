@@ -167,6 +167,88 @@ public class StoreCheckpoint {
             Assert.False(dict.ContainsKey(999));
         }
     }
+
+    [Fact, Trait("Category","Unit")]
+    public void Save_Load_Dictionary_Add件数に応じてWithRecoveryIndexSizeがIndexSizeを拡張する() {
+        const long initialIndexSize = 64;
+        const int entryCount = 100;
+        var expectedIndexSize = HashStore.GetIndexSizeForCapacity(entryCount,initialIndexSize);
+        Assert.True(expectedIndexSize>initialIndexSize);
+
+        var folder = CreateFolder();
+        var checkpointDir = folder+"_checkpoint";
+        Guid token;
+        {
+            using var logDevice = Devices.CreateLogDevice(folder);
+            using var objDevice = Devices.CreateLogDevice(folder+"_obj");
+            var factory = HashStore.Create(IndexSize: initialIndexSize,CheckpointDir: checkpointDir);
+            using var store = factory.Create<int,string>(logDevice,objDevice);
+            using var dict = store.Create();
+
+            for(var i = 0; i<entryCount; i++)
+                dict.Add(i,$"val_{i}");
+
+            token=store.Save();
+        }
+
+        var recoveryFactory = HashStore.Create(IndexSize: initialIndexSize,CheckpointDir: checkpointDir);
+        Assert.Equal(expectedIndexSize,recoveryFactory.ResolveRecoveryIndexSize(token,initialIndexSize));
+
+        {
+            using var logDevice = Devices.CreateLogDevice(folder);
+            using var objDevice = Devices.CreateLogDevice(folder+"_obj");
+            using var store = recoveryFactory.WithRecoveryIndexSize(token,initialIndexSize).Create<int,string>(logDevice,objDevice);
+            store.Load(token);
+            using var dict = store.Create();
+
+            Assert.Equal(entryCount,dict.GetLongCount());
+            for(var i = 0; i<entryCount; i++) {
+                Assert.True(dict.ContainsKey(i),$"ContainsKey({i}) failed after resize-aware recovery");
+                Assert.Equal($"val_{i}",dict[i]);
+            }
+        }
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void SaveLogOnly_LoadLatest_Dictionary_Add件数に応じてWithRecoveryIndexSizeがIndexSizeを拡張する() {
+        const long initialIndexSize = 64;
+        const int entryCount = 100;
+        var expectedIndexSize = HashStore.GetIndexSizeForCapacity(entryCount,initialIndexSize);
+        Assert.True(expectedIndexSize>initialIndexSize);
+
+        var folder = CreateFolder();
+        var checkpointDir = folder+"_checkpoint";
+        {
+            using var logDevice = Devices.CreateLogDevice(folder);
+            using var objDevice = Devices.CreateLogDevice(folder+"_obj");
+            var factory = HashStore.Create(IndexSize: initialIndexSize,CheckpointDir: checkpointDir);
+            using var store = factory.Create<int,string>(logDevice,objDevice);
+            using var dict = store.Create();
+
+            for(var i = 0; i<entryCount; i++)
+                dict.Add(i,$"val_{i}");
+
+            _=store.SaveLogOnly();
+        }
+
+        var recoveryFactory = HashStore.Create(IndexSize: initialIndexSize,CheckpointDir: checkpointDir);
+        Assert.Equal(expectedIndexSize,recoveryFactory.ResolveRecoveryIndexSize(minimumIndexSize: initialIndexSize));
+
+        {
+            using var logDevice = Devices.CreateLogDevice(folder);
+            using var objDevice = Devices.CreateLogDevice(folder+"_obj");
+            using var store = recoveryFactory.WithRecoveryIndexSize(minimumIndexSize: initialIndexSize).Create<int,string>(logDevice,objDevice);
+            store.Load();
+            using var dict = store.Create();
+
+            Assert.Equal(entryCount,dict.GetLongCount());
+            for(var i = 0; i<entryCount; i++) {
+                Assert.True(dict.ContainsKey(i),$"ContainsKey({i}) failed after latest resize-aware recovery");
+                Assert.Equal($"val_{i}",dict[i]);
+            }
+        }
+    }
+
     [Fact, Trait("Category","Unit")]
     public async Task SaveAsync_CheckpointFailed_InvalidOperationExceptionをスロー() {
         var ct = TestContext.Current.CancellationToken;
