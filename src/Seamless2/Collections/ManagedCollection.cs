@@ -31,6 +31,10 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
+    private protected sealed class MemoryValueIterator:MemoryScanIteratorFunctions<TValue,List<TValue>> {
+        private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
+            TValueSerializer.Deserialize(logRecord.ValueSpan);
+    }
     public sealed class KeyValueIterator:ScanIteratorFunctions_List<KeyValuePair<TKey,TValue>,List<KeyValuePair<TKey,TValue>>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
             var Key = TKeySerializer.Deserialize(logRecord.Key);

@@ -10,8 +10,10 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\EqualityEmpty.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\IMemoryCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\IRecord.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\ISeamlessSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\ISet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\InMemoryList.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\List.cs" />
@@ -19,6 +21,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Managed\ManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Managed\ManagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Managed\ManagedList.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Managed\ManagedSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Managed\ManagedManagedCollection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Managed\ManagedManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Managed\ManagedUnmanagedCollection.cs" />
@@ -32,6 +35,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Unmanaged\UnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Unmanaged\UnmanagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Unmanaged\UnmanagedList.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Unmanaged\UnmanagedSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Unmanaged\UnmanagedUnmanagedCollection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Unmanaged\UnmanagedUnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\TryAddResult.cs" />
@@ -44,10 +48,12 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedDictionaryStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedDictionaryStoreExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedHashSetStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedSetStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\OverflowMutableStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedCollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedDictionaryStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedHashSetStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\UnmanagedSetStore.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="$(MSBuildThisFileDirectory)SessionFunctions\Document.txt" />

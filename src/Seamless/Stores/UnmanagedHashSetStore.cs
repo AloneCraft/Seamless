@@ -27,7 +27,7 @@ public class UnmanagedHashSetStore<TKey>
         ObjectLogDevice,
         CheckpointDir,
         OverflowMutableStrategyKind.Storage
-    ){ }
+    ) { }
 
     internal UnmanagedHashSetStore(
         long IndexSize,
@@ -45,7 +45,7 @@ public class UnmanagedHashSetStore<TKey>
         new MemoryOnlyDevice(Const.MinObjectLogCapacity),
         null,
         OverflowMutableStrategyKind.Memory
-    ){ }
+    ) { }
 
     private protected override long GetRecoveryEntryCount() {
         using var set = this.Create();
@@ -53,6 +53,7 @@ public class UnmanagedHashSetStore<TKey>
     }
 
     public UnmanagedHashSet<TKey> Create() => new(this);
+    internal UnmanagedHashSet<TKey> CreateOwned() => new(this,this);
 }
 
 //public class UnmanagedUnmanagedHashSetStore<TKey>:UnmanagedHashSetStore<TKey>

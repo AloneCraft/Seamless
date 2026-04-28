@@ -22,6 +22,8 @@ public interface ISeamlessDictionary<TKey, TValue>:IDictionary<TKey,TValue>, IRe
     }
     /// <summary>ストアに格納されているエントリ数を取得する。</summary>
     long EntryCount { get; }
+    /// <summary>既存呼び出し互換のための long 件数取得メソッド。</summary>
+    long GetLongCount() => this.EntryCount;
     /// <summary>キーが存在しない場合のみ追加する。</summary>
     TryAddResult TryAdd(TKey key,TValue value);
     /// <summary>キーを削除し、削除された値を返す。</summary>

@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 namespace Seamless.Collections;
 
-public sealed class UnmanagedList<T>:List<T>
+public class UnmanagedList<T>:List<T>
     where T : unmanaged {
     private readonly int elementSize = Unsafe.SizeOf<T>();
     private FileStream stream = null!;

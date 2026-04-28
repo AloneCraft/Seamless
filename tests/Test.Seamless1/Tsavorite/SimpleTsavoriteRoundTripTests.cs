@@ -1,4 +1,7 @@
 using MemoryPack;
+using Record0 = Test.Seamless.Benchmarks.Simple.Types.Type0;
+using Record1 = Test.Seamless.Benchmarks.Simple.Types.Type1;
+using Record2 = Test.Seamless.Benchmarks.Simple.Types.Type2;
 using Tsavorite.core;
 
 using StoreFunc = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
@@ -17,7 +20,7 @@ namespace Test.Seamless.Benchmarks.Simple {
         [Fact, Trait("Category","Unit")]
         public void Key0_Record0_CanRoundTrip_WithoutDictionary() {
             var key = new Keys.Key0(10);
-            var expected = new Records.Record0(10,20);
+            var expected = new Record0(10,20);
             var keyBytes = Serialize(key);
             var actualValueBytes = RoundTrip(keyBytes,Serialize(expected));
             var actual = Rehydrate(Deserialize<Keys.Key0>(keyBytes),actualValueBytes);
@@ -29,7 +32,7 @@ namespace Test.Seamless.Benchmarks.Simple {
         [Fact, Trait("Category","Unit")]
         public void Key1_Record1_CanRoundTrip_WithoutDictionary() {
             var key = new Keys.Key1(11,12);
-            var expected = new Records.Record1(11,12,13,14);
+            var expected = new Record1(11,12,13,14);
             var keyBytes = Serialize(key);
             var actualValueBytes = RoundTrip(keyBytes,Serialize(expected));
             var actual = Rehydrate(Deserialize<Keys.Key1>(keyBytes),actualValueBytes);
@@ -43,7 +46,7 @@ namespace Test.Seamless.Benchmarks.Simple {
         [Fact, Trait("Category","Unit")]
         public void Key2_Record2_CanRoundTrip_WithoutDictionary() {
             var key = new Keys.Key2("alpha",21,22);
-            var expected = new Records.Record2("alpha",21,22,23);
+            var expected = new Record2("alpha",21,22,23);
             var keyBytes = Serialize(key);
             var actualValueBytes = RoundTrip(keyBytes,Serialize(expected));
             var actual = Rehydrate(Deserialize<Keys.Key2>(keyBytes),actualValueBytes);
@@ -54,19 +57,19 @@ namespace Test.Seamless.Benchmarks.Simple {
             Assert.Equal(expected.Column3,actual.Column3);
         }
 
-        private static Records.Record0 Rehydrate(Keys.Key0 key,ReadOnlySpan<byte> valueBytes) {
-            var value = Deserialize<Records.Record0>(valueBytes);
-            return new Records.Record0(key.Column0,value.Column1);
+        private static Record0 Rehydrate(Keys.Key0 key,ReadOnlySpan<byte> valueBytes) {
+            var value = Deserialize<Record0>(valueBytes);
+            return new Record0(key.Column0,value.Column1);
         }
 
-        private static Records.Record1 Rehydrate(Keys.Key1 key,ReadOnlySpan<byte> valueBytes) {
-            var value = Deserialize<Records.Record1>(valueBytes);
-            return new Records.Record1(key.Column0,key.Column1,value.Column2,value.Column3);
+        private static Record1 Rehydrate(Keys.Key1 key,ReadOnlySpan<byte> valueBytes) {
+            var value = Deserialize<Record1>(valueBytes);
+            return new Record1(key.Column0,key.Column1,value.Column2,value.Column3);
         }
 
-        private static Records.Record2 Rehydrate(Keys.Key2 key,ReadOnlySpan<byte> valueBytes) {
-            var value = Deserialize<Records.Record2>(valueBytes);
-            return new Records.Record2(key.Column0,key.Column1,key.Column2,value.Column3);
+        private static Record2 Rehydrate(Keys.Key2 key,ReadOnlySpan<byte> valueBytes) {
+            var value = Deserialize<Record2>(valueBytes);
+            return new Record2(key.Column0,key.Column1,key.Column2,value.Column3);
         }
 
         private static byte[] RoundTrip(byte[] keyBytes,byte[] valueBytes) {

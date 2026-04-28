@@ -12,8 +12,10 @@
     <Compile Include="Collections\DebugView.cs" />
     <Compile Include="Collections\EqualityEmpty.cs" />
     <Compile Include="Collections\IMemoryCollection.cs" />
+    <Compile Include="Collections\IRecord.cs" />
     <Compile Include="Collections\ISeamlessDictionary.cs" />
     <Compile Include="Collections\ISeamlessHashSet.cs" />
+    <Compile Include="Collections\ISeamlessSet.cs" />
     <Compile Include="Collections\ISet.cs" />
     <Compile Include="Collections\InMemoryList.cs" />
     <Compile Include="Collections\Unmanaged\UnmanagedUnmanagedCollection.cs" />
@@ -24,6 +26,7 @@
     <Compile Include="Collections\Managed\ManagedDictionary.cs" />
     <Compile Include="Collections\Managed\ManagedHashSet.cs" />
     <Compile Include="Collections\Managed\ManagedList.cs" />
+    <Compile Include="Collections\Managed\ManagedSet.cs" />
     <Compile Include="Stores\ListStore.cs" />
     <Compile Include="Collections\Unmanaged\UnmanagedList.cs" />
     <Compile Include="Collections\Unmanaged\UnmanagedUnmanagedDictionary.cs" />
@@ -37,6 +40,7 @@
     <Compile Include="Collections\Unmanaged\UnmanagedCollection.cs" />
     <Compile Include="Collections\Unmanaged\UnmanagedDictionary.cs" />
     <Compile Include="Collections\Unmanaged\UnmanagedHashSet.cs" />
+    <Compile Include="Collections\Unmanaged\UnmanagedSet.cs" />
     <Compile Include="Const.cs" />
     <Compile Include="Devices\MemoryOnlyDevice.cs" />
     <Compile Include="Stores\HashStore.cs" />
@@ -45,10 +49,12 @@
     <Compile Include="Stores\ManagedDictionaryStore.cs" />
     <Compile Include="Stores\ManagedDictionaryStoreExtensions.cs" />
     <Compile Include="Stores\ManagedHashSetStore.cs" />
+    <Compile Include="Stores\ManagedSetStore.cs" />
     <Compile Include="Stores\OverflowMutableStrategy.cs" />
     <Compile Include="Stores\UnmanagedCollectionStore.cs" />
     <Compile Include="Stores\UnmanagedDictionaryStore.cs" />
     <Compile Include="Stores\UnmanagedHashSetStore.cs" />
+    <Compile Include="Stores\UnmanagedSetStore.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Document.txt" />

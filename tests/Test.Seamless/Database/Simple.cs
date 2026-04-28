@@ -12,7 +12,7 @@ using Test.Seamless.Benchmarks.Simple.Keys;
 //ユーザーはプロパティを定義する
 //SGではKeyの列をUnamanagedの大きなデータ型から小さなデータ型を_Uに定義する。Managedを_Mに定義する。ユーザーはプロパティを定義する。
 //バックエンドでは_UをBlittableに読み書きする。_MをMemoryPackableに読み書きする。
-//主キー以外の列はRecordに定義する。SGではKeyの列をUnamanagedの大きなデータ型から小さなデータ型を_Uに定義する。Managedを_Mに定義する。ユーザーはプロパティを定義する。
+//主キー以外の列はTypeに定義する。SGではKeyの列をUnamanagedの大きなデータ型から小さなデータ型を_Uに定義する。Managedを_Mに定義する。ユーザーはプロパティを定義する。
 //書き込むときは主キーをKey,それ以外をValueとしてシリアライズする。
 //読み込むときは主キーをKeyにデシリアライズする。Valueはそれ以外をデシリアライズする。その後に.Keyフィールドに代入する
 namespace Test.Seamless.Benchmarks.Simple {
@@ -31,18 +31,18 @@ namespace Test.Seamless.Benchmarks.Simple {
             public partial int Column2 { get; }
         }
     }
-    namespace Records {
-        public partial struct Record0 {
+    namespace Types {
+        public partial struct Type0 {
             public partial int Column0 { get; }
             public partial int Column1 { get; }
         }
-        public partial struct Record1 {
+        public partial struct Type1 {
             public partial int Column0 { get; }
             public partial int Column1 { get; }
             public partial int Column2 { get; }
             public partial int Column3 { get; }
         }
-        public partial struct Record2 {
+        public partial struct Type2 {
             public partial string Column0 { get; }
             public partial int Column1 { get; }
             public partial int Column2 { get; }
@@ -184,12 +184,12 @@ namespace Test.Seamless.Benchmarks.Simple {
             }
         }
     }
-    namespace Records {
-        partial struct Record0:IMemoryPackable<Record0> {
-            public Record0(Keys.Key0 Key) {
+    namespace Types {
+        partial struct Type0:IMemoryPackable<Type0> {
+            public Type0(Keys.Key0 Key) {
                 this.Key=Key;
             }
-            public Record0(int Column0,int Column1) : this(new Keys.Key0(Column0)) {
+            public Type0(int Column0,int Column1) : this(new Keys.Key0(Column0)) {
                 this._u=new(Column1);
                 this._m=new();
             }
@@ -211,33 +211,33 @@ namespace Test.Seamless.Benchmarks.Simple {
             private _M _m;
             public partial int Column0 => this.Key.Column0;
             public partial int Column1 => this._u.Column1;
-            static Record0() {
-                global::MemoryPack.MemoryPackFormatterProvider.Register<Record0>();
+            static Type0() {
+                global::MemoryPack.MemoryPackFormatterProvider.Register<Type0>();
             }
             static void IMemoryPackFormatterRegister.RegisterFormatter() {
-                if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<Record0>()) {
-                    global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.MemoryPackableFormatter<Record0>());
+                if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<Type0>()) {
+                    global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.MemoryPackableFormatter<Type0>());
                 }
-                if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<Record0[]>()) {
-                    global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.ArrayFormatter<Record0>());
+                if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<Type0[]>()) {
+                    global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.ArrayFormatter<Type0>());
                 }
 
             }
 
-            static void IMemoryPackable<Record0>.Serialize<TBufferWriter>(ref MemoryPackWriter<TBufferWriter> writer,scoped ref Record0 value) {
+            static void IMemoryPackable<Type0>.Serialize<TBufferWriter>(ref MemoryPackWriter<TBufferWriter> writer,scoped ref Type0 value) {
                 writer.WriteUnmanaged(value._u);
                 writer.WritePackable(value._m);
             }
-            static void IMemoryPackable<Record0>.Deserialize(ref MemoryPackReader reader,scoped ref Record0 value) {
+            static void IMemoryPackable<Type0>.Deserialize(ref MemoryPackReader reader,scoped ref Type0 value) {
                 reader.ReadUnmanaged(out value._u);
                 reader.ReadPackable(ref value._m);
             }
         }
-        partial struct Record1:IMemoryPackable<Record1> {
-            public Record1(Keys.Key1 Key) {
+        partial struct Type1:IMemoryPackable<Type1> {
+            public Type1(Keys.Key1 Key) {
                 this.Key=Key;
             }
-            public Record1(int Column0,int Column1,int Column2,int Column3) : this(new Keys.Key1(Column0,Column1)) {
+            public Type1(int Column0,int Column1,int Column2,int Column3) : this(new Keys.Key1(Column0,Column1)) {
                 this._u=new(Column2,Column3);
                 this._m=new();
             }
@@ -259,33 +259,33 @@ namespace Test.Seamless.Benchmarks.Simple {
             public partial int Column1 => this.Key.Column1;
             public partial int Column2 => this._u.Column2;
             public partial int Column3 => this._u.Column3;
-            static Record1() {
-                global::MemoryPack.MemoryPackFormatterProvider.Register<Record1>();
+            static Type1() {
+                global::MemoryPack.MemoryPackFormatterProvider.Register<Type1>();
             }
             static void IMemoryPackFormatterRegister.RegisterFormatter() {
-                if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<Record1>()) {
+                if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<Type1>()) {
                     global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.MemoryPackableFormatter<Key1>());
                 }
-                if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<Record1[]>()) {
+                if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<Type1[]>()) {
                     global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.ArrayFormatter<Key1>());
                 }
 
             }
-            public static void Serialize<TBufferWriter>(ref MemoryPackWriter<TBufferWriter> writer,scoped ref Record1 value)
+            public static void Serialize<TBufferWriter>(ref MemoryPackWriter<TBufferWriter> writer,scoped ref Type1 value)
                 where TBufferWriter : IBufferWriter<byte> {
                 writer.WriteUnmanaged(value._u);
                 writer.WritePackable(value._m);
             }
-            public static void Deserialize(ref MemoryPackReader reader,scoped ref Record1 value) {
+            public static void Deserialize(ref MemoryPackReader reader,scoped ref Type1 value) {
                 reader.ReadUnmanaged(out value._u);
                 reader.ReadPackable(ref value._m);
             }
         }
-        partial struct Record2:IMemoryPackable<Record2> {
-            public Record2(Keys.Key2 Key) {
+        partial struct Type2:IMemoryPackable<Type2> {
+            public Type2(Keys.Key2 Key) {
                 this.Key=Key;
             }
-            public Record2(string Column0,int Column1,int Column2,int Column3) : this(new Keys.Key2(Column0,Column1,Column2)) {
+            public Type2(string Column0,int Column1,int Column2,int Column3) : this(new Keys.Key2(Column0,Column1,Column2)) {
                 this._u=new(Column3);
                 this._m=new();
             }
@@ -313,23 +313,23 @@ namespace Test.Seamless.Benchmarks.Simple {
             public partial int Column1 => this.Key.Column1;
             public partial int Column2 => this.Key.Column2;
             public partial int Column3 => this._u.Column3;
-            static Record2() {
-                global::MemoryPack.MemoryPackFormatterProvider.Register<Record2>();
+            static Type2() {
+                global::MemoryPack.MemoryPackFormatterProvider.Register<Type2>();
             }
             static void IMemoryPackFormatterRegister.RegisterFormatter() {
-                if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<Record2>()) {
-                    global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.MemoryPackableFormatter<Record2>());
+                if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<Type2>()) {
+                    global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.MemoryPackableFormatter<Type2>());
                 }
-                if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<Record2[]>()) {
-                    global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.ArrayFormatter<Record2>());
+                if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<Type2[]>()) {
+                    global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.ArrayFormatter<Type2>());
                 }
             }
-            public static void Serialize<TBufferWriter>(ref MemoryPackWriter<TBufferWriter> writer,scoped ref Record2 value)
+            public static void Serialize<TBufferWriter>(ref MemoryPackWriter<TBufferWriter> writer,scoped ref Type2 value)
                 where TBufferWriter : IBufferWriter<byte> {
                 writer.WriteUnmanaged(value._u);
                 writer.WritePackable(value._m);
             }
-            public static void Deserialize(ref MemoryPackReader reader,scoped ref Record2 value) {
+            public static void Deserialize(ref MemoryPackReader reader,scoped ref Type2 value) {
                 reader.ReadUnmanaged(out value._u);
                 reader.ReadPackable(ref value._m);
             }

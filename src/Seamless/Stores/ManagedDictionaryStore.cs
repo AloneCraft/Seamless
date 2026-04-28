@@ -1,20 +1,71 @@
-﻿
+﻿using System.Reflection;
 using Seamless.Collections;
 using Seamless.Devices;
 namespace Seamless.Stores;
 
 public class ManagedDictionaryStore<TKey, TValue>:ManagedCollectionStore<TKey,TValue>
     where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>{
+    where TValue : IEquatable<TValue> {
+    private readonly bool keyUsesManagedSerializer;
+    private readonly bool valueUsesManagedSerializer;
+
     internal ManagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction) :
-        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory){ }
+        this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,keyUsesManagedSerializer: true,valueUsesManagedSerializer: true) { }
+
+    internal ManagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,bool keyUsesManagedSerializer,bool valueUsesManagedSerializer) :
+        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory) {
+        this.keyUsesManagedSerializer=keyUsesManagedSerializer;
+        this.valueUsesManagedSerializer=valueUsesManagedSerializer;
+    }
 
     internal ManagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) :
-        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,OverflowMutableStrategyKind.Storage){ }
+        this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,keyUsesManagedSerializer: true,valueUsesManagedSerializer: true) { }
+
+    internal ManagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,bool keyUsesManagedSerializer,bool valueUsesManagedSerializer) :
+        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,OverflowMutableStrategyKind.Storage) {
+        this.keyUsesManagedSerializer=keyUsesManagedSerializer;
+        this.valueUsesManagedSerializer=valueUsesManagedSerializer;
+    }
+
+    public ISeamlessDictionary<TKey,TValue> Create() {
+        if(this.keyUsesManagedSerializer) {
+            if(this.valueUsesManagedSerializer) {
+                return new ManagedManagedDictionary<TKey,TValue,ManagedSerializer<TKey>,ManagedSerializer<TValue>>(this);
+            }
+
+            return CreateDictionary(
+                typeof(ManagedUnmanagedDictionary<,,,>),
+                typeof(ManagedSerializer<>),
+                typeof(UnmanagedSerializer<>));
+        }
+
+        if(this.valueUsesManagedSerializer) {
+            return CreateDictionary(
+                typeof(UnmanagedManagedDictionary<,,,>),
+                typeof(UnmanagedSerializer<>),
+                typeof(ManagedSerializer<>));
+        }
+
+        throw new InvalidOperationException("ManagedDictionaryStore cannot create an unmanaged/unmanaged dictionary.");
+    }
 
     private protected override long GetRecoveryEntryCount() {
         using var dictionary = this.Create();
-        return dictionary.GetLongCount();
+        return dictionary.EntryCount;
+    }
+
+    private ISeamlessDictionary<TKey,TValue> CreateDictionary(Type dictionaryOpenType,Type keySerializerOpenType,Type valueSerializerOpenType) {
+        var dictionaryType = dictionaryOpenType.MakeGenericType(
+            typeof(TKey),
+            typeof(TValue),
+            keySerializerOpenType.MakeGenericType(typeof(TKey)),
+            valueSerializerOpenType.MakeGenericType(typeof(TValue)));
+        return (ISeamlessDictionary<TKey,TValue>)Activator.CreateInstance(
+            dictionaryType,
+            BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic,
+            binder: null,
+            args: [this],
+            culture: null)!;
     }
 
 }
