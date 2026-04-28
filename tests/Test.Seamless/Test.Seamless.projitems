@@ -14,6 +14,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\HashSetBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\DictionaryBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\ListBenchmark.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\RecordSetBenchmark.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmark\ViewSetBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Database\Simple.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Database\TPC_H.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DictionaryGuidEmptyRecoveryTests.cs" />
@@ -33,6 +35,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\HashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\HashSetDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\ListTests.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\Set.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\StoreHandle.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\UnmanagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Devices\MemoryOnlyDevice.cs" />

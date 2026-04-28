@@ -3,7 +3,7 @@ using System.IO.MemoryMappedFiles;
 using Garnet.networking;
 namespace Seamless.Collections;
 
-public sealed class ManagedList<T>:ManagedList<T,ManagedSerializer<T>> {
+public class ManagedList<T>:ManagedList<T,ManagedSerializer<T>> {
     public ManagedList(string path,long initialCapacity = 16,long initialDataCapacity = 4096) :
         base(path,initialCapacity,initialDataCapacity) { }
 }

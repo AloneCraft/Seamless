@@ -38,7 +38,8 @@ public partial class UnmanagedHashSet<TKey>
         UnmanagedStoreFunctions,
         UnmanagedAllocator
     > SymmetricExceptWith_ClientSession = null!;
-    internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
+    internal UnmanagedHashSet(UnmanagedCollectionStore<TKey,EqualityEmpty> CollectionStore,IDisposable? ownedStore = null) : base(CollectionStore) {
+        this.ownedStore=ownedStore;
         this.CreateAdditionalSessions();
     }
     private protected override void DisposeAdditionalSessions() {

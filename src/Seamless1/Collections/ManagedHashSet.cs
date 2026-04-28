@@ -37,7 +37,8 @@ public partial class ManagedHashSet<TKey>
         ManagedStoreFunctions,
         ManagedAllocator
     > SymmetricExceptWith_ClientSession = null!;
-    internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore) : base(CollectionStore) {
+    internal ManagedHashSet(ManagedCollectionStore<TKey,EqualityEmpty> CollectionStore,IDisposable? ownedStore = null) : base(CollectionStore) {
+        this.ownedStore=ownedStore;
         this.CreateAdditionalSessions();
     }
     private protected override void DisposeAdditionalSessions() {

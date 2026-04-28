@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Diagnostics;
+using Seamless.Stores;
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。
@@ -10,6 +11,7 @@ namespace Seamless.Collections;
 public partial class ManagedHashSet<TKey>:ManagedUnmanagedCollection<TKey,EqualityEmpty,ManagedSerializer<TKey>,ManagedSerializer<EqualityEmpty>>, ISeamlessHashSet<TKey>
     where TKey : IEquatable<TKey> {
     //private readonly byte[] EmptyBytes;
+    private IDisposable? ownedStore;
     public bool IsReadOnly => false;
     public bool Add(TKey item) {
         var Result = this.PrivateTryAdd(item,EqualityEmpty.Default);
@@ -57,5 +59,7 @@ public partial class ManagedHashSet<TKey>:ManagedUnmanagedCollection<TKey,Equali
         }
         this.disposed=true;
         base.Dispose(disposing);
+        if(disposing)
+            this.ownedStore?.Dispose();
     }
 }

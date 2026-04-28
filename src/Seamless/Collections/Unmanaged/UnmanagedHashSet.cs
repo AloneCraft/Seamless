@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Diagnostics;
+using Seamless.Stores;
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使う UnmanagedHashSet。
@@ -8,6 +9,7 @@ namespace Seamless.Collections;
 [DebuggerTypeProxy(typeof(UnmanagedHashSetDebugView<>))]
 public partial class UnmanagedHashSet<TKey>:UnmanagedUnmanagedCollection<TKey,EqualityEmpty,UnmanagedSerializer<TKey>,UnmanagedSerializer<EqualityEmpty>>, ISeamlessHashSet<TKey>
     where TKey : unmanaged, IEquatable<TKey> {
+    private IDisposable? ownedStore;
     public bool IsReadOnly => false;
     void ICollection<TKey>.Add(TKey item) => this.Add(item);
     public bool Add(TKey item) {
@@ -53,5 +55,7 @@ public partial class UnmanagedHashSet<TKey>:UnmanagedUnmanagedCollection<TKey,Eq
         }
         this.disposed=true;
         base.Dispose(disposing);
+        if(disposing)
+            this.ownedStore?.Dispose();
     }
 }

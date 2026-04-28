@@ -15,6 +15,8 @@
     <Compile Include="Benchmark\DictionaryBenchmark.cs" />
     <Compile Include="Benchmark\HashSetBenchmark.cs" />
     <Compile Include="Benchmark\ListBenchmark.cs" />
+    <Compile Include="Benchmark\RecordSetBenchmark.cs" />
+    <Compile Include="Benchmark\ViewSetBenchmark.cs" />
     <Compile Include="Database\Simple.cs" />
     <Compile Include="Database\TPC_H.cs" />
     <Compile Include="DictionaryGuidEmptyRecoveryTests.cs" />
@@ -42,6 +44,7 @@
     <Compile Include="Unit\Collections\HashSet.cs" />
     <Compile Include="Unit\Collections\HashSetDebugView.cs" />
     <Compile Include="Unit\Collections\ListTests.cs" />
+    <Compile Include="Unit\Collections\Set.cs" />
     <Compile Include="Unit\Collections\StoreHandle.cs" />
     <Compile Include="Unit\Collections\UnmanagedHashSet.cs" />
     <Compile Include="Unit\Devices\MemoryOnlyDevice.cs" />

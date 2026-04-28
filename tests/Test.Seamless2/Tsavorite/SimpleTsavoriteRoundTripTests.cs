@@ -1,5 +1,8 @@
 using Garnet.common;
 using MemoryPack;
+using Record0 = Test.Seamless.Benchmarks.Simple.Types.Type0;
+using Record1 = Test.Seamless.Benchmarks.Simple.Types.Type1;
+using Record2 = Test.Seamless.Benchmarks.Simple.Types.Type2;
 using Tsavorite.core;
 
 using StoreFunc = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>;
@@ -18,7 +21,7 @@ namespace Test.Seamless.Benchmarks.Simple {
         [Fact, Trait("Category","Unit")]
         public void Key0_Record0_CanRoundTrip_WithoutDictionary() {
             var key = new Keys.Key0(10);
-            var expected = new Records.Record0(10,20);
+            var expected = new Record0(10,20);
             var keyBytes = Serialize(key);
             var actualValueBytes = RoundTrip(keyBytes,Serialize(expected));
             var actual = Rehydrate(Deserialize<Keys.Key0>(keyBytes),actualValueBytes);
@@ -30,7 +33,7 @@ namespace Test.Seamless.Benchmarks.Simple {
         [Fact, Trait("Category","Unit")]
         public void Key1_Record1_CanRoundTrip_WithoutDictionary() {
             var key = new Keys.Key1(11,12);
-            var expected = new Records.Record1(11,12,13,14);
+            var expected = new Record1(11,12,13,14);
             var keyBytes = Serialize(key);
             var actualValueBytes = RoundTrip(keyBytes,Serialize(expected));
             var actual = Rehydrate(Deserialize<Keys.Key1>(keyBytes),actualValueBytes);
@@ -44,7 +47,7 @@ namespace Test.Seamless.Benchmarks.Simple {
         [Fact, Trait("Category","Unit")]
         public void Key2_Record2_CanRoundTrip_WithoutDictionary() {
             var key = new Keys.Key2("alpha",21,22);
-            var expected = new Records.Record2("alpha",21,22,23);
+            var expected = new Record2("alpha",21,22,23);
             var keyBytes = Serialize(key);
             var actualValueBytes = RoundTrip(keyBytes,Serialize(expected));
             var actual = Rehydrate(Deserialize<Keys.Key2>(keyBytes),actualValueBytes);
@@ -55,19 +58,19 @@ namespace Test.Seamless.Benchmarks.Simple {
             Assert.Equal(expected.Column3,actual.Column3);
         }
 
-        private static Records.Record0 Rehydrate(Keys.Key0 key,ReadOnlySpan<byte> valueBytes) {
-            var value = Deserialize<Records.Record0>(valueBytes);
-            return new Records.Record0(key.Column0,value.Column1);
+        private static Record0 Rehydrate(Keys.Key0 key,ReadOnlySpan<byte> valueBytes) {
+            var value = Deserialize<Record0>(valueBytes);
+            return new Record0(key.Column0,value.Column1);
         }
 
-        private static Records.Record1 Rehydrate(Keys.Key1 key,ReadOnlySpan<byte> valueBytes) {
-            var value = Deserialize<Records.Record1>(valueBytes);
-            return new Records.Record1(key.Column0,key.Column1,value.Column2,value.Column3);
+        private static Record1 Rehydrate(Keys.Key1 key,ReadOnlySpan<byte> valueBytes) {
+            var value = Deserialize<Record1>(valueBytes);
+            return new Record1(key.Column0,key.Column1,value.Column2,value.Column3);
         }
 
-        private static Records.Record2 Rehydrate(Keys.Key2 key,ReadOnlySpan<byte> valueBytes) {
-            var value = Deserialize<Records.Record2>(valueBytes);
-            return new Records.Record2(key.Column0,key.Column1,key.Column2,value.Column3);
+        private static Record2 Rehydrate(Keys.Key2 key,ReadOnlySpan<byte> valueBytes) {
+            var value = Deserialize<Record2>(valueBytes);
+            return new Record2(key.Column0,key.Column1,key.Column2,value.Column3);
         }
 
         private static byte[] RoundTrip(byte[] keyBytes,byte[] valueBytes) {
@@ -223,7 +226,7 @@ namespace Test.Seamless.Benchmarks.Simple {
                 where TSourceLogRecord : ISourceLogRecord =>
                 ThrowNotSupported<bool>();
 
-            public void PostUpsertOperation<TKey,TEpochAccessor>(TKey key,ref Empty input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+            public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref Empty input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
 #if NET10_0_OR_GREATER
                 where TKey : IKey, allows ref struct
 #else
@@ -232,7 +235,7 @@ namespace Test.Seamless.Benchmarks.Simple {
                 where TEpochAccessor : IEpochAccessor {
             }
 
-            public void PostUpsertOperation<TKey,TEpochAccessor>(TKey key,ref Empty input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+            public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref Empty input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
 #if NET10_0_OR_GREATER
                 where TKey : IKey, allows ref struct
 #else
@@ -241,7 +244,7 @@ namespace Test.Seamless.Benchmarks.Simple {
                 where TEpochAccessor : IEpochAccessor =>
                 throw new NotSupportedException();
 
-            public void PostRMWOperation<TKey,TEpochAccessor>(TKey key,ref Empty input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
+            public void PostRMWOperation<TKey, TEpochAccessor>(TKey key,ref Empty input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
 #if NET10_0_OR_GREATER
                 where TKey : IKey, allows ref struct
 #else
@@ -281,7 +284,7 @@ namespace Test.Seamless.Benchmarks.Simple {
 #endif
                 => ThrowNotSupported<RecordFieldInfo>();
 
-            public RecordFieldInfo GetUpsertFieldInfo<TKey,TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref Empty input)
+            public RecordFieldInfo GetUpsertFieldInfo<TKey, TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref Empty input)
 #if NET10_0_OR_GREATER
                 where TKey : IKey, allows ref struct
 #else
@@ -299,7 +302,7 @@ namespace Test.Seamless.Benchmarks.Simple {
             public bool InPlaceDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) =>
                 ThrowNotSupported<bool>();
 
-            public void PostDeleteOperation<TKey,TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
+            public void PostDeleteOperation<TKey, TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
 #if NET10_0_OR_GREATER
                 where TKey : IKey, allows ref struct
 #else

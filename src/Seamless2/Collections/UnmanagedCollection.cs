@@ -67,6 +67,10 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
+    internal sealed class MemoryValueIterator:MemoryScanIteratorFunctions<TValue,UnmanagedList<TValue>> {
+        private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
+            TValueSerializer.Deserialize(logRecord.ValueSpan);
+    }
     public sealed partial class KeyValueIterator:ScanIteratorFunctions_List<KeyValuePair<TKey,TValue>,UnmanagedList<KeyValuePair<TKey,TValue>>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             new(
