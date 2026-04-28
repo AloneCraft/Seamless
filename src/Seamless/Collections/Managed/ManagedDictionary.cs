@@ -19,7 +19,7 @@ public abstract partial class ManagedDictionary<
         TKeySerializer,
         TValueSerializer
     >,
-    ISeamlessDictionary<TKey,TValue>
+    IDictionary<TKey,TValue>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue>
     where TKeySerializer : ISerializer<TKey>

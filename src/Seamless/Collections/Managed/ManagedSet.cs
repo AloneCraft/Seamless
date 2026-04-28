@@ -1,9 +1,42 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 
 namespace Seamless.Collections;
 
+public class ManagedSet<TRecord>:ManagedList<TRecord>, ISet<TRecord>
+    where TRecord : IEquatable<TRecord> {
+
+    public ManagedSet(string path,long initialCapacity = 16,long initialDataCapacity = 4096) :
+        base(path,initialCapacity,initialDataCapacity) {
+    }
+
+    public ManagedSet<TRecord> Distinct() {
+        this.DuplicateRemoval();
+        return this;
+    }
+    public void Clear() {
+        throw new NotImplementedException();
+    }
+    public bool Contains(TRecord item) {
+        throw new NotImplementedException();
+    }
+    public void CopyTo(TRecord[] array,int arrayIndex) {
+        if(array.Length-arrayIndex<this.GetLongCount())
+            throw new ArgumentException("The destination array is too small.");
+        foreach(var item in this)
+            array[arrayIndex++]=item;
+    }
+    public bool Remove(TRecord item) {
+        throw new NotImplementedException();
+    }
+    public new int Count => checked((int)this.GetLongCount());
+    public bool IsReadOnly => false;
+    public IEnumerator<TRecord> GetEnumerator() {
+        throw new NotImplementedException();
+    }
+    public long EntryCount => this.GetLongCount();
+}
 public partial class ManagedSet<TRecord, TKey>:
     ManagedManagedCollection<TKey,TRecord,ManagedSerializer<TKey>,ManagedSerializer<TRecord>>,
     ISeamlessSet<TRecord,TKey>
@@ -79,8 +112,8 @@ public partial class ManagedSet<TRecord, TKey>:
         }
         return result;
     }
-    public ManagedHashSet<TKey> Except(ManagedHashSet<TKey> other) => (ManagedHashSet<TKey>)this.Except((ISeamlessHashSet<TKey>)other);
-    public ISeamlessHashSet<TKey> Except(ISeamlessHashSet<TKey> other) {
+    public ManagedHashSet<TKey> Except(ManagedHashSet<TKey> other) => (ManagedHashSet<TKey>)this.Except((IHashSet<TKey>)other);
+    public IHashSet<TKey> Except(IHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedKeyResultSet();
         foreach(var item in this) {
@@ -100,8 +133,8 @@ public partial class ManagedSet<TRecord, TKey>:
         }
         return result;
     }
-    public ManagedHashSet<TKey> Intersect(ManagedHashSet<TKey> other) => (ManagedHashSet<TKey>)this.Intersect((ISeamlessHashSet<TKey>)other);
-    public ISeamlessHashSet<TKey> Intersect(ISeamlessHashSet<TKey> other) {
+    public ManagedHashSet<TKey> Intersect(ManagedHashSet<TKey> other) => (ManagedHashSet<TKey>)this.Intersect((IHashSet<TKey>)other);
+    public IHashSet<TKey> Intersect(IHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedKeyResultSet();
         foreach(var item in this) {
@@ -125,8 +158,8 @@ public partial class ManagedSet<TRecord, TKey>:
         }
         return result;
     }
-    public ManagedHashSet<TKey> SymmetricExcept(ManagedHashSet<TKey> other) => (ManagedHashSet<TKey>)this.SymmetricExcept((ISeamlessHashSet<TKey>)other);
-    public ISeamlessHashSet<TKey> SymmetricExcept(ISeamlessHashSet<TKey> other) {
+    public ManagedHashSet<TKey> SymmetricExcept(ManagedHashSet<TKey> other) => (ManagedHashSet<TKey>)this.SymmetricExcept((IHashSet<TKey>)other);
+    public IHashSet<TKey> SymmetricExcept(IHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedKeyResultSet();
         foreach(var item in this) {
@@ -150,8 +183,8 @@ public partial class ManagedSet<TRecord, TKey>:
             result.Add(item);
         return result;
     }
-    public ManagedHashSet<TKey> Union(ManagedHashSet<TKey> other) => (ManagedHashSet<TKey>)this.Union((ISeamlessHashSet<TKey>)other);
-    public ISeamlessHashSet<TKey> Union(ISeamlessHashSet<TKey> other) {
+    public ManagedHashSet<TKey> Union(ManagedHashSet<TKey> other) => (ManagedHashSet<TKey>)this.Union((IHashSet<TKey>)other);
+    public IHashSet<TKey> Union(IHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedKeyResultSet();
         foreach(var item in this)
@@ -183,13 +216,3 @@ public partial class ManagedSet<TRecord, TKey>:
     }
 }
 
-public class ManagedSet<TRecord>:ManagedList<TRecord> {
-    public ManagedSet(string path,long initialCapacity = 16,long initialDataCapacity = 4096) :
-        base(path,initialCapacity,initialDataCapacity) {
-    }
-
-    public ManagedSet<TRecord> Distinct() {
-        this.DuplicateRemoval();
-        return this;
-    }
-}

@@ -18,7 +18,7 @@ public abstract partial class UnmanagedDictionary<
     TKeySerializer,
     TValueSerializer
 >,
-ISeamlessDictionary<TKey,TValue>
+IDictionary<TKey,TValue>
     where TKey : unmanaged, IEquatable<TKey>
     where TValue : unmanaged, IEquatable<TValue>
     where TKeySerializer : ISerializer<TKey>

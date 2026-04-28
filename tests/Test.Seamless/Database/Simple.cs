@@ -1,9 +1,11 @@
-﻿using System.Buffers;
+﻿using AdventureWorks2008R2.Tables;
+
 using MemoryPack;
 
+using System.Buffers;
 using System.Diagnostics;
 using System.Dynamic;
-using AdventureWorks2008R2.Tables;
+
 using Test.Seamless.Benchmarks.Simple.Keys;
 // ReSharper disable UnusedType.Global
 #pragma warning disable CS8981 // 型名には、小文字の ASCII 文字のみが含まれています。このような名前は、プログラミング言語用に予約されている可能性があります。
@@ -16,7 +18,55 @@ using Test.Seamless.Benchmarks.Simple.Keys;
 //書き込むときは主キーをKey,それ以外をValueとしてシリアライズする。
 //読み込むときは主キーをKeyにデシリアライズする。Valueはそれ以外をデシリアライズする。その後に.Keyフィールドに代入する
 namespace Test.Seamless.Benchmarks.Simple {
-    static class SourceGenerator;
+    static class DatabaseGenerator;
+    public partial class Container {
+        public virtual global::System.Collections.Generic.IEnumerable<(T0 o,T1 i)> SelectManyQuery<T0, T1>(global::System.Collections.Generic.IEnumerable<T0> outer,global::System.Collections.Generic.IEnumerable<T1> inner) {
+            return from o in outer
+                   from i in inner
+                   select (o,i);
+        }
+        public virtual global::System.Collections.Generic.IEnumerable<(T0 o,T1 i)> SelectManyMethod<T0, T1>(global::System.Collections.Generic.IEnumerable<T0> outer,global::System.Collections.Generic.IEnumerable<T1> inner) {
+            return outer.SelectMany(o => inner,(o,i) => (o,i));
+        }
+        public virtual global::System.Collections.Generic.IEnumerable<(T o,T p)> WhereSelectQuery<T>(global::System.Collections.Generic.IEnumerable<T> outer,T p) {
+            return
+                from o in outer
+                where o.Equals(p)
+                select (o,p);
+        }
+        public virtual global::System.Collections.Generic.IEnumerable<(T o,T p)> WhereSelectMethod<T>(global::System.Collections.Generic.IEnumerable<T> outer,T p) {
+            return outer.Where(o => o.Equals(p)).Select(o => (o,p));
+        }
+        public virtual global::System.Collections.Generic.IEnumerable<(T0 o,T1 i)> Query2<T0, T1>(global::Seamless.Collections.IHashSet<T0> outer,global::Seamless.Collections.IHashSet<T1> inner)
+            where T0 : IEquatable<T0>
+            where T1 : IEquatable<T1> {
+            //HashSet.Select()
+            return outer.SelectMany(o => inner,(o,i) => (o,i));
+            //from o in outer
+            //    from i in inner
+            //    select (o,i);
+        }
+        public virtual global::System.Collections.Generic.List<Types.Type0> Type0Table =>
+            new() {
+                new Types.Type0(1,10),
+                new Types.Type0(2,20),
+                new Types.Type0(3,30),
+            };
+
+        public virtual global::System.Collections.Generic.List<Types.Type0> Type0TableFunction(int minimumColumn1) =>
+            this.Type0Table;
+
+        public virtual global::System.Collections.Generic.IEnumerable<Types.Type0> FilterType0(int minimumColumn1) =>
+            from row in this.Type0Table
+            where row.Column1>=minimumColumn1
+            select row;
+
+        public virtual global::System.Collections.Generic.IEnumerable<int> ProjectType0Column1(int minimumColumn1) =>
+            from row in this.Type0TableFunction(minimumColumn1)
+            where row.Column1>=minimumColumn1
+            select row.Column1;
+    }
+
     namespace Keys {
         public partial struct Key0 {
             public partial int Column0 { get; }
@@ -50,6 +100,7 @@ namespace Test.Seamless.Benchmarks.Simple {
         }
     }
 }
+/*
 namespace Test.Seamless.Benchmarks.Simple {
     namespace Keys {
         //[MemoryPackable]
@@ -336,3 +387,4 @@ namespace Test.Seamless.Benchmarks.Simple {
         }
     }
 }
+*/

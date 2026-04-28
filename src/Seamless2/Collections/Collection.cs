@@ -40,104 +40,6 @@ public abstract class Collection<
     where TAllocator : IAllocator<
         TStoreFunctions
     > {
-    // ScanIteratorFunctions_Chunk は IterateLookup ベースの constructor-eager Enumerator に置き換えたため、
-    // Chunk[] / Count / LastAcceptedAddress による分割スキャン基盤は不要になった。
-    // 代わりに ScanIteratorFunctions_List<T> (旧 MaterializedScanIteratorFunctions) を直接基底として使う。
-    /*
-    public abstract class ScanIteratorFunctions_Chunk<T>:IScanIteratorFunctions {
-        public readonly T[] Chunk = new T[Const.Chunk_Length];
-        public int Count;
-        public long LastAcceptedAddress;
-        public bool SkipLastAcceptedAddressOnce;
-        public bool ストレージにデータがあるか;
-        private readonly object Sync = new();
-        private protected virtual bool ShouldRead<TSourceLogRecord>(in TSourceLogRecord logRecord)
-            where TSourceLogRecord : ISourceLogRecord => true;
-        internal bool CanRead<TSourceLogRecord>(in TSourceLogRecord logRecord)
-            where TSourceLogRecord : ISourceLogRecord => this.ShouldRead(logRecord);
-        internal T Project<TSourceLogRecord>(in TSourceLogRecord logRecord)
-            where TSourceLogRecord : ISourceLogRecord => this.Deserialize(logRecord);
-        private protected abstract T Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) where TSourceLogRecord : ISourceLogRecord;
-        /// <summary>
-        /// Reader は IterateLookup から callback される。
-        /// acceptedCount は callback 後に進むため、Chunk 上限到達時は現在レコードを次回へ回す必要がある。
-        /// そのため上限到達時は Skip | EndBatch | RetryLastRecord を返し、Count は callback 側では増やさない。
-        /// </summary>
-        /// <typeparam name="TSourceLogRecord"></typeparam>
-        /// <param name="logRecord"></param>
-        /// <param name="recordMetadata"></param>
-        /// <param name="numberOfRecords"></param>
-        /// <param name="cursorRecordResult"></param>
-        /// <returns></returns>
-        public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) where TSourceLogRecord : ISourceLogRecord {
-            if(this.Count>=Const.Chunk_Length) {
-                //メモリで完結する場合はここは通らない。
-                //ここを通るのは、ストレージを伴う場合で、かつChunkの上限に達した場合。
-                //this.LastAcceptedAddress=recordMetadata.Address;//次回の走査でこのレコードを再度読むため、RetryLastRecord を返す。
-                if(this.Count==Const.Chunk_Length){
-                    this.LastAcceptedAddress=recordMetadata.Address;
-                    this.ストレージにデータがあるか=true;
-                }else{
-                }
-                cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;//ストレージの場合はここは無視されるが、念のため EndBatch も返す。
-                return false;
-            }
-            if(this.SkipLastAcceptedAddressOnce&&recordMetadata.Address==this.LastAcceptedAddress) {
-                this.SkipLastAcceptedAddressOnce=false;
-                cursorRecordResult=CursorRecordResult.Skip;
-                return true;
-            }
-            // 重複読み込み防止（以前の議論のロジック）
-            if(recordMetadata.Address==this.LastAcceptedAddress) {
-                cursorRecordResult=CursorRecordResult.Skip;
-                return true;
-            }
-            // データの処理
-            this.Chunk[this.Count]=this.Deserialize(logRecord);
-            this.Count++;
-            cursorRecordResult=CursorRecordResult.Accept;
-            return true;
-            // lock(this.Sync) {
-            //     Debug.Assert(!logRecord.Info.Tombstone);
-            //     if(!this.ShouldRead(logRecord)) {
-            //         cursorRecordResult=CursorRecordResult.Skip;
-            //         return true;
-            //     }
-            //     Debug.Assert(this.Count<=Const.Chunk_Length);
-            //     var Index = this.Count;
-            //     this.Chunk[Index]=this.Deserialize(logRecord);
-            //     Index++;
-            //     if(Index==Const.Chunk_Length) {
-            //         cursorRecordResult=CursorRecordResult.Accept|CursorRecordResult.EndBatch;
-            //     }
-            //     else {
-            //         cursorRecordResult=CursorRecordResult.Accept;
-            //     }
-            //     this.Count=Index;
-            //     this.Sum++;
-            //     return true;
-            // }
-        }
-        public bool OnStart(long beginAddress,long endAddress) {
-            lock(this.Sync)
-                this.Count=0;
-            this.SkipLastAcceptedAddressOnce=false;
-            this.ストレージにデータがあるか=false;
-            return true;
-        }
-        public void OnStop(bool completed,long numberOfRecords) {
-        }
-        public void OnException(Exception exception,long numberOfRecords) {
-            throw exception;
-        }
-    }
-
-        public void OnException(Exception exception,long numberOfRecords) {
-            throw exception;
-        }
-    }
-    */
-
     /// <summary>
     /// IterateLookup でストアの全レコードを 1 リスト (= 呼び出し側が渡す一時 ManagedList/UnmanagedList) に流し込むための
     /// IScanIteratorFunctions 実装兼イテレータ基底。各 *Iterator 型はこのクラスを継承して
@@ -147,7 +49,7 @@ public abstract class Collection<
     public abstract class ScanIteratorFunctions_List<T, TList>:IScanIteratorFunctions
         where TList : List<T> {
         private TList? List;
-        private readonly object Sync = new();
+        private readonly Lock Sync = new();
         public void SetList(TList list) => this.List=list;
         private protected virtual bool ShouldRead<TSourceLogRecord>(in TSourceLogRecord logRecord)
             where TSourceLogRecord : ISourceLogRecord => true;
@@ -636,7 +538,7 @@ public abstract class Collection<
         where TOverflowMutableStrategy : struct, IOverflowMutableStrategy<TOverflowMutableStrategy> {
         return TOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,BeginAddress,TailAddress,KeyLength,ValueLength);
     }
-    public int Count => (int)this.GetLongCount();
+    public int Count => checked((int)this.GetLongCount());
     public long EntryCount => this.CollectionStore.Store.EntryCount;
     private protected abstract Status Read(TKey Key,out TValue Output);
     public abstract bool IsDisposed { get; }

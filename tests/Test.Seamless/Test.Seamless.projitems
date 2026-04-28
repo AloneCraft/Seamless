@@ -44,6 +44,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Helpers\Collections\HashSetStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Helpers\Collections\HashSetTestBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Helpers\Collections\IDictionaryTestBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\Linq\Enumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\Linq\Enumerable2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\ScanIteratorFunctions\KeyIterator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\ScanIteratorFunctions\KeyValueIterator.cs" />

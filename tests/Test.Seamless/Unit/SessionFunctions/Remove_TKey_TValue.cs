@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -9,9 +9,9 @@ public abstract class RemoveTKeyTValueTests<TKey, TValue>
     where TValue : IEquatable<TValue> {
     protected abstract TKey Key(int seed);
     protected abstract TValue Value(int seed);
-    protected abstract (ISeamlessDictionary<TKey,TValue> Dict,IDisposable Store) CreateMemory();
-    protected abstract (ISeamlessDictionary<TKey,TValue> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice);
-    protected abstract (ISeamlessDictionary<TKey,TValue> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice);
+    protected abstract (global::Seamless.Collections.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateMemory();
+    protected abstract (global::Seamless.Collections.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice);
+    protected abstract (global::Seamless.Collections.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice);
     protected abstract void FlushAndEvict(IDisposable store);
 
     protected string CreateDiskFolder() => global::Test.Seamless.TestPath.Directory(this);
@@ -81,15 +81,15 @@ public abstract class RemoveTKeyTValueTests<TKey, TValue>
 public sealed class ManagedRemoveTKeyTValue:RemoveTKeyTValueTests<int,string> {
     protected override int Key(int seed) => seed;
     protected override string Value(int seed) => $"v{seed}";
-    protected override (ISeamlessDictionary<int,string> Dict,IDisposable Store) CreateMemory() {
+    protected override (global::Seamless.Collections.IDictionary<int,string> Dict,IDisposable Store) CreateMemory() {
         var store = HashStore.Create().Create<int,string>();
         return (store.Create(),store);
     }
-    protected override (ISeamlessDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
+    protected override (global::Seamless.Collections.IDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
         var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(logDevice,objDevice);
         return (store.Create(),store);
     }
-    protected override (ISeamlessDictionary<int,string> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
+    protected override (global::Seamless.Collections.IDictionary<int,string> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
         var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int,string>(logDevice,objDevice);
         return (store.Create(),store);
     }
@@ -100,15 +100,15 @@ public sealed class ManagedRemoveTKeyTValue:RemoveTKeyTValueTests<int,string> {
 public sealed class UnmanagedRemoveTKeyTValue:RemoveTKeyTValueTests<int,long> {
     protected override int Key(int seed) => seed;
     protected override long Value(int seed) => (long)seed*100L;
-    protected override (ISeamlessDictionary<int,long> Dict,IDisposable Store) CreateMemory() {
+    protected override (global::Seamless.Collections.IDictionary<int,long> Dict,IDisposable Store) CreateMemory() {
         var store = HashStore.Create().Create<int,long>();
         return (store.Create(),store);
     }
-    protected override (ISeamlessDictionary<int,long> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
+    protected override (global::Seamless.Collections.IDictionary<int,long> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
         var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,long>(logDevice,objDevice);
         return (store.Create(),store);
     }
-    protected override (ISeamlessDictionary<int,long> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
+    protected override (global::Seamless.Collections.IDictionary<int,long> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
         var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int,long>(logDevice,objDevice);
         return (store.Create(),store);
     }

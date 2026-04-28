@@ -1,4 +1,4 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 namespace Test.Seamless.Unit.Stores;
 
 /// <summary>
@@ -18,7 +18,7 @@ public partial class KindDictionarySize(ITestOutputHelper output) {
     private static long MeasureLogBytes<TDict>(
         Func<long> getTailAddress,
         TDict dict)
-        where TDict : ISeamlessDictionary<int,int> {
+        where TDict : global::Seamless.Collections.IDictionary<int,int> {
         var begin = getTailAddress();
         for(var i = 0; i<N; i++) dict.Add(i,i);
         return getTailAddress()-begin;

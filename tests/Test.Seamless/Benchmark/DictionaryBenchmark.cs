@@ -1,4 +1,4 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
 
@@ -6,8 +6,8 @@ namespace Test.Seamless.Benchmarks;
 
 /// <summary>
 /// Dictionary ベンチマークの共通土台。
-/// <see cref="ISeamlessDictionary{TKey,TValue}"/> /
-/// <see cref="IDictionary{TKey,TValue}"/> /
+/// <see cref="global::Seamless.Collections.IDictionary{TKey,TValue}"/> /
+/// <see cref="System.Collections.Generic.IDictionary{TKey,TValue}"/> /
 /// <see cref="ICollection{T}"/> (KeyValuePair) /
 /// <see cref="IReadOnlyCollection{T}"/> /
 /// <see cref="IReadOnlyDictionary{TKey,TValue}"/> のメソッドを計測する。
@@ -22,7 +22,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
     protected abstract Handle CreateHandle(double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits);
 
     protected abstract class Handle:IDisposable {
-        public abstract ISeamlessDictionary<TKey,TValue> Dict { get; }
+        public abstract global::Seamless.Collections.IDictionary<TKey,TValue> Dict { get; }
         public abstract void Dispose();
     }
 
@@ -35,8 +35,8 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
         int memorySizeBits,
         int pageSizeBits,
         long opCount,
-        Action<ISeamlessDictionary<TKey,TValue>> prefill,
-        Action<ISeamlessDictionary<TKey,TValue>> measured,
+        Action<global::Seamless.Collections.IDictionary<TKey,TValue>> prefill,
+        Action<global::Seamless.Collections.IDictionary<TKey,TValue>> measured,
         string label
     ) {
         var handles = new Handle?[parallel];
@@ -62,11 +62,11 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
         }
     }
 
-    private static void PrefillNone<TKey2, TValue2>(ISeamlessDictionary<TKey2,TValue2> _)
+    private static void PrefillNone<TKey2, TValue2>(global::Seamless.Collections.IDictionary<TKey2,TValue2> _)
         where TKey2 : IEquatable<TKey2>
         where TValue2 : IEquatable<TValue2> { }
 
-    private void PrefillAll(ISeamlessDictionary<TKey,TValue> dict) {
+    private void PrefillAll(global::Seamless.Collections.IDictionary<TKey,TValue> dict) {
         var n = Scaled;
         for(var i = 0; i<n; i++) dict.Add(this.CreateKey(i),this.CreateValue(i));
     }
@@ -187,7 +187,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,
             PrefillNone,
             dict => {
-                var id = (IDictionary<TKey,TValue>)dict;
+                var id = (global::Seamless.Collections.IDictionary<TKey,TValue>)dict;
                 var n = Scaled;
                 for(var i = 0; i<n; i++) id.Add(this.CreateKey(i),this.CreateValue(i));
             },
@@ -198,7 +198,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,
             this.PrefillAll,
             dict => {
-                var id = (IDictionary<TKey,TValue>)dict;
+                var id = (global::Seamless.Collections.IDictionary<TKey,TValue>)dict;
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=id.ContainsKey(this.CreateKey(i));
             },
@@ -209,7 +209,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,
             this.PrefillAll,
             dict => {
-                var id = (IDictionary<TKey,TValue>)dict;
+                var id = (global::Seamless.Collections.IDictionary<TKey,TValue>)dict;
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=id.Remove(this.CreateKey(i));
             },
@@ -220,7 +220,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,
             this.PrefillAll,
             dict => {
-                var id = (IDictionary<TKey,TValue>)dict;
+                var id = (global::System.Collections.Generic.IDictionary<TKey,TValue>)dict;
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=id.TryGetValue(this.CreateKey(i),out _);
             },
@@ -230,14 +230,14 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
     public void IDictionary_Keys(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
-            dict => { _=((IDictionary<TKey,TValue>)dict).Keys; },
+            dict => { _=((global::Seamless.Collections.IDictionary<TKey,TValue>)dict).Keys; },
             nameof(this.IDictionary_Keys));
 
     [Theory, MemberData(nameof(Matrix))]
     public void IDictionary_Values(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
-            dict => { _=((IDictionary<TKey,TValue>)dict).Values; },
+            dict => { _=((global::Seamless.Collections.IDictionary<TKey,TValue>)dict).Values; },
             nameof(this.IDictionary_Values));
 
     // =============================================================
@@ -372,7 +372,7 @@ public sealed class ManagedDictionaryBenchmark(ITestOutputHelper output):Diction
     }
     private sealed class H:Handle {
         private readonly ManagedDictionaryStore<string,string> store;
-        private readonly ISeamlessDictionary<string,string> dict;
+        private readonly global::Seamless.Collections.IDictionary<string,string> dict;
         private readonly long indexSize;
         private readonly long segmentSize;
         private readonly int memorySizeBits;
@@ -404,7 +404,7 @@ public sealed class ManagedDictionaryBenchmark(ITestOutputHelper output):Diction
             ).Create<string,string>(this.logDevice,this.objDevice,new ManagedTag(),new ManagedTag());
             this.dict=this.store.Create();
         }
-        public override ISeamlessDictionary<string,string> Dict => this.dict;
+        public override global::Seamless.Collections.IDictionary<string,string> Dict => this.dict;
         public override void Dispose() {
             try {
                 this.dict.Dispose();
@@ -445,7 +445,7 @@ public sealed class UnmanagedDictionaryBenchmark(ITestOutputHelper output):Dicti
     }
     private sealed class H:Handle {
         private readonly UnmanagedDictionaryStore<int,int> store;
-        private readonly ISeamlessDictionary<int,int> dict;
+        private readonly global::Seamless.Collections.IDictionary<int,int> dict;
         private readonly long indexSize;
         private readonly long segmentSize;
         private readonly int memorySizeBits;
@@ -477,7 +477,7 @@ public sealed class UnmanagedDictionaryBenchmark(ITestOutputHelper output):Dicti
             ).Create<int,int>(this.logDevice,this.objDevice,new UnmanagedTag(),new UnmanagedTag());
             this.dict=this.store.Create();
         }
-        public override ISeamlessDictionary<int,int> Dict => this.dict;
+        public override global::Seamless.Collections.IDictionary<int,int> Dict => this.dict;
         public override void Dispose() {
             try {
                 this.dict.Dispose();

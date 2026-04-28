@@ -1,4 +1,4 @@
-using Garnet.common;
+﻿using Garnet.common;
 using MemoryPack;
 using Seamless;
 using Seamless.Collections;
@@ -22,18 +22,18 @@ public sealed class ManagedAdd:AddTests<int,string> {
 #endif
     protected override int Key(int seed) => seed;
     protected override string Value(int seed) => $"v{seed}";
-    protected override (IDictionary<int,string> Dict,IDisposable Store) CreateMemory(){
+    protected override (System.Collections.Generic.IDictionary<int,string> Dict,IDisposable Store) CreateMemory(){
         var store=HashStore.Create().Create<int,string>();
         return (store.Create(),store);
     }
-    protected override (IDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice){
+    protected override (System.Collections.Generic.IDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice){
         var store=HashStore.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store) =>
         ((ManagedCollectionStore<int,string>)store).Store.Log.FlushAndEvict(true);
-    protected override TryAddResult TryAdd(IDictionary<int,string> dict,int key,string value) =>
-        ((ISeamlessDictionary<int,string>)dict).TryAdd(key,value);
+    protected override TryAddResult TryAdd(System.Collections.Generic.IDictionary<int,string> dict,int key,string value) =>
+        ((global::Seamless.Collections.IDictionary<int,string>)dict).TryAdd(key,value);
     protected override void DoUpsert(){
         using var store=HashStore.Create().Create<int,string>();
 #if TSAVORITE2_0BETA3

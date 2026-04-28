@@ -27,7 +27,7 @@ public class ManagedDictionaryStore<TKey, TValue>:ManagedCollectionStore<TKey,TV
         this.valueUsesManagedSerializer=valueUsesManagedSerializer;
     }
 
-    public ISeamlessDictionary<TKey,TValue> Create() {
+    public Collections.IDictionary<TKey,TValue> Create() {
         if(this.keyUsesManagedSerializer) {
             if(this.valueUsesManagedSerializer) {
                 return new ManagedManagedDictionary<TKey,TValue,ManagedSerializer<TKey>,ManagedSerializer<TValue>>(this);
@@ -51,16 +51,16 @@ public class ManagedDictionaryStore<TKey, TValue>:ManagedCollectionStore<TKey,TV
 
     private protected override long GetRecoveryEntryCount() {
         using var dictionary = this.Create();
-        return dictionary.EntryCount;
+        return dictionary.GetLongCount();
     }
 
-    private ISeamlessDictionary<TKey,TValue> CreateDictionary(Type dictionaryOpenType,Type keySerializerOpenType,Type valueSerializerOpenType) {
+    private Collections.IDictionary<TKey,TValue> CreateDictionary(Type dictionaryOpenType,Type keySerializerOpenType,Type valueSerializerOpenType) {
         var dictionaryType = dictionaryOpenType.MakeGenericType(
             typeof(TKey),
             typeof(TValue),
             keySerializerOpenType.MakeGenericType(typeof(TKey)),
             valueSerializerOpenType.MakeGenericType(typeof(TValue)));
-        return (ISeamlessDictionary<TKey,TValue>)Activator.CreateInstance(
+        return (Collections.IDictionary<TKey,TValue>)Activator.CreateInstance(
             dictionaryType,
             BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic,
             binder: null,

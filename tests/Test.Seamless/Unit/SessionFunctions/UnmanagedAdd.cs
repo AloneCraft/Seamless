@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -9,18 +9,18 @@ namespace Test.Seamless.Unit.SessionFunctions;
 public sealed class UnmanagedAdd:AddTests<int,long>{
     protected override int Key(int seed)=>seed;
     protected override long Value(int seed)=>(long)seed*100L;
-    protected override(IDictionary<int,long> Dict,IDisposable Store) CreateMemory(){
+    protected override(System.Collections.Generic.IDictionary<int,long> Dict,IDisposable Store) CreateMemory(){
         var store=HashStore.Create().Create<int,long>();
         return(store.Create(),store);
     }
-    protected override(IDictionary<int,long> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice){
+    protected override(System.Collections.Generic.IDictionary<int,long> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice){
         var store=HashStore.Create(MemorySize:Const.MinObjectLogCapacity).Create<int,long>(logDevice,objDevice);
         return(store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store)=>
         ((UnmanagedCollectionStore<int,long>)store).Store.Log.FlushAndEvict(true);
-    protected override TryAddResult TryAdd(IDictionary<int,long> dict,int key,long value)=>
-        ((ISeamlessDictionary<int,long>)dict).TryAdd(key,value);
+    protected override TryAddResult TryAdd(System.Collections.Generic.IDictionary<int,long> dict,int key,long value)=>
+        ((global::Seamless.Collections.IDictionary<int,long>)dict).TryAdd(key,value);
 
     protected override void DoUpsert(){
 #if TSAVORITE1_1_1

@@ -49,8 +49,8 @@ public class DictionaryApiSurfaceBenchmark {
     private string[] stringValues = null!;
     private string checkpointRoot = null!;
 
-    private ISeamlessDictionary<int,int>? unmanagedDict;
-    private ISeamlessDictionary<string,string>? managedDict;
+    private Seamless.Collections.IDictionary<int,int>? unmanagedDict;
+    private Seamless.Collections.IDictionary<string,string>? managedDict;
     private UnmanagedDictionaryStore<int,int>? unmanagedStore;
     private ManagedDictionaryStore<string,string>? managedStore;
     private IDevice? logDevice;
@@ -234,7 +234,7 @@ public class DictionaryApiSurfaceBenchmark {
 
     private long RunUnmanaged() {
         var dict = this.unmanagedDict!;
-        var iDict = (IDictionary<int,int>)dict;
+        var iDict = (System.Collections.Generic.IDictionary<int,int>)dict;
         var ro = (IReadOnlyDictionary<int,int>)dict;
         var coll = (ICollection<KeyValuePair<int,int>>)dict;
 
@@ -306,7 +306,7 @@ public class DictionaryApiSurfaceBenchmark {
 
     private long RunManaged() {
         var dict = this.managedDict!;
-        var iDict = (IDictionary<string,string>)dict;
+        var iDict = (System.Collections.Generic.IDictionary<string,string>)dict;
         var ro = (IReadOnlyDictionary<string,string>)dict;
         var coll = (ICollection<KeyValuePair<string,string>>)dict;
 

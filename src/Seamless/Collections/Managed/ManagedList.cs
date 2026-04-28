@@ -57,7 +57,6 @@ public class ManagedList<T, TSerializer>:List<T>
 
         this.ApplyTuning();
     }
-
     public override void SetTuning(TempListTuning tuning) {
         this.ThrowIfDisposed();
         if(this.tuning.Equals(tuning))

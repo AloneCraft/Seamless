@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -57,7 +57,7 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
         public virtual void FlushAndEvict() { }
         public virtual void Compact() { }
         public virtual long GetBeginAddress() => 0;
-        public abstract ISeamlessDictionary<TKey,TValue> Create();
+        public abstract global::Seamless.Collections.IDictionary<TKey,TValue> Create();
         public abstract Guid Save();
         public abstract void Load(Guid token);
         protected abstract void DisposeStore();
@@ -314,7 +314,7 @@ public class ManagementDictionary(ITestOutputHelper output):DictionaryIntegrateB
             this.store=factory.Create<string,string>(this.logDevice,this.objDevice,new ManagedTag(),new ManagedTag());
         }
 
-        public override ISeamlessDictionary<string,string> Create() =>
+        public override global::Seamless.Collections.IDictionary<string,string> Create() =>
             this.store.Create();
         public override void Flush() =>
             this.store.Store.Log.Flush(wait: true);
@@ -368,7 +368,7 @@ public class UnmanagementDictionary(ITestOutputHelper output):DictionaryIntegrat
             this.store=factory.Create<int,int>(this.logDevice,this.objDevice,new UnmanagedTag(),new UnmanagedTag());
         }
 
-        public override ISeamlessDictionary<int,int> Create() =>
+        public override global::Seamless.Collections.IDictionary<int,int> Create() =>
             this.store.Create();
         public override void Flush() =>
             this.store.Store.Log.Flush(wait: true);

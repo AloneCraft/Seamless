@@ -4,7 +4,7 @@ using Seamless.Stores;
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。
-/// <see cref="ISet{T}"/> を実装し、利用者に Tsavorite の詳細を見せない。
+/// <see cref="System.Collections.Generic.ISet{T}"/> を実装し、利用者に Tsavorite の詳細を見せない。
 /// 重複を許さず、キーのみを格納する。値は EqualityEmpty 構造体を使用する。
 /// </summary>
 [DebuggerTypeProxy(typeof(ManagedHashSetDebugView<>))]

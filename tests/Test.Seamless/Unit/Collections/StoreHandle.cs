@@ -1,4 +1,4 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 namespace Test.Seamless.Unit.Collections;
 
 /// <summary>
@@ -9,7 +9,7 @@ public sealed class StoreHandle<TKey, TValue>:IDisposable
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
     private readonly IDisposable _store;
-    private readonly Func<ISeamlessDictionary<TKey,TValue>> _createDict;
+    private readonly Func<global::Seamless.Collections.IDictionary<TKey,TValue>> _createDict;
     private readonly Action<bool> _flushAndEvict;
     private readonly Func<Guid> _save;
     private readonly Action<Guid> _load;
@@ -17,7 +17,7 @@ public sealed class StoreHandle<TKey, TValue>:IDisposable
 
     internal StoreHandle(
         IDisposable store,
-        Func<ISeamlessDictionary<TKey,TValue>> createDict,
+        Func<global::Seamless.Collections.IDictionary<TKey,TValue>> createDict,
         Action<bool> flushAndEvict,
         Func<Guid> save,
         Action<Guid> load,
@@ -30,7 +30,7 @@ public sealed class StoreHandle<TKey, TValue>:IDisposable
         this._getAddress=getAddress;
     }
 
-    public ISeamlessDictionary<TKey,TValue> NewDict() =>
+    public global::Seamless.Collections.IDictionary<TKey,TValue> NewDict() =>
         this._createDict();
     public void FlushAndEvict(bool wait = true) =>
         this._flushAndEvict(wait);

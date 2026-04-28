@@ -10,10 +10,10 @@ public abstract class AddTests<TKey, TValue>
 
     protected abstract TKey Key(int seed);
     protected abstract TValue Value(int seed);
-    protected abstract (IDictionary<TKey,TValue> Dict,IDisposable Store) CreateMemory();
-    protected abstract (IDictionary<TKey,TValue> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice);
+    protected abstract (global::System.Collections.Generic.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateMemory();
+    protected abstract (global::System.Collections.Generic.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice);
     protected abstract void FlushAndEvict(IDisposable store);
-    protected abstract TryAddResult TryAdd(IDictionary<TKey,TValue> dict,TKey key,TValue value);
+    protected abstract TryAddResult TryAdd(global::System.Collections.Generic.IDictionary<TKey,TValue> dict,TKey key,TValue value);
 
     protected abstract void DoUpsert();
     protected abstract void DoInPlaceWriter();

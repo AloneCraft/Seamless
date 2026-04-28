@@ -4,11 +4,11 @@ using Seamless.Stores;
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。
-/// <see cref="ISet{T}"/> を実装し、利用者に Tsavorite の詳細を見せない。
+/// <see cref="System.Collections.Generic.ISet{T}"/> を実装し、利用者に Tsavorite の詳細を見せない。
 /// 重複を許さず、キーのみを格納する。値は EqualityEmpty 構造体を使用する。
 /// </summary>
 [DebuggerTypeProxy(typeof(ManagedHashSetDebugView<>))]
-public partial class ManagedHashSet<TKey>:ManagedUnmanagedCollection<TKey,EqualityEmpty,ManagedSerializer<TKey>,ManagedSerializer<EqualityEmpty>>, ISeamlessHashSet<TKey>
+public partial class ManagedHashSet<TKey>:ManagedUnmanagedCollection<TKey,EqualityEmpty,ManagedSerializer<TKey>,ManagedSerializer<EqualityEmpty>>, IHashSet<TKey>
     where TKey : IEquatable<TKey> {
     //private readonly byte[] EmptyBytes;
     private IDisposable? ownedStore;

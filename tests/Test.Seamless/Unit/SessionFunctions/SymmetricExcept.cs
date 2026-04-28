@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -143,7 +143,7 @@ namespace Test.Seamless.Unit.SessionFunctions;
 
 public abstract class SymmetricExceptWith<TKey,TSet>:CommonWith<TKey,TSet>
     where TKey : IEquatable<TKey>
-    where TSet : ISeamlessHashSet<TKey>,IDisposable {
+    where TSet : IHashSet<TKey>,IDisposable {
     [Fact, Trait("Category","Unit")]
     public void SymmetricExceptWithAB() => this.RunWithAB();
 

@@ -3,6 +3,10 @@
     <TargetFramework>$(SeamlessTargetFramework)</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <Features>InterceptorsPreview</Features>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Seamless.SourceGenerator.Generated</InterceptorsPreviewNamespaces>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <RootNamespace>Test.Seamless</RootNamespace>
@@ -10,10 +14,13 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="artifacts\**" />
+    <Compile Remove="Generated\**" />
     <Compile Remove="Garnet\**" />
     <EmbeddedResource Remove="artifacts\**" />
+    <EmbeddedResource Remove="Generated\**" />
     <EmbeddedResource Remove="Garnet\**" />
     <None Remove="artifacts\**" />
+    <None Remove="Generated\**" />
     <None Remove="Garnet\**" />
   </ItemGroup>
   <ItemGroup>
@@ -46,8 +53,10 @@
     <Compile Remove="..\Test.Seamless\TestRelation.cs" />
     <Compile Remove="..\Test.Seamless\SessionFunctions\ManagedAdd.cs" />
     <Compile Remove="..\Test.Seamless\SessionFunctions\UnmanagedAdd.cs" />
+    <Compile Remove="..\Test.Seamless\Database\Simple.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Seamless2\Seamless2.csproj" />
+    <ProjectReference Include="..\..\src\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

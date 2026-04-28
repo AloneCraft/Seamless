@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Seamless.Stores;
 
 namespace Seamless.Collections;
@@ -78,8 +78,8 @@ public partial class UnmanagedSet<TRecord, TKey>:
         }
         return result;
     }
-    public UnmanagedHashSet<TKey> Except(UnmanagedHashSet<TKey> other) => (UnmanagedHashSet<TKey>)this.Except((ISeamlessHashSet<TKey>)other);
-    public ISeamlessHashSet<TKey> Except(ISeamlessHashSet<TKey> other) {
+    public UnmanagedHashSet<TKey> Except(UnmanagedHashSet<TKey> other) => (UnmanagedHashSet<TKey>)this.Except((IHashSet<TKey>)other);
+    public IHashSet<TKey> Except(IHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedKeyResultSet();
         foreach(var item in this) {
@@ -99,8 +99,8 @@ public partial class UnmanagedSet<TRecord, TKey>:
         }
         return result;
     }
-    public UnmanagedHashSet<TKey> Intersect(UnmanagedHashSet<TKey> other) => (UnmanagedHashSet<TKey>)this.Intersect((ISeamlessHashSet<TKey>)other);
-    public ISeamlessHashSet<TKey> Intersect(ISeamlessHashSet<TKey> other) {
+    public UnmanagedHashSet<TKey> Intersect(UnmanagedHashSet<TKey> other) => (UnmanagedHashSet<TKey>)this.Intersect((IHashSet<TKey>)other);
+    public IHashSet<TKey> Intersect(IHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedKeyResultSet();
         foreach(var item in this) {
@@ -124,8 +124,8 @@ public partial class UnmanagedSet<TRecord, TKey>:
         }
         return result;
     }
-    public UnmanagedHashSet<TKey> SymmetricExcept(UnmanagedHashSet<TKey> other) => (UnmanagedHashSet<TKey>)this.SymmetricExcept((ISeamlessHashSet<TKey>)other);
-    public ISeamlessHashSet<TKey> SymmetricExcept(ISeamlessHashSet<TKey> other) {
+    public UnmanagedHashSet<TKey> SymmetricExcept(UnmanagedHashSet<TKey> other) => (UnmanagedHashSet<TKey>)this.SymmetricExcept((IHashSet<TKey>)other);
+    public IHashSet<TKey> SymmetricExcept(IHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedKeyResultSet();
         foreach(var item in this) {
@@ -149,8 +149,8 @@ public partial class UnmanagedSet<TRecord, TKey>:
             result.Add(item);
         return result;
     }
-    public UnmanagedHashSet<TKey> Union(UnmanagedHashSet<TKey> other) => (UnmanagedHashSet<TKey>)this.Union((ISeamlessHashSet<TKey>)other);
-    public ISeamlessHashSet<TKey> Union(ISeamlessHashSet<TKey> other) {
+    public UnmanagedHashSet<TKey> Union(UnmanagedHashSet<TKey> other) => (UnmanagedHashSet<TKey>)this.Union((IHashSet<TKey>)other);
+    public IHashSet<TKey> Union(IHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedKeyResultSet();
         foreach(var item in this)
