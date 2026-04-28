@@ -1,4 +1,4 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
 
@@ -39,7 +39,7 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
     protected abstract Handle CreateHandle(double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits);
 
     protected abstract class Handle:IDisposable {
-        public abstract ISeamlessHashSet<TKey> Set { get; }
+        public abstract IHashSet<TKey> Set { get; }
         public abstract void Dispose();
         public abstract Handle CreateSibling();
         public abstract void IntersectWith(Handle other);
@@ -331,7 +331,7 @@ public sealed class ManagedHashSetBenchmark(ITestOutputHelper output):HashSetBen
             ).Create<string>(this.logDevice,this.objDevice,new ManagedTag());
             this.set=this.store.Create();
         }
-        public override ISeamlessHashSet<string> Set => this.set;
+        public override IHashSet<string> Set => this.set;
         public override void Dispose() {
             try {
                 this.set.Dispose();
@@ -415,7 +415,7 @@ public sealed class UnmanagedHashSetBenchmark(ITestOutputHelper output):HashSetB
             ).Create<int>(this.logDevice,this.objDevice,new UnmanagedTag());
             this.set=this.store.Create();
         }
-        public override ISeamlessHashSet<int> Set => this.set;
+        public override IHashSet<int> Set => this.set;
         public override void Dispose() {
             try {
                 this.set.Dispose();

@@ -576,7 +576,7 @@ public abstract class Collection<
         where TOverflowMutableStrategy : struct, IOverflowMutableStrategy<TOverflowMutableStrategy> {
         return TOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,BeginAddress,TailAddress,KeyLength,ValueLength);
     }
-    public int Count => (int)this.GetLongCount();
+    public int Count => checked((int)this.GetLongCount());
     public long EntryCount => this.CollectionStore.Store.EntryCount;
     private protected abstract Status Read(TKey Key,out TValue Output);
     public abstract bool IsDisposed { get; }

@@ -4,7 +4,7 @@ namespace Test.Seamless.Unit.SessionFunctions;
 
 public abstract class CommonWith<TKey,TSet>
     where TKey : IEquatable<TKey>
-    where TSet : ISeamlessHashSet<TKey>,IDisposable {
+    where TSet : IHashSet<TKey>,IDisposable {
     protected abstract TKey CreateKey(int seed);
     protected abstract (TSet Set,IDisposable Store) CreateSet();
     protected abstract void With(TSet set,TSet other);

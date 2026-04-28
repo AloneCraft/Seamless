@@ -3,8 +3,8 @@ using Seamless.Collections;
 using Tsavorite.core;
 namespace Test.Seamless.Unit.Helpers.Collections;
 /// <summary>
-/// <see cref="ISeamlessDictionary{TKey,TValue}"/> 固有のテスト基底クラス。
-/// <see cref="IDictionary{TKey,TValue}"/> 共通テストは <see cref="IDictionaryTestBase{TStrategy,TKey,TValue}"/> に集約されており、
+/// <see cref="global::Seamless.Collections.IDictionary{TKey,TValue}"/> 固有のテスト基底クラス。
+/// <see cref="System.Collections.Generic.IDictionary{TKey,TValue}"/> 共通テストは <see cref="IDictionaryTestBase{TStrategy,TKey,TValue}"/> に集約されており、
 /// このクラスでは追加で TryAdd、Remove(out value)、Dispose、EntryCount を確認する。
 /// </summary>
 public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTestBase<TStrategy,TKey,TValue>

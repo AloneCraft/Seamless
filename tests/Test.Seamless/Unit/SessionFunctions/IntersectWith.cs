@@ -1,4 +1,4 @@
-using Azure;
+﻿using Azure;
 
 using Seamless;
 using Seamless.Collections;
@@ -9,7 +9,7 @@ namespace Test.Seamless.Unit.SessionFunctions;
 
 public abstract class IntersectWith<TKey, TSet>:CommonWith<TKey,TSet>
     where TKey : IEquatable<TKey>
-    where TSet : ISeamlessHashSet<TKey>, IDisposable {
+    where TSet : IHashSet<TKey>, IDisposable {
     [Fact, Trait("Category","Unit")]
     public void IntersectWithAB() => this.RunWithAB();
 

@@ -1,11 +1,11 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 namespace Test.Seamless.Unit.Helpers.Collections;
 
-public sealed class HashSetHandle<T>(IDisposable store,ISeamlessHashSet<T> set):IDisposable
+public sealed class HashSetHandle<T>(IDisposable store,IHashSet<T> set):IDisposable
     where T : IEquatable<T> {
-    public ISeamlessHashSet<T> Set => set;
+    public IHashSet<T> Set => set;
     public void Dispose(){
         set.Dispose();
         store.Dispose();

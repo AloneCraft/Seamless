@@ -1,4 +1,4 @@
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Order;
 using Seamless.Collections;
@@ -37,10 +37,10 @@ public class HashSetApiSurfaceBenchmark {
     private string[] stringKeys = null!;
     private string[] stringOtherKeys = null!;
 
-    private ISeamlessHashSet<int>? unmanagedSet;
-    private ISeamlessHashSet<int>? unmanagedOther;
-    private ISeamlessHashSet<string>? managedSet;
-    private ISeamlessHashSet<string>? managedOther;
+    private IHashSet<int>? unmanagedSet;
+    private IHashSet<int>? unmanagedOther;
+    private IHashSet<string>? managedSet;
+    private IHashSet<string>? managedOther;
 
     private UnmanagedHashSetStore<int>? unmanagedStore;
     private UnmanagedHashSetStore<int>? unmanagedOtherStore;
@@ -254,7 +254,7 @@ public class HashSetApiSurfaceBenchmark {
         };
     }
 
-    private static int CountAdd<T>(IEnumerable<T> values,ISeamlessHashSet<T> set) where T : IEquatable<T> {
+    private static int CountAdd<T>(IEnumerable<T> values,IHashSet<T> set) where T : IEquatable<T> {
         var c = 0;
         foreach(var v in values) {
             if(set.Add(v)) {
@@ -264,7 +264,7 @@ public class HashSetApiSurfaceBenchmark {
         return c;
     }
 
-    private static int CountRemove<T>(IEnumerable<T> values,ISeamlessHashSet<T> set) where T : IEquatable<T> {
+    private static int CountRemove<T>(IEnumerable<T> values,IHashSet<T> set) where T : IEquatable<T> {
         var c = 0;
         foreach(var v in values) {
             if(set.Remove(v)) {
@@ -274,7 +274,7 @@ public class HashSetApiSurfaceBenchmark {
         return c;
     }
 
-    private static int CountContains<T>(IEnumerable<T> values,ISeamlessHashSet<T> set) where T : IEquatable<T> {
+    private static int CountContains<T>(IEnumerable<T> values,IHashSet<T> set) where T : IEquatable<T> {
         var c = 0;
         foreach(var v in values) {
             if(set.Contains(v)) {

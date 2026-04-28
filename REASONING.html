@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>Enumerable implementation notes</title>
+</head>
+<body>
+  <h1>Enumerable implementation notes</h1>
+  <ul>
+    <li>Scope: <code>Seamless.Linq.Enumerable</code> public static methods.</li>
+    <li>Goal: make the current API surface behave like <code>System.Linq.Enumerable</code> for supported target frameworks.</li>
+    <li>Chosen approach: keep the public <code>Seamless.Linq.Enumerable</code> API surface and place the straightforward <code>foreach</code>/<code>for</code> loops,<code>List&lt;T&gt;</code>,<code>Dictionary&lt;TKey,TValue&gt;</code>,<code>HashSet&lt;T&gt;</code>,and private helper types directly inside the <code>Enumerable</code> class instead of direct <code>System.Linq.Enumerable</code> calls.</li>
+    <li>Iterator-returning methods validate arguments in the public method and delegate lazy enumeration to private static iterator helpers in the same <code>Enumerable</code> class.</li>
+    <li>Single-use local iterator functions are avoided; buffering methods such as grouping,ordering,reverse,and range-based take use simple list/lookup helpers to preserve expected ordering and shape.</li>
+    <li>Tests compare <code>Seamless.Linq.Enumerable</code> and <code>System.Linq.Enumerable</code> side by side across scalar,sequence,set,grouping,joining,ordering,conversion,and numeric overload families.</li>
+    <li>Test data includes duplicate and non-duplicate inputs,custom comparers,nullable values,group/join shapes,and all numeric types covered by the exposed <code>Average</code>/<code>Sum</code>/<code>Min</code>/<code>Max</code> overloads.</li>
+  </ul>
+  <h1>Build fix notes</h1>
+  <ul>
+    <li>Scope: <code>Test.Seamless.Unit.SessionFunctions.AddTests&lt;TKey,TValue&gt;</code> build failure in <code>Test.Seamless2</code>.</li>
+    <li>Cause: unqualified <code>IDictionary&lt;TKey,TValue&gt;</code> was ambiguous between <code>System.Collections.Generic.IDictionary&lt;TKey,TValue&gt;</code> and <code>Seamless.Collections.IDictionary&lt;TKey,TValue&gt;</code> after both namespaces were in scope.</li>
+    <li>Chosen fix: make the abstract base signatures explicitly use <code>global::System.Collections.Generic.IDictionary&lt;TKey,TValue&gt;</code> so the derived <code>ManagedAdd</code> and <code>UnmanagedAdd</code> overrides keep matching their existing signatures.</li>
+    <li>Follow-up: <code>DictionaryBenchmark</code> had relative <code>Seamless.Collections.IDictionary&lt;TKey,TValue&gt;</code> casts inside the <code>Test.Seamless</code> namespace, so those were changed to <code>global::Seamless.Collections.IDictionary&lt;TKey,TValue&gt;</code>; the one standard dictionary cast was changed to <code>global::System.Collections.Generic.IDictionary&lt;TKey,TValue&gt;</code>.</li>
+  </ul>
+  <h1>HashSet and interceptor strategy notes</h1>
+  <ul>
+    <li>Scope: <code>Seamless.Linq.HashSet</code>, source-generator query/method-chain translation, and LINQ interceptor validation tests.</li>
+    <li>Goal: keep <code>Seamless.Collections.IHashSet&lt;T&gt;</code> constrained to <code>T:IEquatable&lt;T&gt;</code> and make LINQ wrappers compile without pretending that lazy <code>IEnumerable&lt;T&gt;</code> results are materialized <code>IHashSet&lt;T&gt;</code> instances.</li>
+    <li>Chosen HashSet approach: scalar operations keep scalar return types, while sequence-producing wrappers return <code>IEnumerable&lt;T&gt;</code>/<code>IOrderedEnumerable&lt;T&gt;</code>/conversion results matching the underlying <code>Seamless.Linq.Enumerable</code> implementation. Parameters that are <code>IHashSet&lt;T&gt;</code> keep explicit <code>IEquatable&lt;T&gt;</code> constraints.</li>
+    <li>Source-generator approach: query-expression members and simple method-chain members on database containers are translated into generated extension methods with fully-qualified <code>global::Seamless.Linq.Enumerable</code> calls, avoiding default <code>System.Linq</code> extension lookup.</li>
+    <li>Interceptor approach: focused tests call the generated extension methods and compare them with the original container members so pre/post translation values stay aligned. A second test file covers two independent method chains in one expression.</li>
+    <li>Strategy approach: add static-strategy overloads beside the existing delegate overloads. The strategy overloads accept structs implementing static abstract interfaces, so callers can avoid delegate allocation when the selector/predicate/accumulator is known as a type.</li>
+  </ul>
+</body>
+</html>

@@ -1,4 +1,4 @@
-using MemoryPack;
+﻿using MemoryPack;
 using Seamless.Collections;
 using Seamless.Stores;
 
@@ -135,7 +135,7 @@ public class SetTests {
         Assert.True(union.Contains(2));
         Assert.True(union.Contains(3));
 
-        using ISeamlessHashSet<int> intersect = set.Intersect((ISeamlessHashSet<int>)keys);
+        using IHashSet<int> intersect = set.Intersect((IHashSet<int>)keys);
         Assert.Single(intersect);
         Assert.True(intersect.Contains(2));
 
@@ -211,7 +211,7 @@ public class SetTests {
         Assert.True(union.Contains(2));
         Assert.True(union.Contains(3));
 
-        using ISeamlessHashSet<int> intersect = set.Intersect((ISeamlessHashSet<int>)keys);
+        using IHashSet<int> intersect = set.Intersect((IHashSet<int>)keys);
         Assert.Single(intersect);
         Assert.True(intersect.Contains(2));
 

@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Test.Seamless.Unit.Collections;
 using Test.Seamless.Collections;
 using Seamless.Collections;
@@ -52,7 +52,7 @@ public interface IDictTestStrategy<TKey, TValue>
 internal static class DictStoreHandleFactory {
     public static StoreHandle<TKey,TValue> Create<TKey, TValue>(
         IDisposable store,
-        Func<ISeamlessDictionary<TKey,TValue>> newDict,
+        Func<global::Seamless.Collections.IDictionary<TKey,TValue>> newDict,
         Action<bool> flushAndEvict,
         Func<Guid> save,
         Action<Guid> load,

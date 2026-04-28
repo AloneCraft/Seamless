@@ -1,4 +1,4 @@
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
@@ -57,7 +57,7 @@ public abstract class HashSetIntegrateBase<TKey>
         public virtual void Compact() { }
         public virtual long GetBeginAddress() => 0;
         public virtual long GetTailAddress() => 0;
-        public abstract ISeamlessHashSet<TKey> Create();
+        public abstract IHashSet<TKey> Create();
         public abstract Guid Save();
         public abstract void Load(Guid token);
         protected abstract void DisposeStore();
@@ -351,7 +351,7 @@ public class ManagementHashSet(ITestOutputHelper output):HashSetIntegrateBase<st
             this.store=factory.Create<string>(this.logDevice,this.objDevice,new ManagedTag());
         }
 
-        public override ISeamlessHashSet<string> Create() =>
+        public override IHashSet<string> Create() =>
             this.store.Create();
         public override void Flush() =>
             this.store.Store.Log.Flush(wait: true);
@@ -409,7 +409,7 @@ public class UnmanagementHashSet(ITestOutputHelper output):HashSetIntegrateBase<
             this.store=factory.Create<int>(this.logDevice,this.objDevice,new UnmanagedTag());
         }
 
-        public override ISeamlessHashSet<int> Create() =>
+        public override IHashSet<int> Create() =>
             this.store.Create();
         public override void Flush() =>
             this.store.Store.Log.Flush(wait: true);

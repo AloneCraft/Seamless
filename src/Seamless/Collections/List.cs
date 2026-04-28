@@ -79,6 +79,7 @@ public abstract class List<T>:IReadOnlyList<T>, IDisposable {
 
         this.Path=path;
     }
+    public long GetLongCount() => this.Count;
     public abstract void Add(T item);
 
     public abstract FileAccess OptimizationMode { get; }

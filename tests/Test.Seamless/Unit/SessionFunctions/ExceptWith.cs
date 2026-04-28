@@ -1,11 +1,11 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Seamless.Stores;
 
 namespace Test.Seamless.Unit.SessionFunctions;
 
 public abstract class ExceptWith<TKey, TSet>:CommonWith<TKey,TSet>
     where TKey : IEquatable<TKey>
-    where TSet : ISeamlessHashSet<TKey>, IDisposable {
+    where TSet : IHashSet<TKey>, IDisposable {
     [Fact, Trait("Category","Unit")]
     public void ExceptWithAB() {
         this.RunWithAB();

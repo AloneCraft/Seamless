@@ -1,6 +1,6 @@
 ﻿using global::Seamless.Collections;
 using System.IO.MemoryMappedFiles;
-
+using Seamless.Stores;
 namespace Test.Seamless.Benchmarks;
 
 /// <summary>
@@ -22,6 +22,15 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
         Directory.CreateDirectory(dir);
         return dir;
     }
+    //static ISeamlessSet<TResult> Select<T,TResult>(this ISeamlessSet<T> source,Func<T,TResult> selector){
+    //    var result=HashStore.Create().Create<TResult>();
+    //    foreach(var x1 in source){
+            
+    //    }
+    //    foreach(var a in source){
+
+    //    }
+    //}
 
     protected static void CleanupDirectory(string dir) {
         try {

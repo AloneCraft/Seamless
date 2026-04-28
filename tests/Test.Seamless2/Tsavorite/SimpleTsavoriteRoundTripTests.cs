@@ -1,14 +1,14 @@
-using Garnet.common;
+﻿using Garnet.common;
 using MemoryPack;
-using Record0 = Test.Seamless.Benchmarks.Simple.Types.Type0;
-using Record1 = Test.Seamless.Benchmarks.Simple.Types.Type1;
-using Record2 = Test.Seamless.Benchmarks.Simple.Types.Type2;
+using Record0 = Test.Seamless.Benchmarks.Simple2.Types.Type0;
+using Record1 = Test.Seamless.Benchmarks.Simple2.Types.Type1;
+using Record2 = Test.Seamless.Benchmarks.Simple2.Types.Type2;
 using Tsavorite.core;
 
 using StoreFunc = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>;
 using StoreAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByteComparer,Tsavorite.core.DefaultRecordDisposer>>;
 
-namespace Test.Seamless.Benchmarks.Simple {
+namespace Test.Seamless.Benchmarks.Simple2 {
     [Collection("TsavoriteTests")]
     public sealed class SimpleTsavoriteRoundTripTests {
         private static string CreateFolder() => global::Test.Seamless.TestPath.Directory<SimpleTsavoriteRoundTripTests>();
