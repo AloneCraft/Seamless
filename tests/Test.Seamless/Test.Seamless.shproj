@@ -53,6 +53,8 @@
     <Compile Include="Unit\Helpers\Collections\HashSetStrategy.cs" />
     <Compile Include="Unit\Helpers\Collections\HashSetTestBase.cs" />
     <Compile Include="Unit\Helpers\Collections\IDictionaryTestBase.cs" />
+    <Compile Include="Unit\Linq\Enumerable.cs" />
+    <Compile Include="Unit\Linq\Enumerable2.cs" />
     <Compile Include="Unit\ScanIteratorFunctions\CounterIterator.cs" />
     <Compile Include="Unit\ScanIteratorFunctions\KeyIterator.cs" />
     <Compile Include="Unit\ScanIteratorFunctions\KeyValueIterator.cs" />

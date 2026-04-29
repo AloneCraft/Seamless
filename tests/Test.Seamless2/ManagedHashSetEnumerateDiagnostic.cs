@@ -1,5 +1,6 @@
 using Seamless;
 using Seamless.Stores;
+using System.Linq;
 
 namespace Test.Seamless.Diagnostics;
 

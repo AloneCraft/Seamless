@@ -2,6 +2,7 @@
 using System.Collections;
 using Garnet.common;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Tsavorite.core;
@@ -262,7 +263,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
             DeserializeKey(logRecord.Key);
     }
 
-    private struct Enumerator<TIterator,T>(
+    private struct Enumerator<TIterator, T>(
         ClientSession<FixedSpanByteKey,int,int,Empty,SimpleUpsertFunctions,TStoreFuncs,TAlloc> Session,
         TIterator Iterator
     ):IEnumerator<T>
@@ -350,7 +351,8 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
             if(completedOutputs.Next()) {
                 status=completedOutputs.Current.Status;
                 output=completedOutputs.Current.Output;
-            } else{
+            }
+            else {
             }
         }
         return status;

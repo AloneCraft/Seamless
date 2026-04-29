@@ -3,7 +3,6 @@
   <PropertyGroup>
     <TargetFramework>$(SeamlessTargetFramework)</TargetFramework>
     <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Seamless</RootNamespace>
     <ServerGarbageCollection>true</ServerGarbageCollection>
 	  <AllowUnsafeBlocks>True</AllowUnsafeBlocks>

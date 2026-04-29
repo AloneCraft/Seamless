@@ -1,0 +1,149 @@
+Seamless.SourceGenerator 設計図
+================================
+
+1. 目的
+
+このプロジェクトは Roslyn incremental source generator で、Seamless のコードベースに対して 2 種類の補助コードを生成する。
+
+- List<T>.Where の一部呼び出しを、より軽量な generated enumerable と interceptor に差し替える。
+- DatabaseGenerator マーカー配下の partial schema 定義から、実体を持つ Key / Type struct と Optimized{Container} 派生クラスを生成する。
+
+generator 自体は runtime ロジックを直接実行しない。コンパイル時に source を増やし、その generated source が runtime の振る舞いを変える。
+
+2. プロジェクト構成
+
+- Seamless.SourceGenerator.csproj
+  Roslyn component として読み込まれる analyzer project。
+- SourceGenerator/SeamlessIncrementalGenerator.cs
+  generator 本体。syntax 収集、source 組み立て、schema 生成、optimized container 生成、Where interceptor 生成を担当する。
+- SourceGenerator/OptimizeVisitor.cs
+  container method を翻訳する前に invocation chain を正規化する syntax rewriter。Where を可能な範囲で source 側へ押し下げる。
+
+3. 大きな処理の流れ
+
+Initialize
+- InvocationExpressionSyntax を候補にして Where interceptor 対象を探す。
+- TypeDeclarationSyntax を候補にして DatabaseGenerator / schema / container 対象を探す。
+- 2 系統の結果を CompilationProvider と結合し、最後に 1 回だけ Execute を呼ぶ。
+
+Execute
+- Where interceptor 系の generated source を AppendInterceptorSource で追加する。
+- database/schema 系の generated source を BuildDatabaseSource で追加する。
+- どちらか 1 つでも生成物があれば Template.g.cs を出力する。
+
+4. Where interceptor 系の設計
+
+狙い
+- Enumerable.Where をそのまま LINQ 標準実装に流すのではなく、List<T> であることが分かる場面では専用 enumerable に差し替えて不要なコストを減らす。
+
+入力条件
+- 呼び出しが System.Linq.Enumerable.Where に束縛されていること。
+- source の型が List<T> と判定できること。
+- predicate が inline 展開できる、または delegate 呼び出しにフォールバックできること。
+
+生成物
+- InterceptsLocationAttribute の互換定義。
+- query syntax でも List<T>.Where が最適化経路に乗るための helper extension。
+- OptimizedListWhereEnumerable<T> / OptimizedListWhereIndexedEnumerable<T>。
+- 呼び出し位置ごとの interceptor method と、その場専用 enumerable。
+
+重要な設計判断
+- predicate が local 変数や外側 parameter に依存しすぎる場合は無理に inline しない。
+- 生成物はすべて IEnumerable<T> として見える形にして、呼び出し側の型シグネチャを壊さない。
+
+5. Database / schema 生成の設計
+
+入口
+- `static class DatabaseGenerator;` を含む namespace を root namespace とみなす。
+- その namespace 直下の class を container 候補とみなす。
+- root namespace + `.Keys` / `.Types` 配下の partial struct を schema record 候補とみなす。
+
+Keys / Types 生成
+- partial property だけを持つ宣言から、完全な struct 実装を生成する。
+- unmanaged フィールドは `_u`、managed フィールドは `_m` に分離する。
+- MemoryPack の serializer / deserializer と formatter registration を自動生成する。
+
+Optimized{Container} 生成
+- container の virtual property / virtual method を走査する。
+- query expression または翻訳可能な invocation expression を持つメンバーだけを対象にする。
+- 翻訳できたメンバーは `Optimized{ContainerName} : {ContainerName}` の override として出力する。
+- base に引数付き constructor があるケースに備え、private 以外の instance constructor は forwarding constructor を生成する。
+
+削除したもの
+- 以前は container に `__GeneratedKeyTypes` / `__GeneratedTypes` をぶら下げていた。
+- 現在は利用側が無く、責務も schema 実装とは別なので生成しない。
+
+6. method translation の設計
+
+TryTranslateProperty
+- property getter の query syntax だけを見る。
+- translation できなければ override 自体を出さない。
+
+TryTranslateMethod
+- expression-bodied query
+- expression-bodied invocation
+- 単純 return block
+の順に判定する。
+
+TryTranslateInvocationBody
+- 通常の method chain は TryTranslateInvocationExpression へ流す。
+- Aggregate だけは block body に展開する。
+
+TryTranslateQueryExpression
+- 現在サポートしているのは単純な SelectMany と、Where -> Select の線形パターン。
+
+TryTranslateInvocationExpression
+- method 名 whitelist に載っている LINQ 呼び出しだけを Seamless.Linq.Enumerable に置き換える。
+- receiver 側だけでなく argument 側の nested invocation も再帰的に翻訳する。
+
+7. OptimizeVisitor の設計
+
+役割
+- container method を string 化する前に syntax tree を正規化する。
+- 目的は Where をできるだけ葉に近い source へ寄せ、後段の generated code を素直な形にすること。
+
+対象メソッド
+- Select
+- SelectMany
+- Join / LeftJoin
+- Except / ExceptBy / Intersect / IntersectBy
+- Union / Concat
+- Distinct / DistinctBy
+- Order / OrderBy / OrderDescending / OrderByDescending / Reverse
+
+carrier 解析
+- anonymous type
+- tuple expression
+- tuple type
+- ValueTuple / Tuple object creation
+を carrier とみなし、その member access を元の expression へ戻す。
+
+安全策
+- predicate が複数 parameter にまたがる場合は押し下げない。
+- carrier を syntax だけで解決できない場合は押し下げない。
+- predicate root parameter 名が衝突しないよう、一度 sentinel 名に rename してから member 展開する。
+
+8. generated source にコメントを入れる方針
+
+generated source は obj/Generated を人が開く前提で、以下の単位に節コメントを入れる。
+
+- interceptor compatibility attribute
+- query syntax helper extension
+- reusable optimized enumerable
+- generated schema key/type records
+- generated optimized subclass
+
+目的は「この塊が何のために存在するか」を一目で理解できるようにすること。
+
+9. 今後拡張するなら
+
+- query syntax translation の対応句を増やす。
+- OptimizeVisitor に predicate 分解を足して、Join の左右へさらに細かく押し下げる。
+- method translation を文字列組み立てから構文木ベースへ寄せる。
+- generated source の comment と debug trace を generator option で切り替えられるようにする。
+
+10. この設計で大事な前提
+
+- 意味が変わる可能性がある最適化はしない。
+- 解析できないケースは「生成しない」または「元の式を保つ」に倒す。
+- generated code はデバッグ対象になるので、見た目と役割が追えることを重視する。

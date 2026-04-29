@@ -1,3 +1,4 @@
+﻿using System;
 using Test.Seamless.Unit.Helpers.Collections;
 namespace Test.Seamless.Unit.Collections;
 
