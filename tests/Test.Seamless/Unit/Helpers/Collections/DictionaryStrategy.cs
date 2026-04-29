@@ -1,4 +1,5 @@
-﻿using Seamless;
+﻿using System;
+using Seamless;
 using Test.Seamless.Unit.Collections;
 using Test.Seamless.Collections;
 using Seamless.Collections;

@@ -2,6 +2,7 @@
 using Seamless.Collections;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Tsavorite.core;
 namespace Test.Seamless.Unit.Helpers.Collections;
 /// <summary>

@@ -12,6 +12,9 @@ using Microsoft.CodeAnalysis.Text;
 namespace Seamless.SourceGenerator;
 
 [Generator]
+// この generator は 2 系統の生成をまとめて担当する。
+// 1. List<T>.Where を軽量 enumerable に差し替える interceptor 系コード
+// 2. DatabaseGenerator マーカー配下の schema / optimized container コード
 public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
     private static readonly SymbolDisplayFormat FullyQualifiedFormat = new(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
@@ -20,6 +23,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandNullable
     );
 
+    // SyntaxProvider は候補を粗く拾い、後段で意味解析して本対象だけを残す。
     public void Initialize(IncrementalGeneratorInitializationContext context) {
         var whereTargets = context.SyntaxProvider
             .CreateSyntaxProvider(static (node,_) => node is InvocationExpressionSyntax,static (generatorContext,cancellationToken) => CreateWhereInterceptTarget(generatorContext,cancellationToken))
@@ -38,6 +42,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             pair.Right));
     }
 
+    // 各サブ生成器の結果を 1 つの Template.g.cs に束ねる最終出力点。
     private static void Execute(SourceProductionContext context,ImmutableArray<WhereInterceptTarget> whereTargets,ImmutableArray<TypeTarget> typeTargets) {
         var builder = new StringBuilder();
         var generatedAny = false;
@@ -60,14 +65,38 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             return;
         }
 
-        context.AddSource("Seamless.SourceGenerator.Template.g.cs",SourceText.From(builder.ToString(),Encoding.UTF8));
+        context.AddSource("Seamless.SourceGenerator.Template.g.cs",SourceText.From(RemoveBlankLines(builder.ToString()),Encoding.UTF8));
     }
 
+    // generated code は人が直接読むので、空行は最後にまとめて取り除く。
+    // これで各所の AppendLine() の都合に引きずられず、出力全体の体裁を一定にできる。
+    private static string RemoveBlankLines(string source) {
+        var lines = source.Replace("\r\n","\n").Split('\n');
+        var builder = new StringBuilder(source.Length);
+        var firstWritten = true;
+        foreach(var line in lines) {
+            if(string.IsNullOrWhiteSpace(line)) {
+                continue;
+            }
+            if(!firstWritten) {
+                builder.Append('\n');
+            }
+            builder.Append(line);
+            firstWritten=false;
+        }
+        return builder.ToString();
+    }
+
+    // Enumerable.Where 呼び出しのうち、List<T> 最適化に落とせるものだけを抽出する。
     private static WhereInterceptTarget? CreateWhereInterceptTarget(GeneratorSyntaxContext context,System.Threading.CancellationToken cancellationToken) {
         if(context.Node is not InvocationExpressionSyntax invocation) {
             return null;
         }
         if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess) {
+            return null;
+        }
+        var interceptableLocation = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptableLocation(context.SemanticModel,invocation,cancellationToken);
+        if(interceptableLocation is null) {
             return null;
         }
         if(context.SemanticModel.GetSymbolInfo(invocation,cancellationToken).Symbol is not IMethodSymbol method) {
@@ -80,46 +109,113 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         if(reducedMethod.ContainingType.ToDisplayString()!="System.Linq.Enumerable") {
             return null;
         }
-        if(context.SemanticModel.GetTypeInfo(memberAccess.Expression,cancellationToken).Type is not INamedTypeSymbol receiverType) {
+        if(method.ReducedFrom is not null) {
             return null;
         }
-        if(receiverType.Name!="List"
-            ||receiverType.ContainingNamespace.ToDisplayString()!="System.Collections.Generic"
-            ||receiverType.TypeArguments.Length!=1
-            ||receiverType.TypeArguments[0].SpecialType!=SpecialType.System_Int32) {
+        if(!TryGetWherePredicateInfo(reducedMethod,out var usesIndex)) {
             return null;
         }
-        if(invocation.ArgumentList.Arguments.Count!=1) {
+        if(!TryGetWhereCallInfo(invocation,memberAccess,method,out var sourceExpression,out var predicateExpression)) {
             return null;
         }
-        if(invocation.ArgumentList.Arguments[0].Expression is not LambdaExpressionSyntax lambda) {
+        if(!TryGetListElementType(context.SemanticModel.GetTypeInfo(sourceExpression,cancellationToken).Type,out var elementType)) {
             return null;
         }
-        if(!TryGetLambdaInfo(context.SemanticModel,lambda,cancellationToken,out var parameterName,out var predicateBody,out var hasCaptures)) {
+        if(!TryGetPredicateInfo(context.SemanticModel,predicateExpression,cancellationToken,usesIndex,out var elementParameterName,out var indexParameterName,out var predicateText,out var usePredicateDelegate)) {
             return null;
         }
         var span = memberAccess.Name.GetLocation().GetLineSpan();
         var line = span.StartLinePosition.Line+1;
         var character = span.StartLinePosition.Character+1;
         var id = SanitizeIdentifier($"{System.IO.Path.GetFileNameWithoutExtension(span.Path)}_{line}_{character}");
+        var interceptsLocationAttributeText = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptsLocationAttributeSyntax(interceptableLocation);
+        if(string.IsNullOrWhiteSpace(interceptsLocationAttributeText)) {
+            return null;
+        }
         return new WhereInterceptTarget(
             id,
             span.Path,
             line,
             character,
-            parameterName,
-            predicateBody,
-            hasCaptures);
+            interceptsLocationAttributeText,
+            elementType.ToDisplayString(FullyQualifiedFormat),
+            usesIndex,
+            elementParameterName,
+            indexParameterName,
+            predicateText,
+            usePredicateDelegate);
     }
 
-    private static bool TryGetLambdaInfo(SemanticModel semanticModel,LambdaExpressionSyntax lambda,System.Threading.CancellationToken cancellationToken,out string parameterName,out string predicateBody,out bool hasCaptures) {
-        parameterName=string.Empty;
-        predicateBody=string.Empty;
-        hasCaptures=false;
+    private static bool TryGetWherePredicateInfo(IMethodSymbol reducedMethod,out bool usesIndex) {
+        usesIndex=false;
+        if(reducedMethod.Parameters.Length!=2
+            ||reducedMethod.Parameters[1].Type is not INamedTypeSymbol predicateType
+            ||predicateType.Name!="Func"
+            ||predicateType.ContainingNamespace.ToDisplayString()!="System") {
+            return false;
+        }
+        if(predicateType.TypeArguments.Length==2
+            &&predicateType.TypeArguments[1].SpecialType==SpecialType.System_Boolean) {
+            return true;
+        }
+        if(predicateType.TypeArguments.Length==3
+            &&predicateType.TypeArguments[1].SpecialType==SpecialType.System_Int32
+            &&predicateType.TypeArguments[2].SpecialType==SpecialType.System_Boolean) {
+            usesIndex=true;
+            return true;
+        }
+        return false;
+    }
+
+    private static bool TryGetWhereCallInfo(InvocationExpressionSyntax invocation,MemberAccessExpressionSyntax memberAccess,IMethodSymbol method,out ExpressionSyntax sourceExpression,out ExpressionSyntax predicateExpression) {
+        sourceExpression=null!;
+        predicateExpression=null!;
+
+        if(method.ReducedFrom is not null) {
+            if(invocation.ArgumentList.Arguments.Count!=1) {
+                return false;
+            }
+            sourceExpression=memberAccess.Expression;
+            predicateExpression=invocation.ArgumentList.Arguments[0].Expression;
+            return true;
+        }
+
+        if(invocation.ArgumentList.Arguments.Count!=2) {
+            return false;
+        }
+        sourceExpression=invocation.ArgumentList.Arguments[0].Expression;
+        predicateExpression=invocation.ArgumentList.Arguments[1].Expression;
+        return true;
+    }
+
+    private static bool TryGetListElementType(ITypeSymbol? type,out ITypeSymbol elementType) {
+        for(var current = type; current is not null; current=current.BaseType) {
+            if(current is INamedTypeSymbol namedType
+                &&namedType.Name=="List"
+                &&namedType.ContainingNamespace.ToDisplayString()=="System.Collections.Generic"
+                &&namedType.TypeArguments.Length==1) {
+                elementType=namedType.TypeArguments[0];
+                return true;
+            }
+        }
+
+        elementType=null!;
+        return false;
+    }
+
+    private static bool TryGetPredicateInfo(SemanticModel semanticModel,ExpressionSyntax predicateExpression,System.Threading.CancellationToken cancellationToken,bool usesIndex,out string parameterName,out string? indexParameterName,out string predicateText,out bool usePredicateDelegate) {
+        parameterName="candidate";
+        indexParameterName=usesIndex ? "candidateIndex" : null;
+        predicateText=predicateExpression.ToString();
+        usePredicateDelegate=true;
+
+        if(predicateExpression is not LambdaExpressionSyntax lambda) {
+            return true;
+        }
 
         if(lambda switch {
-            SimpleLambdaExpressionSyntax => false,
-            ParenthesizedLambdaExpressionSyntax parenthesized => parenthesized.ParameterList.Parameters.Count!=1,
+            SimpleLambdaExpressionSyntax => usesIndex,
+            ParenthesizedLambdaExpressionSyntax parenthesized => parenthesized.ParameterList.Parameters.Count!=(usesIndex ? 2 : 1),
             _ => true,
         }) {
             return false;
@@ -133,12 +229,30 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         if(string.IsNullOrWhiteSpace(parameterName)) {
             return false;
         }
-        if(lambda.Body is not ExpressionSyntax expressionBody) {
-            return false;
+        if(usesIndex&&lambda is ParenthesizedLambdaExpressionSyntax indexedLambda) {
+            indexParameterName=indexedLambda.ParameterList.Parameters[1].Identifier.ValueText;
+            if(string.IsNullOrWhiteSpace(indexParameterName)) {
+                return false;
+            }
         }
 
-        predicateBody=expressionBody.ToString();
+        predicateText=lambda.Body.ToString();
+        if(lambda.Body is not ExpressionSyntax expressionBody) {
+            return true;
+        }
+
+        predicateText=expressionBody.ToString();
         var lambdaParameters = new HashSet<string>(StringComparer.Ordinal) { parameterName };
+        if(indexParameterName is not null) {
+            lambdaParameters.Add(indexParameterName);
+        }
+        if(CanInlinePredicateExpression(semanticModel,expressionBody,cancellationToken,lambdaParameters)) {
+            usePredicateDelegate=false;
+        }
+        return true;
+    }
+
+    private static bool CanInlinePredicateExpression(SemanticModel semanticModel,ExpressionSyntax expressionBody,System.Threading.CancellationToken cancellationToken,HashSet<string> lambdaParameters) {
         foreach(var identifier in expressionBody.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>()) {
             var symbol = semanticModel.GetSymbolInfo(identifier,cancellationToken).Symbol;
             if(symbol is null) {
@@ -148,8 +262,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
                 continue;
             }
             if(symbol is ILocalSymbol||symbol is IParameterSymbol) {
-                hasCaptures=true;
-                break;
+                return false;
             }
         }
         return true;
@@ -165,45 +278,56 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         }
         var isMarker = symbol.Name=="DatabaseGenerator";
         var isPartial = declaration.Modifiers.Any(SyntaxKind.PartialKeyword);
-        if(!isMarker&&!isPartial) {
+        var isContainerCandidate = symbol.TypeKind==TypeKind.Class;
+        if(!isMarker&&!isPartial&&!isContainerCandidate) {
             return null;
         }
         return new TypeTarget(symbol,isPartial);
     }
 
+    // Where interceptor 系の generated source 一式を出力する。
     private static void AppendInterceptorSource(StringBuilder builder,ImmutableArray<WhereInterceptTarget> whereTargets) {
         builder.AppendLine("#nullable enable");
+        builder.AppendLine("// Generated: Roslyn interceptor compatibility attribute used by the Where optimization path.");
         builder.AppendLine("namespace System.Runtime.CompilerServices {");
         builder.AppendLine("    [global::System.AttributeUsage(global::System.AttributeTargets.Method,AllowMultiple=true)]");
         builder.AppendLine("    file sealed class InterceptsLocationAttribute:global::System.Attribute {");
-        builder.AppendLine("        public InterceptsLocationAttribute(string filePath,int line,int character) {");
-        builder.AppendLine("            this.FilePath=filePath;");
-        builder.AppendLine("            this.Line=line;");
-        builder.AppendLine("            this.Character=character;");
+        builder.AppendLine("        public InterceptsLocationAttribute(int version,string data) {");
+        builder.AppendLine("            this.Version=version;");
+        builder.AppendLine("            this.Data=data;");
         builder.AppendLine("        }");
         builder.AppendLine();
-        builder.AppendLine("        public string FilePath { get; }");
-        builder.AppendLine("        public int Line { get; }");
-        builder.AppendLine("        public int Character { get; }");
+        builder.AppendLine("        public int Version { get; }");
+        builder.AppendLine("        public string Data { get; }");
         builder.AppendLine("    }");
         builder.AppendLine("}");
         builder.AppendLine();
+        builder.AppendLine("// Generated: query-syntax helper extensions so List<T>.Where can stay on the optimized path.");
+        AppendListWhereQueryHelperSource(builder);
+        builder.AppendLine();
+        builder.AppendLine("// Generated: reusable enumerable implementations and interceptor entry points.");
         builder.AppendLine("namespace Seamless.SourceGenerator.Generated {");
+        AppendReusableListWhereEnumerableSource(builder);
         builder.AppendLine("    internal static class ListWhereInterceptors {");
 
         foreach(var target in whereTargets.Distinct(WhereInterceptTargetComparer.Instance)) {
+            var elementTypeName = target.ElementTypeName;
+            var predicateTypeName = target.UsesIndex
+                ? $"global::System.Func<{elementTypeName},int,bool>"
+                : $"global::System.Func<{elementTypeName},bool>";
             builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
-            builder.AppendLine($"        [global::System.Runtime.CompilerServices.InterceptsLocationAttribute({ToLiteral(target.FilePath)},{target.Line},{target.Character})]");
-            builder.AppendLine($"        public static global::System.Collections.Generic.IEnumerable<int> {target.MethodName}(this global::System.Collections.Generic.IEnumerable<int> source,global::System.Func<int,bool> predicate) {{");
+            builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
+            builder.AppendLine($"        public static global::System.Collections.Generic.IEnumerable<{elementTypeName}> {target.MethodName}(this global::System.Collections.Generic.IEnumerable<{elementTypeName}> source,{predicateTypeName} predicate) {{");
+            builder.AppendLine($"            global::System.Diagnostics.Debug.WriteLine(\"Seamless interceptor: {target.MethodName} ({target.Line}:{target.Character}) predicate=\" + {ToLiteral(target.PredicateText)});");
             builder.AppendLine($"            global::System.Console.WriteLine(\"Seamless interceptor: {target.MethodName} ({target.Line}:{target.Character})\");");
-            builder.AppendLine($"            return new {target.EnumerableTypeName}((global::System.Collections.Generic.List<int>)source,predicate);");
+            builder.AppendLine($"            return new {target.EnumerableTypeName}((global::System.Collections.Generic.List<{elementTypeName}>)source,predicate);");
             builder.AppendLine("        }");
             builder.AppendLine();
-            builder.AppendLine($"        public readonly struct {target.EnumerableTypeName}:global::System.Collections.Generic.IEnumerable<int> {{");
-            builder.AppendLine("            private readonly global::System.Collections.Generic.List<int> source;");
-            builder.AppendLine("            private readonly global::System.Func<int,bool> predicate;");
+            builder.AppendLine($"        public readonly struct {target.EnumerableTypeName}:global::System.Collections.Generic.IEnumerable<{elementTypeName}> {{");
+            builder.AppendLine($"            private readonly global::System.Collections.Generic.List<{elementTypeName}> source;");
+            builder.AppendLine($"            private readonly {predicateTypeName} predicate;");
             builder.AppendLine();
-            builder.AppendLine($"            public {target.EnumerableTypeName}(global::System.Collections.Generic.List<int> source,global::System.Func<int,bool> predicate) {{");
+            builder.AppendLine($"            public {target.EnumerableTypeName}(global::System.Collections.Generic.List<{elementTypeName}> source,{predicateTypeName} predicate) {{");
             builder.AppendLine("                this.source=source ?? throw new global::System.ArgumentNullException(nameof(source));");
             builder.AppendLine("                this.predicate=predicate ?? throw new global::System.ArgumentNullException(nameof(predicate));");
             builder.AppendLine("            }");
@@ -211,28 +335,28 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             builder.AppendLine("            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
             builder.AppendLine("            public Enumerator GetEnumerator() => new(this.source,this.predicate);");
             builder.AppendLine();
-            builder.AppendLine("            global::System.Collections.Generic.IEnumerator<int> global::System.Collections.Generic.IEnumerable<int>.GetEnumerator() {");
+            builder.AppendLine($"            global::System.Collections.Generic.IEnumerator<{elementTypeName}> global::System.Collections.Generic.IEnumerable<{elementTypeName}>.GetEnumerator() {{");
             builder.AppendLine("                var enumerator = this.GetEnumerator();");
             builder.AppendLine("                while(enumerator.MoveNext()) {");
             builder.AppendLine("                    yield return enumerator.Current;");
             builder.AppendLine("                }");
             builder.AppendLine("            }");
             builder.AppendLine();
-            builder.AppendLine("            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => ((global::System.Collections.Generic.IEnumerable<int>)this).GetEnumerator();");
+            builder.AppendLine($"            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => ((global::System.Collections.Generic.IEnumerable<{elementTypeName}>)this).GetEnumerator();");
             builder.AppendLine();
             builder.AppendLine("            public struct Enumerator {");
-            builder.AppendLine("                private readonly global::System.Collections.Generic.List<int> source;");
-            builder.AppendLine("                private readonly global::System.Func<int,bool> predicate;");
+            builder.AppendLine($"                private readonly global::System.Collections.Generic.List<{elementTypeName}> source;");
+            builder.AppendLine($"                private readonly {predicateTypeName} predicate;");
             builder.AppendLine("                private int index;");
             builder.AppendLine();
-            builder.AppendLine("                public Enumerator(global::System.Collections.Generic.List<int> source,global::System.Func<int,bool> predicate) {");
+            builder.AppendLine($"                public Enumerator(global::System.Collections.Generic.List<{elementTypeName}> source,{predicateTypeName} predicate) {{");
             builder.AppendLine("                    this.source=source;");
             builder.AppendLine("                    this.predicate=predicate;");
             builder.AppendLine("                    this.index=-1;");
-            builder.AppendLine("                    this.Current=default;");
+            builder.AppendLine("                    this.Current=default!;");
             builder.AppendLine("                }");
             builder.AppendLine();
-            builder.AppendLine("                public int Current { get; private set; }");
+            builder.AppendLine($"                public {elementTypeName} Current {{ get; private set; }}");
             builder.AppendLine();
             builder.AppendLine("                [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
             builder.AppendLine("                public bool MoveNext() {");
@@ -242,16 +366,21 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             builder.AppendLine("                            return false;");
             builder.AppendLine("                        }");
             builder.AppendLine("                        this.index=next;");
-            if(target.HasCaptures) {
+            if(target.UsePredicateDelegate) {
                 builder.AppendLine("                        var candidate = this.source[next];");
-                builder.AppendLine("                        if(!this.predicate(candidate)) {");
+                builder.AppendLine(target.UsesIndex
+                    ? "                        if(!this.predicate(candidate,next)) {"
+                    : "                        if(!this.predicate(candidate)) {");
                 builder.AppendLine("                            continue;");
                 builder.AppendLine("                        }");
                 builder.AppendLine("                        this.Current=candidate;");
             }
             else {
                 builder.AppendLine($"                        var {target.ParameterName} = this.source[next];");
-                builder.AppendLine($"                        if(!({target.PredicateBody})) {{");
+                if(target.IndexParameterName is not null) {
+                    builder.AppendLine($"                        var {target.IndexParameterName} = next;");
+                }
+                builder.AppendLine($"                        if(!({target.PredicateText})) {{");
                 builder.AppendLine("                            continue;");
                 builder.AppendLine("                        }");
                 builder.AppendLine($"                        this.Current={target.ParameterName};");
@@ -268,6 +397,134 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         builder.AppendLine("}");
     }
 
+    private static void AppendListWhereQueryHelperSource(StringBuilder builder) {
+        builder.AppendLine("namespace System.Linq {");
+        builder.AppendLine("    // Generated: query syntax binds to these helpers before it falls back to Enumerable.Where.");
+        builder.AppendLine("    internal static class ListWhereQueryExtensions {");
+        builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
+        builder.AppendLine("        public static global::Seamless.SourceGenerator.Generated.OptimizedListWhereEnumerable<TSource> Where<TSource>(this global::System.Collections.Generic.List<TSource> source,global::System.Func<TSource,bool> predicate) => new(source,predicate);");
+        builder.AppendLine();
+        builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
+        builder.AppendLine("        public static global::Seamless.SourceGenerator.Generated.OptimizedListWhereIndexedEnumerable<TSource> Where<TSource>(this global::System.Collections.Generic.List<TSource> source,global::System.Func<TSource,int,bool> predicate) => new(source,predicate);");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+    }
+
+    private static void AppendReusableListWhereEnumerableSource(StringBuilder builder) {
+        builder.AppendLine("    // Generated: allocation-light enumerable for List<T>.Where(predicate).");
+        builder.AppendLine("    internal readonly struct OptimizedListWhereEnumerable<TSource>:global::System.Collections.Generic.IEnumerable<TSource> {");
+        builder.AppendLine("        private readonly global::System.Collections.Generic.List<TSource> source;");
+        builder.AppendLine("        private readonly global::System.Func<TSource,bool> predicate;");
+        builder.AppendLine();
+        builder.AppendLine("        public OptimizedListWhereEnumerable(global::System.Collections.Generic.List<TSource> source,global::System.Func<TSource,bool> predicate) {");
+        builder.AppendLine("            this.source=source ?? throw new global::System.ArgumentNullException(nameof(source));");
+        builder.AppendLine("            this.predicate=predicate ?? throw new global::System.ArgumentNullException(nameof(predicate));");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
+        builder.AppendLine("        public Enumerator GetEnumerator() => new(this.source,this.predicate);");
+        builder.AppendLine();
+        builder.AppendLine("        global::System.Collections.Generic.IEnumerator<TSource> global::System.Collections.Generic.IEnumerable<TSource>.GetEnumerator() {");
+        builder.AppendLine("            var enumerator = this.GetEnumerator();");
+        builder.AppendLine("            while(enumerator.MoveNext()) {");
+        builder.AppendLine("                yield return enumerator.Current;");
+        builder.AppendLine("            }");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => ((global::System.Collections.Generic.IEnumerable<TSource>)this).GetEnumerator();");
+        builder.AppendLine();
+        builder.AppendLine("        public struct Enumerator {");
+        builder.AppendLine("            private readonly global::System.Collections.Generic.List<TSource> source;");
+        builder.AppendLine("            private readonly global::System.Func<TSource,bool> predicate;");
+        builder.AppendLine("            private int index;");
+        builder.AppendLine();
+        builder.AppendLine("            public Enumerator(global::System.Collections.Generic.List<TSource> source,global::System.Func<TSource,bool> predicate) {");
+        builder.AppendLine("                this.source=source;");
+        builder.AppendLine("                this.predicate=predicate;");
+        builder.AppendLine("                this.index=-1;");
+        builder.AppendLine("                this.Current=default!;");
+        builder.AppendLine("            }");
+        builder.AppendLine();
+        builder.AppendLine("            public TSource Current { get; private set; }");
+        builder.AppendLine();
+        builder.AppendLine("            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
+        builder.AppendLine("            public bool MoveNext() {");
+        builder.AppendLine("                while(true) {");
+        builder.AppendLine("                    var next = this.index+1;");
+        builder.AppendLine("                    if(next>=this.source.Count) {");
+        builder.AppendLine("                        return false;");
+        builder.AppendLine("                    }");
+        builder.AppendLine("                    this.index=next;");
+        builder.AppendLine("                    var candidate = this.source[next];");
+        builder.AppendLine("                    if(!this.predicate(candidate)) {");
+        builder.AppendLine("                        continue;");
+        builder.AppendLine("                    }");
+        builder.AppendLine("                    this.Current=candidate;");
+        builder.AppendLine("                    return true;");
+        builder.AppendLine("                }");
+        builder.AppendLine("            }");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    // Generated: allocation-light enumerable for List<T>.Where((value, index) => ...).");
+        builder.AppendLine("    internal readonly struct OptimizedListWhereIndexedEnumerable<TSource>:global::System.Collections.Generic.IEnumerable<TSource> {");
+        builder.AppendLine("        private readonly global::System.Collections.Generic.List<TSource> source;");
+        builder.AppendLine("        private readonly global::System.Func<TSource,int,bool> predicate;");
+        builder.AppendLine();
+        builder.AppendLine("        public OptimizedListWhereIndexedEnumerable(global::System.Collections.Generic.List<TSource> source,global::System.Func<TSource,int,bool> predicate) {");
+        builder.AppendLine("            this.source=source ?? throw new global::System.ArgumentNullException(nameof(source));");
+        builder.AppendLine("            this.predicate=predicate ?? throw new global::System.ArgumentNullException(nameof(predicate));");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
+        builder.AppendLine("        public Enumerator GetEnumerator() => new(this.source,this.predicate);");
+        builder.AppendLine();
+        builder.AppendLine("        global::System.Collections.Generic.IEnumerator<TSource> global::System.Collections.Generic.IEnumerable<TSource>.GetEnumerator() {");
+        builder.AppendLine("            var enumerator = this.GetEnumerator();");
+        builder.AppendLine("            while(enumerator.MoveNext()) {");
+        builder.AppendLine("                yield return enumerator.Current;");
+        builder.AppendLine("            }");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => ((global::System.Collections.Generic.IEnumerable<TSource>)this).GetEnumerator();");
+        builder.AppendLine();
+        builder.AppendLine("        public struct Enumerator {");
+        builder.AppendLine("            private readonly global::System.Collections.Generic.List<TSource> source;");
+        builder.AppendLine("            private readonly global::System.Func<TSource,int,bool> predicate;");
+        builder.AppendLine("            private int index;");
+        builder.AppendLine();
+        builder.AppendLine("            public Enumerator(global::System.Collections.Generic.List<TSource> source,global::System.Func<TSource,int,bool> predicate) {");
+        builder.AppendLine("                this.source=source;");
+        builder.AppendLine("                this.predicate=predicate;");
+        builder.AppendLine("                this.index=-1;");
+        builder.AppendLine("                this.Current=default!;");
+        builder.AppendLine("            }");
+        builder.AppendLine();
+        builder.AppendLine("            public TSource Current { get; private set; }");
+        builder.AppendLine();
+        builder.AppendLine("            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
+        builder.AppendLine("            public bool MoveNext() {");
+        builder.AppendLine("                while(true) {");
+        builder.AppendLine("                    var next = this.index+1;");
+        builder.AppendLine("                    if(next>=this.source.Count) {");
+        builder.AppendLine("                        return false;");
+        builder.AppendLine("                    }");
+        builder.AppendLine("                    this.index=next;");
+        builder.AppendLine("                    var candidate = this.source[next];");
+        builder.AppendLine("                    if(!this.predicate(candidate,next)) {");
+        builder.AppendLine("                        continue;");
+        builder.AppendLine("                    }");
+        builder.AppendLine("                    this.Current=candidate;");
+        builder.AppendLine("                    return true;");
+        builder.AppendLine("                }");
+        builder.AppendLine("            }");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+    }
+
+    // DatabaseGenerator を起点にして schema struct と optimized container を生成する。
+    // 利用されていなかった container metadata 配列は出さない。
     private static string BuildDatabaseSource(ImmutableArray<TypeTarget> typeTargets) {
         var builder = new StringBuilder();
         var rootNamespaces = typeTargets
@@ -296,8 +553,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
                 .OrderBy(static symbol => symbol.Name,StringComparer.Ordinal)
                 .ToArray();
             var containers = typeTargets
-                .Where(target => target.IsPartial
-                    &&target.Symbol.TypeKind==TypeKind.Class
+                .Where(target => target.Symbol.TypeKind==TypeKind.Class
                     &&string.Equals(target.Symbol.ContainingNamespace.ToDisplayString(),rootNamespace,StringComparison.Ordinal)
                     &&target.Symbol.Name!="DatabaseGenerator")
                 .Select(target => target.Symbol)
@@ -306,14 +562,15 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
                 .OrderBy(static symbol => symbol.Name,StringComparer.Ordinal)
                 .ToArray();
 
-            var rootNsIndent = "";
-            var innerIndent = "    ";
             var hasRootNs = !string.IsNullOrEmpty(rootNamespace);
+            var rootNsIndent = hasRootNs ? "    " : "";
+            var innerIndent = hasRootNs ? "        " : "    ";
             if(hasRootNs) {
                 builder.AppendLine($"namespace {rootNamespace} {{");
             }
 
             if(keys.Length>0) {
+                builder.AppendLine($"{rootNsIndent}// Generated: schema key records declared under {rootNamespace}.Keys.");
                 builder.AppendLine($"{rootNsIndent}namespace Keys {{");
                 foreach(var key in keys) {
                     AppendRecordSourceBody(builder,key,innerIndent);
@@ -323,6 +580,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             }
 
             if(types.Length>0) {
+                builder.AppendLine($"{rootNsIndent}// Generated: schema row/value records declared under {rootNamespace}.Types.");
                 builder.AppendLine($"{rootNsIndent}namespace Types {{");
                 foreach(var type in types) {
                     AppendRecordSourceBody(builder,type,innerIndent);
@@ -332,17 +590,20 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             }
 
             foreach(var container in containers) {
-                builder.AppendLine($"{rootNsIndent}partial class {container.Name} {{");
-                builder.AppendLine($"{innerIndent}public static global::System.Type[] __GeneratedKeyTypes {{ get; }} = new global::System.Type[] {{ {string.Join(", ",keys.Select(static symbol => $"typeof({symbol.ToDisplayString(FullyQualifiedFormat)})"))} }};");
-                builder.AppendLine($"{innerIndent}public static global::System.Type[] __GeneratedTypes {{ get; }} = new global::System.Type[] {{ {string.Join(", ",types.Select(static symbol => $"typeof({symbol.ToDisplayString(FullyQualifiedFormat)})"))} }};");
-                builder.AppendLine($"{rootNsIndent}}}");
-
-                var translatedMembers = BuildTranslatedMemberLines(container);
-                if(translatedMembers.Count>0) {
+                var optimizedMembers = BuildOptimizedOverrideMemberLines(container);
+                if(optimizedMembers.Count>0) {
+                    var forwardingConstructors = BuildForwardingConstructorLines(container,$"Optimized{container.Name}");
                     builder.AppendLine();
-                    builder.AppendLine($"{rootNsIndent}public static class {container.Name}GeneratedExtensions {{");
-                    foreach(var memberLine in translatedMembers) {
-                        builder.AppendLine($"{innerIndent}{memberLine}");
+                    builder.AppendLine($"{rootNsIndent}// Generated: optimized subclass that overrides translatable members with Seamless LINQ calls.");
+                    builder.AppendLine($"{rootNsIndent}{GetGeneratedTypeAccessibilityText(container)} class Optimized{container.Name}:{container.ToDisplayString(FullyQualifiedFormat)} {{");
+                    foreach(var constructorLine in forwardingConstructors) {
+                        AppendIndented(builder,constructorLine,innerIndent);
+                    }
+                    if(forwardingConstructors.Count>0) {
+                        builder.AppendLine();
+                    }
+                    foreach(var memberLine in optimizedMembers) {
+                        AppendIndented(builder,memberLine,innerIndent);
                     }
                     builder.AppendLine($"{rootNsIndent}}}");
                 }
@@ -356,6 +617,8 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         return builder.ToString();
     }
 
+    // Key / Type の partial struct を、MemoryPack で保存できる完全な schema record にする。
+    // unmanaged フィールドは _u、managed フィールドは _m に寄せ、backend から扱いやすい形へ整える。
     private static void AppendRecordSourceBody(StringBuilder builder,INamedTypeSymbol symbol,string indent) {
         var properties = GetGeneratableProperties(symbol);
         if(properties.Length==0) {
@@ -370,6 +633,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         var innerBuilder = new StringBuilder();
         {
             var indentedBuilder = innerBuilder;
+            indentedBuilder.AppendLine($"// Generated: completed schema record for {symbolTypeName}. unmanaged data lives in _u and managed data lives in _m.");
             indentedBuilder.AppendLine($"partial struct {symbol.Name}:global::MemoryPack.IMemoryPackable<{symbolTypeName}> {{");
             indentedBuilder.AppendLine($"    public {symbol.Name}({string.Join(", ",properties.Select(static property => $"{property.Type.ToDisplayString(FullyQualifiedFormat)} {GetParameterName(property)}"))}) {{");
             if(unmanagedProperties.Length>0) {
@@ -424,7 +688,9 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         builder.AppendLine();
     }
 
-    private static List<string> BuildTranslatedMemberLines(INamedTypeSymbol container) {
+    // translatable な virtual member を抽出して、Optimized{Container} の override 宣言へ変換する。
+    // ここは「どの member を最適化対象にするか」のゲートであり、translation 自体は TryTranslate* 系に委譲する。
+    private static List<string> BuildOptimizedOverrideMemberLines(INamedTypeSymbol container) {
         var members = new List<string>();
         foreach(var member in container.GetMembers().Where(static member => member.IsVirtual)) {
             if(member is IPropertySymbol property) {
@@ -432,7 +698,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
                 if(translatedBody is null) {
                     continue;
                 }
-                members.Add($"public static {property.Type.ToDisplayString(FullyQualifiedFormat)} {property.Name}AsExtension(this {container.ToDisplayString(FullyQualifiedFormat)} self) => {translatedBody};");
+                members.Add($"{GetMemberAccessibilityText(property.DeclaredAccessibility)} override {property.Type.ToDisplayString(FullyQualifiedFormat)} {property.Name} => {translatedBody};");
                 continue;
             }
             if(member is IMethodSymbol method&&method.MethodKind==MethodKind.Ordinary) {
@@ -440,16 +706,35 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
                 if(translatedBody is null) {
                     continue;
                 }
-                var parameterList = string.Join(", ",method.Parameters.Select(static parameter => $"{parameter.Type.ToDisplayString(FullyQualifiedFormat)} {parameter.Name}"));
+                var parameterList = BuildParameterDeclarationList(method.Parameters);
                 var typeParameterList = BuildTypeParameterList(method.TypeParameters);
-                var typeParameterConstraints = BuildTypeParameterConstraints(method.TypeParameters);
-                var signature = string.IsNullOrEmpty(parameterList)
-                    ? $"this {container.ToDisplayString(FullyQualifiedFormat)} self"
-                    : $"this {container.ToDisplayString(FullyQualifiedFormat)} self, {parameterList}";
-                members.Add($"public static {method.ReturnType.ToDisplayString(FullyQualifiedFormat)} {method.Name}AsExtension{typeParameterList}({signature}){typeParameterConstraints} => {translatedBody};");
+                members.Add(translatedBody.Value.IsExpressionBody
+                    ? $"{GetMemberAccessibilityText(method.DeclaredAccessibility)} override {method.ReturnType.ToDisplayString(FullyQualifiedFormat)} {method.Name}{typeParameterList}({parameterList}) => {translatedBody.Value.Body};"
+                    : $"{GetMemberAccessibilityText(method.DeclaredAccessibility)} override {method.ReturnType.ToDisplayString(FullyQualifiedFormat)} {method.Name}{typeParameterList}({parameterList}) {translatedBody.Value.Body}");
             }
         }
         return members;
+    }
+
+    // base container が引数付き constructor しか持たないケースでも、generated subclass を new できるようにする。
+    private static List<string> BuildForwardingConstructorLines(INamedTypeSymbol container,string optimizedTypeName) {
+        var constructors = new List<string>();
+        foreach(var constructor in container.InstanceConstructors.Where(static constructor => !constructor.IsImplicitlyDeclared&&constructor.DeclaredAccessibility!=Accessibility.Private)) {
+            var parameterList = BuildParameterDeclarationList(constructor.Parameters);
+            var argumentList = BuildArgumentExpressionList(constructor.Parameters);
+            constructors.Add($"{GetMemberAccessibilityText(constructor.DeclaredAccessibility)} {optimizedTypeName}({parameterList}) : base({argumentList}) {{ }}");
+        }
+        return constructors;
+    }
+
+    private readonly struct TranslatedMethodBody {
+        public TranslatedMethodBody(string body,bool isExpressionBody) {
+            Body=body;
+            IsExpressionBody=isExpressionBody;
+        }
+
+        public string Body { get; }
+        public bool IsExpressionBody { get; }
     }
 
     private static string BuildTypeParameterList(ImmutableArray<ITypeParameterSymbol> typeParameters) {
@@ -487,6 +772,61 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         return string.Concat(clauses);
     }
 
+    private static string BuildParameterDeclarationList(ImmutableArray<IParameterSymbol> parameters) {
+        return string.Join(", ",parameters.Select(BuildParameterDeclaration));
+    }
+
+    private static string BuildParameterDeclaration(IParameterSymbol parameter) {
+        var builder = new StringBuilder();
+        if(parameter.IsParams) {
+            builder.Append("params ");
+        }
+        switch(parameter.RefKind) {
+            case RefKind.Ref:
+                builder.Append("ref ");
+                break;
+            case RefKind.Out:
+                builder.Append("out ");
+                break;
+            case RefKind.In:
+                builder.Append("in ");
+                break;
+        }
+        builder.Append(parameter.Type.ToDisplayString(FullyQualifiedFormat));
+        builder.Append(' ');
+        builder.Append(parameter.Name);
+        return builder.ToString();
+    }
+
+    private static string BuildArgumentExpressionList(ImmutableArray<IParameterSymbol> parameters) {
+        return string.Join(", ",parameters.Select(BuildArgumentExpression));
+    }
+
+    private static string BuildArgumentExpression(IParameterSymbol parameter) {
+        return parameter.RefKind switch {
+            RefKind.Ref => $"ref {parameter.Name}",
+            RefKind.Out => $"out {parameter.Name}",
+            RefKind.In => $"in {parameter.Name}",
+            _ => parameter.Name,
+        };
+    }
+
+    private static string GetGeneratedTypeAccessibilityText(INamedTypeSymbol symbol) {
+        return symbol.DeclaredAccessibility==Accessibility.Public ? "public" : "internal";
+    }
+
+    private static string GetMemberAccessibilityText(Accessibility accessibility) {
+        return accessibility switch {
+            Accessibility.Public => "public",
+            Accessibility.Internal => "internal",
+            Accessibility.Protected => "protected",
+            Accessibility.ProtectedOrInternal => "protected internal",
+            Accessibility.ProtectedAndInternal => "private protected",
+            _ => "private",
+        };
+    }
+
+    // property getter の query syntax を Seamless LINQ へ落とせる場合だけ override を生成する。
     private static string? TryTranslateProperty(IPropertySymbol property) {
         foreach(var syntaxReference in property.DeclaringSyntaxReferences) {
             if(syntaxReference.GetSyntax() is not PropertyDeclarationSyntax syntax) {
@@ -510,30 +850,99 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         return null;
     }
 
-    private static string? TryTranslateMethod(IMethodSymbol method) {
+    // method translation の入口。
+    // invocation 系は OptimizeVisitor で Where pushdown を掛けてから文字列化する。
+    private static TranslatedMethodBody? TryTranslateMethod(IMethodSymbol method) {
         foreach(var syntaxReference in method.DeclaringSyntaxReferences) {
             if(syntaxReference.GetSyntax() is not MethodDeclarationSyntax syntax) {
                 continue;
             }
             if(syntax.ExpressionBody?.Expression is QueryExpressionSyntax expressionQuery) {
-                return TryTranslateQueryExpression(expressionQuery);
+                var translatedQuery = TryTranslateQueryExpression(expressionQuery);
+                return translatedQuery is null ? null : new TranslatedMethodBody(translatedQuery,true);
             }
             if(syntax.ExpressionBody?.Expression is InvocationExpressionSyntax expressionInvocation) {
-                return TryTranslateInvocationExpression(expressionInvocation);
+                return TryTranslateInvocationBody(method,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(expressionInvocation));
             }
             if(syntax.Body is null||syntax.Body.Statements.Count!=1) {
                 continue;
             }
             if(syntax.Body.Statements[0] is ReturnStatementSyntax returnStatement&&returnStatement.Expression is QueryExpressionSyntax blockQuery) {
-                return TryTranslateQueryExpression(blockQuery);
+                var translatedQuery = TryTranslateQueryExpression(blockQuery);
+                return translatedQuery is null ? null : new TranslatedMethodBody(translatedQuery,true);
             }
             if(syntax.Body.Statements[0] is ReturnStatementSyntax invocationReturn&&invocationReturn.Expression is InvocationExpressionSyntax blockInvocation) {
-                return TryTranslateInvocationExpression(blockInvocation);
+                return TryTranslateInvocationBody(method,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(blockInvocation));
             }
         }
         return null;
     }
 
+    // invocation のうち Aggregate だけは block body に展開し、他は expression body のまま吐く。
+    private static TranslatedMethodBody? TryTranslateInvocationBody(IMethodSymbol method,InvocationExpressionSyntax invocation) {
+        var aggregateBody = TryTranslateAggregateBody(method,invocation);
+        if(aggregateBody is not null) {
+            return new TranslatedMethodBody(aggregateBody,false);
+        }
+        var expressionBody = TryTranslateInvocationExpression(invocation);
+        return expressionBody is null ? null : new TranslatedMethodBody(expressionBody,true);
+    }
+
+    // Aggregate は call-through にすると空列時例外や列挙手順の表現が曖昧になるため、明示的な列挙器ループへ展開する。
+    private static string? TryTranslateAggregateBody(IMethodSymbol method,InvocationExpressionSyntax invocation) {
+        if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess) {
+            return null;
+        }
+        if(memberAccess.Name.Identifier.ValueText!="Aggregate") {
+            return null;
+        }
+        var receiver = memberAccess.Expression is InvocationExpressionSyntax receiverInvocation
+            ? TryTranslateInvocationExpression(receiverInvocation)??NormalizeExpression(receiverInvocation)
+            : NormalizeExpression(memberAccess.Expression);
+        var arguments = invocation.ArgumentList.Arguments
+            .Select(static argument => argument.Expression is InvocationExpressionSyntax invocationArgument
+                ? TryTranslateInvocationExpression(invocationArgument)??NormalizeExpression(invocationArgument)
+                : NormalizeExpression(argument.Expression))
+            .ToArray();
+
+        string sourceExpression;
+        string funcExpression;
+        if(IsStaticEnumerableReceiver(receiver)) {
+            if(arguments.Length!=2) {
+                return null;
+            }
+            sourceExpression=arguments[0];
+            funcExpression=arguments[1];
+        }
+        else {
+            if(arguments.Length!=1) {
+                return null;
+            }
+            sourceExpression=receiver;
+            funcExpression=arguments[0];
+        }
+
+        var returnType = method.ReturnType.ToDisplayString(FullyQualifiedFormat);
+        return string.Join("\n",new[] {
+            "{",
+            $"    var __aggregateSource = {sourceExpression};",
+            "    global::System.ArgumentNullException.ThrowIfNull(__aggregateSource);",
+            $"    global::System.Func<{returnType}, {returnType}, {returnType}> __aggregateFunc = {funcExpression};",
+            "    global::System.ArgumentNullException.ThrowIfNull(__aggregateFunc);",
+            "    using var __aggregateEnumerator = __aggregateSource.GetEnumerator();",
+            "    if(!__aggregateEnumerator.MoveNext()) {",
+            "        throw new global::System.InvalidOperationException(\"Sequence contains no elements.\");",
+            "    }",
+            "    var __aggregateResult = __aggregateEnumerator.Current;",
+            "    while(__aggregateEnumerator.MoveNext()) {",
+            "        __aggregateResult = __aggregateFunc(__aggregateResult,__aggregateEnumerator.Current);",
+            "    }",
+            "    return __aggregateResult;",
+            "}"
+        });
+    }
+
+    // 単純な query syntax を global::Seamless.Linq.Enumerable の method chain に変換する。
     private static string? TryTranslateQueryExpression(QueryExpressionSyntax query) {
         if(query.Body.Continuation is not null) {
             return null;
@@ -564,23 +973,57 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         return current;
     }
 
+    // method chain を再帰的に辿って Seamless LINQ 呼び出しへそろえる。
+    // receiver だけでなく argument 側の nested invocation も変換するのが重要。
     private static string? TryTranslateInvocationExpression(InvocationExpressionSyntax invocation) {
         if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess) {
             return null;
         }
         var methodName = memberAccess.Name.Identifier.ValueText;
-        if(methodName!="Where"&&methodName!="Select"&&methodName!="SelectMany") {
+        if(methodName!="Where"
+            &&methodName!="Select"
+            &&methodName!="SelectMany"
+            &&methodName!="Aggregate"
+            &&methodName!="Join"
+            &&methodName!="LeftJoin"
+            &&methodName!="Except"
+            &&methodName!="ExceptBy"
+            &&methodName!="Intersect"
+            &&methodName!="IntersectBy"
+            &&methodName!="Union"
+            &&methodName!="Concat"
+            &&methodName!="Distinct"
+            &&methodName!="DistinctBy"
+            &&methodName!="Order"
+            &&methodName!="OrderBy"
+            &&methodName!="OrderDescending"
+            &&methodName!="OrderByDescending"
+            &&methodName!="Reverse") {
             return null;
         }
         var receiver = memberAccess.Expression is InvocationExpressionSyntax receiverInvocation
             ? TryTranslateInvocationExpression(receiverInvocation)??NormalizeExpression(receiverInvocation)
             : NormalizeExpression(memberAccess.Expression);
         var arguments = invocation.ArgumentList.Arguments
-            .Select(static argument => NormalizeExpression(argument.Expression))
+            .Select(static argument => argument.Expression is InvocationExpressionSyntax invocationArgument
+                ? TryTranslateInvocationExpression(invocationArgument)??NormalizeExpression(invocationArgument)
+                : NormalizeExpression(argument.Expression))
             .ToArray();
+        if(IsStaticEnumerableReceiver(receiver)) {
+            return arguments.Length==0
+                ? $"global::Seamless.Linq.Enumerable.{methodName}()"
+                : $"global::Seamless.Linq.Enumerable.{methodName}({string.Join(",",arguments)})";
+        }
         return arguments.Length==0
             ? $"global::Seamless.Linq.Enumerable.{methodName}({receiver})"
             : $"global::Seamless.Linq.Enumerable.{methodName}({receiver},{string.Join(",",arguments)})";
+    }
+
+    private static bool IsStaticEnumerableReceiver(string receiver) {
+        return string.Equals(receiver,"Enumerable",StringComparison.Ordinal)
+            ||string.Equals(receiver,"SystemEnumerable",StringComparison.Ordinal)
+            ||string.Equals(receiver,"SeamlessEnumerable",StringComparison.Ordinal)
+            ||receiver.EndsWith(".Enumerable",StringComparison.Ordinal);
     }
 
     private static ImmutableArray<IPropertySymbol> GetGeneratableProperties(INamedTypeSymbol symbol) {
@@ -631,11 +1074,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
     }
 
     private static string NormalizeExpression(ExpressionSyntax expression) {
-        return RewriteThisToSelf(expression).ToString();
-    }
-
-    private static ExpressionSyntax RewriteThisToSelf(ExpressionSyntax expression) {
-        return (ExpressionSyntax)new SelfReceiverRewriter().Visit(expression);
+        return expression.ToString();
     }
 
     private static bool NamespaceEquals(string candidateNamespace,string rootNamespace,string childNamespace) {
@@ -662,6 +1101,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         return SymbolDisplay.FormatLiteral(value,quote: true);
     }
 
+    // unmanaged フィールドは record struct にまとめて一括シリアライズしやすくする。
     private static void AppendUnmanagedRecordSource(StringBuilder builder,ImmutableArray<IPropertySymbol> unmanagedProperties) {
         if(unmanagedProperties.Length>0) {
             builder.AppendLine($"    private readonly record struct _U({string.Join(", ",unmanagedProperties.Select(static property => $"{property.Type.ToDisplayString(FullyQualifiedFormat)} {property.Name}"))});");
@@ -672,6 +1112,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         builder.AppendLine("    }");
     }
 
+    // managed フィールドは MemoryPackable な _M 側へ寄せ、型別の serialize / deserialize 文をここで組み立てる。
     private static void AppendManagedRecordSource(StringBuilder builder,ImmutableArray<IPropertySymbol> managedProperties) {
         builder.AppendLine("    private struct _M:global::MemoryPack.IMemoryPackable<_M> {");
         foreach(var property in managedProperties) {
@@ -722,6 +1163,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         return property.Type.IsUnmanagedType ? "_u" : "_m";
     }
 
+    // 元ソースの namespace 宣言形状を保って generated body を差し込む helper。
     private static void AppendInDeclaredNamespace(StringBuilder builder,INamedTypeSymbol symbol,Action<StringBuilder> appendBody) {
         var namespaceShape = TryCreateNamespaceShape(symbol);
         if(namespaceShape is null) {
@@ -742,6 +1184,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         }
     }
 
+    // file-scoped namespace と block namespace の両方を復元できる形で open / close 行を保存する。
     private static NamespaceShape? TryCreateNamespaceShape(INamedTypeSymbol symbol) {
         foreach(var syntaxReference in symbol.DeclaringSyntaxReferences) {
             if(syntaxReference.GetSyntax() is not TypeDeclarationSyntax declaration) {
@@ -792,6 +1235,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         }
     }
 
+    // 同一呼び出し位置に対する interceptor 二重生成を防ぐ comparer。
     private sealed class WhereInterceptTargetComparer:IEqualityComparer<WhereInterceptTarget> {
         public static WhereInterceptTargetComparer Instance { get; } = new();
 
@@ -816,28 +1260,38 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         }
     }
 
+    // InterceptsLocation と generated interceptor の本文生成に必要な情報を集約した DTO。
     private sealed class WhereInterceptTarget {
-        public WhereInterceptTarget(string identifier,string filePath,int line,int character,string parameterName,string predicateBody,bool hasCaptures) {
+        public WhereInterceptTarget(string identifier,string filePath,int line,int character,string interceptsLocationAttributeText,string elementTypeName,bool usesIndex,string parameterName,string? indexParameterName,string predicateText,bool usePredicateDelegate) {
             this.Identifier=identifier;
             this.FilePath=filePath;
             this.Line=line;
             this.Character=character;
+            this.InterceptsLocationAttributeText=interceptsLocationAttributeText;
+            this.ElementTypeName=elementTypeName;
+            this.UsesIndex=usesIndex;
             this.ParameterName=parameterName;
-            this.PredicateBody=predicateBody;
-            this.HasCaptures=hasCaptures;
+            this.IndexParameterName=indexParameterName;
+            this.PredicateText=predicateText;
+            this.UsePredicateDelegate=usePredicateDelegate;
         }
 
         public string Identifier { get; }
         public string FilePath { get; }
         public int Line { get; }
         public int Character { get; }
+        public string InterceptsLocationAttributeText { get; }
+        public string ElementTypeName { get; }
+        public bool UsesIndex { get; }
         public string ParameterName { get; }
-        public string PredicateBody { get; }
-        public bool HasCaptures { get; }
+        public string? IndexParameterName { get; }
+        public string PredicateText { get; }
+        public bool UsePredicateDelegate { get; }
         public string MethodName => $"OptimizedWhere_{this.Identifier}";
         public string EnumerableTypeName => $"OptimizedWhereEnumerable_{this.Identifier}";
     }
 
+    // DatabaseGenerator マーカー配下で見つけた型宣言の最小情報。
     private sealed class TypeTarget {
         public TypeTarget(INamedTypeSymbol symbol,bool isPartial) {
             this.Symbol=symbol;
@@ -848,6 +1302,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         public bool IsPartial { get; }
     }
 
+    // namespace 復元のための open / close 行セット。
     private sealed class NamespaceShape {
         public static NamespaceShape Empty { get; } = new([],[],0);
 
@@ -862,9 +1317,4 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         public int IndentLevel { get; }
     }
 
-    private sealed class SelfReceiverRewriter:CSharpSyntaxRewriter {
-        public override SyntaxNode VisitThisExpression(ThisExpressionSyntax node) {
-            return SyntaxFactory.IdentifierName("self").WithTriviaFrom(node);
-        }
-    }
 }

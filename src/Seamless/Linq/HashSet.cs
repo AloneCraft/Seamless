@@ -1,4 +1,12 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 namespace Seamless.Linq;
+
+using Collections;
+
+using System.Collections;
+using System.Numerics;
 
 public static partial class HashSet {
 
@@ -11,9 +19,19 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The final accumulator value.</returns>
-    public static TSource Aggregate<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TSource,TSource> func)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Aggregate(source,func);
+    public static TSource Aggregate<TSource>(this IHashSet<TSource> source,Func<TSource,TSource,TSource> func)
+        where TSource : IEquatable<TSource> {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(func);
+        using var enumerator = source.GetEnumerator();
+        if(!enumerator.MoveNext()) {
+            throw NoElements();
+        }
+        var result = enumerator.Current;
+        while(enumerator.MoveNext()) {
+            result=func(result,enumerator.Current);
+        }
+        return result;
     }
 
     /// <summary>Applies an accumulator function over a sequence. The specified seed value is used as the initial accumulator value.</summary>
@@ -25,9 +43,15 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="func" /> is <see langword="null" />.</exception>
     /// <returns>The final accumulator value.</returns>
-    public static TAccumulate Aggregate<TSource, TAccumulate>(this global::Seamless.Collections.IHashSet<TSource> source,TAccumulate seed,global::System.Func<TAccumulate,TSource,TAccumulate> func)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Aggregate(source,seed,func);
+    public static TAccumulate Aggregate<TSource, TAccumulate>(this IHashSet<TSource> source,TAccumulate seed,Func<TAccumulate,TSource,TAccumulate> func)
+        where TSource : IEquatable<TSource> {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(func);
+        var result = seed;
+        foreach(var item in source) {
+            result=func(result,item);
+        }
+        return result;
     }
 
     /// <summary>Applies an accumulator function over a sequence. The specified seed value is used as the initial accumulator value, and the specified function is used to select the result value.</summary>
@@ -41,9 +65,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="func" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>The transformed final accumulator value.</returns>
-    public static TResult Aggregate<TSource, TAccumulate, TResult>(this global::Seamless.Collections.IHashSet<TSource> source,TAccumulate seed,global::System.Func<TAccumulate,TSource,TAccumulate> func,global::System.Func<TAccumulate,TResult> resultSelector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Aggregate(source,seed,func,resultSelector);
+    public static TResult Aggregate<TSource, TAccumulate, TResult>(this IHashSet<TSource> source,TAccumulate seed,Func<TAccumulate,TSource,TAccumulate> func,Func<TAccumulate,TResult> resultSelector)
+        where TSource : IEquatable<TSource> {
+        return resultSelector(Aggregate(source,seed,func));
     }
 
     /// <summary>Applies an accumulator function over a sequence, grouping results by key.</summary>
@@ -56,10 +80,10 @@ public static partial class HashSet {
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
     /// <typeparam name="TAccumulate">The type of the accumulator value.</typeparam>
     /// <returns>An enumerable containing the aggregates corresponding to each key deriving from <paramref name="source" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<global::System.Collections.Generic.KeyValuePair<TKey,TAccumulate>> AggregateBy<TSource, TKey, TAccumulate>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,TAccumulate seed,global::System.Func<TAccumulate,TSource,TAccumulate> func,global::System.Collections.Generic.IEqualityComparer<TKey>? keyComparer = null)
-        where TSource : global::System.IEquatable<TSource>
+    public static IEnumerable<KeyValuePair<TKey,TAccumulate>> AggregateBy<TSource, TKey, TAccumulate>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,TAccumulate seed,Func<TAccumulate,TSource,TAccumulate> func,IEqualityComparer<TKey>? keyComparer = null)
+        where TSource : IEquatable<TSource>
         where TKey : notnull {
-        return Enumerable.AggregateBy(source,keySelector,seed,func,keyComparer);
+        return AggregateByIterator(source,keySelector,seed,func,keyComparer);
     }
 
     /// <summary>Applies an accumulator function over a sequence, grouping results by key.</summary>
@@ -72,10 +96,10 @@ public static partial class HashSet {
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
     /// <typeparam name="TAccumulate">The type of the accumulator value.</typeparam>
     /// <returns>An enumerable containing the aggregates corresponding to each key deriving from <paramref name="source" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<global::System.Collections.Generic.KeyValuePair<TKey,TAccumulate>> AggregateBy<TSource, TKey, TAccumulate>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Func<TKey,TAccumulate> seedSelector,global::System.Func<TAccumulate,TSource,TAccumulate> func,global::System.Collections.Generic.IEqualityComparer<TKey>? keyComparer = null)
-        where TSource : global::System.IEquatable<TSource>
+    public static IEnumerable<KeyValuePair<TKey,TAccumulate>> AggregateBy<TSource, TKey, TAccumulate>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TKey,TAccumulate> seedSelector,Func<TAccumulate,TSource,TAccumulate> func,IEqualityComparer<TKey>? keyComparer = null)
+        where TSource : IEquatable<TSource>
         where TKey : notnull {
-        return Enumerable.AggregateBy(source,keySelector,seedSelector,func,keyComparer);
+        return AggregateByIterator(source,keySelector,seedSelector,func,keyComparer);
     }
 
     /// <summary>Determines whether all elements of a sequence satisfy a condition.</summary>
@@ -86,9 +110,14 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <see langword="true" /> if every element of the source sequence passes the test in the specified predicate, or if the sequence is empty; otherwise, <see langword="false" />.</returns>
-    public static bool All<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.All(source,predicate);
+    public static bool All<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate)
+        where TSource : IEquatable<TSource> {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(predicate);
+        foreach(var item in source) {
+            if(!predicate(item)) return false;
+        }
+        return true;
     }
 
     /// <summary>Determines whether a sequence contains any elements.</summary>
@@ -98,9 +127,10 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <see langword="true" /> if the source sequence contains any elements; otherwise, <see langword="false" />.</returns>
-    public static bool Any<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Any(source);
+    public static bool Any<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
+        ArgumentNullException.ThrowIfNull(source);
+        return source.Count>0;
     }
 
     /// <summary>Determines whether any element of a sequence satisfies a condition.</summary>
@@ -111,9 +141,14 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <see langword="true" /> if the source sequence is not empty and at least one of its elements passes the test in the specified predicate; otherwise, <see langword="false" />.</returns>
-    public static bool Any<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Any(source,predicate);
+    public static bool Any<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate)
+        where TSource : IEquatable<TSource> {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(predicate);
+        foreach(var item in source) {
+            if(predicate(item)) return true;
+        }
+        return false;
     }
 
     /// <summary>Appends a value to the end of the sequence.</summary>
@@ -123,18 +158,18 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>A new sequence that ends with <paramref name="element" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Append<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,TSource element)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Append(source,element);
+    public static IEnumerable<TSource> Append<TSource>(this IHashSet<TSource> source,TSource element)
+        where TSource : IEquatable<TSource> {
+        return AppendIterator(source,element);
     }
 
     /// <summary>Returns the input typed as <see cref="T:System.Collections.Generic.IEnumerable`1" />.</summary>
     /// <param name="source">The sequence to type as <see cref="T:System.Collections.Generic.IEnumerable`1" />.</param>
     /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
     /// <returns>The input sequence typed as <see cref="T:System.Collections.Generic.IEnumerable`1" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> AsEnumerable<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.AsEnumerable(source);
+    public static IEnumerable<TSource> AsEnumerable<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
+        return source;
     }
 
     /// <summary>Computes the average of a sequence of <see cref="T:System.Decimal" /> values.</summary>
@@ -144,7 +179,7 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The average of the sequence of values.</returns>
-    public static decimal Average(this global::Seamless.Collections.IHashSet<decimal> source) {
+    public static decimal Average(this IHashSet<decimal> source) {
         return Enumerable.Average(source);
     }
 
@@ -155,7 +190,7 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The average of the sequence of values.</returns>
-    public static double Average(this global::Seamless.Collections.IHashSet<double> source) {
+    public static double Average(this IHashSet<double> source) {
         return Enumerable.Average(source);
     }
 
@@ -166,7 +201,7 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The average of the sequence of values.</returns>
-    public static double Average(this global::Seamless.Collections.IHashSet<int> source) {
+    public static double Average(this IHashSet<int> source) {
         return Enumerable.Average(source);
     }
 
@@ -177,7 +212,7 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The average of the sequence of values.</returns>
-    public static double Average(this global::Seamless.Collections.IHashSet<long> source) {
+    public static double Average(this IHashSet<long> source) {
         return Enumerable.Average(source);
     }
 
@@ -188,8 +223,20 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The average of the sequence of values.</returns>
-    public static float Average(this global::Seamless.Collections.IHashSet<float> source) {
-        return Enumerable.Average(source);
+    public static float Average(this IHashSet<float> source) {
+        ArgumentNullException.ThrowIfNull(source);
+        double sum = 0;
+        long count = 0;
+        foreach(var item in source) {
+            sum+=item;
+            checked {
+                count++;
+            }
+        }
+        if(count==0) {
+            throw NoElements();
+        }
+        return (float)(sum/count);
     }
 
     /// <summary>Computes the average of a sequence of <see cref="T:System.Decimal" /> values that are obtained by invoking a transform function on each element of the input sequence.</summary>
@@ -202,8 +249,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <exception cref="T:System.OverflowException">The sum of the elements in the sequence is larger than <see cref="F:System.Decimal.MaxValue">Decimal.MaxValue</see>.</exception>
     /// <returns>The average of the sequence of values.</returns>
-    public static decimal Average<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,decimal> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static decimal Average<TSource>(this IHashSet<TSource> source,Func<TSource,decimal> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Average(source,selector);
     }
 
@@ -216,8 +263,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The average of the sequence of values.</returns>
-    public static double Average<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,double> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static double Average<TSource>(this IHashSet<TSource> source,Func<TSource,double> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Average(source,selector);
     }
 
@@ -231,8 +278,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <exception cref="T:System.OverflowException">The sum of the elements in the sequence is larger than <see cref="F:System.Int64.MaxValue">Int64.MaxValue</see>.</exception>
     /// <returns>The average of the sequence of values.</returns>
-    public static double Average<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static double Average<TSource>(this IHashSet<TSource> source,Func<TSource,int> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Average(source,selector);
     }
 
@@ -246,8 +293,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <exception cref="T:System.OverflowException">The sum of the elements in the sequence is larger than <see cref="F:System.Int64.MaxValue">Int64.MaxValue</see>.</exception>
     /// <returns>The average of the sequence of values.</returns>
-    public static double Average<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,long> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static double Average<TSource>(this IHashSet<TSource> source,Func<TSource,long> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Average(source,selector);
     }
 
@@ -259,8 +306,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum of the elements in the sequence is larger than <see cref="F:System.Decimal.MaxValue">Decimal.MaxValue</see>.</exception>
     /// <returns>The average of the sequence of values, or <see langword="null" /> if the source sequence is empty or contains only values that are <see langword="null" />.</returns>
-    public static decimal? Average<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,decimal?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static decimal? Average<TSource>(this IHashSet<TSource> source,Func<TSource,decimal?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Average(source,selector);
     }
 
@@ -271,8 +318,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The average of the sequence of values, or <see langword="null" /> if the source sequence is empty or contains only values that are <see langword="null" />.</returns>
-    public static double? Average<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,double?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static double? Average<TSource>(this IHashSet<TSource> source,Func<TSource,double?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Average(source,selector);
     }
 
@@ -284,8 +331,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum of the elements in the sequence is larger than <see cref="F:System.Int64.MaxValue">Int64.MaxValue</see>.</exception>
     /// <returns>The average of the sequence of values, or <see langword="null" /> if the source sequence is empty or contains only values that are <see langword="null" />.</returns>
-    public static double? Average<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static double? Average<TSource>(this IHashSet<TSource> source,Func<TSource,int?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Average(source,selector);
     }
 
@@ -294,8 +341,8 @@ public static partial class HashSet {
     /// <param name="selector">A transform function to apply to each element.</param>
     /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
     /// <returns>The average of the sequence of values, or <see langword="null" /> if the source sequence is empty or contains only values that are <see langword="null" />.</returns>
-    public static double? Average<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,long?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static double? Average<TSource>(this IHashSet<TSource> source,Func<TSource,long?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Average(source,selector);
     }
 
@@ -306,8 +353,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The average of the sequence of values, or <see langword="null" /> if the source sequence is empty or contains only values that are <see langword="null" />.</returns>
-    public static float? Average<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,float?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static float? Average<TSource>(this IHashSet<TSource> source,Func<TSource,float?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Average(source,selector);
     }
 
@@ -320,8 +367,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The average of the sequence of values.</returns>
-    public static float Average<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,float> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static float Average<TSource>(this IHashSet<TSource> source,Func<TSource,float> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Average(source,selector);
     }
 
@@ -334,9 +381,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentOutOfRangeException">
     ///   <paramref name="size" /> is below 1.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains the elements the input sequence split into chunks of size <paramref name="size" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource[]> Chunk<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,int size)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Chunk(source,size);
+    public static IEnumerable<TSource[]> Chunk<TSource>(this IHashSet<TSource> source,int size)
+        where TSource : IEquatable<TSource> {
+        return ChunkIterator(source,size);
     }
 
     /// <summary>Concatenates two sequences.</summary>
@@ -346,9 +393,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains the concatenated elements of the two input sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Concat<TSource>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TSource> second)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Concat(first,second);
+    public static IEnumerable<TSource> Concat<TSource>(this IHashSet<TSource> first,IHashSet<TSource> second)
+        where TSource : IEquatable<TSource> {
+        return ConcatIterator(first,second);
     }
 
     /// <summary>Determines whether a sequence contains a specified element by using the default equality comparer.</summary>
@@ -359,9 +406,10 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <see langword="true" /> if the source sequence contains an element that has the specified value; otherwise, <see langword="false" />.</returns>
-    public static bool Contains<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,TSource value)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Contains(source,value);
+    public static bool Contains<TSource>(this IHashSet<TSource> source,TSource value)
+        where TSource : IEquatable<TSource> {
+        ArgumentNullException.ThrowIfNull(source);
+        return source.Contains(value);
     }
 
     /// <summary>Determines whether a sequence contains a specified element by using a specified <see cref="T:System.Collections.Generic.IEqualityComparer`1" />.</summary>
@@ -373,9 +421,14 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <see langword="true" /> if the source sequence contains an element that has the specified value; otherwise, <see langword="false" />.</returns>
-    public static bool Contains<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,TSource value,global::System.Collections.Generic.IEqualityComparer<TSource>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Contains(source,value,comparer);
+    public static bool Contains<TSource>(this IHashSet<TSource> source,TSource value,IEqualityComparer<TSource>? comparer)
+        where TSource : IEquatable<TSource> {
+        ArgumentNullException.ThrowIfNull(source);
+        if(comparer==null) return source.Contains(value);
+        foreach(var item in source) {
+            if(comparer.Equals(item,value)) return true;
+        }
+        return false;
     }
 
     /// <summary>Returns the number of elements in a sequence.</summary>
@@ -385,9 +438,10 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The number of elements in <paramref name="source" /> is larger than <see cref="F:System.Int32.MaxValue">Int32.MaxValue</see>.</exception>
     /// <returns>The number of elements in the input sequence.</returns>
-    public static int Count<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Count(source);
+    public static int Count<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
+        ArgumentNullException.ThrowIfNull(source);
+        return source.Count;
     }
 
     /// <summary>Returns a number that represents how many elements in the specified sequence satisfy a condition.</summary>
@@ -398,9 +452,15 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The number of elements in <paramref name="source" /> is larger than <see cref="F:System.Int32.MaxValue">Int32.MaxValue</see>.</exception>
     /// <returns>A number that represents how many elements in the sequence satisfy the condition in the predicate function.</returns>
-    public static int Count<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Count(source,predicate);
+    public static int Count<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate)
+        where TSource : IEquatable<TSource> {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(predicate);
+        int count = 0;
+        foreach(var item in source) {
+            if(predicate(item)) checked { count++; }
+        }
+        return count;
     }
 
     /// <summary>Returns the count of elements in the source sequence grouped by key.</summary>
@@ -410,10 +470,10 @@ public static partial class HashSet {
     /// <typeparam name="TSource">The type of elements of <paramref name="source" />.</typeparam>
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
     /// <returns>An enumerable containing the frequencies of each key occurrence in <paramref name="source" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<global::System.Collections.Generic.KeyValuePair<TKey,int>> CountBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Collections.Generic.IEqualityComparer<TKey>? keyComparer = null)
-        where TSource : global::System.IEquatable<TSource>
+    public static IEnumerable<KeyValuePair<TKey,int>> CountBy<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? keyComparer = null)
+        where TSource : IEquatable<TSource>
         where TKey : notnull {
-        return Enumerable.CountBy(source,keySelector,keyComparer);
+        return CountByIterator(source,keySelector,keyComparer);
     }
 
     /// <summary>Returns the elements of the specified sequence or the type parameter's default value in a singleton collection if the sequence is empty.</summary>
@@ -422,9 +482,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> object that contains the default value for the <typeparamref name="TSource" /> type if <paramref name="source" /> is empty; otherwise, <paramref name="source" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource?> DefaultIfEmpty<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.DefaultIfEmpty(source);
+    public static IEnumerable<TSource?> DefaultIfEmpty<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
+        return DefaultIfEmptyIterator(source);
     }
 
     /// <summary>Returns the elements of the specified sequence or the specified value in a singleton collection if the sequence is empty.</summary>
@@ -432,9 +492,9 @@ public static partial class HashSet {
     /// <param name="defaultValue">The value to return if the sequence is empty.</param>
     /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains <paramref name="defaultValue" /> if <paramref name="source" /> is empty; otherwise, <paramref name="source" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> DefaultIfEmpty<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,TSource defaultValue)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.DefaultIfEmpty(source,defaultValue);
+    public static IEnumerable<TSource> DefaultIfEmpty<TSource>(this IHashSet<TSource> source,TSource defaultValue)
+        where TSource : IEquatable<TSource> {
+        return DefaultIfEmptyIterator(source,defaultValue);
     }
 
     /// <summary>Returns distinct elements from a sequence according to a specified key selector function.</summary>
@@ -445,9 +505,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains distinct elements from the source sequence.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> DistinctBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.DistinctBy(source,keySelector);
+    public static IEnumerable<TSource> DistinctBy<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector)
+        where TSource : IEquatable<TSource> {
+        return DistinctByIterator(source,keySelector,null);
     }
 
     /// <summary>Returns distinct elements from a sequence according to a specified key selector function and using a specified comparer to compare keys.</summary>
@@ -459,9 +519,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains distinct elements from the source sequence.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> DistinctBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.DistinctBy(source,keySelector,comparer);
+    public static IEnumerable<TSource> DistinctBy<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource> {
+        return DistinctByIterator(source,keySelector,comparer);
     }
 
     /// <summary>Returns distinct elements from a sequence by using the default equality comparer to compare values.</summary>
@@ -470,9 +530,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains distinct elements from the source sequence.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Distinct<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Distinct(source);
+    public static IEnumerable<TSource> Distinct<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
+        return DistinctIterator(source,null);
     }
 
     /// <summary>Returns distinct elements from a sequence by using a specified <see cref="T:System.Collections.Generic.IEqualityComparer`1" /> to compare values.</summary>
@@ -482,9 +542,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains distinct elements from the source sequence.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Distinct<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Collections.Generic.IEqualityComparer<TSource>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Distinct(source,comparer);
+    public static IEnumerable<TSource> Distinct<TSource>(this IHashSet<TSource> source,IEqualityComparer<TSource>? comparer)
+        where TSource : IEquatable<TSource> {
+        return DistinctIterator(source,comparer);
     }
 
     /// <summary>Returns the element at a specified index in a sequence or a default value if the index is out of range.</summary>
@@ -495,8 +555,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <see langword="default" /> if <paramref name="index" /> is outside the bounds of the <paramref name="source" /> sequence; otherwise, the element at the specified position in the <paramref name="source" /> sequence.</returns>
-    public static TSource? ElementAtOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Index index)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource? ElementAtOrDefault<TSource>(this IHashSet<TSource> source,Index index)
+        where TSource : IEquatable<TSource> {
         return Enumerable.ElementAtOrDefault(source,index);
     }
 
@@ -508,8 +568,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <see langword="default" />(<typeparamref name="TSource" />) if the index is outside the bounds of the source sequence; otherwise, the element at the specified position in the source sequence.</returns>
-    public static TSource? ElementAtOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,int index)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource? ElementAtOrDefault<TSource>(this IHashSet<TSource> source,int index)
+        where TSource : IEquatable<TSource> {
         return Enumerable.ElementAtOrDefault(source,index);
     }
 
@@ -522,8 +582,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentOutOfRangeException">
     ///   <paramref name="index" /> is outside the bounds of the <paramref name="source" /> sequence.</exception>
     /// <returns>The element at the specified position in the <paramref name="source" /> sequence.</returns>
-    public static TSource ElementAt<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Index index)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource ElementAt<TSource>(this IHashSet<TSource> source,Index index)
+        where TSource : IEquatable<TSource> {
         return Enumerable.ElementAt(source,index);
     }
 
@@ -536,8 +596,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentOutOfRangeException">
     ///   <paramref name="index" /> is less than 0 or greater than or equal to the number of elements in <paramref name="source" />.</exception>
     /// <returns>The element at the specified position in the source sequence.</returns>
-    public static TSource ElementAt<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,int index)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource ElementAt<TSource>(this IHashSet<TSource> source,int index)
+        where TSource : IEquatable<TSource> {
         return Enumerable.ElementAt(source,index);
     }
 
@@ -548,10 +608,10 @@ public static partial class HashSet {
     /// <typeparam name="TSource">The type of the elements of the input sequence.</typeparam>
     /// <typeparam name="TKey">The type of key to identify elements by.</typeparam>
     /// <returns>A sequence that contains the set difference of the elements of two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> ExceptBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TKey> second,global::System.Func<TSource,TKey> keySelector)
-        where TSource : global::System.IEquatable<TSource>
-        where TKey : global::System.IEquatable<TKey> {
-        return Enumerable.ExceptBy(first,second,keySelector);
+    public static IEnumerable<TSource> ExceptBy<TSource, TKey>(this IHashSet<TSource> first,IHashSet<TKey> second,Func<TSource,TKey> keySelector)
+        where TSource : IEquatable<TSource>
+        where TKey : IEquatable<TKey> {
+        return ExceptByIterator(first,second,keySelector,null);
     }
 
     /// <summary>Produces the set difference of two sequences according to a specified key selector function.</summary>
@@ -562,10 +622,10 @@ public static partial class HashSet {
     /// <typeparam name="TSource">The type of the elements of the input sequence.</typeparam>
     /// <typeparam name="TKey">The type of key to identify elements by.</typeparam>
     /// <returns>A sequence that contains the set difference of the elements of two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> ExceptBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TKey> second,global::System.Func<TSource,TKey> keySelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource>
-        where TKey : global::System.IEquatable<TKey> {
-        return Enumerable.ExceptBy(first,second,keySelector,comparer);
+    public static IEnumerable<TSource> ExceptBy<TSource, TKey>(this IHashSet<TSource> first,IHashSet<TKey> second,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource>
+        where TKey : IEquatable<TKey> {
+        return ExceptByIterator(first,second,keySelector,comparer);
     }
 
     /// <summary>Produces the set difference of two sequences by using the default equality comparer to compare values.</summary>
@@ -575,9 +635,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>A sequence that contains the set difference of the elements of two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Except<TSource>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TSource> second)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Except(first,second);
+    public static IEnumerable<TSource> Except<TSource>(this IHashSet<TSource> first,IHashSet<TSource> second)
+        where TSource : IEquatable<TSource> {
+        return ExceptIterator(first,second,null);
     }
 
     /// <summary>Produces the set difference of two sequences by using the specified <see cref="T:System.Collections.Generic.IEqualityComparer`1" /> to compare values.</summary>
@@ -588,9 +648,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>A sequence that contains the set difference of the elements of two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Except<TSource>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TSource> second,global::System.Collections.Generic.IEqualityComparer<TSource>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Except(first,second,comparer);
+    public static IEnumerable<TSource> Except<TSource>(this IHashSet<TSource> first,IHashSet<TSource> second,IEqualityComparer<TSource>? comparer)
+        where TSource : IEquatable<TSource> {
+        return ExceptIterator(first,second,comparer);
     }
 
     /// <summary>Returns the first element of a sequence, or a default value if the sequence contains no elements.</summary>
@@ -600,8 +660,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <see langword="default" />(<typeparamref name="TSource" />) if <paramref name="source" /> is empty; otherwise, the first element in <paramref name="source" />.</returns>
-    public static TSource? FirstOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource? FirstOrDefault<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
         return Enumerable.FirstOrDefault(source);
     }
 
@@ -613,8 +673,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <paramref name="defaultValue" /> if <paramref name="source" /> is empty; otherwise, the first element in <paramref name="source" />.</returns>
-    public static TSource FirstOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,TSource defaultValue)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource FirstOrDefault<TSource>(this IHashSet<TSource> source,TSource defaultValue)
+        where TSource : IEquatable<TSource> {
         return Enumerable.FirstOrDefault(source,defaultValue);
     }
 
@@ -626,8 +686,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <see langword="default" />(<typeparamref name="TSource" />) if <paramref name="source" /> is empty or if no element passes the test specified by <paramref name="predicate" />; otherwise, the first element in <paramref name="source" /> that passes the test specified by <paramref name="predicate" />.</returns>
-    public static TSource? FirstOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource? FirstOrDefault<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate)
+        where TSource : IEquatable<TSource> {
         return Enumerable.FirstOrDefault(source,predicate);
     }
 
@@ -640,8 +700,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <paramref name="defaultValue" /> if <paramref name="source" /> is empty or if no element passes the test specified by <paramref name="predicate" />; otherwise, the first element in <paramref name="source" /> that passes the test specified by <paramref name="predicate" />.</returns>
-    public static TSource FirstOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate,TSource defaultValue)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource FirstOrDefault<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate,TSource defaultValue)
+        where TSource : IEquatable<TSource> {
         return Enumerable.FirstOrDefault(source,predicate,defaultValue);
     }
 
@@ -652,8 +712,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.InvalidOperationException">The source sequence is empty.</exception>
     /// <returns>The first element in the specified sequence.</returns>
-    public static TSource First<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource First<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
         return Enumerable.First(source);
     }
 
@@ -669,8 +729,8 @@ public static partial class HashSet {
     ///
     ///  The source sequence is empty.</exception>
     /// <returns>The first element in the sequence that passes the test in the specified predicate function.</returns>
-    public static TSource First<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource First<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate)
+        where TSource : IEquatable<TSource> {
         return Enumerable.First(source,predicate);
     }
 
@@ -682,9 +742,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
     /// <returns>An <c>IEnumerable&lt;IGrouping&lt;TKey, TSource&gt;&gt;</c> in C# or <c>IEnumerable(Of IGrouping(Of TKey, TSource))</c> in Visual Basic where each <see cref="T:System.Linq.IGrouping`2" /> object contains a sequence of objects and a key.</returns>
-    public static global::System.Collections.Generic.IEnumerable<global::System.Linq.IGrouping<TKey,TSource>> GroupBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.GroupBy(source,keySelector);
+    public static IEnumerable<IGrouping<TKey,TSource>> GroupBy<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector)
+        where TSource : IEquatable<TSource> {
+        return GroupByIterator(source,keySelector,static x => x,null);
     }
 
     /// <summary>Groups the elements of a sequence according to a specified key selector function and compares the keys by using a specified comparer.</summary>
@@ -696,9 +756,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
     /// <returns>An <c>IEnumerable&lt;IGrouping&lt;TKey, TSource&gt;&gt;</c> in C# or <c>IEnumerable(Of IGrouping(Of TKey, TSource))</c> in Visual Basic where each <see cref="T:System.Linq.IGrouping`2" /> object contains a collection of objects and a key.</returns>
-    public static global::System.Collections.Generic.IEnumerable<global::System.Linq.IGrouping<TKey,TSource>> GroupBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.GroupBy(source,keySelector,comparer);
+    public static IEnumerable<IGrouping<TKey,TSource>> GroupBy<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource> {
+        return GroupByIterator(source,keySelector,static x => x,comparer);
     }
 
     /// <summary>Groups the elements of a sequence according to a specified key selector function and projects the elements for each group by using a specified function.</summary>
@@ -711,9 +771,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="elementSelector" /> is <see langword="null" />.</exception>
     /// <returns>An <c>IEnumerable&lt;IGrouping&lt;TKey, TElement&gt;&gt;</c> in C# or <c>IEnumerable(Of IGrouping(Of TKey, TElement))</c> in Visual Basic where each <see cref="T:System.Linq.IGrouping`2" /> object contains a collection of objects of type <typeparamref name="TElement" /> and a key.</returns>
-    public static global::System.Collections.Generic.IEnumerable<global::System.Linq.IGrouping<TKey,TElement>> GroupBy<TSource, TKey, TElement>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Func<TSource,TElement> elementSelector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.GroupBy(source,keySelector,elementSelector);
+    public static IEnumerable<IGrouping<TKey,TElement>> GroupBy<TSource, TKey, TElement>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector)
+        where TSource : IEquatable<TSource> {
+        return GroupByIterator(source,keySelector,elementSelector,null);
     }
 
     /// <summary>Groups the elements of a sequence according to a key selector function. The keys are compared by using a comparer and each group's elements are projected by using a specified function.</summary>
@@ -727,9 +787,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="elementSelector" /> is <see langword="null" />.</exception>
     /// <returns>An <c>IEnumerable&lt;IGrouping&lt;TKey, TElement&gt;&gt;</c> in C# or <c>IEnumerable(Of IGrouping(Of TKey, TElement))</c> in Visual Basic where each <see cref="T:System.Linq.IGrouping`2" /> object contains a collection of objects of type <typeparamref name="TElement" /> and a key.</returns>
-    public static global::System.Collections.Generic.IEnumerable<global::System.Linq.IGrouping<TKey,TElement>> GroupBy<TSource, TKey, TElement>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Func<TSource,TElement> elementSelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.GroupBy(source,keySelector,elementSelector,comparer);
+    public static IEnumerable<IGrouping<TKey,TElement>> GroupBy<TSource, TKey, TElement>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource> {
+        return GroupByIterator(source,keySelector,elementSelector,comparer);
     }
 
     /// <summary>Groups the elements of a sequence according to a specified key selector function and creates a result value from each group and its key.</summary>
@@ -742,9 +802,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>A collection of elements of type <typeparamref name="TResult" /> where each element represents a projection over a group and its key.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> GroupBy<TSource, TKey, TResult>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Func<TKey,global::System.Collections.Generic.IEnumerable<TSource>,TResult> resultSelector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.GroupBy(source,keySelector,resultSelector);
+    public static IEnumerable<TResult> GroupBy<TSource, TKey, TResult>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TKey,IEnumerable<TSource>,TResult> resultSelector)
+        where TSource : IEquatable<TSource> {
+        return GroupByIterator(source,keySelector,resultSelector,null);
     }
 
     /// <summary>Groups the elements of a sequence according to a specified key selector function and creates a result value from each group and its key. The keys are compared by using a specified comparer.</summary>
@@ -758,9 +818,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>A collection of elements of type <typeparamref name="TResult" /> where each element represents a projection over a group and its key.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> GroupBy<TSource, TKey, TResult>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Func<TKey,global::System.Collections.Generic.IEnumerable<TSource>,TResult> resultSelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.GroupBy(source,keySelector,resultSelector,comparer);
+    public static IEnumerable<TResult> GroupBy<TSource, TKey, TResult>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TKey,IEnumerable<TSource>,TResult> resultSelector,IEqualityComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource> {
+        return GroupByIterator(source,keySelector,resultSelector,comparer);
     }
 
     /// <summary>Groups the elements of a sequence according to a specified key selector function and creates a result value from each group and its key. The elements of each group are projected by using a specified function.</summary>
@@ -775,9 +835,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="elementSelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>A collection of elements of type <typeparamref name="TResult" /> where each element represents a projection over a group and its key.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> GroupBy<TSource, TKey, TElement, TResult>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Func<TSource,TElement> elementSelector,global::System.Func<TKey,global::System.Collections.Generic.IEnumerable<TElement>,TResult> resultSelector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.GroupBy(source,keySelector,elementSelector,resultSelector);
+    public static IEnumerable<TResult> GroupBy<TSource, TKey, TElement, TResult>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,Func<TKey,IEnumerable<TElement>,TResult> resultSelector)
+        where TSource : IEquatable<TSource> {
+        return GroupByIterator(source,keySelector,elementSelector,resultSelector,null);
     }
 
     /// <summary>Groups the elements of a sequence according to a specified key selector function and creates a result value from each group and its key. Key values are compared by using a specified comparer, and the elements of each group are projected by using a specified function.</summary>
@@ -793,9 +853,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="elementSelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>A collection of elements of type <typeparamref name="TResult" /> where each element represents a projection over a group and its key.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> GroupBy<TSource, TKey, TElement, TResult>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Func<TSource,TElement> elementSelector,global::System.Func<TKey,global::System.Collections.Generic.IEnumerable<TElement>,TResult> resultSelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.GroupBy(source,keySelector,elementSelector,resultSelector,comparer);
+    public static IEnumerable<TResult> GroupBy<TSource, TKey, TElement, TResult>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,Func<TKey,IEnumerable<TElement>,TResult> resultSelector,IEqualityComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource> {
+        return GroupByIterator(source,keySelector,elementSelector,resultSelector,comparer);
     }
 
     /// <summary>Correlates the elements of two sequences based on equality of keys and groups the results. The default equality comparer is used to compare keys.</summary>
@@ -811,10 +871,10 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="outer" /> or <paramref name="inner" /> or <paramref name="outerKeySelector" /> or <paramref name="innerKeySelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains elements of type <typeparamref name="TResult" /> that are obtained by performing a grouped join on two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> GroupJoin<TOuter, TInner, TKey, TResult>(this global::Seamless.Collections.IHashSet<TOuter> outer,global::Seamless.Collections.IHashSet<TInner> inner,global::System.Func<TOuter,TKey> outerKeySelector,global::System.Func<TInner,TKey> innerKeySelector,global::System.Func<TOuter,global::System.Collections.Generic.IEnumerable<TInner>,TResult> resultSelector)
-        where TOuter : global::System.IEquatable<TOuter>
-        where TInner : global::System.IEquatable<TInner> {
-        return Enumerable.GroupJoin(outer,inner,outerKeySelector,innerKeySelector,resultSelector);
+    public static IEnumerable<TResult> GroupJoin<TOuter, TInner, TKey, TResult>(this IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,IEnumerable<TInner>,TResult> resultSelector)
+        where TOuter : IEquatable<TOuter>
+        where TInner : IEquatable<TInner> {
+        return GroupJoinIterator(outer,inner,outerKeySelector,innerKeySelector,resultSelector,null);
     }
 
     /// <summary>Correlates the elements of two sequences based on key equality and groups the results. A specified <see cref="T:System.Collections.Generic.IEqualityComparer`1" /> is used to compare keys.</summary>
@@ -831,10 +891,10 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="outer" /> or <paramref name="inner" /> or <paramref name="outerKeySelector" /> or <paramref name="innerKeySelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains elements of type <typeparamref name="TResult" /> that are obtained by performing a grouped join on two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> GroupJoin<TOuter, TInner, TKey, TResult>(this global::Seamless.Collections.IHashSet<TOuter> outer,global::Seamless.Collections.IHashSet<TInner> inner,global::System.Func<TOuter,TKey> outerKeySelector,global::System.Func<TInner,TKey> innerKeySelector,global::System.Func<TOuter,global::System.Collections.Generic.IEnumerable<TInner>,TResult> resultSelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TOuter : global::System.IEquatable<TOuter>
-        where TInner : global::System.IEquatable<TInner> {
-        return Enumerable.GroupJoin(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
+    public static IEnumerable<TResult> GroupJoin<TOuter, TInner, TKey, TResult>(this IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,IEnumerable<TInner>,TResult> resultSelector,IEqualityComparer<TKey>? comparer)
+        where TOuter : IEquatable<TOuter>
+        where TInner : IEquatable<TInner> {
+        return GroupJoinIterator(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
     }
 
     /// <summary>Returns an enumerable that incorporates the element's index into a tuple.</summary>
@@ -843,9 +903,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An enumerable that incorporates each element index into a tuple.</returns>
-    public static global::System.Collections.Generic.IEnumerable<(int Index,TSource Item)> Index<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Index(source);
+    public static IEnumerable<(int Index,TSource Item)> Index<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
+        return IndexIterator(source);
     }
 
     /// <summary>Produces the set intersection of two sequences according to a specified key selector function.</summary>
@@ -857,10 +917,10 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>A sequence that contains the elements that form the set intersection of two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> IntersectBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TKey> second,global::System.Func<TSource,TKey> keySelector)
-        where TSource : global::System.IEquatable<TSource>
-        where TKey : global::System.IEquatable<TKey> {
-        return Enumerable.IntersectBy(first,second,keySelector);
+    public static IEnumerable<TSource> IntersectBy<TSource, TKey>(this IHashSet<TSource> first,IHashSet<TKey> second,Func<TSource,TKey> keySelector)
+        where TSource : IEquatable<TSource>
+        where TKey : IEquatable<TKey> {
+        return IntersectByIterator(first,second,keySelector,null);
     }
 
     /// <summary>Produces the set intersection of two sequences according to a specified key selector function.</summary>
@@ -873,10 +933,10 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>A sequence that contains the elements that form the set intersection of two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> IntersectBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TKey> second,global::System.Func<TSource,TKey> keySelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource>
-        where TKey : global::System.IEquatable<TKey> {
-        return Enumerable.IntersectBy(first,second,keySelector,comparer);
+    public static IEnumerable<TSource> IntersectBy<TSource, TKey>(this IHashSet<TSource> first,IHashSet<TKey> second,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource>
+        where TKey : IEquatable<TKey> {
+        return IntersectByIterator(first,second,keySelector,comparer);
     }
 
     /// <summary>Produces the set intersection of two sequences by using the default equality comparer to compare values.</summary>
@@ -886,9 +946,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>A sequence that contains the elements that form the set intersection of two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Intersect<TSource>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TSource> second)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Intersect(first,second);
+    public static IEnumerable<TSource> Intersect<TSource>(this IHashSet<TSource> first,IHashSet<TSource> second)
+        where TSource : IEquatable<TSource> {
+        return IntersectIterator(first,second,null);
     }
 
     /// <summary>Produces the set intersection of two sequences by using the specified <see cref="T:System.Collections.Generic.IEqualityComparer`1" /> to compare values.</summary>
@@ -899,9 +959,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>A sequence that contains the elements that form the set intersection of two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Intersect<TSource>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TSource> second,global::System.Collections.Generic.IEqualityComparer<TSource>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Intersect(first,second,comparer);
+    public static IEnumerable<TSource> Intersect<TSource>(this IHashSet<TSource> first,IHashSet<TSource> second,IEqualityComparer<TSource>? comparer)
+        where TSource : IEquatable<TSource> {
+        return IntersectIterator(first,second,comparer);
     }
 
     /// <summary>Correlates the elements of two sequences based on matching keys. The default equality comparer is used to compare keys.</summary>
@@ -917,10 +977,10 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="outer" /> or <paramref name="inner" /> or <paramref name="outerKeySelector" /> or <paramref name="innerKeySelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that has elements of type <typeparamref name="TResult" /> that are obtained by performing an inner join on two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> Join<TOuter, TInner, TKey, TResult>(this global::Seamless.Collections.IHashSet<TOuter> outer,global::Seamless.Collections.IHashSet<TInner> inner,global::System.Func<TOuter,TKey> outerKeySelector,global::System.Func<TInner,TKey> innerKeySelector,global::System.Func<TOuter,TInner,TResult> resultSelector)
-        where TOuter : global::System.IEquatable<TOuter>
-        where TInner : global::System.IEquatable<TInner> {
-        return Enumerable.Join(outer,inner,outerKeySelector,innerKeySelector,resultSelector);
+    public static IEnumerable<TResult> Join<TOuter, TInner, TKey, TResult>(this IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,TInner,TResult> resultSelector)
+        where TOuter : IEquatable<TOuter>
+        where TInner : IEquatable<TInner> {
+        return JoinIterator(outer,inner,outerKeySelector,innerKeySelector,resultSelector,null);
     }
 
     /// <summary>Correlates the elements of two sequences based on matching keys. A specified <see cref="T:System.Collections.Generic.IEqualityComparer`1" /> is used to compare keys.</summary>
@@ -937,10 +997,10 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="outer" /> or <paramref name="inner" /> or <paramref name="outerKeySelector" /> or <paramref name="innerKeySelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that has elements of type <typeparamref name="TResult" /> that are obtained by performing an inner join on two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> Join<TOuter, TInner, TKey, TResult>(this global::Seamless.Collections.IHashSet<TOuter> outer,global::Seamless.Collections.IHashSet<TInner> inner,global::System.Func<TOuter,TKey> outerKeySelector,global::System.Func<TInner,TKey> innerKeySelector,global::System.Func<TOuter,TInner,TResult> resultSelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TOuter : global::System.IEquatable<TOuter>
-        where TInner : global::System.IEquatable<TInner> {
-        return Enumerable.Join(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
+    public static IEnumerable<TResult> Join<TOuter, TInner, TKey, TResult>(this IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,TInner,TResult> resultSelector,IEqualityComparer<TKey>? comparer)
+        where TOuter : IEquatable<TOuter>
+        where TInner : IEquatable<TInner> {
+        return JoinIterator(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
     }
 
     /// <summary>Returns the last element of a sequence, or a default value if the sequence contains no elements.</summary>
@@ -950,8 +1010,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <see langword="default" />(<typeparamref name="TSource" />) if the source sequence is empty; otherwise, the last element in the <see cref="T:System.Collections.Generic.IEnumerable`1" />.</returns>
-    public static TSource? LastOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource? LastOrDefault<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
         return Enumerable.LastOrDefault(source);
     }
 
@@ -963,8 +1023,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <paramref name="defaultValue" /> if the source sequence is empty; otherwise, the last element in the <see cref="T:System.Collections.Generic.IEnumerable`1" />.</returns>
-    public static TSource LastOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,TSource defaultValue)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource LastOrDefault<TSource>(this IHashSet<TSource> source,TSource defaultValue)
+        where TSource : IEquatable<TSource> {
         return Enumerable.LastOrDefault(source,defaultValue);
     }
 
@@ -976,8 +1036,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <see langword="default" />(<typeparamref name="TSource" />) if the sequence is empty or if no elements pass the test in the predicate function; otherwise, the last element that passes the test in the predicate function.</returns>
-    public static TSource? LastOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource? LastOrDefault<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate)
+        where TSource : IEquatable<TSource> {
         return Enumerable.LastOrDefault(source,predicate);
     }
 
@@ -990,8 +1050,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <paramref name="defaultValue" /> if the sequence is empty or if no elements pass the test in the predicate function; otherwise, the last element that passes the test in the predicate function.</returns>
-    public static TSource LastOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate,TSource defaultValue)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource LastOrDefault<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate,TSource defaultValue)
+        where TSource : IEquatable<TSource> {
         return Enumerable.LastOrDefault(source,predicate,defaultValue);
     }
 
@@ -1002,8 +1062,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.InvalidOperationException">The source sequence is empty.</exception>
     /// <returns>The value at the last position in the source sequence.</returns>
-    public static TSource Last<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource Last<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Last(source);
     }
 
@@ -1019,8 +1079,8 @@ public static partial class HashSet {
     ///
     ///  The source sequence is empty.</exception>
     /// <returns>The last element in the sequence that passes the test in the specified predicate function.</returns>
-    public static TSource Last<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource Last<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Last(source,predicate);
     }
 
@@ -1037,10 +1097,10 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="outer" /> or <paramref name="inner" /> or <paramref name="outerKeySelector" /> or <paramref name="innerKeySelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that has elements of type <typeparamref name="TResult" /> that are obtained by performing a left outer join on two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> LeftJoin<TOuter, TInner, TKey, TResult>(this global::Seamless.Collections.IHashSet<TOuter> outer,global::Seamless.Collections.IHashSet<TInner> inner,global::System.Func<TOuter,TKey> outerKeySelector,global::System.Func<TInner,TKey> innerKeySelector,global::System.Func<TOuter,TInner?,TResult> resultSelector)
-        where TOuter : global::System.IEquatable<TOuter>
-        where TInner : global::System.IEquatable<TInner> {
-        return Enumerable.LeftJoin(outer,inner,outerKeySelector,innerKeySelector,resultSelector);
+    public static IEnumerable<TResult> LeftJoin<TOuter, TInner, TKey, TResult>(this IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,TInner?,TResult> resultSelector)
+        where TOuter : IEquatable<TOuter>
+        where TInner : IEquatable<TInner> {
+        return LeftJoinIterator(outer,inner,outerKeySelector,innerKeySelector,resultSelector,null);
     }
 
     /// <summary>Correlates the elements of two sequences based on matching keys. A specified <see cref="T:System.Collections.Generic.IEqualityComparer`1" /> is used to compare keys.</summary>
@@ -1057,10 +1117,10 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="outer" /> or <paramref name="inner" /> or <paramref name="outerKeySelector" /> or <paramref name="innerKeySelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that has elements of type <typeparamref name="TResult" /> that are obtained by performing a left outer join on two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> LeftJoin<TOuter, TInner, TKey, TResult>(this global::Seamless.Collections.IHashSet<TOuter> outer,global::Seamless.Collections.IHashSet<TInner> inner,global::System.Func<TOuter,TKey> outerKeySelector,global::System.Func<TInner,TKey> innerKeySelector,global::System.Func<TOuter,TInner?,TResult> resultSelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TOuter : global::System.IEquatable<TOuter>
-        where TInner : global::System.IEquatable<TInner> {
-        return Enumerable.LeftJoin(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
+    public static IEnumerable<TResult> LeftJoin<TOuter, TInner, TKey, TResult>(this IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,TInner?,TResult> resultSelector,IEqualityComparer<TKey>? comparer)
+        where TOuter : IEquatable<TOuter>
+        where TInner : IEquatable<TInner> {
+        return LeftJoinIterator(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
     }
 
     /// <summary>Returns an <see cref="T:System.Int64" /> that represents the total number of elements in a sequence.</summary>
@@ -1070,9 +1130,10 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The number of elements exceeds <see cref="F:System.Int64.MaxValue">Int64.MaxValue</see>.</exception>
     /// <returns>The number of elements in the source sequence.</returns>
-    public static long LongCount<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.LongCount(source);
+    public static long LongCount<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
+        ArgumentNullException.ThrowIfNull(source);
+        return (long)source.Count;
     }
 
     /// <summary>Returns an <see cref="T:System.Int64" /> that represents how many elements in a sequence satisfy a condition.</summary>
@@ -1083,9 +1144,15 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The number of matching elements exceeds <see cref="F:System.Int64.MaxValue">Int64.MaxValue</see>.</exception>
     /// <returns>A number that represents how many elements in the sequence satisfy the condition in the predicate function.</returns>
-    public static long LongCount<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.LongCount(source,predicate);
+    public static long LongCount<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate)
+        where TSource : IEquatable<TSource> {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(predicate);
+        long count = 0;
+        foreach(var item in source) {
+            if(predicate(item)) checked { count++; }
+        }
+        return count;
     }
 
     /// <summary>Returns the maximum value in a sequence of <see cref="T:System.Decimal" /> values.</summary>
@@ -1095,8 +1162,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The maximum value in the sequence.</returns>
-    public static decimal Max(this global::Seamless.Collections.IHashSet<decimal> source) {
-        return Enumerable.Max(source);
+    public static decimal Max(this IHashSet<decimal> source) {
+        return Extremum(source,Comparer<decimal>.Default,true);
     }
 
     /// <summary>Returns the maximum value in a sequence of <see cref="T:System.Double" /> values.</summary>
@@ -1106,8 +1173,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The maximum value in the sequence.</returns>
-    public static double Max(this global::Seamless.Collections.IHashSet<double> source) {
-        return Enumerable.Max(source);
+    public static double Max(this IHashSet<double> source) {
+        return Extremum(source,Comparer<double>.Default,true);
     }
 
     /// <summary>Returns the maximum value in a sequence of <see cref="T:System.Int32" /> values.</summary>
@@ -1117,8 +1184,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The maximum value in the sequence.</returns>
-    public static int Max(this global::Seamless.Collections.IHashSet<int> source) {
-        return Enumerable.Max(source);
+    public static int Max(this IHashSet<int> source) {
+        return Extremum(source,Comparer<int>.Default,true);
     }
 
     /// <summary>Returns the maximum value in a sequence of <see cref="T:System.Int64" /> values.</summary>
@@ -1128,8 +1195,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The maximum value in the sequence.</returns>
-    public static long Max(this global::Seamless.Collections.IHashSet<long> source) {
-        return Enumerable.Max(source);
+    public static long Max(this IHashSet<long> source) {
+        return Extremum(source,Comparer<long>.Default,true);
     }
 
     /// <summary>Returns the maximum value in a sequence of <see cref="T:System.Single" /> values.</summary>
@@ -1139,8 +1206,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The maximum value in the sequence.</returns>
-    public static float Max(this global::Seamless.Collections.IHashSet<float> source) {
-        return Enumerable.Max(source);
+    public static float Max(this IHashSet<float> source) {
+        return Extremum(source,Comparer<float>.Default,true);
     }
 
     /// <summary>Returns the maximum value in a generic sequence according to a specified key selector function.</summary>
@@ -1154,9 +1221,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <typeparamref name="TSource" /> is a primitive type and the source sequence is empty.</exception>
     /// <returns>The value with the maximum key in the sequence.</returns>
-    public static TSource? MaxBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.MaxBy(source,keySelector);
+    public static TSource? MaxBy<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector)
+        where TSource : IEquatable<TSource> {
+        return ExtremumBy(source,keySelector,null,true);
     }
 
     /// <summary>Returns the maximum value in a generic sequence according to a specified key selector function and key comparer.</summary>
@@ -1171,9 +1238,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <typeparamref name="TSource" /> is a primitive type and the source sequence is empty.</exception>
     /// <returns>The value with the maximum key in the sequence.</returns>
-    public static TSource? MaxBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Collections.Generic.IComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.MaxBy(source,keySelector,comparer);
+    public static TSource? MaxBy<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource> {
+        return ExtremumBy(source,keySelector,comparer,true);
     }
 
     /// <summary>Returns the maximum value in a generic sequence.</summary>
@@ -1183,9 +1250,9 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.ArgumentException">No object in <paramref name="source" /> implements the <see cref="T:System.IComparable" /> or <see cref="T:System.IComparable`1" /> interface.</exception>
     /// <returns>The maximum value in the sequence.</returns>
-    public static TSource? Max<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Max(source);
+    public static TSource? Max<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
+        return GenericExtremum(source,null,true);
     }
 
     /// <summary>Returns the maximum value in a generic sequence.</summary>
@@ -1196,9 +1263,9 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.ArgumentException">No object in <paramref name="source" /> implements the <see cref="T:System.IComparable" /> or <see cref="T:System.IComparable`1" /> interface.</exception>
     /// <returns>The maximum value in the sequence.</returns>
-    public static TSource? Max<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Collections.Generic.IComparer<TSource>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Max(source,comparer);
+    public static TSource? Max<TSource>(this IHashSet<TSource> source,IComparer<TSource>? comparer)
+        where TSource : IEquatable<TSource> {
+        return GenericExtremum(source,comparer,true);
     }
 
     /// <summary>Invokes a transform function on each element of a sequence and returns the maximum <see cref="T:System.Decimal" /> value.</summary>
@@ -1210,8 +1277,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The maximum value in the sequence.</returns>
-    public static decimal Max<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,decimal> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static decimal Max<TSource>(this IHashSet<TSource> source,Func<TSource,decimal> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Max(source,selector);
     }
 
@@ -1224,8 +1291,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The maximum value in the sequence.</returns>
-    public static double Max<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,double> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static double Max<TSource>(this IHashSet<TSource> source,Func<TSource,double> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Max(source,selector);
     }
 
@@ -1238,8 +1305,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The maximum value in the sequence.</returns>
-    public static int Max<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static int Max<TSource>(this IHashSet<TSource> source,Func<TSource,int> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Max(source,selector);
     }
 
@@ -1252,8 +1319,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The maximum value in the sequence.</returns>
-    public static long Max<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,long> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static long Max<TSource>(this IHashSet<TSource> source,Func<TSource,long> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Max(source,selector);
     }
 
@@ -1264,8 +1331,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The value of type <c>Nullable&lt;Decimal&gt;</c> in C# or <c>Nullable(Of Decimal)</c> in Visual Basic that corresponds to the maximum value in the sequence.</returns>
-    public static decimal? Max<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,decimal?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static decimal? Max<TSource>(this IHashSet<TSource> source,Func<TSource,decimal?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Max(source,selector);
     }
 
@@ -1276,8 +1343,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The value of type <c>Nullable&lt;Double&gt;</c> in C# or <c>Nullable(Of Double)</c> in Visual Basic that corresponds to the maximum value in the sequence.</returns>
-    public static double? Max<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,double?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static double? Max<TSource>(this IHashSet<TSource> source,Func<TSource,double?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Max(source,selector);
     }
 
@@ -1288,8 +1355,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The value of type <c>Nullable&lt;Int32&gt;</c> in C# or <c>Nullable(Of Int32)</c> in Visual Basic that corresponds to the maximum value in the sequence.</returns>
-    public static int? Max<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static int? Max<TSource>(this IHashSet<TSource> source,Func<TSource,int?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Max(source,selector);
     }
 
@@ -1300,8 +1367,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The value that corresponds to the maximum value in the sequence.</returns>
-    public static long? Max<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,long?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static long? Max<TSource>(this IHashSet<TSource> source,Func<TSource,long?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Max(source,selector);
     }
 
@@ -1312,8 +1379,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The value that corresponds to the maximum value in the sequence.</returns>
-    public static float? Max<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,float?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static float? Max<TSource>(this IHashSet<TSource> source,Func<TSource,float?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Max(source,selector);
     }
 
@@ -1326,8 +1393,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The maximum value in the sequence.</returns>
-    public static float Max<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,float> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static float Max<TSource>(this IHashSet<TSource> source,Func<TSource,float> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Max(source,selector);
     }
 
@@ -1339,8 +1406,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The maximum value in the sequence.</returns>
-    public static TResult? Max<TSource, TResult>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TResult> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TResult? Max<TSource, TResult>(this IHashSet<TSource> source,Func<TSource,TResult> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Max(source,selector);
     }
 
@@ -1351,8 +1418,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The minimum value in the sequence.</returns>
-    public static decimal Min(this global::Seamless.Collections.IHashSet<decimal> source) {
-        return Enumerable.Min(source);
+    public static decimal Min(this IHashSet<decimal> source) {
+        return Extremum(source,Comparer<decimal>.Default,false);
     }
 
     /// <summary>Returns the minimum value in a sequence of <see cref="T:System.Double" /> values.</summary>
@@ -1362,8 +1429,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The minimum value in the sequence.</returns>
-    public static double Min(this global::Seamless.Collections.IHashSet<double> source) {
-        return Enumerable.Min(source);
+    public static double Min(this IHashSet<double> source) {
+        return Extremum(source,Comparer<double>.Default,false);
     }
 
     /// <summary>Returns the minimum value in a sequence of <see cref="T:System.Int32" /> values.</summary>
@@ -1373,8 +1440,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The minimum value in the sequence.</returns>
-    public static int Min(this global::Seamless.Collections.IHashSet<int> source) {
-        return Enumerable.Min(source);
+    public static int Min(this IHashSet<int> source) {
+        return Extremum(source,Comparer<int>.Default,false);
     }
 
     /// <summary>Returns the minimum value in a sequence of <see cref="T:System.Int64" /> values.</summary>
@@ -1384,8 +1451,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The minimum value in the sequence.</returns>
-    public static long Min(this global::Seamless.Collections.IHashSet<long> source) {
-        return Enumerable.Min(source);
+    public static long Min(this IHashSet<long> source) {
+        return Extremum(source,Comparer<long>.Default,false);
     }
 
     /// <summary>Returns the minimum value in a sequence of <see cref="T:System.Single" /> values.</summary>
@@ -1395,8 +1462,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The minimum value in the sequence.</returns>
-    public static float Min(this global::Seamless.Collections.IHashSet<float> source) {
-        return Enumerable.Min(source);
+    public static float Min(this IHashSet<float> source) {
+        return Extremum(source,Comparer<float>.Default,false);
     }
 
     /// <summary>Returns the minimum value in a generic sequence according to a specified key selector function.</summary>
@@ -1410,9 +1477,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <typeparamref name="TSource" /> is a primitive type and the source sequence is empty.</exception>
     /// <returns>The value with the minimum key in the sequence.</returns>
-    public static TSource? MinBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.MinBy(source,keySelector);
+    public static TSource? MinBy<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector)
+        where TSource : IEquatable<TSource> {
+        return ExtremumBy(source,keySelector,null,false);
     }
 
     /// <summary>Returns the minimum value in a generic sequence according to a specified key selector function and key comparer.</summary>
@@ -1427,9 +1494,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <typeparamref name="TSource" /> is a primitive type and the source sequence is empty.</exception>
     /// <returns>The value with the minimum key in the sequence.</returns>
-    public static TSource? MinBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Collections.Generic.IComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.MinBy(source,keySelector,comparer);
+    public static TSource? MinBy<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource> {
+        return ExtremumBy(source,keySelector,comparer,false);
     }
 
     /// <summary>Returns the minimum value in a generic sequence.</summary>
@@ -1439,9 +1506,9 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.ArgumentException">No object in <paramref name="source" /> implements the <see cref="T:System.IComparable" /> or <see cref="T:System.IComparable`1" /> interface.</exception>
     /// <returns>The minimum value in the sequence.</returns>
-    public static TSource? Min<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Min(source);
+    public static TSource? Min<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
+        return GenericExtremum(source,null,false);
     }
 
     /// <summary>Returns the minimum value in a generic sequence.</summary>
@@ -1452,9 +1519,9 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.ArgumentException">No object in <paramref name="source" /> implements the <see cref="T:System.IComparable" /> or <see cref="T:System.IComparable`1" /> interface.</exception>
     /// <returns>The minimum value in the sequence.</returns>
-    public static TSource? Min<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Collections.Generic.IComparer<TSource>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Min(source,comparer);
+    public static TSource? Min<TSource>(this IHashSet<TSource> source,IComparer<TSource>? comparer)
+        where TSource : IEquatable<TSource> {
+        return GenericExtremum(source,comparer,false);
     }
 
     /// <summary>Invokes a transform function on each element of a sequence and returns the minimum <see cref="T:System.Decimal" /> value.</summary>
@@ -1466,8 +1533,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The minimum value in the sequence.</returns>
-    public static decimal Min<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,decimal> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static decimal Min<TSource>(this IHashSet<TSource> source,Func<TSource,decimal> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Min(source,selector);
     }
 
@@ -1480,8 +1547,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The minimum value in the sequence.</returns>
-    public static double Min<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,double> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static double Min<TSource>(this IHashSet<TSource> source,Func<TSource,double> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Min(source,selector);
     }
 
@@ -1494,8 +1561,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The minimum value in the sequence.</returns>
-    public static int Min<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static int Min<TSource>(this IHashSet<TSource> source,Func<TSource,int> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Min(source,selector);
     }
 
@@ -1508,8 +1575,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The minimum value in the sequence.</returns>
-    public static long Min<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,long> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static long Min<TSource>(this IHashSet<TSource> source,Func<TSource,long> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Min(source,selector);
     }
 
@@ -1520,8 +1587,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The value that corresponds to the minimum value in the sequence.</returns>
-    public static decimal? Min<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,decimal?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static decimal? Min<TSource>(this IHashSet<TSource> source,Func<TSource,decimal?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Min(source,selector);
     }
 
@@ -1532,8 +1599,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The value that corresponds to the minimum value in the sequence.</returns>
-    public static double? Min<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,double?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static double? Min<TSource>(this IHashSet<TSource> source,Func<TSource,double?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Min(source,selector);
     }
 
@@ -1544,8 +1611,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The value that corresponds to the minimum value in the sequence.</returns>
-    public static int? Min<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static int? Min<TSource>(this IHashSet<TSource> source,Func<TSource,int?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Min(source,selector);
     }
 
@@ -1556,8 +1623,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The value that corresponds to the minimum value in the sequence.</returns>
-    public static long? Min<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,long?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static long? Min<TSource>(this IHashSet<TSource> source,Func<TSource,long?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Min(source,selector);
     }
 
@@ -1568,8 +1635,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The value that corresponds to the minimum value in the sequence.</returns>
-    public static float? Min<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,float?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static float? Min<TSource>(this IHashSet<TSource> source,Func<TSource,float?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Min(source,selector);
     }
 
@@ -1582,8 +1649,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.InvalidOperationException">
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The minimum value in the sequence.</returns>
-    public static float Min<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,float> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static float Min<TSource>(this IHashSet<TSource> source,Func<TSource,float> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Min(source,selector);
     }
 
@@ -1595,8 +1662,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The minimum value in the sequence.</returns>
-    public static TResult? Min<TSource, TResult>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TResult> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TResult? Min<TSource, TResult>(this IHashSet<TSource> source,Func<TSource,TResult> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Min(source,selector);
     }
 
@@ -1608,9 +1675,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted in descending order according to a key.</returns>
-    public static global::System.Linq.IOrderedEnumerable<TSource> OrderByDescending<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.OrderByDescending(source,keySelector);
+    public static IOrderedEnumerable<TSource> OrderByDescending<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector)
+        where TSource : IEquatable<TSource> {
+        return CreateOrdered(source,keySelector,null,true);
     }
 
     /// <summary>Sorts the elements of a sequence in descending order by using a specified comparer.</summary>
@@ -1622,9 +1689,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted in descending order according to a key.</returns>
-    public static global::System.Linq.IOrderedEnumerable<TSource> OrderByDescending<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Collections.Generic.IComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.OrderByDescending(source,keySelector,comparer);
+    public static IOrderedEnumerable<TSource> OrderByDescending<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource> {
+        return CreateOrdered(source,keySelector,comparer,true);
     }
 
     /// <summary>Sorts the elements of a sequence in ascending order according to a key.</summary>
@@ -1635,9 +1702,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted according to a key.</returns>
-    public static global::System.Linq.IOrderedEnumerable<TSource> OrderBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.OrderBy(source,keySelector);
+    public static IOrderedEnumerable<TSource> OrderBy<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector)
+        where TSource : IEquatable<TSource> {
+        return CreateOrdered(source,keySelector,null,false);
     }
 
     /// <summary>Sorts the elements of a sequence in ascending order by using a specified comparer.</summary>
@@ -1649,9 +1716,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted according to a key.</returns>
-    public static global::System.Linq.IOrderedEnumerable<TSource> OrderBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Collections.Generic.IComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.OrderBy(source,keySelector,comparer);
+    public static IOrderedEnumerable<TSource> OrderBy<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource> {
+        return CreateOrdered(source,keySelector,comparer,false);
     }
 
     /// <summary>Sorts the elements of a sequence in descending order.</summary>
@@ -1660,9 +1727,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
-    public static global::System.Linq.IOrderedEnumerable<T> OrderDescending<T>(this global::Seamless.Collections.IHashSet<T> source)
-        where T : global::System.IEquatable<T> {
-        return Enumerable.OrderDescending(source);
+    public static IOrderedEnumerable<T> OrderDescending<T>(this IHashSet<T> source)
+        where T : IEquatable<T> {
+        return CreateOrdered(source,static x => x,null,true);
     }
 
     /// <summary>Sorts the elements of a sequence in descending order.</summary>
@@ -1672,9 +1739,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
-    public static global::System.Linq.IOrderedEnumerable<T> OrderDescending<T>(this global::Seamless.Collections.IHashSet<T> source,global::System.Collections.Generic.IComparer<T>? comparer)
-        where T : global::System.IEquatable<T> {
-        return Enumerable.OrderDescending(source,comparer);
+    public static IOrderedEnumerable<T> OrderDescending<T>(this IHashSet<T> source,IComparer<T>? comparer)
+        where T : IEquatable<T> {
+        return CreateOrdered(source,static x => x,comparer,true);
     }
 
     /// <summary>Sorts the elements of a sequence in ascending order.</summary>
@@ -1683,9 +1750,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
-    public static global::System.Linq.IOrderedEnumerable<T> Order<T>(this global::Seamless.Collections.IHashSet<T> source)
-        where T : global::System.IEquatable<T> {
-        return Enumerable.Order(source);
+    public static IOrderedEnumerable<T> Order<T>(this IHashSet<T> source)
+        where T : IEquatable<T> {
+        return CreateOrdered(source,static x => x,null,false);
     }
 
     /// <summary>Sorts the elements of a sequence in ascending order.</summary>
@@ -1695,9 +1762,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
-    public static global::System.Linq.IOrderedEnumerable<T> Order<T>(this global::Seamless.Collections.IHashSet<T> source,global::System.Collections.Generic.IComparer<T>? comparer)
-        where T : global::System.IEquatable<T> {
-        return Enumerable.Order(source,comparer);
+    public static IOrderedEnumerable<T> Order<T>(this IHashSet<T> source,IComparer<T>? comparer)
+        where T : IEquatable<T> {
+        return CreateOrdered(source,static x => x,comparer,false);
     }
 
     /// <summary>Adds a value to the beginning of the sequence.</summary>
@@ -1707,9 +1774,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>A new sequence that begins with <paramref name="element" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Prepend<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,TSource element)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Prepend(source,element);
+    public static IEnumerable<TSource> Prepend<TSource>(this IHashSet<TSource> source,TSource element)
+        where TSource : IEquatable<TSource> {
+        return PrependIterator(source,element);
     }
 
     /// <summary>Inverts the order of the elements in a sequence.</summary>
@@ -1718,9 +1785,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>A sequence whose elements correspond to those of the input sequence in reverse order.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Reverse<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Reverse(source);
+    public static IEnumerable<TSource> Reverse<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
+        return ReverseIterator(source);
     }
 
     /// <summary>Correlates the elements of two sequences based on matching keys. The default equality comparer is used to compare keys.</summary>
@@ -1736,10 +1803,10 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="outer" /> or <paramref name="inner" /> or <paramref name="outerKeySelector" /> or <paramref name="innerKeySelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that has elements of type <typeparamref name="TResult" /> that are obtained by performing a right outer join on two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> RightJoin<TOuter, TInner, TKey, TResult>(this global::Seamless.Collections.IHashSet<TOuter> outer,global::Seamless.Collections.IHashSet<TInner> inner,global::System.Func<TOuter,TKey> outerKeySelector,global::System.Func<TInner,TKey> innerKeySelector,global::System.Func<TOuter?,TInner,TResult> resultSelector)
-        where TOuter : global::System.IEquatable<TOuter>
-        where TInner : global::System.IEquatable<TInner> {
-        return Enumerable.RightJoin(outer,inner,outerKeySelector,innerKeySelector,resultSelector);
+    public static IEnumerable<TResult> RightJoin<TOuter, TInner, TKey, TResult>(this IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter?,TInner,TResult> resultSelector)
+        where TOuter : IEquatable<TOuter>
+        where TInner : IEquatable<TInner> {
+        return RightJoinIterator(outer,inner,outerKeySelector,innerKeySelector,resultSelector,null);
     }
 
     /// <summary>Correlates the elements of two sequences based on matching keys. A specified <see cref="T:System.Collections.Generic.IEqualityComparer`1" /> is used to compare keys.</summary>
@@ -1756,10 +1823,10 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="outer" /> or <paramref name="inner" /> or <paramref name="outerKeySelector" /> or <paramref name="innerKeySelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that has elements of type <typeparamref name="TResult" /> that are obtained by performing a right outer join on two sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> RightJoin<TOuter, TInner, TKey, TResult>(this global::Seamless.Collections.IHashSet<TOuter> outer,global::Seamless.Collections.IHashSet<TInner> inner,global::System.Func<TOuter,TKey> outerKeySelector,global::System.Func<TInner,TKey> innerKeySelector,global::System.Func<TOuter?,TInner,TResult> resultSelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TOuter : global::System.IEquatable<TOuter>
-        where TInner : global::System.IEquatable<TInner> {
-        return Enumerable.RightJoin(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
+    public static IEnumerable<TResult> RightJoin<TOuter, TInner, TKey, TResult>(this IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter?,TInner,TResult> resultSelector,IEqualityComparer<TKey>? comparer)
+        where TOuter : IEquatable<TOuter>
+        where TInner : IEquatable<TInner> {
+        return RightJoinIterator(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
     }
 
     /// <summary>Projects each element of a sequence to an <see cref="T:System.Collections.Generic.IEnumerable`1" /> and flattens the resulting sequences into one sequence.</summary>
@@ -1770,9 +1837,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> whose elements are the result of invoking the one-to-many transform function on each element of the input sequence.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> SelectMany<TSource, TResult>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,global::System.Collections.Generic.IEnumerable<TResult>> selector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.SelectMany(source,selector);
+    public static IEnumerable<TResult> SelectMany<TSource, TResult>(this IHashSet<TSource> source,Func<TSource,IEnumerable<TResult>> selector)
+        where TSource : IEquatable<TSource> {
+        return SelectManyIterator(source,selector);
     }
 
     /// <summary>Projects each element of a sequence to an <see cref="T:System.Collections.Generic.IEnumerable`1" />, and flattens the resulting sequences into one sequence. The index of each source element is used in the projected form of that element.</summary>
@@ -1783,9 +1850,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> whose elements are the result of invoking the one-to-many transform function on each element of an input sequence.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> SelectMany<TSource, TResult>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int,global::System.Collections.Generic.IEnumerable<TResult>> selector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.SelectMany(source,selector);
+    public static IEnumerable<TResult> SelectMany<TSource, TResult>(this IHashSet<TSource> source,Func<TSource,int,IEnumerable<TResult>> selector)
+        where TSource : IEquatable<TSource> {
+        return SelectManyIterator(source,selector);
     }
 
     /// <summary>Projects each element of a sequence to an <see cref="T:System.Collections.Generic.IEnumerable`1" />, flattens the resulting sequences into one sequence, and invokes a result selector function on each element therein.</summary>
@@ -1798,9 +1865,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="collectionSelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> whose elements are the result of invoking the one-to-many transform function <paramref name="collectionSelector" /> on each element of <paramref name="source" /> and then mapping each of those sequence elements and their corresponding source element to a result element.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> SelectMany<TSource, TCollection, TResult>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,global::System.Collections.Generic.IEnumerable<TCollection>> collectionSelector,global::System.Func<TSource,TCollection,TResult> resultSelector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.SelectMany(source,collectionSelector,resultSelector);
+    public static IEnumerable<TResult> SelectMany<TSource, TCollection, TResult>(this IHashSet<TSource> source,Func<TSource,IEnumerable<TCollection>> collectionSelector,Func<TSource,TCollection,TResult> resultSelector)
+        where TSource : IEquatable<TSource> {
+        return SelectManyIterator(source,collectionSelector,resultSelector);
     }
 
     /// <summary>Projects each element of a sequence to an <see cref="T:System.Collections.Generic.IEnumerable`1" />, flattens the resulting sequences into one sequence, and invokes a result selector function on each element therein. The index of each source element is used in the intermediate projected form of that element.</summary>
@@ -1813,9 +1880,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="collectionSelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> whose elements are the result of invoking the one-to-many transform function <paramref name="collectionSelector" /> on each element of <paramref name="source" /> and then mapping each of those sequence elements and their corresponding source element to a result element.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> SelectMany<TSource, TCollection, TResult>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int,global::System.Collections.Generic.IEnumerable<TCollection>> collectionSelector,global::System.Func<TSource,TCollection,TResult> resultSelector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.SelectMany(source,collectionSelector,resultSelector);
+    public static IEnumerable<TResult> SelectMany<TSource, TCollection, TResult>(this IHashSet<TSource> source,Func<TSource,int,IEnumerable<TCollection>> collectionSelector,Func<TSource,TCollection,TResult> resultSelector)
+        where TSource : IEquatable<TSource> {
+        return SelectManyIterator(source,collectionSelector,resultSelector);
     }
 
     /// <summary>Projects each element of a sequence into a new form by incorporating the element's index.</summary>
@@ -1826,9 +1893,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> whose elements are the result of invoking the transform function on each element of <paramref name="source" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> Select<TSource, TResult>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int,TResult> selector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Select(source,selector);
+    public static IEnumerable<TResult> Select<TSource, TResult>(this IHashSet<TSource> source,Func<TSource,int,TResult> selector)
+        where TSource : IEquatable<TSource> {
+        return SelectIterator(source,selector);
     }
 
     /// <summary>Projects each element of a sequence into a new form.</summary>
@@ -1839,9 +1906,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> whose elements are the result of invoking the transform function on each element of <paramref name="source" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> Select<TSource, TResult>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TResult> selector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Select(source,selector);
+    public static IEnumerable<TResult> Select<TSource, TResult>(this IHashSet<TSource> source,Func<TSource,TResult> selector)
+        where TSource : IEquatable<TSource> {
+        return SelectIterator(source,selector);
     }
 
     /// <summary>Determines whether two sequences are equal by comparing the elements by using the default equality comparer for their type.</summary>
@@ -1852,8 +1919,8 @@ public static partial class HashSet {
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <see langword="true" /> if the two source sequences are of equal length and their corresponding elements are equal according to the default equality comparer for their type; otherwise, <see langword="false" />.</returns>
-    public static bool SequenceEqual<TSource>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TSource> second)
-        where TSource : global::System.IEquatable<TSource> {
+    public static bool SequenceEqual<TSource>(this IHashSet<TSource> first,IHashSet<TSource> second)
+        where TSource : IEquatable<TSource> {
         return Enumerable.SequenceEqual(first,second);
     }
 
@@ -1866,8 +1933,8 @@ public static partial class HashSet {
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>
     ///   <see langword="true" /> if the two source sequences are of equal length and their corresponding elements compare equal according to <paramref name="comparer" />; otherwise, <see langword="false" />.</returns>
-    public static bool SequenceEqual<TSource>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TSource> second,global::System.Collections.Generic.IEqualityComparer<TSource>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
+    public static bool SequenceEqual<TSource>(this IHashSet<TSource> first,IHashSet<TSource> second,IEqualityComparer<TSource>? comparer)
+        where TSource : IEquatable<TSource> {
         return Enumerable.SequenceEqual(first,second,comparer);
     }
 
@@ -1875,9 +1942,9 @@ public static partial class HashSet {
     /// <param name="source">A sequence of values to shuffle.</param>
     /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
     /// <returns>A sequence whose elements correspond to those of the input sequence in randomized order.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Shuffle<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Shuffle(source);
+    public static IEnumerable<TSource> Shuffle<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
+        return ShuffleIterator(source);
     }
 
     /// <summary>Returns the only element of a sequence, or a default value if the sequence is empty; this method throws an exception if there is more than one element in the sequence.</summary>
@@ -1887,8 +1954,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.InvalidOperationException">The input sequence contains more than one element.</exception>
     /// <returns>The single element of the input sequence, or <see langword="default" />(<typeparamref name="TSource" />) if the sequence contains no elements.</returns>
-    public static TSource? SingleOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource? SingleOrDefault<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
         return Enumerable.SingleOrDefault(source);
     }
 
@@ -1900,8 +1967,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.InvalidOperationException">The input sequence contains more than one element.</exception>
     /// <returns>The single element of the input sequence, or <paramref name="defaultValue" /> if the sequence contains no elements.</returns>
-    public static TSource SingleOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,TSource defaultValue)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource SingleOrDefault<TSource>(this IHashSet<TSource> source,TSource defaultValue)
+        where TSource : IEquatable<TSource> {
         return Enumerable.SingleOrDefault(source,defaultValue);
     }
 
@@ -1913,8 +1980,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.InvalidOperationException">More than one element satisfies the condition in <paramref name="predicate" />.</exception>
     /// <returns>The single element of the input sequence that satisfies the condition, or <see langword="default" />(<typeparamref name="TSource" />) if no such element is found.</returns>
-    public static TSource? SingleOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource? SingleOrDefault<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate)
+        where TSource : IEquatable<TSource> {
         return Enumerable.SingleOrDefault(source,predicate);
     }
 
@@ -1927,8 +1994,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.InvalidOperationException">More than one element satisfies the condition in <paramref name="predicate" />.</exception>
     /// <returns>The single element of the input sequence that satisfies the condition, or <paramref name="defaultValue" /> if no such element is found.</returns>
-    public static TSource SingleOrDefault<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate,TSource defaultValue)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource SingleOrDefault<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate,TSource defaultValue)
+        where TSource : IEquatable<TSource> {
         return Enumerable.SingleOrDefault(source,predicate,defaultValue);
     }
 
@@ -1943,8 +2010,8 @@ public static partial class HashSet {
     ///
     ///  The input sequence is empty.</exception>
     /// <returns>The single element of the input sequence.</returns>
-    public static TSource Single<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource Single<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Single(source);
     }
 
@@ -1964,8 +2031,8 @@ public static partial class HashSet {
     ///
     ///  The source sequence is empty.</exception>
     /// <returns>The single element of the input sequence that satisfies a condition.</returns>
-    public static TSource Single<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource Single<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Single(source,predicate);
     }
 
@@ -1976,9 +2043,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>A new enumerable collection that contains the elements from <paramref name="source" /> minus <paramref name="count" /> elements from the end of the collection.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> SkipLast<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,int count)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.SkipLast(source,count);
+    public static IEnumerable<TSource> SkipLast<TSource>(this IHashSet<TSource> source,int count)
+        where TSource : IEquatable<TSource> {
+        return SkipLastIterator(source,count);
     }
 
     /// <summary>Bypasses elements in a sequence as long as a specified condition is true and then returns the remaining elements.</summary>
@@ -1988,9 +2055,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains the elements from the input sequence starting at the first element in the linear series that does not pass the test specified by <paramref name="predicate" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> SkipWhile<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.SkipWhile(source,predicate);
+    public static IEnumerable<TSource> SkipWhile<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate)
+        where TSource : IEquatable<TSource> {
+        return SkipWhileIterator(source,predicate);
     }
 
     /// <summary>Bypasses elements in a sequence as long as a specified condition is true and then returns the remaining elements. The element's index is used in the logic of the predicate function.</summary>
@@ -2000,9 +2067,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains the elements from the input sequence starting at the first element in the linear series that does not pass the test specified by <paramref name="predicate" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> SkipWhile<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.SkipWhile(source,predicate);
+    public static IEnumerable<TSource> SkipWhile<TSource>(this IHashSet<TSource> source,Func<TSource,int,bool> predicate)
+        where TSource : IEquatable<TSource> {
+        return SkipWhileIterator(source,predicate);
     }
 
     /// <summary>Bypasses a specified number of elements in a sequence and then returns the remaining elements.</summary>
@@ -2012,9 +2079,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains the elements that occur after the specified index in the input sequence.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Skip<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,int count)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Skip(source,count);
+    public static IEnumerable<TSource> Skip<TSource>(this IHashSet<TSource> source,int count)
+        where TSource : IEquatable<TSource> {
+        return SkipIterator(source,count);
     }
 
     /// <summary>Computes the sum of a sequence of <see cref="T:System.Decimal" /> values.</summary>
@@ -2023,7 +2090,7 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum is larger than <see cref="F:System.Decimal.MaxValue">Decimal.MaxValue</see>.</exception>
     /// <returns>The sum of the values in the sequence.</returns>
-    public static decimal Sum(this global::Seamless.Collections.IHashSet<decimal> source) {
+    public static decimal Sum(this IHashSet<decimal> source) {
         return Enumerable.Sum(source);
     }
 
@@ -2033,7 +2100,7 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum is larger than <see cref="F:System.Double.MaxValue">Double.MaxValue</see>.</exception>
     /// <returns>The sum of the values in the sequence.</returns>
-    public static double Sum(this global::Seamless.Collections.IHashSet<double> source) {
+    public static double Sum(this IHashSet<double> source) {
         return Enumerable.Sum(source);
     }
 
@@ -2043,7 +2110,7 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum is larger than <see cref="F:System.Int32.MaxValue">Int32.MaxValue</see>.</exception>
     /// <returns>The sum of the values in the sequence.</returns>
-    public static int Sum(this global::Seamless.Collections.IHashSet<int> source) {
+    public static int Sum(this IHashSet<int> source) {
         return Enumerable.Sum(source);
     }
 
@@ -2053,7 +2120,7 @@ public static partial class HashSet {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum is larger than <see cref="F:System.Int64.MaxValue">Int64.MaxValue</see>.</exception>
     /// <returns>The sum of the values in the sequence.</returns>
-    public static long Sum(this global::Seamless.Collections.IHashSet<long> source) {
+    public static long Sum(this IHashSet<long> source) {
         return Enumerable.Sum(source);
     }
 
@@ -2062,7 +2129,7 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>The sum of the values in the sequence.</returns>
-    public static float Sum(this global::Seamless.Collections.IHashSet<float> source) {
+    public static float Sum(this IHashSet<float> source) {
         return Enumerable.Sum(source);
     }
 
@@ -2074,8 +2141,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum is larger than <see cref="F:System.Decimal.MaxValue">Decimal.MaxValue</see>.</exception>
     /// <returns>The sum of the projected values.</returns>
-    public static decimal Sum<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,decimal> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static decimal Sum<TSource>(this IHashSet<TSource> source,Func<TSource,decimal> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Sum(source,selector);
     }
 
@@ -2087,8 +2154,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum is larger than <see cref="F:System.Double.MaxValue">Double.MaxValue</see>.</exception>
     /// <returns>The sum of the projected values.</returns>
-    public static double Sum<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,double> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static double Sum<TSource>(this IHashSet<TSource> source,Func<TSource,double> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Sum(source,selector);
     }
 
@@ -2100,8 +2167,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum is larger than <see cref="F:System.Int32.MaxValue">Int32.MaxValue</see>.</exception>
     /// <returns>The sum of the projected values.</returns>
-    public static int Sum<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static int Sum<TSource>(this IHashSet<TSource> source,Func<TSource,int> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Sum(source,selector);
     }
 
@@ -2113,8 +2180,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum is larger than <see cref="F:System.Int64.MaxValue">Int64.MaxValue</see>.</exception>
     /// <returns>The sum of the projected values.</returns>
-    public static long Sum<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,long> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static long Sum<TSource>(this IHashSet<TSource> source,Func<TSource,long> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Sum(source,selector);
     }
 
@@ -2126,8 +2193,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum is larger than <see cref="F:System.Decimal.MaxValue">Decimal.MaxValue</see>.</exception>
     /// <returns>The sum of the projected values.</returns>
-    public static decimal? Sum<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,decimal?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static decimal? Sum<TSource>(this IHashSet<TSource> source,Func<TSource,decimal?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Sum(source,selector);
     }
 
@@ -2139,8 +2206,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum is larger than <see cref="F:System.Double.MaxValue">Double.MaxValue</see>.</exception>
     /// <returns>The sum of the projected values.</returns>
-    public static double? Sum<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,double?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static double? Sum<TSource>(this IHashSet<TSource> source,Func<TSource,double?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Sum(source,selector);
     }
 
@@ -2152,8 +2219,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum is larger than <see cref="F:System.Int32.MaxValue">Int32.MaxValue</see>.</exception>
     /// <returns>The sum of the projected values.</returns>
-    public static int? Sum<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static int? Sum<TSource>(this IHashSet<TSource> source,Func<TSource,int?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Sum(source,selector);
     }
 
@@ -2165,8 +2232,8 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <exception cref="T:System.OverflowException">The sum is larger than <see cref="F:System.Int64.MaxValue">Int64.MaxValue</see>.</exception>
     /// <returns>The sum of the projected values.</returns>
-    public static long? Sum<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,long?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static long? Sum<TSource>(this IHashSet<TSource> source,Func<TSource,long?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Sum(source,selector);
     }
 
@@ -2177,8 +2244,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The sum of the projected values.</returns>
-    public static float? Sum<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,float?> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static float? Sum<TSource>(this IHashSet<TSource> source,Func<TSource,float?> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Sum(source,selector);
     }
 
@@ -2189,8 +2256,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="selector" /> is <see langword="null" />.</exception>
     /// <returns>The sum of the projected values.</returns>
-    public static float Sum<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,float> selector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static float Sum<TSource>(this IHashSet<TSource> source,Func<TSource,float> selector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.Sum(source,selector);
     }
 
@@ -2201,9 +2268,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>A new enumerable collection that contains the last <paramref name="count" /> elements from <paramref name="source" />.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> TakeLast<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,int count)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.TakeLast(source,count);
+    public static IEnumerable<TSource> TakeLast<TSource>(this IHashSet<TSource> source,int count)
+        where TSource : IEquatable<TSource> {
+        return TakeLastIterator(source,count);
     }
 
     /// <summary>Returns elements from a sequence as long as a specified condition is true.</summary>
@@ -2213,9 +2280,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains the elements from the input sequence that occur before the element at which the test no longer passes.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> TakeWhile<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.TakeWhile(source,predicate);
+    public static IEnumerable<TSource> TakeWhile<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate)
+        where TSource : IEquatable<TSource> {
+        return TakeWhileIterator(source,predicate);
     }
 
     /// <summary>Returns elements from a sequence as long as a specified condition is true. The element's index is used in the logic of the predicate function.</summary>
@@ -2225,9 +2292,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains elements from the input sequence that occur before the element at which the test no longer passes.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> TakeWhile<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.TakeWhile(source,predicate);
+    public static IEnumerable<TSource> TakeWhile<TSource>(this IHashSet<TSource> source,Func<TSource,int,bool> predicate)
+        where TSource : IEquatable<TSource> {
+        return TakeWhileIterator(source,predicate);
     }
 
     /// <summary>Returns a specified number of contiguous elements from the start of a sequence.</summary>
@@ -2237,9 +2304,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains the specified number of elements from the start of the input sequence.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Take<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,int count)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Take(source,count);
+    public static IEnumerable<TSource> Take<TSource>(this IHashSet<TSource> source,int count)
+        where TSource : IEquatable<TSource> {
+        return TakeIterator(source,count);
     }
 
     /// <summary>Returns a specified range of contiguous elements from a sequence.</summary>
@@ -2249,9 +2316,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains the specified range of elements from the <paramref name="source" /> sequence.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Take<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Range range)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Take(source,range);
+    public static IEnumerable<TSource> Take<TSource>(this IHashSet<TSource> source,Range range)
+        where TSource : IEquatable<TSource> {
+        return TakeIterator(source,range);
     }
 
     /// <summary>Creates an array from a <see cref="T:System.Collections.Generic.IEnumerable`1" />.</summary>
@@ -2260,8 +2327,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An array that contains the elements from the input sequence.</returns>
-    public static TSource[] ToArray<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
+    public static TSource[] ToArray<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
         return Enumerable.ToArray(source);
     }
 
@@ -2279,8 +2346,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentException">
     ///   <paramref name="keySelector" /> produces duplicate keys for two elements.</exception>
     /// <returns>A <see cref="T:System.Collections.Generic.Dictionary`2" /> that contains keys and values. The values within each group are in the same order as in <paramref name="source" />.</returns>
-    public static global::System.Collections.Generic.Dictionary<TKey,TSource> ToDictionary<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector)
-        where TSource : global::System.IEquatable<TSource>
+    public static Dictionary<TKey,TSource> ToDictionary<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector)
+        where TSource : IEquatable<TSource>
         where TKey : notnull {
         return Enumerable.ToDictionary(source,keySelector);
     }
@@ -2300,8 +2367,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentException">
     ///   <paramref name="keySelector" /> produces duplicate keys for two elements.</exception>
     /// <returns>A <see cref="T:System.Collections.Generic.Dictionary`2" /> that contains keys and values. The values within each group are in the same order as in <paramref name="source" />.</returns>
-    public static global::System.Collections.Generic.Dictionary<TKey,TSource> ToDictionary<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource>
+    public static Dictionary<TKey,TSource> ToDictionary<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource>
         where TKey : notnull {
         return Enumerable.ToDictionary(source,keySelector,comparer);
     }
@@ -2322,8 +2389,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentException">
     ///   <paramref name="keySelector" /> produces duplicate keys for two elements.</exception>
     /// <returns>A <see cref="T:System.Collections.Generic.Dictionary`2" /> that contains values of type <typeparamref name="TElement" /> selected from the input sequence.</returns>
-    public static global::System.Collections.Generic.Dictionary<TKey,TElement> ToDictionary<TSource, TKey, TElement>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Func<TSource,TElement> elementSelector)
-        where TSource : global::System.IEquatable<TSource>
+    public static Dictionary<TKey,TElement> ToDictionary<TSource, TKey, TElement>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector)
+        where TSource : IEquatable<TSource>
         where TKey : notnull {
         return Enumerable.ToDictionary(source,keySelector,elementSelector);
     }
@@ -2345,8 +2412,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentException">
     ///   <paramref name="keySelector" /> produces duplicate keys for two elements.</exception>
     /// <returns>A <see cref="T:System.Collections.Generic.Dictionary`2" /> that contains values of type <typeparamref name="TElement" /> selected from the input sequence.</returns>
-    public static global::System.Collections.Generic.Dictionary<TKey,TElement> ToDictionary<TSource, TKey, TElement>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Func<TSource,TElement> elementSelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource>
+    public static Dictionary<TKey,TElement> ToDictionary<TSource, TKey, TElement>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource>
         where TKey : notnull {
         return Enumerable.ToDictionary(source,keySelector,elementSelector,comparer);
     }
@@ -2357,8 +2424,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>A <see cref="T:System.Collections.Generic.HashSet`1" /> that contains values of type <typeparamref name="TSource" /> selected from the input sequence.</returns>
-    public static global::System.Collections.Generic.HashSet<TSource> ToHashSet<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
+    public static HashSet<TSource> ToHashSet<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
         return Enumerable.ToHashSet(source);
     }
 
@@ -2369,8 +2436,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>A <see cref="T:System.Collections.Generic.HashSet`1" /> that contains values of type <typeparamref name="TSource" /> selected from the input sequence.</returns>
-    public static global::System.Collections.Generic.HashSet<TSource> ToHashSet<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Collections.Generic.IEqualityComparer<TSource>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
+    public static HashSet<TSource> ToHashSet<TSource>(this IHashSet<TSource> source,IEqualityComparer<TSource>? comparer)
+        where TSource : IEquatable<TSource> {
         return Enumerable.ToHashSet(source,comparer);
     }
 
@@ -2380,9 +2447,13 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>A <see cref="T:System.Collections.Generic.List`1" /> that contains elements from the input sequence.</returns>
-    public static global::System.Collections.Generic.List<TSource> ToList<TSource>(this global::Seamless.Collections.IHashSet<TSource> source)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.ToList(source);
+    public static global::System.Collections.Generic.List<TSource> ToList<TSource>(this IHashSet<TSource> source)
+        where TSource : IEquatable<TSource> {
+        var list = new global::System.Collections.Generic.List<TSource>();
+        foreach(var item in source) {
+            list.Add(item);
+        }
+        return list;
     }
 
     /// <summary>Creates a <see cref="T:System.Linq.Lookup`2" /> from an <see cref="T:System.Collections.Generic.IEnumerable`1" /> according to a specified key selector function.</summary>
@@ -2393,8 +2464,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
     /// <returns>A <see cref="T:System.Linq.Lookup`2" /> that contains keys and values. The values within each group are in the same order as in <paramref name="source" />.</returns>
-    public static global::System.Linq.ILookup<TKey,TSource> ToLookup<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static ILookup<TKey,TSource> ToLookup<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.ToLookup(source,keySelector);
     }
 
@@ -2407,8 +2478,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
     /// <returns>A <see cref="T:System.Linq.Lookup`2" /> that contains keys and values. The values within each group are in the same order as in <paramref name="source" />.</returns>
-    public static global::System.Linq.ILookup<TKey,TSource> ToLookup<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
+    public static ILookup<TKey,TSource> ToLookup<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource> {
         return Enumerable.ToLookup(source,keySelector,comparer);
     }
 
@@ -2422,8 +2493,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="elementSelector" /> is <see langword="null" />.</exception>
     /// <returns>A <see cref="T:System.Linq.Lookup`2" /> that contains values of type <typeparamref name="TElement" /> selected from the input sequence.</returns>
-    public static global::System.Linq.ILookup<TKey,TElement> ToLookup<TSource, TKey, TElement>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Func<TSource,TElement> elementSelector)
-        where TSource : global::System.IEquatable<TSource> {
+    public static ILookup<TKey,TElement> ToLookup<TSource, TKey, TElement>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector)
+        where TSource : IEquatable<TSource> {
         return Enumerable.ToLookup(source,keySelector,elementSelector);
     }
 
@@ -2438,8 +2509,8 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="elementSelector" /> is <see langword="null" />.</exception>
     /// <returns>A <see cref="T:System.Linq.Lookup`2" /> that contains values of type <typeparamref name="TElement" /> selected from the input sequence.</returns>
-    public static global::System.Linq.ILookup<TKey,TElement> ToLookup<TSource, TKey, TElement>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,TKey> keySelector,global::System.Func<TSource,TElement> elementSelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
+    public static ILookup<TKey,TElement> ToLookup<TSource, TKey, TElement>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource> {
         return Enumerable.ToLookup(source,keySelector,elementSelector,comparer);
     }
 
@@ -2449,8 +2520,8 @@ public static partial class HashSet {
     /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
     /// <returns>
     ///   <see langword="true" /> if the count of <paramref name="source" /> can be determined without enumeration; otherwise, <see langword="false" />.</returns>
-    public static bool TryGetNonEnumeratedCount<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,out int count)
-        where TSource : global::System.IEquatable<TSource> {
+    public static bool TryGetNonEnumeratedCount<TSource>(this IHashSet<TSource> source,out int count)
+        where TSource : IEquatable<TSource> {
         return Enumerable.TryGetNonEnumeratedCount(source,out count);
     }
 
@@ -2463,9 +2534,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains the elements from both input sequences, excluding duplicates.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> UnionBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TSource> second,global::System.Func<TSource,TKey> keySelector)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.UnionBy(first,second,keySelector);
+    public static IEnumerable<TSource> UnionBy<TSource, TKey>(this IHashSet<TSource> first,IHashSet<TSource> second,Func<TSource,TKey> keySelector)
+        where TSource : IEquatable<TSource> {
+        return UnionByIterator(first,second,keySelector,null);
     }
 
     /// <summary>Produces the set union of two sequences according to a specified key selector function.</summary>
@@ -2478,9 +2549,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains the elements from both input sequences, excluding duplicates.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> UnionBy<TSource, TKey>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TSource> second,global::System.Func<TSource,TKey> keySelector,global::System.Collections.Generic.IEqualityComparer<TKey>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.UnionBy(first,second,keySelector,comparer);
+    public static IEnumerable<TSource> UnionBy<TSource, TKey>(this IHashSet<TSource> first,IHashSet<TSource> second,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer)
+        where TSource : IEquatable<TSource> {
+        return UnionByIterator(first,second,keySelector,comparer);
     }
 
     /// <summary>Produces the set union of two sequences by using the default equality comparer.</summary>
@@ -2490,9 +2561,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains the elements from both input sequences, excluding duplicates.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Union<TSource>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TSource> second)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Union(first,second);
+    public static IEnumerable<TSource> Union<TSource>(this IHashSet<TSource> first,IHashSet<TSource> second)
+        where TSource : IEquatable<TSource> {
+        return UnionIterator(first,second,null);
     }
 
     /// <summary>Produces the set union of two sequences by using a specified <see cref="T:System.Collections.Generic.IEqualityComparer`1" />.</summary>
@@ -2503,9 +2574,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains the elements from both input sequences, excluding duplicates.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Union<TSource>(this global::Seamless.Collections.IHashSet<TSource> first,global::Seamless.Collections.IHashSet<TSource> second,global::System.Collections.Generic.IEqualityComparer<TSource>? comparer)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Union(first,second,comparer);
+    public static IEnumerable<TSource> Union<TSource>(this IHashSet<TSource> first,IHashSet<TSource> second,IEqualityComparer<TSource>? comparer)
+        where TSource : IEquatable<TSource> {
+        return UnionIterator(first,second,comparer);
     }
 
     /// <summary>Filters a sequence of values based on a predicate.</summary>
@@ -2515,9 +2586,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains elements from the input sequence that satisfy the condition.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Where<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Where(source,predicate);
+    public static IEnumerable<TSource> Where<TSource>(this IHashSet<TSource> source,Func<TSource,bool> predicate)
+        where TSource : IEquatable<TSource> {
+        return WhereIterator(source,predicate);
     }
 
     /// <summary>Filters a sequence of values based on a predicate. Each element's index is used in the logic of the predicate function.</summary>
@@ -2527,9 +2598,9 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="predicate" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains elements from the input sequence that satisfy the condition.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TSource> Where<TSource>(this global::Seamless.Collections.IHashSet<TSource> source,global::System.Func<TSource,int,bool> predicate)
-        where TSource : global::System.IEquatable<TSource> {
-        return Enumerable.Where(source,predicate);
+    public static IEnumerable<TSource> Where<TSource>(this IHashSet<TSource> source,Func<TSource,int,bool> predicate)
+        where TSource : IEquatable<TSource> {
+        return WhereIterator(source,predicate);
     }
 
     /// <summary>Produces a sequence of tuples with elements from the two specified sequences.</summary>
@@ -2538,10 +2609,10 @@ public static partial class HashSet {
     /// <typeparam name="TFirst">The type of the elements of the first input sequence.</typeparam>
     /// <typeparam name="TSecond">The type of the elements of the second input sequence.</typeparam>
     /// <returns>A sequence of tuples with elements taken from the first and second sequences, in that order.</returns>
-    public static global::System.Collections.Generic.IEnumerable<(TFirst First,TSecond Second)> Zip<TFirst, TSecond>(this global::Seamless.Collections.IHashSet<TFirst> first,global::Seamless.Collections.IHashSet<TSecond> second)
-        where TFirst : global::System.IEquatable<TFirst>
-        where TSecond : global::System.IEquatable<TSecond> {
-        return Enumerable.Zip(first,second);
+    public static IEnumerable<(TFirst First,TSecond Second)> Zip<TFirst, TSecond>(this IHashSet<TFirst> first,IHashSet<TSecond> second)
+        where TFirst : IEquatable<TFirst>
+        where TSecond : IEquatable<TSecond> {
+        return ZipIterator(first,second);
     }
 
     /// <summary>Produces a sequence of tuples with elements from the three specified sequences.</summary>
@@ -2552,11 +2623,11 @@ public static partial class HashSet {
     /// <typeparam name="TSecond">The type of the elements of the second input sequence.</typeparam>
     /// <typeparam name="TThird">The type of the elements of the third input sequence.</typeparam>
     /// <returns>A sequence of tuples with elements taken from the first, second, and third sequences, in that order.</returns>
-    public static global::System.Collections.Generic.IEnumerable<(TFirst First,TSecond Second,TThird Third)> Zip<TFirst, TSecond, TThird>(this global::Seamless.Collections.IHashSet<TFirst> first,global::Seamless.Collections.IHashSet<TSecond> second,global::Seamless.Collections.IHashSet<TThird> third)
-        where TFirst : global::System.IEquatable<TFirst>
-        where TSecond : global::System.IEquatable<TSecond>
-        where TThird : global::System.IEquatable<TThird> {
-        return Enumerable.Zip(first,second,third);
+    public static IEnumerable<(TFirst First,TSecond Second,TThird Third)> Zip<TFirst, TSecond, TThird>(this IHashSet<TFirst> first,IHashSet<TSecond> second,IHashSet<TThird> third)
+        where TFirst : IEquatable<TFirst>
+        where TSecond : IEquatable<TSecond>
+        where TThird : IEquatable<TThird> {
+        return ZipIterator(first,second,third);
     }
 
     /// <summary>Applies a specified function to the corresponding elements of two sequences, producing a sequence of the results.</summary>
@@ -2569,9 +2640,868 @@ public static partial class HashSet {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="first" /> or <paramref name="second" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Collections.Generic.IEnumerable`1" /> that contains merged elements of two input sequences.</returns>
-    public static global::System.Collections.Generic.IEnumerable<TResult> Zip<TFirst, TSecond, TResult>(this global::Seamless.Collections.IHashSet<TFirst> first,global::Seamless.Collections.IHashSet<TSecond> second,global::System.Func<TFirst,TSecond,TResult> resultSelector)
-        where TFirst : global::System.IEquatable<TFirst>
-        where TSecond : global::System.IEquatable<TSecond> {
-        return Enumerable.Zip(first,second,resultSelector);
+    public static IEnumerable<TResult> Zip<TFirst, TSecond, TResult>(this IHashSet<TFirst> first,IHashSet<TSecond> second,Func<TFirst,TSecond,TResult> resultSelector)
+        where TFirst : IEquatable<TFirst>
+        where TSecond : IEquatable<TSecond> {
+        return ZipIterator(first,second,resultSelector);
+    }
+    private static IEnumerable<KeyValuePair<TKey,TAccumulate>> AggregateByIterator<TSource, TKey, TAccumulate>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,TAccumulate seed,Func<TAccumulate,TSource,TAccumulate> func,IEqualityComparer<TKey>? keyComparer = null) where TSource : IEquatable<TSource> where TKey : notnull {
+        var result = new Dictionary<TKey,TAccumulate>(keyComparer);
+        foreach(var item in source) {
+            var key = keySelector(item);
+            if(!result.TryGetValue(key,out var accumulator)) {
+                accumulator=seed;
+            }
+            result[key]=func(accumulator!,item);
+        }
+        foreach(var pair in result) {
+            yield return pair;
+        }
+    }
+
+    private static IEnumerable<KeyValuePair<TKey,TAccumulate>> AggregateByIterator<TSource, TKey, TAccumulate>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TKey,TAccumulate> seedSelector,Func<TAccumulate,TSource,TAccumulate> func,IEqualityComparer<TKey>? keyComparer = null) where TSource : IEquatable<TSource> where TKey : notnull {
+        var result = new Dictionary<TKey,TAccumulate>(keyComparer);
+        foreach(var item in source) {
+            var key = keySelector(item);
+            if(!result.TryGetValue(key,out var accumulator)) {
+                accumulator=seedSelector(key);
+            }
+            result[key]=func(accumulator,item);
+        }
+        foreach(var pair in result) {
+            yield return pair;
+        }
+    }
+
+    private static IEnumerable<TSource> AppendIterator<TSource>(IHashSet<TSource> source,TSource element) where TSource : IEquatable<TSource> {
+        foreach(var item in source) {
+            yield return item;
+        }
+        yield return element;
+    }
+
+    private static IEnumerable<TResult> CastIterator<TResult>(IEnumerable source) {
+        foreach(var item in source) {
+            yield return (TResult)item!;
+        }
+    }
+
+    private static IEnumerable<TSource[]> ChunkIterator<TSource>(IHashSet<TSource> source,int size) where TSource : IEquatable<TSource> {
+        var chunk = new TSource[size];
+        var index = 0;
+        foreach(var item in source) {
+            chunk[index++]=item;
+            if(index==size) {
+                yield return chunk;
+                chunk=new TSource[size];
+                index=0;
+            }
+        }
+        if(index>0) {
+            Array.Resize(ref chunk,index);
+            yield return chunk;
+        }
+    }
+
+    private static IEnumerable<TSource> ConcatIterator<TSource>(IHashSet<TSource> first,IHashSet<TSource> second) where TSource : IEquatable<TSource> {
+        foreach(var item in first) {
+            yield return item;
+        }
+        foreach(var item in second) {
+            yield return item;
+        }
+    }
+
+    private static IEnumerable<KeyValuePair<TKey,int>> CountByIterator<TSource, TKey>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? keyComparer = null) where TSource : IEquatable<TSource> where TKey : notnull {
+        var result = new Dictionary<TKey,int>(keyComparer);
+        foreach(var item in source) {
+            var key = keySelector(item);
+            result.TryGetValue(key,out var count);
+            checked {
+                result[key]=count+1;
+            }
+        }
+        foreach(var pair in result) {
+            yield return pair;
+        }
+    }
+
+    private static IEnumerable<TSource?> DefaultIfEmptyIterator<TSource>(IHashSet<TSource> source) where TSource : IEquatable<TSource> {
+        var hasAny = false;
+        foreach(var item in source) {
+            hasAny=true;
+            yield return item;
+        }
+        if(!hasAny) {
+            yield return default;
+        }
+    }
+
+    private static IEnumerable<TSource> DefaultIfEmptyIterator<TSource>(IHashSet<TSource> source,TSource defaultValue) where TSource : IEquatable<TSource> {
+        var hasAny = false;
+        foreach(var item in source) {
+            hasAny=true;
+            yield return item;
+        }
+        if(!hasAny) {
+            yield return defaultValue;
+        }
+    }
+
+    private static IEnumerable<TSource> DistinctByIterator<TSource, TKey>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> {
+        var seen = new HashSet<TKey>(comparer);
+        foreach(var item in source) {
+            if(seen.Add(keySelector(item))) {
+                yield return item;
+            }
+        }
+    }
+
+    private static IEnumerable<TSource> DistinctIterator<TSource>(IHashSet<TSource> source,IEqualityComparer<TSource>? comparer) where TSource : IEquatable<TSource> {
+        var seen = new HashSet<TSource>(comparer);
+        foreach(var item in source) {
+            if(seen.Add(item)) {
+                yield return item;
+            }
+        }
+    }
+
+    private static IEnumerable<TSource> ExceptByIterator<TSource, TKey>(IHashSet<TSource> first,IHashSet<TKey> second,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> where TKey : IEquatable<TKey> {
+        var excluded = new HashSet<TKey>(second,comparer);
+        foreach(var item in first) {
+            if(excluded.Add(keySelector(item))) {
+                yield return item;
+            }
+        }
+    }
+
+    private static IEnumerable<TSource> ExceptIterator<TSource>(IHashSet<TSource> first,IHashSet<TSource> second,IEqualityComparer<TSource>? comparer) where TSource : IEquatable<TSource> {
+        var excluded = new HashSet<TSource>(second,comparer);
+        foreach(var item in first) {
+            if(excluded.Add(item)) {
+                yield return item;
+            }
+        }
+    }
+
+    private static IEnumerable<IGrouping<TKey,TElement>> GroupByIterator<TSource, TKey, TElement>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> {
+        var lookup = CreateLookup(source,keySelector,elementSelector,comparer);
+        foreach(var group in lookup.Groups) {
+            yield return group;
+        }
+    }
+
+    private static IEnumerable<TResult> GroupByIterator<TSource, TKey, TResult>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TKey,IEnumerable<TSource>,TResult> resultSelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> {
+        var lookup = CreateLookup(source,keySelector,static item => item,comparer);
+        foreach(var group in lookup.Groups) {
+            yield return resultSelector(group.Key,group);
+        }
+    }
+
+    private static IEnumerable<TResult> GroupByIterator<TSource, TKey, TElement, TResult>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,Func<TKey,IEnumerable<TElement>,TResult> resultSelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> {
+        var lookup = CreateLookup(source,keySelector,elementSelector,comparer);
+        foreach(var group in lookup.Groups) {
+            yield return resultSelector(group.Key,group);
+        }
+    }
+
+    private static IEnumerable<TResult> GroupJoinIterator<TOuter, TInner, TKey, TResult>(IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,IEnumerable<TInner>,TResult> resultSelector,IEqualityComparer<TKey>? comparer) where TOuter : IEquatable<TOuter> where TInner : IEquatable<TInner> {
+        var lookup = CreateLookup(inner,innerKeySelector,static item => item,comparer);
+        foreach(var outerItem in outer) {
+            yield return resultSelector(outerItem,lookup[outerKeySelector(outerItem)]);
+        }
+    }
+
+    private static IEnumerable<(int Index,TSource Item)> IndexIterator<TSource>(IHashSet<TSource> source) where TSource : IEquatable<TSource> {
+        var index = 0;
+        foreach(var item in source) {
+            yield return (index,item);
+            checked {
+                index++;
+            }
+        }
+    }
+
+    private static IEnumerable<TSource> IntersectByIterator<TSource, TKey>(IHashSet<TSource> first,IHashSet<TKey> second,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> where TKey : IEquatable<TKey> {
+        var set = new HashSet<TKey>(second,comparer);
+        foreach(var item in first) {
+            if(set.Remove(keySelector(item))) {
+                yield return item;
+            }
+        }
+    }
+
+    private static IEnumerable<TSource> IntersectIterator<TSource>(IHashSet<TSource> first,IHashSet<TSource> second,IEqualityComparer<TSource>? comparer) where TSource : IEquatable<TSource> {
+        var set = new HashSet<TSource>(second,comparer);
+        foreach(var item in first) {
+            if(set.Remove(item)) {
+                yield return item;
+            }
+        }
+    }
+
+    private static IEnumerable<TResult> JoinIterator<TOuter, TInner, TKey, TResult>(IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,TInner,TResult> resultSelector,IEqualityComparer<TKey>? comparer) where TOuter : IEquatable<TOuter> where TInner : IEquatable<TInner> {
+        var lookup = CreateLookup(inner,innerKeySelector,static item => item,comparer);
+        foreach(var outerItem in outer) {
+            foreach(var innerItem in lookup[outerKeySelector(outerItem)]) {
+                yield return resultSelector(outerItem,innerItem);
+            }
+        }
+    }
+
+    private static IEnumerable<TResult> LeftJoinIterator<TOuter, TInner, TKey, TResult>(IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,TInner?,TResult> resultSelector,IEqualityComparer<TKey>? comparer) where TOuter : IEquatable<TOuter> where TInner : IEquatable<TInner> {
+        var lookup = CreateLookup(inner,innerKeySelector,static item => item,comparer);
+        foreach(var outerItem in outer) {
+            var hasMatch = false;
+            foreach(var innerItem in lookup[outerKeySelector(outerItem)]) {
+                hasMatch=true;
+                yield return resultSelector(outerItem,innerItem);
+            }
+            if(!hasMatch) {
+                yield return resultSelector(outerItem,default);
+            }
+        }
+    }
+
+    private static IEnumerable<TResult> OfTypeIterator<TResult>(IEnumerable source) {
+        foreach(var item in source) {
+            if(item is TResult result) {
+                yield return result;
+            }
+        }
+    }
+
+    private static IEnumerable<TSource> PrependIterator<TSource>(IHashSet<TSource> source,TSource element) where TSource : IEquatable<TSource> {
+        yield return element;
+        foreach(var item in source) {
+            yield return item;
+        }
+    }
+
+    private static IEnumerable<int> RangeIterator(int start,int count) {
+        for(var index = 0; index<count; index++) {
+            yield return start+index;
+        }
+    }
+
+    private static IEnumerable<TResult> RepeatIterator<TResult>(TResult element,int count) {
+        for(var index = 0; index<count; index++) {
+            yield return element;
+        }
+    }
+
+    private static IEnumerable<TSource> ReverseIterator<TSource>(IHashSet<TSource> source) where TSource : IEquatable<TSource> {
+        var list = ToList(source);
+        for(var index = list.Count-1; index>=0; index--) {
+            yield return list[index];
+        }
+    }
+
+    private static IEnumerable<TSource> ReverseIterator<TSource>(TSource[] source) {
+        var list = new global::System.Collections.Generic.List<TSource>(source);
+        for(var index = list.Count-1; index>=0; index--) {
+            yield return list[index];
+        }
+    }
+
+    private static IEnumerable<TResult> RightJoinIterator<TOuter, TInner, TKey, TResult>(IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter?,TInner,TResult> resultSelector,IEqualityComparer<TKey>? comparer) where TOuter : IEquatable<TOuter> where TInner : IEquatable<TInner> {
+        var lookup = CreateLookup(outer,outerKeySelector,static item => item,comparer);
+        foreach(var innerItem in inner) {
+            var hasMatch = false;
+            foreach(var outerItem in lookup[innerKeySelector(innerItem)]) {
+                hasMatch=true;
+                yield return resultSelector(outerItem,innerItem);
+            }
+            if(!hasMatch) {
+                yield return resultSelector(default,innerItem);
+            }
+        }
+    }
+
+    private static IEnumerable<TResult> SelectManyIterator<TSource, TResult>(IHashSet<TSource> source,Func<TSource,IEnumerable<TResult>> selector) where TSource : IEquatable<TSource> {
+        foreach(var item in source) {
+            foreach(var result in selector(item)) {
+                yield return result;
+            }
+        }
+    }
+
+    private static IEnumerable<TResult> SelectManyIterator<TSource, TResult>(IHashSet<TSource> source,Func<TSource,int,IEnumerable<TResult>> selector) where TSource : IEquatable<TSource> {
+        var index = -1;
+        foreach(var item in source) {
+            checked {
+                index++;
+            }
+            foreach(var result in selector(item,index)) {
+                yield return result;
+            }
+        }
+    }
+
+    private static IEnumerable<TResult> SelectManyIterator<TSource, TCollection, TResult>(IHashSet<TSource> source,Func<TSource,IEnumerable<TCollection>> collectionSelector,Func<TSource,TCollection,TResult> resultSelector) where TSource : IEquatable<TSource> {
+        foreach(var item in source) {
+            foreach(var collectionItem in collectionSelector(item)) {
+                yield return resultSelector(item,collectionItem);
+            }
+        }
+    }
+
+    private static IEnumerable<TResult> SelectManyIterator<TSource, TCollection, TResult>(IHashSet<TSource> source,Func<TSource,int,IEnumerable<TCollection>> collectionSelector,Func<TSource,TCollection,TResult> resultSelector) where TSource : IEquatable<TSource> {
+        var index = -1;
+        foreach(var item in source) {
+            checked {
+                index++;
+            }
+            foreach(var collectionItem in collectionSelector(item,index)) {
+                yield return resultSelector(item,collectionItem);
+            }
+        }
+    }
+
+    private static IEnumerable<TResult> SelectIterator<TSource, TResult>(IHashSet<TSource> source,Func<TSource,int,TResult> selector) where TSource : IEquatable<TSource> {
+        var index = -1;
+        foreach(var item in source) {
+            checked {
+                index++;
+            }
+            yield return selector(item,index);
+        }
+    }
+
+    private static IEnumerable<TResult> SelectIterator<TSource, TResult>(IHashSet<TSource> source,Func<TSource,TResult> selector) where TSource : IEquatable<TSource> {
+        foreach(var item in source) {
+            yield return selector(item);
+        }
+    }
+
+    private static IEnumerable<T> SequenceIterator<T>(T start,T endInclusive,T step) where T : INumber<T> {
+        if(step>T.Zero) {
+            for(var current = start; current<=endInclusive; current+=step) {
+                yield return current;
+            }
+        }
+        else {
+            for(var current = start; current>=endInclusive; current+=step) {
+                yield return current;
+            }
+        }
+    }
+
+    private static IEnumerable<TSource> ShuffleIterator<TSource>(IHashSet<TSource> source) where TSource : IEquatable<TSource> {
+        var list = ToList(source);
+        for(var index = list.Count-1; index>0; index--) {
+            var swapIndex = Random.Shared.Next(index+1);
+            (list[index],list[swapIndex])=(list[swapIndex],list[index]);
+        }
+        foreach(var item in list) {
+            yield return item;
+        }
+    }
+
+    private static IEnumerable<TSource> SkipLastIterator<TSource>(IHashSet<TSource> source,int count) where TSource : IEquatable<TSource> {
+        if(count<=0) {
+            foreach(var item in source) {
+                yield return item;
+            }
+            yield break;
+        }
+        var list = ToList(source);
+        var end = Math.Max(0,list.Count-count);
+        for(var index = 0; index<end; index++) {
+            yield return list[index];
+        }
+    }
+
+    private static IEnumerable<TSource> SkipWhileIterator<TSource>(IHashSet<TSource> source,Func<TSource,bool> predicate) where TSource : IEquatable<TSource> {
+        var yielding = false;
+        foreach(var item in source) {
+            if(!yielding&&!predicate(item)) {
+                yielding=true;
+            }
+            if(yielding) {
+                yield return item;
+            }
+        }
+    }
+
+    private static IEnumerable<TSource> SkipWhileIterator<TSource>(IHashSet<TSource> source,Func<TSource,int,bool> predicate) where TSource : IEquatable<TSource> {
+        var yielding = false;
+        var index = -1;
+        foreach(var item in source) {
+            checked {
+                index++;
+            }
+            if(!yielding&&!predicate(item,index)) {
+                yielding=true;
+            }
+            if(yielding) {
+                yield return item;
+            }
+        }
+    }
+
+    private static IEnumerable<TSource> SkipIterator<TSource>(IHashSet<TSource> source,int count) where TSource : IEquatable<TSource> {
+        var skipped = 0;
+        foreach(var item in source) {
+            if(skipped<count) {
+                skipped++;
+                continue;
+            }
+            yield return item;
+        }
+    }
+
+    private static IEnumerable<TSource> TakeLastIterator<TSource>(IHashSet<TSource> source,int count) where TSource : IEquatable<TSource> {
+        if(count<=0) {
+            yield break;
+        }
+        var list = ToList(source);
+        var start = Math.Max(0,list.Count-count);
+        for(var index = start; index<list.Count; index++) {
+            yield return list[index];
+        }
+    }
+
+    private static IEnumerable<TSource> TakeWhileIterator<TSource>(IHashSet<TSource> source,Func<TSource,bool> predicate) where TSource : IEquatable<TSource> {
+        foreach(var item in source) {
+            if(!predicate(item)) {
+                yield break;
+            }
+            yield return item;
+        }
+    }
+
+    private static IEnumerable<TSource> TakeWhileIterator<TSource>(IHashSet<TSource> source,Func<TSource,int,bool> predicate) where TSource : IEquatable<TSource> {
+        var index = -1;
+        foreach(var item in source) {
+            checked {
+                index++;
+            }
+            if(!predicate(item,index)) {
+                yield break;
+            }
+            yield return item;
+        }
+    }
+
+    private static IEnumerable<TSource> TakeIterator<TSource>(IHashSet<TSource> source,int count) where TSource : IEquatable<TSource> {
+        if(count<=0) {
+            yield break;
+        }
+        var taken = 0;
+        foreach(var item in source) {
+            if(taken++>=count) {
+                yield break;
+            }
+            yield return item;
+        }
+    }
+
+    private static IEnumerable<TSource> TakeIterator<TSource>(IHashSet<TSource> source,Range range) where TSource : IEquatable<TSource> {
+        var list = ToList(source);
+        var (offset,length)=range.GetOffsetAndLength(list.Count);
+        for(var index = offset; index<offset+length; index++) {
+            yield return list[index];
+        }
+    }
+
+    private static IEnumerable<TSource> UnionByIterator<TSource, TKey>(IHashSet<TSource> first,IHashSet<TSource> second,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> {
+        var seen = new HashSet<TKey>(comparer);
+        foreach(var item in first) {
+            if(seen.Add(keySelector(item))) {
+                yield return item;
+            }
+        }
+        foreach(var item in second) {
+            if(seen.Add(keySelector(item))) {
+                yield return item;
+            }
+        }
+    }
+
+    private static IEnumerable<TSource> UnionIterator<TSource>(IHashSet<TSource> first,IHashSet<TSource> second,IEqualityComparer<TSource>? comparer) where TSource : IEquatable<TSource> {
+        var seen = new HashSet<TSource>(comparer);
+        foreach(var item in first) {
+            if(seen.Add(item)) {
+                yield return item;
+            }
+        }
+        foreach(var item in second) {
+            if(seen.Add(item)) {
+                yield return item;
+            }
+        }
+    }
+
+    private static IEnumerable<TSource> WhereIterator<TSource>(IHashSet<TSource> source,Func<TSource,bool> predicate) where TSource : IEquatable<TSource> {
+        foreach(var item in source) {
+            if(predicate(item)) {
+                yield return item;
+            }
+        }
+    }
+
+    private static IEnumerable<TSource> WhereIterator<TSource>(IHashSet<TSource> source,Func<TSource,int,bool> predicate) where TSource : IEquatable<TSource> {
+        var index = -1;
+        foreach(var item in source) {
+            checked {
+                index++;
+            }
+            if(predicate(item,index)) {
+                yield return item;
+            }
+        }
+    }
+
+    private static IEnumerable<(TFirst First,TSecond Second)> ZipIterator<TFirst, TSecond>(IHashSet<TFirst> first,IHashSet<TSecond> second) where TFirst : IEquatable<TFirst> where TSecond : IEquatable<TSecond> {
+        using var firstEnumerator = first.GetEnumerator();
+        using var secondEnumerator = second.GetEnumerator();
+        while(firstEnumerator.MoveNext()&&secondEnumerator.MoveNext()) {
+            yield return (firstEnumerator.Current,secondEnumerator.Current);
+        }
+    }
+
+    private static IEnumerable<(TFirst First,TSecond Second,TThird Third)> ZipIterator<TFirst, TSecond, TThird>(IHashSet<TFirst> first,IHashSet<TSecond> second,IHashSet<TThird> third) where TFirst : IEquatable<TFirst> where TSecond : IEquatable<TSecond> where TThird : IEquatable<TThird> {
+        using var firstEnumerator = first.GetEnumerator();
+        using var secondEnumerator = second.GetEnumerator();
+        using var thirdEnumerator = third.GetEnumerator();
+        while(firstEnumerator.MoveNext()&&secondEnumerator.MoveNext()&&thirdEnumerator.MoveNext()) {
+            yield return (firstEnumerator.Current,secondEnumerator.Current,thirdEnumerator.Current);
+        }
+    }
+
+    private static IEnumerable<TResult> ZipIterator<TFirst, TSecond, TResult>(IHashSet<TFirst> first,IHashSet<TSecond> second,Func<TFirst,TSecond,TResult> resultSelector) where TFirst : IEquatable<TFirst> where TSecond : IEquatable<TSecond> {
+        using var firstEnumerator = first.GetEnumerator();
+        using var secondEnumerator = second.GetEnumerator();
+        while(firstEnumerator.MoveNext()&&secondEnumerator.MoveNext()) {
+            yield return resultSelector(firstEnumerator.Current,secondEnumerator.Current);
+        }
+    }
+    private static IEnumerable<TResult> Project<TSource, TResult>(IEnumerable<TSource> source,Func<TSource,TResult> selector) {
+        foreach(var item in source) {
+            yield return selector(item);
+        }
+    }
+
+    private static T Extremum<T>(IEnumerable<T> source,IComparer<T> comparer,bool findMax) {
+        ArgumentNullException.ThrowIfNull(source);
+        var hasValue = false;
+        T? result = default;
+        foreach(var item in source) {
+            if(!hasValue) {
+                result=item;
+                hasValue=true;
+                continue;
+            }
+            if(IsBetter(comparer.Compare(item,result!),findMax)) {
+                result=item;
+            }
+        }
+        return hasValue ? result! : throw NoElements();
+    }
+
+    private static T? NullableExtremum<T>(IEnumerable<T?> source,IComparer<T> comparer,bool findMax)
+        where T : struct {
+        ArgumentNullException.ThrowIfNull(source);
+        var hasValue = false;
+        T result = default;
+        foreach(var item in source) {
+            if(!item.HasValue) {
+                continue;
+            }
+            var value = item.GetValueOrDefault();
+            if(!hasValue) {
+                result=value;
+                hasValue=true;
+                continue;
+            }
+            if(IsBetter(comparer.Compare(value,result),findMax)) {
+                result=value;
+            }
+        }
+        return hasValue ? result : null;
+    }
+
+    private static TSource? GenericExtremum<TSource>(IEnumerable<TSource> source,IComparer<TSource>? comparer,bool findMax) {
+        ArgumentNullException.ThrowIfNull(source);
+        comparer??=Comparer<TSource>.Default;
+        var hasValue = false;
+        TSource? result = default;
+        foreach(var item in source) {
+            if(item is null) {
+                continue;
+            }
+            if(!hasValue) {
+                result=item;
+                hasValue=true;
+                continue;
+            }
+            if(IsBetter(comparer.Compare(item,result!),findMax)) {
+                result=item;
+            }
+        }
+        if(hasValue) {
+            return result;
+        }
+        if(default(TSource) is null) {
+            return default;
+        }
+        throw NoElements();
+    }
+
+    private static TSource? ExtremumBy<TSource, TKey>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer,bool findMax) {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(keySelector);
+        comparer??=Comparer<TKey>.Default;
+        using var enumerator = source.GetEnumerator();
+        if(!enumerator.MoveNext()) {
+            if(default(TSource) is null) {
+                return default;
+            }
+            throw NoElements();
+        }
+        var result = enumerator.Current;
+        var resultKey = keySelector(result);
+        while(enumerator.MoveNext()) {
+            var item = enumerator.Current;
+            var key = keySelector(item);
+            if(IsBetter(comparer.Compare(key,resultKey),findMax)) {
+                result=item;
+                resultKey=key;
+            }
+        }
+        return result;
+    }
+
+    private static bool IsBetter(int comparison,bool findMax) {
+        return findMax ? comparison>0 : comparison<0;
+    }
+
+    private static IOrderedEnumerable<TSource> CreateOrdered<TSource, TKey>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer,bool descending) {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(keySelector);
+        return new OrderedEnumerableImpl<TSource>(source).CreateOrderedEnumerable(keySelector,comparer,descending);
+    }
+
+    private static LookupImpl<TKey,TElement> CreateLookup<TSource, TKey, TElement>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer) {
+        var lookup = new LookupImpl<TKey,TElement>(comparer);
+        foreach(var item in source) {
+            lookup.Add(keySelector(item),elementSelector(item));
+        }
+        return lookup;
+    }
+
+    private static InvalidOperationException NoElements() {
+        return new InvalidOperationException("Sequence contains no elements.");
+    }
+
+    private static InvalidOperationException NoMatch() {
+        return new InvalidOperationException("Sequence contains no matching element.");
+    }
+
+    private static InvalidOperationException MoreThanOneElement() {
+        return new InvalidOperationException("Sequence contains more than one element.");
+    }
+
+    private static InvalidOperationException MoreThanOneMatch() {
+        return new InvalidOperationException("Sequence contains more than one matching element.");
+    }
+
+    private sealed class GroupingImpl<TKey, TElement>:IGrouping<TKey,TElement> {
+        private readonly global::System.Collections.Generic.List<TElement> elements = new();
+
+        public GroupingImpl(TKey key) {
+            Key=key;
+        }
+
+        public TKey Key { get; }
+
+        public void Add(TElement element) {
+            elements.Add(element);
+        }
+
+        public IEnumerator<TElement> GetEnumerator() {
+            return elements.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() {
+            return GetEnumerator();
+        }
+    }
+
+    private sealed class LookupImpl<TKey, TElement>:ILookup<TKey,TElement> {
+        private readonly IEqualityComparer<TKey> comparer;
+
+        public LookupImpl(IEqualityComparer<TKey>? comparer) {
+            this.comparer=comparer??EqualityComparer<TKey>.Default;
+            Groups=new global::System.Collections.Generic.List<GroupingImpl<TKey,TElement>>();
+        }
+
+        public global::System.Collections.Generic.List<GroupingImpl<TKey,TElement>> Groups { get; }
+
+        public int Count => Groups.Count;
+
+        public IEnumerable<TElement> this[TKey key] {
+            get {
+                var group = Find(key);
+                return group is null ? global::System.Array.Empty<TElement>() : group;
+            }
+        }
+
+        public bool Contains(TKey key) {
+            return Find(key) is not null;
+        }
+
+        public void Add(TKey key,TElement element) {
+            var group = Find(key);
+            if(group is null) {
+                group=new GroupingImpl<TKey,TElement>(key);
+                Groups.Add(group);
+            }
+            group.Add(element);
+        }
+
+        public IEnumerator<IGrouping<TKey,TElement>> GetEnumerator() {
+            foreach(var group in Groups) {
+                yield return group;
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() {
+            return GetEnumerator();
+        }
+
+        private GroupingImpl<TKey,TElement>? Find(TKey key) {
+            foreach(var group in Groups) {
+                if(comparer.Equals(group.Key,key)) {
+                    return group;
+                }
+            }
+            return null;
+        }
+    }
+
+    private sealed class InfiniteSequenceEnumerable<T>:IEnumerable<T>
+        where T : IAdditionOperators<T,T,T> {
+        private readonly T start;
+        private readonly T step;
+
+        public InfiniteSequenceEnumerable(T start,T step) {
+            this.start=start;
+            this.step=step;
+        }
+
+        public IEnumerator<T> GetEnumerator() {
+            return new InfiniteSequenceEnumerator<T>(start,step);
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() {
+            return GetEnumerator();
+        }
+    }
+
+    private sealed class InfiniteSequenceEnumerator<T>:IEnumerator<T>
+        where T : IAdditionOperators<T,T,T> {
+        private readonly T start;
+        private readonly T step;
+        private bool started;
+        private T current = default!;
+
+        public InfiniteSequenceEnumerator(T start,T step) {
+            this.start=start;
+            this.step=step;
+        }
+
+        public T Current => current;
+
+        object IEnumerator.Current => Current;
+
+        public bool MoveNext() {
+            if(!started) {
+                current=start;
+                started=true;
+            }
+            else {
+                current+=step;
+            }
+            return true;
+        }
+
+        public void Reset() {
+            started=false;
+            current=default!;
+        }
+
+        public void Dispose() {
+        }
+    }
+
+    private sealed class OrderedEnumerableImpl<T>:IOrderedEnumerable<T> {
+        private readonly IEnumerable<T> source;
+        private readonly global::System.Collections.Generic.List<Comparison<T>> comparisons;
+
+        public OrderedEnumerableImpl(IEnumerable<T> source) {
+            this.source=source;
+            comparisons=new global::System.Collections.Generic.List<Comparison<T>>();
+        }
+
+        private OrderedEnumerableImpl(IEnumerable<T> source,global::System.Collections.Generic.List<Comparison<T>> comparisons) {
+            this.source=source;
+            this.comparisons=comparisons;
+        }
+
+        public IOrderedEnumerable<T> CreateOrderedEnumerable<TKey>(Func<T,TKey> keySelector,IComparer<TKey>? comparer,bool descending) {
+            ArgumentNullException.ThrowIfNull(keySelector);
+            comparer??=Comparer<TKey>.Default;
+            var next = new global::System.Collections.Generic.List<Comparison<T>>(comparisons);
+            next.Add((left,right) => {
+                var result = comparer.Compare(keySelector(left),keySelector(right));
+                return descending ? Negate(result) : result;
+            });
+            return new OrderedEnumerableImpl<T>(source,next);
+        }
+
+        public IEnumerator<T> GetEnumerator() {
+            var items = new global::System.Collections.Generic.List<OrderedItem<T>>();
+            var index = 0;
+            foreach(var item in source) {
+                items.Add(new OrderedItem<T>(item,index));
+                checked {
+                    index++;
+                }
+            }
+            items.Sort(Compare);
+            foreach(var item in items) {
+                yield return item.Value;
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() {
+            return GetEnumerator();
+        }
+
+        private int Compare(OrderedItem<T> left,OrderedItem<T> right) {
+            foreach(var comparison in comparisons) {
+                var result = comparison(left.Value,right.Value);
+                if(result!=0) {
+                    return result;
+                }
+            }
+            return left.Index.CompareTo(right.Index);
+        }
+
+        private static int Negate(int value) {
+            return value==int.MinValue ? int.MaxValue : -value;
+        }
+    }
+
+    private readonly struct OrderedItem<T> {
+        public OrderedItem(T value,int index) {
+            Value=value;
+            Index=index;
+        }
+
+        public T Value { get; }
+        public int Index { get; }
     }
 }

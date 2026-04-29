@@ -1,3 +1,4 @@
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -1003,8 +1004,8 @@ public static partial class Enumerable {
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
-    /// <returns>An <c>IEnumerable&lt;IGrouping&lt;TKey, TSource&gt;&gt;</c> in C# or <c>IEnumerable(Of IGrouping(Of TKey, TSource))</c> in Visual Basic where each <see cref="T:System.Linq.IGrouping`2" /> object contains a sequence of objects and a key.</returns>
-    public static IEnumerable<IGrouping<TKey,TSource>> GroupBy<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector) {
+    /// <returns>An <c>IEnumerable&lt;System.Linq.IGrouping&lt;TKey, TSource&gt;&gt;</c> in C# or <c>IEnumerable(Of System.Linq.IGrouping(Of TKey, TSource))</c> in Visual Basic where each <see cref="T:System.Linq.System.Linq.IGrouping`2" /> object contains a sequence of objects and a key.</returns>
+    public static IEnumerable<System.Linq.IGrouping<TKey,TSource>> GroupBy<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector) {
         return GroupBy(source,keySelector,static item=>item,null);
     }
 
@@ -1016,37 +1017,37 @@ public static partial class Enumerable {
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
-    /// <returns>An <c>IEnumerable&lt;IGrouping&lt;TKey, TSource&gt;&gt;</c> in C# or <c>IEnumerable(Of IGrouping(Of TKey, TSource))</c> in Visual Basic where each <see cref="T:System.Linq.IGrouping`2" /> object contains a collection of objects and a key.</returns>
-    public static IEnumerable<IGrouping<TKey,TSource>> GroupBy<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) {
+    /// <returns>An <c>IEnumerable&lt;System.Linq.IGrouping&lt;TKey, TSource&gt;&gt;</c> in C# or <c>IEnumerable(Of System.Linq.IGrouping(Of TKey, TSource))</c> in Visual Basic where each <see cref="T:System.Linq.System.Linq.IGrouping`2" /> object contains a collection of objects and a key.</returns>
+    public static IEnumerable<System.Linq.IGrouping<TKey,TSource>> GroupBy<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) {
         return GroupBy(source,keySelector,static item=>item,comparer);
     }
 
     /// <summary>Groups the elements of a sequence according to a specified key selector function and projects the elements for each group by using a specified function.</summary>
     /// <param name="source">An <see cref="T:System.Collections.Generic.IEnumerable`1" /> whose elements to group.</param>
     /// <param name="keySelector">A function to extract the key for each element.</param>
-    /// <param name="elementSelector">A function to map each source element to an element in the <see cref="T:System.Linq.IGrouping`2" />.</param>
+    /// <param name="elementSelector">A function to map each source element to an element in the <see cref="T:System.Linq.System.Linq.IGrouping`2" />.</param>
     /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
-    /// <typeparam name="TElement">The type of the elements in the <see cref="T:System.Linq.IGrouping`2" />.</typeparam>
+    /// <typeparam name="TElement">The type of the elements in the <see cref="T:System.Linq.System.Linq.IGrouping`2" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="elementSelector" /> is <see langword="null" />.</exception>
-    /// <returns>An <c>IEnumerable&lt;IGrouping&lt;TKey, TElement&gt;&gt;</c> in C# or <c>IEnumerable(Of IGrouping(Of TKey, TElement))</c> in Visual Basic where each <see cref="T:System.Linq.IGrouping`2" /> object contains a collection of objects of type <typeparamref name="TElement" /> and a key.</returns>
-    public static IEnumerable<IGrouping<TKey,TElement>> GroupBy<TSource, TKey, TElement>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector) {
+    /// <returns>An <c>IEnumerable&lt;System.Linq.IGrouping&lt;TKey, TElement&gt;&gt;</c> in C# or <c>IEnumerable(Of System.Linq.IGrouping(Of TKey, TElement))</c> in Visual Basic where each <see cref="T:System.Linq.System.Linq.IGrouping`2" /> object contains a collection of objects of type <typeparamref name="TElement" /> and a key.</returns>
+    public static IEnumerable<System.Linq.IGrouping<TKey,TElement>> GroupBy<TSource, TKey, TElement>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector) {
         return GroupBy(source,keySelector,elementSelector,null);
     }
 
     /// <summary>Groups the elements of a sequence according to a key selector function. The keys are compared by using a comparer and each group's elements are projected by using a specified function.</summary>
     /// <param name="source">An <see cref="T:System.Collections.Generic.IEnumerable`1" /> whose elements to group.</param>
     /// <param name="keySelector">A function to extract the key for each element.</param>
-    /// <param name="elementSelector">A function to map each source element to an element in an <see cref="T:System.Linq.IGrouping`2" />.</param>
+    /// <param name="elementSelector">A function to map each source element to an element in an <see cref="T:System.Linq.System.Linq.IGrouping`2" />.</param>
     /// <param name="comparer">An <see cref="T:System.Collections.Generic.IEqualityComparer`1" /> to compare keys.</param>
     /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
-    /// <typeparam name="TElement">The type of the elements in the <see cref="T:System.Linq.IGrouping`2" />.</typeparam>
+    /// <typeparam name="TElement">The type of the elements in the <see cref="T:System.Linq.System.Linq.IGrouping`2" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="elementSelector" /> is <see langword="null" />.</exception>
-    /// <returns>An <c>IEnumerable&lt;IGrouping&lt;TKey, TElement&gt;&gt;</c> in C# or <c>IEnumerable(Of IGrouping(Of TKey, TElement))</c> in Visual Basic where each <see cref="T:System.Linq.IGrouping`2" /> object contains a collection of objects of type <typeparamref name="TElement" /> and a key.</returns>
-    public static IEnumerable<IGrouping<TKey,TElement>> GroupBy<TSource, TKey, TElement>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer) {
+    /// <returns>An <c>IEnumerable&lt;System.Linq.IGrouping&lt;TKey, TElement&gt;&gt;</c> in C# or <c>IEnumerable(Of System.Linq.IGrouping(Of TKey, TElement))</c> in Visual Basic where each <see cref="T:System.Linq.System.Linq.IGrouping`2" /> object contains a collection of objects of type <typeparamref name="TElement" /> and a key.</returns>
+    public static IEnumerable<System.Linq.IGrouping<TKey,TElement>> GroupBy<TSource, TKey, TElement>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
         ArgumentNullException.ThrowIfNull(elementSelector);
@@ -1088,11 +1089,11 @@ public static partial class Enumerable {
     /// <summary>Groups the elements of a sequence according to a specified key selector function and creates a result value from each group and its key. The elements of each group are projected by using a specified function.</summary>
     /// <param name="source">An <see cref="T:System.Collections.Generic.IEnumerable`1" /> whose elements to group.</param>
     /// <param name="keySelector">A function to extract the key for each element.</param>
-    /// <param name="elementSelector">A function to map each source element to an element in an <see cref="T:System.Linq.IGrouping`2" />.</param>
+    /// <param name="elementSelector">A function to map each source element to an element in an <see cref="T:System.Linq.System.Linq.IGrouping`2" />.</param>
     /// <param name="resultSelector">A function to create a result value from each group.</param>
     /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
-    /// <typeparam name="TElement">The type of the elements in each <see cref="T:System.Linq.IGrouping`2" />.</typeparam>
+    /// <typeparam name="TElement">The type of the elements in each <see cref="T:System.Linq.System.Linq.IGrouping`2" />.</typeparam>
     /// <typeparam name="TResult">The type of the result value returned by <paramref name="resultSelector" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="elementSelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
@@ -1104,12 +1105,12 @@ public static partial class Enumerable {
     /// <summary>Groups the elements of a sequence according to a specified key selector function and creates a result value from each group and its key. Key values are compared by using a specified comparer, and the elements of each group are projected by using a specified function.</summary>
     /// <param name="source">An <see cref="T:System.Collections.Generic.IEnumerable`1" /> whose elements to group.</param>
     /// <param name="keySelector">A function to extract the key for each element.</param>
-    /// <param name="elementSelector">A function to map each source element to an element in an <see cref="T:System.Linq.IGrouping`2" />.</param>
+    /// <param name="elementSelector">A function to map each source element to an element in an <see cref="T:System.Linq.System.Linq.IGrouping`2" />.</param>
     /// <param name="resultSelector">A function to create a result value from each group.</param>
     /// <param name="comparer">An <see cref="T:System.Collections.Generic.IEqualityComparer`1" /> to compare keys with.</param>
     /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
-    /// <typeparam name="TElement">The type of the elements in each <see cref="T:System.Linq.IGrouping`2" />.</typeparam>
+    /// <typeparam name="TElement">The type of the elements in each <see cref="T:System.Linq.System.Linq.IGrouping`2" />.</typeparam>
     /// <typeparam name="TResult">The type of the result value returned by <paramref name="resultSelector" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="elementSelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
@@ -2115,8 +2116,8 @@ public static partial class Enumerable {
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
-    /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted in descending order according to a key.</returns>
-    public static IOrderedEnumerable<TSource> OrderByDescending<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector) {
+    /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted in descending order according to a key.</returns>
+    public static System.Linq.IOrderedEnumerable<TSource> OrderByDescending<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector) {
         return OrderByDescending(source,keySelector,null);
     }
 
@@ -2128,8 +2129,8 @@ public static partial class Enumerable {
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
-    /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted in descending order according to a key.</returns>
-    public static IOrderedEnumerable<TSource> OrderByDescending<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer) {
+    /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted in descending order according to a key.</returns>
+    public static System.Linq.IOrderedEnumerable<TSource> OrderByDescending<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer) {
         return CreateOrdered(source,keySelector,comparer,true);
     }
 
@@ -2140,8 +2141,8 @@ public static partial class Enumerable {
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
-    /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted according to a key.</returns>
-    public static IOrderedEnumerable<TSource> OrderBy<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector) {
+    /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted according to a key.</returns>
+    public static System.Linq.IOrderedEnumerable<TSource> OrderBy<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector) {
         return OrderBy(source,keySelector,null);
     }
 
@@ -2153,8 +2154,8 @@ public static partial class Enumerable {
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
-    /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted according to a key.</returns>
-    public static IOrderedEnumerable<TSource> OrderBy<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer) {
+    /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted according to a key.</returns>
+    public static System.Linq.IOrderedEnumerable<TSource> OrderBy<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer) {
         return CreateOrdered(source,keySelector,comparer,false);
     }
 
@@ -2163,8 +2164,8 @@ public static partial class Enumerable {
     /// <typeparam name="T">The type of the elements of <paramref name="source" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
-    /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
-    public static IOrderedEnumerable<T> OrderDescending<T>(this IEnumerable<T> source) {
+    /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
+    public static System.Linq.IOrderedEnumerable<T> OrderDescending<T>(this IEnumerable<T> source) {
         return OrderDescending(source,null);
     }
 
@@ -2174,8 +2175,8 @@ public static partial class Enumerable {
     /// <typeparam name="T">The type of the elements of <paramref name="source" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
-    /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
-    public static IOrderedEnumerable<T> OrderDescending<T>(this IEnumerable<T> source,IComparer<T>? comparer) {
+    /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
+    public static System.Linq.IOrderedEnumerable<T> OrderDescending<T>(this IEnumerable<T> source,IComparer<T>? comparer) {
         return CreateOrdered(source,static item=>item,comparer,true);
     }
 
@@ -2184,8 +2185,8 @@ public static partial class Enumerable {
     /// <typeparam name="T">The type of the elements of <paramref name="source" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
-    /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
-    public static IOrderedEnumerable<T> Order<T>(this IEnumerable<T> source) {
+    /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
+    public static System.Linq.IOrderedEnumerable<T> Order<T>(this IEnumerable<T> source) {
         return Order(source,null);
     }
 
@@ -2195,8 +2196,8 @@ public static partial class Enumerable {
     /// <typeparam name="T">The type of the elements of <paramref name="source" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
-    /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
-    public static IOrderedEnumerable<T> Order<T>(this IEnumerable<T> source,IComparer<T>? comparer) {
+    /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
+    public static System.Linq.IOrderedEnumerable<T> Order<T>(this IEnumerable<T> source,IComparer<T>? comparer) {
         return CreateOrdered(source,static item=>item,comparer,false);
     }
 
@@ -3036,54 +3037,54 @@ public static partial class Enumerable {
     }
 
     /// <summary>Performs a subsequent ordering of the elements in a sequence in descending order, according to a key.</summary>
-    /// <param name="source">An <see cref="T:System.Linq.IOrderedEnumerable`1" /> that contains elements to sort.</param>
+    /// <param name="source">An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> that contains elements to sort.</param>
     /// <param name="keySelector">A function to extract a key from each element.</param>
     /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
-    /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted in descending order according to a key.</returns>
-    public static IOrderedEnumerable<TSource> ThenByDescending<TSource, TKey>(this IOrderedEnumerable<TSource> source,Func<TSource,TKey> keySelector) {
+    /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted in descending order according to a key.</returns>
+    public static System.Linq.IOrderedEnumerable<TSource> ThenByDescending<TSource, TKey>(this System.Linq.IOrderedEnumerable<TSource> source,Func<TSource,TKey> keySelector) {
         return ThenByDescending(source,keySelector,null);
     }
 
     /// <summary>Performs a subsequent ordering of the elements in a sequence in descending order by using a specified comparer.</summary>
-    /// <param name="source">An <see cref="T:System.Linq.IOrderedEnumerable`1" /> that contains elements to sort.</param>
+    /// <param name="source">An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> that contains elements to sort.</param>
     /// <param name="keySelector">A function to extract a key from each element.</param>
     /// <param name="comparer">An <see cref="T:System.Collections.Generic.IComparer`1" /> to compare keys.</param>
     /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
-    /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted in descending order according to a key.</returns>
-    public static IOrderedEnumerable<TSource> ThenByDescending<TSource, TKey>(this IOrderedEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer) {
+    /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted in descending order according to a key.</returns>
+    public static System.Linq.IOrderedEnumerable<TSource> ThenByDescending<TSource, TKey>(this System.Linq.IOrderedEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
         return source.CreateOrderedEnumerable(keySelector,comparer,true);
     }
 
     /// <summary>Performs a subsequent ordering of the elements in a sequence in ascending order according to a key.</summary>
-    /// <param name="source">An <see cref="T:System.Linq.IOrderedEnumerable`1" /> that contains elements to sort.</param>
+    /// <param name="source">An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> that contains elements to sort.</param>
     /// <param name="keySelector">A function to extract a key from each element.</param>
     /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
-    /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted according to a key.</returns>
-    public static IOrderedEnumerable<TSource> ThenBy<TSource, TKey>(this IOrderedEnumerable<TSource> source,Func<TSource,TKey> keySelector) {
+    /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted according to a key.</returns>
+    public static System.Linq.IOrderedEnumerable<TSource> ThenBy<TSource, TKey>(this System.Linq.IOrderedEnumerable<TSource> source,Func<TSource,TKey> keySelector) {
         return ThenBy(source,keySelector,null);
     }
 
     /// <summary>Performs a subsequent ordering of the elements in a sequence in ascending order by using a specified comparer.</summary>
-    /// <param name="source">An <see cref="T:System.Linq.IOrderedEnumerable`1" /> that contains elements to sort.</param>
+    /// <param name="source">An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> that contains elements to sort.</param>
     /// <param name="keySelector">A function to extract a key from each element.</param>
     /// <param name="comparer">An <see cref="T:System.Collections.Generic.IComparer`1" /> to compare keys.</param>
     /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
     /// <typeparam name="TKey">The type of the key returned by <paramref name="keySelector" />.</typeparam>
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
-    /// <returns>An <see cref="T:System.Linq.IOrderedEnumerable`1" /> whose elements are sorted according to a key.</returns>
-    public static IOrderedEnumerable<TSource> ThenBy<TSource, TKey>(this IOrderedEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer) {
+    /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted according to a key.</returns>
+    public static System.Linq.IOrderedEnumerable<TSource> ThenBy<TSource, TKey>(this System.Linq.IOrderedEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
         return source.CreateOrderedEnumerable(keySelector,comparer,false);
@@ -3292,7 +3293,7 @@ public static partial class Enumerable {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
     /// <returns>A <see cref="T:System.Linq.Lookup`2" /> that contains keys and values. The values within each group are in the same order as in <paramref name="source" />.</returns>
-    public static ILookup<TKey,TSource> ToLookup<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector) {
+    public static System.Linq.ILookup<TKey,TSource> ToLookup<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector) {
         return ToLookup(source,keySelector,null);
     }
 
@@ -3305,7 +3306,7 @@ public static partial class Enumerable {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
     /// <returns>A <see cref="T:System.Linq.Lookup`2" /> that contains keys and values. The values within each group are in the same order as in <paramref name="source" />.</returns>
-    public static ILookup<TKey,TSource> ToLookup<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) {
+    public static System.Linq.ILookup<TKey,TSource> ToLookup<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
         return CreateLookup(source,keySelector,static item=>item,comparer);
@@ -3321,7 +3322,7 @@ public static partial class Enumerable {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="elementSelector" /> is <see langword="null" />.</exception>
     /// <returns>A <see cref="T:System.Linq.Lookup`2" /> that contains values of type <typeparamref name="TElement" /> selected from the input sequence.</returns>
-    public static ILookup<TKey,TElement> ToLookup<TSource, TKey, TElement>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector) {
+    public static System.Linq.ILookup<TKey,TElement> ToLookup<TSource, TKey, TElement>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector) {
         return ToLookup(source,keySelector,elementSelector,null);
     }
 
@@ -3336,7 +3337,7 @@ public static partial class Enumerable {
     /// <exception cref="T:System.ArgumentNullException">
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="elementSelector" /> is <see langword="null" />.</exception>
     /// <returns>A <see cref="T:System.Linq.Lookup`2" /> that contains values of type <typeparamref name="TElement" /> selected from the input sequence.</returns>
-    public static ILookup<TKey,TElement> ToLookup<TSource, TKey, TElement>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer) {
+    public static System.Linq.ILookup<TKey,TElement> ToLookup<TSource, TKey, TElement>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
         ArgumentNullException.ThrowIfNull(elementSelector);
@@ -3632,7 +3633,7 @@ public static partial class Enumerable {
         }
     }
 
-    private static IEnumerable<IGrouping<TKey,TElement>> GroupByIterator<TSource, TKey, TElement>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer) {
+    private static IEnumerable<System.Linq.IGrouping<TKey,TElement>> GroupByIterator<TSource, TKey, TElement>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer) {
         var lookup=CreateLookup(source,keySelector,elementSelector,comparer);
         foreach(var group in lookup.Groups) {
             yield return group;
@@ -4124,7 +4125,7 @@ public static partial class Enumerable {
         return findMax ? comparison>0 : comparison<0;
     }
 
-    private static IOrderedEnumerable<TSource> CreateOrdered<TSource,TKey>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer,bool descending) {
+    private static System.Linq.IOrderedEnumerable<TSource> CreateOrdered<TSource,TKey>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer,bool descending) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
         return new OrderedEnumerableImpl<TSource>(source).CreateOrderedEnumerable(keySelector,comparer,descending);
@@ -4154,7 +4155,7 @@ public static partial class Enumerable {
         return new InvalidOperationException("Sequence contains more than one matching element.");
     }
 
-    private sealed class GroupingImpl<TKey,TElement>:IGrouping<TKey,TElement> {
+    private sealed class GroupingImpl<TKey,TElement>:System.Linq.IGrouping<TKey,TElement> {
         private readonly List<TElement> elements=new();
 
         public GroupingImpl(TKey key) {
@@ -4176,7 +4177,7 @@ public static partial class Enumerable {
         }
     }
 
-    private sealed class LookupImpl<TKey,TElement>:ILookup<TKey,TElement> {
+    private sealed class LookupImpl<TKey,TElement>:System.Linq.ILookup<TKey,TElement> {
         private readonly IEqualityComparer<TKey> comparer;
 
         public LookupImpl(IEqualityComparer<TKey>? comparer) {
@@ -4208,7 +4209,7 @@ public static partial class Enumerable {
             group.Add(element);
         }
 
-        public IEnumerator<IGrouping<TKey,TElement>> GetEnumerator() {
+        public IEnumerator<System.Linq.IGrouping<TKey,TElement>> GetEnumerator() {
             foreach(var group in Groups) {
                 yield return group;
             }
@@ -4282,7 +4283,7 @@ public static partial class Enumerable {
         }
     }
 
-    private sealed class OrderedEnumerableImpl<T>:IOrderedEnumerable<T> {
+    private sealed class OrderedEnumerableImpl<T>:System.Linq.IOrderedEnumerable<T> {
         private readonly IEnumerable<T> source;
         private readonly List<Comparison<T>> comparisons;
 
@@ -4296,7 +4297,7 @@ public static partial class Enumerable {
             this.comparisons=comparisons;
         }
 
-        public IOrderedEnumerable<T> CreateOrderedEnumerable<TKey>(Func<T,TKey> keySelector,IComparer<TKey>? comparer,bool descending) {
+        public System.Linq.IOrderedEnumerable<T> CreateOrderedEnumerable<TKey>(Func<T,TKey> keySelector,IComparer<TKey>? comparer,bool descending) {
             ArgumentNullException.ThrowIfNull(keySelector);
             comparer ??= Comparer<TKey>.Default;
             var next=new List<Comparison<T>>(comparisons);

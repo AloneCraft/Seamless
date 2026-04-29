@@ -1,4 +1,5 @@
 using Seamless.Stores;
+using System.Linq;
 using System.Runtime.Versioning;
 using Tsavorite.core;
 namespace Test.Seamless.Collections;

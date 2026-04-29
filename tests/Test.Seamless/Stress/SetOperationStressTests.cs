@@ -1,5 +1,6 @@
 using Seamless.Collections;
 using Seamless.Stores;
+using System.Linq;
 using Tsavorite.core;
 namespace Test.Seamless.Stress;
 

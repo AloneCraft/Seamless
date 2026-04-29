@@ -3,6 +3,7 @@ using MemoryPack;
 
 using System.Diagnostics;
 using System.Dynamic;
+using global::Seamless.Linq;
 using AdventureWorks2008R2.Tables;
 using Test.Seamless.Benchmarks.Simple2.Keys;
 // ReSharper disable UnusedType.Global
@@ -17,7 +18,56 @@ using Test.Seamless.Benchmarks.Simple2.Keys;
 //読み込むときは主キーをKeyにデシリアライズする。Valueはそれ以外をデシリアライズする。その後に.Keyフィールドに代入する
 namespace Test.Seamless.Benchmarks.Simple2 {
     static class DatabaseGenerator;
-    public partial class SimpleDatabase {
+    public class SimpleDatabase {
+        public virtual global::System.Collections.Generic.IEnumerable<(T0 o,T1 i)> SelectManyQuery<T0, T1>(global::System.Collections.Generic.IEnumerable<T0> outer,global::System.Collections.Generic.IEnumerable<T1> inner) {
+            return from o in outer
+                   from i in inner
+                   select (o,i);
+        }
+        public virtual global::System.Collections.Generic.IEnumerable<(T0 o,T1 i)> SelectManyMethod<T0, T1>(global::System.Collections.Generic.IEnumerable<T0> outer,global::System.Collections.Generic.IEnumerable<T1> inner) {
+            return outer.SelectMany(o => inner,(o,i) => (o,i));
+        }
+        public virtual global::System.Collections.Generic.IEnumerable<(T o,T p)> WhereSelectQuery<T>(global::System.Collections.Generic.IEnumerable<T> outer,T p) {
+            return
+                from o in outer
+                where o.Equals(p)
+                select (o,p);
+        }
+        public virtual global::System.Collections.Generic.IEnumerable<(T o,T p)> WhereSelectMethod<T>(global::System.Collections.Generic.IEnumerable<T> outer,T p) {
+            return outer.Where(o => o.Equals(p)).Select(o => (o,p));
+        }
+        public virtual global::System.Collections.Generic.IEnumerable<(T0 o,T1 i)> Query2<T0, T1>(global::Seamless.Collections.IHashSet<T0> outer,global::Seamless.Collections.IHashSet<T1> inner)
+            where T0 : System.IEquatable<T0>
+            where T1 : System.IEquatable<T1> {
+            return global::Seamless.Linq.Enumerable.SelectMany(outer,o => inner,(o,i) => (o,i));
+        }
+        public virtual T AggregateMethod<T>(global::System.Collections.Generic.IEnumerable<T> outer) {
+            return outer.Aggregate((a,b) => a);
+        }
+        public virtual global::System.Collections.Generic.IEnumerable<int> WhereAfterAnonymousSelect(int minimumColumn1) {
+            return this.Type0Table
+                .Select(row => new { row.Column0,row.Column1 })
+                .Where(row => row.Column1>=minimumColumn1)
+                .Select(row => row.Column0);
+        }
+        public virtual global::System.Collections.Generic.IEnumerable<int> WhereAfterTupleSelect(int minimumColumn1) {
+            return this.Type0Table
+                .Select(row => (row.Column0,row.Column1))
+                .Where(row => row.Column1>=minimumColumn1)
+                .Select(row => row.Column0);
+        }
+        public virtual global::System.Collections.Generic.IEnumerable<int> WhereAfterJoin(int minimumColumn1) {
+            return this.Type0Table
+                .Join(this.Type0TableFunction(minimumColumn1),outer => outer.Column0,inner => inner.Column0,(outer,inner) => new { outer,inner })
+                .Where(pair => pair.outer.Column1>=minimumColumn1)
+                .Select(pair => pair.inner.Column1);
+        }
+        public virtual global::System.Collections.Generic.IEnumerable<int> WhereAfterExcept(int minimumColumn1) {
+            return this.Type0Table
+                .Select(row => row.Column1)
+                .Except(this.Type0Table.Select(row => row.Column0))
+                .Where(value => value>=minimumColumn1);
+        }
         public virtual global::System.Collections.Generic.List<Types.Type0> Type0Table =>
             new() {
                 new Types.Type0(1,10),

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using SeamlessEnumerable = Seamless.Linq.Enumerable;
 using SystemEnumerable = System.Linq.Enumerable;
 
