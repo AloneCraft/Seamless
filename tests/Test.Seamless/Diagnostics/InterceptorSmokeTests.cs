@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 
 namespace Test.Seamless.Diagnostics;
 
@@ -6,7 +6,9 @@ public class InterceptorSmokeTests {
     [Fact]
     public void ListWhere_Interceptor_Smoke() {
         var numbers = new List<int> { 1,2,3,4,5 };
+        foreach(var a in numbers.Where(n=>n>2)){
 
+        }
         var filtered = numbers.Where(n => n>2).ToArray();
 
         Assert.Equal(new[] { 3,4,5 },filtered);

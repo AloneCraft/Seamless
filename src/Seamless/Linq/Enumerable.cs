@@ -3111,6 +3111,9 @@ public static partial class Enumerable {
     public static TSource[] ToArray<TSource>(this IEnumerable<TSource> source) {
         return ToList(source).ToArray();
     }
+    public static TSource[] ToArray<TSource, TEnumerable>(this TEnumerable source) where TEnumerable : IEnumerable<TSource> {
+        return ToList(source).ToArray();
+    }
 
     /// <summary>Creates a dictionary from an enumeration according to the default comparer for the key type.</summary>
     /// <param name="source">The enumeration to create a dictionary from.</param>

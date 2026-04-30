@@ -9,6 +9,8 @@
     <Import_RootNamespace>Tests.Seamless</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)GlobalUsings.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Diagnostics\InterceptorSmokeTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AdventureWorks2008R2\AdventureWorks2008R2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\Benchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\HashSetBenchmark.cs" />
