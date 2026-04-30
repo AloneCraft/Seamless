@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Seamless.Linq;
 using System.Linq.Expressions;
+using Seamless;
 
 namespace Test.Seamless.Database.Database0 {
     static class DatabaseGenerator;
@@ -10,46 +11,57 @@ namespace Test.Seamless.Database.Database0 {
     ///  <see cref="Test.Seamless.Database.Database0.Keys.Key0"/>
     ///  <see cref="Test.Seamless.Diagnostics.InterceptorSmokeTests.ListWhere_Interceptor_Smoke"/>
     /// </summary>
+    [Optimize]
     public class Container {
-        public virtual IEnumerable<int> Select_Method(IEnumerable<int> outer) {
-            return outer.Select(p => p+p);
+        [Optimize]
+        public virtual global::Seamless.Collections.Generic.IEnumerable<int> Select_Method(global::Seamless.Collections.Generic.IEnumerable<int> outer) {
+            return new(global::Seamless.Linq.Enumerable.Select(outer,p => p+p));
         }
+        [Optimize]
         public virtual IEnumerable<int> SelectSelect_Method(IEnumerable<int> outer) {
             return outer.Select(p => p+p).Select(p => p*p);
         }
+        [Optimize]
         public virtual IEnumerable<(T0 o,T1 i)> SelectMany_Query<T0, T1>(IEnumerable<T0> outer,IEnumerable<T1> inner) {
             return from o in outer
                    from i in inner
                    select (o,i);
         }
 
+        [Optimize]
         public virtual IEnumerable<(T0 o,T1 i)> SelectMany_Method<T0, T1>(IEnumerable<T0> outer,IEnumerable<T1> inner) {
             return outer.SelectMany(_ => inner,(o,i) => (o,i));
         }
 
+        [Optimize]
         public virtual Expression<Func<IEnumerable<int>>> SelectMany_QueryTree(IEnumerable<int> outer,IEnumerable<int> inner) => () =>
             from o in outer
             from i in inner
             select o+i;
 
+        [Optimize]
         public virtual Expression<Func<IEnumerable<int>>> SelectMany_MethodTree(IEnumerable<int> outer,IEnumerable<int> inner) => () =>
             outer.SelectMany(_ => inner,(o,i) => o+i);
 
+        [Optimize]
         public virtual IEnumerable<(T o,T p)> SelectQuery<T>(IEnumerable<T> outer,T p) {
             return from o in outer
                    select (o,p);
         }
 
+        [Optimize]
         public virtual IEnumerable<(T o,T p)> WhereSelectQuery<T>(IEnumerable<T> outer,T p) {
             return from o in outer
                    where EqualityComparer<T>.Default.Equals(o,p)
                    select (o,p);
         }
 
+        [Optimize]
         public virtual IEnumerable<(T o,T p)> WhereSelectMethod<T>(IEnumerable<T> outer,T p) {
             return outer.Where(o => EqualityComparer<T>.Default.Equals(o,p)).Select(o => (o,p));
         }
 
+        [Optimize]
         public virtual IEnumerable<(T o,T p)> SelectWhereQuery<T>(IEnumerable<T> outer,T p) {
             return from o in outer
                    select (o,p) into op
@@ -57,10 +69,12 @@ namespace Test.Seamless.Database.Database0 {
                    select op;
         }
 
+        [Optimize]
         public virtual IEnumerable<(T o,T p)> SelectWhereMethod<T>(IEnumerable<T> outer,T p) {
             return outer.Select(o => (o,p)).Where(op => EqualityComparer<T>.Default.Equals(op.o,p));
         }
 
+        [Optimize]
         public virtual IEnumerable<int> LetQuery(IEnumerable<int> outer) {
             return from value in outer
                    let doubled = value*2
@@ -68,6 +82,7 @@ namespace Test.Seamless.Database.Database0 {
                    select doubled;
         }
 
+        [Optimize]
         public virtual IEnumerable<(int outerKey,int innerValue)> JoinQuery(int minimumColumn1) {
             return from outerRow in this.Type0Table
                    join innerRow in this.Type0Table
@@ -75,6 +90,7 @@ namespace Test.Seamless.Database.Database0 {
                    select (outerRow.Column0,innerRow.Column1);
         }
 
+        [Optimize]
         public virtual IEnumerable<(int outerKey,int innerValue)> JoinIntoQuery(int minimumColumn1) {
             return from outerRow in this.Type0Table
                    join innerRow in this.Type0Table
@@ -83,12 +99,14 @@ namespace Test.Seamless.Database.Database0 {
                    select (outerRow.Column0,match.Column1);
         }
 
+        [Optimize]
         public virtual IEnumerable<int> OrderByQuery() {
             return from row in this.Type0Table
                    orderby row.Column1 descending, row.Column0
                    select row.Column0;
         }
 
+        [Optimize]
         public virtual IEnumerable<(int key,int value)> GroupQuery() {
             return from row in this.Type0Table
                    group row.Column1 by row.Column0%2 into grouped
@@ -97,16 +115,19 @@ namespace Test.Seamless.Database.Database0 {
                    select (grouped.Key,value);
         }
 
+        [Optimize]
         public virtual IEnumerable<(T0 o,T1 i)> Query2<T0, T1>(global::Seamless.Collections.IHashSet<T0> outer,global::Seamless.Collections.IHashSet<T1> inner)
             where T0 : IEquatable<T0>
             where T1 : IEquatable<T1> {
             return global::Seamless.Linq.Enumerable.SelectMany(outer,_ => inner,(o,i) => (o,i));
         }
 
+        [Optimize]
         public virtual T AggregateMethod<T>(IEnumerable<T> outer) {
             return outer.Aggregate((a,_) => a);
         }
 
+        [Optimize]
         public virtual int FusedWhereSelectSum(IEnumerable<int> outer) {
             return outer.Where(value => value>1).Select(value => value*2).Sum();
         }
@@ -115,42 +136,51 @@ namespace Test.Seamless.Database.Database0 {
             return outer.Where(value => value>1).Select(value => value*2).Sum();
         }
 
+        [Optimize]
         public virtual double FusedSkipTakeAverage(IEnumerable<int> outer) {
             return outer.Skip(1).Take(3).Average();
         }
 
+        [Optimize]
         public virtual int FusedSelectManyWhereSum(IEnumerable<int> outer,IEnumerable<int> inner) {
             return outer.SelectMany(outerValue => inner,(outerValue,innerValue) => outerValue+innerValue).Where(value => value>5).Sum();
         }
 
+        [Optimize]
         public virtual int FusedDistinctSkipWhileTakeWhileSum(IEnumerable<int> outer) {
             return outer.SkipWhile(value => value<0).Distinct().TakeWhile(value => value<5).Sum();
         }
 
+        [Optimize]
         public virtual int FusedCastSum(IEnumerable<object> outer) {
             return outer.Cast<int>().Where(value => value>0).Sum();
         }
 
+        [Optimize]
         public virtual int FusedOfTypeSum(IEnumerable<object> outer) {
             return outer.OfType<int>().Sum();
         }
 
+        [Optimize]
         public virtual IEnumerable<int> FusedJoinSelectSequence() {
             return this.Type0Table
                 .Join(this.Type0Table,outer => outer.Column0,inner => inner.Column0,(outer,inner) => (Outer: outer.Column1,Inner: inner.Column1))
                 .Select(pair => pair.Outer+pair.Inner);
         }
 
+        [Optimize]
         public virtual IEnumerable<(int outerValue,int innerValue)> FusedSelectManyHoistedSequence(IEnumerable<int> outer,IEnumerable<int> inner) {
             return outer.SelectMany(_ => inner,(outerValue,innerValue) => (outerValue,innerValue));
         }
 
+        [Optimize]
         public virtual IEnumerable<int> FusedSelectManySplitWhereSequence(IEnumerable<int> outer,IEnumerable<int> inner,int parameter) {
             return outer.SelectMany(outerValue => inner
                 .Where(innerValue => innerValue==parameter&&outerValue==parameter)
                 .Select(innerValue => outerValue+innerValue));
         }
 
+        [Optimize]
         public virtual IEnumerable<int> WhereAfterAnonymousSelect(int minimumColumn1) {
             return this.Type0Table
                 .Select(row => new { row.Column0,row.Column1 })
@@ -158,6 +188,7 @@ namespace Test.Seamless.Database.Database0 {
                 .Select(row => row.Column0);
         }
 
+        [Optimize]
         public virtual IEnumerable<int> WhereAfterTupleSelect(int minimumColumn1) {
             return this.Type0Table
                 .Select(row => (row.Column0,row.Column1))
@@ -165,6 +196,7 @@ namespace Test.Seamless.Database.Database0 {
                 .Select(row => row.Column0);
         }
 
+        [Optimize]
         public virtual IEnumerable<int> WhereAfterJoin(int minimumColumn1) {
             return this.Type0Table
                 .Join(this.Type0Table,outer => outer.Column0,inner => inner.Column0,(outer,inner) => new { outer,inner })
@@ -172,6 +204,7 @@ namespace Test.Seamless.Database.Database0 {
                 .Select(pair => pair.inner.Column1);
         }
 
+        [Optimize]
         public virtual IEnumerable<int> WhereAfterExcept(int minimumColumn1) {
             return this.Type0Table
                 .Select(row => row.Column1)

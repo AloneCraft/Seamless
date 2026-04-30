@@ -10,6 +10,7 @@ public sealed class Enumerable {
 
     public int Smoke() {
         var total = 0;
+        total+=Aggregate_func(1);
         total+=Aggregate_func();
         total+=Aggregate_seed_func();
         total+=Aggregate_seed_func_resultSelector();
@@ -116,7 +117,7 @@ public sealed class Enumerable {
         total+=Zip_second_third().Count();
         return total;
     }
-
+    public int Aggregate_func(int x) => SystemEnumerable.Aggregate(Source(),(left,right) => left+right+x);
     public int Aggregate_func() => SystemEnumerable.Aggregate(Source(),static (left,right) => left+right);
     public int Aggregate_seed_func() => SystemEnumerable.Aggregate(Source(),10,static (sum,value) => sum+value);
     public int Aggregate_seed_func_resultSelector() => SystemEnumerable.Aggregate(Source(),10,static (sum,value) => sum+value,static sum => sum*2);

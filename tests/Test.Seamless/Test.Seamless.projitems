@@ -20,8 +20,12 @@
     <Compile Include="$(MSBuildThisFileDirectory)Database\TPC_H.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intersept\System\Linq\Enumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Intersept\System\Linq\Enumerable2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intersept\Seamless\Linq\Enumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Intersept\Seamless\Linq\Enumerable2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Intersept\Seamless\Linq\EnumerablePattern.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intersept\Seamless\Linq\HashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Intersept\Seamless\Linq\HashSet2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)StoreCheckpoint.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestPath.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestKeyComparer.cs" />
