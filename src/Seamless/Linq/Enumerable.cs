@@ -21,11 +21,11 @@ public static partial class Enumerable {
     public static TSource Aggregate<TSource>(this IEnumerable<TSource> source,Func<TSource,TSource,TSource> func) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(func);
-        using var enumerator=source.GetEnumerator();
+        using var enumerator = source.GetEnumerator();
         if(!enumerator.MoveNext()) {
             throw NoElements();
         }
-        var result=enumerator.Current;
+        var result = enumerator.Current;
         while(enumerator.MoveNext()) {
             result=func(result,enumerator.Current);
         }
@@ -44,7 +44,7 @@ public static partial class Enumerable {
     public static TAccumulate Aggregate<TSource, TAccumulate>(this IEnumerable<TSource> source,TAccumulate seed,Func<TAccumulate,TSource,TAccumulate> func) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(func);
-        var result=seed;
+        var result = seed;
         foreach(var item in source) {
             result=func(result,item);
         }
@@ -82,7 +82,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
         ArgumentNullException.ThrowIfNull(func);
-        return AggregateByIterator<TSource, TKey, TAccumulate>(source,keySelector,seed,func,keyComparer);
+        return AggregateByIterator<TSource,TKey,TAccumulate>(source,keySelector,seed,func,keyComparer);
     }
 
     /// <summary>Applies an accumulator function over a sequence, grouping results by key.</summary>
@@ -101,7 +101,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(keySelector);
         ArgumentNullException.ThrowIfNull(seedSelector);
         ArgumentNullException.ThrowIfNull(func);
-        return AggregateByIterator<TSource, TKey, TAccumulate>(source,keySelector,seedSelector,func,keyComparer);
+        return AggregateByIterator<TSource,TKey,TAccumulate>(source,keySelector,seedSelector,func,keyComparer);
     }
 
     /// <summary>Determines whether all elements of a sequence satisfy a condition.</summary>
@@ -132,7 +132,7 @@ public static partial class Enumerable {
     ///   <see langword="true" /> if the source sequence contains any elements; otherwise, <see langword="false" />.</returns>
     public static bool Any<TSource>(this IEnumerable<TSource> source) {
         ArgumentNullException.ThrowIfNull(source);
-        using var enumerator=source.GetEnumerator();
+        using var enumerator = source.GetEnumerator();
         return enumerator.MoveNext();
     }
 
@@ -184,8 +184,8 @@ public static partial class Enumerable {
     /// <returns>The average of the sequence of values.</returns>
     public static decimal Average(this IEnumerable<decimal> source) {
         ArgumentNullException.ThrowIfNull(source);
-        decimal sum=0;
-        long count=0;
+        decimal sum = 0;
+        long count = 0;
         foreach(var item in source) {
             checked {
                 sum+=item;
@@ -207,8 +207,8 @@ public static partial class Enumerable {
     /// <returns>The average of the sequence of values.</returns>
     public static double Average(this IEnumerable<double> source) {
         ArgumentNullException.ThrowIfNull(source);
-        double sum=0;
-        long count=0;
+        double sum = 0;
+        long count = 0;
         foreach(var item in source) {
             sum+=item;
             checked {
@@ -230,8 +230,8 @@ public static partial class Enumerable {
     /// <returns>The average of the sequence of values.</returns>
     public static double Average(this IEnumerable<int> source) {
         ArgumentNullException.ThrowIfNull(source);
-        long sum=0;
-        long count=0;
+        long sum = 0;
+        long count = 0;
         foreach(var item in source) {
             checked {
                 sum+=item;
@@ -253,8 +253,8 @@ public static partial class Enumerable {
     /// <returns>The average of the sequence of values.</returns>
     public static double Average(this IEnumerable<long> source) {
         ArgumentNullException.ThrowIfNull(source);
-        decimal sum=0;
-        long count=0;
+        decimal sum = 0;
+        long count = 0;
         foreach(var item in source) {
             checked {
                 sum+=item;
@@ -275,8 +275,8 @@ public static partial class Enumerable {
     /// <returns>The average of the sequence of values, or <see langword="null" /> if the source sequence is empty or contains only values that are <see langword="null" />.</returns>
     public static decimal? Average(this IEnumerable<decimal?> source) {
         ArgumentNullException.ThrowIfNull(source);
-        decimal sum=0;
-        long count=0;
+        decimal sum = 0;
+        long count = 0;
         foreach(var item in source) {
             if(item.HasValue) {
                 checked {
@@ -295,8 +295,8 @@ public static partial class Enumerable {
     /// <returns>The average of the sequence of values, or <see langword="null" /> if the source sequence is empty or contains only values that are <see langword="null" />.</returns>
     public static double? Average(this IEnumerable<double?> source) {
         ArgumentNullException.ThrowIfNull(source);
-        double sum=0;
-        long count=0;
+        double sum = 0;
+        long count = 0;
         foreach(var item in source) {
             if(item.HasValue) {
                 sum+=item.GetValueOrDefault();
@@ -316,8 +316,8 @@ public static partial class Enumerable {
     /// <returns>The average of the sequence of values, or <see langword="null" /> if the source sequence is empty or contains only values that are <see langword="null" />.</returns>
     public static double? Average(this IEnumerable<int?> source) {
         ArgumentNullException.ThrowIfNull(source);
-        long sum=0;
-        long count=0;
+        long sum = 0;
+        long count = 0;
         foreach(var item in source) {
             if(item.HasValue) {
                 checked {
@@ -337,8 +337,8 @@ public static partial class Enumerable {
     /// <returns>The average of the sequence of values, or <see langword="null" /> if the source sequence is empty or contains only values that are <see langword="null" />.</returns>
     public static double? Average(this IEnumerable<long?> source) {
         ArgumentNullException.ThrowIfNull(source);
-        decimal sum=0;
-        long count=0;
+        decimal sum = 0;
+        long count = 0;
         foreach(var item in source) {
             if(item.HasValue) {
                 checked {
@@ -357,8 +357,8 @@ public static partial class Enumerable {
     /// <returns>The average of the sequence of values, or <see langword="null" /> if the source sequence is empty or contains only values that are <see langword="null" />.</returns>
     public static float? Average(this IEnumerable<float?> source) {
         ArgumentNullException.ThrowIfNull(source);
-        double sum=0;
-        long count=0;
+        double sum = 0;
+        long count = 0;
         foreach(var item in source) {
             if(item.HasValue) {
                 sum+=item.GetValueOrDefault();
@@ -379,8 +379,8 @@ public static partial class Enumerable {
     /// <returns>The average of the sequence of values.</returns>
     public static float Average(this IEnumerable<float> source) {
         ArgumentNullException.ThrowIfNull(source);
-        double sum=0;
-        long count=0;
+        double sum = 0;
+        long count = 0;
         foreach(var item in source) {
             sum+=item;
             checked {
@@ -601,7 +601,7 @@ public static partial class Enumerable {
     ///   <see langword="true" /> if the source sequence contains an element that has the specified value; otherwise, <see langword="false" />.</returns>
     public static bool Contains<TSource>(this IEnumerable<TSource> source,TSource value,IEqualityComparer<TSource>? comparer) {
         ArgumentNullException.ThrowIfNull(source);
-        comparer ??= EqualityComparer<TSource>.Default;
+        comparer??=EqualityComparer<TSource>.Default;
         foreach(var item in source) {
             if(comparer.Equals(item,value)) {
                 return true;
@@ -625,7 +625,7 @@ public static partial class Enumerable {
         if(source is IReadOnlyCollection<TSource> readOnlyCollection) {
             return readOnlyCollection.Count;
         }
-        var count=0;
+        var count = 0;
         foreach(var item in source) {
             _=item;
             checked {
@@ -646,7 +646,7 @@ public static partial class Enumerable {
     public static int Count<TSource>(this IEnumerable<TSource> source,Func<TSource,bool> predicate) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(predicate);
-        var count=0;
+        var count = 0;
         foreach(var item in source) {
             if(predicate(item)) {
                 checked {
@@ -668,7 +668,7 @@ public static partial class Enumerable {
         where TKey : notnull {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
-        return CountByIterator<TSource, TKey>(source,keySelector,keyComparer);
+        return CountByIterator<TSource,TKey>(source,keySelector,keyComparer);
     }
 
     /// <summary>Returns the elements of the specified sequence or the type parameter's default value in a singleton collection if the sequence is empty.</summary>
@@ -716,7 +716,7 @@ public static partial class Enumerable {
     public static IEnumerable<TSource> DistinctBy<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
-        return DistinctByIterator<TSource, TKey>(source,keySelector,comparer);
+        return DistinctByIterator<TSource,TKey>(source,keySelector,comparer);
     }
 
     /// <summary>Returns distinct elements from a sequence by using the default equality comparer to compare values.</summary>
@@ -751,9 +751,9 @@ public static partial class Enumerable {
     ///   <see langword="default" /> if <paramref name="index" /> is outside the bounds of the <paramref name="source" /> sequence; otherwise, the element at the specified position in the <paramref name="source" /> sequence.</returns>
     public static TSource? ElementAtOrDefault<TSource>(this IEnumerable<TSource> source,Index index) {
         ArgumentNullException.ThrowIfNull(source);
-        var list=ToList(source);
-        var offset=index.GetOffset(list.Count);
-        return offset<0 || offset>=list.Count ? default : list[offset];
+        var list = ToList(source);
+        var offset = index.GetOffset(list.Count);
+        return offset<0||offset>=list.Count ? default : list[offset];
     }
 
     /// <summary>Returns the element at a specified index in a sequence or a default value if the index is out of range.</summary>
@@ -772,7 +772,7 @@ public static partial class Enumerable {
         if(source is IList<TSource> list) {
             return index<list.Count ? list[index] : default;
         }
-        var current=0;
+        var current = 0;
         foreach(var item in source) {
             if(current==index) {
                 return item;
@@ -793,9 +793,9 @@ public static partial class Enumerable {
     /// <returns>The element at the specified position in the <paramref name="source" /> sequence.</returns>
     public static TSource ElementAt<TSource>(this IEnumerable<TSource> source,Index index) {
         ArgumentNullException.ThrowIfNull(source);
-        var list=ToList(source);
-        var offset=index.GetOffset(list.Count);
-        if(offset<0 || offset>=list.Count) {
+        var list = ToList(source);
+        var offset = index.GetOffset(list.Count);
+        if(offset<0||offset>=list.Count) {
             throw new ArgumentOutOfRangeException(nameof(index));
         }
         return list[offset];
@@ -821,7 +821,7 @@ public static partial class Enumerable {
             }
             throw new ArgumentOutOfRangeException(nameof(index));
         }
-        var current=0;
+        var current = 0;
         foreach(var item in source) {
             if(current==index) {
                 return item;
@@ -861,7 +861,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(first);
         ArgumentNullException.ThrowIfNull(second);
         ArgumentNullException.ThrowIfNull(keySelector);
-        return ExceptByIterator<TSource, TKey>(first,second,keySelector,comparer);
+        return ExceptByIterator<TSource,TKey>(first,second,keySelector,comparer);
     }
 
     /// <summary>Produces the set difference of two sequences by using the default equality comparer to compare values.</summary>
@@ -1006,7 +1006,7 @@ public static partial class Enumerable {
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
     /// <returns>An <c>IEnumerable&lt;System.Linq.IGrouping&lt;TKey, TSource&gt;&gt;</c> in C# or <c>IEnumerable(Of System.Linq.IGrouping(Of TKey, TSource))</c> in Visual Basic where each <see cref="T:System.Linq.System.Linq.IGrouping`2" /> object contains a sequence of objects and a key.</returns>
     public static IEnumerable<System.Linq.IGrouping<TKey,TSource>> GroupBy<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector) {
-        return GroupBy(source,keySelector,static item=>item,null);
+        return GroupBy(source,keySelector,static item => item,null);
     }
 
     /// <summary>Groups the elements of a sequence according to a specified key selector function and compares the keys by using a specified comparer.</summary>
@@ -1019,7 +1019,7 @@ public static partial class Enumerable {
     ///   <paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
     /// <returns>An <c>IEnumerable&lt;System.Linq.IGrouping&lt;TKey, TSource&gt;&gt;</c> in C# or <c>IEnumerable(Of System.Linq.IGrouping(Of TKey, TSource))</c> in Visual Basic where each <see cref="T:System.Linq.System.Linq.IGrouping`2" /> object contains a collection of objects and a key.</returns>
     public static IEnumerable<System.Linq.IGrouping<TKey,TSource>> GroupBy<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) {
-        return GroupBy(source,keySelector,static item=>item,comparer);
+        return GroupBy(source,keySelector,static item => item,comparer);
     }
 
     /// <summary>Groups the elements of a sequence according to a specified key selector function and projects the elements for each group by using a specified function.</summary>
@@ -1051,7 +1051,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
         ArgumentNullException.ThrowIfNull(elementSelector);
-        return GroupByIterator<TSource, TKey, TElement>(source,keySelector,elementSelector,comparer);
+        return GroupByIterator<TSource,TKey,TElement>(source,keySelector,elementSelector,comparer);
     }
 
     /// <summary>Groups the elements of a sequence according to a specified key selector function and creates a result value from each group and its key.</summary>
@@ -1083,7 +1083,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
         ArgumentNullException.ThrowIfNull(resultSelector);
-        return GroupByIterator<TSource, TKey, TResult>(source,keySelector,resultSelector,comparer);
+        return GroupByIterator<TSource,TKey,TResult>(source,keySelector,resultSelector,comparer);
     }
 
     /// <summary>Groups the elements of a sequence according to a specified key selector function and creates a result value from each group and its key. The elements of each group are projected by using a specified function.</summary>
@@ -1120,7 +1120,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(keySelector);
         ArgumentNullException.ThrowIfNull(elementSelector);
         ArgumentNullException.ThrowIfNull(resultSelector);
-        return GroupByIterator<TSource, TKey, TElement, TResult>(source,keySelector,elementSelector,resultSelector,comparer);
+        return GroupByIterator<TSource,TKey,TElement,TResult>(source,keySelector,elementSelector,resultSelector,comparer);
     }
 
     /// <summary>Correlates the elements of two sequences based on equality of keys and groups the results. The default equality comparer is used to compare keys.</summary>
@@ -1160,7 +1160,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(outerKeySelector);
         ArgumentNullException.ThrowIfNull(innerKeySelector);
         ArgumentNullException.ThrowIfNull(resultSelector);
-        return GroupJoinIterator<TOuter, TInner, TKey, TResult>(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
+        return GroupJoinIterator<TOuter,TInner,TKey,TResult>(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
     }
 
     /// <summary>Returns an enumerable that incorporates the element's index into a tuple.</summary>
@@ -1211,7 +1211,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(first);
         ArgumentNullException.ThrowIfNull(second);
         ArgumentNullException.ThrowIfNull(keySelector);
-        return IntersectByIterator<TSource, TKey>(first,second,keySelector,comparer);
+        return IntersectByIterator<TSource,TKey>(first,second,keySelector,comparer);
     }
 
     /// <summary>Produces the set intersection of two sequences by using the default equality comparer to compare values.</summary>
@@ -1276,7 +1276,15 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(outerKeySelector);
         ArgumentNullException.ThrowIfNull(innerKeySelector);
         ArgumentNullException.ThrowIfNull(resultSelector);
-        return JoinIterator<TOuter, TInner, TKey, TResult>(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
+        var result = new List<TResult>();
+        var lookup = CreateLookup(inner,innerKeySelector,static item => item,comparer);
+        foreach(var outerItem in outer) {
+            foreach(var innerItem in lookup[outerKeySelector(outerItem)]) {
+                result.Add(resultSelector(outerItem,innerItem));
+            }
+        }
+        return result;
+        //return JoinIterator<TOuter,TInner,TKey,TResult>(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
     }
 
     /// <summary>Returns the last element of a sequence, or a default value if the sequence contains no elements.</summary>
@@ -1288,8 +1296,8 @@ public static partial class Enumerable {
     ///   <see langword="default" />(<typeparamref name="TSource" />) if the source sequence is empty; otherwise, the last element in the <see cref="T:System.Collections.Generic.IEnumerable`1" />.</returns>
     public static TSource? LastOrDefault<TSource>(this IEnumerable<TSource> source) {
         ArgumentNullException.ThrowIfNull(source);
-        var hasAny=false;
-        TSource? result=default;
+        var hasAny = false;
+        TSource? result = default;
         foreach(var item in source) {
             hasAny=true;
             result=item;
@@ -1307,7 +1315,7 @@ public static partial class Enumerable {
     ///   <paramref name="defaultValue" /> if the source sequence is empty; otherwise, the last element in the <see cref="T:System.Collections.Generic.IEnumerable`1" />.</returns>
     public static TSource LastOrDefault<TSource>(this IEnumerable<TSource> source,TSource defaultValue) {
         ArgumentNullException.ThrowIfNull(source);
-        var result=defaultValue;
+        var result = defaultValue;
         foreach(var item in source) {
             result=item;
         }
@@ -1325,8 +1333,8 @@ public static partial class Enumerable {
     public static TSource? LastOrDefault<TSource>(this IEnumerable<TSource> source,Func<TSource,bool> predicate) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(predicate);
-        var hasAny=false;
-        TSource? result=default;
+        var hasAny = false;
+        TSource? result = default;
         foreach(var item in source) {
             if(predicate(item)) {
                 hasAny=true;
@@ -1348,7 +1356,7 @@ public static partial class Enumerable {
     public static TSource LastOrDefault<TSource>(this IEnumerable<TSource> source,Func<TSource,bool> predicate,TSource defaultValue) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(predicate);
-        var result=defaultValue;
+        var result = defaultValue;
         foreach(var item in source) {
             if(predicate(item)) {
                 result=item;
@@ -1366,8 +1374,8 @@ public static partial class Enumerable {
     /// <returns>The value at the last position in the source sequence.</returns>
     public static TSource Last<TSource>(this IEnumerable<TSource> source) {
         ArgumentNullException.ThrowIfNull(source);
-        var hasAny=false;
-        TSource? result=default;
+        var hasAny = false;
+        TSource? result = default;
         foreach(var item in source) {
             hasAny=true;
             result=item;
@@ -1390,8 +1398,8 @@ public static partial class Enumerable {
     public static TSource Last<TSource>(this IEnumerable<TSource> source,Func<TSource,bool> predicate) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(predicate);
-        var hasAny=false;
-        TSource? result=default;
+        var hasAny = false;
+        TSource? result = default;
         foreach(var item in source) {
             if(predicate(item)) {
                 hasAny=true;
@@ -1438,7 +1446,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(outerKeySelector);
         ArgumentNullException.ThrowIfNull(innerKeySelector);
         ArgumentNullException.ThrowIfNull(resultSelector);
-        return LeftJoinIterator<TOuter, TInner, TKey, TResult>(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
+        return LeftJoinIterator<TOuter,TInner,TKey,TResult>(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
     }
 
     /// <summary>Returns an <see cref="T:System.Int64" /> that represents the total number of elements in a sequence.</summary>
@@ -1450,7 +1458,7 @@ public static partial class Enumerable {
     /// <returns>The number of elements in the source sequence.</returns>
     public static long LongCount<TSource>(this IEnumerable<TSource> source) {
         ArgumentNullException.ThrowIfNull(source);
-        long count=0;
+        long count = 0;
         foreach(var item in source) {
             _=item;
             checked {
@@ -1471,7 +1479,7 @@ public static partial class Enumerable {
     public static long LongCount<TSource>(this IEnumerable<TSource> source,Func<TSource,bool> predicate) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(predicate);
-        long count=0;
+        long count = 0;
         foreach(var item in source) {
             if(predicate(item)) {
                 checked {
@@ -2177,7 +2185,7 @@ public static partial class Enumerable {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
     public static System.Linq.IOrderedEnumerable<T> OrderDescending<T>(this IEnumerable<T> source,IComparer<T>? comparer) {
-        return CreateOrdered(source,static item=>item,comparer,true);
+        return CreateOrdered(source,static item => item,comparer,true);
     }
 
     /// <summary>Sorts the elements of a sequence in ascending order.</summary>
@@ -2198,7 +2206,7 @@ public static partial class Enumerable {
     ///   <paramref name="source" /> is <see langword="null" />.</exception>
     /// <returns>An <see cref="T:System.Linq.System.Linq.IOrderedEnumerable`1" /> whose elements are sorted.</returns>
     public static System.Linq.IOrderedEnumerable<T> Order<T>(this IEnumerable<T> source,IComparer<T>? comparer) {
-        return CreateOrdered(source,static item=>item,comparer,false);
+        return CreateOrdered(source,static item => item,comparer,false);
     }
 
     /// <summary>Adds a value to the beginning of the sequence.</summary>
@@ -2224,7 +2232,7 @@ public static partial class Enumerable {
     ///  <paramref name="start" /> + <paramref name="count" /> -1 is larger than <see cref="F:System.Int32.MaxValue">Int32.MaxValue</see>.</exception>
     /// <returns>An <c>IEnumerable&lt;Int32&gt;</c> in C# or <c>IEnumerable(Of Int32)</c> in Visual Basic that contains a range of sequential integral numbers.</returns>
     public static IEnumerable<int> Range(int start,int count) {
-        if(count<0 || (count>0 && (long)start+count-1>int.MaxValue)) {
+        if(count<0||(count>0&&(long)start+count-1>int.MaxValue)) {
             throw new ArgumentOutOfRangeException(nameof(count));
         }
         return RangeIterator(start,count);
@@ -2299,7 +2307,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(outerKeySelector);
         ArgumentNullException.ThrowIfNull(innerKeySelector);
         ArgumentNullException.ThrowIfNull(resultSelector);
-        return RightJoinIterator<TOuter, TInner, TKey, TResult>(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
+        return RightJoinIterator<TOuter,TInner,TKey,TResult>(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
     }
 
     /// <summary>Projects each element of a sequence to an <see cref="T:System.Collections.Generic.IEnumerable`1" /> and flattens the resulting sequences into one sequence.</summary>
@@ -2313,7 +2321,7 @@ public static partial class Enumerable {
     public static IEnumerable<TResult> SelectMany<TSource, TResult>(this IEnumerable<TSource> source,Func<TSource,IEnumerable<TResult>> selector) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(selector);
-        return SelectManyIterator<TSource, TResult>(source,selector);
+        return SelectManyIterator<TSource,TResult>(source,selector);
     }
 
     /// <summary>Projects each element of a sequence to an <see cref="T:System.Collections.Generic.IEnumerable`1" />, and flattens the resulting sequences into one sequence. The index of each source element is used in the projected form of that element.</summary>
@@ -2327,7 +2335,7 @@ public static partial class Enumerable {
     public static IEnumerable<TResult> SelectMany<TSource, TResult>(this IEnumerable<TSource> source,Func<TSource,int,IEnumerable<TResult>> selector) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(selector);
-        return SelectManyIterator<TSource, TResult>(source,selector);
+        return SelectManyIterator<TSource,TResult>(source,selector);
     }
 
     /// <summary>Projects each element of a sequence to an <see cref="T:System.Collections.Generic.IEnumerable`1" />, flattens the resulting sequences into one sequence, and invokes a result selector function on each element therein.</summary>
@@ -2344,7 +2352,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(collectionSelector);
         ArgumentNullException.ThrowIfNull(resultSelector);
-        return SelectManyIterator<TSource, TCollection, TResult>(source,collectionSelector,resultSelector);
+        return SelectManyIterator<TSource,TCollection,TResult>(source,collectionSelector,resultSelector);
     }
 
     /// <summary>Projects each element of a sequence to an <see cref="T:System.Collections.Generic.IEnumerable`1" />, flattens the resulting sequences into one sequence, and invokes a result selector function on each element therein. The index of each source element is used in the intermediate projected form of that element.</summary>
@@ -2361,7 +2369,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(collectionSelector);
         ArgumentNullException.ThrowIfNull(resultSelector);
-        return SelectManyIterator<TSource, TCollection, TResult>(source,collectionSelector,resultSelector);
+        return SelectManyIterator<TSource,TCollection,TResult>(source,collectionSelector,resultSelector);
     }
 
     /// <summary>Projects each element of a sequence into a new form by incorporating the element's index.</summary>
@@ -2375,7 +2383,7 @@ public static partial class Enumerable {
     public static IEnumerable<TResult> Select<TSource, TResult>(this IEnumerable<TSource> source,Func<TSource,int,TResult> selector) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(selector);
-        return SelectIterator<TSource, TResult>(source,selector);
+        return SelectIterator<TSource,TResult>(source,selector);
     }
 
     /// <summary>Projects each element of a sequence into a new form.</summary>
@@ -2389,7 +2397,14 @@ public static partial class Enumerable {
     public static IEnumerable<TResult> Select<TSource, TResult>(this IEnumerable<TSource> source,Func<TSource,TResult> selector) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(selector);
-        return SelectIterator<TSource, TResult>(source,selector);
+        var result = new List<TResult>();
+        foreach(var item in source) {
+            result.Add(Inline(item,selector));
+        }
+        return result;
+        static TResult Inline(TSource item,Func<TSource,TResult> selector) {
+            return selector(item);
+        }
     }
 
     /// <summary>Generates a sequence that begins with <paramref name="start" /> and yields additional values each incremented by <paramref name="step" /> until <paramref name="endInclusive" /> is reached.</summary>
@@ -2433,10 +2448,10 @@ public static partial class Enumerable {
             }
             return Repeat(start,1);
         }
-        if(step>T.Zero && endInclusive<start) {
+        if(step>T.Zero&&endInclusive<start) {
             throw new ArgumentOutOfRangeException(nameof(step));
         }
-        if(step<T.Zero && endInclusive>start) {
+        if(step<T.Zero&&endInclusive>start) {
             throw new ArgumentOutOfRangeException(nameof(step));
         }
         return SequenceIterator<T>(start,endInclusive,step);
@@ -2466,12 +2481,12 @@ public static partial class Enumerable {
     public static bool SequenceEqual<TSource>(this IEnumerable<TSource> first,IEnumerable<TSource> second,IEqualityComparer<TSource>? comparer) {
         ArgumentNullException.ThrowIfNull(first);
         ArgumentNullException.ThrowIfNull(second);
-        comparer ??= EqualityComparer<TSource>.Default;
-        using var firstEnumerator=first.GetEnumerator();
-        using var secondEnumerator=second.GetEnumerator();
+        comparer??=EqualityComparer<TSource>.Default;
+        using var firstEnumerator = first.GetEnumerator();
+        using var secondEnumerator = second.GetEnumerator();
         while(true) {
-            var hasFirst=firstEnumerator.MoveNext();
-            var hasSecond=secondEnumerator.MoveNext();
+            var hasFirst = firstEnumerator.MoveNext();
+            var hasSecond = secondEnumerator.MoveNext();
             if(hasFirst!=hasSecond) {
                 return false;
             }
@@ -2514,11 +2529,11 @@ public static partial class Enumerable {
     /// <returns>The single element of the input sequence, or <paramref name="defaultValue" /> if the sequence contains no elements.</returns>
     public static TSource SingleOrDefault<TSource>(this IEnumerable<TSource> source,TSource defaultValue) {
         ArgumentNullException.ThrowIfNull(source);
-        using var enumerator=source.GetEnumerator();
+        using var enumerator = source.GetEnumerator();
         if(!enumerator.MoveNext()) {
             return defaultValue;
         }
-        var result=enumerator.Current;
+        var result = enumerator.Current;
         if(enumerator.MoveNext()) {
             throw MoreThanOneElement();
         }
@@ -2549,8 +2564,8 @@ public static partial class Enumerable {
     public static TSource SingleOrDefault<TSource>(this IEnumerable<TSource> source,Func<TSource,bool> predicate,TSource defaultValue) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(predicate);
-        var found=false;
-        var result=defaultValue;
+        var found = false;
+        var result = defaultValue;
         foreach(var item in source) {
             if(predicate(item)) {
                 if(found) {
@@ -2576,11 +2591,11 @@ public static partial class Enumerable {
     /// <returns>The single element of the input sequence.</returns>
     public static TSource Single<TSource>(this IEnumerable<TSource> source) {
         ArgumentNullException.ThrowIfNull(source);
-        using var enumerator=source.GetEnumerator();
+        using var enumerator = source.GetEnumerator();
         if(!enumerator.MoveNext()) {
             throw NoElements();
         }
-        var result=enumerator.Current;
+        var result = enumerator.Current;
         if(enumerator.MoveNext()) {
             throw MoreThanOneElement();
         }
@@ -2606,8 +2621,8 @@ public static partial class Enumerable {
     public static TSource Single<TSource>(this IEnumerable<TSource> source,Func<TSource,bool> predicate) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(predicate);
-        var found=false;
-        TSource? result=default;
+        var found = false;
+        TSource? result = default;
         foreach(var item in source) {
             if(predicate(item)) {
                 if(found) {
@@ -2678,7 +2693,7 @@ public static partial class Enumerable {
     /// <returns>The sum of the values in the sequence.</returns>
     public static decimal Sum(this IEnumerable<decimal> source) {
         ArgumentNullException.ThrowIfNull(source);
-        decimal sum=0;
+        decimal sum = 0;
         foreach(var item in source) {
             sum+=item;
         }
@@ -2693,7 +2708,7 @@ public static partial class Enumerable {
     /// <returns>The sum of the values in the sequence.</returns>
     public static double Sum(this IEnumerable<double> source) {
         ArgumentNullException.ThrowIfNull(source);
-        double sum=0;
+        double sum = 0;
         foreach(var item in source) {
             sum+=item;
         }
@@ -2708,7 +2723,7 @@ public static partial class Enumerable {
     /// <returns>The sum of the values in the sequence.</returns>
     public static int Sum(this IEnumerable<int> source) {
         ArgumentNullException.ThrowIfNull(source);
-        var sum=0;
+        var sum = 0;
         foreach(var item in source) {
             checked {
                 sum+=item;
@@ -2725,7 +2740,7 @@ public static partial class Enumerable {
     /// <returns>The sum of the values in the sequence.</returns>
     public static long Sum(this IEnumerable<long> source) {
         ArgumentNullException.ThrowIfNull(source);
-        long sum=0;
+        long sum = 0;
         foreach(var item in source) {
             checked {
                 sum+=item;
@@ -2742,7 +2757,7 @@ public static partial class Enumerable {
     /// <returns>The sum of the values in the sequence.</returns>
     public static decimal? Sum(this IEnumerable<decimal?> source) {
         ArgumentNullException.ThrowIfNull(source);
-        decimal sum=0;
+        decimal sum = 0;
         foreach(var item in source) {
             if(item.HasValue) {
                 sum+=item.GetValueOrDefault();
@@ -2759,7 +2774,7 @@ public static partial class Enumerable {
     /// <returns>The sum of the values in the sequence.</returns>
     public static double? Sum(this IEnumerable<double?> source) {
         ArgumentNullException.ThrowIfNull(source);
-        double sum=0;
+        double sum = 0;
         foreach(var item in source) {
             if(item.HasValue) {
                 sum+=item.GetValueOrDefault();
@@ -2776,7 +2791,7 @@ public static partial class Enumerable {
     /// <returns>The sum of the values in the sequence.</returns>
     public static int? Sum(this IEnumerable<int?> source) {
         ArgumentNullException.ThrowIfNull(source);
-        var sum=0;
+        var sum = 0;
         foreach(var item in source) {
             if(item.HasValue) {
                 checked {
@@ -2795,7 +2810,7 @@ public static partial class Enumerable {
     /// <returns>The sum of the values in the sequence.</returns>
     public static long? Sum(this IEnumerable<long?> source) {
         ArgumentNullException.ThrowIfNull(source);
-        long sum=0;
+        long sum = 0;
         foreach(var item in source) {
             if(item.HasValue) {
                 checked {
@@ -2813,7 +2828,7 @@ public static partial class Enumerable {
     /// <returns>The sum of the values in the sequence.</returns>
     public static float? Sum(this IEnumerable<float?> source) {
         ArgumentNullException.ThrowIfNull(source);
-        float sum=0;
+        float sum = 0;
         foreach(var item in source) {
             if(item.HasValue) {
                 sum+=item.GetValueOrDefault();
@@ -2829,7 +2844,7 @@ public static partial class Enumerable {
     /// <returns>The sum of the values in the sequence.</returns>
     public static float Sum(this IEnumerable<float> source) {
         ArgumentNullException.ThrowIfNull(source);
-        float sum=0;
+        float sum = 0;
         foreach(var item in source) {
             sum+=item;
         }
@@ -3127,7 +3142,7 @@ public static partial class Enumerable {
     public static Dictionary<TKey,TValue> ToDictionary<TKey, TValue>(this IEnumerable<KeyValuePair<TKey,TValue>> source,IEqualityComparer<TKey>? comparer)
         where TKey : notnull {
         ArgumentNullException.ThrowIfNull(source);
-        var dictionary=new Dictionary<TKey,TValue>(comparer);
+        var dictionary = new Dictionary<TKey,TValue>(comparer);
         foreach(var pair in source) {
             dictionary.Add(pair.Key,pair.Value);
         }
@@ -3142,7 +3157,7 @@ public static partial class Enumerable {
     public static Dictionary<TKey,TValue> ToDictionary<TKey, TValue>(this IEnumerable<(TKey Key,TValue Value)> source,IEqualityComparer<TKey>? comparer)
         where TKey : notnull {
         ArgumentNullException.ThrowIfNull(source);
-        var dictionary=new Dictionary<TKey,TValue>(comparer);
+        var dictionary = new Dictionary<TKey,TValue>(comparer);
         foreach(var pair in source) {
             dictionary.Add(pair.Key,pair.Value);
         }
@@ -3187,7 +3202,7 @@ public static partial class Enumerable {
         where TKey : notnull {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
-        var dictionary=new Dictionary<TKey,TSource>(comparer);
+        var dictionary = new Dictionary<TKey,TSource>(comparer);
         foreach(var item in source) {
             dictionary.Add(keySelector(item),item);
         }
@@ -3237,7 +3252,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
         ArgumentNullException.ThrowIfNull(elementSelector);
-        var dictionary=new Dictionary<TKey,TElement>(comparer);
+        var dictionary = new Dictionary<TKey,TElement>(comparer);
         foreach(var item in source) {
             dictionary.Add(keySelector(item),elementSelector(item));
         }
@@ -3263,7 +3278,7 @@ public static partial class Enumerable {
     /// <returns>A <see cref="T:System.Collections.Generic.HashSet`1" /> that contains values of type <typeparamref name="TSource" /> selected from the input sequence.</returns>
     public static HashSet<TSource> ToHashSet<TSource>(this IEnumerable<TSource> source,IEqualityComparer<TSource>? comparer) {
         ArgumentNullException.ThrowIfNull(source);
-        var set=new HashSet<TSource>(comparer);
+        var set = new HashSet<TSource>(comparer);
         foreach(var item in source) {
             set.Add(item);
         }
@@ -3278,7 +3293,7 @@ public static partial class Enumerable {
     /// <returns>A <see cref="T:System.Collections.Generic.List`1" /> that contains elements from the input sequence.</returns>
     public static List<TSource> ToList<TSource>(this IEnumerable<TSource> source) {
         ArgumentNullException.ThrowIfNull(source);
-        var list=new List<TSource>();
+        var list = new List<TSource>();
         foreach(var item in source) {
             list.Add(item);
         }
@@ -3309,7 +3324,7 @@ public static partial class Enumerable {
     public static System.Linq.ILookup<TKey,TSource> ToLookup<TSource, TKey>(this IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
-        return CreateLookup(source,keySelector,static item=>item,comparer);
+        return CreateLookup(source,keySelector,static item => item,comparer);
     }
 
     /// <summary>Creates a <see cref="T:System.Linq.Lookup`2" /> from an <see cref="T:System.Collections.Generic.IEnumerable`1" /> according to specified key selector and element selector functions.</summary>
@@ -3395,7 +3410,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(first);
         ArgumentNullException.ThrowIfNull(second);
         ArgumentNullException.ThrowIfNull(keySelector);
-        return UnionByIterator<TSource, TKey>(first,second,keySelector,comparer);
+        return UnionByIterator<TSource,TKey>(first,second,keySelector,comparer);
     }
 
     /// <summary>Produces the set union of two sequences by using the default equality comparer.</summary>
@@ -3458,7 +3473,7 @@ public static partial class Enumerable {
     public static IEnumerable<(TFirst First,TSecond Second)> Zip<TFirst, TSecond>(this IEnumerable<TFirst> first,IEnumerable<TSecond> second) {
         ArgumentNullException.ThrowIfNull(first);
         ArgumentNullException.ThrowIfNull(second);
-        return ZipIterator<TFirst, TSecond>(first,second);
+        return ZipIterator<TFirst,TSecond>(first,second);
     }
 
     /// <summary>Produces a sequence of tuples with elements from the three specified sequences.</summary>
@@ -3473,7 +3488,7 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(first);
         ArgumentNullException.ThrowIfNull(second);
         ArgumentNullException.ThrowIfNull(third);
-        return ZipIterator<TFirst, TSecond, TThird>(first,second,third);
+        return ZipIterator<TFirst,TSecond,TThird>(first,second,third);
     }
 
     /// <summary>Applies a specified function to the corresponding elements of two sequences, producing a sequence of the results.</summary>
@@ -3490,551 +3505,639 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(first);
         ArgumentNullException.ThrowIfNull(second);
         ArgumentNullException.ThrowIfNull(resultSelector);
-        return ZipIterator<TFirst, TSecond, TResult>(first,second,resultSelector);
+        return ZipIterator<TFirst,TSecond,TResult>(first,second,resultSelector);
     }
 
 
     private static IEnumerable<KeyValuePair<TKey,TAccumulate>> AggregateByIterator<TSource, TKey, TAccumulate>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,TAccumulate seed,Func<TAccumulate,TSource,TAccumulate> func,IEqualityComparer<TKey>? keyComparer = null) where TKey : notnull {
-        var result=new Dictionary<TKey,TAccumulate>(keyComparer);
+        var dictionary = new Dictionary<TKey,TAccumulate>(keyComparer);
         foreach(var item in source) {
-            var key=keySelector(item);
-            if(!result.TryGetValue(key,out var accumulator)) {
+            var key = keySelector(item);
+            if(!dictionary.TryGetValue(key,out var accumulator)) {
                 accumulator=seed;
             }
-            result[key]=func(accumulator!,item);
+            dictionary[key]=func(accumulator!,item);
         }
-        foreach(var pair in result) {
-            yield return pair;
+        var result = new List<KeyValuePair<TKey,TAccumulate>>();
+        foreach(var pair in dictionary) {
+            result.Add(pair);
         }
+        return result;
     }
 
     private static IEnumerable<KeyValuePair<TKey,TAccumulate>> AggregateByIterator<TSource, TKey, TAccumulate>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TKey,TAccumulate> seedSelector,Func<TAccumulate,TSource,TAccumulate> func,IEqualityComparer<TKey>? keyComparer = null) where TKey : notnull {
-        var result=new Dictionary<TKey,TAccumulate>(keyComparer);
+        var dictionary = new Dictionary<TKey,TAccumulate>(keyComparer);
         foreach(var item in source) {
-            var key=keySelector(item);
-            if(!result.TryGetValue(key,out var accumulator)) {
+            var key = keySelector(item);
+            if(!dictionary.TryGetValue(key,out var accumulator)) {
                 accumulator=seedSelector(key);
             }
-            result[key]=func(accumulator,item);
+            dictionary[key]=func(accumulator,item);
         }
-        foreach(var pair in result) {
-            yield return pair;
+        var result = new List<KeyValuePair<TKey,TAccumulate>>();
+        foreach(var pair in dictionary) {
+            result.Add(pair);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> AppendIterator<TSource>(IEnumerable<TSource> source,TSource element) {
+        var result = new List<TSource>();
         foreach(var item in source) {
-            yield return item;
+            result.Add(item);
         }
-        yield return element;
+        result.Add(element);
+        return result;
     }
 
     private static IEnumerable<TResult> CastIterator<TResult>(IEnumerable source) {
+        var result = new List<TResult>();
         foreach(var item in source) {
-            yield return (TResult)item!;
+            result.Add((TResult)item!);
         }
+        return result;
     }
 
     private static IEnumerable<TSource[]> ChunkIterator<TSource>(IEnumerable<TSource> source,int size) {
-        var chunk=new TSource[size];
-        var index=0;
+        var result = new List<TSource[]>();
+        var chunk = new TSource[size];
+        var index = 0;
         foreach(var item in source) {
             chunk[index++]=item;
             if(index==size) {
-                yield return chunk;
+                result.Add(chunk);
                 chunk=new TSource[size];
                 index=0;
             }
         }
         if(index>0) {
             Array.Resize(ref chunk,index);
-            yield return chunk;
+            result.Add(chunk);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> ConcatIterator<TSource>(IEnumerable<TSource> first,IEnumerable<TSource> second) {
+        var result = new List<TSource>();
         foreach(var item in first) {
-            yield return item;
+            result.Add(item);
         }
         foreach(var item in second) {
-            yield return item;
+            result.Add(item);
         }
+        return result;
     }
 
     private static IEnumerable<KeyValuePair<TKey,int>> CountByIterator<TSource, TKey>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? keyComparer = null) where TKey : notnull {
-        var result=new Dictionary<TKey,int>(keyComparer);
+        var counts = new Dictionary<TKey,int>(keyComparer);
         foreach(var item in source) {
-            var key=keySelector(item);
-            result.TryGetValue(key,out var count);
+            var key = keySelector(item);
+            counts.TryGetValue(key,out var count);
             checked {
-                result[key]=count+1;
+                counts[key]=count+1;
             }
         }
-        foreach(var pair in result) {
-            yield return pair;
+        var result = new List<KeyValuePair<TKey,int>>();
+        foreach(var pair in counts) {
+            result.Add(pair);
         }
+        return result;
     }
 
     private static IEnumerable<TSource?> DefaultIfEmptyIterator<TSource>(IEnumerable<TSource> source) {
-        var hasAny=false;
+        var result = new List<TSource?>();
         foreach(var item in source) {
-            hasAny=true;
-            yield return item;
+            result.Add(item);
         }
-        if(!hasAny) {
-            yield return default;
+        if(result.Count==0) {
+            result.Add(default);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> DefaultIfEmptyIterator<TSource>(IEnumerable<TSource> source,TSource defaultValue) {
-        var hasAny=false;
+        var result = new List<TSource>();
         foreach(var item in source) {
-            hasAny=true;
-            yield return item;
+            result.Add(item);
         }
-        if(!hasAny) {
-            yield return defaultValue;
+        if(result.Count==0) {
+            result.Add(defaultValue);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> DistinctByIterator<TSource, TKey>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) {
-        var seen=new HashSet<TKey>(comparer);
+        var result = new List<TSource>();
+        var seen = new HashSet<TKey>(comparer);
         foreach(var item in source) {
             if(seen.Add(keySelector(item))) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> DistinctIterator<TSource>(IEnumerable<TSource> source,IEqualityComparer<TSource>? comparer) {
-        var seen=new HashSet<TSource>(comparer);
+        var result = new List<TSource>();
+        var seen = new HashSet<TSource>(comparer);
         foreach(var item in source) {
             if(seen.Add(item)) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> ExceptByIterator<TSource, TKey>(IEnumerable<TSource> first,IEnumerable<TKey> second,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) {
-        var excluded=new HashSet<TKey>(second,comparer);
+        var result = new List<TSource>();
+        var excluded = new HashSet<TKey>(second,comparer);
         foreach(var item in first) {
             if(excluded.Add(keySelector(item))) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> ExceptIterator<TSource>(IEnumerable<TSource> first,IEnumerable<TSource> second,IEqualityComparer<TSource>? comparer) {
-        var excluded=new HashSet<TSource>(second,comparer);
+        var result = new List<TSource>();
+        var excluded = new HashSet<TSource>(second,comparer);
         foreach(var item in first) {
             if(excluded.Add(item)) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<System.Linq.IGrouping<TKey,TElement>> GroupByIterator<TSource, TKey, TElement>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer) {
-        var lookup=CreateLookup(source,keySelector,elementSelector,comparer);
+        var result = new List<System.Linq.IGrouping<TKey,TElement>>();
+        var lookup = CreateLookup(source,keySelector,elementSelector,comparer);
         foreach(var group in lookup.Groups) {
-            yield return group;
+            result.Add(group);
         }
+        return result;
     }
 
     private static IEnumerable<TResult> GroupByIterator<TSource, TKey, TResult>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TKey,IEnumerable<TSource>,TResult> resultSelector,IEqualityComparer<TKey>? comparer) {
-        var lookup=CreateLookup(source,keySelector,static item=>item,comparer);
+        var result = new List<TResult>();
+        var lookup = CreateLookup(source,keySelector,static item => item,comparer);
         foreach(var group in lookup.Groups) {
-            yield return resultSelector(group.Key,group);
+            result.Add(resultSelector(group.Key,group));
         }
+        return result;
     }
 
     private static IEnumerable<TResult> GroupByIterator<TSource, TKey, TElement, TResult>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,Func<TKey,IEnumerable<TElement>,TResult> resultSelector,IEqualityComparer<TKey>? comparer) {
-        var lookup=CreateLookup(source,keySelector,elementSelector,comparer);
+        var result = new List<TResult>();
+        var lookup = CreateLookup(source,keySelector,elementSelector,comparer);
         foreach(var group in lookup.Groups) {
-            yield return resultSelector(group.Key,group);
+            result.Add(resultSelector(group.Key,group));
         }
+        return result;
     }
 
     private static IEnumerable<TResult> GroupJoinIterator<TOuter, TInner, TKey, TResult>(IEnumerable<TOuter> outer,IEnumerable<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,IEnumerable<TInner>,TResult> resultSelector,IEqualityComparer<TKey>? comparer) {
-        var lookup=CreateLookup(inner,innerKeySelector,static item=>item,comparer);
+        var result = new List<TResult>();
+        var lookup = CreateLookup(inner,innerKeySelector,static item => item,comparer);
         foreach(var outerItem in outer) {
-            yield return resultSelector(outerItem,lookup[outerKeySelector(outerItem)]);
+            result.Add(resultSelector(outerItem,lookup[outerKeySelector(outerItem)]));
         }
+        return result;
     }
 
     private static IEnumerable<(int Index,TSource Item)> IndexIterator<TSource>(IEnumerable<TSource> source) {
-        var index=0;
+        var result = new List<(int Index,TSource Item)>();
+        var index = 0;
         foreach(var item in source) {
-            yield return (index,item);
+            result.Add((index,item));
             checked {
                 index++;
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> IntersectByIterator<TSource, TKey>(IEnumerable<TSource> first,IEnumerable<TKey> second,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) {
-        var set=new HashSet<TKey>(second,comparer);
+        var result = new List<TSource>();
+        var set = new HashSet<TKey>(second,comparer);
         foreach(var item in first) {
             if(set.Remove(keySelector(item))) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> IntersectIterator<TSource>(IEnumerable<TSource> first,IEnumerable<TSource> second,IEqualityComparer<TSource>? comparer) {
-        var set=new HashSet<TSource>(second,comparer);
+        var result = new List<TSource>();
+        var set = new HashSet<TSource>(second,comparer);
         foreach(var item in first) {
             if(set.Remove(item)) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
-    private static IEnumerable<TResult> JoinIterator<TOuter, TInner, TKey, TResult>(IEnumerable<TOuter> outer,IEnumerable<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,TInner,TResult> resultSelector,IEqualityComparer<TKey>? comparer) {
-        var lookup=CreateLookup(inner,innerKeySelector,static item=>item,comparer);
-        foreach(var outerItem in outer) {
-            foreach(var innerItem in lookup[outerKeySelector(outerItem)]) {
-                yield return resultSelector(outerItem,innerItem);
-            }
-        }
-    }
 
     private static IEnumerable<TResult> LeftJoinIterator<TOuter, TInner, TKey, TResult>(IEnumerable<TOuter> outer,IEnumerable<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,TInner?,TResult> resultSelector,IEqualityComparer<TKey>? comparer) {
-        var lookup=CreateLookup(inner,innerKeySelector,static item=>item,comparer);
+        var result = new List<TResult>();
+        var lookup = CreateLookup(inner,innerKeySelector,static item => item,comparer);
         foreach(var outerItem in outer) {
-            var hasMatch=false;
+            var hasMatch = false;
             foreach(var innerItem in lookup[outerKeySelector(outerItem)]) {
                 hasMatch=true;
-                yield return resultSelector(outerItem,innerItem);
+                result.Add(resultSelector(outerItem,innerItem));
             }
             if(!hasMatch) {
-                yield return resultSelector(outerItem,default);
+                result.Add(resultSelector(outerItem,default));
             }
         }
+        return result;
     }
 
     private static IEnumerable<TResult> OfTypeIterator<TResult>(IEnumerable source) {
+        var result = new List<TResult>();
         foreach(var item in source) {
-            if(item is TResult result) {
-                yield return result;
+            if(item is TResult castedResult) {
+                result.Add(castedResult);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> PrependIterator<TSource>(IEnumerable<TSource> source,TSource element) {
-        yield return element;
+        var result = new List<TSource>();
+        result.Add(element);
         foreach(var item in source) {
-            yield return item;
+            result.Add(item);
         }
+        return result;
     }
 
     private static IEnumerable<int> RangeIterator(int start,int count) {
-        for(var index=0;index<count;index++) {
-            yield return start+index;
+        var result = new List<int>();
+        for(var index = 0; index<count; index++) {
+            result.Add(start+index);
         }
+        return result;
     }
 
     private static IEnumerable<TResult> RepeatIterator<TResult>(TResult element,int count) {
-        for(var index=0;index<count;index++) {
-            yield return element;
+        var result = new List<TResult>();
+        for(var index = 0; index<count; index++) {
+            result.Add(element);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> ReverseIterator<TSource>(IEnumerable<TSource> source) {
-        var list=ToList(source);
-        for(var index=list.Count-1;index>=0;index--) {
-            yield return list[index];
+        var result = new List<TSource>();
+        var list = ToList(source);
+        for(var index = list.Count-1; index>=0; index--) {
+            result.Add(list[index]);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> ReverseIterator<TSource>(TSource[] source) {
-        var list=ToList(source);
-        for(var index=list.Count-1;index>=0;index--) {
-            yield return list[index];
+        var result = new List<TSource>();
+        var list = ToList(source);
+        for(var index = list.Count-1; index>=0; index--) {
+            result.Add(list[index]);
         }
+        return result;
     }
 
     private static IEnumerable<TResult> RightJoinIterator<TOuter, TInner, TKey, TResult>(IEnumerable<TOuter> outer,IEnumerable<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter?,TInner,TResult> resultSelector,IEqualityComparer<TKey>? comparer) {
-        var lookup=CreateLookup(outer,outerKeySelector,static item=>item,comparer);
+        var result = new List<TResult>();
+        var lookup = CreateLookup(outer,outerKeySelector,static item => item,comparer);
         foreach(var innerItem in inner) {
-            var hasMatch=false;
+            var hasMatch = false;
             foreach(var outerItem in lookup[innerKeySelector(innerItem)]) {
                 hasMatch=true;
-                yield return resultSelector(outerItem,innerItem);
+                result.Add(resultSelector(outerItem,innerItem));
             }
             if(!hasMatch) {
-                yield return resultSelector(default,innerItem);
+                result.Add(resultSelector(default,innerItem));
             }
         }
+        return result;
     }
 
     private static IEnumerable<TResult> SelectManyIterator<TSource, TResult>(IEnumerable<TSource> source,Func<TSource,IEnumerable<TResult>> selector) {
+        var result = new List<TResult>();
         foreach(var item in source) {
-            foreach(var result in selector(item)) {
-                yield return result;
+            foreach(var projectedItem in selector(item)) {
+                result.Add(projectedItem);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TResult> SelectManyIterator<TSource, TResult>(IEnumerable<TSource> source,Func<TSource,int,IEnumerable<TResult>> selector) {
-        var index=-1;
-        foreach(var item in source) {
-            checked {
-                index++;
-            }
-            foreach(var result in selector(item,index)) {
-                yield return result;
-            }
-        }
-    }
-
-    private static IEnumerable<TResult> SelectManyIterator<TSource, TCollection, TResult>(IEnumerable<TSource> source,Func<TSource,IEnumerable<TCollection>> collectionSelector,Func<TSource,TCollection,TResult> resultSelector) {
-        foreach(var item in source) {
-            foreach(var collectionItem in collectionSelector(item)) {
-                yield return resultSelector(item,collectionItem);
-            }
-        }
-    }
-
-    private static IEnumerable<TResult> SelectManyIterator<TSource, TCollection, TResult>(IEnumerable<TSource> source,Func<TSource,int,IEnumerable<TCollection>> collectionSelector,Func<TSource,TCollection,TResult> resultSelector) {
-        var index=-1;
-        foreach(var item in source) {
-            checked {
-                index++;
-            }
-            foreach(var collectionItem in collectionSelector(item,index)) {
-                yield return resultSelector(item,collectionItem);
-            }
-        }
-    }
-
-    private static IEnumerable<TResult> SelectIterator<TSource, TResult>(IEnumerable<TSource> source,Func<TSource,int,TResult> selector) {
+        var result = new List<TResult>();
         var index = -1;
         foreach(var item in source) {
             checked {
                 index++;
             }
-            yield return selector(item,index);
+            foreach(var projectedItem in selector(item,index)) {
+                result.Add(projectedItem);
+            }
         }
+        return result;
     }
 
-    private static IEnumerable<TResult> SelectIterator<TSource, TResult>(IEnumerable<TSource> source,Func<TSource,TResult> selector) {
+    private static IEnumerable<TResult> SelectManyIterator<TSource, TCollection, TResult>(IEnumerable<TSource> source,Func<TSource,IEnumerable<TCollection>> collectionSelector,Func<TSource,TCollection,TResult> resultSelector) {
+        var result = new List<TResult>();
         foreach(var item in source) {
-            yield return selector(item);
-        }
-    }
-
-    private static IEnumerable<T> SequenceIterator<T>(T start,T endInclusive,T step) where T : INumber<T> {
-        if(step>T.Zero) {
-            for(var current=start;current<=endInclusive;current+=step) {
-                yield return current;
-            }
-        } else {
-            for(var current=start;current>=endInclusive;current+=step) {
-                yield return current;
+            foreach(var collectionItem in collectionSelector(item)) {
+                result.Add(resultSelector(item,collectionItem));
             }
         }
+        return result;
     }
 
-    private static IEnumerable<TSource> ShuffleIterator<TSource>(IEnumerable<TSource> source) {
-        var list=ToList(source);
-        for(var index=list.Count-1;index>0;index--) {
-            var swapIndex=Random.Shared.Next(index+1);
-            (list[index],list[swapIndex])=(list[swapIndex],list[index]);
-        }
-        foreach(var item in list) {
-            yield return item;
-        }
-    }
-
-    private static IEnumerable<TSource> SkipLastIterator<TSource>(IEnumerable<TSource> source,int count) {
-        if(count<=0) {
-            foreach(var item in source) {
-                yield return item;
-            }
-            yield break;
-        }
-        var list=ToList(source);
-        var end=Math.Max(0,list.Count-count);
-        for(var index=0;index<end;index++) {
-            yield return list[index];
-        }
-    }
-
-    private static IEnumerable<TSource> SkipWhileIterator<TSource>(IEnumerable<TSource> source,Func<TSource,bool> predicate) {
-        var yielding=false;
-        foreach(var item in source) {
-            if(!yielding && !predicate(item)) {
-                yielding=true;
-            }
-            if(yielding) {
-                yield return item;
-            }
-        }
-    }
-
-    private static IEnumerable<TSource> SkipWhileIterator<TSource>(IEnumerable<TSource> source,Func<TSource,int,bool> predicate) {
-        var yielding=false;
-        var index=-1;
+    private static IEnumerable<TResult> SelectManyIterator<TSource, TCollection, TResult>(IEnumerable<TSource> source,Func<TSource,int,IEnumerable<TCollection>> collectionSelector,Func<TSource,TCollection,TResult> resultSelector) {
+        var result = new List<TResult>();
+        var index = -1;
         foreach(var item in source) {
             checked {
                 index++;
             }
-            if(!yielding && !predicate(item,index)) {
+            foreach(var collectionItem in collectionSelector(item,index)) {
+                result.Add(resultSelector(item,collectionItem));
+            }
+        }
+        return result;
+    }
+
+    private static IEnumerable<TResult> SelectIterator<TSource, TResult>(IEnumerable<TSource> source,Func<TSource,int,TResult> selector) {
+        var result = new List<TResult>();
+        var index = -1;
+        foreach(var item in source) {
+            checked {
+                index++;
+            }
+            result.Add(selector(item,index));
+        }
+        return result;
+    }
+
+
+    private static IEnumerable<T> SequenceIterator<T>(T start,T endInclusive,T step) where T : INumber<T> {
+        var result = new List<T>();
+        if(step>T.Zero) {
+            for(var current = start; current<=endInclusive; current+=step) {
+                result.Add(current);
+            }
+        }
+        else {
+            for(var current = start; current>=endInclusive; current+=step) {
+                result.Add(current);
+            }
+        }
+        return result;
+    }
+
+    private static IEnumerable<TSource> ShuffleIterator<TSource>(IEnumerable<TSource> source) {
+        var result = new List<TSource>();
+        var list = ToList(source);
+        for(var index = list.Count-1; index>0; index--) {
+            var swapIndex = Random.Shared.Next(index+1);
+            (list[index],list[swapIndex])=(list[swapIndex],list[index]);
+        }
+        foreach(var item in list) {
+            result.Add(item);
+        }
+        return result;
+    }
+
+    private static IEnumerable<TSource> SkipLastIterator<TSource>(IEnumerable<TSource> source,int count) {
+        var result = new List<TSource>();
+        if(count<=0) {
+            foreach(var item in source) {
+                result.Add(item);
+            }
+            return result;
+        }
+        var list = ToList(source);
+        var end = Math.Max(0,list.Count-count);
+        for(var index = 0; index<end; index++) {
+            result.Add(list[index]);
+        }
+        return result;
+    }
+
+    private static IEnumerable<TSource> SkipWhileIterator<TSource>(IEnumerable<TSource> source,Func<TSource,bool> predicate) {
+        var result = new List<TSource>();
+        var yielding = false;
+        foreach(var item in source) {
+            if(!yielding&&!predicate(item)) {
                 yielding=true;
             }
             if(yielding) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
+    }
+
+    private static IEnumerable<TSource> SkipWhileIterator<TSource>(IEnumerable<TSource> source,Func<TSource,int,bool> predicate) {
+        var result = new List<TSource>();
+        var yielding = false;
+        var index = -1;
+        foreach(var item in source) {
+            checked {
+                index++;
+            }
+            if(!yielding&&!predicate(item,index)) {
+                yielding=true;
+            }
+            if(yielding) {
+                result.Add(item);
+            }
+        }
+        return result;
     }
 
     private static IEnumerable<TSource> SkipIterator<TSource>(IEnumerable<TSource> source,int count) {
-        var skipped=0;
+        var result = new List<TSource>();
+        var skipped = 0;
         foreach(var item in source) {
             if(skipped<count) {
                 skipped++;
                 continue;
             }
-            yield return item;
+            result.Add(item);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> TakeLastIterator<TSource>(IEnumerable<TSource> source,int count) {
+        var result = new List<TSource>();
         if(count<=0) {
-            yield break;
+            return result;
         }
-        var list=ToList(source);
-        var start=Math.Max(0,list.Count-count);
-        for(var index=start;index<list.Count;index++) {
-            yield return list[index];
+        var list = ToList(source);
+        var start = Math.Max(0,list.Count-count);
+        for(var index = start; index<list.Count; index++) {
+            result.Add(list[index]);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> TakeWhileIterator<TSource>(IEnumerable<TSource> source,Func<TSource,bool> predicate) {
+        var result = new List<TSource>();
         foreach(var item in source) {
             if(!predicate(item)) {
-                yield break;
+                return result;
             }
-            yield return item;
+            result.Add(item);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> TakeWhileIterator<TSource>(IEnumerable<TSource> source,Func<TSource,int,bool> predicate) {
-        var index=-1;
+        var result = new List<TSource>();
+        var index = -1;
         foreach(var item in source) {
             checked {
                 index++;
             }
             if(!predicate(item,index)) {
-                yield break;
+                return result;
             }
-            yield return item;
+            result.Add(item);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> TakeIterator<TSource>(IEnumerable<TSource> source,int count) {
+        var result = new List<TSource>();
         if(count<=0) {
-            yield break;
+            return result;
         }
-        var taken=0;
+        var taken = 0;
         foreach(var item in source) {
             if(taken++>=count) {
-                yield break;
+                return result;
             }
-            yield return item;
+            result.Add(item);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> TakeIterator<TSource>(IEnumerable<TSource> source,Range range) {
-        var list=ToList(source);
+        var result = new List<TSource>();
+        var list = ToList(source);
         var (offset,length)=range.GetOffsetAndLength(list.Count);
-        for(var index=offset;index<offset+length;index++) {
-            yield return list[index];
+        for(var index = offset; index<offset+length; index++) {
+            result.Add(list[index]);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> UnionByIterator<TSource, TKey>(IEnumerable<TSource> first,IEnumerable<TSource> second,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) {
-        var seen=new HashSet<TKey>(comparer);
+        var result = new List<TSource>();
+        var seen = new HashSet<TKey>(comparer);
         foreach(var item in first) {
             if(seen.Add(keySelector(item))) {
-                yield return item;
+                result.Add(item);
             }
         }
         foreach(var item in second) {
             if(seen.Add(keySelector(item))) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> UnionIterator<TSource>(IEnumerable<TSource> first,IEnumerable<TSource> second,IEqualityComparer<TSource>? comparer) {
-        var seen=new HashSet<TSource>(comparer);
+        var result = new List<TSource>();
+        var seen = new HashSet<TSource>(comparer);
         foreach(var item in first) {
             if(seen.Add(item)) {
-                yield return item;
+                result.Add(item);
             }
         }
         foreach(var item in second) {
             if(seen.Add(item)) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> WhereIterator<TSource>(IEnumerable<TSource> source,Func<TSource,bool> predicate) {
+        var result = new List<TSource>();
         foreach(var item in source) {
             if(predicate(item)) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> WhereIterator<TSource>(IEnumerable<TSource> source,Func<TSource,int,bool> predicate) {
-        var index=-1;
+        var result = new List<TSource>();
+        var index = -1;
         foreach(var item in source) {
             checked {
                 index++;
             }
             if(predicate(item,index)) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<(TFirst First,TSecond Second)> ZipIterator<TFirst, TSecond>(IEnumerable<TFirst> first,IEnumerable<TSecond> second) {
-        using var firstEnumerator=first.GetEnumerator();
-        using var secondEnumerator=second.GetEnumerator();
-        while(firstEnumerator.MoveNext() && secondEnumerator.MoveNext()) {
-            yield return (firstEnumerator.Current,secondEnumerator.Current);
+        var result = new List<(TFirst First,TSecond Second)>();
+        using var firstEnumerator = first.GetEnumerator();
+        using var secondEnumerator = second.GetEnumerator();
+        while(firstEnumerator.MoveNext()&&secondEnumerator.MoveNext()) {
+            result.Add((firstEnumerator.Current,secondEnumerator.Current));
         }
+        return result;
     }
 
     private static IEnumerable<(TFirst First,TSecond Second,TThird Third)> ZipIterator<TFirst, TSecond, TThird>(IEnumerable<TFirst> first,IEnumerable<TSecond> second,IEnumerable<TThird> third) {
-        using var firstEnumerator=first.GetEnumerator();
-        using var secondEnumerator=second.GetEnumerator();
-        using var thirdEnumerator=third.GetEnumerator();
-        while(firstEnumerator.MoveNext() && secondEnumerator.MoveNext() && thirdEnumerator.MoveNext()) {
-            yield return (firstEnumerator.Current,secondEnumerator.Current,thirdEnumerator.Current);
+        var result = new List<(TFirst First,TSecond Second,TThird Third)>();
+        using var firstEnumerator = first.GetEnumerator();
+        using var secondEnumerator = second.GetEnumerator();
+        using var thirdEnumerator = third.GetEnumerator();
+        while(firstEnumerator.MoveNext()&&secondEnumerator.MoveNext()&&thirdEnumerator.MoveNext()) {
+            result.Add((firstEnumerator.Current,secondEnumerator.Current,thirdEnumerator.Current));
         }
+        return result;
     }
 
     private static IEnumerable<TResult> ZipIterator<TFirst, TSecond, TResult>(IEnumerable<TFirst> first,IEnumerable<TSecond> second,Func<TFirst,TSecond,TResult> resultSelector) {
-        using var firstEnumerator=first.GetEnumerator();
-        using var secondEnumerator=second.GetEnumerator();
-        while(firstEnumerator.MoveNext() && secondEnumerator.MoveNext()) {
-            yield return resultSelector(firstEnumerator.Current,secondEnumerator.Current);
+        var result = new List<TResult>();
+        using var firstEnumerator = first.GetEnumerator();
+        using var secondEnumerator = second.GetEnumerator();
+        while(firstEnumerator.MoveNext()&&secondEnumerator.MoveNext()) {
+            result.Add(resultSelector(firstEnumerator.Current,secondEnumerator.Current));
         }
+        return result;
     }
-    private static IEnumerable<TResult> Project<TSource,TResult>(IEnumerable<TSource> source,Func<TSource,TResult> selector) {
+    private static IEnumerable<TResult> Project<TSource, TResult>(IEnumerable<TSource> source,Func<TSource,TResult> selector) {
+        var result = new List<TResult>();
         foreach(var item in source) {
-            yield return selector(item);
+            result.Add(selector(item));
         }
+        return result;
     }
 
     private static T Extremum<T>(IEnumerable<T> source,IComparer<T> comparer,bool findMax) {
         ArgumentNullException.ThrowIfNull(source);
-        var hasValue=false;
-        T? result=default;
+        var hasValue = false;
+        T? result = default;
         foreach(var item in source) {
             if(!hasValue) {
                 result=item;
@@ -4049,15 +4152,15 @@ public static partial class Enumerable {
     }
 
     private static T? NullableExtremum<T>(IEnumerable<T?> source,IComparer<T> comparer,bool findMax)
-        where T:struct {
+        where T : struct {
         ArgumentNullException.ThrowIfNull(source);
-        var hasValue=false;
-        T result=default;
+        var hasValue = false;
+        T result = default;
         foreach(var item in source) {
             if(!item.HasValue) {
                 continue;
             }
-            var value=item.GetValueOrDefault();
+            var value = item.GetValueOrDefault();
             if(!hasValue) {
                 result=value;
                 hasValue=true;
@@ -4072,9 +4175,9 @@ public static partial class Enumerable {
 
     private static TSource? GenericExtremum<TSource>(IEnumerable<TSource> source,IComparer<TSource>? comparer,bool findMax) {
         ArgumentNullException.ThrowIfNull(source);
-        comparer ??= Comparer<TSource>.Default;
-        var hasValue=false;
-        TSource? result=default;
+        comparer??=Comparer<TSource>.Default;
+        var hasValue = false;
+        TSource? result = default;
         foreach(var item in source) {
             if(item is null) {
                 continue;
@@ -4097,22 +4200,22 @@ public static partial class Enumerable {
         throw NoElements();
     }
 
-    private static TSource? ExtremumBy<TSource,TKey>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer,bool findMax) {
+    private static TSource? ExtremumBy<TSource, TKey>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer,bool findMax) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
-        comparer ??= Comparer<TKey>.Default;
-        using var enumerator=source.GetEnumerator();
+        comparer??=Comparer<TKey>.Default;
+        using var enumerator = source.GetEnumerator();
         if(!enumerator.MoveNext()) {
             if(default(TSource) is null) {
                 return default;
             }
             throw NoElements();
         }
-        var result=enumerator.Current;
-        var resultKey=keySelector(result);
+        var result = enumerator.Current;
+        var resultKey = keySelector(result);
         while(enumerator.MoveNext()) {
-            var item=enumerator.Current;
-            var key=keySelector(item);
+            var item = enumerator.Current;
+            var key = keySelector(item);
             if(IsBetter(comparer.Compare(key,resultKey),findMax)) {
                 result=item;
                 resultKey=key;
@@ -4125,14 +4228,14 @@ public static partial class Enumerable {
         return findMax ? comparison>0 : comparison<0;
     }
 
-    private static System.Linq.IOrderedEnumerable<TSource> CreateOrdered<TSource,TKey>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer,bool descending) {
+    private static System.Linq.IOrderedEnumerable<TSource> CreateOrdered<TSource, TKey>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey>? comparer,bool descending) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(keySelector);
         return new OrderedEnumerableImpl<TSource>(source).CreateOrderedEnumerable(keySelector,comparer,descending);
     }
 
-    private static LookupImpl<TKey,TElement> CreateLookup<TSource,TKey,TElement>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer) {
-        var lookup=new LookupImpl<TKey,TElement>(comparer);
+    private static LookupImpl<TKey,TElement> CreateLookup<TSource, TKey, TElement>(IEnumerable<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer) {
+        var lookup = new LookupImpl<TKey,TElement>(comparer);
         foreach(var item in source) {
             lookup.Add(keySelector(item),elementSelector(item));
         }
@@ -4155,8 +4258,8 @@ public static partial class Enumerable {
         return new InvalidOperationException("Sequence contains more than one matching element.");
     }
 
-    private sealed class GroupingImpl<TKey,TElement>:System.Linq.IGrouping<TKey,TElement> {
-        private readonly List<TElement> elements=new();
+    private sealed class GroupingImpl<TKey, TElement>:System.Linq.IGrouping<TKey,TElement> {
+        private readonly List<TElement> elements = new();
 
         public GroupingImpl(TKey key) {
             Key=key;
@@ -4177,11 +4280,11 @@ public static partial class Enumerable {
         }
     }
 
-    private sealed class LookupImpl<TKey,TElement>:System.Linq.ILookup<TKey,TElement> {
+    private sealed class LookupImpl<TKey, TElement>:System.Linq.ILookup<TKey,TElement> {
         private readonly IEqualityComparer<TKey> comparer;
 
         public LookupImpl(IEqualityComparer<TKey>? comparer) {
-            this.comparer=comparer ?? EqualityComparer<TKey>.Default;
+            this.comparer=comparer??EqualityComparer<TKey>.Default;
             Groups=new List<GroupingImpl<TKey,TElement>>();
         }
 
@@ -4191,7 +4294,7 @@ public static partial class Enumerable {
 
         public IEnumerable<TElement> this[TKey key] {
             get {
-                var group=Find(key);
+                var group = Find(key);
                 return group is null ? Empty<TElement>() : group;
             }
         }
@@ -4201,7 +4304,7 @@ public static partial class Enumerable {
         }
 
         public void Add(TKey key,TElement element) {
-            var group=Find(key);
+            var group = Find(key);
             if(group is null) {
                 group=new GroupingImpl<TKey,TElement>(key);
                 Groups.Add(group);
@@ -4210,9 +4313,11 @@ public static partial class Enumerable {
         }
 
         public IEnumerator<System.Linq.IGrouping<TKey,TElement>> GetEnumerator() {
+            var result = new List<System.Linq.IGrouping<TKey,TElement>>();
             foreach(var group in Groups) {
-                yield return group;
+                result.Add(group);
             }
+            return result.GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
@@ -4230,7 +4335,7 @@ public static partial class Enumerable {
     }
 
     private sealed class InfiniteSequenceEnumerable<T>:IEnumerable<T>
-        where T:IAdditionOperators<T,T,T> {
+        where T : IAdditionOperators<T,T,T> {
         private readonly T start;
         private readonly T step;
 
@@ -4249,11 +4354,11 @@ public static partial class Enumerable {
     }
 
     private sealed class InfiniteSequenceEnumerator<T>:IEnumerator<T>
-        where T:IAdditionOperators<T,T,T> {
+        where T : IAdditionOperators<T,T,T> {
         private readonly T start;
         private readonly T step;
         private bool started;
-        private T current=default!;
+        private T current = default!;
 
         public InfiniteSequenceEnumerator(T start,T step) {
             this.start=start;
@@ -4268,7 +4373,8 @@ public static partial class Enumerable {
             if(!started) {
                 current=start;
                 started=true;
-            } else {
+            }
+            else {
                 current+=step;
             }
             return true;
@@ -4299,18 +4405,18 @@ public static partial class Enumerable {
 
         public System.Linq.IOrderedEnumerable<T> CreateOrderedEnumerable<TKey>(Func<T,TKey> keySelector,IComparer<TKey>? comparer,bool descending) {
             ArgumentNullException.ThrowIfNull(keySelector);
-            comparer ??= Comparer<TKey>.Default;
-            var next=new List<Comparison<T>>(comparisons);
+            comparer??=Comparer<TKey>.Default;
+            var next = new List<Comparison<T>>(comparisons);
             next.Add((left,right) => {
-                var result=comparer.Compare(keySelector(left),keySelector(right));
+                var result = comparer.Compare(keySelector(left),keySelector(right));
                 return descending ? Negate(result) : result;
             });
             return new OrderedEnumerableImpl<T>(source,next);
         }
 
         public IEnumerator<T> GetEnumerator() {
-            var items=new List<OrderedItem<T>>();
-            var index=0;
+            var items = new List<OrderedItem<T>>();
+            var index = 0;
             foreach(var item in source) {
                 items.Add(new OrderedItem<T>(item,index));
                 checked {
@@ -4318,9 +4424,11 @@ public static partial class Enumerable {
                 }
             }
             items.Sort(Compare);
+            var result = new List<T>();
             foreach(var item in items) {
-                yield return item.Value;
+                result.Add(item.Value);
             }
+            return result.GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
@@ -4329,7 +4437,7 @@ public static partial class Enumerable {
 
         private int Compare(OrderedItem<T> left,OrderedItem<T> right) {
             foreach(var comparison in comparisons) {
-                var result=comparison(left.Value,right.Value);
+                var result = comparison(left.Value,right.Value);
                 if(result!=0) {
                     return result;
                 }

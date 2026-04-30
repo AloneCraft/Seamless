@@ -38,12 +38,13 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         var combined = context.CompilationProvider.Combine(whereTargets.Collect()).Combine(typeTargets.Collect());
         context.RegisterSourceOutput(combined,static (productionContext,pair) => Execute(
             productionContext,
+            pair.Left.Left,
             pair.Left.Right,
             pair.Right));
     }
 
     // 各サブ生成器の結果を 1 つの Template.g.cs に束ねる最終出力点。
-    private static void Execute(SourceProductionContext context,ImmutableArray<WhereInterceptTarget> whereTargets,ImmutableArray<TypeTarget> typeTargets) {
+    private static void Execute(SourceProductionContext context,Compilation compilation,ImmutableArray<WhereInterceptTarget> whereTargets,ImmutableArray<TypeTarget> typeTargets) {
         var builder = new StringBuilder();
         var generatedAny = false;
 
@@ -53,7 +54,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         }
 
         if(!typeTargets.IsDefaultOrEmpty) {
-            var databaseSource = BuildDatabaseSource(typeTargets);
+            var databaseSource = BuildDatabaseSource(compilation,typeTargets);
             if(databaseSource.Length>0) {
                 builder.AppendLine();
                 builder.Append(databaseSource);
@@ -525,13 +526,17 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
 
     // DatabaseGenerator を起点にして schema struct と optimized container を生成する。
     // 利用されていなかった container metadata 配列は出さない。
-    private static string BuildDatabaseSource(ImmutableArray<TypeTarget> typeTargets) {
+    private static string BuildDatabaseSource(Compilation compilation,ImmutableArray<TypeTarget> typeTargets) {
         var builder = new StringBuilder();
         var rootNamespaces = typeTargets
             .Where(static target => target.Symbol.Name=="DatabaseGenerator")
             .Select(static target => target.Symbol.ContainingNamespace.ToDisplayString())
             .Distinct(StringComparer.Ordinal)
             .ToArray();
+        if(rootNamespaces.Length==0) {
+            return string.Empty;
+        }
+        builder.AppendLine("#pragma warning disable CS0164, CS8601");
 
         foreach(var rootNamespace in rootNamespaces) {
             var keys = typeTargets
@@ -590,7 +595,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             }
 
             foreach(var container in containers) {
-                var optimizedMembers = BuildOptimizedOverrideMemberLines(container);
+                var optimizedMembers = BuildOptimizedOverrideMemberLines(compilation,container);
                 if(optimizedMembers.Count>0) {
                     var forwardingConstructors = BuildForwardingConstructorLines(container,$"Optimized{container.Name}");
                     builder.AppendLine();
@@ -690,7 +695,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
 
     // translatable な virtual member を抽出して、Optimized{Container} の override 宣言へ変換する。
     // ここは「どの member を最適化対象にするか」のゲートであり、translation 自体は TryTranslate* 系に委譲する。
-    private static List<string> BuildOptimizedOverrideMemberLines(INamedTypeSymbol container) {
+    private static List<string> BuildOptimizedOverrideMemberLines(Compilation compilation,INamedTypeSymbol container) {
         var members = new List<string>();
         foreach(var member in container.GetMembers().Where(static member => member.IsVirtual)) {
             if(member is IPropertySymbol property) {
@@ -702,7 +707,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
                 continue;
             }
             if(member is IMethodSymbol method&&method.MethodKind==MethodKind.Ordinary) {
-                var translatedBody = TryTranslateMethod(method);
+                var translatedBody = TryTranslateMethod(compilation,method);
                 if(translatedBody is null) {
                     continue;
                 }
@@ -742,34 +747,6 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             return string.Empty;
         }
         return $"<{string.Join(", ",typeParameters.Select(static typeParameter => typeParameter.Name))}>";
-    }
-
-    private static string BuildTypeParameterConstraints(ImmutableArray<ITypeParameterSymbol> typeParameters) {
-        var clauses = new List<string>();
-        foreach(var typeParameter in typeParameters) {
-            var constraints = new List<string>();
-            if(typeParameter.HasUnmanagedTypeConstraint) {
-                constraints.Add("unmanaged");
-            }
-            else if(typeParameter.HasValueTypeConstraint) {
-                constraints.Add("struct");
-            }
-            else if(typeParameter.HasReferenceTypeConstraint) {
-                constraints.Add(typeParameter.ReferenceTypeConstraintNullableAnnotation==NullableAnnotation.Annotated ? "class?" : "class");
-            }
-            else if(typeParameter.HasNotNullConstraint) {
-                constraints.Add("notnull");
-            }
-            constraints.AddRange(typeParameter.ConstraintTypes.Select(static type => type.ToDisplayString(FullyQualifiedFormat)));
-            if(typeParameter.HasConstructorConstraint) {
-                constraints.Add("new()");
-            }
-            if(constraints.Count==0) {
-                continue;
-            }
-            clauses.Add($" where {typeParameter.Name}:{string.Join(",",constraints)}");
-        }
-        return string.Concat(clauses);
     }
 
     private static string BuildParameterDeclarationList(ImmutableArray<IParameterSymbol> parameters) {
@@ -852,17 +829,22 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
 
     // method translation の入口。
     // invocation 系は OptimizeVisitor で Where pushdown を掛けてから文字列化する。
-    private static TranslatedMethodBody? TryTranslateMethod(IMethodSymbol method) {
+    private static TranslatedMethodBody? TryTranslateMethod(Compilation compilation,IMethodSymbol method) {
         foreach(var syntaxReference in method.DeclaringSyntaxReferences) {
             if(syntaxReference.GetSyntax() is not MethodDeclarationSyntax syntax) {
                 continue;
             }
+            var semanticModel = compilation.GetSemanticModel(syntax.SyntaxTree);
             if(syntax.ExpressionBody?.Expression is QueryExpressionSyntax expressionQuery) {
                 var translatedQuery = TryTranslateQueryExpression(expressionQuery);
                 return translatedQuery is null ? null : new TranslatedMethodBody(translatedQuery,true);
             }
+            if(syntax.ExpressionBody?.Expression is LambdaExpressionSyntax expressionLambda) {
+                var translatedLambda = TryTranslateLambdaExpression(expressionLambda);
+                return translatedLambda is null ? null : new TranslatedMethodBody(translatedLambda,true);
+            }
             if(syntax.ExpressionBody?.Expression is InvocationExpressionSyntax expressionInvocation) {
-                return TryTranslateInvocationBody(method,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(expressionInvocation));
+                return TryTranslateInvocationBody(method,expressionInvocation,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(expressionInvocation),semanticModel);
             }
             if(syntax.Body is null||syntax.Body.Statements.Count!=1) {
                 continue;
@@ -871,21 +853,639 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
                 var translatedQuery = TryTranslateQueryExpression(blockQuery);
                 return translatedQuery is null ? null : new TranslatedMethodBody(translatedQuery,true);
             }
+            if(syntax.Body.Statements[0] is ReturnStatementSyntax lambdaReturn&&lambdaReturn.Expression is LambdaExpressionSyntax blockLambda) {
+                var translatedLambda = TryTranslateLambdaExpression(blockLambda);
+                return translatedLambda is null ? null : new TranslatedMethodBody(translatedLambda,true);
+            }
             if(syntax.Body.Statements[0] is ReturnStatementSyntax invocationReturn&&invocationReturn.Expression is InvocationExpressionSyntax blockInvocation) {
-                return TryTranslateInvocationBody(method,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(blockInvocation));
+                return TryTranslateInvocationBody(method,blockInvocation,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(blockInvocation),semanticModel);
             }
         }
         return null;
     }
 
+    // Expression<Func<...>> などの戻り値では、ラムダ本体の query / invocation だけを書き換えて
+    // ラムダ自体の形とパラメータはそのまま維持する。
+    private static string? TryTranslateLambdaExpression(LambdaExpressionSyntax lambda) {
+        if(lambda.Body is not ExpressionSyntax lambdaBody) {
+            return null;
+        }
+        while(lambdaBody is ParenthesizedExpressionSyntax parenthesizedExpression) {
+            lambdaBody=parenthesizedExpression.Expression;
+        }
+
+        string? translatedBody = lambdaBody switch {
+            QueryExpressionSyntax queryExpression => TryTranslateQueryExpression(queryExpression),
+            InvocationExpressionSyntax invocationExpression => TryTranslateInvocationExpression((InvocationExpressionSyntax)OptimizeVisitor.Optimize(invocationExpression)),
+            _ => null,
+        };
+        if(translatedBody is null) {
+            return null;
+        }
+
+        var asyncPrefix = lambda.AsyncKeyword.IsKind(SyntaxKind.AsyncKeyword) ? "async " : string.Empty;
+        return lambda switch {
+            SimpleLambdaExpressionSyntax simpleLambda => $"{asyncPrefix}{simpleLambda.Parameter} => {translatedBody}",
+            ParenthesizedLambdaExpressionSyntax parenthesizedLambda => $"{asyncPrefix}{parenthesizedLambda.ParameterList} => {translatedBody}",
+            _ => null,
+        };
+    }
+
     // invocation のうち Aggregate だけは block body に展開し、他は expression body のまま吐く。
-    private static TranslatedMethodBody? TryTranslateInvocationBody(IMethodSymbol method,InvocationExpressionSyntax invocation) {
+    private static TranslatedMethodBody? TryTranslateInvocationBody(IMethodSymbol method,InvocationExpressionSyntax originalInvocation,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+        var scalarFusionBody = TryTranslateScalarLoopFusionBody(method,originalInvocation,invocation,semanticModel);
+        if(scalarFusionBody is not null) {
+            return new TranslatedMethodBody(scalarFusionBody,false);
+        }
         var aggregateBody = TryTranslateAggregateBody(method,invocation);
         if(aggregateBody is not null) {
             return new TranslatedMethodBody(aggregateBody,false);
         }
         var expressionBody = TryTranslateInvocationExpression(invocation);
         return expressionBody is null ? null : new TranslatedMethodBody(expressionBody,true);
+    }
+
+    // Sum / Average 終端の method-chain を、遅延中間操作を挟まず 1 つの列挙ループへ落とす。
+    private static string? TryTranslateScalarLoopFusionBody(IMethodSymbol method,InvocationExpressionSyntax originalInvocation,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+        if(!TryCreateScalarFusionPipeline(invocation,out var pipeline)) {
+            return null;
+        }
+        if(semanticModel.GetSymbolInfo(originalInvocation).Symbol is not IMethodSymbol terminalMethodSymbol) {
+            return null;
+        }
+        if(!TryCreateScalarTerminalInfo(method.ReturnType,terminalMethodSymbol,out var terminalInfo)) {
+            return null;
+        }
+        return new ScalarFusionEmitter(pipeline,terminalInfo).Build();
+    }
+
+    private static bool TryCreateScalarFusionPipeline(InvocationExpressionSyntax invocation,out ScalarFusionPipeline pipeline) {
+        pipeline=null!;
+        if(!TryGetScalarFusionCallInfo(invocation,out var terminalCall)) {
+            return false;
+        }
+        if(terminalCall.MethodName!="Sum"&&terminalCall.MethodName!="Average") {
+            return false;
+        }
+        if(terminalCall.Arguments.Length>1) {
+            return false;
+        }
+
+        var reversedOperations = new List<ScalarFusionOperation>();
+        if(terminalCall.Arguments.Length==1) {
+            if(!TryCreateLambda(terminalCall.Arguments[0].Expression,out var selector)||selector.Parameters.Length!=1) {
+                return false;
+            }
+            reversedOperations.Add(ScalarFusionOperation.Create("Select",terminalCall.Arguments,terminalCall.TypeArguments,selector,null));
+        }
+
+        var source = RemoveParentheses(terminalCall.Source);
+        while(source is InvocationExpressionSyntax sourceInvocation&&TryGetScalarFusionCallInfo(sourceInvocation,out var sourceCall)) {
+            if(!IsScalarFusionIntermediate(sourceCall.MethodName)) {
+                break;
+            }
+            if(!TryCreateScalarFusionOperation(sourceCall,out var operation)) {
+                return false;
+            }
+            reversedOperations.Add(operation);
+            source=RemoveParentheses(sourceCall.Source);
+        }
+
+        reversedOperations.Reverse();
+        pipeline=new ScalarFusionPipeline(NormalizeExpression(source),reversedOperations);
+        return true;
+    }
+
+    private static bool TryCreateScalarFusionOperation(ScalarFusionCallInfo call,out ScalarFusionOperation operation) {
+        operation=null!;
+        switch(call.MethodName) {
+            case "Where":
+            case "Select":
+            case "TakeWhile":
+            case "SkipWhile":
+                if(call.Arguments.Length!=1||!TryCreateLambda(call.Arguments[0].Expression,out var lambda)||(lambda.Parameters.Length!=1&&lambda.Parameters.Length!=2)) {
+                    return false;
+                }
+                operation=ScalarFusionOperation.Create(call.MethodName,call.Arguments,call.TypeArguments,lambda,null);
+                return true;
+
+            case "Cast":
+            case "OfType":
+                if(call.Arguments.Length!=0||call.TypeArguments.Length!=1) {
+                    return false;
+                }
+                operation=ScalarFusionOperation.Create(call.MethodName,call.Arguments,call.TypeArguments,null,null);
+                return true;
+
+            case "Take":
+            case "Skip":
+                if(call.Arguments.Length!=1) {
+                    return false;
+                }
+                operation=ScalarFusionOperation.Create(call.MethodName,call.Arguments,call.TypeArguments,null,null);
+                return true;
+
+            case "Distinct":
+                if(call.Arguments.Length!=0) {
+                    return false;
+                }
+                operation=ScalarFusionOperation.Create(call.MethodName,call.Arguments,call.TypeArguments,null,null);
+                return true;
+
+            case "SelectMany":
+                if(call.Arguments.Length!=1&&call.Arguments.Length!=2) {
+                    return false;
+                }
+                if(!TryCreateLambda(call.Arguments[0].Expression,out var collectionSelector)||(collectionSelector.Parameters.Length!=1&&collectionSelector.Parameters.Length!=2)) {
+                    return false;
+                }
+                FusionLambda? resultSelector = null;
+                if(call.Arguments.Length==2&&(!TryCreateLambda(call.Arguments[1].Expression,out resultSelector)||resultSelector.Parameters.Length!=2)) {
+                    return false;
+                }
+                operation=ScalarFusionOperation.Create(call.MethodName,call.Arguments,call.TypeArguments,collectionSelector,resultSelector);
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private static bool IsScalarFusionIntermediate(string methodName) {
+        return methodName=="Where"
+            ||methodName=="Select"
+            ||methodName=="Cast"
+            ||methodName=="OfType"
+            ||methodName=="Take"
+            ||methodName=="TakeWhile"
+            ||methodName=="Skip"
+            ||methodName=="SkipWhile"
+            ||methodName=="Distinct"
+            ||methodName=="SelectMany";
+    }
+
+    private static bool TryGetScalarFusionCallInfo(InvocationExpressionSyntax invocation,out ScalarFusionCallInfo call) {
+        call=default;
+        if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess) {
+            return false;
+        }
+
+        var methodName = memberAccess.Name is GenericNameSyntax genericName
+            ? genericName.Identifier.ValueText
+            : memberAccess.Name.Identifier.ValueText;
+        if(string.IsNullOrWhiteSpace(methodName)) {
+            return false;
+        }
+        var typeArguments = memberAccess.Name is GenericNameSyntax generic
+            ? generic.TypeArgumentList.Arguments.Select(static argument => argument.ToString()).ToArray()
+            : Array.Empty<string>();
+        var isStaticEnumerableCall = IsStaticEnumerableReceiver(NormalizeExpression(RemoveParentheses(memberAccess.Expression)));
+        if(isStaticEnumerableCall) {
+            if(invocation.ArgumentList.Arguments.Count==0) {
+                return false;
+            }
+            call=new ScalarFusionCallInfo(methodName,RemoveParentheses(invocation.ArgumentList.Arguments[0].Expression),invocation.ArgumentList.Arguments.Skip(1).ToArray(),typeArguments);
+            return true;
+        }
+
+        call=new ScalarFusionCallInfo(methodName,RemoveParentheses(memberAccess.Expression),invocation.ArgumentList.Arguments.ToArray(),typeArguments);
+        return true;
+    }
+
+    private static bool TryCreateLambda(ExpressionSyntax expression,out FusionLambda lambda) {
+        lambda=null!;
+        if(expression is SimpleLambdaExpressionSyntax simpleLambda&&simpleLambda.Body is ExpressionSyntax simpleBody) {
+            lambda=new FusionLambda(new[] { simpleLambda.Parameter.Identifier.ValueText },simpleBody);
+            return !string.IsNullOrWhiteSpace(lambda.Parameters[0]);
+        }
+        if(expression is ParenthesizedLambdaExpressionSyntax parenthesizedLambda&&parenthesizedLambda.Body is ExpressionSyntax parenthesizedBody) {
+            var parameters = parenthesizedLambda.ParameterList.Parameters.Select(static parameter => parameter.Identifier.ValueText).ToArray();
+            if(parameters.Length==0||parameters.Any(static parameter => string.IsNullOrWhiteSpace(parameter))) {
+                return false;
+            }
+            lambda=new FusionLambda(parameters,parenthesizedBody);
+            return true;
+        }
+        return false;
+    }
+
+    private static bool TryCreateScalarTerminalInfo(ITypeSymbol methodReturnType,IMethodSymbol terminalMethodSymbol,out ScalarTerminalInfo terminalInfo) {
+        terminalInfo=default;
+        var terminalMethod = terminalMethodSymbol.ReducedFrom??terminalMethodSymbol;
+        var methodName = terminalMethod.Name;
+        if(methodName!="Sum"&&methodName!="Average") {
+            return false;
+        }
+        if(!TryGetTerminalValueType(terminalMethod,out var terminalValueType)) {
+            return false;
+        }
+
+        var returnTypeIsNullable = TryGetNullableUnderlyingType(methodReturnType,out var underlyingReturnType);
+        var terminalValueIsNullable = TryGetNullableUnderlyingType(terminalValueType,out var underlyingTerminalValueType);
+        var effectiveReturnType = returnTypeIsNullable ? underlyingReturnType : methodReturnType;
+        var effectiveTerminalValueType = terminalValueIsNullable ? underlyingTerminalValueType : terminalValueType;
+        var accumulatorTypeName = methodName=="Average"
+            ? GetAverageAccumulatorTypeName(effectiveTerminalValueType,effectiveReturnType)
+            : effectiveReturnType.ToDisplayString(FullyQualifiedFormat);
+        terminalInfo=new ScalarTerminalInfo(
+            methodName,
+            methodReturnType.ToDisplayString(FullyQualifiedFormat),
+            accumulatorTypeName,
+            returnTypeIsNullable,
+            terminalValueIsNullable,
+            ShouldUseCheckedAccumulator(effectiveTerminalValueType,accumulatorTypeName),
+            methodName=="Average"&&string.Equals(accumulatorTypeName,"long",StringComparison.Ordinal));
+        return true;
+    }
+
+    private static bool TryGetTerminalValueType(IMethodSymbol terminalMethod,out ITypeSymbol valueType) {
+        valueType=null!;
+        if(terminalMethod.Parameters.Length==0) {
+            return false;
+        }
+        if(terminalMethod.Parameters.Length>=2
+            &&terminalMethod.Parameters[terminalMethod.Parameters.Length-1].Type is INamedTypeSymbol selectorType
+            &&selectorType.Name=="Func"
+            &&selectorType.ContainingNamespace.ToDisplayString()=="System"
+            &&selectorType.TypeArguments.Length>=2) {
+            valueType=selectorType.TypeArguments[selectorType.TypeArguments.Length-1];
+            return true;
+        }
+        return TryGetEnumerableElementType(terminalMethod.Parameters[0].Type,out valueType);
+    }
+
+    private static bool TryGetEnumerableElementType(ITypeSymbol type,out ITypeSymbol elementType) {
+        if(type is INamedTypeSymbol namedType
+            &&namedType.Name=="IEnumerable"
+            &&namedType.ContainingNamespace.ToDisplayString()=="System.Collections.Generic"
+            &&namedType.TypeArguments.Length==1) {
+            elementType=namedType.TypeArguments[0];
+            return true;
+        }
+        foreach(var interfaceType in type.AllInterfaces) {
+            if(interfaceType.Name=="IEnumerable"
+                &&interfaceType.ContainingNamespace.ToDisplayString()=="System.Collections.Generic"
+                &&interfaceType.TypeArguments.Length==1) {
+                elementType=interfaceType.TypeArguments[0];
+                return true;
+            }
+        }
+        elementType=null!;
+        return false;
+    }
+
+    private static bool TryGetNullableUnderlyingType(ITypeSymbol type,out ITypeSymbol underlyingType) {
+        if(type is INamedTypeSymbol namedType&&namedType.OriginalDefinition.SpecialType==SpecialType.System_Nullable_T&&namedType.TypeArguments.Length==1) {
+            underlyingType=namedType.TypeArguments[0];
+            return true;
+        }
+        underlyingType=null!;
+        return false;
+    }
+
+    private static string GetAverageAccumulatorTypeName(ITypeSymbol terminalValueType,ITypeSymbol returnType) {
+        return terminalValueType.SpecialType switch {
+            SpecialType.System_Int32 => "long",
+            SpecialType.System_Int64 => "decimal",
+            SpecialType.System_Single => "double",
+            _ => returnType.ToDisplayString(FullyQualifiedFormat),
+        };
+    }
+
+    private static bool ShouldUseCheckedAccumulator(ITypeSymbol terminalValueType,string accumulatorTypeName) {
+        return terminalValueType.SpecialType==SpecialType.System_Int32
+            ||terminalValueType.SpecialType==SpecialType.System_Int64
+            ||string.Equals(accumulatorTypeName,"decimal",StringComparison.Ordinal)
+            ||string.Equals(accumulatorTypeName,"global::System.Decimal",StringComparison.Ordinal);
+    }
+
+    private sealed class ScalarFusionEmitter {
+        private const string DoneLabel = "__seamlessDone";
+        private readonly ScalarFusionPipeline pipeline;
+        private readonly ScalarTerminalInfo terminalInfo;
+        private readonly List<string> lines = new();
+        private int indent;
+        private int valueIndex;
+        private int loopIndex;
+
+        public ScalarFusionEmitter(ScalarFusionPipeline pipeline,ScalarTerminalInfo terminalInfo) {
+            this.pipeline=pipeline;
+            this.terminalInfo=terminalInfo;
+        }
+
+        public string Build() {
+            this.Add("{");
+            this.indent++;
+            this.Add($"var __seamlessSource = {this.pipeline.SourceExpression};");
+            this.Add("global::System.ArgumentNullException.ThrowIfNull(__seamlessSource);");
+            this.DeclareOperationState();
+            this.DeclareAccumulator();
+            this.EmitTakeEmptyShortCircuit();
+            var rootContext = this.CreateLoopContext();
+            this.Add("foreach(var __seamlessItem in __seamlessSource) {");
+            this.indent++;
+            this.EmitOperations(0,"__seamlessItem",rootContext);
+            this.EmitLoopContinue(rootContext);
+            this.indent--;
+            this.Add("}");
+            this.Add($"{DoneLabel}:;");
+            this.EmitReturn();
+            this.indent--;
+            this.Add("}");
+            return string.Join("\n",this.lines);
+        }
+
+        private void DeclareOperationState() {
+            for(var index = 0; index<this.pipeline.Operations.Count; index++) {
+                var operation = this.pipeline.Operations[index];
+                switch(operation.MethodName) {
+                    case "Where":
+                    case "Select":
+                    case "TakeWhile":
+                    case "SkipWhile":
+                        if(operation.Lambda is not null&&operation.Lambda.Parameters.Length==2) {
+                            this.Add($"var __seamlessIndex{index} = -1;");
+                        }
+                        if(operation.MethodName=="SkipWhile") {
+                            this.Add($"var __seamlessSkipWhileYielding{index} = false;");
+                        }
+                        break;
+
+                    case "Skip":
+                        this.Add($"var __seamlessSkip{index} = {NormalizeExpression(operation.Arguments[0].Expression)};");
+                        break;
+
+                    case "Take":
+                        this.Add($"var __seamlessTake{index} = {NormalizeExpression(operation.Arguments[0].Expression)};");
+                        break;
+
+                    case "Distinct":
+                        this.Add($"var __seamlessDistinct{index} = new global::System.Collections.Generic.HashSet<object>();");
+                        break;
+
+                    case "SelectMany":
+                        if(operation.Lambda is not null&&operation.Lambda.Parameters.Length==2) {
+                            this.Add($"var __seamlessIndex{index} = -1;");
+                        }
+                        break;
+                }
+            }
+        }
+
+        private void DeclareAccumulator() {
+            this.Add($"{this.terminalInfo.AccumulatorTypeName} __seamlessSum = default;");
+            if(this.terminalInfo.MethodName=="Average") {
+                this.Add("long __seamlessCount = 0;");
+            }
+        }
+
+        private void EmitTakeEmptyShortCircuit() {
+            for(var index = 0; index<this.pipeline.Operations.Count; index++) {
+                if(this.pipeline.Operations[index].MethodName!="Take") {
+                    continue;
+                }
+                this.Add($"if(__seamlessTake{index}<=0) {{");
+                this.indent++;
+                this.Add($"goto {DoneLabel};");
+                this.indent--;
+                this.Add("}");
+            }
+        }
+
+        private FusionLoopContext CreateLoopContext() {
+            var index = this.loopIndex++;
+            var context = new FusionLoopContext($"__seamlessContinue{index}",$"__seamlessStop{index}");
+            this.Add($"var {context.StopFlag} = false;");
+            return context;
+        }
+
+        private void EmitLoopContinue(FusionLoopContext context) {
+            this.Add($"{context.ContinueLabel}:;");
+            this.Add($"if({context.StopFlag}) {{");
+            this.indent++;
+            this.Add($"goto {DoneLabel};");
+            this.indent--;
+            this.Add("}");
+        }
+
+        private void EmitOperations(int operationIndex,string valueExpression,FusionLoopContext context) {
+            if(operationIndex>=this.pipeline.Operations.Count) {
+                this.EmitTerminal(valueExpression,context);
+                return;
+            }
+
+            var operation = this.pipeline.Operations[operationIndex];
+            switch(operation.MethodName) {
+                case "Where":
+                    this.EmitIndexedLambdaAdvance(operationIndex,operation);
+                    this.Add($"if(!({this.InlineLambda(operation.Lambda!,valueExpression,this.GetIndexArgument(operationIndex,operation))})) {{");
+                    this.indent++;
+                    this.Add($"goto {context.ContinueLabel};");
+                    this.indent--;
+                    this.Add("}");
+                    this.EmitOperations(operationIndex+1,valueExpression,context);
+                    break;
+
+                case "Select":
+                    this.EmitIndexedLambdaAdvance(operationIndex,operation);
+                    var selectedValue = this.NextValueName();
+                    this.Add($"var {selectedValue} = {this.InlineLambda(operation.Lambda!,valueExpression,this.GetIndexArgument(operationIndex,operation))};");
+                    this.EmitOperations(operationIndex+1,selectedValue,context);
+                    break;
+
+                case "Cast":
+                    var castedValue = this.NextValueName();
+                    this.Add($"var {castedValue} = ({operation.TypeArguments[0]}){valueExpression}!;");
+                    this.EmitOperations(operationIndex+1,castedValue,context);
+                    break;
+
+                case "OfType":
+                    var typedValue = this.NextValueName();
+                    this.Add($"if({valueExpression} is not {operation.TypeArguments[0]} {typedValue}) {{");
+                    this.indent++;
+                    this.Add($"goto {context.ContinueLabel};");
+                    this.indent--;
+                    this.Add("}");
+                    this.EmitOperations(operationIndex+1,typedValue,context);
+                    break;
+
+                case "Skip":
+                    this.Add($"if(__seamlessSkip{operationIndex}>0) {{");
+                    this.indent++;
+                    this.Add($"__seamlessSkip{operationIndex}--;");
+                    this.Add($"goto {context.ContinueLabel};");
+                    this.indent--;
+                    this.Add("}");
+                    this.EmitOperations(operationIndex+1,valueExpression,context);
+                    break;
+
+                case "Take":
+                    this.Add($"if(__seamlessTake{operationIndex}<=0) {{");
+                    this.indent++;
+                    this.Add($"{context.StopFlag}=true;");
+                    this.Add($"goto {context.ContinueLabel};");
+                    this.indent--;
+                    this.Add("}");
+                    this.Add($"__seamlessTake{operationIndex}--;");
+                    this.Add($"if(__seamlessTake{operationIndex}<=0) {{");
+                    this.indent++;
+                    this.Add($"{context.StopFlag}=true;");
+                    this.indent--;
+                    this.Add("}");
+                    this.EmitOperations(operationIndex+1,valueExpression,context);
+                    break;
+
+                case "SkipWhile":
+                    this.Add($"if(!__seamlessSkipWhileYielding{operationIndex}) {{");
+                    this.indent++;
+                    this.EmitIndexedLambdaAdvance(operationIndex,operation);
+                    this.Add($"if({this.InlineLambda(operation.Lambda!,valueExpression,this.GetIndexArgument(operationIndex,operation))}) {{");
+                    this.indent++;
+                    this.Add($"goto {context.ContinueLabel};");
+                    this.indent--;
+                    this.Add("}");
+                    this.Add($"__seamlessSkipWhileYielding{operationIndex}=true;");
+                    this.indent--;
+                    this.Add("}");
+                    this.EmitOperations(operationIndex+1,valueExpression,context);
+                    break;
+
+                case "TakeWhile":
+                    this.EmitIndexedLambdaAdvance(operationIndex,operation);
+                    this.Add($"if(!({this.InlineLambda(operation.Lambda!,valueExpression,this.GetIndexArgument(operationIndex,operation))})) {{");
+                    this.indent++;
+                    this.Add($"{context.StopFlag}=true;");
+                    this.Add($"goto {context.ContinueLabel};");
+                    this.indent--;
+                    this.Add("}");
+                    this.EmitOperations(operationIndex+1,valueExpression,context);
+                    break;
+
+                case "Distinct":
+                    this.Add($"if(!__seamlessDistinct{operationIndex}.Add({valueExpression})) {{");
+                    this.indent++;
+                    this.Add($"goto {context.ContinueLabel};");
+                    this.indent--;
+                    this.Add("}");
+                    this.EmitOperations(operationIndex+1,valueExpression,context);
+                    break;
+
+                case "SelectMany":
+                    this.EmitSelectMany(operationIndex,valueExpression);
+                    break;
+            }
+        }
+
+        private void EmitSelectMany(int operationIndex,string valueExpression) {
+            var operation = this.pipeline.Operations[operationIndex];
+            this.EmitIndexedLambdaAdvance(operationIndex,operation);
+            var collectionValue = this.NextValueName();
+            this.Add($"var {collectionValue} = {this.InlineLambda(operation.Lambda!,valueExpression,this.GetIndexArgument(operationIndex,operation))};");
+            var innerItem = this.NextValueName();
+            var innerContext = this.CreateLoopContext();
+            this.Add($"foreach(var {innerItem} in {collectionValue}) {{");
+            this.indent++;
+            var downstreamValue = innerItem;
+            if(operation.SecondLambda is not null) {
+                downstreamValue=this.NextValueName();
+                this.Add($"var {downstreamValue} = {this.InlineLambda(operation.SecondLambda,valueExpression,innerItem)};");
+            }
+            this.EmitOperations(operationIndex+1,downstreamValue,innerContext);
+            this.EmitLoopContinue(innerContext);
+            this.indent--;
+            this.Add("}");
+        }
+
+        private void EmitIndexedLambdaAdvance(int operationIndex,ScalarFusionOperation operation) {
+            if(operation.Lambda is null||operation.Lambda.Parameters.Length!=2) {
+                return;
+            }
+            this.Add("checked {");
+            this.indent++;
+            this.Add($"__seamlessIndex{operationIndex}++;");
+            this.indent--;
+            this.Add("}");
+        }
+
+        private string? GetIndexArgument(int operationIndex,ScalarFusionOperation operation) {
+            return operation.Lambda is not null&&operation.Lambda.Parameters.Length==2
+                ? $"__seamlessIndex{operationIndex}"
+                : null;
+        }
+
+        private void EmitTerminal(string valueExpression,FusionLoopContext context) {
+            var terminalValue = valueExpression;
+            if(this.terminalInfo.TerminalValueIsNullable) {
+                terminalValue=this.NextValueName();
+                this.Add($"var {terminalValue} = {valueExpression};");
+                this.Add($"if(!{terminalValue}.HasValue) {{");
+                this.indent++;
+                this.Add($"goto {context.ContinueLabel};");
+                this.indent--;
+                this.Add("}");
+                terminalValue=$"{terminalValue}.GetValueOrDefault()";
+            }
+            if(this.terminalInfo.UseCheckedAccumulator) {
+                this.Add("checked {");
+                this.indent++;
+                this.Add($"__seamlessSum+={terminalValue};");
+                if(this.terminalInfo.MethodName=="Average") {
+                    this.Add("__seamlessCount++;");
+                }
+                this.indent--;
+                this.Add("}");
+            }
+            else {
+                this.Add($"__seamlessSum+={terminalValue};");
+                if(this.terminalInfo.MethodName=="Average") {
+                    this.Add("checked {");
+                    this.indent++;
+                    this.Add("__seamlessCount++;");
+                    this.indent--;
+                    this.Add("}");
+                }
+            }
+        }
+
+        private void EmitReturn() {
+            if(this.terminalInfo.MethodName=="Sum") {
+                this.Add("return __seamlessSum;");
+                return;
+            }
+            this.Add("if(__seamlessCount==0) {");
+            this.indent++;
+            if(this.terminalInfo.ReturnTypeIsNullable) {
+                this.Add("return default;");
+            }
+            else {
+                this.Add("throw new global::System.InvalidOperationException(\"Sequence contains no elements.\");");
+            }
+            this.indent--;
+            this.Add("}");
+            var averageExpression = this.terminalInfo.CastAccumulatorToDoubleBeforeAverageDivide
+                ? "(double)__seamlessSum/__seamlessCount"
+                : "__seamlessSum/__seamlessCount";
+            this.Add($"return ({this.terminalInfo.ReturnTypeName})({averageExpression});");
+        }
+
+        private string InlineLambda(FusionLambda lambda,string firstArgument,string? secondArgument) {
+            var replacements = new Dictionary<string,ExpressionSyntax>(StringComparer.Ordinal) {
+                [lambda.Parameters[0]]=SyntaxFactory.ParseExpression(firstArgument),
+            };
+            if(secondArgument is not null&&lambda.Parameters.Length>1) {
+                replacements[lambda.Parameters[1]]=SyntaxFactory.ParseExpression(secondArgument);
+            }
+            var rewritten = new LambdaParameterInlineRewriter(replacements).Visit(lambda.Body) as ExpressionSyntax??lambda.Body;
+            return NormalizeExpression(rewritten);
+        }
+
+        private string NextValueName() {
+            return $"__seamlessValue{this.valueIndex++}";
+        }
+
+        private void Add(string line) {
+            this.lines.Add(new string(' ',this.indent*4)+line);
+        }
     }
 
     // Aggregate は call-through にすると空列時例外や列挙手順の表現が曖昧になるため、明示的な列挙器ループへ展開する。
@@ -896,13 +1496,9 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         if(memberAccess.Name.Identifier.ValueText!="Aggregate") {
             return null;
         }
-        var receiver = memberAccess.Expression is InvocationExpressionSyntax receiverInvocation
-            ? TryTranslateInvocationExpression(receiverInvocation)??NormalizeExpression(receiverInvocation)
-            : NormalizeExpression(memberAccess.Expression);
+        var receiver = TranslateNestedExpression(memberAccess.Expression);
         var arguments = invocation.ArgumentList.Arguments
-            .Select(static argument => argument.Expression is InvocationExpressionSyntax invocationArgument
-                ? TryTranslateInvocationExpression(invocationArgument)??NormalizeExpression(invocationArgument)
-                : NormalizeExpression(argument.Expression))
+            .Select(static argument => TranslateNestedExpression(argument.Expression))
             .ToArray();
 
         string sourceExpression;
@@ -942,35 +1538,139 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         });
     }
 
-    // 単純な query syntax を global::Seamless.Linq.Enumerable の method chain に変換する。
+    // query syntax はまず extension-style の method chain に下ろし、
+    // その後 OptimizeVisitor と既存の invocation translator に流す。
+    // これで query continuation (`select ... into x where ...`) も invocation 側と同じ最適化経路に乗る。
     private static string? TryTranslateQueryExpression(QueryExpressionSyntax query) {
-        if(query.Body.Continuation is not null) {
-            return null;
+        if(TryLowerQueryExpressionToInvocation(query,out var loweredInvocation)) {
+            var optimized = OptimizeVisitor.Optimize(loweredInvocation);
+            return optimized is InvocationExpressionSyntax optimizedInvocation
+                ? TryTranslateInvocationExpression(optimizedInvocation)??NormalizeExpression(optimized)
+                : NormalizeExpression(optimized);
         }
-        if(query.Body.Clauses.Count==1
-            &&query.Body.Clauses[0] is FromClauseSyntax selectManyClause
-            &&query.Body.SelectOrGroup is SelectClauseSyntax selectManySelectClause) {
-            var outerRangeVariable = query.FromClause.Identifier.ValueText;
-            var innerRangeVariable = selectManyClause.Identifier.ValueText;
-            return $"global::Seamless.Linq.Enumerable.SelectMany({NormalizeExpression(query.FromClause.Expression)},{outerRangeVariable} => {NormalizeExpression(selectManyClause.Expression)},({outerRangeVariable},{innerRangeVariable}) => {NormalizeExpression(selectManySelectClause.Expression)})";
+        return null;
+    }
+
+    private static bool TryLowerQueryExpressionToInvocation(QueryExpressionSyntax query,out InvocationExpressionSyntax invocation) {
+        var temporaryIndex = 0;
+        if(TryLowerQueryBody(
+                NormalizeExpression(query.FromClause.Expression),
+                QueryRangeScope.CreateIdentity(query.FromClause.Identifier.ValueText),
+                query.Body,
+                ref temporaryIndex,
+                out var loweredText)
+            &&SyntaxFactory.ParseExpression(loweredText) is InvocationExpressionSyntax loweredInvocation) {
+            invocation=loweredInvocation;
+            return true;
         }
-        var rangeVariable = query.FromClause.Identifier.ValueText;
-        var current = NormalizeExpression(query.FromClause.Expression);
-        foreach(var clause in query.Body.Clauses) {
-            if(clause is WhereClauseSyntax whereClause) {
-                current=$"global::Seamless.Linq.Enumerable.Where({current},{rangeVariable} => {NormalizeExpression(whereClause.Condition)})";
-                continue;
+
+        invocation=null!;
+        return false;
+    }
+
+    private static bool TryLowerQueryBody(string sourceExpression,QueryRangeScope scope,QueryBodySyntax body,ref int temporaryIndex,out string loweredText) {
+        var currentSource = sourceExpression;
+        var currentScope = scope;
+
+        foreach(var clause in body.Clauses) {
+            switch(clause) {
+                case FromClauseSyntax fromClause:
+                    var collectionSelector = RewriteQueryRangeVariables(fromClause.Expression,currentScope);
+                    var innerRangeVariable = fromClause.Identifier.ValueText;
+                    currentSource=$"({currentSource}).SelectMany({currentScope.CurrentParameterName} => {collectionSelector},({currentScope.CurrentParameterName},{innerRangeVariable}) => {BuildCarrierCreationText(currentScope,(innerRangeVariable,innerRangeVariable))})";
+                    currentScope=currentScope.CreateCarrierScope(CreateGeneratedQueryIdentifier(ref temporaryIndex),innerRangeVariable);
+                    break;
+
+                case LetClauseSyntax letClause:
+                    var letRangeVariable = letClause.Identifier.ValueText;
+                    var letExpression = RewriteQueryRangeVariables(letClause.Expression,currentScope);
+                    currentSource=$"({currentSource}).Select({currentScope.CurrentParameterName} => {BuildCarrierCreationText(currentScope,(letRangeVariable,letExpression))})";
+                    currentScope=currentScope.CreateCarrierScope(CreateGeneratedQueryIdentifier(ref temporaryIndex),letRangeVariable);
+                    break;
+
+                case WhereClauseSyntax whereClause:
+                    currentSource=$"({currentSource}).Where({currentScope.CurrentParameterName} => {RewriteQueryRangeVariables(whereClause.Condition,currentScope)})";
+                    break;
+
+                case JoinClauseSyntax joinClause:
+                    var joinSource = RewriteQueryRangeVariables(joinClause.InExpression,currentScope);
+                    var outerParameter = currentScope.CurrentParameterName;
+                    var innerParameter = joinClause.Identifier.ValueText;
+                    var outerKey = RewriteQueryRangeVariables(joinClause.LeftExpression,currentScope);
+                    var innerKey = RewriteQueryRangeVariables(joinClause.RightExpression,QueryRangeScope.CreateIdentity(innerParameter));
+                    if(joinClause.Into is null) {
+                        currentSource=$"({currentSource}).Join({joinSource},{outerParameter} => {outerKey},{innerParameter} => {innerKey},({outerParameter},{innerParameter}) => {BuildCarrierCreationText(currentScope,(innerParameter,innerParameter))})";
+                        currentScope=currentScope.CreateCarrierScope(CreateGeneratedQueryIdentifier(ref temporaryIndex),innerParameter);
+                    }
+                    else {
+                        var groupedRangeVariable = joinClause.Into.Identifier.ValueText;
+                        currentSource=$"({currentSource}).GroupJoin({joinSource},{outerParameter} => {outerKey},{innerParameter} => {innerKey},({outerParameter},{groupedRangeVariable}) => {BuildCarrierCreationText(currentScope,(groupedRangeVariable,groupedRangeVariable))})";
+                        currentScope=currentScope.CreateCarrierScope(CreateGeneratedQueryIdentifier(ref temporaryIndex),groupedRangeVariable);
+                    }
+                    break;
+
+                case OrderByClauseSyntax orderByClause:
+                    for(var index = 0; index<orderByClause.Orderings.Count; index++) {
+                        var ordering = orderByClause.Orderings[index];
+                        var keySelector = RewriteQueryRangeVariables(ordering.Expression,currentScope);
+                        var isDescending = ordering.AscendingOrDescendingKeyword.IsKind(SyntaxKind.DescendingKeyword);
+                        var methodName = index==0
+                            ? (isDescending ? "OrderByDescending" : "OrderBy")
+                            : (isDescending ? "ThenByDescending" : "ThenBy");
+                        currentSource=$"({currentSource}).{methodName}({currentScope.CurrentParameterName} => {keySelector})";
+                    }
+                    break;
+
+                default:
+                    loweredText=string.Empty;
+                    return false;
             }
-            return null;
         }
-        if(query.Body.SelectOrGroup is not SelectClauseSyntax selectClause) {
-            return null;
+
+        switch(body.SelectOrGroup) {
+            case SelectClauseSyntax selectClause:
+                var selection = RewriteQueryRangeVariables(selectClause.Expression,currentScope);
+                currentSource=$"({currentSource}).Select({currentScope.CurrentParameterName} => {selection})";
+                if(body.Continuation is null) {
+                    loweredText=currentSource;
+                    return true;
+                }
+                return TryLowerQueryBody(currentSource,QueryRangeScope.CreateIdentity(body.Continuation.Identifier.ValueText),body.Continuation.Body,ref temporaryIndex,out loweredText);
+
+            case GroupClauseSyntax groupClause:
+                var groupedElement = RewriteQueryRangeVariables(groupClause.GroupExpression,currentScope);
+                var groupedKey = RewriteQueryRangeVariables(groupClause.ByExpression,currentScope);
+                currentSource=$"({currentSource}).GroupBy({currentScope.CurrentParameterName} => {groupedKey},{currentScope.CurrentParameterName} => {groupedElement})";
+                if(body.Continuation is null) {
+                    loweredText=currentSource;
+                    return true;
+                }
+                return TryLowerQueryBody(currentSource,QueryRangeScope.CreateIdentity(body.Continuation.Identifier.ValueText),body.Continuation.Body,ref temporaryIndex,out loweredText);
+
+            default:
+                loweredText=string.Empty;
+                return false;
         }
-        var selection = NormalizeExpression(selectClause.Expression);
-        if(!string.Equals(selection,rangeVariable,StringComparison.Ordinal)) {
-            current=$"global::Seamless.Linq.Enumerable.Select({current},{rangeVariable} => {selection})";
+    }
+
+    private static string RewriteQueryRangeVariables(ExpressionSyntax expression,QueryRangeScope scope) {
+        var rewritten = new QueryRangeVariableRewriter(scope.RangeExpressions).Visit(expression);
+        return NormalizeExpression(rewritten as ExpressionSyntax??expression);
+    }
+
+    private static string BuildCarrierCreationText(QueryRangeScope scope,params (string Name,string ExpressionText)[] additionalFields) {
+        var assignments = new List<string>(scope.VisibleVariables.Count+additionalFields.Length);
+        foreach(var visibleVariable in scope.VisibleVariables) {
+            assignments.Add($"{visibleVariable} = {scope.RangeExpressions[visibleVariable]}");
         }
-        return current;
+        foreach(var additionalField in additionalFields) {
+            assignments.Add($"{additionalField.Name} = {additionalField.ExpressionText}");
+        }
+        return $"new {{ {string.Join(", ",assignments)} }}";
+    }
+
+    private static string CreateGeneratedQueryIdentifier(ref int temporaryIndex) {
+        return $"__q{temporaryIndex++}";
     }
 
     // method chain を再帰的に辿って Seamless LINQ 呼び出しへそろえる。
@@ -983,9 +1683,20 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         if(methodName!="Where"
             &&methodName!="Select"
             &&methodName!="SelectMany"
+            &&methodName!="Cast"
+            &&methodName!="OfType"
+            &&methodName!="Take"
+            &&methodName!="TakeWhile"
+            &&methodName!="Skip"
+            &&methodName!="SkipWhile"
             &&methodName!="Aggregate"
+            &&methodName!="Sum"
+            &&methodName!="Average"
             &&methodName!="Join"
+            &&methodName!="GroupJoin"
+            &&methodName!="GroupBy"
             &&methodName!="LeftJoin"
+            &&methodName!="DefaultIfEmpty"
             &&methodName!="Except"
             &&methodName!="ExceptBy"
             &&methodName!="Intersect"
@@ -998,16 +1709,14 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             &&methodName!="OrderBy"
             &&methodName!="OrderDescending"
             &&methodName!="OrderByDescending"
+            &&methodName!="ThenBy"
+            &&methodName!="ThenByDescending"
             &&methodName!="Reverse") {
             return null;
         }
-        var receiver = memberAccess.Expression is InvocationExpressionSyntax receiverInvocation
-            ? TryTranslateInvocationExpression(receiverInvocation)??NormalizeExpression(receiverInvocation)
-            : NormalizeExpression(memberAccess.Expression);
+        var receiver = TranslateNestedExpression(memberAccess.Expression);
         var arguments = invocation.ArgumentList.Arguments
-            .Select(static argument => argument.Expression is InvocationExpressionSyntax invocationArgument
-                ? TryTranslateInvocationExpression(invocationArgument)??NormalizeExpression(invocationArgument)
-                : NormalizeExpression(argument.Expression))
+            .Select(static argument => TranslateNestedExpression(argument.Expression))
             .ToArray();
         if(IsStaticEnumerableReceiver(receiver)) {
             return arguments.Length==0
@@ -1017,6 +1726,15 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         return arguments.Length==0
             ? $"global::Seamless.Linq.Enumerable.{methodName}({receiver})"
             : $"global::Seamless.Linq.Enumerable.{methodName}({receiver},{string.Join(",",arguments)})";
+    }
+
+    private static string TranslateNestedExpression(ExpressionSyntax expression) {
+        while(expression is ParenthesizedExpressionSyntax parenthesizedExpression) {
+            expression=parenthesizedExpression.Expression;
+        }
+        return expression is InvocationExpressionSyntax invocationExpression
+            ? TryTranslateInvocationExpression(invocationExpression)??NormalizeExpression(invocationExpression)
+            : NormalizeExpression(expression);
     }
 
     private static bool IsStaticEnumerableReceiver(string receiver) {
@@ -1075,6 +1793,13 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
 
     private static string NormalizeExpression(ExpressionSyntax expression) {
         return expression.ToString();
+    }
+
+    private static ExpressionSyntax RemoveParentheses(ExpressionSyntax expression) {
+        while(expression is ParenthesizedExpressionSyntax parenthesized) {
+            expression=parenthesized.Expression;
+        }
+        return expression;
     }
 
     private static bool NamespaceEquals(string candidateNamespace,string rootNamespace,string childNamespace) {
@@ -1163,65 +1888,6 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         return property.Type.IsUnmanagedType ? "_u" : "_m";
     }
 
-    // 元ソースの namespace 宣言形状を保って generated body を差し込む helper。
-    private static void AppendInDeclaredNamespace(StringBuilder builder,INamedTypeSymbol symbol,Action<StringBuilder> appendBody) {
-        var namespaceShape = TryCreateNamespaceShape(symbol);
-        if(namespaceShape is null) {
-            appendBody(builder);
-            return;
-        }
-
-        foreach(var line in namespaceShape.OpenLines) {
-            builder.AppendLine(line);
-        }
-
-        var bodyBuilder = new StringBuilder();
-        appendBody(bodyBuilder);
-        AppendIndented(builder,bodyBuilder.ToString(),namespaceShape.IndentLevel);
-
-        foreach(var line in namespaceShape.CloseLines) {
-            builder.AppendLine(line);
-        }
-    }
-
-    // file-scoped namespace と block namespace の両方を復元できる形で open / close 行を保存する。
-    private static NamespaceShape? TryCreateNamespaceShape(INamedTypeSymbol symbol) {
-        foreach(var syntaxReference in symbol.DeclaringSyntaxReferences) {
-            if(syntaxReference.GetSyntax() is not TypeDeclarationSyntax declaration) {
-                continue;
-            }
-
-            var namespaces = declaration.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().Reverse().ToArray();
-            if(namespaces.Length==0) {
-                return NamespaceShape.Empty;
-            }
-
-            var openLines = new List<string>();
-            var closeLines = new List<string>();
-            var indentLevel = 0;
-
-            foreach(var namespaceSyntax in namespaces) {
-                if(namespaceSyntax is FileScopedNamespaceDeclarationSyntax fileScopedNamespace) {
-                    openLines.Add($"namespace {fileScopedNamespace.Name} ;".Replace(" ;",";"));
-                    indentLevel=0;
-                    continue;
-                }
-
-                openLines.Add(new string(' ',indentLevel*4)+$"namespace {namespaceSyntax.Name} {{");
-                indentLevel++;
-                closeLines.Insert(0,new string(' ',(indentLevel-1)*4)+"}");
-            }
-
-            return new NamespaceShape(openLines,closeLines,indentLevel);
-        }
-
-        return null;
-    }
-
-    private static void AppendIndented(StringBuilder builder,string value,int indentLevel) {
-        AppendIndented(builder,value,new string(' ',indentLevel*4));
-    }
-
     private static void AppendIndented(StringBuilder builder,string value,string indent) {
         var lines = value.Replace("\r\n","\n").Split('\n');
         foreach(var line in lines) {
@@ -1232,6 +1898,273 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
 
             builder.Append(indent);
             builder.AppendLine(line);
+        }
+    }
+
+    private sealed class QueryRangeScope {
+        public QueryRangeScope(string currentParameterName,IReadOnlyList<string> visibleVariables,IReadOnlyDictionary<string,ExpressionSyntax> rangeExpressions) {
+            this.CurrentParameterName=currentParameterName;
+            this.VisibleVariables=visibleVariables;
+            this.RangeExpressions=rangeExpressions;
+        }
+
+        public string CurrentParameterName { get; }
+
+        public IReadOnlyList<string> VisibleVariables { get; }
+
+        public IReadOnlyDictionary<string,ExpressionSyntax> RangeExpressions { get; }
+
+        public static QueryRangeScope CreateIdentity(string rangeVariable) {
+            return new QueryRangeScope(
+                rangeVariable,
+                new[] { rangeVariable },
+                new Dictionary<string,ExpressionSyntax>(StringComparer.Ordinal) {
+                    [rangeVariable]=SyntaxFactory.IdentifierName(rangeVariable)
+                });
+        }
+
+        public QueryRangeScope CreateCarrierScope(string currentParameterName,params string[] additionalVariables) {
+            var visibleVariables = new List<string>(this.VisibleVariables.Count+additionalVariables.Length);
+            visibleVariables.AddRange(this.VisibleVariables);
+            visibleVariables.AddRange(additionalVariables);
+
+            var rangeExpressions = new Dictionary<string,ExpressionSyntax>(StringComparer.Ordinal);
+            foreach(var visibleVariable in visibleVariables) {
+                rangeExpressions[visibleVariable]=SyntaxFactory.MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    SyntaxFactory.IdentifierName(currentParameterName),
+                    SyntaxFactory.IdentifierName(visibleVariable));
+            }
+
+            return new QueryRangeScope(currentParameterName,visibleVariables,rangeExpressions);
+        }
+    }
+
+    private sealed class QueryRangeVariableRewriter:CSharpSyntaxRewriter {
+        private readonly IReadOnlyDictionary<string,ExpressionSyntax> rangeExpressions;
+        private readonly Dictionary<string,int> shadowedNames = new(StringComparer.Ordinal);
+
+        public QueryRangeVariableRewriter(IReadOnlyDictionary<string,ExpressionSyntax> rangeExpressions) {
+            this.rangeExpressions=rangeExpressions;
+        }
+
+        public override SyntaxNode? VisitSimpleLambdaExpression(SimpleLambdaExpressionSyntax node) {
+            var parameterName = node.Parameter.Identifier.ValueText;
+            this.AddShadowedName(parameterName);
+            var result = base.VisitSimpleLambdaExpression(node);
+            this.RemoveShadowedName(parameterName);
+            return result;
+        }
+
+        public override SyntaxNode? VisitParenthesizedLambdaExpression(ParenthesizedLambdaExpressionSyntax node) {
+            this.AddShadowedNames(node.ParameterList.Parameters);
+            var result = base.VisitParenthesizedLambdaExpression(node);
+            this.RemoveShadowedNames(node.ParameterList.Parameters);
+            return result;
+        }
+
+        public override SyntaxNode? VisitAnonymousMethodExpression(AnonymousMethodExpressionSyntax node) {
+            if(node.ParameterList is not null) {
+                this.AddShadowedNames(node.ParameterList.Parameters);
+            }
+            var result = base.VisitAnonymousMethodExpression(node);
+            if(node.ParameterList is not null) {
+                this.RemoveShadowedNames(node.ParameterList.Parameters);
+            }
+            return result;
+        }
+
+        public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
+            var identifier = node.Identifier.ValueText;
+            if(this.shadowedNames.ContainsKey(identifier)||!this.rangeExpressions.TryGetValue(identifier,out var replacement)) {
+                return base.VisitIdentifierName(node);
+            }
+
+            return SyntaxFactory.ParenthesizedExpression(replacement.WithoutTrivia()).WithTriviaFrom(node);
+        }
+
+        private void AddShadowedNames(SeparatedSyntaxList<ParameterSyntax> parameters) {
+            foreach(var parameter in parameters) {
+                this.AddShadowedName(parameter.Identifier.ValueText);
+            }
+        }
+
+        private void RemoveShadowedNames(SeparatedSyntaxList<ParameterSyntax> parameters) {
+            foreach(var parameter in parameters) {
+                this.RemoveShadowedName(parameter.Identifier.ValueText);
+            }
+        }
+
+        private void AddShadowedName(string name) {
+            if(this.shadowedNames.TryGetValue(name,out var count)) {
+                this.shadowedNames[name]=count+1;
+            }
+            else {
+                this.shadowedNames[name]=1;
+            }
+        }
+
+        private void RemoveShadowedName(string name) {
+            if(!this.shadowedNames.TryGetValue(name,out var count)) {
+                return;
+            }
+            if(count==1) {
+                this.shadowedNames.Remove(name);
+            }
+            else {
+                this.shadowedNames[name]=count-1;
+            }
+        }
+    }
+
+    private readonly struct ScalarTerminalInfo {
+        public ScalarTerminalInfo(string methodName,string returnTypeName,string accumulatorTypeName,bool returnTypeIsNullable,bool terminalValueIsNullable,bool useCheckedAccumulator,bool castAccumulatorToDoubleBeforeAverageDivide) {
+            MethodName=methodName;
+            ReturnTypeName=returnTypeName;
+            AccumulatorTypeName=accumulatorTypeName;
+            ReturnTypeIsNullable=returnTypeIsNullable;
+            TerminalValueIsNullable=terminalValueIsNullable;
+            UseCheckedAccumulator=useCheckedAccumulator;
+            CastAccumulatorToDoubleBeforeAverageDivide=castAccumulatorToDoubleBeforeAverageDivide;
+        }
+
+        public string MethodName { get; }
+        public string ReturnTypeName { get; }
+        public string AccumulatorTypeName { get; }
+        public bool ReturnTypeIsNullable { get; }
+        public bool TerminalValueIsNullable { get; }
+        public bool UseCheckedAccumulator { get; }
+        public bool CastAccumulatorToDoubleBeforeAverageDivide { get; }
+    }
+
+    private readonly struct ScalarFusionCallInfo {
+        public ScalarFusionCallInfo(string methodName,ExpressionSyntax source,ArgumentSyntax[] arguments,string[] typeArguments) {
+            MethodName=methodName;
+            Source=source;
+            Arguments=arguments;
+            TypeArguments=typeArguments;
+        }
+
+        public string MethodName { get; }
+        public ExpressionSyntax Source { get; }
+        public ArgumentSyntax[] Arguments { get; }
+        public string[] TypeArguments { get; }
+    }
+
+    private sealed class ScalarFusionPipeline {
+        public ScalarFusionPipeline(string sourceExpression,IReadOnlyList<ScalarFusionOperation> operations) {
+            SourceExpression=sourceExpression;
+            Operations=operations;
+        }
+
+        public string SourceExpression { get; }
+        public IReadOnlyList<ScalarFusionOperation> Operations { get; }
+    }
+
+    private sealed class ScalarFusionOperation {
+        private ScalarFusionOperation(string methodName,ArgumentSyntax[] arguments,string[] typeArguments,FusionLambda? lambda,FusionLambda? secondLambda) {
+            MethodName=methodName;
+            Arguments=arguments;
+            TypeArguments=typeArguments;
+            Lambda=lambda;
+            SecondLambda=secondLambda;
+        }
+
+        public string MethodName { get; }
+        public ArgumentSyntax[] Arguments { get; }
+        public string[] TypeArguments { get; }
+        public FusionLambda? Lambda { get; }
+        public FusionLambda? SecondLambda { get; }
+
+        public static ScalarFusionOperation Create(string methodName,ArgumentSyntax[] arguments,string[] typeArguments,FusionLambda? lambda,FusionLambda? secondLambda) {
+            return new ScalarFusionOperation(methodName,arguments,typeArguments,lambda,secondLambda);
+        }
+    }
+
+    private sealed class FusionLambda {
+        public FusionLambda(string[] parameters,ExpressionSyntax body) {
+            Parameters=parameters;
+            Body=body;
+        }
+
+        public string[] Parameters { get; }
+        public ExpressionSyntax Body { get; }
+    }
+
+    private readonly struct FusionLoopContext {
+        public FusionLoopContext(string continueLabel,string stopFlag) {
+            ContinueLabel=continueLabel;
+            StopFlag=stopFlag;
+        }
+
+        public string ContinueLabel { get; }
+        public string StopFlag { get; }
+    }
+
+    private sealed class LambdaParameterInlineRewriter:CSharpSyntaxRewriter {
+        private readonly IReadOnlyDictionary<string,ExpressionSyntax> replacements;
+        private readonly Dictionary<string,int> shadowedNames = new(StringComparer.Ordinal);
+
+        public LambdaParameterInlineRewriter(IReadOnlyDictionary<string,ExpressionSyntax> replacements) {
+            this.replacements=replacements;
+        }
+
+        public override SyntaxNode? VisitSimpleLambdaExpression(SimpleLambdaExpressionSyntax node) {
+            this.AddShadowedName(node.Parameter.Identifier.ValueText);
+            var result = base.VisitSimpleLambdaExpression(node);
+            this.RemoveShadowedName(node.Parameter.Identifier.ValueText);
+            return result;
+        }
+
+        public override SyntaxNode? VisitParenthesizedLambdaExpression(ParenthesizedLambdaExpressionSyntax node) {
+            this.AddShadowedNames(node.ParameterList.Parameters);
+            var result = base.VisitParenthesizedLambdaExpression(node);
+            this.RemoveShadowedNames(node.ParameterList.Parameters);
+            return result;
+        }
+
+        public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
+            var identifier = node.Identifier.ValueText;
+            if(node.Parent is MemberAccessExpressionSyntax memberAccess&&memberAccess.Name==node) {
+                return base.VisitIdentifierName(node);
+            }
+            if(this.shadowedNames.ContainsKey(identifier)||!this.replacements.TryGetValue(identifier,out var replacement)) {
+                return base.VisitIdentifierName(node);
+            }
+            return SyntaxFactory.ParenthesizedExpression(replacement.WithoutTrivia()).WithTriviaFrom(node);
+        }
+
+        private void AddShadowedNames(SeparatedSyntaxList<ParameterSyntax> parameters) {
+            foreach(var parameter in parameters) {
+                this.AddShadowedName(parameter.Identifier.ValueText);
+            }
+        }
+
+        private void RemoveShadowedNames(SeparatedSyntaxList<ParameterSyntax> parameters) {
+            foreach(var parameter in parameters) {
+                this.RemoveShadowedName(parameter.Identifier.ValueText);
+            }
+        }
+
+        private void AddShadowedName(string name) {
+            if(this.shadowedNames.TryGetValue(name,out var count)) {
+                this.shadowedNames[name]=count+1;
+            }
+            else {
+                this.shadowedNames[name]=1;
+            }
+        }
+
+        private void RemoveShadowedName(string name) {
+            if(!this.shadowedNames.TryGetValue(name,out var count)) {
+                return;
+            }
+            if(count==1) {
+                this.shadowedNames.Remove(name);
+            }
+            else {
+                this.shadowedNames[name]=count-1;
+            }
         }
     }
 
@@ -1300,21 +2233,6 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
 
         public INamedTypeSymbol Symbol { get; }
         public bool IsPartial { get; }
-    }
-
-    // namespace 復元のための open / close 行セット。
-    private sealed class NamespaceShape {
-        public static NamespaceShape Empty { get; } = new([],[],0);
-
-        public NamespaceShape(IReadOnlyList<string> openLines,IReadOnlyList<string> closeLines,int indentLevel) {
-            this.OpenLines=openLines;
-            this.CloseLines=closeLines;
-            this.IndentLevel=indentLevel;
-        }
-
-        public IReadOnlyList<string> OpenLines { get; }
-        public IReadOnlyList<string> CloseLines { get; }
-        public int IndentLevel { get; }
     }
 
 }

@@ -10,10 +10,21 @@
     <li>Scope: <code>Seamless.Linq.Enumerable</code> public static methods.</li>
     <li>Goal: make the current API surface behave like <code>System.Linq.Enumerable</code> for supported target frameworks.</li>
     <li>Chosen approach: keep the public <code>Seamless.Linq.Enumerable</code> API surface and place the straightforward <code>foreach</code>/<code>for</code> loops,<code>List&lt;T&gt;</code>,<code>Dictionary&lt;TKey,TValue&gt;</code>,<code>HashSet&lt;T&gt;</code>,and private helper types directly inside the <code>Enumerable</code> class instead of direct <code>System.Linq.Enumerable</code> calls.</li>
-    <li>Iterator-returning methods validate arguments in the public method and delegate lazy enumeration to private static iterator helpers in the same <code>Enumerable</code> class.</li>
+    <li>Sequence-returning methods validate arguments in the public method and delegate to private static helpers that allocate <code>List&lt;T&gt;</code>, append with <code>Add</code>, and return the accumulated list instead of using <code>yield return</code>.</li>
+    <li>Lookup and ordered enumerable helpers also materialize list-backed enumerators so the shared LINQ implementation no longer depends on compiler-generated iterator state machines.</li>
     <li>Single-use local iterator functions are avoided; buffering methods such as grouping,ordering,reverse,and range-based take use simple list/lookup helpers to preserve expected ordering and shape.</li>
     <li>Tests compare <code>Seamless.Linq.Enumerable</code> and <code>System.Linq.Enumerable</code> side by side across scalar,sequence,set,grouping,joining,ordering,conversion,and numeric overload families.</li>
     <li>Test data includes duplicate and non-duplicate inputs,custom comparers,nullable values,group/join shapes,and all numeric types covered by the exposed <code>Average</code>/<code>Sum</code>/<code>Min</code>/<code>Max</code> overloads.</li>
+  </ul>
+  <h1>Source-generator scalar fusion notes</h1>
+  <ul>
+    <li>Scope: <code>Seamless.SourceGenerator</code> optimized container overrides for scalar LINQ terminals such as <code>Sum</code> and <code>Average</code>.</li>
+    <li>Goal: keep the public method body readable while emitting an optimized override that fuses supported intermediate operations into direct loops.</li>
+    <li>Supported intermediate operations: <code>Where</code>, <code>Select</code>, <code>Cast</code>, <code>OfType</code>, <code>Take</code>, <code>TakeWhile</code>, <code>Skip</code>, <code>SkipWhile</code>, <code>Distinct</code>, and <code>SelectMany</code>.</li>
+    <li>Chosen approach: parse the semantic method chain from the original invocation, keep existing call-through translation as the fallback, and emit block-bodied overrides only when the whole pipeline can be represented safely.</li>
+    <li>Loop approach: a scalar terminal owns the accumulator and optional count, intermediate operations become <code>if</code>/<code>goto continue</code> checks or nested <code>foreach</code> loops, and <code>Take</code>/<code>TakeWhile</code> can stop the outer pipeline without allocating intermediate lists.</li>
+    <li>Numeric approach: generated <code>Average</code> follows LINQ accumulator widening rules, including casting the <code>long</code> accumulator before division for integer sources.</li>
+    <li>Test approach: shared container methods exercise fused <code>Where.Select.Sum</code>, <code>Skip.Take.Average</code>, <code>SelectMany.Where.Sum</code>, <code>Distinct.SkipWhile.TakeWhile.Sum</code>, <code>Cast.Sum</code>, and <code>OfType.Sum</code>, with reflection tests comparing original and optimized containers in both test projects.</li>
   </ul>
   <h1>Build fix notes</h1>
   <ul>
@@ -30,6 +41,15 @@
     <li>Source-generator approach: query-expression members and simple method-chain members on database containers are translated into generated extension methods with fully-qualified <code>global::Seamless.Linq.Enumerable</code> calls, avoiding default <code>System.Linq</code> extension lookup.</li>
     <li>Interceptor approach: focused tests call the generated extension methods and compare them with the original container members so pre/post translation values stay aligned. A second test file covers two independent method chains in one expression.</li>
     <li>Strategy approach: add static-strategy overloads beside the existing delegate overloads. The strategy overloads accept structs implementing static abstract interfaces, so callers can avoid delegate allocation when the selector/predicate/accumulator is known as a type.</li>
+  </ul>
+  <h1>Overflow mutable strategy notes</h1>
+  <ul>
+    <li>Scope: <code>Seamless.Stores.OverflowMutableStrategy</code>, <code>HashStore</code> storage configuration, and shared store tests.</li>
+    <li>Goal: make <code>WouldOverflowMutable</code> deterministic for both memory-backed and storage-backed stores so a full mutable/storage region throws before Tsavorite blocks on an unwritable append.</li>
+    <li>Memory approach: keep the mutable byte limit as <code>MemorySize*MutableFraction</code>, fall back to <code>MemorySize</code> when the fraction gives no positive mutable bytes, and compare <code>tailAddress-beginAddress</code> plus record reservation against that limit at exact boundary values.</li>
+    <li>Storage approach: make <code>StorageOverflowMutableStrategy</code> carry log-device capacity plus two safety limits: a capacity fraction and reserved free bytes. The effective append limit is the smaller of <code>capacity*fraction</code> and <code>capacity-reserveBytes</code>.</li>
+    <li>API approach: add optional storage limit parameters to <code>HashStore.Create</code> and pass them only through storage-backed store constructors; existing callers keep the default full-capacity/no-reserve behavior.</li>
+    <li>Test approach: add white-box boundary tests for memory, storage fraction, storage reserve bytes, combined storage limits, and unbounded storage capacity.</li>
   </ul>
 </body>
 </html>

@@ -24,6 +24,7 @@ public abstract partial class CollectionStore<
     public long LogMemorySize { get; }
     public double MutableFraction { get; }
     internal OverflowMutableStrategyKind OverflowMutableStrategyKind { get; }
+    internal StorageOverflowMutableStrategy StorageOverflowMutableStrategy { get; }
     private bool Disposed;
     private int CheckpointInProgress;
     private bool UsesStorageDevice => this.Settings is not null&&(this.Settings.LogDevice is not MemoryOnlyDevice||this.Settings.ObjectLogDevice is not MemoryOnlyDevice);
@@ -32,7 +33,7 @@ public abstract partial class CollectionStore<
     private protected CollectionStore(
         TStoreFunctions StoreFunctions,
         Func<AllocatorSettings,TStoreFunctions,TAllocator> allocatorFactory,
-        long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind) {
+        long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes) {
         AssertIsPowerOfTwo(IndexSize,nameof(IndexSize));
         AssertIsPowerOfTwo(PageSize,nameof(PageSize));
         AssertIsPowerOfTwo(SegmentSize,nameof(SegmentSize));
@@ -47,6 +48,7 @@ public abstract partial class CollectionStore<
         this.LogMemorySize=MemorySize;
         this.MutableFraction=MutableFraction;
         this.OverflowMutableStrategyKind=OverflowMutableStrategyKind;
+        this.StorageOverflowMutableStrategy=new(LogDevice.Capacity,StorageLimitFraction,StorageReserveBytes);
         this.Settings=new() {
             IndexSize=IndexSize,
             MemorySize=MemorySize,

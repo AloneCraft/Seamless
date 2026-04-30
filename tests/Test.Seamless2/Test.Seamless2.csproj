@@ -27,6 +27,8 @@
     <Compile Remove="..\Test.Seamless\CheckpointRecoveryTests.cs" />
     <Compile Remove="..\Test.Seamless\TestKeyComparer.cs" />
     <Compile Remove="..\Test.Seamless\TestRelation.cs" />
+    <Compile Remove="Database\Sample.cs" />
+    <Compile Remove="Database\Simple.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="8.0.1">
@@ -53,10 +55,12 @@
     <Compile Remove="..\Test.Seamless\TestRelation.cs" />
     <Compile Remove="..\Test.Seamless\SessionFunctions\ManagedAdd.cs" />
     <Compile Remove="..\Test.Seamless\SessionFunctions\UnmanagedAdd.cs" />
-    <Compile Remove="..\Test.Seamless\Database\Simple.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Seamless2\Seamless2.csproj" />
     <ProjectReference Include="..\..\src\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>
+
+
+

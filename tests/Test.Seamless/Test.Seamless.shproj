@@ -17,7 +17,7 @@
     <Compile Include="Benchmark\ListBenchmark.cs" />
     <Compile Include="Benchmark\RecordSetBenchmark.cs" />
     <Compile Include="Benchmark\ViewSetBenchmark.cs" />
-    <Compile Include="Database\Simple.cs" />
+    <Compile Include="Database\Container.cs" />
     <Compile Include="Database\TPC_H.cs" />
     <Compile Include="DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Include="StoreCheckpoint.cs" />
@@ -75,6 +75,7 @@
     <Compile Include="Unit\Stores\CollectionStore.cs" />
     <Compile Include="Unit\Stores\HashStore.cs" />
     <Compile Include="Unit\Stores\KindDictionarySize.cs" />
+    <Compile Include="Unit\Stores\OverflowMutableStrategy.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.CSharp.targets" />
 </Project>

@@ -1,5 +1,8 @@
 <Solution>
   <Folder Name="/solution/">
+    <File Path="20260430内部設計書.txt" />
+    <File Path="20260430外部設計書.txt" />
+    <File Path="20260430要件定義書.txt" />
     <File Path="copilot-instructions.md" />
   </Folder>
   <Folder Name="/src/">

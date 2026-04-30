@@ -1,0 +1,171 @@
+﻿================================================================================
+  Seamless 外部設計書
+  Document ID : SEAMLESS-EXT-20260430
+  Version     : 1.0
+  Date        : 2026-04-30
+  Repository  : https://github.com/KazuhiroNomura/Seamless
+  対象ブランチ : master
+================================================================================
+
+1. システム構成
+--------------------------------------------------------------------------------
+1.1 コンポーネント
+    - Seamless1.dll      : Tsavorite 1.* バインディング (DefineConstants
+                           TSAVORITE1_1_1)
+    - Seamless2.dll      : Tsavorite 2.0.0-beta.3 バインディング (DefineConstants
+                           TSAVORITE2_0BETA3)
+    - Seamless (shared)  : 両バージョン共通のコレクション／インターフェース
+                           （Seamless.projitems）
+    - Test.Seamless1/2   : 各バージョンに対応する xUnit テスト
+    - Benchmark          : BenchmarkDotNet ベースの計測ベンチマーク
+
+1.2 名前空間
+    - Seamless                  : ルート、Const 等
+    - Seamless.Collections      : 利用者公開コレクション、シリアライザ、
+                                  IDictionary / IHashSet / ISet 等
+    - Seamless.Stores           : ストアファクトリ、HashStore / ListStore /
+                                  ManagedDictionaryStore 等
+    - Seamless.Devices          : MemoryOnlyDevice 等の IDevice 実装
+    - Seamless.SessionFunctions : Tsavorite Session 用 Functions
+    - Seamless.Linq             : 集合演算等のストラテジー実装
+
+2. 公開 API（外部 I/F）
+--------------------------------------------------------------------------------
+2.1 ファクトリ：HashStore
+    HashStore.Create(IndexSize, PageSize, SegmentSize, MemorySize,
+                     MutableFraction, CheckpointDir, StorageLimitFraction,
+                     StorageReserveBytes) : HashStore
+    HashStore は値型（readonly struct）で、構成パラメータを保持する。
+    Create<TKey,TValue>(ManagedTag/UnmanagedTag タグ引数の組合せ) により
+    以下の Store を返す。
+
+        - ManagedDictionaryStore<TKey,TValue>
+            Managed×Managed / Managed×Unmanaged / Unmanaged×Managed
+        - UnmanagedDictionaryStore<TKey,TValue>
+            Unmanaged×Unmanaged
+    ストレージ併用版は IDevice LogDevice / IDevice ObjectLogDevice を追加で
+    受け取る。
+
+2.2 Store の役割
+    - Create() で利用者公開コレクション（Seamless.Collections.IDictionary 等）
+      を返す。
+    - GetRecoveryEntryCount() で Recovery 後のエントリ数を取得する。
+    - CompactLog(compactUntil) で Tsavorite ログをコンパクト化する。
+
+2.3 Dictionary 公開 API（IDictionary<TKey,TValue>）
+    - インデクサ this[TKey key] : 取得時 KeyNotFoundException、設定時 Upsert。
+    - Add(TKey,TValue) / Add(KeyValuePair) : 重複時例外。
+    - TryAdd(TKey,TValue) : 重複時 KeyAlreadyExists、満杯時 LogFull、
+                            成功時 Success を TryAddResult で返す。
+    - ContainsKey(TKey) / Contains(KeyValuePair) / Contains(TKey)
+    - TryGetValue(TKey, out TValue)
+    - Remove(TKey) / Remove(TKey, out TValue) / Remove(KeyValuePair)
+    - Keys / Values : ICollection<TKey/TValue>
+                       （IReadOnlyDictionary 経由では IEnumerable）
+    - GetEnumerator() : KeyValuePair<TKey,TValue> を列挙
+    - CopyTo(KeyValuePair[], int) : array.Length-arrayIndex < Count なら例外
+    - EntryCount / GetLongCount() : long
+    - IsDisposed
+    - Refresh()
+
+2.4 HashSet 公開 API（IHashSet<T>）
+    - Add(T)
+    - Contains(T) / Remove(T)
+    - 集合演算群: ExceptWith / IntersectWith / SymmetricExceptWith /
+                  UnionWith / IsSubsetOf / IsSupersetOf / IsProperSubsetOf /
+                  IsProperSupersetOf / Overlaps / SetEquals
+    - GetEnumerator()
+    - CopyTo(T[], int)
+    - EntryCount / GetLongCount() / IsDisposed / Refresh()
+
+2.5 List 公開 API（ListStore）
+    - ListStore.Create<T>(path, initialCapacity, initialDataCapacity,
+                          ManagedTag) : ManagedList<T>
+    - ListStore.Create<T>(path, initialCapacity, UnmanagedTag) :
+      UnmanagedList<T>  (T : unmanaged)
+    ManagedList<T> はインデックスファイル + データファイル（メモリマップド）
+    で構成され、可変長レコードを格納する。
+
+2.6 シリアライザ
+    public interface ISerializer<T>{
+        static abstract ReadOnlySpan<byte> Serialize(ref T value);
+        static abstract T Deserialize(ReadOnlySpan<byte> bytes);
+    }
+    既定実装：
+    - ManagedSerializer<T>   : MemoryPack を介する可変長
+    - UnmanagedSerializer<T> : T : unmanaged の生メモリ直写し
+
+2.7 Tag 構造体（オーバーロード解決用）
+    public readonly struct ManagedTag;
+    public readonly struct UnmanagedTag;
+
+3. 利用例（疑似コード）
+--------------------------------------------------------------------------------
+    var hashStore = HashStore.Create();
+    using var dictStore = hashStore.Create<int,string>(default(UnmanagedTag),
+                                                       default(ManagedTag));
+    using var dict = dictStore.Create();
+    dict.Add(1, "a");
+    dict.TryAdd(1, "b"); // KeyAlreadyExists
+    dict.Refresh();
+
+    using var listOwner = ListStore.Create<MyType>(@"C:\tmp\my.list");
+    listOwner.Add(item);
+
+4. 入力 / 出力境界
+--------------------------------------------------------------------------------
+4.1 入力
+    - 構成パラメータ（IndexSize 等は 2 の冪である必要がある）。
+    - IDevice 実装（ストレージ併用時）。
+    - CheckpointDir（Recovery 時）。
+    - シリアライザ実装（既定の Managed/Unmanaged 以外を選択する場合）。
+
+4.2 出力
+    - コレクションインスタンス（IDictionary / IHashSet / ISet / IList 互換）。
+    - Recovery メタデータ（Checkpoint 配下 .seamless ディレクトリの json）。
+
+4.3 例外
+    - ArgumentNullException        : null 引数。
+    - ArgumentOutOfRangeException  : 負値、0 以下、範囲外パラメータ。
+    - InvalidOperationException    : 構成不整合（例：ManagedDictionaryStore で
+                                      Unmanaged×Unmanaged 生成要求）。
+    - KeyNotFoundException         : インデクサ get でキー未存在。
+    - InvalidDataException         : ManagedList の伴ファイル欠損。
+    - LogFull 状態                 : TryAddResult.LogFull もしくは
+                                      ThrowLogFull() による例外。
+
+5. 設定パラメータ
+--------------------------------------------------------------------------------
+5.1 IndexSize     : ハッシュインデックスサイズ。Const.IndexSize=64 既定。
+5.2 PageSize      : Tsavorite ログページサイズ。Const.PageSize=4096 既定。
+5.3 SegmentSize   : Const.SegmentSize=PageSize*1。
+5.4 MemorySize    : Const.LogMemorySize=1<<13。
+5.5 MutableFraction       : メモリ内可変領域比率。0..1。
+5.6 StorageLimitFraction  : ストレージ容量比率。0..1。既定 1.0。
+5.7 StorageReserveBytes   : ストレージ末尾予約バイト数。0 以上。
+
+6. 永続化レイアウト
+--------------------------------------------------------------------------------
+6.1 Tsavorite ログ
+    - IDevice の実装が決定する。MemoryOnlyDevice を使う場合は永続化されない。
+6.2 Checkpoint メタデータ
+    - <CheckpointDir>/.seamless/<token:N>.index-size.json
+    - <CheckpointDir>/.seamless/latest.index-size.json
+6.3 ManagedList
+    - <path>       : データファイル。
+    - <path>.index : 各レコードのオフセットを格納するインデックスファイル。
+
+7. エラーハンドリング指針
+--------------------------------------------------------------------------------
+7.1 Pending Status は CompletePending を実行し、IsCompleted が真になることを
+    確認する。
+7.2 LogFull 判定は OverflowMutableStrategy（Memory / Storage）で事前に行い、
+    必要時のみ書き込みを試みる。
+7.3 Dispose 後に呼ばれた API は ObjectDisposedException 相当の挙動を取る。
+
+8. 互換性
+--------------------------------------------------------------------------------
+8.1 Tsavorite 1.1.1 と 2.0beta3 の差分は SessionFunctions 層に閉じ込め、
+    上位コレクション API は両者で同じシグネチャを保つ。
+8.2 既存利用コードは HashStore.Create / Store.Create / Collection 経由のみで
+    動作するため、内部実装の更新は再コンパイルのみで吸収可能とする。

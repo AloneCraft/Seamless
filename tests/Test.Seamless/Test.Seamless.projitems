@@ -16,7 +16,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\ListBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\RecordSetBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\ViewSetBenchmark.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Database\Simple.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Database\Container.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Database\TPC_H.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)StoreCheckpoint.cs" />
@@ -66,6 +66,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Stores\CollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Stores\HashStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Stores\KindDictionarySize.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\Stores\OverflowMutableStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stress\StressReferenceAssert.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stress\StressScale.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stress\StressScript.cs" />
