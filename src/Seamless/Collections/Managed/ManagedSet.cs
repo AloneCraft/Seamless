@@ -32,10 +32,11 @@ public class ManagedSet<TRecord>:ManagedList<TRecord>, ISet<TRecord>
     }
     public new int Count => checked((int)this.GetLongCount());
     public bool IsReadOnly => false;
-    public IEnumerator<TRecord> GetEnumerator() {
+    public long EntryCount => this.GetLongCount();
+    public IEnumerator<TRecord> GetEnumerator(){
         throw new NotImplementedException();
     }
-    public long EntryCount => this.GetLongCount();
+    IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator()=>this.GetEnumerator();
 }
 public partial class ManagedSet<TRecord, TKey>:
     ManagedManagedCollection<TKey,TRecord,ManagedSerializer<TKey>,ManagedSerializer<TRecord>>,

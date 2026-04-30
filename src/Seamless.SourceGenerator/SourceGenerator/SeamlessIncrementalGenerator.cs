@@ -19,6 +19,9 @@ namespace Seamless.SourceGenerator;
 // 2. DatabaseGenerator マーカー配下の schema / optimized container コード
 public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
     private const string DiagnosticCategory = "Seamless.SourceGenerator";
+    private const string EnumerableImplementationResourceName = "Seamless.Linq.Enumerable.cs";
+
+    private static readonly Lazy<AggregateImplementationSource?> EnumerableAggregateImplementation = new(LoadEnumerableAggregateImplementation);
 
     private static readonly DiagnosticDescriptor OptimizeClassMustBeNonSealed = new(
         "SEAMLESS001",
@@ -82,10 +85,21 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             .Where(static target => target is not null)
             .Select(static (target,_) => target!);
 
-        var combined = context.CompilationProvider.Combine(whereTargets.Collect()).Combine(typeTargets.Collect()).Combine(containerMethodTargets.Collect()).Combine(optimizeMethodTargets.Collect()).Combine(linqInvocationTargets.Collect());
+        var projectDirectory = context.AnalyzerConfigOptionsProvider.Select(static (options,_) => {
+            if(options.GlobalOptions.TryGetValue("build_property.MSBuildProjectDirectory",out var msBuildProjectDirectory)&&!string.IsNullOrWhiteSpace(msBuildProjectDirectory)) {
+                return msBuildProjectDirectory;
+            }
+            if(options.GlobalOptions.TryGetValue("build_property.ProjectDir",out var projectDirectory)&&!string.IsNullOrWhiteSpace(projectDirectory)) {
+                return projectDirectory;
+            }
+            return string.Empty;
+        });
+
+        var combined = context.CompilationProvider.Combine(projectDirectory).Combine(whereTargets.Collect()).Combine(typeTargets.Collect()).Combine(containerMethodTargets.Collect()).Combine(optimizeMethodTargets.Collect()).Combine(linqInvocationTargets.Collect());
         context.RegisterSourceOutput(combined,static (productionContext,pair) => Execute(
             productionContext,
-            pair.Left.Left.Left.Left.Left,
+            pair.Left.Left.Left.Left.Left.Left,
+            pair.Left.Left.Left.Left.Left.Right,
             pair.Left.Left.Left.Left.Right,
             pair.Left.Left.Left.Right,
             pair.Left.Left.Right,
@@ -94,7 +108,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
     }
 
     // 役割ごとに generated source を分割して、interceptor / optimized helper / schema を読み分けやすくする。
-    private static void Execute(SourceProductionContext context,Compilation compilation,ImmutableArray<WhereInterceptTarget> whereTargets,ImmutableArray<TypeTarget> typeTargets,ImmutableArray<ContainerMethodInterceptTarget> containerMethodTargets,ImmutableArray<OptimizeMethodTarget> optimizeMethodTargets,ImmutableArray<LinqInvocationInterceptTarget> linqInvocationTargets) {
+    private static void Execute(SourceProductionContext context,Compilation compilation,string projectDirectory,ImmutableArray<WhereInterceptTarget> whereTargets,ImmutableArray<TypeTarget> typeTargets,ImmutableArray<ContainerMethodInterceptTarget> containerMethodTargets,ImmutableArray<OptimizeMethodTarget> optimizeMethodTargets,ImmutableArray<LinqInvocationInterceptTarget> linqInvocationTargets) {
         ReportOptimizeDiagnostics(context,typeTargets,optimizeMethodTargets);
 
         var optimizedCodeSource = BuildOptimizedCodeSource(whereTargets);
@@ -102,10 +116,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             context.AddSource("Seamless.SourceGenerator.OptimizedCode.g.cs",SourceText.From(RemoveBlankLines(optimizedCodeSource),Encoding.UTF8));
         }
 
-        var interceptorSource = BuildInterceptorSource(whereTargets,containerMethodTargets,linqInvocationTargets);
-        if(interceptorSource.Length>0) {
-            context.AddSource("Seamless.SourceGenerator.Interceptors.g.cs",SourceText.From(RemoveBlankLines(interceptorSource),Encoding.UTF8));
-        }
+        AddInterceptorSources(context,projectDirectory,whereTargets,containerMethodTargets,linqInvocationTargets);
 
         if(!typeTargets.IsDefaultOrEmpty) {
             var databaseSource = BuildDatabaseSource(typeTargets);
@@ -118,6 +129,159 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         if(optimizedContainerSource.Length>0) {
             context.AddSource("Seamless.SourceGenerator.OptimizedContainers.g.cs",SourceText.From(RemoveBlankLines(optimizedContainerSource),Encoding.UTF8));
         }
+    }
+
+    private static void AddInterceptorSources(SourceProductionContext context,string projectDirectory,ImmutableArray<WhereInterceptTarget> whereTargets,ImmutableArray<ContainerMethodInterceptTarget> containerMethodTargets,ImmutableArray<LinqInvocationInterceptTarget> linqInvocationTargets) {
+        if(whereTargets.IsDefaultOrEmpty&&containerMethodTargets.IsDefaultOrEmpty&&linqInvocationTargets.IsDefaultOrEmpty) {
+            return;
+        }
+
+        var buckets = new Dictionary<string,InterceptorSourceBucket>(StringComparer.OrdinalIgnoreCase);
+        foreach(var target in whereTargets) {
+            GetInterceptorSourceBucket(buckets,target.FilePath).WhereTargets.Add(target);
+        }
+        foreach(var target in containerMethodTargets) {
+            GetInterceptorSourceBucket(buckets,target.FilePath).ContainerMethodTargets.Add(target);
+        }
+        foreach(var target in linqInvocationTargets) {
+            GetInterceptorSourceBucket(buckets,target.FilePath).LinqInvocationTargets.Add(target);
+        }
+
+        var usedHintNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach(var bucket in buckets.Values.OrderBy(static bucket => bucket.FilePath,StringComparer.OrdinalIgnoreCase)) {
+            var interceptorSource = BuildInterceptorSource(
+                bucket.WhereTargets.ToImmutableArray(),
+                bucket.ContainerMethodTargets.ToImmutableArray(),
+                bucket.LinqInvocationTargets.ToImmutableArray());
+            if(interceptorSource.Length==0) {
+                continue;
+            }
+            var hintName = EnsureUniqueHintName(BuildGeneratedSourceHintName(projectDirectory,bucket.FilePath),usedHintNames);
+            context.AddSource(hintName,SourceText.From(RemoveBlankLines(interceptorSource),Encoding.UTF8));
+        }
+    }
+
+    private static InterceptorSourceBucket GetInterceptorSourceBucket(Dictionary<string,InterceptorSourceBucket> buckets,string filePath) {
+        var key = string.IsNullOrWhiteSpace(filePath) ? "Seamless.SourceGenerator.Interceptors" : filePath;
+        if(!buckets.TryGetValue(key,out var bucket)) {
+            bucket=new InterceptorSourceBucket(key);
+            buckets.Add(key,bucket);
+        }
+        return bucket;
+    }
+
+    private static string BuildGeneratedSourceHintName(string projectDirectory,string filePath) {
+        var relativePath = TryMakeRelativePath(projectDirectory,filePath)
+            ??TryMakeSiblingSharedProjectRelativePath(projectDirectory,filePath)
+            ??System.IO.Path.GetFileName(filePath);
+        if(string.IsNullOrWhiteSpace(relativePath)) {
+            relativePath="Seamless.SourceGenerator.Interceptors.cs";
+        }
+
+        relativePath=relativePath.Replace('\\','/').TrimStart('/');
+        while(relativePath.StartsWith("../",StringComparison.Ordinal)) {
+            relativePath=relativePath.Substring(3);
+        }
+        relativePath=relativePath.Replace("..","__").Replace(':','_').Replace('/','.').Trim('.');
+        if(relativePath.EndsWith(".cs",StringComparison.OrdinalIgnoreCase)) {
+            relativePath=relativePath.Substring(0,relativePath.Length-3)+".g.cs";
+        }
+        else if(!relativePath.EndsWith(".g.cs",StringComparison.OrdinalIgnoreCase)) {
+            relativePath+=".g.cs";
+        }
+        return relativePath;
+    }
+
+    private static string EnsureUniqueHintName(string hintName,HashSet<string> usedHintNames) {
+        if(usedHintNames.Add(hintName)) {
+            return hintName;
+        }
+
+        var extension = ".g.cs";
+        var stem = hintName.EndsWith(extension,StringComparison.OrdinalIgnoreCase)
+            ? hintName.Substring(0,hintName.Length-extension.Length)
+            : hintName;
+        for(var index = 2; ; index++) {
+            var candidate = stem+"_"+index+extension;
+            if(usedHintNames.Add(candidate)) {
+                return candidate;
+            }
+        }
+    }
+
+    private static string? TryMakeSiblingSharedProjectRelativePath(string projectDirectory,string filePath) {
+        var normalizedProjectDirectory = NormalizeDirectoryPath(projectDirectory);
+        if(string.IsNullOrWhiteSpace(normalizedProjectDirectory)) {
+            return null;
+        }
+
+        var projectName = System.IO.Path.GetFileName(normalizedProjectDirectory.TrimEnd(System.IO.Path.DirectorySeparatorChar,System.IO.Path.AltDirectorySeparatorChar));
+        if(string.IsNullOrWhiteSpace(projectName)) {
+            return null;
+        }
+        var sharedNameLength = projectName.Length;
+        while(sharedNameLength>0&&char.IsDigit(projectName[sharedNameLength-1])) {
+            sharedNameLength--;
+        }
+        if(sharedNameLength==projectName.Length||sharedNameLength==0) {
+            return null;
+        }
+
+        var parent = System.IO.Path.GetDirectoryName(normalizedProjectDirectory.TrimEnd(System.IO.Path.DirectorySeparatorChar,System.IO.Path.AltDirectorySeparatorChar));
+        if(string.IsNullOrWhiteSpace(parent)) {
+            return null;
+        }
+        var sharedDirectory = System.IO.Path.Combine(parent,projectName.Substring(0,sharedNameLength));
+        return TryMakeRelativePath(sharedDirectory,filePath);
+    }
+
+    private static string? TryMakeRelativePath(string rootDirectory,string filePath) {
+        var normalizedRoot = NormalizeDirectoryPath(rootDirectory);
+        var normalizedFilePath = NormalizeFilePath(filePath);
+        if(string.IsNullOrWhiteSpace(normalizedRoot)||string.IsNullOrWhiteSpace(normalizedFilePath)) {
+            return null;
+        }
+
+        normalizedRoot=normalizedRoot.TrimEnd(System.IO.Path.DirectorySeparatorChar,System.IO.Path.AltDirectorySeparatorChar)+System.IO.Path.DirectorySeparatorChar;
+        return normalizedFilePath.StartsWith(normalizedRoot,StringComparison.OrdinalIgnoreCase)
+            ? normalizedFilePath.Substring(normalizedRoot.Length)
+            : null;
+    }
+
+    private static string NormalizeDirectoryPath(string path) {
+        if(string.IsNullOrWhiteSpace(path)) {
+            return string.Empty;
+        }
+        try {
+            return System.IO.Path.GetFullPath(path);
+        }
+        catch {
+            return path;
+        }
+    }
+
+    private static string NormalizeFilePath(string path) {
+        if(string.IsNullOrWhiteSpace(path)) {
+            return string.Empty;
+        }
+        try {
+            return System.IO.Path.GetFullPath(path);
+        }
+        catch {
+            return path;
+        }
+    }
+
+    private static string BuildFilePathIdentifier(string filePath) {
+        var normalized = NormalizeFilePath(filePath).Replace('\\','/');
+        if(normalized.EndsWith(".cs",StringComparison.OrdinalIgnoreCase)) {
+            normalized=normalized.Substring(0,normalized.Length-3);
+        }
+        var testsIndex = normalized.IndexOf("/tests/",StringComparison.OrdinalIgnoreCase);
+        if(testsIndex>=0) {
+            normalized=normalized.Substring(testsIndex+"/tests/".Length);
+        }
+        return SanitizeIdentifier(normalized);
     }
 
     private static string BuildOptimizeAttributeSource() => """
@@ -203,7 +367,7 @@ namespace Seamless {
         var span = memberAccess.Name.GetLocation().GetLineSpan();
         var line = span.StartLinePosition.Line+1;
         var character = span.StartLinePosition.Character+1;
-        var id = SanitizeIdentifier($"{System.IO.Path.GetFileNameWithoutExtension(span.Path)}_{line}_{character}");
+        var id = SanitizeIdentifier($"{BuildFilePathIdentifier(span.Path)}_{line}_{character}");
         var interceptsLocationAttributeText = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptsLocationAttributeSyntax(interceptableLocation);
         if(string.IsNullOrWhiteSpace(interceptsLocationAttributeText)) {
             return null;
@@ -222,7 +386,7 @@ namespace Seamless {
             usePredicateDelegate);
     }
 
-    // DatabaseGenerator 配下の非 virtual container method 呼び出しを optimized static interceptor へ差し替える。
+    // 非 virtual container method 呼び出しを optimized static interceptor へ差し替える。
     // virtual method は仮想 dispatch を保つため、BuildOptimizedContainerSource 側で Optimized{Container} override として生成する。
     private static ContainerMethodInterceptTarget? CreateContainerMethodInterceptTarget(GeneratorSyntaxContext context,System.Threading.CancellationToken cancellationToken) {
         if(context.Node is not InvocationExpressionSyntax invocation) {
@@ -248,7 +412,7 @@ namespace Seamless {
         var span = methodLocation.GetLineSpan();
         var line = span.StartLinePosition.Line+1;
         var character = span.StartLinePosition.Character+1;
-        var id = SanitizeIdentifier($"{System.IO.Path.GetFileNameWithoutExtension(span.Path)}_{method.Name}_{line}_{character}");
+        var id = SanitizeIdentifier($"{BuildFilePathIdentifier(span.Path)}_{method.Name}_{line}_{character}");
         var interceptsLocationAttributeText = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptsLocationAttributeSyntax(interceptableLocation);
         if(string.IsNullOrWhiteSpace(interceptsLocationAttributeText)) {
             return null;
@@ -276,10 +440,8 @@ namespace Seamless {
         if(invocation.FirstAncestorOrSelf<MethodDeclarationSyntax>() is not { } containingMethodSyntax) {
             return null;
         }
-        if(context.SemanticModel.GetDeclaredSymbol(containingMethodSyntax,cancellationToken) is not IMethodSymbol containingMethod) {
-            return null;
-        }
-        if(!UsesInvocationLinqInterceptMode(containingMethod)||!HasDatabaseGeneratorMarker(containingMethod.ContainingNamespace)) {
+        var containingMethod = context.SemanticModel.GetDeclaredSymbol(containingMethodSyntax,cancellationToken);
+        if(containingMethod is null) {
             return null;
         }
         if(HasLinqInvocationAncestor(invocation,context.SemanticModel,cancellationToken)) {
@@ -295,18 +457,19 @@ namespace Seamless {
         if(!IsSupportedLinqMethod(method)) {
             return null;
         }
-        if(ContainsAnonymousType(method.ReturnType)||method.Parameters.Any(static parameter => ContainsAnonymousType(parameter.Type))) {
+        if(IsListWhereInterceptorCandidate(invocation,method,context.SemanticModel,cancellationToken)) {
             return null;
         }
-        var translatedBody = TryTranslateInvocationBody(method,invocation,invocation,context.SemanticModel);
+        var translatedBody = TryTranslateLinqInvocationBody(method);
         if(translatedBody is null) {
             return null;
         }
+        var definition = GetLinqInvocationDefinition(method);
         var methodLocation = GetInvocationMethodLocation(invocation);
         var span = methodLocation.GetLineSpan();
         var line = span.StartLinePosition.Line+1;
         var character = span.StartLinePosition.Character+1;
-        var id = SanitizeIdentifier($"{System.IO.Path.GetFileNameWithoutExtension(span.Path)}_{containingMethod.Name}_{method.Name}_{line}_{character}");
+        var id = SanitizeIdentifier($"{BuildFilePathIdentifier(span.Path)}_{containingMethod.Name}_{method.Name}_{line}_{character}");
         var interceptsLocationAttributeText = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptsLocationAttributeSyntax(interceptableLocation);
         if(string.IsNullOrWhiteSpace(interceptsLocationAttributeText)) {
             return null;
@@ -317,15 +480,216 @@ namespace Seamless {
 
         return new LinqInvocationInterceptTarget(
             id,
+            span.Path,
             interceptsLocationAttributeText,
-            BuildGeneratedTypeName(method.ReturnType),
+            BuildGeneratedTypeName(definition.ReturnType),
+            BuildTypeParameterList(definition.TypeParameters),
+            BuildTypeParameterConstraintList(definition.TypeParameters),
             parameterList,
-            RewriteInstanceReceiverReferences(translatedBody.Value.Body),
+            translatedBody.Value.Body,
             translatedBody.Value.IsExpressionBody);
     }
 
+    private static TranslatedMethodBody? TryTranslateLinqInvocationBody(IMethodSymbol method) {
+        var aggregateBody = TryTranslateLinqInvocationAggregateBody(method);
+        if(aggregateBody is not null) {
+            return new TranslatedMethodBody(aggregateBody,false);
+        }
+
+        var toArrayBody = TryTranslateLinqInvocationToArrayBody(method);
+        if(toArrayBody is not null) {
+            return new TranslatedMethodBody(toArrayBody,false);
+        }
+
+        var callThroughExpression = TryTranslateLinqInvocationCallThroughExpression(method);
+        return callThroughExpression is null
+            ? null
+            : new TranslatedMethodBody(callThroughExpression,true);
+    }
+
+    private static string? TryTranslateLinqInvocationAggregateBody(IMethodSymbol method) {
+        var definition = GetLinqInvocationDefinition(method);
+        if(definition.Name!="Aggregate") {
+            return null;
+        }
+
+        var arguments = BuildLinqInvocationCallArguments(method);
+        if(arguments.Length!=2) {
+            return null;
+        }
+
+        var implementation = EnumerableAggregateImplementation.Value;
+        if(implementation is null) {
+            return null;
+        }
+
+        var replacements = new Dictionary<string,string>(StringComparer.Ordinal) {
+            ["source"]=arguments[0],
+            ["func"]=arguments[1]
+        };
+        var rewriter = new AggregateImplementationBodyRewriter(replacements,implementation.NoElementsExpression);
+        if(rewriter.Visit(implementation.Body) is not BlockSyntax body) {
+            return null;
+        }
+        return FormatEmbeddedImplementationBody(body);
+    }
+
+    private static string? TryTranslateLinqInvocationToArrayBody(IMethodSymbol method) {
+        var definition = GetLinqInvocationDefinition(method);
+        if(definition.Name!="ToArray"||definition.TypeParameters.Length!=1) {
+            return null;
+        }
+        if(definition.ReturnType is not IArrayTypeSymbol) {
+            return null;
+        }
+        if(TryGetLinqInvocationTargetType(method) is null) {
+            return null;
+        }
+
+        var arguments = BuildLinqInvocationCallArguments(method);
+        if(arguments.Length!=1) {
+            return null;
+        }
+
+        var source = arguments[0];
+        var elementTypeName = definition.TypeParameters[0].Name;
+        return $$"""
+{
+    global::System.ArgumentNullException.ThrowIfNull({{source}});
+    var list = new global::System.Collections.Generic.List<{{elementTypeName}}>();
+    foreach(var item in {{source}}) {
+        list.Add(item);
+    }
+    return list.ToArray();
+}
+""";
+    }
+
+    private static string FormatEmbeddedImplementationBody(BlockSyntax body) {
+        var lines = body.ToFullString().Replace("\r\n","\n").Split('\n').ToList();
+        while(lines.Count>0&&string.IsNullOrWhiteSpace(lines[0])) {
+            lines.RemoveAt(0);
+        }
+        while(lines.Count>0&&string.IsNullOrWhiteSpace(lines[lines.Count-1])) {
+            lines.RemoveAt(lines.Count-1);
+        }
+        if(lines.Count==0) {
+            return "{}";
+        }
+
+        var innerLines = lines.Skip(1).Take(Math.Max(0,lines.Count-2)).ToArray();
+        var commonIndent = innerLines
+            .Where(static line => !string.IsNullOrWhiteSpace(line))
+            .Select(CountLeadingWhitespace)
+            .Where(static indent => indent>0)
+            .DefaultIfEmpty(0)
+            .Min();
+        var formatted = new List<string>(lines.Count) { lines[0].Trim() };
+        foreach(var line in innerLines) {
+            if(string.IsNullOrWhiteSpace(line)) {
+                formatted.Add(string.Empty);
+                continue;
+            }
+            var unindented = line.Length>=commonIndent ? line.Substring(commonIndent) : line.TrimStart();
+            formatted.Add("    "+unindented.TrimEnd());
+        }
+        if(lines.Count>1) {
+            formatted.Add(lines[lines.Count-1].Trim());
+        }
+        return string.Join("\n",formatted)
+            .Replace("System.ArgumentNullException.ThrowIfNull","global::System.ArgumentNullException.ThrowIfNull");
+    }
+
+    private static int CountLeadingWhitespace(string line) {
+        var count = 0;
+        while(count<line.Length&&char.IsWhiteSpace(line[count])) {
+            count++;
+        }
+        return count;
+    }
+
+    private static AggregateImplementationSource? LoadEnumerableAggregateImplementation() {
+        var assembly = typeof(SeamlessIncrementalGenerator).Assembly;
+        using var stream = assembly.GetManifestResourceStream(EnumerableImplementationResourceName);
+        if(stream is null) {
+            return null;
+        }
+        using var reader = new System.IO.StreamReader(stream,Encoding.UTF8,true);
+        var source = reader.ReadToEnd();
+        var root = CSharpSyntaxTree.ParseText(source).GetCompilationUnitRoot();
+        var methods = root.DescendantNodes().OfType<MethodDeclarationSyntax>().ToArray();
+        var aggregate = methods.FirstOrDefault(static candidate =>
+            candidate.Identifier.ValueText=="Aggregate"
+            &&candidate.TypeParameterList?.Parameters.Count==1
+            &&candidate.ParameterList.Parameters.Count==2
+            &&candidate.ParameterList.Parameters[0].Identifier.ValueText=="source"
+            &&candidate.ParameterList.Parameters[1].Identifier.ValueText=="func");
+        if(aggregate?.Body is null) {
+            return null;
+        }
+
+        var noElementsExpression = methods
+            .Where(static candidate => candidate.Identifier.ValueText=="NoElements"&&candidate.ParameterList.Parameters.Count==0)
+            .Select(static candidate => TryGetSingleReturnExpression(candidate))
+            .FirstOrDefault(static expression => expression is not null);
+        if(noElementsExpression is null) {
+            return null;
+        }
+
+        return new AggregateImplementationSource(aggregate.Body,noElementsExpression);
+    }
+
+    private static ExpressionSyntax? TryGetSingleReturnExpression(MethodDeclarationSyntax method) {
+        if(method.Body?.Statements.Count!=1) {
+            return null;
+        }
+        if(method.Body.Statements[0] is not ReturnStatementSyntax returnStatement) {
+            return null;
+        }
+        return returnStatement.Expression;
+    }
+
+    private static string? TryTranslateLinqInvocationCallThroughExpression(IMethodSymbol method) {
+        var targetType = TryGetLinqInvocationTargetType(method);
+        if(targetType is null) {
+            return null;
+        }
+
+        var definition = GetLinqInvocationDefinition(method);
+        var arguments = BuildLinqInvocationCallArguments(method);
+        return $"{targetType}.{definition.Name}{BuildMethodTypeArgumentList(method)}({string.Join(",",arguments)})";
+    }
+
+    private static string? TryGetLinqInvocationTargetType(IMethodSymbol method) {
+        var definition = GetLinqInvocationDefinition(method);
+        var containingType = definition.ContainingType.ToDisplayString();
+        return containingType switch {
+            "System.Linq.Enumerable" => "global::Seamless.Linq.Enumerable",
+            "Seamless.Linq.Enumerable" => "global::Seamless.Linq.Enumerable",
+            "Seamless.Linq.HashSet" => "global::Seamless.Linq.HashSet",
+            _ => null
+        };
+    }
+
+    private static string BuildMethodTypeArgumentList(IMethodSymbol method) {
+        var definition = GetLinqInvocationDefinition(method);
+        if(definition.TypeParameters.Length==0) {
+            return string.Empty;
+        }
+        return $"<{string.Join(", ",definition.TypeParameters.Select(static typeParameter => typeParameter.Name))}>";
+    }
+
+    private static string[] BuildLinqInvocationCallArguments(IMethodSymbol method) {
+        var definition = GetLinqInvocationDefinition(method);
+        return definition.Parameters.Select(BuildArgumentExpression).ToArray();
+    }
+
+    private static IMethodSymbol GetLinqInvocationDefinition(IMethodSymbol method) {
+        return method.ReducedFrom??method.OriginalDefinition;
+    }
+
     private static bool HasLinqInvocationAncestor(InvocationExpressionSyntax invocation,SemanticModel semanticModel,System.Threading.CancellationToken cancellationToken) {
-        for(SyntaxNode? current = invocation.Parent; current is not null; current=current.Parent) {
+        for(var current = invocation.Parent; current is not null; current=current.Parent) {
             if(current is StatementSyntax or LambdaExpressionSyntax) {
                 return false;
             }
@@ -338,15 +702,17 @@ namespace Seamless {
 
     private static bool TryBuildLinqInvocationParameterList(InvocationExpressionSyntax invocation,IMethodSymbol method,SemanticModel semanticModel,out string parameterList) {
         var declarations = new List<string>();
+        var definition = GetLinqInvocationDefinition(method);
         if(method.ReducedFrom is not null) {
             if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess) {
                 parameterList=string.Empty;
                 return false;
             }
-            var receiverType = semanticModel.GetTypeInfo(memberAccess.Expression).Type??method.ReducedFrom.Parameters[0].Type;
-            declarations.Add($"this {BuildGeneratedTypeName(receiverType)} {method.ReducedFrom.Parameters[0].Name}");
+            _=semanticModel.GetTypeInfo(memberAccess.Expression);
+            declarations.Add($"this {BuildGeneratedTypeName(definition.Parameters[0].Type)} {definition.Parameters[0].Name}");
         }
-        foreach(var parameter in method.Parameters) {
+        var parameterStart = method.ReducedFrom is null ? 0 : 1;
+        foreach(var parameter in definition.Parameters.Skip(parameterStart)) {
             declarations.Add(BuildConcreteParameterDeclaration(parameter));
         }
         parameterList=string.Join(", ",declarations);
@@ -399,11 +765,7 @@ namespace Seamless {
         if(UsesInvocationLinqInterceptMode(method)) {
             return false;
         }
-        return HasDatabaseGeneratorMarker(method.ContainingType.ContainingNamespace);
-    }
-
-    private static bool HasDatabaseGeneratorMarker(INamespaceSymbol namespaceSymbol) {
-        return namespaceSymbol.GetTypeMembers("DatabaseGenerator").Any();
+        return true;
     }
 
     private static Location GetInvocationMethodLocation(InvocationExpressionSyntax invocation) {
@@ -462,6 +824,26 @@ namespace Seamless {
         sourceExpression=invocation.ArgumentList.Arguments[0].Expression;
         predicateExpression=invocation.ArgumentList.Arguments[1].Expression;
         return true;
+    }
+
+    private static bool IsListWhereInterceptorCandidate(InvocationExpressionSyntax invocation,IMethodSymbol method,SemanticModel semanticModel,System.Threading.CancellationToken cancellationToken) {
+        if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess) {
+            return false;
+        }
+        if(method.Name!="Where"||!method.IsExtensionMethod) {
+            return false;
+        }
+        var reducedMethod = method.ReducedFrom??method;
+        if(reducedMethod.ContainingType.ToDisplayString()!="System.Linq.Enumerable") {
+            return false;
+        }
+        if(!TryGetWherePredicateInfo(reducedMethod,out _)) {
+            return false;
+        }
+        if(!TryGetWhereCallInfo(invocation,memberAccess,method,out var sourceExpression,out _)) {
+            return false;
+        }
+        return TryGetListElementType(semanticModel.GetTypeInfo(sourceExpression,cancellationToken).Type,out _);
     }
 
     private static bool TryGetListElementType(ITypeSymbol? type,out ITypeSymbol elementType) {
@@ -702,6 +1084,7 @@ namespace Seamless {
 
         var builder = new StringBuilder();
         builder.AppendLine("#nullable enable");
+        builder.AppendLine("#pragma warning disable CS8603, CS8619, CS8620, CS9159");
         builder.AppendLine("// Generated: Roslyn interceptors resolve the preview attribute by metadata name.");
         builder.AppendLine("// The target framework does not provide it, so this file-local definition is required by the generated [InterceptsLocation] entry points below.");
         builder.AppendLine("namespace System.Runtime.CompilerServices {");
@@ -720,7 +1103,7 @@ namespace Seamless {
         builder.AppendLine("// Generated: interceptor entry points.");
         builder.AppendLine("namespace Seamless.SourceGenerator.Generated {");
         if(!whereTargets.IsDefaultOrEmpty) {
-            builder.AppendLine("    internal static class ListWhereInterceptors {");
+            builder.AppendLine("    internal static partial class ListWhereInterceptors {");
 
             foreach(var target in whereTargets.Distinct(WhereInterceptTargetComparer.Instance)) {
                 var elementTypeName = target.ElementTypeName;
@@ -820,11 +1203,11 @@ namespace Seamless {
             return;
         }
 
-        builder.AppendLine("    internal static class LinqInvocationInterceptors {");
+        builder.AppendLine("    internal static partial class LinqInvocationInterceptors {");
         foreach(var target in linqInvocationTargets.Distinct(LinqInvocationInterceptTargetComparer.Instance)) {
             builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
             builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
-            var methodDeclaration = $"public static {target.ReturnTypeName} {target.MethodName}({target.ParameterList})";
+            var methodDeclaration = $"public static {target.ReturnTypeName} {target.MethodName}{target.TypeParameterList}({target.ParameterList}){target.TypeParameterConstraintList}";
             AppendIndented(builder,BuildTranslatedMemberSource(methodDeclaration,target.Body,target.IsExpressionBody),"        ");
             builder.AppendLine();
         }
@@ -836,7 +1219,7 @@ namespace Seamless {
             return;
         }
 
-        builder.AppendLine("    internal static class ContainerMethodInterceptors {");
+        builder.AppendLine("    internal static partial class ContainerMethodInterceptors {");
         foreach(var target in containerMethodTargets.Distinct(ContainerMethodInterceptTargetComparer.Instance)) {
             var parameterList = string.IsNullOrWhiteSpace(target.ParameterList)
                 ? $"this {target.ReceiverTypeName} self"
@@ -3337,6 +3720,50 @@ namespace Seamless {
         }
     }
 
+    private sealed class AggregateImplementationBodyRewriter:CSharpSyntaxRewriter {
+        private readonly IReadOnlyDictionary<string,string> replacements;
+        private readonly ExpressionSyntax noElementsExpression;
+
+        public AggregateImplementationBodyRewriter(IReadOnlyDictionary<string,string> replacements,ExpressionSyntax noElementsExpression) {
+            this.replacements=replacements;
+            this.noElementsExpression=noElementsExpression;
+        }
+
+        public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
+            if(node.Expression is IdentifierNameSyntax identifier
+                &&identifier.Identifier.ValueText=="NoElements"
+                &&node.ArgumentList.Arguments.Count==0) {
+                if(this.Visit(this.noElementsExpression.WithoutTrivia()) is ExpressionSyntax expression) {
+                    return expression.WithTriviaFrom(node);
+                }
+                return node;
+            }
+            return base.VisitInvocationExpression(node);
+        }
+
+        public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node) {
+            if(node.Expression is IdentifierNameSyntax identifier&&identifier.Identifier.ValueText=="ArgumentNullException") {
+                return base.VisitMemberAccessExpression(node.WithExpression(SyntaxFactory.ParseExpression("global::System.ArgumentNullException")));
+            }
+            return base.VisitMemberAccessExpression(node);
+        }
+
+        public override SyntaxNode? VisitObjectCreationExpression(ObjectCreationExpressionSyntax node) {
+            if(node.Type is IdentifierNameSyntax identifier&&identifier.Identifier.ValueText=="InvalidOperationException") {
+                return base.VisitObjectCreationExpression(node.WithType(SyntaxFactory.ParseTypeName("global::System.InvalidOperationException")));
+            }
+            return base.VisitObjectCreationExpression(node);
+        }
+
+        public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
+            var identifier = node.Identifier.ValueText;
+            if(this.replacements.TryGetValue(identifier,out var replacement)) {
+                return SyntaxFactory.ParseExpression(replacement).WithTriviaFrom(node);
+            }
+            return base.VisitIdentifierName(node);
+        }
+    }
+
     // 同一呼び出し位置に対する interceptor 二重生成を防ぐ comparer。
     private sealed class ContainerMethodInterceptTargetComparer:IEqualityComparer<ContainerMethodInterceptTarget> {
         public static ContainerMethodInterceptTargetComparer Instance { get; } = new();
@@ -3486,22 +3913,39 @@ namespace Seamless {
     }
 
     private sealed class LinqInvocationInterceptTarget {
-        public LinqInvocationInterceptTarget(string identifier,string interceptsLocationAttributeText,string returnTypeName,string parameterList,string body,bool isExpressionBody) {
+        public LinqInvocationInterceptTarget(string identifier,string filePath,string interceptsLocationAttributeText,string returnTypeName,string typeParameterList,string typeParameterConstraintList,string parameterList,string body,bool isExpressionBody) {
             this.Identifier=identifier;
+            this.FilePath=filePath;
             this.InterceptsLocationAttributeText=interceptsLocationAttributeText;
             this.ReturnTypeName=returnTypeName;
+            this.TypeParameterList=typeParameterList;
+            this.TypeParameterConstraintList=typeParameterConstraintList;
             this.ParameterList=parameterList;
             this.Body=body;
             this.IsExpressionBody=isExpressionBody;
         }
 
         public string Identifier { get; }
+        public string FilePath { get; }
         public string InterceptsLocationAttributeText { get; }
         public string ReturnTypeName { get; }
+        public string TypeParameterList { get; }
+        public string TypeParameterConstraintList { get; }
         public string ParameterList { get; }
         public string Body { get; }
         public bool IsExpressionBody { get; }
         public string MethodName => $"OptimizedLinqInvocation_{this.Identifier}";
+    }
+
+    private sealed class InterceptorSourceBucket {
+        public InterceptorSourceBucket(string filePath) {
+            FilePath=filePath;
+        }
+
+        public string FilePath { get; }
+        public List<WhereInterceptTarget> WhereTargets { get; } = new();
+        public List<ContainerMethodInterceptTarget> ContainerMethodTargets { get; } = new();
+        public List<LinqInvocationInterceptTarget> LinqInvocationTargets { get; } = new();
     }
 
     private sealed class OptimizeMethodTarget {
@@ -3512,6 +3956,16 @@ namespace Seamless {
 
         public IMethodSymbol Symbol { get; }
         public Location Location { get; }
+    }
+
+    private sealed class AggregateImplementationSource {
+        public AggregateImplementationSource(BlockSyntax body,ExpressionSyntax noElementsExpression) {
+            Body=body;
+            NoElementsExpression=noElementsExpression;
+        }
+
+        public BlockSyntax Body { get; }
+        public ExpressionSyntax NoElementsExpression { get; }
     }
 
     // DatabaseGenerator マーカー配下で見つけた型宣言の最小情報。

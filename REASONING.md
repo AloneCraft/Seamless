@@ -69,3 +69,10 @@
 - Chosen approach: parse a chain into a linear operation pipeline, currently supporting `Where` and `Select`, then emit one materializing loop that can be reused for sequence-returning methods and for sequence arguments passed to another call.
 - Pattern approach: when a method body contains `Call(source.Where(...))`, the interceptor materializes the chain into a local `List<T>` and calls `Call(result)`, so the original nested iterator call is not left in the generated method body.
 - Test approach: add focused `Enumerable2`, `HashSet2`, `System.Linq.Enumerable2`, and `EnumerablePattern` samples under the existing `DatabaseGenerator` marker namespaces, and verify generated interceptors exist while smoke tests confirm the translated calls preserve results.
+
+# Aggregate invocation source reuse notes
+
+- Scope: `TryTranslateLinqInvocationAggregateBody` in the source generator.
+- Goal: avoid maintaining a hand-written copy of `Seamless.Linq.Enumerable.Aggregate` inside the generator.
+- Approach: embed `src/Seamless/Linq/Enumerable.cs` into the source-generator assembly, parse the `Aggregate(source,func)` implementation and the shared `NoElements()` helper with Roslyn, then rewrite only the parameter names and required `global::System` qualifications for generated code.
+- Fallback: if the embedded source cannot be loaded or parsed, the specialized Aggregate body is skipped so the existing call-through path can still generate valid code.
