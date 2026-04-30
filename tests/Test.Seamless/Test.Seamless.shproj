@@ -20,6 +20,9 @@
     <Compile Include="Database\Database0.cs" />
     <Compile Include="Database\TPC_H.cs" />
     <Compile Include="DictionaryGuidEmptyRecoveryTests.cs" />
+    <Compile Include="Intersept\Seamless\Linq\Enumerable2.cs" />
+    <Compile Include="Intersept\Seamless\Linq\EnumerablePattern.cs" />
+    <Compile Include="Intersept\Seamless\Linq\HashSet2.cs" />
     <Compile Include="Intersept\System\Linq\Enumerable.cs" />
     <Compile Include="Intersept\Seamless\Linq\Enumerable.cs" />
     <Compile Include="Intersept\Seamless\Linq\HashSet.cs" />
