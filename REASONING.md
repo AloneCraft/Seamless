@@ -61,3 +61,11 @@
 - Storage approach: make `StorageOverflowMutableStrategy` carry log-device capacity plus two safety limits: a capacity fraction and reserved free bytes. The effective append limit is the smaller of `capacity*fraction` and `capacity-reserveBytes`.
 - API approach: add optional storage limit parameters to `HashStore.Create` and pass them only through storage-backed store constructors; existing callers keep the default full-capacity/no-reserve behavior.
 - Test approach: add white-box boundary tests for memory, storage fraction, storage reserve bytes, combined storage limits, and unbounded storage capacity.
+
+# LINQ chain interceptor notes
+
+- Scope: source-generator container-method interceptors for sequence-returning LINQ chains and void methods that pass a sequence chain into another method.
+- Goal: cover two-method chains such as `Where.Select` / `Select.Where` without adding a separate generator branch for every possible chain length, and keep the structure extensible for later three-method chains.
+- Chosen approach: parse a chain into a linear operation pipeline, currently supporting `Where` and `Select`, then emit one materializing loop that can be reused for sequence-returning methods and for sequence arguments passed to another call.
+- Pattern approach: when a method body contains `Call(source.Where(...))`, the interceptor materializes the chain into a local `List<T>` and calls `Call(result)`, so the original nested iterator call is not left in the generated method body.
+- Test approach: add focused `Enumerable2`, `HashSet2`, `System.Linq.Enumerable2`, and `EnumerablePattern` samples under the existing `DatabaseGenerator` marker namespaces, and verify generated interceptors exist while smoke tests confirm the translated calls preserve results.

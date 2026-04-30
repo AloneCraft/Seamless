@@ -16,12 +16,14 @@
     <Compile Include="Collections\IDictionary.cs" />
     <Compile Include="Collections\IHashSet.cs" />
     <Compile Include="Collections\ISet.cs" />
+    <Compile Include="Collections\Generic\IEnumerable.cs" />
     <Compile Include="Collections\InMemoryList.cs" />
     <Compile Include="Collections\Unmanaged\UnmanagedUnmanagedCollection.cs" />
     <Compile Include="Collections\Managed\ManagedUnmanagedCollection.cs" />
     <Compile Include="Collections\Managed\UnmanagedManagedCollection.cs" />
     <Compile Include="Collections\Managed\ManagedManagedCollection.cs" />
     <Compile Include="Collections\List.cs" />
+    <Compile Include="Linq\Enumerable.cs" />
     <Compile Include="Linq\EnumerableStrategy.cs" />
     <Compile Include="Linq\ManagedEnumerable.cs" />
     <Compile Include="Linq\ManagedHashSetEnumerable.cs" />
