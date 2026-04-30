@@ -22,8 +22,12 @@
     <Compile Include="Collections\Managed\UnmanagedManagedCollection.cs" />
     <Compile Include="Collections\Managed\ManagedManagedCollection.cs" />
     <Compile Include="Collections\List.cs" />
-    <Compile Include="Linq\Enumerable.cs" />
     <Compile Include="Linq\EnumerableStrategy.cs" />
+    <Compile Include="Linq\ManagedEnumerable.cs" />
+    <Compile Include="Linq\ManagedHashSetEnumerable.cs" />
+    <Compile Include="Linq\StorageEnumerableCore.cs" />
+    <Compile Include="Linq\UnmanagedEnumerable.cs" />
+    <Compile Include="Linq\UnmanagedHashSetEnumerable.cs" />
     <Compile Include="Collections\Managed\ManagedDictionary.cs" />
     <Compile Include="Collections\Managed\ManagedHashSet.cs" />
     <Compile Include="Collections\Managed\ManagedList.cs" />

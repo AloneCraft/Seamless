@@ -11,13 +11,25 @@
 
 # Source-generator scalar fusion notes
 
-- Scope: `Seamless.SourceGenerator` optimized container overrides for scalar LINQ terminals such as `Sum` and `Average`.
-- Goal: keep the public method body readable while emitting an optimized override that fuses supported intermediate operations into direct loops.
+- Scope: `Seamless.SourceGenerator` direct call-site interceptors for scalar LINQ terminals such as `Sum` and `Average`.
+- Goal: keep the public method body readable while emitting an interceptor method that fuses supported intermediate operations into direct loops without generating an optimized subclass.
 - Supported intermediate operations: `Where`, `Select`, `Cast`, `OfType`, `Take`, `TakeWhile`, `Skip`, `SkipWhile`, `Distinct`, and `SelectMany`.
-- Chosen approach: parse the semantic method chain from the original invocation, keep existing call-through translation as the fallback, and emit block-bodied overrides only when the whole pipeline can be represented safely.
+- Chosen approach: parse the semantic method chain from the original invocation, keep existing call-through translation as the fallback, and emit block-bodied interceptor methods only when the whole pipeline can be represented safely.
 - Loop approach: a scalar terminal owns the accumulator and optional count, intermediate operations become `if`/`goto continue` checks or nested `foreach` loops, and `Take`/`TakeWhile` can stop the outer pipeline without allocating intermediate lists.
 - Numeric approach: generated `Average` follows LINQ accumulator widening rules, including casting the `long` accumulator before division for integer sources.
-- Test approach: shared container methods exercise fused `Where.Select.Sum`, `Skip.Take.Average`, `SelectMany.Where.Sum`, `Distinct.SkipWhile.TakeWhile.Sum`, `Cast.Sum`, and `OfType.Sum`, with reflection tests comparing original and optimized containers in both test projects.
+- Test approach: shared container methods exercise fused `Where.Select.Sum`, `Skip.Take.Average`, `SelectMany.Where.Sum`, `Distinct.SkipWhile.TakeWhile.Sum`, `Cast.Sum`, and `OfType.Sum`; reflection calls provide the original baseline while normal direct calls exercise the generated interceptors.
+
+# LINQ materialization and sequence fusion notes
+
+- Scope: `Seamless.Linq.Enumerable` sequence-returning operations and source-generator container-method interceptors that return `IEnumerable<T>`.
+- Goal: keep default `Seamless.Linq.Enumerable` behavior close to `System.Linq`-style in-memory materialization, while providing explicit StorageList-backed entry points for callers that choose the space/time trade-off.
+- Overload approach: use optional `ManagedTag` / `UnmanagedTag` parameters plus constraints for hot sequence operations such as `Select`, `Where`, `SelectMany`, and `Join`; `ManagedEnumerable` uses `ManagedList<T>`, while `UnmanagedEnumerable` requires unmanaged result types and uses `UnmanagedList<T>`.
+- HashSet approach: `ManagedHashSetEnumerable` and `UnmanagedHashSetEnumerable` reuse the same core loops as the enumerable variants so the implementation is comparable and call sites can choose the storage policy explicitly.
+- Inlining approach: storage-backed wrappers are thin `AggressiveInlining` methods over a shared generic core and also expose static-strategy overloads for `Select` and `Where`, avoiding delegate calls when the selector/predicate is known as a struct strategy.
+- Lifetime approach: return a small enumerable wrapper that owns the temporary list and deletes its work directory on disposal/finalization, preserving normal `IEnumerable<T>` consumption while avoiding permanent work files.
+- Source-generator boundary: generated sequence-returning interceptors no longer choose `ManagedList<T>` or `UnmanagedList<T>` from result type. StorageList use is an explicit API choice, while scalar fusion still emits direct loops.
+- Nested translation approach: lambda bodies and nested method chains are recursively translated to `global::Seamless.Linq.Enumerable.*` so generated code does not depend on `using System.Linq` extension lookup.
+- Scope boundary: `ToList()` must keep returning `System.Collections.Generic.List<T>` for BCL compatibility; grouping/ordering internals may still use in-memory helper state until they have equivalent persistent data structures.
 
 # Build fix notes
 
@@ -34,6 +46,12 @@
 - Source-generator approach: query-expression members and simple method-chain members on database containers are translated into generated extension methods with fully-qualified `global::Seamless.Linq.Enumerable` calls, avoiding default `System.Linq` extension lookup.
 - Interceptor approach: focused tests call the generated extension methods and compare them with the original container members so pre/post translation values stay aligned. A second test file covers two independent method chains in one expression.
 - Strategy approach: add static-strategy overloads beside the existing delegate overloads. The strategy overloads accept structs implementing static abstract interfaces, so callers can avoid delegate allocation when the selector/predicate/accumulator is known as a type.
+
+# Tsavorite test sharing notes
+
+- Scope: Tsavorite-specific tests used by `Test.Seamless1` and `Test.Seamless2`.
+- Approach: project-specific `tests/Test.Seamless1/Tsavorite` and `tests/Test.Seamless2/Tsavorite` files are moved into shared `tests/Test.Seamless/Tsavorite`; version-specific API code is guarded with `TSAVORITE1_1_1` or `TSAVORITE2_0BETA3`.
+- Result: both test projects reference the same shared file set and class names, while the compiler includes only the implementation that matches the Tsavorite package version.
 
 # Overflow mutable strategy notes
 

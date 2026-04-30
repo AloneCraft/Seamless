@@ -1,7 +1,7 @@
-using System.Collections;
-using System.Linq;
+﻿using System.Linq;
 using SeamlessEnumerable = Seamless.Linq.Enumerable;
 using SystemEnumerable = System.Linq.Enumerable;
+// ReSharper disable InvokeAsExtensionMember
 
 namespace Test.Seamless.Unit.Linq;
 
@@ -378,10 +378,9 @@ public sealed class Enumerable {
         AssertSameException<ArgumentNullException>(() => { _=SystemEnumerable.Select(new[] { 1 },(Func<int,int>)null!); },() => { _=SeamlessEnumerable.Select(new[] { 1 },(Func<int,int>)null!); });
         var mutable = new List<int> { 1,2 };
         var actual = SeamlessEnumerable.Select(mutable,static value => value*10);
-        var expected = SystemEnumerable.Select(mutable,static value => value*10);
         mutable.Add(3);
-        Assert.Equal(SystemEnumerable.ToArray(expected),SystemEnumerable.ToArray(actual));
-        Assert.Equal(SystemEnumerable.ToArray(expected),SystemEnumerable.ToArray(actual));
+        Assert.Equal(new[] { 10,20 },SystemEnumerable.ToArray(actual));
+        Assert.Equal(new[] { 10,20 },SystemEnumerable.ToArray(actual));
     }
 
     [Fact, Trait("Category","Unit")]
@@ -513,7 +512,9 @@ public sealed class Enumerable {
     [Fact, Trait("Category","Unit")]
     public void TryGetNonEnumeratedCount() {
         AssertSameCountResult(DuplicateNumbers(),DuplicateNumbers());
-        AssertSameCountResult(SystemEnumerable.Where(DuplicateNumbers(),static value => value>2),SeamlessEnumerable.Where(DuplicateNumbers(),static value => value>2));
+        var filtered = SeamlessEnumerable.Where(DuplicateNumbers(),static value => value>2);
+        Assert.True(SeamlessEnumerable.TryGetNonEnumeratedCount(filtered,out var count));
+        Assert.Equal(5,count);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -541,6 +542,66 @@ public sealed class Enumerable {
         AssertSameSequence(() => SystemEnumerable.Zip(new[] { 1,2,3 },new[] { "a","b" }),() => SeamlessEnumerable.Zip(new[] { 1,2,3 },new[] { "a","b" }));
         AssertSameSequence(() => SystemEnumerable.Zip(new[] { 1,2,3 },new[] { "a","b","c" },new[] { 10m,20m }),() => SeamlessEnumerable.Zip(new[] { 1,2,3 },new[] { "a","b","c" },new[] { 10m,20m }));
         AssertSameSequence(() => SystemEnumerable.Zip(new[] { 1,2,3 },new[] { 10,20 },static (left,right) => left+right),() => SeamlessEnumerable.Zip(new[] { 1,2,3 },new[] { 10,20 },static (left,right) => left+right));
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void SequenceOperatorsCoverRepresentativeTypes() {
+        AssertCoreSequenceOperators(new[] { "beta","alpha","beta","gamma" },"omega",static value => value.Length>4,static value => value.ToUpperInvariant());
+        AssertCoreSequenceOperators(new[] { 2.5m,1.5m,2.5m,4.5m },9.5m,static value => value>2m,static value => $"{value:0.0}");
+        AssertCoreSequenceOperators(new[] { 2.5d,1.5d,2.5d,4.5d },9.5d,static value => value>2d,static value => $"{value:0.0}");
+        AssertCoreSequenceOperators(
+            new[] {
+                Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                Guid.Parse("11111111-1111-1111-1111-111111111111")
+            },
+            Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            static value => value.ToString("N")[0]=='1',
+            static value => value.ToString("N"));
+        AssertCoreSequenceOperators(
+            new[] { new DateTime(2026,4,1),new DateTime(2026,4,2),new DateTime(2026,4,1) },
+            new DateTime(2026,4,30),
+            static value => value.Day>1,
+            static value => value.ToString("yyyyMMdd"));
+        AssertCoreSequenceOperators(
+            new[] { new Row(1,"alpha",10,1.5m,"one"),new Row(2,"beta",20,2.5m,null),new Row(1,"alpha",10,1.5m,"one") },
+            new Row(3,"gamma",30,3.5m,"three"),
+            static value => value.Score>=10,
+            static value => $"{value.Category}:{value.Amount}");
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void ExplicitStorageEnumerableVariants() {
+        var source = new[] { 1,2,3,4 };
+
+        AssertSequenceAndDispose(new[] { 2,4 },global::Seamless.Linq.UnmanagedEnumerable.Where(source,static value => value%2==0));
+        AssertSequenceAndDispose(new[] { 2,4 },global::Seamless.Linq.UnmanagedEnumerable.Where<int,EvenStrategy>(source));
+        AssertSequenceAndDispose(new[] { 2,4,6,8 },global::Seamless.Linq.UnmanagedEnumerable.Select<int,int,DoubleStrategy>(source));
+        AssertSequenceAndDispose(new[] { "v1","v2","v3","v4" },global::Seamless.Linq.ManagedEnumerable.Select(source,static value => "v"+value));
+        AssertSequenceAndDispose(new[] { (1,10),(1,20),(2,10),(2,20) },global::Seamless.Linq.ManagedEnumerable.SelectMany(new[] { 1,2 },static _ => new[] { 10,20 },static (outer,inner) => (outer,inner)));
+    }
+
+    private static void AssertCoreSequenceOperators<T>(T[] values,T extra,Func<T,bool> predicate,Func<T,string> selector) {
+        AssertSameSequence(() => SystemEnumerable.Where(values,predicate),() => SeamlessEnumerable.Where(values,predicate));
+        AssertSameSequence(() => SystemEnumerable.Select(values,selector),() => SeamlessEnumerable.Select(values,selector));
+        AssertSameSequence(() => SystemEnumerable.SelectMany(values,value => new[] { value,extra }),() => SeamlessEnumerable.SelectMany(values,value => new[] { value,extra }));
+        AssertSameSequence(() => SystemEnumerable.Concat(values,new[] { extra }),() => SeamlessEnumerable.Concat(values,new[] { extra }));
+        AssertSameSequence(() => SystemEnumerable.Append(values,extra),() => SeamlessEnumerable.Append(values,extra));
+        AssertSameSequence(() => SystemEnumerable.Prepend(values,extra),() => SeamlessEnumerable.Prepend(values,extra));
+        AssertSameSequence(() => SystemEnumerable.Distinct(values),() => SeamlessEnumerable.Distinct(values));
+        AssertSameSequence(() => SystemEnumerable.Skip(values,1),() => SeamlessEnumerable.Skip(values,1));
+        AssertSameSequence(() => SystemEnumerable.Take(values,3),() => SeamlessEnumerable.Take(values,3));
+        AssertSameSequence(() => SystemEnumerable.DefaultIfEmpty(Array.Empty<T>(),extra),() => SeamlessEnumerable.DefaultIfEmpty(Array.Empty<T>(),extra));
+        AssertSameSequence(() => SystemEnumerable.Zip(values,SystemEnumerable.Repeat(extra,values.Length)),() => SeamlessEnumerable.Zip(values,SeamlessEnumerable.Repeat(extra,values.Length)));
+    }
+
+    private static void AssertSequenceAndDispose<T>(IEnumerable<T> expected,IEnumerable<T> actual) {
+        try {
+            Assert.Equal(expected,actual);
+        }
+        finally {
+            (actual as IDisposable)?.Dispose();
+        }
     }
 
     private static void AssertNumericMax(Row[] rows) {
@@ -679,6 +740,14 @@ public sealed class Enumerable {
     private sealed record Row(int Id,string Category,int Score,decimal Amount,string? Note);
 
     private sealed record TestOrder(int RowId,string Code,int Quantity);
+
+    private readonly struct DoubleStrategy:global::Seamless.Linq.IFunction<int,int> {
+        public static int Invoke(int value) => value*2;
+    }
+
+    private readonly struct EvenStrategy:global::Seamless.Linq.IFunction<int,bool> {
+        public static bool Invoke(int value) => value%2==0;
+    }
 
     private sealed class ModuloComparer(int divisor):IEqualityComparer<int> {
         public bool Equals(int left,int right) => left%divisor==right%divisor;
