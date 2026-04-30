@@ -12,7 +12,8 @@ public readonly struct UnmanagedTag;
 /// </summary>
 public readonly struct HashStore {
     private readonly long IndexSize, PageSize, SegmentSize, MemorySize;
-    private readonly double MutableFraction;
+    private readonly double MutableFraction, StorageLimitFraction;
+    private readonly long StorageReserveBytes;
     private readonly string? CheckpointDir;
     private HashStore(
         long IndexSize,
@@ -20,13 +21,23 @@ public readonly struct HashStore {
         long SegmentSize,
         long MemorySize,
         double MutableFraction,
+        double StorageLimitFraction,
+        long StorageReserveBytes,
         string? CheckpointDir
     ) {
+        if(double.IsNaN(StorageLimitFraction)||StorageLimitFraction<0||StorageLimitFraction>1) {
+            throw new ArgumentOutOfRangeException(nameof(StorageLimitFraction));
+        }
+        if(StorageReserveBytes<0) {
+            throw new ArgumentOutOfRangeException(nameof(StorageReserveBytes));
+        }
         this.IndexSize=IndexSize;
         this.PageSize=PageSize;
         this.SegmentSize=SegmentSize;
         this.MemorySize=MemorySize;
         this.MutableFraction=MutableFraction;
+        this.StorageLimitFraction=StorageLimitFraction;
+        this.StorageReserveBytes=StorageReserveBytes;
         this.CheckpointDir=CheckpointDir;
     }
     /// <summary>構成パラメータを指定して HashStore を生成する。</summary>
@@ -36,8 +47,10 @@ public readonly struct HashStore {
         long SegmentSize = Const.SegmentSize,
         long MemorySize = Const.LogMemorySize,
         double MutableFraction = 1.0,
-        string? CheckpointDir = null
-    ) => new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,CheckpointDir);
+        string? CheckpointDir = null,
+        double StorageLimitFraction = 1.0,
+        long StorageReserveBytes = 0
+    ) => new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,StorageLimitFraction,StorageReserveBytes,CheckpointDir);
 
     public static long GetIndexSizeForCapacity(long requiredCapacity,long minimumIndexSize = Const.IndexSize) {
         if(requiredCapacity<0)
@@ -69,7 +82,7 @@ public readonly struct HashStore {
         var resolvedIndexSize = this.ResolveRecoveryIndexSize(token,minimumIndexSize);
         return resolvedIndexSize==this.IndexSize
             ? this
-            : new(resolvedIndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,this.CheckpointDir);
+            : new(resolvedIndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,this.StorageLimitFraction,this.StorageReserveBytes,this.CheckpointDir);
     }
 
     internal static void WriteRecoveryIndexMetadata(string checkpointDir,Guid token,long entryCount,long minimumIndexSize = Const.IndexSize) {
@@ -179,7 +192,7 @@ public readonly struct HashStore {
     )
         where TKey : IEquatable<TKey>
         where TValue : IEquatable<TValue> =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,keyUsesManagedSerializer: true,valueUsesManagedSerializer: true);
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes,keyUsesManagedSerializer: true,valueUsesManagedSerializer: true);
     /// <summary>Managed Key × Unmanaged Value（ストレージ付き）</summary>
     [OverloadResolutionPriority(1)]
     public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
@@ -190,7 +203,7 @@ public readonly struct HashStore {
     )
         where TKey : IEquatable<TKey>
         where TValue : unmanaged, IEquatable<TValue> =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,keyUsesManagedSerializer: true,valueUsesManagedSerializer: false);
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes,keyUsesManagedSerializer: true,valueUsesManagedSerializer: false);
     /// <summary>Unmanaged Key × Managed Value（ストレージ付き）</summary>
     [OverloadResolutionPriority(1)]
     public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
@@ -201,7 +214,7 @@ public readonly struct HashStore {
     )
         where TKey : unmanaged, IEquatable<TKey>
         where TValue : IEquatable<TValue> =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,keyUsesManagedSerializer: false,valueUsesManagedSerializer: true);
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes,keyUsesManagedSerializer: false,valueUsesManagedSerializer: true);
     /// <summary>Unmanaged Key × Unmanaged Value（ストレージ付き）</summary>
     [OverloadResolutionPriority(2)]
     public UnmanagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
@@ -212,7 +225,7 @@ public readonly struct HashStore {
     )
         where TKey : unmanaged, IEquatable<TKey>
         where TValue : unmanaged, IEquatable<TValue> =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
 
     // ── Managed HashSet ────────────────────────────────────────────
     /// <summary>Memory ManagedHashSet</summary>
@@ -229,7 +242,7 @@ public readonly struct HashStore {
         ManagedTag _0 = default
     )
         where TKey : IEquatable<TKey> =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
     public ManagedHashSetStore<TKey> CreateManagedHashSet<TKey>(
         IDevice LogDevice,
         IDevice ObjectLogDevice
@@ -254,7 +267,7 @@ public readonly struct HashStore {
         UnmanagedTag _0 = default
     )
         where TKey : unmanaged, IEquatable<TKey> =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
     public UnmanagedHashSetStore<TKey> CreateUnmanagedHashSet<TKey>(
         IDevice LogDevice,
         IDevice ObjectLogDevice
@@ -274,7 +287,7 @@ public readonly struct HashStore {
     )
         where TRecord : Collections.IRecord<TKey>, IEquatable<TRecord>
         where TKey : IEquatable<TKey> =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
 
     /// <summary>Memory UnmanagedSet</summary>
     public UnmanagedSetStore<TRecord,TKey> CreateUnmanagedSet<TRecord, TKey>()
@@ -288,5 +301,5 @@ public readonly struct HashStore {
     )
         where TRecord : unmanaged, Collections.IRecord<TKey>, IEquatable<TRecord>
         where TKey : unmanaged, IEquatable<TKey> =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir);
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
 }

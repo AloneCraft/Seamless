@@ -18,11 +18,11 @@ public class ManagedDictionaryStore<TKey, TValue>:ManagedCollectionStore<TKey,TV
         this.valueUsesManagedSerializer=valueUsesManagedSerializer;
     }
 
-    internal ManagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) :
-        this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,keyUsesManagedSerializer: true,valueUsesManagedSerializer: true) { }
+    internal ManagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes) :
+        this(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,StorageLimitFraction,StorageReserveBytes,keyUsesManagedSerializer: true,valueUsesManagedSerializer: true) { }
 
-    internal ManagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,bool keyUsesManagedSerializer,bool valueUsesManagedSerializer) :
-        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,OverflowMutableStrategyKind.Storage) {
+    internal ManagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,double StorageLimitFraction,long StorageReserveBytes,bool keyUsesManagedSerializer,bool valueUsesManagedSerializer) :
+        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,OverflowMutableStrategyKind.Storage,StorageLimitFraction,StorageReserveBytes) {
         this.keyUsesManagedSerializer=keyUsesManagedSerializer;
         this.valueUsesManagedSerializer=valueUsesManagedSerializer;
     }

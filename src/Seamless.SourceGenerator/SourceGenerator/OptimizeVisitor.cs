@@ -36,7 +36,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
 
     // public entry point。呼び出し側は visitor の内部状態を意識せず、式 1 つを投げればよい。
     public static ExpressionSyntax Optimize(ExpressionSyntax expression) {
-        return (ExpressionSyntax)new OptimizeVisitor().Visit(expression)!;
+        return new OptimizeVisitor().Visit(expression) as ExpressionSyntax??expression;
     }
 
     // 子ノードを先に処理し、その結果でもう一度自分を最適化する。
@@ -215,8 +215,12 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         }
 
         const string predicateRootName = "__seamless_predicate_root";
-        var rewrittenPredicateBody = (ExpressionSyntax)new ParameterRenameRewriter(predicateParameters[0],predicateRootName).Visit(predicateBody)!;
-        var rewrittenBody = (ExpressionSyntax)new CarrierAccessRewriter(predicateRootName,carrierShape).Visit(rewrittenPredicateBody)!;
+        if(new ParameterRenameRewriter(predicateParameters[0],predicateRootName).Visit(predicateBody) is not ExpressionSyntax rewrittenPredicateBody) {
+            return false;
+        }
+        if(new CarrierAccessRewriter(predicateRootName,carrierShape).Visit(rewrittenPredicateBody) is not ExpressionSyntax rewrittenBody) {
+            return false;
+        }
         if(ContainsIdentifier(rewrittenBody,predicateRootName)) {
             return false;
         }
@@ -328,11 +332,11 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 call=default;
                 return false;
             }
-            call=new SequenceCallInfo(invocation,methodName,invocation.ArgumentList.Arguments[0].Expression,invocation.ArgumentList.Arguments.Skip(1).ToArray());
+            call=new SequenceCallInfo(invocation,methodName,RemoveParentheses(invocation.ArgumentList.Arguments[0].Expression),invocation.ArgumentList.Arguments.Skip(1).ToArray());
             return true;
         }
 
-        call=new SequenceCallInfo(invocation,methodName,memberAccess.Expression,invocation.ArgumentList.Arguments.ToArray());
+        call=new SequenceCallInfo(invocation,methodName,RemoveParentheses(memberAccess.Expression),invocation.ArgumentList.Arguments.ToArray());
         return true;
     }
 
@@ -391,8 +395,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 return TryCreateTupleShape(objectCreation.ArgumentList.Arguments.Select(static argument => argument.Expression).ToArray(),tupleAliases,out shape);
             }
 
-            if(expression is ImplicitObjectCreationExpressionSyntax implicitObjectCreation
-                &&implicitObjectCreation.ArgumentList is not null) {
+            if(expression is ImplicitObjectCreationExpressionSyntax implicitObjectCreation) {
                 var aliases = Enumerable.Range(0,implicitObjectCreation.ArgumentList.Arguments.Count).Select(static _ => Array.Empty<string>()).ToArray();
                 return TryCreateTupleShape(implicitObjectCreation.ArgumentList.Arguments.Select(static argument => argument.Expression).ToArray(),aliases,out shape);
             }

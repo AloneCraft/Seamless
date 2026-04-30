@@ -1,16 +1,16 @@
 ﻿using Seamless.Collections;
 namespace Seamless.Stores;
 
-public abstract partial class UnmanagedCollectionStore<TKey,TValue>:CollectionStore<
+public abstract partial class UnmanagedCollectionStore<TKey, TValue>:CollectionStore<
     TKey,
     TValue,
     TKey,
     TValue,
     StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,TValue>>,
     BlittableAllocator<TKey,TValue,StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,TValue>>>>
-    where TKey:unmanaged,IEquatable<TKey>
-    where TValue:unmanaged,IEquatable<TValue>{
-    private protected UnmanagedCollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind):
+    where TKey : unmanaged, IEquatable<TKey>
+    where TValue : unmanaged, IEquatable<TValue> {
+    private protected UnmanagedCollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes) :
         base(
             new StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,TValue>>(
                 new UnmanagedKeyComparer<TKey>(),
@@ -18,7 +18,7 @@ public abstract partial class UnmanagedCollectionStore<TKey,TValue>:CollectionSt
                 null!,
                 DefaultRecordDisposer<TKey,TValue>.Instance
             ),
-            static(allocSettings,storeFunctions)=>new BlittableAllocator<TKey,TValue,StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,TValue>>>(allocSettings,storeFunctions),
+            static (allocSettings,storeFunctions) => new BlittableAllocator<TKey,TValue,StoreFunctions<TKey,TValue,UnmanagedKeyComparer<TKey>,DefaultRecordDisposer<TKey,TValue>>>(allocSettings,storeFunctions),
             IndexSize,
             PageSize,
             SegmentSize,
@@ -27,11 +27,13 @@ public abstract partial class UnmanagedCollectionStore<TKey,TValue>:CollectionSt
             LogDevice,
             ObjectLogDevice,
             CheckpointDir,
-            OverflowMutableStrategyKind
-        ){
+            OverflowMutableStrategyKind,
+            StorageLimitFraction,
+            StorageReserveBytes
+        ) {
     }
 
-    protected override long CompactLog(long compactUntil)=>this.Store.Log.Compact<TValue,bool,EqualityEmpty,SessionFunctions.UnmanagedAdd<TKey,TValue>>(
+    protected override long CompactLog(long compactUntil) => this.Store.Log.Compact<TValue,bool,EqualityEmpty,SessionFunctions.UnmanagedAdd<TKey,TValue>>(
         new(),
         compactUntil,
         CompactionType.Lookup

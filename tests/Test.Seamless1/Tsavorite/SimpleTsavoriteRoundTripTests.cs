@@ -1,13 +1,14 @@
 using MemoryPack;
-using Record0 = Test.Seamless.Benchmarks.Simple.Types.Type0;
-using Record1 = Test.Seamless.Benchmarks.Simple.Types.Type1;
-using Record2 = Test.Seamless.Benchmarks.Simple.Types.Type2;
+using Test.Seamless.Database.Database0.Types;
+using Record0 = Test.Seamless.Database.Database0.Types.Type0;
+using Record1 = Test.Seamless.Database.Database0.Types.Type1;
+using Record2 = Test.Seamless.Database.Database0.Types.Type2;
 using Tsavorite.core;
 
 using StoreFunc = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
 using StoreAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
 
-namespace Test.Seamless.Benchmarks.Simple {
+namespace Test.Seamless.Database.Database0 {
     [Collection("TsavoriteTests")]
     public sealed class SimpleTsavoriteRoundTripTests {
         private static string CreateFolder() => global::Test.Seamless.TestPath.Directory<SimpleTsavoriteRoundTripTests>();
@@ -20,7 +21,7 @@ namespace Test.Seamless.Benchmarks.Simple {
         [Fact, Trait("Category","Unit")]
         public void Key0_Record0_CanRoundTrip_WithoutDictionary() {
             var key = new Keys.Key0(10);
-            var expected = new Record0(10,20);
+            var expected = new Type0(10,20);
             var keyBytes = Serialize(key);
             var actualValueBytes = RoundTrip(keyBytes,Serialize(expected));
             var actual = Rehydrate(Deserialize<Keys.Key0>(keyBytes),actualValueBytes);
@@ -32,7 +33,7 @@ namespace Test.Seamless.Benchmarks.Simple {
         [Fact, Trait("Category","Unit")]
         public void Key1_Record1_CanRoundTrip_WithoutDictionary() {
             var key = new Keys.Key1(11,12);
-            var expected = new Record1(11,12,13,14);
+            var expected = new Type1(11,12,13,14);
             var keyBytes = Serialize(key);
             var actualValueBytes = RoundTrip(keyBytes,Serialize(expected));
             var actual = Rehydrate(Deserialize<Keys.Key1>(keyBytes),actualValueBytes);
@@ -46,7 +47,7 @@ namespace Test.Seamless.Benchmarks.Simple {
         [Fact, Trait("Category","Unit")]
         public void Key2_Record2_CanRoundTrip_WithoutDictionary() {
             var key = new Keys.Key2("alpha",21,22);
-            var expected = new Record2("alpha",21,22,23);
+            var expected = new Type2("alpha",21,22,23);
             var keyBytes = Serialize(key);
             var actualValueBytes = RoundTrip(keyBytes,Serialize(expected));
             var actual = Rehydrate(Deserialize<Keys.Key2>(keyBytes),actualValueBytes);
@@ -57,19 +58,19 @@ namespace Test.Seamless.Benchmarks.Simple {
             Assert.Equal(expected.Column3,actual.Column3);
         }
 
-        private static Record0 Rehydrate(Keys.Key0 key,ReadOnlySpan<byte> valueBytes) {
-            var value = Deserialize<Record0>(valueBytes);
-            return new Record0(key.Column0,value.Column1);
+        private static Type0 Rehydrate(Keys.Key0 key,ReadOnlySpan<byte> valueBytes) {
+            var value = Deserialize<Type0>(valueBytes);
+            return new Type0(key.Column0,value.Column1);
         }
 
-        private static Record1 Rehydrate(Keys.Key1 key,ReadOnlySpan<byte> valueBytes) {
-            var value = Deserialize<Record1>(valueBytes);
-            return new Record1(key.Column0,key.Column1,value.Column2,value.Column3);
+        private static Type1 Rehydrate(Keys.Key1 key,ReadOnlySpan<byte> valueBytes) {
+            var value = Deserialize<Type1>(valueBytes);
+            return new Type1(key.Column0,key.Column1,value.Column2,value.Column3);
         }
 
-        private static Record2 Rehydrate(Keys.Key2 key,ReadOnlySpan<byte> valueBytes) {
-            var value = Deserialize<Record2>(valueBytes);
-            return new Record2(key.Column0,key.Column1,key.Column2,value.Column3);
+        private static Type2 Rehydrate(Keys.Key2 key,ReadOnlySpan<byte> valueBytes) {
+            var value = Deserialize<Type2>(valueBytes);
+            return new Type2(key.Column0,key.Column1,key.Column2,value.Column3);
         }
 
         private static byte[] RoundTrip(byte[] keyBytes,byte[] valueBytes) {

@@ -13,7 +13,7 @@ using System.Dynamic;
 //主キー以外の列はRecordに定義する。SGではKeyの列をUnamanagedの大きなデータ型から小さなデータ型を_Uに定義する。Managedを_Mに定義する。ユーザーはプロパティを定義する。
 //書き込むときは主キーをKey,それ以外をValueとしてシリアライズする。
 //読み込むときは主キーをKeyにデシリアライズする。Valueはそれ以外をデシリアライズする。その後に.Keyフィールドに代入する
-namespace Test.Seamless.Benchmarks.TPC_H{
+namespace Test.Seamless.Database.TPC_H{
 
     static class SourceGenerator;
     namespace Keys{
@@ -36,7 +36,7 @@ namespace Test.Seamless.Benchmarks.TPC_H{
         }
     }
 }
-namespace Test.Seamless.Benchmarks.TPC_H{
+namespace Test.Seamless.Database.TPC_H{
     namespace Keys{
         //[MemoryPackable]
         partial struct nation:IMemoryPackable<nation>{

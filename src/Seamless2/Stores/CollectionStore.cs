@@ -14,14 +14,15 @@ public abstract partial class CollectionStore<
     TAllocator
 >
     :CollectionStore, IDisposable
-    where TKey:IEquatable<TKey>
-    where TStoreFunctions:IStoreFunctions
-    where TAllocator:IAllocator<TStoreFunctions>{
-    private protected KVSettings Settings{get; private set;}
+    where TKey : IEquatable<TKey>
+    where TStoreFunctions : IStoreFunctions
+    where TAllocator : IAllocator<TStoreFunctions> {
+    private protected KVSettings Settings { get; private set; }
     public readonly TsavoriteKV<TStoreFunctions,TAllocator> Store;
     public long LogMemorySize { get; }
     public double MutableFraction { get; }
     internal OverflowMutableStrategyKind OverflowMutableStrategyKind { get; }
+    internal StorageOverflowMutableStrategy StorageOverflowMutableStrategy { get; }
     private bool Disposed;
     private int CheckpointInProgress;
     private bool UsesStorageDevice => this.Settings is not null&&(this.Settings.LogDevice is not MemoryOnlyDevice||this.Settings.ObjectLogDevice is not MemoryOnlyDevice);
@@ -30,7 +31,7 @@ public abstract partial class CollectionStore<
     private protected CollectionStore(
         TStoreFunctions StoreFunctions,
         Func<AllocatorSettings,TStoreFunctions,TAllocator> allocatorFactory,
-        long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind){
+        long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes) {
         AssertIsPowerOfTwo(IndexSize,nameof(IndexSize));
         AssertIsPowerOfTwo(PageSize,nameof(PageSize));
         AssertIsPowerOfTwo(SegmentSize,nameof(SegmentSize));
@@ -41,19 +42,20 @@ public abstract partial class CollectionStore<
         Debug.Assert(PageSize<=SegmentSize,"SegmentSize must be at least equal to PageSize.");
         Debug.Assert(MemorySize>=2*PageSize,$"{nameof(MemorySize)} must be >= 2*{nameof(PageSize)}");
         Debug.Assert(SegmentSize<=1L<<62,$"{nameof(SegmentSize)} must be <= 1L<<62");
-        Debug.Assert(ObjectLogDevice.Capacity is>=Const.MinObjectLogCapacity and<=Const.MaxObjectLogCapacity or-1);
+        Debug.Assert(ObjectLogDevice.Capacity is >=Const.MinObjectLogCapacity and <=Const.MaxObjectLogCapacity or -1);
         this.LogMemorySize=MemorySize;
         this.MutableFraction=MutableFraction;
         this.OverflowMutableStrategyKind=OverflowMutableStrategyKind;
+        this.StorageOverflowMutableStrategy=new(LogDevice.Capacity,StorageLimitFraction,StorageReserveBytes);
         long objectLogSegmentSize;
-        if(ObjectLogDevice.Capacity<0){
+        if(ObjectLogDevice.Capacity<0) {
             objectLogSegmentSize=Const.MinObjectLogCapacity;
         }
-        else{
+        else {
             Debug.Assert(ObjectLogDevice.Capacity%SegmentSize==0,$"ObjectLogDevice.Capacity must be a multiple of SegmentSize ({SegmentSize}), but was {ObjectLogDevice.Capacity}");
             objectLogSegmentSize=ObjectLogDevice.Capacity;
         }
-        this.Settings=new(){
+        this.Settings=new() {
             IndexSize=IndexSize,
             LogMemorySize=MemorySize,
             PageSize=PageSize,
@@ -159,20 +161,20 @@ public abstract partial class CollectionStore<
         }
     }
 
-    public void CompactWithLookup(){
-        var store=this.Store;
-        var beginAddress=store.Log.BeginAddress;
-        var segmentSize=this.Settings.SegmentSize;
-        var nextSegmentStart=(beginAddress/segmentSize+1)*segmentSize;
-        var compactUntil=nextSegmentStart;
-        var safeReadOnlyAddress=store.Log.SafeReadOnlyAddress;
-        if(compactUntil>safeReadOnlyAddress){
+    public void CompactWithLookup() {
+        var store = this.Store;
+        var beginAddress = store.Log.BeginAddress;
+        var segmentSize = this.Settings.SegmentSize;
+        var nextSegmentStart = (beginAddress/segmentSize+1)*segmentSize;
+        var compactUntil = nextSegmentStart;
+        var safeReadOnlyAddress = store.Log.SafeReadOnlyAddress;
+        if(compactUntil>safeReadOnlyAddress) {
             compactUntil=safeReadOnlyAddress;
         }
-        if(compactUntil<=beginAddress){
+        if(compactUntil<=beginAddress) {
             return;
         }
-        var untilAddress=this.Store.Log.Compact<TKey,TValue,EqualityEmpty>(
+        var untilAddress = this.Store.Log.Compact<TKey,TValue,EqualityEmpty>(
             compactUntil,
             CompactionType.Lookup
         );

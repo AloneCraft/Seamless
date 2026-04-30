@@ -16,7 +16,9 @@ public class UnmanagedHashSetStore<TKey>
         double MutableFraction,
         IDevice LogDevice,
         IDevice ObjectLogDevice,
-        string? CheckpointDir
+        string? CheckpointDir,
+        double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,
+        long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes
     ) : base(
         IndexSize,
         PageSize,
@@ -26,7 +28,9 @@ public class UnmanagedHashSetStore<TKey>
         LogDevice,
         ObjectLogDevice,
         CheckpointDir,
-        OverflowMutableStrategyKind.Storage
+        OverflowMutableStrategyKind.Storage,
+        StorageLimitFraction,
+        StorageReserveBytes
     ) { }
 
     internal UnmanagedHashSetStore(

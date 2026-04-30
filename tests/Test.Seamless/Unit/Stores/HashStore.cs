@@ -99,4 +99,25 @@ public class HashStoreTests {
         using var set = store.Create();
         Assert.IsType<UnmanagedHashSet<int>>(set);
     }
+
+    [Fact, Trait("Category","Unit")]
+    public void Create_StorageLimitOptions_PassedToStorageStore() {
+        using var logDevice = new global::Seamless.Devices.MemoryOnlyDevice(global::Seamless.Const.MinObjectLogCapacity);
+        using var objectLogDevice = new global::Seamless.Devices.MemoryOnlyDevice(global::Seamless.Const.MinObjectLogCapacity);
+        using var store = HashStore.Create(
+            MemorySize: global::Seamless.Const.MinObjectLogCapacity,
+            StorageLimitFraction: 0.5,
+            StorageReserveBytes: 1024
+        ).Create<int,int>(logDevice,objectLogDevice);
+
+        Assert.Equal(global::Seamless.Const.MinObjectLogCapacity/2,store.StorageOverflowMutableStrategy.LimitBytes);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void Create_InvalidStorageLimitOptions_Throws() {
+        Assert.Throws<ArgumentOutOfRangeException>(() => HashStore.Create(StorageLimitFraction: -0.1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => HashStore.Create(StorageLimitFraction: 1.1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => HashStore.Create(StorageLimitFraction: double.NaN));
+        Assert.Throws<ArgumentOutOfRangeException>(() => HashStore.Create(StorageReserveBytes: -1));
+    }
 }
