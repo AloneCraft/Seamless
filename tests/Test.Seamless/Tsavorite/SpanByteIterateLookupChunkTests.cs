@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿#if TSAVORITE1_1_1
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Seamless.Collections;
 using Tsavorite.core;
@@ -338,3 +339,4 @@ public class SpanByteIterateLookupChunkTests(ITestOutputHelper output) {
         store.Log.FlushAndEvict(wait: true);
     }
 }
+#endif

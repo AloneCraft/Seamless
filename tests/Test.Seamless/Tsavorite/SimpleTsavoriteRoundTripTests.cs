@@ -1,14 +1,16 @@
+﻿#if TSAVORITE1_1_1
 using MemoryPack;
 using Test.Seamless.Database.Database0.Types;
 using Record0 = Test.Seamless.Database.Database0.Types.Type0;
 using Record1 = Test.Seamless.Database.Database0.Types.Type1;
 using Record2 = Test.Seamless.Database.Database0.Types.Type2;
 using Tsavorite.core;
+using Keys = Test.Seamless.Database.Database0.Keys;
 
 using StoreFunc = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
 using StoreAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
 
-namespace Test.Seamless.Database.Database0 {
+namespace Test.Seamless.Tsavorite {
     [Collection("TsavoriteTests")]
     public sealed class SimpleTsavoriteRoundTripTests {
         private static string CreateFolder() => global::Test.Seamless.TestPath.Directory<SimpleTsavoriteRoundTripTests>();
@@ -242,3 +244,4 @@ namespace Test.Seamless.Database.Database0 {
         }
     }
 }
+#endif

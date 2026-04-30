@@ -1,4 +1,5 @@
-﻿using Seamless;
+﻿#if TSAVORITE2_0BETA3
+using Seamless;
 using Tsavorite.core;
 
 namespace Test.Seamless.Tsavorite;
@@ -9,9 +10,9 @@ namespace Test.Seamless.Tsavorite;
 /// MaxInstances=16 の静的上限により、17 個同時作成はエラーになる。
 /// </summary>
 [Collection("TsavoriteTests")]
-public class LightEpochInstanceLimitTests2(ITestOutputHelper output) {
+public class NativeLightEpochInstanceLimitTests(ITestOutputHelper output) {
     private static string TempDir(string name) =>
-        global::Test.Seamless.TestPath.Directory<LightEpochInstanceLimitTests2>(name);
+        global::Test.Seamless.TestPath.Directory<NativeLightEpochInstanceLimitTests>(name);
 
     private sealed class NativeStoreHandle:IDisposable {
         private readonly string rootDir;
@@ -186,3 +187,4 @@ public class LightEpochInstanceLimitTests2(ITestOutputHelper output) {
         }
     }
 }
+#endif

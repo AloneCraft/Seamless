@@ -20,6 +20,11 @@
     <Compile Include="$(MSBuildThisFileDirectory)Linq\EnumerableStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Linq\HashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Linq\HashSetStrategy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Linq\ManagedEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Linq\ManagedHashSetEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Linq\StorageEnumerableCore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Linq\UnmanagedEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Linq\UnmanagedHashSetEnumerable.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Managed\ManagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Managed\ManagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Managed\ManagedList.cs" />

@@ -1,10 +1,8 @@
-﻿using System;
+﻿
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 namespace Seamless.Linq;
 
 /// <summary>Provides a set of <see langword="static" /> (<see langword="Shared" /> in Visual Basic) methods for querying objects that implement <see cref="T:System.Collections.Generic.IEnumerable`1" />.</summary>
@@ -1284,7 +1282,6 @@ public static partial class Enumerable {
             }
         }
         return result;
-        //return JoinIterator<TOuter,TInner,TKey,TResult>(outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer);
     }
 
     /// <summary>Returns the last element of a sequence, or a default value if the sequence contains no elements.</summary>
@@ -3506,6 +3503,96 @@ public static partial class Enumerable {
         ArgumentNullException.ThrowIfNull(second);
         ArgumentNullException.ThrowIfNull(resultSelector);
         return ZipIterator<TFirst,TSecond,TResult>(first,second,resultSelector);
+    }
+
+    public static string CreateTemporaryResultListPath(string operationName) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(operationName);
+        var directoryPath = global::System.IO.Path.Combine(
+            global::System.IO.Path.GetTempPath(),
+            "seamless-linq-"+operationName+"-"+global::System.Guid.NewGuid().ToString("N"));
+        global::System.IO.Directory.CreateDirectory(directoryPath);
+        return global::System.IO.Path.Combine(directoryPath,"items.dat");
+    }
+
+    public static global::Seamless.Collections.ManagedList<T> CreateTemporaryResultList<T>(string path,long initialCapacity = 16,long initialDataCapacity = 4096,global::Seamless.Stores.ManagedTag _ = default) {
+        return global::Seamless.Collections.ListStore.Create<T>(path,initialCapacity,initialDataCapacity,_);
+    }
+
+    public static global::Seamless.Collections.UnmanagedList<T> CreateTemporaryResultList<T>(string path,long initialCapacity = 16,global::Seamless.Stores.UnmanagedTag _ = default)
+        where T : unmanaged {
+        return global::Seamless.Collections.ListStore.Create<T>(path,initialCapacity,_);
+    }
+
+    public static IEnumerable<T> OwnTemporaryResultList<T>(global::Seamless.Collections.List<T> list,string path) {
+        ArgumentNullException.ThrowIfNull(list);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        return new TemporaryResultListEnumerable<T>(list,path);
+    }
+
+    public static void DeleteTemporaryResultListPath(string path) {
+        var directoryPath = global::System.IO.Path.GetDirectoryName(path);
+        if(string.IsNullOrWhiteSpace(directoryPath)) {
+            return;
+        }
+        try {
+            global::System.IO.Directory.Delete(directoryPath,recursive: true);
+        }
+        catch {
+        }
+    }
+
+    private sealed class TemporaryResultListEnumerable<T>:IEnumerable<T>, IDisposable {
+        private global::Seamless.Collections.List<T>? list;
+        private string? path;
+
+        public TemporaryResultListEnumerable(global::Seamless.Collections.List<T> list,string path) {
+            this.list=list;
+            this.path=path;
+        }
+
+        ~TemporaryResultListEnumerable() {
+            this.Dispose();
+        }
+
+        public IEnumerator<T> GetEnumerator() {
+            if(this.list is null) {
+                throw new ObjectDisposedException(nameof(TemporaryResultListEnumerable<T>));
+            }
+            return new Enumerator(this.list.GetEnumerator());
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+
+        public void Dispose() {
+            var currentList = this.list;
+            var currentPath = this.path;
+            if(currentList is null) {
+                return;
+            }
+            this.list=null;
+            this.path=null;
+            currentList.Dispose();
+            if(currentPath is not null) {
+                DeleteTemporaryResultListPath(currentPath);
+            }
+            GC.SuppressFinalize(this);
+        }
+
+        private sealed class Enumerator:IEnumerator<T> {
+            private global::Seamless.Collections.List<T>.Enumerator inner;
+
+            public Enumerator(global::Seamless.Collections.List<T>.Enumerator inner) {
+                this.inner=inner;
+            }
+
+            public T Current => this.inner.Current;
+            object IEnumerator.Current => this.Current!;
+            public bool MoveNext() => this.inner.MoveNext();
+            public void Reset() => this.inner.Reset();
+            public void Dispose() {
+                this.inner.Dispose();
+            }
+        }
     }
 
 

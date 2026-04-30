@@ -2646,385 +2646,460 @@ public static partial class HashSet {
         return ZipIterator(first,second,resultSelector);
     }
     private static IEnumerable<KeyValuePair<TKey,TAccumulate>> AggregateByIterator<TSource, TKey, TAccumulate>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,TAccumulate seed,Func<TAccumulate,TSource,TAccumulate> func,IEqualityComparer<TKey>? keyComparer = null) where TSource : IEquatable<TSource> where TKey : notnull {
-        var result = new Dictionary<TKey,TAccumulate>(keyComparer);
+        var dictionary = new Dictionary<TKey,TAccumulate>(keyComparer);
         foreach(var item in source) {
             var key = keySelector(item);
-            if(!result.TryGetValue(key,out var accumulator)) {
+            if(!dictionary.TryGetValue(key,out var accumulator)) {
                 accumulator=seed;
             }
-            result[key]=func(accumulator!,item);
+            dictionary[key]=func(accumulator!,item);
         }
-        foreach(var pair in result) {
-            yield return pair;
+        var result = new global::System.Collections.Generic.List<KeyValuePair<TKey,TAccumulate>>();
+        foreach(var pair in dictionary) {
+            result.Add(pair);
         }
+        return result;
     }
 
     private static IEnumerable<KeyValuePair<TKey,TAccumulate>> AggregateByIterator<TSource, TKey, TAccumulate>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TKey,TAccumulate> seedSelector,Func<TAccumulate,TSource,TAccumulate> func,IEqualityComparer<TKey>? keyComparer = null) where TSource : IEquatable<TSource> where TKey : notnull {
-        var result = new Dictionary<TKey,TAccumulate>(keyComparer);
+        var dictionary = new Dictionary<TKey,TAccumulate>(keyComparer);
         foreach(var item in source) {
             var key = keySelector(item);
-            if(!result.TryGetValue(key,out var accumulator)) {
+            if(!dictionary.TryGetValue(key,out var accumulator)) {
                 accumulator=seedSelector(key);
             }
-            result[key]=func(accumulator,item);
+            dictionary[key]=func(accumulator,item);
         }
-        foreach(var pair in result) {
-            yield return pair;
+        var result = new global::System.Collections.Generic.List<KeyValuePair<TKey,TAccumulate>>();
+        foreach(var pair in dictionary) {
+            result.Add(pair);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> AppendIterator<TSource>(IHashSet<TSource> source,TSource element) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         foreach(var item in source) {
-            yield return item;
+            result.Add(item);
         }
-        yield return element;
+        result.Add(element);
+        return result;
     }
 
     private static IEnumerable<TResult> CastIterator<TResult>(IEnumerable source) {
+        var result = new global::System.Collections.Generic.List<TResult>();
         foreach(var item in source) {
-            yield return (TResult)item!;
+            result.Add((TResult)item!);
         }
+        return result;
     }
 
     private static IEnumerable<TSource[]> ChunkIterator<TSource>(IHashSet<TSource> source,int size) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource[]>();
         var chunk = new TSource[size];
         var index = 0;
         foreach(var item in source) {
             chunk[index++]=item;
             if(index==size) {
-                yield return chunk;
+                result.Add(chunk);
                 chunk=new TSource[size];
                 index=0;
             }
         }
         if(index>0) {
             Array.Resize(ref chunk,index);
-            yield return chunk;
+            result.Add(chunk);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> ConcatIterator<TSource>(IHashSet<TSource> first,IHashSet<TSource> second) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         foreach(var item in first) {
-            yield return item;
+            result.Add(item);
         }
         foreach(var item in second) {
-            yield return item;
+            result.Add(item);
         }
+        return result;
     }
 
     private static IEnumerable<KeyValuePair<TKey,int>> CountByIterator<TSource, TKey>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? keyComparer = null) where TSource : IEquatable<TSource> where TKey : notnull {
-        var result = new Dictionary<TKey,int>(keyComparer);
+        var counts = new Dictionary<TKey,int>(keyComparer);
         foreach(var item in source) {
             var key = keySelector(item);
-            result.TryGetValue(key,out var count);
+            counts.TryGetValue(key,out var count);
             checked {
-                result[key]=count+1;
+                counts[key]=count+1;
             }
         }
-        foreach(var pair in result) {
-            yield return pair;
+        var result = new global::System.Collections.Generic.List<KeyValuePair<TKey,int>>();
+        foreach(var pair in counts) {
+            result.Add(pair);
         }
+        return result;
     }
 
     private static IEnumerable<TSource?> DefaultIfEmptyIterator<TSource>(IHashSet<TSource> source) where TSource : IEquatable<TSource> {
-        var hasAny = false;
+        var result = new global::System.Collections.Generic.List<TSource?>();
         foreach(var item in source) {
-            hasAny=true;
-            yield return item;
+            result.Add(item);
         }
-        if(!hasAny) {
-            yield return default;
+        if(result.Count==0) {
+            result.Add(default);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> DefaultIfEmptyIterator<TSource>(IHashSet<TSource> source,TSource defaultValue) where TSource : IEquatable<TSource> {
-        var hasAny = false;
+        var result = new global::System.Collections.Generic.List<TSource>();
         foreach(var item in source) {
-            hasAny=true;
-            yield return item;
+            result.Add(item);
         }
-        if(!hasAny) {
-            yield return defaultValue;
+        if(result.Count==0) {
+            result.Add(defaultValue);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> DistinctByIterator<TSource, TKey>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var seen = new HashSet<TKey>(comparer);
         foreach(var item in source) {
             if(seen.Add(keySelector(item))) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> DistinctIterator<TSource>(IHashSet<TSource> source,IEqualityComparer<TSource>? comparer) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var seen = new HashSet<TSource>(comparer);
         foreach(var item in source) {
             if(seen.Add(item)) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> ExceptByIterator<TSource, TKey>(IHashSet<TSource> first,IHashSet<TKey> second,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> where TKey : IEquatable<TKey> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var excluded = new HashSet<TKey>(second,comparer);
         foreach(var item in first) {
             if(excluded.Add(keySelector(item))) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> ExceptIterator<TSource>(IHashSet<TSource> first,IHashSet<TSource> second,IEqualityComparer<TSource>? comparer) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var excluded = new HashSet<TSource>(second,comparer);
         foreach(var item in first) {
             if(excluded.Add(item)) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<IGrouping<TKey,TElement>> GroupByIterator<TSource, TKey, TElement>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<IGrouping<TKey,TElement>>();
         var lookup = CreateLookup(source,keySelector,elementSelector,comparer);
         foreach(var group in lookup.Groups) {
-            yield return group;
+            result.Add(group);
         }
+        return result;
     }
 
     private static IEnumerable<TResult> GroupByIterator<TSource, TKey, TResult>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TKey,IEnumerable<TSource>,TResult> resultSelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TResult>();
         var lookup = CreateLookup(source,keySelector,static item => item,comparer);
         foreach(var group in lookup.Groups) {
-            yield return resultSelector(group.Key,group);
+            result.Add(resultSelector(group.Key,group));
         }
+        return result;
     }
 
     private static IEnumerable<TResult> GroupByIterator<TSource, TKey, TElement, TResult>(IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,Func<TKey,IEnumerable<TElement>,TResult> resultSelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TResult>();
         var lookup = CreateLookup(source,keySelector,elementSelector,comparer);
         foreach(var group in lookup.Groups) {
-            yield return resultSelector(group.Key,group);
+            result.Add(resultSelector(group.Key,group));
         }
+        return result;
     }
 
     private static IEnumerable<TResult> GroupJoinIterator<TOuter, TInner, TKey, TResult>(IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,IEnumerable<TInner>,TResult> resultSelector,IEqualityComparer<TKey>? comparer) where TOuter : IEquatable<TOuter> where TInner : IEquatable<TInner> {
+        var result = new global::System.Collections.Generic.List<TResult>();
         var lookup = CreateLookup(inner,innerKeySelector,static item => item,comparer);
         foreach(var outerItem in outer) {
-            yield return resultSelector(outerItem,lookup[outerKeySelector(outerItem)]);
+            result.Add(resultSelector(outerItem,lookup[outerKeySelector(outerItem)]));
         }
+        return result;
     }
 
     private static IEnumerable<(int Index,TSource Item)> IndexIterator<TSource>(IHashSet<TSource> source) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<(int Index,TSource Item)>();
         var index = 0;
         foreach(var item in source) {
-            yield return (index,item);
+            result.Add((index,item));
             checked {
                 index++;
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> IntersectByIterator<TSource, TKey>(IHashSet<TSource> first,IHashSet<TKey> second,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> where TKey : IEquatable<TKey> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var set = new HashSet<TKey>(second,comparer);
         foreach(var item in first) {
             if(set.Remove(keySelector(item))) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> IntersectIterator<TSource>(IHashSet<TSource> first,IHashSet<TSource> second,IEqualityComparer<TSource>? comparer) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var set = new HashSet<TSource>(second,comparer);
         foreach(var item in first) {
             if(set.Remove(item)) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TResult> JoinIterator<TOuter, TInner, TKey, TResult>(IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,TInner,TResult> resultSelector,IEqualityComparer<TKey>? comparer) where TOuter : IEquatable<TOuter> where TInner : IEquatable<TInner> {
+        var result = new global::System.Collections.Generic.List<TResult>();
         var lookup = CreateLookup(inner,innerKeySelector,static item => item,comparer);
         foreach(var outerItem in outer) {
             foreach(var innerItem in lookup[outerKeySelector(outerItem)]) {
-                yield return resultSelector(outerItem,innerItem);
+                result.Add(resultSelector(outerItem,innerItem));
             }
         }
+        return result;
     }
 
     private static IEnumerable<TResult> LeftJoinIterator<TOuter, TInner, TKey, TResult>(IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter,TInner?,TResult> resultSelector,IEqualityComparer<TKey>? comparer) where TOuter : IEquatable<TOuter> where TInner : IEquatable<TInner> {
+        var result = new global::System.Collections.Generic.List<TResult>();
         var lookup = CreateLookup(inner,innerKeySelector,static item => item,comparer);
         foreach(var outerItem in outer) {
             var hasMatch = false;
             foreach(var innerItem in lookup[outerKeySelector(outerItem)]) {
                 hasMatch=true;
-                yield return resultSelector(outerItem,innerItem);
+                result.Add(resultSelector(outerItem,innerItem));
             }
             if(!hasMatch) {
-                yield return resultSelector(outerItem,default);
+                result.Add(resultSelector(outerItem,default));
             }
         }
+        return result;
     }
 
     private static IEnumerable<TResult> OfTypeIterator<TResult>(IEnumerable source) {
+        var result = new global::System.Collections.Generic.List<TResult>();
         foreach(var item in source) {
-            if(item is TResult result) {
-                yield return result;
+            if(item is TResult result2) {
+                result.Add(result2);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> PrependIterator<TSource>(IHashSet<TSource> source,TSource element) where TSource : IEquatable<TSource> {
-        yield return element;
+        var result = new global::System.Collections.Generic.List<TSource>();
+        result.Add(element);
         foreach(var item in source) {
-            yield return item;
+            result.Add(item);
         }
+        return result;
     }
 
     private static IEnumerable<int> RangeIterator(int start,int count) {
+        var result = new global::System.Collections.Generic.List<int>();
         for(var index = 0; index<count; index++) {
-            yield return start+index;
+            result.Add(start+index);
         }
+        return result;
     }
 
     private static IEnumerable<TResult> RepeatIterator<TResult>(TResult element,int count) {
+        var result = new global::System.Collections.Generic.List<TResult>();
         for(var index = 0; index<count; index++) {
-            yield return element;
+            result.Add(element);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> ReverseIterator<TSource>(IHashSet<TSource> source) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var list = ToList(source);
         for(var index = list.Count-1; index>=0; index--) {
-            yield return list[index];
+            result.Add(list[index]);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> ReverseIterator<TSource>(TSource[] source) {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var list = new global::System.Collections.Generic.List<TSource>(source);
         for(var index = list.Count-1; index>=0; index--) {
-            yield return list[index];
+            result.Add(list[index]);
         }
+        return result;
     }
 
     private static IEnumerable<TResult> RightJoinIterator<TOuter, TInner, TKey, TResult>(IHashSet<TOuter> outer,IHashSet<TInner> inner,Func<TOuter,TKey> outerKeySelector,Func<TInner,TKey> innerKeySelector,Func<TOuter?,TInner,TResult> resultSelector,IEqualityComparer<TKey>? comparer) where TOuter : IEquatable<TOuter> where TInner : IEquatable<TInner> {
+        var result = new global::System.Collections.Generic.List<TResult>();
         var lookup = CreateLookup(outer,outerKeySelector,static item => item,comparer);
         foreach(var innerItem in inner) {
             var hasMatch = false;
             foreach(var outerItem in lookup[innerKeySelector(innerItem)]) {
                 hasMatch=true;
-                yield return resultSelector(outerItem,innerItem);
+                result.Add(resultSelector(outerItem,innerItem));
             }
             if(!hasMatch) {
-                yield return resultSelector(default,innerItem);
+                result.Add(resultSelector(default,innerItem));
             }
         }
+        return result;
     }
 
     private static IEnumerable<TResult> SelectManyIterator<TSource, TResult>(IHashSet<TSource> source,Func<TSource,IEnumerable<TResult>> selector) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TResult>();
         foreach(var item in source) {
-            foreach(var result in selector(item)) {
-                yield return result;
+            foreach(var projected in selector(item)) {
+                result.Add(projected);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TResult> SelectManyIterator<TSource, TResult>(IHashSet<TSource> source,Func<TSource,int,IEnumerable<TResult>> selector) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TResult>();
         var index = -1;
         foreach(var item in source) {
             checked {
                 index++;
             }
-            foreach(var result in selector(item,index)) {
-                yield return result;
+            foreach(var projected in selector(item,index)) {
+                result.Add(projected);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TResult> SelectManyIterator<TSource, TCollection, TResult>(IHashSet<TSource> source,Func<TSource,IEnumerable<TCollection>> collectionSelector,Func<TSource,TCollection,TResult> resultSelector) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TResult>();
         foreach(var item in source) {
             foreach(var collectionItem in collectionSelector(item)) {
-                yield return resultSelector(item,collectionItem);
+                result.Add(resultSelector(item,collectionItem));
             }
         }
+        return result;
     }
 
     private static IEnumerable<TResult> SelectManyIterator<TSource, TCollection, TResult>(IHashSet<TSource> source,Func<TSource,int,IEnumerable<TCollection>> collectionSelector,Func<TSource,TCollection,TResult> resultSelector) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TResult>();
         var index = -1;
         foreach(var item in source) {
             checked {
                 index++;
             }
             foreach(var collectionItem in collectionSelector(item,index)) {
-                yield return resultSelector(item,collectionItem);
+                result.Add(resultSelector(item,collectionItem));
             }
         }
+        return result;
     }
 
     private static IEnumerable<TResult> SelectIterator<TSource, TResult>(IHashSet<TSource> source,Func<TSource,int,TResult> selector) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TResult>();
         var index = -1;
         foreach(var item in source) {
             checked {
                 index++;
             }
-            yield return selector(item,index);
+            result.Add(selector(item,index));
         }
+        return result;
     }
 
     private static IEnumerable<TResult> SelectIterator<TSource, TResult>(IHashSet<TSource> source,Func<TSource,TResult> selector) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TResult>();
         foreach(var item in source) {
-            yield return selector(item);
+            result.Add(selector(item));
         }
+        return result;
     }
 
     private static IEnumerable<T> SequenceIterator<T>(T start,T endInclusive,T step) where T : INumber<T> {
+        var result = new global::System.Collections.Generic.List<T>();
         if(step>T.Zero) {
             for(var current = start; current<=endInclusive; current+=step) {
-                yield return current;
+                result.Add(current);
             }
         }
         else {
             for(var current = start; current>=endInclusive; current+=step) {
-                yield return current;
+                result.Add(current);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> ShuffleIterator<TSource>(IHashSet<TSource> source) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var list = ToList(source);
         for(var index = list.Count-1; index>0; index--) {
             var swapIndex = Random.Shared.Next(index+1);
             (list[index],list[swapIndex])=(list[swapIndex],list[index]);
         }
         foreach(var item in list) {
-            yield return item;
+            result.Add(item);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> SkipLastIterator<TSource>(IHashSet<TSource> source,int count) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         if(count<=0) {
             foreach(var item in source) {
-                yield return item;
+                result.Add(item);
             }
-            yield break;
+            return result;
         }
         var list = ToList(source);
         var end = Math.Max(0,list.Count-count);
         for(var index = 0; index<end; index++) {
-            yield return list[index];
+            result.Add(list[index]);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> SkipWhileIterator<TSource>(IHashSet<TSource> source,Func<TSource,bool> predicate) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var yielding = false;
         foreach(var item in source) {
             if(!yielding&&!predicate(item)) {
                 yielding=true;
             }
             if(yielding) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> SkipWhileIterator<TSource>(IHashSet<TSource> source,Func<TSource,int,bool> predicate) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var yielding = false;
         var index = -1;
         foreach(var item in source) {
@@ -3035,152 +3110,181 @@ public static partial class HashSet {
                 yielding=true;
             }
             if(yielding) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> SkipIterator<TSource>(IHashSet<TSource> source,int count) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var skipped = 0;
         foreach(var item in source) {
             if(skipped<count) {
                 skipped++;
                 continue;
             }
-            yield return item;
+            result.Add(item);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> TakeLastIterator<TSource>(IHashSet<TSource> source,int count) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         if(count<=0) {
-            yield break;
+            return result;
         }
         var list = ToList(source);
         var start = Math.Max(0,list.Count-count);
         for(var index = start; index<list.Count; index++) {
-            yield return list[index];
+            result.Add(list[index]);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> TakeWhileIterator<TSource>(IHashSet<TSource> source,Func<TSource,bool> predicate) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         foreach(var item in source) {
             if(!predicate(item)) {
-                yield break;
+                return result;
             }
-            yield return item;
+            result.Add(item);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> TakeWhileIterator<TSource>(IHashSet<TSource> source,Func<TSource,int,bool> predicate) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var index = -1;
         foreach(var item in source) {
             checked {
                 index++;
             }
             if(!predicate(item,index)) {
-                yield break;
+                return result;
             }
-            yield return item;
+            result.Add(item);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> TakeIterator<TSource>(IHashSet<TSource> source,int count) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         if(count<=0) {
-            yield break;
+            return result;
         }
         var taken = 0;
         foreach(var item in source) {
             if(taken++>=count) {
-                yield break;
+                return result;
             }
-            yield return item;
+            result.Add(item);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> TakeIterator<TSource>(IHashSet<TSource> source,Range range) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var list = ToList(source);
         var (offset,length)=range.GetOffsetAndLength(list.Count);
         for(var index = offset; index<offset+length; index++) {
-            yield return list[index];
+            result.Add(list[index]);
         }
+        return result;
     }
 
     private static IEnumerable<TSource> UnionByIterator<TSource, TKey>(IHashSet<TSource> first,IHashSet<TSource> second,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var seen = new HashSet<TKey>(comparer);
         foreach(var item in first) {
             if(seen.Add(keySelector(item))) {
-                yield return item;
+                result.Add(item);
             }
         }
         foreach(var item in second) {
             if(seen.Add(keySelector(item))) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> UnionIterator<TSource>(IHashSet<TSource> first,IHashSet<TSource> second,IEqualityComparer<TSource>? comparer) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var seen = new HashSet<TSource>(comparer);
         foreach(var item in first) {
             if(seen.Add(item)) {
-                yield return item;
+                result.Add(item);
             }
         }
         foreach(var item in second) {
             if(seen.Add(item)) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> WhereIterator<TSource>(IHashSet<TSource> source,Func<TSource,bool> predicate) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         foreach(var item in source) {
             if(predicate(item)) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<TSource> WhereIterator<TSource>(IHashSet<TSource> source,Func<TSource,int,bool> predicate) where TSource : IEquatable<TSource> {
+        var result = new global::System.Collections.Generic.List<TSource>();
         var index = -1;
         foreach(var item in source) {
             checked {
                 index++;
             }
             if(predicate(item,index)) {
-                yield return item;
+                result.Add(item);
             }
         }
+        return result;
     }
 
     private static IEnumerable<(TFirst First,TSecond Second)> ZipIterator<TFirst, TSecond>(IHashSet<TFirst> first,IHashSet<TSecond> second) where TFirst : IEquatable<TFirst> where TSecond : IEquatable<TSecond> {
+        var result = new global::System.Collections.Generic.List<(TFirst First,TSecond Second)>();
         using var firstEnumerator = first.GetEnumerator();
         using var secondEnumerator = second.GetEnumerator();
         while(firstEnumerator.MoveNext()&&secondEnumerator.MoveNext()) {
-            yield return (firstEnumerator.Current,secondEnumerator.Current);
+            result.Add((firstEnumerator.Current,secondEnumerator.Current));
         }
+        return result;
     }
 
     private static IEnumerable<(TFirst First,TSecond Second,TThird Third)> ZipIterator<TFirst, TSecond, TThird>(IHashSet<TFirst> first,IHashSet<TSecond> second,IHashSet<TThird> third) where TFirst : IEquatable<TFirst> where TSecond : IEquatable<TSecond> where TThird : IEquatable<TThird> {
+        var result = new global::System.Collections.Generic.List<(TFirst First,TSecond Second,TThird Third)>();
         using var firstEnumerator = first.GetEnumerator();
         using var secondEnumerator = second.GetEnumerator();
         using var thirdEnumerator = third.GetEnumerator();
         while(firstEnumerator.MoveNext()&&secondEnumerator.MoveNext()&&thirdEnumerator.MoveNext()) {
-            yield return (firstEnumerator.Current,secondEnumerator.Current,thirdEnumerator.Current);
+            result.Add((firstEnumerator.Current,secondEnumerator.Current,thirdEnumerator.Current));
         }
+        return result;
     }
 
     private static IEnumerable<TResult> ZipIterator<TFirst, TSecond, TResult>(IHashSet<TFirst> first,IHashSet<TSecond> second,Func<TFirst,TSecond,TResult> resultSelector) where TFirst : IEquatable<TFirst> where TSecond : IEquatable<TSecond> {
+        var result = new global::System.Collections.Generic.List<TResult>();
         using var firstEnumerator = first.GetEnumerator();
         using var secondEnumerator = second.GetEnumerator();
         while(firstEnumerator.MoveNext()&&secondEnumerator.MoveNext()) {
-            yield return resultSelector(firstEnumerator.Current,secondEnumerator.Current);
+            result.Add(resultSelector(firstEnumerator.Current,secondEnumerator.Current));
         }
+        return result;
     }
     private static IEnumerable<TResult> Project<TSource, TResult>(IEnumerable<TSource> source,Func<TSource,TResult> selector) {
+        var result = new global::System.Collections.Generic.List<TResult>();
         foreach(var item in source) {
-            yield return selector(item);
+            result.Add(selector(item));
         }
+        return result;
     }
 
     private static T Extremum<T>(IEnumerable<T> source,IComparer<T> comparer,bool findMax) {

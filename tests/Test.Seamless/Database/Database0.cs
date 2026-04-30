@@ -5,7 +5,11 @@ using System.Linq.Expressions;
 
 namespace Test.Seamless.Database.Database0 {
     static class DatabaseGenerator;
-
+    /// <summary>
+    ///  <see cref="Test.Seamless.Database.Database0.Container"/>
+    ///  <see cref="Test.Seamless.Database.Database0.Keys.Key0"/>
+    ///  <see cref="Test.Seamless.Diagnostics.InterceptorSmokeTests.ListWhere_Interceptor_Smoke"/>
+    /// </summary>
     public class Container {
         public virtual IEnumerable<int> Select_Method(IEnumerable<int> outer) {
             return outer.Select(p => p+p);
@@ -107,6 +111,10 @@ namespace Test.Seamless.Database.Database0 {
             return outer.Where(value => value>1).Select(value => value*2).Sum();
         }
 
+        public int NonVirtualFusedWhereSelectSum(IEnumerable<int> outer) {
+            return outer.Where(value => value>1).Select(value => value*2).Sum();
+        }
+
         public virtual double FusedSkipTakeAverage(IEnumerable<int> outer) {
             return outer.Skip(1).Take(3).Average();
         }
@@ -125,6 +133,22 @@ namespace Test.Seamless.Database.Database0 {
 
         public virtual int FusedOfTypeSum(IEnumerable<object> outer) {
             return outer.OfType<int>().Sum();
+        }
+
+        public virtual IEnumerable<int> FusedJoinSelectSequence() {
+            return this.Type0Table
+                .Join(this.Type0Table,outer => outer.Column0,inner => inner.Column0,(outer,inner) => (Outer: outer.Column1,Inner: inner.Column1))
+                .Select(pair => pair.Outer+pair.Inner);
+        }
+
+        public virtual IEnumerable<(int outerValue,int innerValue)> FusedSelectManyHoistedSequence(IEnumerable<int> outer,IEnumerable<int> inner) {
+            return outer.SelectMany(_ => inner,(outerValue,innerValue) => (outerValue,innerValue));
+        }
+
+        public virtual IEnumerable<int> FusedSelectManySplitWhereSequence(IEnumerable<int> outer,IEnumerable<int> inner,int parameter) {
+            return outer.SelectMany(outerValue => inner
+                .Where(innerValue => innerValue==parameter&&outerValue==parameter)
+                .Select(innerValue => outerValue+innerValue));
         }
 
         public virtual IEnumerable<int> WhereAfterAnonymousSelect(int minimumColumn1) {
@@ -155,7 +179,7 @@ namespace Test.Seamless.Database.Database0 {
                 .Where(value => value>=minimumColumn1);
         }
 
-        private protected Types.Type0[] Type0Table => [new(1,10),new(2,20),new(3,30)];
+        internal Types.Type0[] Type0Table => [new(1,10),new(2,20),new(3,30)];
 
         private IEnumerable<Types.Type0> FilterType0(int minimumColumn1) =>
             from row in this.Type0Table

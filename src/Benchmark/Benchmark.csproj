@@ -4,6 +4,9 @@
     <TargetFramework>$(SeamlessTargetFramework)</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <Features>InterceptorsPreview</Features>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Seamless.SourceGenerator.Generated</InterceptorsPreviewNamespaces>
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <Configurations>Debug;DebugNet8;DebugNet9;DebugNet10;Release;ReleaseNet8;ReleaseNet9;ReleaseNet10;Release001;Release002;Release004;Release008;Release016;Release032;Release064;Release128;Release256;Release512</Configurations>
     <RootNamespace>BenchmarkExe</RootNamespace>
@@ -70,6 +73,7 @@
     <Compile Include="DictionaryApiSurfaceBenchmark.cs" />
     <Compile Include="HashSetApiSurfaceBenchmark.cs" />
     <Compile Include="ListApiSurfaceBenchmark.cs" />
+    <Compile Include="LinqSequenceFusionBenchmark.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -90,5 +94,9 @@
 
   <ItemGroup Condition="'$(SeamlessBenchmarkTarget)' == '2.0beta3'">
     <ProjectReference Include="..\Seamless2\Seamless2.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

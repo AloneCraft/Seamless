@@ -1,4 +1,5 @@
-﻿using System.Buffers.Binary;
+﻿#if TSAVORITE2_0BETA3
+using System.Buffers.Binary;
 using System.Collections;
 using Garnet.common;
 using System.Diagnostics.CodeAnalysis;
@@ -544,3 +545,4 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         store.Log.FlushAndEvict(wait: true);
     }
 }
+#endif

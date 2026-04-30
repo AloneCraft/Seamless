@@ -6,7 +6,7 @@ Seamless.SourceGenerator 設計図
 このプロジェクトは Roslyn incremental source generator で、Seamless のコードベースに対して 2 種類の補助コードを生成する。
 
 - List<T>.Where の一部呼び出しを、より軽量な generated enumerable と interceptor に差し替える。
-- DatabaseGenerator マーカー配下の partial schema 定義から、実体を持つ Key / Type struct と Optimized{Container} 派生クラスを生成する。
+- DatabaseGenerator マーカー配下の partial schema 定義から、実体を持つ Key / Type struct と container method interceptor を生成する。
 
 generator 自体は runtime ロジックを直接実行しない。コンパイル時に source を増やし、その generated source が runtime の振る舞いを変える。
 
@@ -15,7 +15,7 @@ generator 自体は runtime ロジックを直接実行しない。コンパイ�
 - Seamless.SourceGenerator.csproj
   Roslyn component として読み込まれる analyzer project。
 - SourceGenerator/SeamlessIncrementalGenerator.cs
-  generator 本体。syntax 収集、source 組み立て、schema 生成、optimized container 生成、Where interceptor 生成を担当する。
+  generator 本体。syntax 収集、source 組み立て、schema 生成、container method interceptor 生成、Where interceptor 生成を担当する。
 - SourceGenerator/OptimizeVisitor.cs
   container method を翻訳する前に invocation chain を正規化する syntax rewriter。Where を可能な範囲で source 側へ押し下げる。
 
@@ -63,21 +63,17 @@ Keys / Types 生成
 - unmanaged フィールドは `_u`、managed フィールドは `_m` に分離する。
 - MemoryPack の serializer / deserializer と formatter registration を自動生成する。
 
-Optimized{Container} 生成
-- container の virtual property / virtual method を走査する。
-- query expression または翻訳可能な invocation expression を持つメンバーだけを対象にする。
-- 翻訳できたメンバーは `Optimized{ContainerName} : {ContainerName}` の override として出力する。
-- base に引数付き constructor があるケースに備え、private 以外の instance constructor は forwarding constructor を生成する。
+Container method interceptor 生成
+- DatabaseGenerator マーカー配下の container method 呼び出しを走査する。
+- query expression または翻訳可能な invocation expression を持つメソッドだけを対象にする。
+- 翻訳できた呼び出し位置は `[InterceptsLocation]` 付き static extension method として出力し、元コードの call-site を直接差し替える。
+- 継承・override・forwarding constructor は生成しない。
 
 削除したもの
 - 以前は container に `__GeneratedKeyTypes` / `__GeneratedTypes` をぶら下げていた。
 - 現在は利用側が無く、責務も schema 実装とは別なので生成しない。
 
 6. method translation の設計
-
-TryTranslateProperty
-- property getter の query syntax だけを見る。
-- translation できなければ override 自体を出さない。
 
 TryTranslateMethod
 - expression-bodied query
@@ -86,8 +82,9 @@ TryTranslateMethod
 の順に判定する。
 
 TryTranslateInvocationBody
+- sequence fusion / scalar fusion を先に試す。
 - 通常の method chain は TryTranslateInvocationExpression へ流す。
-- Aggregate だけは block body に展開する。
+- Aggregate と fusion 対象は block body に展開する。
 
 TryTranslateQueryExpression
 - 現在サポートしているのは単純な SelectMany と、Where -> Select の線形パターン。
