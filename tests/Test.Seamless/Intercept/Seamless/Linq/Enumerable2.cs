@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using System.Reflection;
 using SeamlessEnumerable = Seamless.Linq.Enumerable;
 
@@ -12,9 +12,9 @@ public sealed class Enumerable2 {
         return total;
     }
 
-    public IEnumerable<int> Where_Select(int[] source) => SeamlessEnumerable.Select(SeamlessEnumerable.Where(source,static value => value%2==0),static value => value*10);
+    private static IEnumerable<int> Where_Select(int[] source) => SeamlessEnumerable.Select(SeamlessEnumerable.Where(source,static value => value%2==0),static value => value*10);
 
-    public IEnumerable<int> Select_Where(int[] source) => SeamlessEnumerable.Where(SeamlessEnumerable.Select(source,static value => value*10),static value => value>20);
+    private static IEnumerable<int> Select_Where(int[] source) => SeamlessEnumerable.Where(SeamlessEnumerable.Select(source,static value => value*10),static value => value>20);
 
     public static int[] Source() => [1,2,3,4];
 
