@@ -7,6 +7,26 @@ namespace Seamless.Linq;
 
 /// <summary>Provides a set of <see langword="static" /> (<see langword="Shared" /> in Visual Basic) methods for querying objects that implement <see cref="T:System.Collections.Generic.IEnumerable`1" />.</summary>
 public static partial class Enumerable {
+    public static IEnumerable<TResult> インラインSelect<TSource, TResult>(this IEnumerable<TSource> source,Func<TSource,TResult> selector){
+        var result = new List<TResult>();
+        foreach(var item in source) {
+            result.Add(selector(item));
+        }
+        return result;
+    }
+    public static IEnumerable<TSource> インラインWhere<TSource>(this IEnumerable<TSource> source,Func<TSource,bool> predicate) {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(predicate);
+        var result = new List<TSource>();
+        foreach(var item in source) {
+            if(predicate(item)) {
+                result.Add(item);
+            }
+        }
+        return result;
+    }
+
+
     /// <summary>Applies an accumulator function over a sequence.</summary>
     /// <param name="source">An <see cref="T:System.Collections.Generic.IEnumerable`1" /> to aggregate over.</param>
     /// <param name="func">An accumulator function to be invoked on each element.</param>
@@ -3435,7 +3455,19 @@ public static partial class Enumerable {
     public static IEnumerable<TSource> Union<TSource>(this IEnumerable<TSource> first,IEnumerable<TSource> second,IEqualityComparer<TSource>? comparer) {
         ArgumentNullException.ThrowIfNull(first);
         ArgumentNullException.ThrowIfNull(second);
-        return UnionIterator<TSource>(first,second,comparer);
+        var result = new List<TSource>();
+        var seen = new HashSet<TSource>(comparer);
+        foreach(var item in first) {
+            if(seen.Add(item)) {
+                result.Add(item);
+            }
+        }
+        foreach(var item in second) {
+            if(seen.Add(item)) {
+                result.Add(item);
+            }
+        }
+        return result;
     }
 
     /// <summary>Filters a sequence of values based on a predicate.</summary>
@@ -3448,7 +3480,13 @@ public static partial class Enumerable {
     public static IEnumerable<TSource> Where<TSource>(this IEnumerable<TSource> source,Func<TSource,bool> predicate) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(predicate);
-        return WhereIterator<TSource>(source,predicate);
+        var result = new List<TSource>();
+        foreach(var item in source) {
+            if(predicate(item)) {
+                result.Add(item);
+            }
+        }
+        return result;
     }
 
     /// <summary>Filters a sequence of values based on a predicate. Each element's index is used in the logic of the predicate function.</summary>
@@ -3461,7 +3499,17 @@ public static partial class Enumerable {
     public static IEnumerable<TSource> Where<TSource>(this IEnumerable<TSource> source,Func<TSource,int,bool> predicate) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(predicate);
-        return WhereIterator<TSource>(source,predicate);
+        var result = new List<TSource>();
+        var index = -1;
+        foreach(var item in source) {
+            checked {
+                index++;
+            }
+            if(predicate(item,index)) {
+                result.Add(item);
+            }
+        }
+        return result;
     }
 
     /// <summary>Produces a sequence of tuples with elements from the two specified sequences.</summary>
@@ -4161,31 +4209,6 @@ public static partial class Enumerable {
         }
         return result;
     }
-
-    private static IEnumerable<TSource> WhereIterator<TSource>(IEnumerable<TSource> source,Func<TSource,bool> predicate) {
-        var result = new List<TSource>();
-        foreach(var item in source) {
-            if(predicate(item)) {
-                result.Add(item);
-            }
-        }
-        return result;
-    }
-
-    private static IEnumerable<TSource> WhereIterator<TSource>(IEnumerable<TSource> source,Func<TSource,int,bool> predicate) {
-        var result = new List<TSource>();
-        var index = -1;
-        foreach(var item in source) {
-            checked {
-                index++;
-            }
-            if(predicate(item,index)) {
-                result.Add(item);
-            }
-        }
-        return result;
-    }
-
     private static IEnumerable<(TFirst First,TSecond Second)> ZipIterator<TFirst, TSecond>(IEnumerable<TFirst> first,IEnumerable<TSecond> second) {
         var result = new List<(TFirst First,TSecond Second)>();
         using var firstEnumerator = first.GetEnumerator();

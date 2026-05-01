@@ -1,5 +1,4 @@
-using Seamless.Stores;
-using Tsavorite.core;
+﻿using Seamless.Stores;
 namespace Test.Seamless.Unit.Stores;
 /// <summary>
 /// src/Seamless.Collections/Store/CollectionStore`2.cs �̑S�����J�o�[����B

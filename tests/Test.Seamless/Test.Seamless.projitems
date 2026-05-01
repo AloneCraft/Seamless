@@ -91,7 +91,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stress\SerialRandomStressTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stress\ParallelRandomStressTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stress\SetOperationStressTests.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Test.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestTypes.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
   </ItemGroup>

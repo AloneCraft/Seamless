@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Seamless.Linq;
+﻿using Seamless.Linq;
 using System.Linq.Expressions;
 using Seamless;
 
