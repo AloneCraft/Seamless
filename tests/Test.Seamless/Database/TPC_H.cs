@@ -9,27 +9,8 @@ using Seamless.Stores;
 #pragma warning disable CS8981
 
 namespace Test.Seamless.Database.TPC_H {
-    // DatabaseGenerator marker lets the source generator complete Keys / Records schema types.
-    [DatabaseSchema("Keys","""
-region:int r_regionkey
-nation:int n_nationkey
-supplier:int s_suppkey
-customer:int c_custkey
-part:int p_partkey
-partsupp:int ps_partkey, int ps_suppkey
-orders:int o_orderkey
-lineitem:int l_orderkey, int l_linenumber
-""")]
-    [DatabaseSchema("Records","""
-region:int r_regionkey, string r_name, string r_comment
-nation:int n_nationkey, string n_name, int n_regionkey, string n_comment
-supplier:int s_suppkey, string s_name, string s_address, int s_nationkey, string s_phone, decimal s_acctbal, string s_comment
-customer:int c_custkey, string c_name, string c_address, int c_nationkey, string c_phone, decimal c_acctbal, string c_mktsegment, string c_comment
-part:int p_partkey, string p_name, string p_mfgr, string p_brand, string p_type, int p_size, string p_container, decimal p_retailprice, string p_comment
-partsupp:int ps_partkey, int ps_suppkey, int ps_availqty, decimal ps_supplycost, string ps_comment
-orders:int o_orderkey, int o_custkey, string o_orderstatus, decimal o_totalprice, int o_orderdate, string o_orderpriority, string o_clerk, int o_shippriority, string o_comment
-lineitem:int l_orderkey, int l_partkey, int l_suppkey, int l_linenumber, decimal l_quantity, decimal l_extendedprice, decimal l_discount, decimal l_tax, string l_returnflag, string l_linestatus, int l_shipdate, int l_commitdate, int l_receiptdate, string l_shipinstruct, string l_shipmode, string l_comment
-""")]
+    // DatabaseGenerator marker — Keys / Records の schema struct は namespace Keys / Records に直接宣言する。
+    // source generator がボイラーコード (コンストラクター・_u/_m フィールド・MemoryPack 実装) を生成する。
     static class DatabaseGenerator;
 
     [Optimize]
@@ -196,7 +177,7 @@ lineitem:int l_orderkey, int l_partkey, int l_suppkey, int l_linenumber, decimal
                 .Join(this.customers,row => row.order.o_custkey,customer => customer.c_custkey,(row,customer) => new { row.supplierNation,row.line,customer })
                 .Join(this.nations,row => row.customer.c_nationkey,nation => nation.n_nationkey,(row,customerNation) => new { row.supplierNation,customerNation,row.line })
                 .Where(row => row.line.l_shipdate>=19950101&&row.line.l_shipdate<=19961231)
-                .GroupBy(row => new { Supplier=row.supplierNation.n_name,Customer=row.customerNation.n_name,Year=row.line.l_shipdate/10000 })
+                .GroupBy(row => new { Supplier = row.supplierNation.n_name,Customer = row.customerNation.n_name,Year = row.line.l_shipdate/10000 })
                 .OrderBy(group => group.Key.Supplier)
                 .ThenBy(group => group.Key.Customer)
                 .Select(group => Row(7,group.Key.Supplier,group.Key.Customer,group.Key.Year,group.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount))));
@@ -209,7 +190,7 @@ lineitem:int l_orderkey, int l_partkey, int l_suppkey, int l_linenumber, decimal
             join customer in this.customers on order.o_custkey equals customer.c_custkey
             join customerNation in this.nations on customer.c_nationkey equals customerNation.n_nationkey
             where line.l_shipdate>=19950101&&line.l_shipdate<=19961231
-            group new { line } by new { Supplier=supplierNation.n_name,Customer=customerNation.n_name,Year=line.l_shipdate/10000 } into grouped
+            group new { line } by new { Supplier = supplierNation.n_name,Customer = customerNation.n_name,Year = line.l_shipdate/10000 } into grouped
             orderby grouped.Key.Supplier, grouped.Key.Customer
             select Row(7,grouped.Key.Supplier,grouped.Key.Customer,grouped.Key.Year,grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)));
 
@@ -237,10 +218,10 @@ lineitem:int l_orderkey, int l_partkey, int l_suppkey, int l_linenumber, decimal
             this.parts
                 .Where(part => part.p_name.Contains("forest"))
                 .Join(this.lineitems,part => part.p_partkey,line => line.l_partkey,(part,line) => new { part,line })
-                .Join(this.partsupps,row => new { row.line.l_partkey,row.line.l_suppkey },partsupp => new { l_partkey=partsupp.ps_partkey,l_suppkey=partsupp.ps_suppkey },(row,partsupp) => new { row.part,row.line,partsupp })
+                .Join(this.partsupps,row => new { row.line.l_partkey,row.line.l_suppkey },partsupp => new { l_partkey = partsupp.ps_partkey,l_suppkey = partsupp.ps_suppkey },(row,partsupp) => new { row.part,row.line,partsupp })
                 .Join(this.suppliers,row => row.line.l_suppkey,supplier => supplier.s_suppkey,(row,supplier) => new { row.part,row.line,row.partsupp,supplier })
                 .Join(this.nations,row => row.supplier.s_nationkey,nation => nation.n_nationkey,(row,nation) => new { row.line,row.partsupp,nation })
-                .GroupBy(row => new { row.nation.n_name,Year=row.line.l_shipdate/10000 })
+                .GroupBy(row => new { row.nation.n_name,Year = row.line.l_shipdate/10000 })
                 .OrderBy(group => group.Key.n_name)
                 .ThenByDescending(group => group.Key.Year)
                 .Select(group => Row(9,group.Key.n_name,group.Key.Year,group.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)-row.partsupp.ps_supplycost*row.line.l_quantity)));
@@ -248,11 +229,11 @@ lineitem:int l_orderkey, int l_partkey, int l_suppkey, int l_linenumber, decimal
         public virtual IEnumerable<string> Q09Query() =>
             from part in this.parts
             join line in this.lineitems on part.p_partkey equals line.l_partkey
-            join partsupp in this.partsupps on new { line.l_partkey,line.l_suppkey } equals new { l_partkey=partsupp.ps_partkey,l_suppkey=partsupp.ps_suppkey }
+            join partsupp in this.partsupps on new { line.l_partkey,line.l_suppkey } equals new { l_partkey = partsupp.ps_partkey,l_suppkey = partsupp.ps_suppkey }
             join supplier in this.suppliers on line.l_suppkey equals supplier.s_suppkey
             join nation in this.nations on supplier.s_nationkey equals nation.n_nationkey
             where part.p_name.Contains("forest")
-            group new { line,partsupp } by new { nation.n_name,Year=line.l_shipdate/10000 } into grouped
+            group new { line,partsupp } by new { nation.n_name,Year = line.l_shipdate/10000 } into grouped
             orderby grouped.Key.n_name, grouped.Key.Year descending
             select Row(9,grouped.Key.n_name,grouped.Key.Year,grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)-row.partsupp.ps_supplycost*row.line.l_quantity));
 
@@ -310,7 +291,7 @@ lineitem:int l_orderkey, int l_partkey, int l_suppkey, int l_linenumber, decimal
 
         public virtual IEnumerable<string> Q13Method() =>
             this.customers
-                .GroupJoin(this.orders.Where(order => !order.o_comment.Contains("special requests")),customer => customer.c_custkey,order => order.o_custkey,(customer,orders) => new { customer,OrderCount=orders.Count() })
+                .GroupJoin(this.orders.Where(order => !order.o_comment.Contains("special requests")),customer => customer.c_custkey,order => order.o_custkey,(customer,orders) => new { customer,OrderCount = orders.Count() })
                 .GroupBy(row => row.OrderCount)
                 .OrderByDescending(group => group.Count())
                 .ThenByDescending(group => group.Key)
@@ -351,7 +332,7 @@ lineitem:int l_orderkey, int l_partkey, int l_suppkey, int l_linenumber, decimal
              join line in this.lineitems.Where(line => line.l_shipdate>=19960101&&line.l_shipdate<19960401) on supplier.s_suppkey equals line.l_suppkey
              group new { line } by new { supplier.s_suppkey,supplier.s_name } into grouped
              orderby grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)) descending
-             select new { grouped.Key.s_suppkey,grouped.Key.s_name,Revenue=grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)) })
+             select new { grouped.Key.s_suppkey,grouped.Key.s_name,Revenue = grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)) })
             .Take(1)
             .Select(row => Row(15,row.s_suppkey,row.s_name,row.Revenue));
 
@@ -605,5 +586,118 @@ lineitem:int l_orderkey, int l_partkey, int l_suppkey, int l_linenumber, decimal
         [Fact] public void Q20_StorageList_RoundTrips() => AssertStorageListRoundTrip(20);
         [Fact] public void Q21_StorageList_RoundTrips() => AssertStorageListRoundTrip(21);
         [Fact] public void Q22_StorageList_RoundTrips() => AssertStorageListRoundTrip(22);
+    }
+
+    // TPC-H の 8 テーブルに対応するキー struct。
+    // source generator がコンストラクター・_u フィールド・MemoryPack 実装を補完する。
+    namespace Keys {
+        public partial struct region {
+            public partial int r_regionkey { get; }
+        }
+        public partial struct nation {
+            public partial int n_nationkey { get; }
+        }
+        public partial struct supplier {
+            public partial int s_suppkey { get; }
+        }
+        public partial struct customer {
+            public partial int c_custkey { get; }
+        }
+        public partial struct part {
+            public partial int p_partkey { get; }
+        }
+        public partial struct partsupp {
+            public partial int ps_partkey { get; }
+            public partial int ps_suppkey { get; }
+        }
+        public partial struct orders {
+            public partial int o_orderkey { get; }
+        }
+        public partial struct lineitem {
+            public partial int l_orderkey { get; }
+            public partial int l_linenumber { get; }
+        }
+    }
+
+    // TPC-H の 8 テーブルに対応するレコード struct。
+    // source generator がコンストラクター・_u/_m フィールド・MemoryPack 実装を補完する。
+    namespace Records {
+        public partial struct region {
+            public partial int r_regionkey { get; }
+            public partial string r_name { get; }
+            public partial string r_comment { get; }
+        }
+        public partial struct nation {
+            public partial int n_nationkey { get; }
+            public partial string n_name { get; }
+            public partial int n_regionkey { get; }
+            public partial string n_comment { get; }
+        }
+        public partial struct supplier {
+            public partial int s_suppkey { get; }
+            public partial string s_name { get; }
+            public partial string s_address { get; }
+            public partial int s_nationkey { get; }
+            public partial string s_phone { get; }
+            public partial decimal s_acctbal { get; }
+            public partial string s_comment { get; }
+        }
+        public partial struct customer {
+            public partial int c_custkey { get; }
+            public partial string c_name { get; }
+            public partial string c_address { get; }
+            public partial int c_nationkey { get; }
+            public partial string c_phone { get; }
+            public partial decimal c_acctbal { get; }
+            public partial string c_mktsegment { get; }
+            public partial string c_comment { get; }
+        }
+        public partial struct part {
+            public partial int p_partkey { get; }
+            public partial string p_name { get; }
+            public partial string p_mfgr { get; }
+            public partial string p_brand { get; }
+            public partial string p_type { get; }
+            public partial int p_size { get; }
+            public partial string p_container { get; }
+            public partial decimal p_retailprice { get; }
+            public partial string p_comment { get; }
+        }
+        public partial struct partsupp {
+            public partial int ps_partkey { get; }
+            public partial int ps_suppkey { get; }
+            public partial int ps_availqty { get; }
+            public partial decimal ps_supplycost { get; }
+            public partial string ps_comment { get; }
+        }
+        public partial struct orders {
+            public partial int o_orderkey { get; }
+            public partial int o_custkey { get; }
+            public partial string o_orderstatus { get; }
+            public partial decimal o_totalprice { get; }
+            public partial int o_orderdate { get; }
+            public partial string o_orderpriority { get; }
+            public partial string o_clerk { get; }
+            public partial int o_shippriority { get; }
+            public partial string o_comment { get; }
+        }
+        public partial struct lineitem {
+            public partial int l_orderkey { get; }
+            public partial int l_partkey { get; }
+            public partial int l_suppkey { get; }
+            public partial int l_linenumber { get; }
+            public partial decimal l_quantity { get; }
+            public partial decimal l_extendedprice { get; }
+            public partial decimal l_discount { get; }
+            public partial decimal l_tax { get; }
+            public partial string l_returnflag { get; }
+            public partial string l_linestatus { get; }
+            public partial int l_shipdate { get; }
+            public partial int l_commitdate { get; }
+            public partial int l_receiptdate { get; }
+            public partial string l_shipinstruct { get; }
+            public partial string l_shipmode { get; }
+            public partial string l_comment { get; }
+        }
     }
 }

@@ -3,7 +3,7 @@ using System.Linq.Expressions;
 using Seamless;
 
 namespace Test.Seamless.Database.Database0 {
-    static class DatabaseGenerator;
+    static partial class DatabaseGenerator;
     /// <summary>
     ///  <see cref="Test.Seamless.Database.Database0.Container"/>
     ///  <see cref="Test.Seamless.Database.Database0.Keys.Key0"/>
@@ -221,6 +221,9 @@ namespace Test.Seamless.Database.Database0 {
     namespace Keys {
         public partial struct Key0 {
             public partial int Column0 { get; }
+            public void mm(){
+                var u=this._u;
+            }
         }
 
         public partial struct Key1 {
