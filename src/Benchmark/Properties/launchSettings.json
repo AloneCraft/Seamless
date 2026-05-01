@@ -43,6 +43,12 @@
       "workingDirectory": ".",
       "commandLineArgs": "run --project .\\Benchmark.csproj --no-launch-profile --no-cache --property:SeamlessBenchmarkTarget=2.0beta3"
     },
+    "Benchmark 2.* (Profile)": {
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "workingDirectory": ".",
+      "commandLineArgs": "run --project .\\Benchmark.csproj --no-launch-profile --no-cache --property:SeamlessBenchmarkTarget=2.0beta3"
+    },
     "Benchmark 1.* (All)": {
       "commandName": "Executable",
       "executablePath": "dotnet",

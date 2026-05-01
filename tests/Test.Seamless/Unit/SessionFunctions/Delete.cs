@@ -1,4 +1,6 @@
-﻿using Seamless;
+﻿using System;
+using System.IO;
+using Seamless;
 using Seamless.Stores;
 using Tsavorite.core;
 namespace Test.Seamless.Unit.SessionFunctions;

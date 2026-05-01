@@ -372,11 +372,16 @@ namespace Seamless {
         if(string.IsNullOrWhiteSpace(interceptsLocationAttributeText)) {
             return null;
         }
+        if(!TryBuildContainingMethodCref(invocation,context.SemanticModel,cancellationToken,out var containingMethodCref)) {
+            return null;
+        }
+
         return new WhereInterceptTarget(
             id,
             span.Path,
             line,
             character,
+            containingMethodCref,
             interceptsLocationAttributeText,
             elementType.ToDisplayString(FullyQualifiedFormat),
             usesIndex,
@@ -418,11 +423,16 @@ namespace Seamless {
             return null;
         }
 
+        if(!TryBuildContainingMethodCref(invocation,context.SemanticModel,cancellationToken,out var containingMethodCref)) {
+            return null;
+        }
+
         return new ContainerMethodInterceptTarget(
             id,
             span.Path,
             line,
             character,
+            containingMethodCref,
             interceptsLocationAttributeText,
             methodDefinition.ContainingType.ToDisplayString(FullyQualifiedFormat),
             BuildGeneratedTypeName(methodDefinition.ReturnType),
@@ -481,6 +491,7 @@ namespace Seamless {
         return new LinqInvocationInterceptTarget(
             id,
             span.Path,
+            BuildMethodCref(containingMethod),
             interceptsLocationAttributeText,
             BuildGeneratedTypeName(definition.ReturnType),
             BuildTypeParameterList(definition.TypeParameters),
@@ -499,6 +510,11 @@ namespace Seamless {
         var toArrayBody = TryTranslateLinqInvocationToArrayBody(method);
         if(toArrayBody is not null) {
             return new TranslatedMethodBody(toArrayBody,false);
+        }
+
+        var shuffleBody = TryTranslateLinqInvocationShuffleBody(method);
+        if(shuffleBody is not null) {
+            return new TranslatedMethodBody(shuffleBody,false);
         }
 
         var callThroughExpression = TryTranslateLinqInvocationCallThroughExpression(method);
@@ -561,6 +577,44 @@ namespace Seamless {
         list.Add(item);
     }
     return list.ToArray();
+}
+""";
+    }
+
+    private static string? TryTranslateLinqInvocationShuffleBody(IMethodSymbol method) {
+        var definition = GetLinqInvocationDefinition(method);
+        if(definition.Name!="Shuffle"||definition.TypeParameters.Length!=1) {
+            return null;
+        }
+        var targetType = TryGetLinqInvocationTargetType(method);
+        if(targetType is null) {
+            return null;
+        }
+
+        var arguments = BuildLinqInvocationCallArguments(method);
+        if(arguments.Length!=1) {
+            return null;
+        }
+
+        var source = arguments[0];
+        var elementTypeName = definition.TypeParameters[0].Name;
+        return $$"""
+{
+    global::System.ArgumentNullException.ThrowIfNull({{source}});
+    // Keep the materialized return sequence separate from the shuffled working copy.
+    var result = new global::System.Collections.Generic.List<{{elementTypeName}}>();
+    // Materialize the source so the shuffle can swap elements by index.
+    var list = {{targetType}}.ToList<{{elementTypeName}}>({{source}});
+    // Fisher-Yates walks from the tail and swaps each slot with one remaining candidate.
+    for(var index = list.Count-1; index>0; index--) {
+        var swapIndex = global::System.Random.Shared.Next(index+1);
+        (list[index],list[swapIndex])=(list[swapIndex],list[index]);
+    }
+    // Copy the shuffled working order into the return sequence.
+    foreach(var item in list) {
+        result.Add(item);
+    }
+    return result;
 }
 """;
     }
@@ -773,6 +827,26 @@ namespace Seamless {
             return memberAccess.Name.GetLocation();
         }
         return invocation.Expression.GetLocation();
+    }
+
+    private static bool TryBuildContainingMethodCref(InvocationExpressionSyntax invocation,SemanticModel semanticModel,System.Threading.CancellationToken cancellationToken,out string cref) {
+        cref=string.Empty;
+        if(invocation.FirstAncestorOrSelf<MethodDeclarationSyntax>() is not { } containingMethodSyntax) {
+            return false;
+        }
+        var containingMethod = semanticModel.GetDeclaredSymbol(containingMethodSyntax,cancellationToken);
+        if(containingMethod is null) {
+            return false;
+        }
+        cref=BuildMethodCref(containingMethod);
+        return true;
+    }
+
+    private static string BuildMethodCref(IMethodSymbol method) {
+        var containingType = method.ContainingType.ToDisplayString(FullyQualifiedFormat);
+        return method.Parameters.Length==0
+            ? $"{containingType}.{method.Name}()"
+            : $"{containingType}.{method.Name}";
     }
 
     private static string RewriteInstanceReceiverReferences(string body) {
@@ -1110,6 +1184,7 @@ namespace Seamless {
                 var predicateTypeName = target.UsesIndex
                     ? $"global::System.Func<{elementTypeName},int,bool>"
                     : $"global::System.Func<{elementTypeName},bool>";
+                AppendInterceptedCallComment(builder,target.ContainingMethodCref,"        ");
                 builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
                 builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
                 builder.AppendLine($"        public static global::System.Collections.Generic.IEnumerable<{elementTypeName}> {target.MethodName}(this global::System.Collections.Generic.IEnumerable<{elementTypeName}> source,{predicateTypeName} predicate) {{");
@@ -1205,6 +1280,7 @@ namespace Seamless {
 
         builder.AppendLine("    internal static partial class LinqInvocationInterceptors {");
         foreach(var target in linqInvocationTargets.Distinct(LinqInvocationInterceptTargetComparer.Instance)) {
+            AppendInterceptedCallComment(builder,target.ContainingMethodCref,"        ");
             builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
             builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
             var methodDeclaration = $"public static {target.ReturnTypeName} {target.MethodName}{target.TypeParameterList}({target.ParameterList}){target.TypeParameterConstraintList}";
@@ -1224,6 +1300,7 @@ namespace Seamless {
             var parameterList = string.IsNullOrWhiteSpace(target.ParameterList)
                 ? $"this {target.ReceiverTypeName} self"
                 : $"this {target.ReceiverTypeName} self, {target.ParameterList}";
+            AppendInterceptedCallComment(builder,target.ContainingMethodCref,"        ");
             builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
             builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
             var methodDeclaration = $"public static {target.ReturnTypeName} {target.MethodName}{target.TypeParameterList}({parameterList}){target.TypeParameterConstraintList}";
@@ -1231,6 +1308,20 @@ namespace Seamless {
             builder.AppendLine();
         }
         builder.AppendLine("    }");
+    }
+
+    private static void AppendInterceptedCallComment(StringBuilder builder,string containingMethodCref,string indent) {
+        builder.AppendLine($"{indent}/// <summary>");
+        builder.AppendLine($"{indent}/// Intercepts a call inside <see cref=\"{EscapeXmlAttribute(containingMethodCref)}\"/>.");
+        builder.AppendLine($"{indent}/// </summary>");
+    }
+
+    private static string EscapeXmlAttribute(string value) {
+        return value
+            .Replace("&","&amp;")
+            .Replace("\"","&quot;")
+            .Replace("<","&lt;")
+            .Replace(">","&gt;");
     }
 
     private static void AppendListWhereQueryHelperSource(StringBuilder builder) {
@@ -3852,11 +3943,12 @@ namespace Seamless {
 
     // InterceptsLocation と generated interceptor の本文生成に必要な情報を集約した DTO。
     private sealed class WhereInterceptTarget {
-        public WhereInterceptTarget(string identifier,string filePath,int line,int character,string interceptsLocationAttributeText,string elementTypeName,bool usesIndex,string parameterName,string? indexParameterName,string predicateText,bool usePredicateDelegate) {
+        public WhereInterceptTarget(string identifier,string filePath,int line,int character,string containingMethodCref,string interceptsLocationAttributeText,string elementTypeName,bool usesIndex,string parameterName,string? indexParameterName,string predicateText,bool usePredicateDelegate) {
             this.Identifier=identifier;
             this.FilePath=filePath;
             this.Line=line;
             this.Character=character;
+            this.ContainingMethodCref=containingMethodCref;
             this.InterceptsLocationAttributeText=interceptsLocationAttributeText;
             this.ElementTypeName=elementTypeName;
             this.UsesIndex=usesIndex;
@@ -3870,6 +3962,7 @@ namespace Seamless {
         public string FilePath { get; }
         public int Line { get; }
         public int Character { get; }
+        public string ContainingMethodCref { get; }
         public string InterceptsLocationAttributeText { get; }
         public string ElementTypeName { get; }
         public bool UsesIndex { get; }
@@ -3882,11 +3975,12 @@ namespace Seamless {
     }
 
     private sealed class ContainerMethodInterceptTarget {
-        public ContainerMethodInterceptTarget(string identifier,string filePath,int line,int character,string interceptsLocationAttributeText,string receiverTypeName,string returnTypeName,string typeParameterList,string typeParameterConstraintList,string parameterList,string body,bool isExpressionBody) {
+        public ContainerMethodInterceptTarget(string identifier,string filePath,int line,int character,string containingMethodCref,string interceptsLocationAttributeText,string receiverTypeName,string returnTypeName,string typeParameterList,string typeParameterConstraintList,string parameterList,string body,bool isExpressionBody) {
             this.Identifier=identifier;
             this.FilePath=filePath;
             this.Line=line;
             this.Character=character;
+            this.ContainingMethodCref=containingMethodCref;
             this.InterceptsLocationAttributeText=interceptsLocationAttributeText;
             this.ReceiverTypeName=receiverTypeName;
             this.ReturnTypeName=returnTypeName;
@@ -3901,6 +3995,7 @@ namespace Seamless {
         public string FilePath { get; }
         public int Line { get; }
         public int Character { get; }
+        public string ContainingMethodCref { get; }
         public string InterceptsLocationAttributeText { get; }
         public string ReceiverTypeName { get; }
         public string ReturnTypeName { get; }
@@ -3913,9 +4008,10 @@ namespace Seamless {
     }
 
     private sealed class LinqInvocationInterceptTarget {
-        public LinqInvocationInterceptTarget(string identifier,string filePath,string interceptsLocationAttributeText,string returnTypeName,string typeParameterList,string typeParameterConstraintList,string parameterList,string body,bool isExpressionBody) {
+        public LinqInvocationInterceptTarget(string identifier,string filePath,string containingMethodCref,string interceptsLocationAttributeText,string returnTypeName,string typeParameterList,string typeParameterConstraintList,string parameterList,string body,bool isExpressionBody) {
             this.Identifier=identifier;
             this.FilePath=filePath;
+            this.ContainingMethodCref=containingMethodCref;
             this.InterceptsLocationAttributeText=interceptsLocationAttributeText;
             this.ReturnTypeName=returnTypeName;
             this.TypeParameterList=typeParameterList;
@@ -3927,6 +4023,7 @@ namespace Seamless {
 
         public string Identifier { get; }
         public string FilePath { get; }
+        public string ContainingMethodCref { get; }
         public string InterceptsLocationAttributeText { get; }
         public string ReturnTypeName { get; }
         public string TypeParameterList { get; }
