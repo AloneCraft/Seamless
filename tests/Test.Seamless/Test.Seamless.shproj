@@ -48,9 +48,6 @@
     <Compile Include="TestTypes.cs" />
     <Compile Include="Tsavorite\LightEpochInstanceLimitTests.cs" />
     <Compile Include="Tsavorite\LightEpochLimitTests.cs" />
-    <Compile Include="Tsavorite\NativeLightEpochInstanceLimitTests.cs" />
-    <Compile Include="Tsavorite\SimpleTsavoriteRoundTripTests.cs" />
-    <Compile Include="Tsavorite\SpanByteIterateLookupChunkTests.cs" />
     <Compile Include="Integrate\DictionaryIntegrate.cs" />
     <Compile Include="Integrate\HashSetIntegrate.cs" />
     <Compile Include="Unit\Collections\Dictionary.cs" />

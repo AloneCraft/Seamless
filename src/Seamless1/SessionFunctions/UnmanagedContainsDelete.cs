@@ -1,17 +1,17 @@
-ï»¿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Seamless.Stores;
 namespace Seamless.SessionFunctions;
 
 /// <summary>
-/// RMW ã§ Tombstone æŒ¿å…¥ã«ã‚ˆã‚‹è«–ç†å‰Šé™¤ï¼ˆDeleteï¼‰ã‚’è¡Œã†ã‚»ãƒƒã‚·ãƒ§ãƒ³é–¢æ•°ã€‚
-/// Contains ã¯ ReadSession ã«åˆ†é›¢æ¸ˆã¿ã®ãŸã‚ã€ã“ã®å‹ã§ Read ã¯æ‰±ã‚ãªã„ã€‚
+/// RMW ‚Å Tombstone ‘}“ü‚É‚æ‚é˜_—íœiDeletej‚ğs‚¤ƒZƒbƒVƒ‡ƒ“ŠÖ”B
+/// Contains ‚Í ReadSession ‚É•ª—£Ï‚İ‚Ì‚½‚ßA‚±‚ÌŒ^‚Å Read ‚Íˆµ‚í‚È‚¢B
 /// </summary>
 public readonly struct UnmanagedContainsDelete<TKey, TValue>:
     ISessionFunctions<TKey,TValue,EqualityEmpty,bool,EqualityEmpty>,
     ICreate<UnmanagedContainsDelete<TKey,TValue>>
-    where TKey : unmanaged, IEquatable<TKey>
-    where TValue : unmanaged, IEquatable<TValue> {
+    where TKey : unmanaged
+    where TValue : unmanaged {
     public static UnmanagedContainsDelete<TKey,TValue> Create() => new();
 
     [ExcludeFromCodeCoverage]
@@ -31,47 +31,47 @@ public readonly struct UnmanagedContainsDelete<TKey, TValue>:
 
     [ExcludeFromCodeCoverage]
     public bool SingleWriter(ref TKey key,ref EqualityEmpty input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,WriteReason reason,ref RecordInfo recordInfo) {
-        // Upsert æ“ä½œã¯ä½¿ç”¨ã—ãªã„ã€‚
+        // Upsert ‘€ì‚Íg—p‚µ‚È‚¢B
         throw new NotSupportedException();
     }
 
     [ExcludeFromCodeCoverage]
     public void PostSingleWriter(ref TKey key,ref EqualityEmpty input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,WriteReason reason) {
-        // Upsert æ“ä½œã¯ä½¿ç”¨ã—ãªã„ã€‚
+        // Upsert ‘€ì‚Íg—p‚µ‚È‚¢B
         throw new NotSupportedException();
     }
 
     [ExcludeFromCodeCoverage]
     public bool ConcurrentWriter(ref TKey key,ref EqualityEmpty input,ref TValue src,ref TValue dst,ref bool output,ref UpsertInfo upsertInfo,ref RecordInfo recordInfo) {
-        // Upsert æ“ä½œã¯ä½¿ç”¨ã—ãªã„ã€‚
+        // Upsert ‘€ì‚Íg—p‚µ‚È‚¢B
         throw new NotSupportedException();
     }
 
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TEpochAccessor>(ref TKey key,ref EqualityEmpty input,ref TValue src,ref UpsertInfo upsertInfo,TEpochAccessor epoch)
         where TEpochAccessor : IEpochAccessor {
-        // Upsert æ“ä½œã¯ä½¿ç”¨ã—ãªã„ã€‚
+        // Upsert ‘€ì‚Íg—p‚µ‚È‚¢B
         throw new NotSupportedException();
     }
 
-    // Delete: ã‚­ãƒ¼æœªå­˜åœ¨æ™‚ã¯æ–°è¦ä½œæˆã—ãªã„
+    // Delete: ƒL[–¢‘¶İ‚ÍV‹Kì¬‚µ‚È‚¢
     public bool NeedInitialUpdate(ref TKey key,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) => false;
 
     [ExcludeFromCodeCoverage]
     public bool InitialUpdater(ref TKey key,ref EqualityEmpty input,ref TValue value,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
-        // NeedInitialUpdate ãŒ false ã‚’è¿”ã™ãŸã‚åˆ°é”ã—ãªã„ã€‚
+        // NeedInitialUpdate ‚ª false ‚ğ•Ô‚·‚½‚ß“’B‚µ‚È‚¢B
         throw new NotSupportedException();
     }
 
     [ExcludeFromCodeCoverage]
     public void PostInitialUpdater(ref TKey key,ref EqualityEmpty input,ref TValue value,ref bool output,ref RMWInfo rmwInfo) {
-        // NeedInitialUpdate ãŒ false ã®ãŸã‚ InitialUpdater ã‚‚å‘¼ã°ã‚Œãšã€åˆ°é”ã—ãªã„ã€‚
+        // NeedInitialUpdate ‚ª false ‚Ì‚½‚ß InitialUpdater ‚àŒÄ‚Î‚ê‚¸A“’B‚µ‚È‚¢B
         throw new NotSupportedException();
     }
 
     public bool NeedCopyUpdate(ref TKey key,ref EqualityEmpty input,ref TValue oldValue,ref bool output,ref RMWInfo rmwInfo) => true;
 
-    // Delete: ã‚­ãƒ¼å­˜åœ¨æ™‚ã¯ Tombstone ã‚’æŒ¿å…¥ã—ã¦å‰Šé™¤ã€‚output=trueã§æˆåŠŸã‚’é€šçŸ¥ã€‚
+    // Delete: ƒL[‘¶İ‚Í Tombstone ‚ğ‘}“ü‚µ‚ÄíœBoutput=true‚Å¬Œ÷‚ğ’Ê’mB
     public bool CopyUpdater(ref TKey key,ref EqualityEmpty input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
         output=true;
         rmwInfo.Action=RMWAction.ExpireAndStop;
@@ -80,11 +80,11 @@ public readonly struct UnmanagedContainsDelete<TKey, TValue>:
 
     [ExcludeFromCodeCoverage]
     public bool PostCopyUpdater(ref TKey key,ref EqualityEmpty input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo) {
-        // CopyUpdater ãŒ false ã‚’è¿”ã—ã¦å‡¦ç†ã‚’æ‰“ã¡åˆ‡ã‚‹ãŸã‚ã€åˆ°é”ã—ãªã„ã€‚
+        // CopyUpdater ‚ª false ‚ğ•Ô‚µ‚Äˆ—‚ğ‘Å‚¿Ø‚é‚½‚ßA“’B‚µ‚È‚¢B
         throw new NotSupportedException();
     }
 
-    // Delete: ã‚­ãƒ¼å­˜åœ¨æ™‚ã¯ Tombstone ã‚’æŒ¿å…¥ã—ã¦å‰Šé™¤ã€‚output=trueã§æˆåŠŸã‚’é€šçŸ¥ã€‚
+    // Delete: ƒL[‘¶İ‚Í Tombstone ‚ğ‘}“ü‚µ‚ÄíœBoutput=true‚Å¬Œ÷‚ğ’Ê’mB
     public bool InPlaceUpdater(ref TKey key,ref EqualityEmpty input,ref TValue value,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) {
         output=true;
         rmwInfo.Action=RMWAction.ExpireAndStop;
@@ -95,13 +95,13 @@ public readonly struct UnmanagedContainsDelete<TKey, TValue>:
 
     [ExcludeFromCodeCoverage]
     public int GetRMWInitialValueLength(ref EqualityEmpty input) {
-        // NeedInitialUpdate ãŒ false ã‚’è¿”ã™ãŸã‚åˆ°é”ã—ãªã„ã€‚
+        // NeedInitialUpdate ‚ª false ‚ğ•Ô‚·‚½‚ß“’B‚µ‚È‚¢B
         throw new NotSupportedException();
     }
 
     [ExcludeFromCodeCoverage]
     public int GetUpsertValueLength(ref TValue value,ref EqualityEmpty input) {
-        // Upsert æ“ä½œã¯ä½¿ç”¨ã—ãªã„ã€‚
+        // Upsert ‘€ì‚Íg—p‚µ‚È‚¢B
         throw new NotSupportedException();
     }
 
@@ -114,26 +114,26 @@ public readonly struct UnmanagedContainsDelete<TKey, TValue>:
 
     [ExcludeFromCodeCoverage]
     public bool SingleDeleter(ref TKey key,ref TValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) {
-        // Tsavorite Delete API ã¯ä½¿ç”¨ã—ãªã„ã€‚RMW ã«ã‚ˆã‚‹ Tombstone æŒ¿å…¥ã§å‰Šé™¤ã™ã‚‹ã€‚
+        // Tsavorite Delete API ‚Íg—p‚µ‚È‚¢BRMW ‚É‚æ‚é Tombstone ‘}“ü‚Åíœ‚·‚éB
         throw new NotSupportedException();
     }
 
     [ExcludeFromCodeCoverage]
     public void PostSingleDeleter(ref TKey key,ref DeleteInfo deleteInfo) {
-        // Tsavorite Delete API ã¯ä½¿ç”¨ã—ãªã„ã€‚RMW ã«ã‚ˆã‚‹ Tombstone æŒ¿å…¥ã§å‰Šé™¤ã™ã‚‹ã€‚
+        // Tsavorite Delete API ‚Íg—p‚µ‚È‚¢BRMW ‚É‚æ‚é Tombstone ‘}“ü‚Åíœ‚·‚éB
         throw new NotSupportedException();
     }
 
     [ExcludeFromCodeCoverage]
     public bool ConcurrentDeleter(ref TKey key,ref TValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) {
-        // Tsavorite Delete API ã¯ä½¿ç”¨ã—ãªã„ã€‚RMW ã«ã‚ˆã‚‹ Tombstone æŒ¿å…¥ã§å‰Šé™¤ã™ã‚‹ã€‚
+        // Tsavorite Delete API ‚Íg—p‚µ‚È‚¢BRMW ‚É‚æ‚é Tombstone ‘}“ü‚Åíœ‚·‚éB
         throw new NotSupportedException();
     }
 
     [ExcludeFromCodeCoverage]
     public void PostDeleteOperation<TEpochAccessor>(ref TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epoch)
         where TEpochAccessor : IEpochAccessor {
-        // Tsavorite Delete API ã¯ä½¿ç”¨ã—ãªã„ã€‚RMW ã«ã‚ˆã‚‹ Tombstone æŒ¿å…¥ã§å‰Šé™¤ã™ã‚‹ã€‚
+        // Tsavorite Delete API ‚Íg—p‚µ‚È‚¢BRMW ‚É‚æ‚é Tombstone ‘}“ü‚Åíœ‚·‚éB
         throw new NotSupportedException();
     }
 

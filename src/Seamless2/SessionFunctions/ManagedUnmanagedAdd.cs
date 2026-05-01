@@ -4,18 +4,18 @@ using Seamless.Stores;
 namespace Seamless.SessionFunctions;
 
 /// <summary>
-/// ManagedUnmanagedDictionary 用セッション関数。
-/// キーはSpanByte(managed)、値はTValueの生バイトで格納する。
-/// UnmanagedAdd と同じ動作だが TKey:unmanaged 制約を持たない。
+/// ManagedUnmanagedDictionary 用セチE��ョン関数、E
+/// キーはSpanByte(managed)、値はTValueの生バイトで格納する、E
+/// UnmanagedAdd と同じ動作だぁETKey:unmanaged 制紁E��持たなぁE��E
 /// </summary>
 public readonly struct ManagedUnmanagedAdd<TValue>:
     ISessionFunctions<TValue,bool,EqualityEmpty>,
     ICreate<ManagedUnmanagedAdd<TValue>>
-    where TValue:unmanaged,IEquatable<TValue> {
+    where TValue:unmanaged {
     public static ManagedUnmanagedAdd<TValue> Create() => new();
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref ReadInfo readInfo)
         where TSourceLogRecord:ISourceLogRecord {
-        // ManagedUnmanagedAdd は RMW でのみ使用するため、他のコールバックには到達しない。
+        // ManagedUnmanagedAdd は RMW でのみ使用するため、他�Eコールバックには到達しなぁE��E
         throw new NotSupportedException();
     }
     public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo){
@@ -85,12 +85,12 @@ public readonly struct ManagedUnmanagedAdd<TValue>:
     }
     public bool CopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo)
         where TSourceLogRecord:ISourceLogRecord {
-        // NeedCopyUpdate が false を返すため到達しない。
+        // NeedCopyUpdate ぁEfalse を返すため到達しなぁE��E
         throw new NotSupportedException();
     }
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo)
         where TSourceLogRecord:ISourceLogRecord {
-        // NeedCopyUpdate が false を返すため到達しない。
+        // NeedCopyUpdate ぁEfalse を返すため到達しなぁE��E
         throw new NotSupportedException();
     }
     public void PostRMWOperation<TKey0,TEpochAccessor>(TKey0 key,ref TValue input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
@@ -104,15 +104,15 @@ public readonly struct ManagedUnmanagedAdd<TValue>:
     public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
     }
     public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo){
-        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        // Tsavorite Delete API は使用しなぁE��RMW による Tombstone 挿入で削除する、E
         throw new NotSupportedException();
     }
     public void PostInitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo){
-        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        // Tsavorite Delete API は使用しなぁE��RMW による Tombstone 挿入で削除する、E
         throw new NotSupportedException();
     }
     public bool InPlaceDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo){
-        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        // Tsavorite Delete API は使用しなぁE��RMW による Tombstone 挿入で削除する、E
         throw new NotSupportedException();
     }
     public void PostDeleteOperation<TKey0,TEpochAccessor>(TKey0 key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
@@ -122,7 +122,7 @@ public readonly struct ManagedUnmanagedAdd<TValue>:
         where TKey0 : IKey
     #endif
         where TEpochAccessor:IEpochAccessor {
-        // Tsavorite Delete API は使用しない。RMW による Tombstone 挿入で削除する。
+        // Tsavorite Delete API は使用しなぁE��RMW による Tombstone 挿入で削除する、E
         throw new NotSupportedException();
     }
     public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){

@@ -6,8 +6,8 @@ namespace Seamless.SessionFunctions;
 public readonly struct UnmanagedContains<TKey, TValue>:
     ISessionFunctions<TKey,TValue,EqualityEmpty,bool,EqualityEmpty>,
     ICreate<UnmanagedContains<TKey,TValue>>
-    where TKey : unmanaged, IEquatable<TKey>
-    where TValue : unmanaged, IEquatable<TValue> {
+    where TKey : unmanaged
+    where TValue : unmanaged {
     public static UnmanagedContains<TKey,TValue> Create() => new();
 
     public bool SingleReader(ref TKey key,ref EqualityEmpty input,ref TValue value,ref bool dst,ref ReadInfo readInfo) {

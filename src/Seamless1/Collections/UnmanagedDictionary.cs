@@ -1,4 +1,4 @@
-﻿using Seamless.SessionFunctions;
+using Seamless.SessionFunctions;
 using System.Runtime.CompilerServices;
 using Seamless.Stores;
 namespace Seamless.Collections;
@@ -9,8 +9,8 @@ public partial class UnmanagedDictionary<
     TKeySerializer,
     TValueSerializer
 >
-    where TKey : unmanaged, IEquatable<TKey>
-    where TValue : unmanaged, IEquatable<TValue>
+    where TKey : unmanaged
+    where TValue : unmanaged
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
 

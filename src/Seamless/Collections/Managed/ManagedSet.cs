@@ -1,11 +1,10 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 
 namespace Seamless.Collections;
 
-public class ManagedSet<TRecord>:ManagedList<TRecord>, ISet<TRecord>
-    where TRecord : IEquatable<TRecord> {
+public class ManagedSet<TRecord>:ManagedList<TRecord>, ISet<TRecord> {
 
     public ManagedSet(string path,long initialCapacity = 16,long initialDataCapacity = 4096) :
         base(path,initialCapacity,initialDataCapacity) {
@@ -41,8 +40,7 @@ public class ManagedSet<TRecord>:ManagedList<TRecord>, ISet<TRecord>
 public partial class ManagedSet<TRecord, TKey>:
     ManagedManagedCollection<TKey,TRecord,ManagedSerializer<TKey>,ManagedSerializer<TRecord>>,
     ISeamlessSet<TRecord,TKey>
-    where TRecord : IRecord<TKey>, IEquatable<TRecord>
-    where TKey : IEquatable<TKey> {
+    where TRecord : IRecord<TKey> {
     private readonly IDisposable? ownedStore;
     internal ManagedSet(ManagedCollectionStore<TKey,TRecord> collectionStore,IDisposable? ownedStore = null) : base(collectionStore) {
         this.ownedStore=ownedStore;

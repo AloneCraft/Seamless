@@ -4,30 +4,28 @@ namespace Seamless.SessionFunctions;
 
 using System.Diagnostics.CodeAnalysis;
 /// <summary>
-/// ManagedCollection 用セッション関数。ManagedRead は Read でのみ使われる。
-/// Reader 内でログメモリから直接 TValue へデシリアライズ（ゼロコピーリード）。
+/// ManagedCollection 用セチE��ョン関数、EanagedRead は Read でのみ使われる、E
+/// Reader 冁E��ログメモリから直接 TValue へチE��リアライズ�E�ゼロコピ�Eリード）、E
 /// </summary>
 public readonly struct ManagedRead<TValue, TValueSerializer>():
     ISessionFunctions<EqualityEmpty,TValue,EqualityEmpty>,
-    ICreate<ManagedRead<TValue,TValueSerializer>>
-    where TValue : IEquatable<TValue>
-    where TValueSerializer : ISerializer<TValue> {
+    ICreate<ManagedRead<TValue,TValueSerializer>>    where TValueSerializer : ISerializer<TValue> {
     public static ManagedRead<TValue,TValueSerializer> Create() => new();
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static void ThrowReadOnlyEntryPoint() {
-        // ManagedRead は Read にだけバインドされる。書き込み・更新・削除のコールバックには到達しない。
+        // ManagedRead は Read にだけバインドされる。書き込み・更新・削除のコールバックには到達しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static T ThrowReadOnlyEntryPoint<T>() {
-        // ManagedRead は Read にだけバインドされる。書き込み・更新・削除のコールバックには到達しない。
+        // ManagedRead は Read にだけバインドされる。書き込み・更新・削除のコールバックには到達しなぁE��E
         throw new NotSupportedException();
     }
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref TValue output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // ログメモリから直接デシリアライズ。コピーなし。
+        // ログメモリから直接チE��リアライズ。コピ�Eなし、E
         output=TValueSerializer.Deserialize(srcLogRecord.ValueSpan);
         return true;
     }

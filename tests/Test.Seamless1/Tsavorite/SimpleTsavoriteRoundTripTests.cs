@@ -1,16 +1,88 @@
 ﻿#if TSAVORITE1_1_1
 using MemoryPack;
-using Test.Seamless.Database.Database0.Types;
-using Record0 = Test.Seamless.Database.Database0.Types.Type0;
-using Record1 = Test.Seamless.Database.Database0.Types.Type1;
-using Record2 = Test.Seamless.Database.Database0.Types.Type2;
 using Tsavorite.core;
-using Keys = Test.Seamless.Database.Database0.Keys;
+
+using Key0 = Test.Seamless.Tsavorite.RoundTripSchema.Key0;
+using Key1 = Test.Seamless.Tsavorite.RoundTripSchema.Key1;
+using Key2 = Test.Seamless.Tsavorite.RoundTripSchema.Key2;
+using Type0 = Test.Seamless.Tsavorite.RoundTripSchema.Type0;
+using Type1 = Test.Seamless.Tsavorite.RoundTripSchema.Type1;
+using Type2 = Test.Seamless.Tsavorite.RoundTripSchema.Type2;
 
 using StoreFunc = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
 using StoreAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
 
 namespace Test.Seamless.Tsavorite {
+    internal static partial class RoundTripSchema {
+        [MemoryPackable]
+        public readonly partial struct Key0 {
+            public Key0(int column0) => this.Column0=column0;
+            public int Column0 { get; }
+        }
+
+        [MemoryPackable]
+        public readonly partial struct Key1 {
+            public Key1(int column0,int column1) {
+                this.Column0=column0;
+                this.Column1=column1;
+            }
+            public int Column0 { get; }
+            public int Column1 { get; }
+        }
+
+        [MemoryPackable]
+        public readonly partial struct Key2 {
+            [MemoryPackConstructor]
+            public Key2(string column0,int column1,int column2) {
+                this.Column0=column0;
+                this.Column1=column1;
+                this.Column2=column2;
+            }
+            public string Column0 { get; }
+            public int Column1 { get; }
+            public int Column2 { get; }
+        }
+
+        [MemoryPackable]
+        public readonly partial struct Type0 {
+            public Type0(int column0,int column1) {
+                this.Column0=column0;
+                this.Column1=column1;
+            }
+            public int Column0 { get; }
+            public int Column1 { get; }
+        }
+
+        [MemoryPackable]
+        public readonly partial struct Type1 {
+            public Type1(int column0,int column1,int column2,int column3) {
+                this.Column0=column0;
+                this.Column1=column1;
+                this.Column2=column2;
+                this.Column3=column3;
+            }
+            public int Column0 { get; }
+            public int Column1 { get; }
+            public int Column2 { get; }
+            public int Column3 { get; }
+        }
+
+        [MemoryPackable]
+        public readonly partial struct Type2 {
+            [MemoryPackConstructor]
+            public Type2(string column0,int column1,int column2,int column3) {
+                this.Column0=column0;
+                this.Column1=column1;
+                this.Column2=column2;
+                this.Column3=column3;
+            }
+            public string Column0 { get; }
+            public int Column1 { get; }
+            public int Column2 { get; }
+            public int Column3 { get; }
+        }
+    }
+
     [Collection("TsavoriteTests")]
     public sealed class SimpleTsavoriteRoundTripTests {
         private static string CreateFolder() => global::Test.Seamless.TestPath.Directory<SimpleTsavoriteRoundTripTests>();
@@ -22,11 +94,11 @@ namespace Test.Seamless.Tsavorite {
 
         [Fact, Trait("Category","Unit")]
         public void Key0_Record0_CanRoundTrip_WithoutDictionary() {
-            var key = new Keys.Key0(10);
+            var key = new Key0(10);
             var expected = new Type0(10,20);
             var keyBytes = Serialize(key);
             var actualValueBytes = RoundTrip(keyBytes,Serialize(expected));
-            var actual = Rehydrate(Deserialize<Keys.Key0>(keyBytes),actualValueBytes);
+            var actual = Rehydrate(Deserialize<Key0>(keyBytes),actualValueBytes);
 
             Assert.Equal(expected.Column0,actual.Column0);
             Assert.Equal(expected.Column1,actual.Column1);
@@ -34,11 +106,11 @@ namespace Test.Seamless.Tsavorite {
 
         [Fact, Trait("Category","Unit")]
         public void Key1_Record1_CanRoundTrip_WithoutDictionary() {
-            var key = new Keys.Key1(11,12);
+            var key = new Key1(11,12);
             var expected = new Type1(11,12,13,14);
             var keyBytes = Serialize(key);
             var actualValueBytes = RoundTrip(keyBytes,Serialize(expected));
-            var actual = Rehydrate(Deserialize<Keys.Key1>(keyBytes),actualValueBytes);
+            var actual = Rehydrate(Deserialize<Key1>(keyBytes),actualValueBytes);
 
             Assert.Equal(expected.Column0,actual.Column0);
             Assert.Equal(expected.Column1,actual.Column1);
@@ -48,11 +120,11 @@ namespace Test.Seamless.Tsavorite {
 
         [Fact, Trait("Category","Unit")]
         public void Key2_Record2_CanRoundTrip_WithoutDictionary() {
-            var key = new Keys.Key2("alpha",21,22);
+            var key = new Key2("alpha",21,22);
             var expected = new Type2("alpha",21,22,23);
             var keyBytes = Serialize(key);
             var actualValueBytes = RoundTrip(keyBytes,Serialize(expected));
-            var actual = Rehydrate(Deserialize<Keys.Key2>(keyBytes),actualValueBytes);
+            var actual = Rehydrate(Deserialize<Key2>(keyBytes),actualValueBytes);
 
             Assert.Equal(expected.Column0,actual.Column0);
             Assert.Equal(expected.Column1,actual.Column1);
@@ -60,17 +132,17 @@ namespace Test.Seamless.Tsavorite {
             Assert.Equal(expected.Column3,actual.Column3);
         }
 
-        private static Type0 Rehydrate(Keys.Key0 key,ReadOnlySpan<byte> valueBytes) {
+        private static Type0 Rehydrate(Key0 key,ReadOnlySpan<byte> valueBytes) {
             var value = Deserialize<Type0>(valueBytes);
             return new Type0(key.Column0,value.Column1);
         }
 
-        private static Type1 Rehydrate(Keys.Key1 key,ReadOnlySpan<byte> valueBytes) {
+        private static Type1 Rehydrate(Key1 key,ReadOnlySpan<byte> valueBytes) {
             var value = Deserialize<Type1>(valueBytes);
             return new Type1(key.Column0,key.Column1,value.Column2,value.Column3);
         }
 
-        private static Type2 Rehydrate(Keys.Key2 key,ReadOnlySpan<byte> valueBytes) {
+        private static Type2 Rehydrate(Key2 key,ReadOnlySpan<byte> valueBytes) {
             var value = Deserialize<Type2>(valueBytes);
             return new Type2(key.Column0,key.Column1,key.Column2,value.Column3);
         }

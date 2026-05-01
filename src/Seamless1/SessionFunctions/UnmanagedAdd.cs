@@ -1,4 +1,4 @@
-ï»¿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using Seamless.Stores;
 namespace Seamless.SessionFunctions;
 
@@ -12,20 +12,20 @@ public enum EOutput { }
 public readonly  struct UnmanagedAdd<TKey, TValue>:
     ISessionFunctions<TKey,TValue,TValue,bool,EqualityEmpty>,
     ICreate<UnmanagedAdd<TKey,TValue>>
-    where TKey:unmanaged, IEquatable<TKey>
-    where TValue:unmanaged, IEquatable<TValue> {
+    where TKey:unmanaged
+    where TValue:unmanaged {
     public static UnmanagedAdd<TKey,TValue> Create() => new();
 
     public bool SingleReader(ref TKey key,ref TValue input,ref TValue value,ref bool dst,ref ReadInfo readInfo){
-        // UnmanagedAdd ã¯ RMW ã§ã®ã¿ä½¿ç”¨ã™ã‚‹ãŸã‚ã€ä»–ã®ã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯ã«ã¯åˆ°é”ã—ãªã„ã€‚
+        // UnmanagedAdd ‚Í RMW ‚Å‚Ì‚İg—p‚·‚é‚½‚ßA‘¼‚ÌƒR[ƒ‹ƒoƒbƒN‚É‚Í“’B‚µ‚È‚¢B
         throw new NotSupportedException();
     }
     public bool ConcurrentReader(ref TKey key,ref TValue input,ref TValue value,ref bool dst,ref ReadInfo readInfo,ref RecordInfo recordInfo){
-        // UnmanagedAdd ã¯ RMW ã§ã®ã¿ä½¿ç”¨ã™ã‚‹ãŸã‚ã€ä»–ã®ã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯ã«ã¯åˆ°é”ã—ãªã„ã€‚
+        // UnmanagedAdd ‚Í RMW ‚Å‚Ì‚İg—p‚·‚é‚½‚ßA‘¼‚ÌƒR[ƒ‹ƒoƒbƒN‚É‚Í“’B‚µ‚È‚¢B
         throw new NotSupportedException();
     }
     public void ReadCompletionCallback(ref TKey key,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata){
-        // UnmanagedAdd ã¯ RMW ã§ã®ã¿ä½¿ç”¨ã™ã‚‹ãŸã‚ã€ä»–ã®ã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯ã«ã¯åˆ°é”ã—ãªã„ã€‚
+        // UnmanagedAdd ‚Í RMW ‚Å‚Ì‚İg—p‚·‚é‚½‚ßA‘¼‚ÌƒR[ƒ‹ƒoƒbƒN‚É‚Í“’B‚µ‚È‚¢B
         throw new NotSupportedException();
     }
 
@@ -60,12 +60,12 @@ public readonly  struct UnmanagedAdd<TKey, TValue>:
     public bool NeedCopyUpdate(ref TKey key,ref TValue input,ref TValue oldValue,ref bool output,ref RMWInfo rmwInfo) => false;
 
     public bool CopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo){
-        // NeedCopyUpdate ãŒ false ã‚’è¿”ã™ãŸã‚åˆ°é”ã—ãªã„ã€‚
+        // NeedCopyUpdate ‚ª false ‚ğ•Ô‚·‚½‚ß“’B‚µ‚È‚¢B
         throw new NotSupportedException();
     }
 
     public bool PostCopyUpdater(ref TKey key,ref TValue input,ref TValue oldValue,ref TValue newValue,ref bool output,ref RMWInfo rmwInfo){
-        // CopyUpdater ãŒ false ã‚’è¿”ã—ã¦å‡¦ç†ã‚’æ‰“ã¡åˆ‡ã‚‹ãŸã‚ã€åˆ°é”ã—ãªã„ã€‚
+        // CopyUpdater ‚ª false ‚ğ•Ô‚µ‚Äˆ—‚ğ‘Å‚¿Ø‚é‚½‚ßA“’B‚µ‚È‚¢B
         throw new NotSupportedException();
     }
 
@@ -83,23 +83,23 @@ public readonly  struct UnmanagedAdd<TKey, TValue>:
     }
 
     public bool SingleDeleter(ref TKey key,ref TValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
-        // Tsavorite Delete API ã¯ä½¿ç”¨ã—ãªã„ã€‚RMW ã«ã‚ˆã‚‹ Tombstone æŒ¿å…¥ã§å‰Šé™¤ã™ã‚‹ã€‚
+        // Tsavorite Delete API ‚Íg—p‚µ‚È‚¢BRMW ‚É‚æ‚é Tombstone ‘}“ü‚Åíœ‚·‚éB
         throw new NotSupportedException();
     }
 
     public void PostSingleDeleter(ref TKey key,ref DeleteInfo deleteInfo){
-        // Tsavorite Delete API ã¯ä½¿ç”¨ã—ãªã„ã€‚RMW ã«ã‚ˆã‚‹ Tombstone æŒ¿å…¥ã§å‰Šé™¤ã™ã‚‹ã€‚
+        // Tsavorite Delete API ‚Íg—p‚µ‚È‚¢BRMW ‚É‚æ‚é Tombstone ‘}“ü‚Åíœ‚·‚éB
         throw new NotSupportedException();
     }
 
     public bool ConcurrentDeleter(ref TKey key,ref TValue value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo){
-        // Tsavorite Delete API ã¯ä½¿ç”¨ã—ãªã„ã€‚RMW ã«ã‚ˆã‚‹ Tombstone æŒ¿å…¥ã§å‰Šé™¤ã™ã‚‹ã€‚
+        // Tsavorite Delete API ‚Íg—p‚µ‚È‚¢BRMW ‚É‚æ‚é Tombstone ‘}“ü‚Åíœ‚·‚éB
         throw new NotSupportedException();
     }
 
     public void PostDeleteOperation<TEpochAccessor>(ref TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epoch)
         where TEpochAccessor:IEpochAccessor {
-        // Tsavorite Delete API ã¯ä½¿ç”¨ã—ãªã„ã€‚RMW ã«ã‚ˆã‚‹ Tombstone æŒ¿å…¥ã§å‰Šé™¤ã™ã‚‹ã€‚
+        // Tsavorite Delete API ‚Íg—p‚µ‚È‚¢BRMW ‚É‚æ‚é Tombstone ‘}“ü‚Åíœ‚·‚éB
         throw new NotSupportedException();
     }
 

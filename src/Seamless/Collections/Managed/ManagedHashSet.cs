@@ -1,15 +1,14 @@
-ï»¿using System.Collections;
+using System.Collections;
 using System.Diagnostics;
 using Seamless.Stores;
 namespace Seamless.Collections;
 /// <summary>
-/// Tsavorite ã‚’ãƒãƒƒã‚¯ã‚¨ãƒ³ãƒ‰ã«ä½¿ã†ã‚ªãƒ³ãƒ¡ãƒ¢ãƒª HashSetã€‚
-/// <see cref="System.Collections.Generic.ISet{T}"/> ã‚’å®Ÿè£…ã—ã€åˆ©ç”¨è€…ã« Tsavorite ã®è©³ç´°ã‚’è¦‹ã›ãªã„ã€‚
-/// é‡è¤‡ã‚’è¨±ã•ãšã€ã‚­ãƒ¼ã®ã¿ã‚’æ ¼ç´ã™ã‚‹ã€‚å€¤ã¯ EqualityEmpty æ§‹é€ ä½“ã‚’ä½¿ç”¨ã™ã‚‹ã€‚
+/// Tsavorite ‚ğƒoƒbƒNƒGƒ“ƒh‚Ég‚¤ƒIƒ“ƒƒ‚ƒŠ HashSetB
+/// <see cref="System.Collections.Generic.ISet{T}"/> ‚ğÀ‘•‚µA—˜—pÒ‚É Tsavorite ‚ÌÚ×‚ğŒ©‚¹‚È‚¢B
+/// d•¡‚ğ‹–‚³‚¸AƒL[‚Ì‚İ‚ğŠi”[‚·‚éB’l‚Í EqualityEmpty \‘¢‘Ì‚ğg—p‚·‚éB
 /// </summary>
 [DebuggerTypeProxy(typeof(ManagedHashSetDebugView<>))]
-public partial class ManagedHashSet<TKey>:ManagedUnmanagedCollection<TKey,EqualityEmpty,ManagedSerializer<TKey>,ManagedSerializer<EqualityEmpty>>, IHashSet<TKey>
-    where TKey : IEquatable<TKey> {
+public partial class ManagedHashSet<TKey>:ManagedUnmanagedCollection<TKey,EqualityEmpty,ManagedSerializer<TKey>,ManagedSerializer<EqualityEmpty>>, IHashSet<TKey> {
     //private readonly byte[] EmptyBytes;
     private IDisposable? ownedStore;
     public bool IsReadOnly => false;

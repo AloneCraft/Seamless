@@ -3,17 +3,15 @@ using Seamless.Collections;
 namespace Seamless.SessionFunctions;
 
 /// <summary>
-/// ManagedDictionary 用の Remove(key, out value) セッション関数。
-/// 取得した値は session 内で TValue にデシリアライズして返す。
+/// ManagedDictionary 用の Remove(key, out value) セチE��ョン関数、E
+/// 取得した値は session 冁E�� TValue にチE��リアライズして返す、E
 /// </summary>
 public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
-    ISessionFunctions<EqualityEmpty,TValue,EqualityEmpty>
-    where TValue : IEquatable<TValue>
-    where TValueSerializer : ISerializer<TValue> {
+    ISessionFunctions<EqualityEmpty,TValue,EqualityEmpty>    where TValueSerializer : ISerializer<TValue> {
     [ExcludeFromCodeCoverage]
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref TValue output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Read 操作は使用しない。
+        // Read 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     public bool NeedInitialUpdate<TKey>(TKey key,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo)
@@ -26,7 +24,7 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
     }
     [ExcludeFromCodeCoverage]
     public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo) {
-        // NeedInitialUpdate が false を返すため到達しない。
+        // NeedInitialUpdate ぁEfalse を返すため到達しなぁE��E
         throw new NotSupportedException();
     }
     public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo) {
@@ -36,7 +34,7 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo) {
-        // NeedInitialUpdate が false のため InitialUpdater も呼ばれず、到達しない。
+        // NeedInitialUpdate ぁEfalse のため InitialUpdater も呼ばれず、到達しなぁE��E
         throw new NotSupportedException();
     }
     public bool NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo)
@@ -52,55 +50,55 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
     [ExcludeFromCodeCoverage]
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // CopyUpdater が false を返して処理を打ち切るため、到達しない。
+        // CopyUpdater ぁEfalse を返して処琁E��打ち刁E��ため、到達しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref TValue output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref TValue output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref TValue output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -111,7 +109,7 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
         where TKey : IKey
     #endif
         where TEpochAccessor : IEpochAccessor {
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -122,7 +120,7 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
         where TKey : IKey
     #endif
         where TEpochAccessor : IEpochAccessor {
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -161,7 +159,7 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
     }
     [ExcludeFromCodeCoverage]
     public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref TValue output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
-        // Read 操作は使用しない。
+        // Read 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input)
@@ -175,7 +173,7 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
         #else
         where TKey : IKey{
         #endif
-        // NeedInitialUpdate が false を返すため到達しない。
+        // NeedInitialUpdate ぁEfalse を返すため到達しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -185,7 +183,7 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
         #else
         where TKey : IKey{
         #endif
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -195,7 +193,7 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
         #else
         where TKey : IKey{
         #endif
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -206,7 +204,7 @@ public readonly struct ManagedRemove_TKey_TValue<TValue, TValueSerializer>:
         where TKey : IKey
         #endif
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作は使用しない。
+        // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     public void ConvertOutputToHeap(ref EqualityEmpty input,ref TValue output) {

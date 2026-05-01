@@ -1,12 +1,12 @@
-﻿namespace Seamless.Stores;
+namespace Seamless.Stores;
 
 public abstract partial class UnmanagedCollectionStore<TKey, TValue>:CollectionStore<
     TKey,
     TValue,
     UnmanagedStoreFunctions,
     UnmanagedAllocator>
-    where TKey : unmanaged, IEquatable<TKey>
-    where TValue : unmanaged, IEquatable<TValue> {
+    where TKey : unmanaged
+    where TValue : unmanaged {
     private protected UnmanagedCollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes) :
         base(
             new UnmanagedStoreFunctions(new SpanByteComparer(),static () => null,new DefaultRecordDisposer()),

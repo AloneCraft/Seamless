@@ -3,8 +3,7 @@ using System.Collections;
 namespace Seamless.Collections;
 
 public partial class ManagedSet<TRecord, TKey>
-    where TRecord : IRecord<TKey>, IEquatable<TRecord>
-    where TKey : IEquatable<TKey> {
+    where TRecord : IRecord<TKey> {
     public IEnumerator<TRecord> GetEnumerator() => new Enumerator<ValueIterator,TRecord>(this.ReadSession,new());
     IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator() => this.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();

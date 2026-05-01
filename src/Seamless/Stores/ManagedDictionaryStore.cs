@@ -1,11 +1,9 @@
-﻿using System.Reflection;
+using System.Reflection;
 using Seamless.Collections;
 using Seamless.Devices;
 namespace Seamless.Stores;
 
-public class ManagedDictionaryStore<TKey, TValue>:ManagedCollectionStore<TKey,TValue>
-    where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue> {
+public class ManagedDictionaryStore<TKey, TValue>:ManagedCollectionStore<TKey,TValue> {
     private readonly bool keyUsesManagedSerializer;
     private readonly bool valueUsesManagedSerializer;
 
@@ -72,8 +70,7 @@ public class ManagedDictionaryStore<TKey, TValue>:ManagedCollectionStore<TKey,TV
 
 //public class ManagedManagedDictionaryStore<TKey, TValue>
 //    :ManagedDictionaryStore<TKey,TValue,ManagedSerializer<TKey>,ManagedSerializer<TValue>>
-//    where TKey : IEquatable<TKey>
-//    where TValue : IEquatable<TValue> {
+//// {
 //    internal ManagedManagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction) :
 //        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction){ }
 
@@ -85,8 +82,8 @@ public class ManagedDictionaryStore<TKey, TValue>:ManagedCollectionStore<TKey,TV
 
 //public class UnmanagedManagedDictionaryStore<TKey, TValue>
 //    :ManagedDictionaryStore<TKey,TValue,UnmanagedSerializer<TKey>,ManagedSerializer<TValue>>
-//    where TKey : unmanaged, IEquatable<TKey>
-//    where TValue : IEquatable<TValue> {
+//    where TKey : unmanaged
+// {
 //    internal UnmanagedManagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction) :
 //        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction){ }
 
@@ -98,8 +95,7 @@ public class ManagedDictionaryStore<TKey, TValue>:ManagedCollectionStore<TKey,TV
 
 //public class ManagedUnmanagedDictionaryStore<TKey, TValue>
 //    :ManagedDictionaryStore<TKey,TValue,ManagedSerializer<TKey>,UnmanagedSerializer<TValue>>
-//    where TKey : IEquatable<TKey>
-//    where TValue : unmanaged, IEquatable<TValue> {
+////    where TValue : unmanaged {
 //    internal ManagedUnmanagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction) :
 //        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction){ }
 

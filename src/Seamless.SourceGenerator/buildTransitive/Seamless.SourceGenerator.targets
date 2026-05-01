@@ -1,0 +1,5 @@
+<Project>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)StaticSources\LinqInvocationFusionSupport.cs" Link="Seamless.SourceGenerator.Generated\LinqInvocationFusionSupport.cs" />
+  </ItemGroup>
+</Project>

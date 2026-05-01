@@ -1,48 +1,48 @@
-ï»¿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 namespace Seamless.SessionFunctions;
 
 internal readonly struct UnmanagedIntersectWith<TKey>:
     ISessionFunctions<TKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,EqualityEmpty>
-    where TKey : unmanaged, IEquatable<TKey> {
+    where TKey : unmanaged {
     [ExcludeFromCodeCoverage]
     public bool SingleReader(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Value,ref EqualityEmpty Dst,ref ReadInfo ReadInfo) {
-        // Read æ“ä½œã¯ä½¿ç”¨ã—ãªã„ã€‚
+        // Read ‘€ì‚Íg—p‚µ‚È‚¢B
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool ConcurrentReader(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Value,ref EqualityEmpty Dst,ref ReadInfo ReadInfo,ref RecordInfo RecordInfo) {
-        // Read æ“ä½œã¯ä½¿ç”¨ã—ãªã„ã€‚
+        // Read ‘€ì‚Íg—p‚µ‚È‚¢B
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool SingleWriter(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Src,ref EqualityEmpty Dst,ref EqualityEmpty Output,ref UpsertInfo UpsertInfo,WriteReason Reason,ref RecordInfo RecordInfo) {
-        // Upsert æ“ä½œã¯ä½¿ç”¨ã—ãªã„ã€‚
+        // Upsert ‘€ì‚Íg—p‚µ‚È‚¢B
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool ConcurrentWriter(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Src,ref EqualityEmpty Dst,ref EqualityEmpty Output,ref UpsertInfo UpsertInfo,ref RecordInfo RecordInfo) {
-        // Upsert æ“ä½œã¯ä½¿ç”¨ã—ãªã„ã€‚
+        // Upsert ‘€ì‚Íg—p‚µ‚È‚¢B
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TEpochAccessor>(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Src,ref UpsertInfo UpsertInfo,TEpochAccessor Epoch)
         where TEpochAccessor : IEpochAccessor {
-        // Upsert æ“ä½œã¯ä½¿ç”¨ã—ãªã„ã€‚
+        // Upsert ‘€ì‚Íg—p‚µ‚È‚¢B
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostSingleWriter(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Src,ref EqualityEmpty Dst,ref EqualityEmpty Output,ref UpsertInfo UpsertInfo,WriteReason Reason) {
-        // Upsert æ“ä½œã¯ä½¿ç”¨ã—ãªã„ã€‚
+        // Upsert ‘€ì‚Íg—p‚µ‚È‚¢B
         throw new NotSupportedException();
     }
     public bool NeedInitialUpdate(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Output,ref RMWInfo RmwInfo) {
-        // ã‚­ãƒ¼ãŒå­˜åœ¨ã—ãªã„å ´åˆã¯æ–°è¦ä½œæˆã—ãªã„ï¼ˆNOTFOUND ã‚’è¿”ã•ã›ã‚‹ï¼‰ã€‚
+        // ƒL[‚ª‘¶İ‚µ‚È‚¢ê‡‚ÍV‹Kì¬‚µ‚È‚¢iNOTFOUND ‚ğ•Ô‚³‚¹‚éjB
         return false;
     }
     [ExcludeFromCodeCoverage]
     public bool InitialUpdater(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Value,ref EqualityEmpty Output,ref RMWInfo RmwInfo,ref RecordInfo RecordInfo) {
-        // NeedInitialUpdate ãŒå¸¸ã« false ã®ãŸã‚ã€IntersectWith ã§æ–°è¦ãƒ¬ã‚³ãƒ¼ãƒ‰ä½œæˆã«ã¯é€²ã¾ãªã„ã€‚
+        // NeedInitialUpdate ‚ªí‚É false ‚Ì‚½‚ßAIntersectWith ‚ÅV‹KƒŒƒR[ƒhì¬‚É‚Íi‚Ü‚È‚¢B
         throw new NotSupportedException();
     }
     public bool InPlaceUpdater(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Value,ref EqualityEmpty Output,ref RMWInfo RmwInfo,ref RecordInfo RecordInfo) {
@@ -51,11 +51,11 @@ internal readonly struct UnmanagedIntersectWith<TKey>:
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialUpdater(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Value,ref EqualityEmpty Output,ref RMWInfo RmwInfo) {
-        // NeedInitialUpdate ãŒ false ã®ãŸã‚ InitialUpdater ã‚‚å‘¼ã°ã‚Œãšã€åˆ°é”ã—ãªã„ã€‚
+        // NeedInitialUpdate ‚ª false ‚Ì‚½‚ß InitialUpdater ‚àŒÄ‚Î‚ê‚¸A“’B‚µ‚È‚¢B
         throw new NotSupportedException();
     }
     public bool NeedCopyUpdate(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Value,ref EqualityEmpty Output,ref RMWInfo RmwInfo) {
-        return true;//ReadOnlyé ˜åŸŸã«è¦‹ã¤ã‹ã£ãŸéš›Mutableã«ã‚³ãƒ”ãƒ¼ã—ã¦æ›´æ–°ãƒ—ãƒ­ã‚»ã‚¹ã‚’ç¶šè¡Œã™ã‚‹ã‹
+        return true;//ReadOnly—Ìˆæ‚ÉŒ©‚Â‚©‚Á‚½ÛMutable‚ÉƒRƒs[‚µ‚ÄXVƒvƒƒZƒX‚ğ‘±s‚·‚é‚©
     }
     public bool CopyUpdater(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty OldValue,ref EqualityEmpty NewValue,ref EqualityEmpty Output,ref RMWInfo RmwInfo,ref RecordInfo RecordInfo) {
         RmwInfo.Action=RMWAction.ExpireAndStop;
@@ -63,40 +63,40 @@ internal readonly struct UnmanagedIntersectWith<TKey>:
     }
     [ExcludeFromCodeCoverage]
     public bool PostCopyUpdater(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty OldValue,ref EqualityEmpty NewValue,ref EqualityEmpty Output,ref RMWInfo RmwInfo) {
-        // CopyUpdater ãŒ false ã‚’è¿”ã—ã¦å‡¦ç†ã‚’æ‰“ã¡åˆ‡ã‚‹ãŸã‚ã€åˆ°é”ã—ãªã„ã€‚
+        // CopyUpdater ‚ª false ‚ğ•Ô‚µ‚Äˆ—‚ğ‘Å‚¿Ø‚é‚½‚ßA“’B‚µ‚È‚¢B
         throw new NotSupportedException();
     }
     public void PostRMWOperation<TEpochAccessor>(ref TKey Key,ref EqualityEmpty Input,ref RMWInfo RmwInfo,TEpochAccessor Epoch)
         where TEpochAccessor : IEpochAccessor {
     }
     public void RMWCompletionCallback(ref TKey Key,ref EqualityEmpty Input,ref EqualityEmpty Output,EqualityEmpty Ctx,Status Status,RecordMetadata RecordMetadata) {
-        // IterateLookup èµ°æŸ»ä¸­ã® RMW ã¯ read-only é ˜åŸŸã‚„ãƒ‡ã‚£ã‚¹ã‚¯ä¸Šãƒ¬ã‚³ãƒ¼ãƒ‰ã§ Pending å®Œäº†ã«ãªã‚Šã†ã‚‹ã€‚
-        // IntersectWith ã¯å®Œäº†é€šçŸ¥ã®å‡ºåŠ›ã‚’å‚ç…§ã—ãªã„ãŸã‚ã€å¾…æ©Ÿå´ã§å®Œäº†ã•ã›ã‚‹ã ã‘ã§ã‚ˆã„ã€‚
+        // IterateLookup ‘–¸’†‚Ì RMW ‚Í read-only —Ìˆæ‚âƒfƒBƒXƒNãƒŒƒR[ƒh‚Å Pending Š®—¹‚É‚È‚è‚¤‚éB
+        // IntersectWith ‚ÍŠ®—¹’Ê’m‚Ìo—Í‚ğQÆ‚µ‚È‚¢‚½‚ßA‘Ò‹@‘¤‚ÅŠ®—¹‚³‚¹‚é‚¾‚¯‚Å‚æ‚¢B
     }
     [ExcludeFromCodeCoverage]
     public bool SingleDeleter(ref TKey key,ref EqualityEmpty value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) {
-        // Tsavorite Delete API ã¯ä½¿ç”¨ã—ãªã„ã€‚RMW ã«ã‚ˆã‚‹ Tombstone æŒ¿å…¥ã§å‰Šé™¤ã™ã‚‹ã€‚
+        // Tsavorite Delete API ‚Íg—p‚µ‚È‚¢BRMW ‚É‚æ‚é Tombstone ‘}“ü‚Åíœ‚·‚éB
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostSingleDeleter(ref TKey key,ref DeleteInfo deleteInfo) {
-        // Tsavorite Delete API ã¯ä½¿ç”¨ã—ãªã„ã€‚RMW ã«ã‚ˆã‚‹ Tombstone æŒ¿å…¥ã§å‰Šé™¤ã™ã‚‹ã€‚
+        // Tsavorite Delete API ‚Íg—p‚µ‚È‚¢BRMW ‚É‚æ‚é Tombstone ‘}“ü‚Åíœ‚·‚éB
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool ConcurrentDeleter(ref TKey key,ref EqualityEmpty value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) {
-        // Tsavorite Delete API ã¯ä½¿ç”¨ã—ãªã„ã€‚RMW ã«ã‚ˆã‚‹ Tombstone æŒ¿å…¥ã§å‰Šé™¤ã™ã‚‹ã€‚
+        // Tsavorite Delete API ‚Íg—p‚µ‚È‚¢BRMW ‚É‚æ‚é Tombstone ‘}“ü‚Åíœ‚·‚éB
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostDeleteOperation<TEpochAccessor>(ref TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epoch)
         where TEpochAccessor : IEpochAccessor {
-        // Tsavorite Delete API ã¯ä½¿ç”¨ã—ãªã„ã€‚RMW ã«ã‚ˆã‚‹ Tombstone æŒ¿å…¥ã§å‰Šé™¤ã™ã‚‹ã€‚
+        // Tsavorite Delete API ‚Íg—p‚µ‚È‚¢BRMW ‚É‚æ‚é Tombstone ‘}“ü‚Åíœ‚·‚éB
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void ReadCompletionCallback(ref TKey key,ref EqualityEmpty input,ref EqualityEmpty output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
-        // ã“ã®ã‚»ãƒƒã‚·ãƒ§ãƒ³é–¢æ•°ã¯ Read å®Œäº†é€šçŸ¥ã‚’ä½¿ã‚ãªã„ã€‚
+        // ‚±‚ÌƒZƒbƒVƒ‡ƒ“ŠÖ”‚Í Read Š®—¹’Ê’m‚ğg‚í‚È‚¢B
         throw new NotSupportedException();
     }
     public int GetRMWModifiedValueLength(ref EqualityEmpty Value,ref EqualityEmpty Input) {
@@ -104,15 +104,15 @@ internal readonly struct UnmanagedIntersectWith<TKey>:
     }
     [ExcludeFromCodeCoverage]
     public int GetRMWInitialValueLength(ref EqualityEmpty Input) {
-        // NeedInitialUpdate ãŒ false ã®ãŸã‚ã€åˆæœŸå€¤ã‚µã‚¤ã‚ºè¨ˆç®—ã«ã¯é€²ã¾ãªã„ã€‚
+        // NeedInitialUpdate ‚ª false ‚Ì‚½‚ßA‰Šú’lƒTƒCƒYŒvZ‚É‚Íi‚Ü‚È‚¢B
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public int GetUpsertValueLength(ref EqualityEmpty Value,ref EqualityEmpty Input) {
-        // Upsert æ“ä½œã¯ä½¿ç”¨ã—ãªã„ã€‚
+        // Upsert ‘€ì‚Íg—p‚µ‚È‚¢B
         throw new NotSupportedException();
     }
     public void ConvertOutputToHeap(ref EqualityEmpty Input,ref EqualityEmpty Output) {
-        // Pending å®Œäº†æ™‚ã«å‘¼ã°ã‚Œã†ã‚‹ãŒã€EqualityEmpty ã¯ãƒ’ãƒ¼ãƒ—åŒ–ä¸è¦ã€‚
+        // Pending Š®—¹‚ÉŒÄ‚Î‚ê‚¤‚é‚ªAEqualityEmpty ‚Íƒq[ƒv‰»•s—vB
     }
 }

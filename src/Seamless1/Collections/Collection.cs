@@ -1,4 +1,4 @@
-ï»¿using Seamless.Stores;
+using Seamless.Stores;
 
 using System.Collections;
 using System.Diagnostics;
@@ -23,9 +23,7 @@ public abstract class Collection<
     TContainsDeleteFunctions,
     TStoreFunctions,
     TAllocator
->:IDisposable
-    where TKey : IEquatable<TKey>
-    where TReadFunctions : struct, ISessionFunctions<
+>:IDisposable    where TReadFunctions : struct, ISessionFunctions<
         TSessionKey,
         TSessionValue,
         EqualityEmpty,
@@ -71,19 +69,19 @@ public abstract class Collection<
     //    public int Count;
     //    public long LastAcceptedAddress;
     //    public bool SkipLastAcceptedAddressOnce;
-    //    public bool ã‚¹ãƒˆãƒ¬ãƒ¼ã‚¸ã«ãƒ‡ãƒ¼ã‚¿ãŒã‚ã‚‹ã‹;
+    //    public bool ƒXƒgƒŒ[ƒW‚Éƒf[ƒ^‚ª‚ ‚é‚©;
     //    private protected abstract T Deserialize(ref TSessionKey key,ref TSessionValue value);
     //    public bool SingleReader(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
     //        if(this.Count>=Const.Chunk_Length) {
-    //            //ãƒ¡ãƒ¢ãƒªã§å®Œçµã™ã‚‹å ´åˆã¯ã“ã“ã¯é€šã‚‰ãªã„ã€‚
-    //            //ã“ã“ã‚’é€šã‚‹ã®ã¯ã€ã‚¹ãƒˆãƒ¬ãƒ¼ã‚¸ã‚’ä¼´ã†å ´åˆã§ã€ã‹ã¤Chunkã®ä¸Šé™ã«é”ã—ãŸå ´åˆã€‚
-    //            //this.LastAcceptedAddress=recordMetadata.Address;//æ¬¡å›ã®èµ°æŸ»ã§ã“ã®ãƒ¬ã‚³ãƒ¼ãƒ‰ã‚’å†åº¦èª­ã‚€ãŸã‚ã€RetryLastRecord ã‚’è¿”ã™ã€‚
+    //            //ƒƒ‚ƒŠ‚ÅŠ®Œ‹‚·‚éê‡‚Í‚±‚±‚Í’Ê‚ç‚È‚¢B
+    //            //‚±‚±‚ğ’Ê‚é‚Ì‚ÍAƒXƒgƒŒ[ƒW‚ğ”º‚¤ê‡‚ÅA‚©‚ÂChunk‚ÌãŒÀ‚É’B‚µ‚½ê‡B
+    //            //this.LastAcceptedAddress=recordMetadata.Address;//Ÿ‰ñ‚Ì‘–¸‚Å‚±‚ÌƒŒƒR[ƒh‚ğÄ“x“Ç‚Ş‚½‚ßARetryLastRecord ‚ğ•Ô‚·B
     //            if(this.Count==Const.Chunk_Length){
     //                this.LastAcceptedAddress=recordMetadata.Address;
-    //                this.ã‚¹ãƒˆãƒ¬ãƒ¼ã‚¸ã«ãƒ‡ãƒ¼ã‚¿ãŒã‚ã‚‹ã‹=true;
+    //                this.ƒXƒgƒŒ[ƒW‚Éƒf[ƒ^‚ª‚ ‚é‚©=true;
     //            }else{
     //            }
-    //            cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;//ã‚¹ãƒˆãƒ¬ãƒ¼ã‚¸ã®å ´åˆã¯ã“ã“ã¯ç„¡è¦–ã•ã‚Œã‚‹ãŒã€å¿µã®ãŸã‚ EndBatch ã‚‚è¿”ã™ã€‚
+    //            cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;//ƒXƒgƒŒ[ƒW‚Ìê‡‚Í‚±‚±‚Í–³‹‚³‚ê‚é‚ªA”O‚Ì‚½‚ß EndBatch ‚à•Ô‚·B
     //            return false;
     //        }
     //        if(this.SkipLastAcceptedAddressOnce&&recordMetadata.Address==this.LastAcceptedAddress) {
@@ -91,12 +89,12 @@ public abstract class Collection<
     //            cursorRecordResult=CursorRecordResult.Skip;
     //            return true;
     //        }
-    //        // é‡è¤‡èª­ã¿è¾¼ã¿é˜²æ­¢ï¼ˆä»¥å‰ã®è­°è«–ã®ãƒ­ã‚¸ãƒƒã‚¯ï¼‰
+    //        // d•¡“Ç‚İ‚İ–h~iˆÈ‘O‚Ì‹c˜_‚ÌƒƒWƒbƒNj
     //        if(recordMetadata.Address==this.LastAcceptedAddress) {
     //            cursorRecordResult=CursorRecordResult.Skip;
     //            return true;
     //        }
-    //        // ãƒ‡ãƒ¼ã‚¿ã®å‡¦ç†
+    //        // ƒf[ƒ^‚Ìˆ—
     //        this.Chunk[this.Count]=this.Deserialize(ref key,ref value);
     //        this.Count++;
     //        cursorRecordResult=CursorRecordResult.Accept;
@@ -118,9 +116,9 @@ public abstract class Collection<
     //        //if(index>=Const.Chunk_Length) {
     //        //    Volatile.Write(ref this.Count,Const.Chunk_Length);
     //        //    var lastAcceptedAddress = Volatile.Read(ref this.LastAcceptedAddress);
-    //        //    //trueã‚’è¿”ã™æ¡ä»¶ã¯recordMetadata.Address==lastAcceptedAddressã®ã¨ãã®ã¿ã§ã€ã“ã‚Œã¯Pendingã®å½±éŸ¿ã§é‡è¤‡ã—ã¦èª­ã¾ã•ã‚Œã‚‹æœ€å¾Œã®ãƒ¬ã‚³ãƒ¼ãƒ‰ã«å¯¾ã—ã¦ã ã‘èµ·ã“ã‚Šã†ã‚‹ã€‚
+    //        //    //true‚ğ•Ô‚·ğŒ‚ÍrecordMetadata.Address==lastAcceptedAddress‚Ì‚Æ‚«‚Ì‚İ‚ÅA‚±‚ê‚ÍPending‚Ì‰e‹¿‚Åd•¡‚µ‚Ä“Ç‚Ü‚³‚ê‚éÅŒã‚ÌƒŒƒR[ƒh‚É‘Î‚µ‚Ä‚¾‚¯‹N‚±‚è‚¤‚éB
     //        //    if(recordMetadata.Address==lastAcceptedAddress)
-    //        //        cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;//Pendingã®å½±éŸ¿ã§é‡è¤‡ â†’ RetryLastRecord ä»˜ã‘ãªã„
+    //        //        cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;//Pending‚Ì‰e‹¿‚Åd•¡ ¨ RetryLastRecord •t‚¯‚È‚¢
     //        //    else
     //        //        cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
     //        //    return true;
@@ -230,23 +228,23 @@ public abstract class Collection<
     //    where TList:List<T>{
     //    private long Cursor,Count;
     //    private int Index = -1;
-    //    private bool æœ€å¾Œã®ãƒ‡ãƒ¼ã‚¿é…åˆ—ã‹;
+    //    private bool ÅŒã‚Ìƒf[ƒ^”z—ñ‚©;
     //    public readonly T Current => Iterator.Chunk[this.Index];
     //    readonly object? IEnumerator.Current => this.Current;
     //    public bool MoveNext() {
     //        if(++this.Index<this.Count)
     //            return true;
-    //        if(this.æœ€å¾Œã®ãƒ‡ãƒ¼ã‚¿é…åˆ—ã‹) {
+    //        if(this.ÅŒã‚Ìƒf[ƒ^”z—ñ‚©) {
     //            return false;
     //        }
-    //        var ã¾ã ãƒ‡ãƒ¼ã‚¿ãŒã‚ã‚‹=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+    //        var ‚Ü‚¾ƒf[ƒ^‚ª‚ ‚é=Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
     //        //Session.BasicContext.CompletePending(wait: true);
     //        var Count = Iterator.Count;
     //        if(Iterator.LastAcceptedAddress>0)
     //            this.Cursor=Iterator.LastAcceptedAddress;
     //        this.Count=Count;
-    //        if(!ã¾ã ãƒ‡ãƒ¼ã‚¿ãŒã‚ã‚‹&&Count==0)
-    //            this.æœ€å¾Œã®ãƒ‡ãƒ¼ã‚¿é…åˆ—ã‹=true;
+    //        if(!‚Ü‚¾ƒf[ƒ^‚ª‚ ‚é&&Count==0)
+    //            this.ÅŒã‚Ìƒf[ƒ^”z—ñ‚©=true;
     //        if(Count>0) {
     //            this.Index=0;
     //            return true;
@@ -257,7 +255,7 @@ public abstract class Collection<
     //        this.Cursor=0;
     //        this.Count=0;
     //        this.Index=-1;
-    //        this.æœ€å¾Œã®ãƒ‡ãƒ¼ã‚¿é…åˆ—ã‹=false;
+    //        this.ÅŒã‚Ìƒf[ƒ^”z—ñ‚©=false;
     //    }
     //    public readonly void Dispose() {
     //    }
@@ -456,8 +454,8 @@ public abstract class Collection<
         this.RecreateAdditionalSessions();
     }
     public virtual void Refresh() {
-        // Tsavorite 1.1.1 ã§ã‚‚å¤ã„ session ã¯æ—§ä¸–ä»£ã® epoch å‚ç…§ã‚’å¼•ããšã‚Šã†ã‚‹ãŸã‚ã€
-        // session ã‚’å¼µã‚Šæ›¿ãˆã¦ pending ã‚’è§£æ¶ˆã—ã€log truncation ã‚’é€²ã‚ã‚„ã™ãã™ã‚‹ã€‚
+        // Tsavorite 1.1.1 ‚Å‚àŒÃ‚¢ session ‚Í‹Œ¢‘ã‚Ì epoch QÆ‚ğˆø‚«‚¸‚è‚¤‚é‚½‚ßA
+        // session ‚ğ’£‚è‘Ö‚¦‚Ä pending ‚ğ‰ğÁ‚µAlog truncation ‚ği‚ß‚â‚·‚­‚·‚éB
         this.DisposeAdditionalSessions();
         this.DisposeCoreSessions();
         this.RecreateCoreSessions();
@@ -657,7 +655,7 @@ public abstract class Collection<
         public bool FoundOverlap = false;
         private bool ReaderCore(ref TSessionKey key,ref TSessionValue value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             if(this.FoundOverlap) {
-                Debug.Fail("ã“ã“ã¯å‘¼ã°ã‚Œã‚‹ã“ã¨ã¯ãªã„ã¯ãš");
+                Debug.Fail("‚±‚±‚ÍŒÄ‚Î‚ê‚é‚±‚Æ‚Í‚È‚¢‚Í‚¸");
                 //cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
                 //return true;
             }

@@ -1,13 +1,13 @@
-Ôªøusing Seamless.Collections;
+using Seamless.Collections;
 using Seamless.Devices;
 
 namespace Seamless.Stores;
 /// <summary>
-/// UnmanagedHashSet Áî®„ÅÆ Tsavorite „Çπ„Éà„Ç¢„ÄÇ
+/// UnmanagedHashSet ópÇÃ Tsavorite ÉXÉgÉAÅB
 /// </summary>
 public class UnmanagedHashSetStore<TKey>
     :UnmanagedCollectionStore<TKey,EqualityEmpty>
-    where TKey : unmanaged, IEquatable<TKey> {
+    where TKey : unmanaged {
     internal UnmanagedHashSetStore(
         long IndexSize,
         long PageSize,
@@ -61,7 +61,7 @@ public class UnmanagedHashSetStore<TKey>
 }
 
 //public class UnmanagedUnmanagedHashSetStore<TKey>:UnmanagedHashSetStore<TKey>
-//    where TKey : unmanaged, IEquatable<TKey> {
+//    where TKey : unmanaged {
 //    internal UnmanagedUnmanagedHashSetStore(
 //        long IndexSize,
 //        long PageSize,

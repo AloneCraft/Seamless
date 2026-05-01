@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -136,10 +136,6 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
     private static void AddInterceptorSources(SourceProductionContext context,string projectDirectory,ImmutableArray<WhereInterceptTarget> whereTargets,ImmutableArray<ContainerMethodInterceptTarget> containerMethodTargets,ImmutableArray<LinqInvocationInterceptTarget> linqInvocationTargets) {
         if(whereTargets.IsDefaultOrEmpty&&containerMethodTargets.IsDefaultOrEmpty&&linqInvocationTargets.IsDefaultOrEmpty) {
             return;
-        }
-
-        if(!linqInvocationTargets.IsDefaultOrEmpty) {
-            context.AddSource("Seamless.SourceGenerator.LinqInvocationFusionSupport.g.cs",SourceText.From(RemoveBlankLines(BuildLinqInvocationFusionSupportSource()),Encoding.UTF8));
         }
 
         var buckets = new Dictionary<string,InterceptorSourceBucket>(StringComparer.OrdinalIgnoreCase);
@@ -311,6 +307,17 @@ namespace Seamless {
     [global::System.AttributeUsage(global::System.AttributeTargets.Class|global::System.AttributeTargets.Method,AllowMultiple=false,Inherited=false)]
     internal sealed class OptimizeAttribute:global::System.Attribute {
     }
+
+    [global::System.AttributeUsage(global::System.AttributeTargets.Class,AllowMultiple=true,Inherited=false)]
+    internal sealed class DatabaseSchemaAttribute:global::System.Attribute {
+        public DatabaseSchemaAttribute(string namespaceName,string definitions) {
+            NamespaceName=namespaceName;
+            Definitions=definitions;
+        }
+
+        public string NamespaceName { get; }
+        public string Definitions { get; }
+    }
 }
 """;
 
@@ -468,6 +475,17 @@ namespace Seamless {
             return null;
         }
         if(!IsSupportedLinqMethod(method)) {
+            return null;
+        }
+        if(ContainsAnonymousType(method.ReturnType)
+            ||method.TypeArguments.Any(ContainsAnonymousType)
+            ||method.Parameters.Any(static parameter => ContainsAnonymousType(parameter.Type))) {
+            return null;
+        }
+        if(ContainsErrorType(method.ReturnType)
+            ||method.TypeArguments.Any(ContainsErrorType)
+            ||method.Parameters.Any(static parameter => ContainsErrorType(parameter.Type))
+            ||ContainsErrorTypeInExpression(invocation,context.SemanticModel,cancellationToken)) {
             return null;
         }
         if(IsListWhereInterceptorCandidate(invocation,method,context.SemanticModel,cancellationToken)) {
@@ -1859,458 +1877,6 @@ namespace Seamless {
         builder.AppendLine("    }");
     }
 
-    private static string BuildLinqInvocationFusionSupportSource() => """
-namespace Seamless.SourceGenerator.Generated {
-    // LINQ 呼び出し連鎖 (Select/Where/Take の連続) を単一ループに統合する fusion 基盤クラス群。
-    // 「操作を積む」フェーズと「実体化」フェーズを分離することで、
-    // 元のシーケンスを 1 回だけ列挙しながら複数の操作を同時に適用できる。
-    // すべての中間型を struct にすることで仮想ディスパッチを排除し、JIT インライン展開を促進している。
-    internal static class LinqInvocationFusionSupport {
-        // fusion 対象シーケンスが実装するインターフェイス。
-        // interceptor 生成コードは source がこれを実装しているかを is 演算子で検出し、
-        // 外側の LINQ 操作をソースの再列挙なしに積むか実体化するかを切り替える。
-        internal interface I融合ソース<T>:global::System.Collections.Generic.IEnumerable<T> {
-            // Select 操作を pipeline の末尾に追加し、出力型が TResult に変わった新しい融合ソースを返す。
-            // 実際の列挙はまだ行わず、操作の記述だけを積む。
-            I融合ソース<TResult> 選択追加<TResult>(
-                global::System.Func<T,TResult> selector,
-                [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(selector))] string? selector式 = null);
-            // delegate を保持せず、生成 struct strategy の static interface 呼び出しで Select 操作を pipeline の末尾に追加する。
-            I融合ソース<TResult> 選択追加<TResult,TSelector>(
-                string? selector式 = null)
-                where TSelector : struct,I融合選択<T,TResult>;
-            // Where 操作を pipeline の末尾に追加し、同じ要素型の新しい融合ソースを返す。
-            I融合ソース<T> 絞込追加(
-                global::System.Func<T,bool> predicate,
-                [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(predicate))] string? predicate式 = null);
-            // delegate を保持せず、生成 struct strategy の static interface 呼び出しで Where 操作を pipeline の末尾に追加する。
-            I融合ソース<T> 絞込追加<TPredicate>(
-                string? predicate式 = null)
-                where TPredicate : struct,I融合絞込<T>;
-            // Take 操作を pipeline の末尾に追加し、先頭 count 件に絞った新しい融合ソースを返す。
-            I融合ソース<T> 先頭取得追加(
-                int count,
-                [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(count))] string? count式 = null);
-            // pipeline をすべて適用しながらソースを 1 回列挙し、最後に selector を掛けた List<TResult> を返す。
-            global::System.Collections.Generic.List<TResult> 選択実体化<TResult>(global::System.Func<T,TResult> selector);
-            // pipeline をすべて適用しながらソースを 1 回列挙し、最後に static interface strategy selector を掛けた List<TResult> を返す。
-            global::System.Collections.Generic.List<TResult> 選択実体化<TResult,TSelector>()
-                where TSelector : struct,I融合選択<T,TResult>;
-            // pipeline をすべて適用しながらソースを 1 回列挙し、結果を List<T> で返す。
-            global::System.Collections.Generic.List<T> リスト実体化();
-            // pipeline をすべて適用しながらソースを 1 回列挙し、結果を T[] で返す。
-            T[] 配列実体化();
-            // デバッグ時に Watch/Locals へ表示する元のソース式と積み上げた操作列。
-            string ウォッチ式 { get; }
-        }
-        // Select の static ラムダ本文を生成 struct の static Invoke に下げるための strategy interface。
-        internal interface I融合選択<T,TResult> {
-            static abstract TResult Invoke(T value);
-        }
-        // Where の static ラムダ本文を生成 struct の static Invoke に下げるための strategy interface。
-        internal interface I融合絞込<T> {
-            static abstract bool Invoke(T value);
-        }
-        // 1 要素を pipeline に通した結果を表す軽量な判別共用体 (struct)。
-        // State==1: 値あり → 出力リストに追加する。
-        // State==2: 中断  → ループを直ちに打ち切る (Take の上限到達など)。
-        // default (State==0): スキップ → この要素は捨てて次へ進む (Where で弾かれた場合など)。
-        private readonly struct 融合ステップ<T> {
-            private 融合ステップ(byte state,T value) {
-                this.State=state;
-                this.Value=value;
-            }
-            // 現在の状態 (0=スキップ, 1=値あり, 2=中断)。
-            public byte State { get; }
-            // State==1 のときだけ有効な出力値。
-            public T Value { get; }
-            // 出力値を持つかどうか。
-            public bool HasValue => this.State==1;
-            // ループを打ち切るべきかどうか。
-            public bool Stop => this.State==2;
-            // 値ありステップを生成するファクトリメソッド。
-            public static 融合ステップ<T> Yield(T value) => new(1,value);
-            // 中断ステップを生成するファクトリメソッド。
-            public static 融合ステップ<T> StopStep() => new(2,default!);
-        }
-        // TRoot 型の生要素を受け取り TCurrent 型の融合ステップに変換するプロジェクタのインターフェイス。
-        // struct で実装して仮想ディスパッチを排除し、ジェネリクスによる静的ディスパッチに落とす。
-        private interface I融合プロジェクタ<TRoot,TCurrent> {
-            // まだ続きの要素を受け付けられるかどうか。false になったら外側のループを終了する。
-            bool CanContinue { get; }
-            // item を pipeline に通して融合ステップを返す。
-            融合ステップ<TCurrent> Project(TRoot item);
-        }
-        // プロジェクタを生成するファクトリのインターフェイス。
-        // 列挙を開始できるかどうかを CanStart で事前判定し、不要な列挙を省く。
-        // Create() は列挙ごとに独立した状態を持つ新しいプロジェクタを返す。
-        private interface I融合プロジェクタファクトリ<TRoot,TCurrent,TProjector>
-            where TProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
-            // 列挙を開始できるかどうか。false なら空シーケンスとして扱う。
-            bool CanStart { get; }
-            // 新しいプロジェクタインスタンスを生成する。
-            TProjector Create();
-        }
-        // 何も変換しない恒等プロジェクタのファクトリ。
-        // Create() の初期状態として使われ、Select/Where/Take が積まれる前の素通し状態を表す。
-        private readonly struct 恒等プロジェクタファクトリ<T>:I融合プロジェクタファクトリ<T,T,恒等プロジェクタ<T>> {
-            // 恒等変換は常に開始可能。
-            public bool CanStart => true;
-            public 恒等プロジェクタ<T> Create() => default;
-        }
-        // 要素をそのまま Yield する恒等プロジェクタ。Select/Where/Take が何も積まれていない初期状態で使われる。
-        private struct 恒等プロジェクタ<T>:I融合プロジェクタ<T,T> {
-            // 恒等変換は常に継続可能。
-            public bool CanContinue => true;
-            public 融合ステップ<T> Project(T item) => 融合ステップ<T>.Yield(item);
-        }
-        // 常に空を返すプロジェクタのファクトリ。Take(0) や Take(負数) の結果として生成される。
-        private readonly struct 空プロジェクタファクトリ<TRoot,TCurrent>:I融合プロジェクタファクトリ<TRoot,TCurrent,空プロジェクタ<TRoot,TCurrent>> {
-            // 空なので列挙を開始しない。
-            public bool CanStart => false;
-            public 空プロジェクタ<TRoot,TCurrent> Create() => default;
-        }
-        // 常に Stop を返すプロジェクタ。空ファクトリの Create() によって生成され、ループを即座に打ち切る。
-        private struct 空プロジェクタ<TRoot,TCurrent>:I融合プロジェクタ<TRoot,TCurrent> {
-            public bool CanContinue => false;
-            public 融合ステップ<TCurrent> Project(TRoot item) => 融合ステップ<TCurrent>.StopStep();
-        }
-        // Select 操作を前段に連結するプロジェクタのファクトリ。
-        // 前段プロジェクタ (TPreviousProjector) の出力値に selector を適用して TResult 型に変換する。
-        private readonly struct 選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TPreviousFactory,TPreviousProjector>:I融合プロジェクタファクトリ<TRoot,TResult,選択プロジェクタ<TRoot,TCurrent,TResult,TPreviousProjector>>
-            where TPreviousFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TPreviousProjector>
-            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
-            private readonly TPreviousFactory previousFactory;
-            private readonly global::System.Func<TCurrent,TResult> selector;
-            public 選択プロジェクタファクトリ(TPreviousFactory previousFactory,global::System.Func<TCurrent,TResult> selector) {
-                this.previousFactory=previousFactory;
-                this.selector=selector;
-            }
-            // 前段が開始できないなら自分も開始しない。
-            public bool CanStart => this.previousFactory.CanStart;
-            public 選択プロジェクタ<TRoot,TCurrent,TResult,TPreviousProjector> Create() => new(this.previousFactory.Create(),this.selector);
-        }
-        // Select を実行するプロジェクタ。前段の出力が HasValue のとき selector を呼び出し結果を Yield する。
-        // 前段が Stop を返したときは Stop を伝播し、スキップ (default) のときはそのままスキップする。
-        private struct 選択プロジェクタ<TRoot,TCurrent,TResult,TPreviousProjector>:I融合プロジェクタ<TRoot,TResult>
-            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
-            private TPreviousProjector previousProjector;
-            private readonly global::System.Func<TCurrent,TResult> selector;
-            public 選択プロジェクタ(TPreviousProjector previousProjector,global::System.Func<TCurrent,TResult> selector) {
-                this.previousProjector=previousProjector;
-                this.selector=selector;
-            }
-            public bool CanContinue => this.previousProjector.CanContinue;
-            public 融合ステップ<TResult> Project(TRoot item) {
-                var step = this.previousProjector.Project(item);
-                if(step.Stop) {
-                    return 融合ステップ<TResult>.StopStep();
-                }
-                if(!step.HasValue) {
-                    // 前段がスキップを返した: この要素は捨てて次へ。
-                    return default;
-                }
-                return 融合ステップ<TResult>.Yield(this.selector(step.Value));
-            }
-        }
-        // Select 操作を生成 struct strategy として前段に連結するプロジェクタのファクトリ。
-        private readonly struct 静的選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TSelector,TPreviousFactory,TPreviousProjector>:I融合プロジェクタファクトリ<TRoot,TResult,静的選択プロジェクタ<TRoot,TCurrent,TResult,TSelector,TPreviousProjector>>
-            where TSelector : struct,I融合選択<TCurrent,TResult>
-            where TPreviousFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TPreviousProjector>
-            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
-            private readonly TPreviousFactory previousFactory;
-            public 静的選択プロジェクタファクトリ(TPreviousFactory previousFactory) {
-                this.previousFactory=previousFactory;
-            }
-            public bool CanStart => this.previousFactory.CanStart;
-            public 静的選択プロジェクタ<TRoot,TCurrent,TResult,TSelector,TPreviousProjector> Create() => new(this.previousFactory.Create());
-        }
-        // Select を struct strategy の static interface 呼び出しで実行するプロジェクタ。
-        private struct 静的選択プロジェクタ<TRoot,TCurrent,TResult,TSelector,TPreviousProjector>:I融合プロジェクタ<TRoot,TResult>
-            where TSelector : struct,I融合選択<TCurrent,TResult>
-            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
-            private TPreviousProjector previousProjector;
-            public 静的選択プロジェクタ(TPreviousProjector previousProjector) {
-                this.previousProjector=previousProjector;
-            }
-            public bool CanContinue => this.previousProjector.CanContinue;
-            public 融合ステップ<TResult> Project(TRoot item) {
-                var step = this.previousProjector.Project(item);
-                if(step.Stop) {
-                    return 融合ステップ<TResult>.StopStep();
-                }
-                if(!step.HasValue) {
-                    return default;
-                }
-                return 融合ステップ<TResult>.Yield(TSelector.Invoke(step.Value));
-            }
-        }
-        // Where 操作を前段に連結するプロジェクタのファクトリ。
-        // 前段プロジェクタの出力値に predicate を適用して偽なら要素をスキップする。
-        private readonly struct 絞込プロジェクタファクトリ<TRoot,TCurrent,TPreviousFactory,TPreviousProjector>:I融合プロジェクタファクトリ<TRoot,TCurrent,絞込プロジェクタ<TRoot,TCurrent,TPreviousProjector>>
-            where TPreviousFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TPreviousProjector>
-            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
-            private readonly TPreviousFactory previousFactory;
-            private readonly global::System.Func<TCurrent,bool> predicate;
-            public 絞込プロジェクタファクトリ(TPreviousFactory previousFactory,global::System.Func<TCurrent,bool> predicate) {
-                this.previousFactory=previousFactory;
-                this.predicate=predicate;
-            }
-            public bool CanStart => this.previousFactory.CanStart;
-            public 絞込プロジェクタ<TRoot,TCurrent,TPreviousProjector> Create() => new(this.previousFactory.Create(),this.predicate);
-        }
-        // Where を実行するプロジェクタ。predicate が偽の要素は default (スキップ) を返す。
-        // Stop とスキップは前段の結果をそのまま伝播する。
-        private struct 絞込プロジェクタ<TRoot,TCurrent,TPreviousProjector>:I融合プロジェクタ<TRoot,TCurrent>
-            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
-            private TPreviousProjector previousProjector;
-            private readonly global::System.Func<TCurrent,bool> predicate;
-            public 絞込プロジェクタ(TPreviousProjector previousProjector,global::System.Func<TCurrent,bool> predicate) {
-                this.previousProjector=previousProjector;
-                this.predicate=predicate;
-            }
-            public bool CanContinue => this.previousProjector.CanContinue;
-            public 融合ステップ<TCurrent> Project(TRoot item) {
-                var step = this.previousProjector.Project(item);
-                if(step.Stop||!step.HasValue) {
-                    // Stop またはスキップはそのまま伝播する。
-                    return step;
-                }
-                // predicate が偽なら default (スキップ) を返す。
-                return this.predicate(step.Value) ? step : default;
-            }
-        }
-        // Where 操作を生成 struct strategy として前段に連結するプロジェクタのファクトリ。
-        private readonly struct 静的絞込プロジェクタファクトリ<TRoot,TCurrent,TPredicate,TPreviousFactory,TPreviousProjector>:I融合プロジェクタファクトリ<TRoot,TCurrent,静的絞込プロジェクタ<TRoot,TCurrent,TPredicate,TPreviousProjector>>
-            where TPredicate : struct,I融合絞込<TCurrent>
-            where TPreviousFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TPreviousProjector>
-            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
-            private readonly TPreviousFactory previousFactory;
-            public 静的絞込プロジェクタファクトリ(TPreviousFactory previousFactory) {
-                this.previousFactory=previousFactory;
-            }
-            public bool CanStart => this.previousFactory.CanStart;
-            public 静的絞込プロジェクタ<TRoot,TCurrent,TPredicate,TPreviousProjector> Create() => new(this.previousFactory.Create());
-        }
-        // Where を struct strategy の static interface 呼び出しで実行するプロジェクタ。
-        private struct 静的絞込プロジェクタ<TRoot,TCurrent,TPredicate,TPreviousProjector>:I融合プロジェクタ<TRoot,TCurrent>
-            where TPredicate : struct,I融合絞込<TCurrent>
-            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
-            private TPreviousProjector previousProjector;
-            public 静的絞込プロジェクタ(TPreviousProjector previousProjector) {
-                this.previousProjector=previousProjector;
-            }
-            public bool CanContinue => this.previousProjector.CanContinue;
-            public 融合ステップ<TCurrent> Project(TRoot item) {
-                var step = this.previousProjector.Project(item);
-                if(step.Stop||!step.HasValue) {
-                    return step;
-                }
-                return TPredicate.Invoke(step.Value) ? step : default;
-            }
-        }
-        // Take 操作を前段に連結するプロジェクタのファクトリ。
-        // count<=0 の場合は CanStart=false にして空ファクトリと同等の振る舞いをする。
-        private readonly struct 先頭取得プロジェクタファクトリ<TRoot,TCurrent,TPreviousFactory,TPreviousProjector>:I融合プロジェクタファクトリ<TRoot,TCurrent,先頭取得プロジェクタ<TRoot,TCurrent,TPreviousProjector>>
-            where TPreviousFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TPreviousProjector>
-            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
-            private readonly TPreviousFactory previousFactory;
-            private readonly int count;
-            public 先頭取得プロジェクタファクトリ(TPreviousFactory previousFactory,int count) {
-                this.previousFactory=previousFactory;
-                this.count=count;
-            }
-            // count<=0 または前段が開始不可なら列挙しない。
-            public bool CanStart => this.count>0&&this.previousFactory.CanStart;
-            public 先頭取得プロジェクタ<TRoot,TCurrent,TPreviousProjector> Create() => new(this.previousFactory.Create(),this.count);
-        }
-        // Take を実行するプロジェクタ。出力した件数を remaining でカウントし、
-        // 0 になったら Stop を返してループを打ち切る。
-        private struct 先頭取得プロジェクタ<TRoot,TCurrent,TPreviousProjector>:I融合プロジェクタ<TRoot,TCurrent>
-            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
-            private TPreviousProjector previousProjector;
-            // まだ出力できる残り件数。Yield するたびにデクリメントする。
-            private int remaining;
-            public 先頭取得プロジェクタ(TPreviousProjector previousProjector,int count) {
-                this.previousProjector=previousProjector;
-                this.remaining=count;
-            }
-            public bool CanContinue => this.remaining>0&&this.previousProjector.CanContinue;
-            public 融合ステップ<TCurrent> Project(TRoot item) {
-                if(this.remaining<=0||!this.previousProjector.CanContinue) {
-                    return 融合ステップ<TCurrent>.StopStep();
-                }
-                var step = this.previousProjector.Project(item);
-                if(step.Stop||!step.HasValue) {
-                    return step;
-                }
-                // 値を出力したので残り件数をデクリメントする。
-                this.remaining--;
-                return step;
-            }
-        }
-        // I融合ソース<TCurrent> の具体実装クラス。
-        // 元のシーケンス source と、積み上げた操作を表す projectorFactory を保持する。
-        // 選択追加/絞込追加/先頭取得追加 は新しい型引数セットで自分自身をラップした新インスタンスを返す。
-        // リスト実体化/配列実体化/選択実体化 で初めて source を GetEnumerator() で列挙する。
-        [global::System.Diagnostics.DebuggerDisplay("{ウォッチ式,nq}")]
-        private sealed class 融合ソース実装<TRoot,TCurrent,TProjectorFactory,TProjector>:I融合ソース<TCurrent>
-            where TProjectorFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TProjector>
-            where TProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
-            private readonly global::System.Collections.Generic.IEnumerable<TRoot> source;
-            private readonly TProjectorFactory projectorFactory;
-            private readonly string watchExpression;
-            public 融合ソース実装(global::System.Collections.Generic.IEnumerable<TRoot> source,TProjectorFactory projectorFactory,string? watchExpression) {
-                this.source=source;
-                this.projectorFactory=projectorFactory;
-                this.watchExpression=global::System.String.IsNullOrWhiteSpace(watchExpression) ? "source" : watchExpression!;
-            }
-            public string ウォッチ式 => this.watchExpression;
-            // 選択追加: Select 操作を pipeline に追加した新しい融合ソースを返す (出力型が TResult に変わる)。
-            public I融合ソース<TResult> 選択追加<TResult>(global::System.Func<TCurrent,TResult> selector,[global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(selector))] string? selector式 = null) {
-                global::System.ArgumentNullException.ThrowIfNull(selector);
-                var factory = new 選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TProjectorFactory,TProjector>(this.projectorFactory,selector);
-                return new 融合ソース実装<TRoot,TResult,選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TProjectorFactory,TProjector>,選択プロジェクタ<TRoot,TCurrent,TResult,TProjector>>(this.source,factory,$"{this.watchExpression}.Select({FormatWatchArgument(selector式)})");
-            }
-            // 選択追加: Select 操作を static interface strategy として pipeline に追加する。
-            public I融合ソース<TResult> 選択追加<TResult,TSelector>(string? selector式 = null)
-                where TSelector : struct,I融合選択<TCurrent,TResult> {
-                var factory = new 静的選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TSelector,TProjectorFactory,TProjector>(this.projectorFactory);
-                return new 融合ソース実装<TRoot,TResult,静的選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TSelector,TProjectorFactory,TProjector>,静的選択プロジェクタ<TRoot,TCurrent,TResult,TSelector,TProjector>>(this.source,factory,$"{this.watchExpression}.Select({FormatWatchArgument(selector式)})");
-            }
-            // 絞込追加: Where 操作を pipeline に追加した新しい融合ソースを返す (出力型は変わらない)。
-            public I融合ソース<TCurrent> 絞込追加(global::System.Func<TCurrent,bool> predicate,[global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(predicate))] string? predicate式 = null) {
-                global::System.ArgumentNullException.ThrowIfNull(predicate);
-                var factory = new 絞込プロジェクタファクトリ<TRoot,TCurrent,TProjectorFactory,TProjector>(this.projectorFactory,predicate);
-                return new 融合ソース実装<TRoot,TCurrent,絞込プロジェクタファクトリ<TRoot,TCurrent,TProjectorFactory,TProjector>,絞込プロジェクタ<TRoot,TCurrent,TProjector>>(this.source,factory,$"{this.watchExpression}.Where({FormatWatchArgument(predicate式)})");
-            }
-            // 絞込追加: Where 操作を static interface strategy として pipeline に追加する。
-            public I融合ソース<TCurrent> 絞込追加<TPredicate>(string? predicate式 = null)
-                where TPredicate : struct,I融合絞込<TCurrent> {
-                var factory = new 静的絞込プロジェクタファクトリ<TRoot,TCurrent,TPredicate,TProjectorFactory,TProjector>(this.projectorFactory);
-                return new 融合ソース実装<TRoot,TCurrent,静的絞込プロジェクタファクトリ<TRoot,TCurrent,TPredicate,TProjectorFactory,TProjector>,静的絞込プロジェクタ<TRoot,TCurrent,TPredicate,TProjector>>(this.source,factory,$"{this.watchExpression}.Where({FormatWatchArgument(predicate式)})");
-            }
-            // 先頭取得追加: Take 操作を pipeline に追加した新しい融合ソースを返す。
-            // count<=0 のときは空プロジェクタファクトリで即座に空を表す融合ソースを返す。
-            public I融合ソース<TCurrent> 先頭取得追加(int count,[global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(count))] string? count式 = null) {
-                var watchExpression = $"{this.watchExpression}.Take({FormatWatchArgument(count式)})";
-                if(count<=0) {
-                    return new 融合ソース実装<TRoot,TCurrent,空プロジェクタファクトリ<TRoot,TCurrent>,空プロジェクタ<TRoot,TCurrent>>(this.source,default,watchExpression);
-                }
-                var factory = new 先頭取得プロジェクタファクトリ<TRoot,TCurrent,TProjectorFactory,TProjector>(this.projectorFactory,count);
-                return new 融合ソース実装<TRoot,TCurrent,先頭取得プロジェクタファクトリ<TRoot,TCurrent,TProjectorFactory,TProjector>,先頭取得プロジェクタ<TRoot,TCurrent,TProjector>>(this.source,factory,watchExpression);
-            }
-            // 選択実体化: ソースを 1 回列挙して蓄積済み pipeline を通し、最後に selector を適用した List<TResult> を返す。
-            // Select が外側にあり materialize 境界になった場合に呼ばれる。
-            public global::System.Collections.Generic.List<TResult> 選択実体化<TResult>(global::System.Func<TCurrent,TResult> selector) {
-                global::System.ArgumentNullException.ThrowIfNull(selector);
-                var result = new global::System.Collections.Generic.List<TResult>();
-                if(!this.projectorFactory.CanStart) {
-                    return result;
-                }
-                var projector = this.projectorFactory.Create();
-                if(!projector.CanContinue) {
-                    return result;
-                }
-                using var enumerator = this.source.GetEnumerator();
-                while(projector.CanContinue&&enumerator.MoveNext()) {
-                    var step = projector.Project(enumerator.Current);
-                    if(step.Stop) {
-                        break;
-                    }
-                    if(step.HasValue) {
-                        result.Add(selector(step.Value));
-                    }
-                }
-                return result;
-            }
-            // 選択実体化: 最後の Select を static interface strategy として実行する。
-            public global::System.Collections.Generic.List<TResult> 選択実体化<TResult,TSelector>()
-                where TSelector : struct,I融合選択<TCurrent,TResult> {
-                var result = new global::System.Collections.Generic.List<TResult>();
-                if(!this.projectorFactory.CanStart) {
-                    return result;
-                }
-                var projector = this.projectorFactory.Create();
-                if(!projector.CanContinue) {
-                    return result;
-                }
-                using var enumerator = this.source.GetEnumerator();
-                while(projector.CanContinue&&enumerator.MoveNext()) {
-                    var step = projector.Project(enumerator.Current);
-                    if(step.Stop) {
-                        break;
-                    }
-                    if(step.HasValue) {
-                        result.Add(TSelector.Invoke(step.Value));
-                    }
-                }
-                return result;
-            }
-            // リスト実体化: ソースを 1 回列挙して蓄積済み pipeline を通した List<TCurrent> を返す。
-            public global::System.Collections.Generic.List<TCurrent> リスト実体化() {
-                var result = new global::System.Collections.Generic.List<TCurrent>();
-                if(!this.projectorFactory.CanStart) {
-                    return result;
-                }
-                var projector = this.projectorFactory.Create();
-                if(!projector.CanContinue) {
-                    return result;
-                }
-                using var enumerator = this.source.GetEnumerator();
-                while(projector.CanContinue&&enumerator.MoveNext()) {
-                    var step = projector.Project(enumerator.Current);
-                    if(step.Stop) {
-                        break;
-                    }
-                    if(step.HasValue) {
-                        result.Add(step.Value);
-                    }
-                }
-                return result;
-            }
-            // 配列実体化: リスト実体化 の結果を ToArray() で配列に変換して返す。
-            public TCurrent[] 配列実体化() => this.リスト実体化().ToArray();
-            // IEnumerable<TCurrent> として列挙するとき pipeline を通してストリーミング出力する。
-            // ToList/ToArray/Select 等の materialize 境界ではなく foreach で直接使われる場合のパス。
-            public global::System.Collections.Generic.IEnumerator<TCurrent> GetEnumerator() {
-                if(!this.projectorFactory.CanStart) {
-                    yield break;
-                }
-                var projector = this.projectorFactory.Create();
-                if(!projector.CanContinue) {
-                    yield break;
-                }
-                using var enumerator = this.source.GetEnumerator();
-                while(projector.CanContinue&&enumerator.MoveNext()) {
-                    var step = projector.Project(enumerator.Current);
-                    if(step.Stop) {
-                        yield break;
-                    }
-                    if(step.HasValue) {
-                        yield return step.Value;
-                    }
-                }
-            }
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
-            private static string FormatWatchArgument(string? argumentExpression) {
-                return global::System.String.IsNullOrWhiteSpace(argumentExpression) ? "?" : argumentExpression!;
-            }
-        }
-        // source が既に I融合ソース<T> であればそのまま返す (二重ラップを防ぐ)。
-        // そうでなければ恒等プロジェクタを初期状態として 融合ソース実装 を新規作成する。
-        internal static I融合ソース<T> Create<T>(
-            global::System.Collections.Generic.IEnumerable<T> source,
-            [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(source))] string? source式 = null) {
-            global::System.ArgumentNullException.ThrowIfNull(source);
-            if(source is I融合ソース<T> 既存融合ソース) {
-                return 既存融合ソース;
-            }
-            return new 融合ソース実装<T,T,恒等プロジェクタファクトリ<T>,恒等プロジェクタ<T>>(source,default,source式);
-        }
-    }
-}
-""";
 
     private static void AppendContainerMethodInterceptorSource(StringBuilder builder,ImmutableArray<ContainerMethodInterceptTarget> containerMethodTargets) {
         if(containerMethodTargets.IsDefaultOrEmpty) {
@@ -2498,10 +2064,18 @@ namespace Seamless.SourceGenerator.Generated {
         builder.AppendLine("#pragma warning disable CS0164, CS8601");
 
         foreach(var rootNamespace in rootNamespaces) {
+            var schemaRecords = typeTargets
+                .Where(target => target.Symbol.Name=="DatabaseGenerator"&&GetNamespaceText(target.Symbol.ContainingNamespace)==rootNamespace)
+                .SelectMany(target => GetSchemaRecordDefinitions(target.Symbol,rootNamespace))
+                .GroupBy(static record => record.FullTypeName,StringComparer.Ordinal)
+                .Select(static group => group.First())
+                .ToArray();
+            var schemaRecordTypeNames = new HashSet<string>(schemaRecords.Select(static record => record.FullTypeName),StringComparer.Ordinal);
             var keys = typeTargets
                 .Where(target => target.IsPartial
                     &&target.Symbol.TypeKind==TypeKind.Struct
-                    &&NamespaceEquals(target.Symbol.ContainingNamespace.ToDisplayString(),rootNamespace,"Keys"))
+                    &&NamespaceEquals(target.Symbol.ContainingNamespace.ToDisplayString(),rootNamespace,"Keys")
+                    &&!schemaRecordTypeNames.Contains(target.Symbol.ToDisplayString(FullyQualifiedFormat)))
                 .Select(target => target.Symbol)
                 .GroupBy(static symbol => symbol.ToDisplayString(FullyQualifiedFormat),StringComparer.Ordinal)
                 .Select(static group => group.First())
@@ -2510,11 +2084,20 @@ namespace Seamless.SourceGenerator.Generated {
             var types = typeTargets
                 .Where(target => target.IsPartial
                     &&target.Symbol.TypeKind==TypeKind.Struct
-                    &&NamespaceEquals(target.Symbol.ContainingNamespace.ToDisplayString(),rootNamespace,"Types"))
+                    &&NamespaceEquals(target.Symbol.ContainingNamespace.ToDisplayString(),rootNamespace,"Records")
+                    &&!schemaRecordTypeNames.Contains(target.Symbol.ToDisplayString(FullyQualifiedFormat)))
                 .Select(target => target.Symbol)
                 .GroupBy(static symbol => symbol.ToDisplayString(FullyQualifiedFormat),StringComparer.Ordinal)
                 .Select(static group => group.First())
                 .OrderBy(static symbol => symbol.Name,StringComparer.Ordinal)
+                .ToArray();
+            var generatedKeys = schemaRecords
+                .Where(static record => string.Equals(record.NamespaceName,"Keys",StringComparison.OrdinalIgnoreCase))
+                .OrderBy(static record => record.Name,StringComparer.Ordinal)
+                .ToArray();
+            var generatedTypes = schemaRecords
+                .Where(static record => string.Equals(record.NamespaceName,"Records",StringComparison.OrdinalIgnoreCase))
+                .OrderBy(static record => record.Name,StringComparer.Ordinal)
                 .ToArray();
             var hasRootNs = !string.IsNullOrEmpty(rootNamespace);
             var rootNsIndent = hasRootNs ? "    " : "";
@@ -2523,9 +2106,12 @@ namespace Seamless.SourceGenerator.Generated {
                 builder.AppendLine($"namespace {rootNamespace} {{");
             }
 
-            if(keys.Length>0) {
+            if(generatedKeys.Length>0||keys.Length>0) {
                 builder.AppendLine($"{rootNsIndent}// Generated: schema key records declared under {rootNamespace}.Keys.");
                 builder.AppendLine($"{rootNsIndent}namespace Keys {{");
+                foreach(var key in generatedKeys) {
+                    AppendSchemaRecordSourceBody(builder,key,innerIndent);
+                }
                 foreach(var key in keys) {
                     AppendRecordSourceBody(builder,key,innerIndent);
                 }
@@ -2533,9 +2119,12 @@ namespace Seamless.SourceGenerator.Generated {
                 builder.AppendLine();
             }
 
-            if(types.Length>0) {
-                builder.AppendLine($"{rootNsIndent}// Generated: schema row/value records declared under {rootNamespace}.Types.");
-                builder.AppendLine($"{rootNsIndent}namespace Types {{");
+            if(generatedTypes.Length>0||types.Length>0) {
+                builder.AppendLine($"{rootNsIndent}// Generated: schema row/value records declared under {rootNamespace}.Records.");
+                builder.AppendLine($"{rootNsIndent}namespace Records {{");
+                foreach(var type in generatedTypes) {
+                    AppendSchemaRecordSourceBody(builder,type,innerIndent);
+                }
                 foreach(var type in types) {
                     AppendRecordSourceBody(builder,type,innerIndent);
                 }
@@ -2551,7 +2140,7 @@ namespace Seamless.SourceGenerator.Generated {
         return builder.ToString();
     }
 
-    // Key / Type の partial struct を、MemoryPack で保存できる完全な schema record にする。
+    // Key / Record の partial struct を、MemoryPack で保存できる完全な schema record にする。
     // unmanaged フィールドは _u、managed フィールドは _m に寄せ、backend から扱いやすい形へ整える。
     private static void AppendRecordSourceBody(StringBuilder builder,INamedTypeSymbol symbol,string indent) {
         var properties = GetGeneratableProperties(symbol);
@@ -2618,6 +2207,136 @@ namespace Seamless.SourceGenerator.Generated {
             indentedBuilder.AppendLine("    }");
             indentedBuilder.AppendLine("}");
         }
+        AppendIndented(builder,innerBuilder.ToString(),indent);
+        builder.AppendLine();
+    }
+
+    private static ImmutableArray<SchemaRecordDefinition> GetSchemaRecordDefinitions(INamedTypeSymbol marker,string rootNamespace) {
+        var builder = ImmutableArray.CreateBuilder<SchemaRecordDefinition>();
+        foreach(var attribute in marker.GetAttributes()) {
+            if(attribute.AttributeClass?.Name!="DatabaseSchemaAttribute"||attribute.ConstructorArguments.Length!=2) {
+                continue;
+            }
+            if(attribute.ConstructorArguments[0].Value is not string namespaceName||attribute.ConstructorArguments[1].Value is not string definitions) {
+                continue;
+            }
+            foreach(var record in ParseSchemaDefinitions(rootNamespace,namespaceName,definitions)) {
+                builder.Add(record);
+            }
+        }
+        return builder.ToImmutable();
+    }
+
+    private static IEnumerable<SchemaRecordDefinition> ParseSchemaDefinitions(string rootNamespace,string namespaceName,string definitions) {
+        var normalizedNamespaceName = namespaceName.Trim();
+        if(normalizedNamespaceName.Length==0) {
+            yield break;
+        }
+        foreach(var rawLine in definitions.Replace("\r\n","\n").Split('\n')) {
+            var line = rawLine.Trim();
+            if(line.Length==0||line.StartsWith("#",StringComparison.Ordinal)||line.StartsWith("//",StringComparison.Ordinal)) {
+                continue;
+            }
+            var separatorIndex = line.IndexOf(':');
+            if(separatorIndex<=0||separatorIndex==line.Length-1) {
+                continue;
+            }
+            var recordName = line.Substring(0,separatorIndex).Trim();
+            var propertyText = line.Substring(separatorIndex+1);
+            var properties = ImmutableArray.CreateBuilder<SchemaPropertyDefinition>();
+            foreach(var rawProperty in propertyText.Split(',')) {
+                var propertyParts = rawProperty.Trim().Split(new[] { ' ', '\t' },StringSplitOptions.RemoveEmptyEntries);
+                if(propertyParts.Length!=2) {
+                    continue;
+                }
+                properties.Add(new SchemaPropertyDefinition(NormalizeSchemaTypeName(propertyParts[0]),propertyParts[1]));
+            }
+            if(recordName.Length>0&&properties.Count>0) {
+                yield return new SchemaRecordDefinition(rootNamespace,normalizedNamespaceName,recordName,properties.ToImmutable());
+            }
+        }
+    }
+
+    private static string NormalizeSchemaTypeName(string typeName) {
+        return typeName switch {
+            "bool" or "byte" or "sbyte" or "short" or "ushort" or "int" or "uint" or "long" or "ulong" or "float" or "double" or "decimal" or "char" or "string" => typeName,
+            "Boolean" => "bool",
+            "Byte" => "byte",
+            "SByte" => "sbyte",
+            "Int16" => "short",
+            "UInt16" => "ushort",
+            "Int32" => "int",
+            "UInt32" => "uint",
+            "Int64" => "long",
+            "UInt64" => "ulong",
+            "Single" => "float",
+            "Double" => "double",
+            "Decimal" => "decimal",
+            "Char" => "char",
+            "String" => "string",
+            _ => typeName,
+        };
+    }
+
+    private static void AppendSchemaRecordSourceBody(StringBuilder builder,SchemaRecordDefinition record,string indent) {
+        if(record.Properties.Length==0) {
+            return;
+        }
+
+        var unmanagedProperties = record.Properties.Where(static property => property.IsUnmanaged).ToImmutableArray();
+        var managedProperties = record.Properties.Where(static property => !property.IsUnmanaged).ToImmutableArray();
+
+        var innerBuilder = new StringBuilder();
+        innerBuilder.AppendLine($"// Generated: completed schema record for {record.FullTypeName}. unmanaged data lives in _u and managed data lives in _m.");
+        innerBuilder.AppendLine($"public partial struct {record.Name}:global::MemoryPack.IMemoryPackable<{record.FullTypeName}> {{");
+        innerBuilder.AppendLine($"    public {record.Name}({string.Join(", ",record.Properties.Select(static property => $"{property.TypeName} {GetParameterName(property.Name)}"))}) {{");
+        if(unmanagedProperties.Length>0) {
+            innerBuilder.AppendLine($"        this._u=new({string.Join(", ",unmanagedProperties.Select(static property => GetParameterName(property.Name)))});");
+        }
+        else {
+            innerBuilder.AppendLine("        this._u=new();");
+        }
+        if(managedProperties.Length>0) {
+            innerBuilder.AppendLine($"        this._m=new({string.Join(", ",managedProperties.Select(static property => GetParameterName(property.Name)))});");
+        }
+        else {
+            innerBuilder.AppendLine("        this._m=new();");
+        }
+        innerBuilder.AppendLine("    }");
+        innerBuilder.AppendLine();
+        AppendSchemaUnmanagedRecordSource(innerBuilder,unmanagedProperties);
+        innerBuilder.AppendLine("    private _U _u;");
+        innerBuilder.AppendLine();
+        AppendSchemaManagedRecordSource(innerBuilder,managedProperties);
+        innerBuilder.AppendLine("    private _M _m;");
+        innerBuilder.AppendLine();
+        foreach(var property in record.Properties) {
+            innerBuilder.AppendLine($"    public {property.TypeName} {property.Name} => this.{(property.IsUnmanaged ? "_u" : "_m")}.{property.Name};");
+        }
+        innerBuilder.AppendLine();
+        innerBuilder.AppendLine($"    static {record.Name}() {{");
+        innerBuilder.AppendLine($"        global::MemoryPack.MemoryPackFormatterProvider.Register<{record.FullTypeName}>();");
+        innerBuilder.AppendLine("    }");
+        innerBuilder.AppendLine();
+        innerBuilder.AppendLine("    static void global::MemoryPack.IMemoryPackFormatterRegister.RegisterFormatter() {");
+        innerBuilder.AppendLine($"        if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<{record.FullTypeName}>()) {{");
+        innerBuilder.AppendLine($"            global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.MemoryPackableFormatter<{record.FullTypeName}>());");
+        innerBuilder.AppendLine("        }");
+        innerBuilder.AppendLine($"        if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<{record.FullTypeName}[]>()) {{");
+        innerBuilder.AppendLine($"            global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.ArrayFormatter<{record.FullTypeName}>());");
+        innerBuilder.AppendLine("        }");
+        innerBuilder.AppendLine("    }");
+        innerBuilder.AppendLine();
+        innerBuilder.AppendLine($"    static void global::MemoryPack.IMemoryPackable<{record.FullTypeName}>.Serialize<TBufferWriter>(ref global::MemoryPack.MemoryPackWriter<TBufferWriter> writer,scoped ref {record.FullTypeName} value) {{");
+        innerBuilder.AppendLine("        writer.WriteUnmanaged(value._u);");
+        innerBuilder.AppendLine("        writer.WritePackable(value._m);");
+        innerBuilder.AppendLine("    }");
+        innerBuilder.AppendLine();
+        innerBuilder.AppendLine($"    static void global::MemoryPack.IMemoryPackable<{record.FullTypeName}>.Deserialize(ref global::MemoryPack.MemoryPackReader reader,scoped ref {record.FullTypeName} value) {{");
+        innerBuilder.AppendLine("        reader.ReadUnmanaged(out value._u);");
+        innerBuilder.AppendLine("        reader.ReadPackable(ref value._m);");
+        innerBuilder.AppendLine("    }");
+        innerBuilder.AppendLine("}");
         AppendIndented(builder,innerBuilder.ToString(),indent);
         builder.AppendLine();
     }
@@ -3316,6 +3035,41 @@ namespace Seamless.SourceGenerator.Generated {
                 return namedType.TupleElements.Any(static element => ContainsAnonymousType(element.Type));
             }
             return namedType.TypeArguments.Any(ContainsAnonymousType);
+        }
+        return false;
+    }
+
+    private static bool ContainsErrorType(ITypeSymbol? type) {
+        if(type is null) {
+            return false;
+        }
+        if(type.TypeKind==TypeKind.Error) {
+            return true;
+        }
+        if(type is IArrayTypeSymbol arrayType) {
+            return ContainsErrorType(arrayType.ElementType);
+        }
+        if(type is INamedTypeSymbol namedType) {
+            if(namedType.IsTupleType&&namedType.TupleElements.Any(static element => ContainsErrorType(element.Type))) {
+                return true;
+            }
+            return namedType.TypeArguments.Any(ContainsErrorType);
+        }
+        return false;
+    }
+
+    private static bool ContainsErrorTypeInExpression(ExpressionSyntax expression,SemanticModel semanticModel,System.Threading.CancellationToken cancellationToken) {
+        foreach(var childExpression in expression.DescendantNodesAndSelf().OfType<ExpressionSyntax>()) {
+            var typeInfo = semanticModel.GetTypeInfo(childExpression,cancellationToken);
+            if(ContainsErrorType(typeInfo.Type)||ContainsErrorType(typeInfo.ConvertedType)) {
+                return true;
+            }
+            if(semanticModel.GetSymbolInfo(childExpression,cancellationToken).Symbol is IMethodSymbol method
+                &&(ContainsErrorType(method.ReturnType)
+                    ||method.TypeArguments.Any(ContainsErrorType)
+                    ||method.Parameters.Any(static parameter => ContainsErrorType(parameter.Type)))) {
+                return true;
+            }
         }
         return false;
     }
@@ -4747,7 +4501,10 @@ namespace Seamless.SourceGenerator.Generated {
     }
 
     private static string GetParameterName(IPropertySymbol property) {
-        var name = property.Name;
+        return GetParameterName(property.Name);
+    }
+
+    private static string GetParameterName(string name) {
         if(string.IsNullOrEmpty(name)) {
             return "value";
         }
@@ -4803,6 +4560,16 @@ namespace Seamless.SourceGenerator.Generated {
         builder.AppendLine("    }");
     }
 
+    private static void AppendSchemaUnmanagedRecordSource(StringBuilder builder,ImmutableArray<SchemaPropertyDefinition> unmanagedProperties) {
+        if(unmanagedProperties.Length>0) {
+            builder.AppendLine($"    private readonly record struct _U({string.Join(", ",unmanagedProperties.Select(static property => $"{property.TypeName} {property.Name}"))});");
+            return;
+        }
+
+        builder.AppendLine("    private struct _U {");
+        builder.AppendLine("    }");
+    }
+
     // managed フィールドは MemoryPackable な _M 側へ寄せ、型別の serialize / deserialize 文をここで組み立てる。
     private static void AppendManagedRecordSource(StringBuilder builder,ImmutableArray<IPropertySymbol> managedProperties) {
         builder.AppendLine("    private struct _M:global::MemoryPack.IMemoryPackable<_M> {");
@@ -4835,6 +4602,37 @@ namespace Seamless.SourceGenerator.Generated {
         builder.AppendLine("    }");
     }
 
+    private static void AppendSchemaManagedRecordSource(StringBuilder builder,ImmutableArray<SchemaPropertyDefinition> managedProperties) {
+        builder.AppendLine("    private struct _M:global::MemoryPack.IMemoryPackable<_M> {");
+        foreach(var property in managedProperties) {
+            builder.AppendLine($"        public {property.TypeName} {property.Name};");
+        }
+        if(managedProperties.Length>0) {
+            builder.AppendLine();
+            builder.AppendLine($"        public _M({string.Join(", ",managedProperties.Select(static property => $"{property.TypeName} {GetParameterName(property.Name)}"))}) {{");
+            foreach(var property in managedProperties) {
+                builder.AppendLine($"            this.{property.Name}={GetParameterName(property.Name)};");
+            }
+            builder.AppendLine("        }");
+            builder.AppendLine();
+        }
+        builder.AppendLine("        static void global::MemoryPack.IMemoryPackFormatterRegister.RegisterFormatter() {");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        static void global::MemoryPack.IMemoryPackable<_M>.Serialize<TBufferWriter>(ref global::MemoryPack.MemoryPackWriter<TBufferWriter> writer,scoped ref _M value) {");
+        foreach(var property in managedProperties) {
+            builder.AppendLine($"            {BuildSchemaManagedSerializeStatement(property)}");
+        }
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        static void global::MemoryPack.IMemoryPackable<_M>.Deserialize(ref global::MemoryPack.MemoryPackReader reader,scoped ref _M value) {");
+        foreach(var property in managedProperties) {
+            builder.AppendLine($"            {BuildSchemaManagedDeserializeStatement(property)}");
+        }
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+    }
+
     private static string BuildManagedSerializeStatement(IPropertySymbol property) {
         var propertyAccess = $"value.{property.Name}";
         if(property.Type.SpecialType==SpecialType.System_String) {
@@ -4843,9 +4641,24 @@ namespace Seamless.SourceGenerator.Generated {
         return $"writer.WritePackable({propertyAccess});";
     }
 
+    private static string BuildSchemaManagedSerializeStatement(SchemaPropertyDefinition property) {
+        var propertyAccess = $"value.{property.Name}";
+        if(property.IsString) {
+            return $"writer.WriteString({propertyAccess});";
+        }
+        return $"writer.WritePackable({propertyAccess});";
+    }
+
     private static string BuildManagedDeserializeStatement(IPropertySymbol property) {
         if(property.Type.SpecialType==SpecialType.System_String) {
-            return $"value.{property.Name}=reader.ReadString();";
+            return $"value.{property.Name}=reader.ReadString()!;";
+        }
+        return $"reader.ReadPackable(ref value.{property.Name});";
+    }
+
+    private static string BuildSchemaManagedDeserializeStatement(SchemaPropertyDefinition property) {
+        if(property.IsString) {
+            return $"value.{property.Name}=reader.ReadString()!;";
         }
         return $"reader.ReadPackable(ref value.{property.Name});";
     }
@@ -5516,6 +5329,34 @@ namespace Seamless.SourceGenerator.Generated {
 
         public INamedTypeSymbol Symbol { get; }
         public bool IsPartial { get; }
+    }
+
+    private sealed class SchemaRecordDefinition {
+        public SchemaRecordDefinition(string rootNamespace,string namespaceName,string name,ImmutableArray<SchemaPropertyDefinition> properties) {
+            this.NamespaceName=namespaceName;
+            this.Name=name;
+            this.Properties=properties;
+            this.FullTypeName=string.IsNullOrEmpty(rootNamespace)
+                ? $"global::{namespaceName}.{name}"
+                : $"global::{rootNamespace}.{namespaceName}.{name}";
+        }
+
+        public string NamespaceName { get; }
+        public string Name { get; }
+        public ImmutableArray<SchemaPropertyDefinition> Properties { get; }
+        public string FullTypeName { get; }
+    }
+
+    private readonly struct SchemaPropertyDefinition {
+        public SchemaPropertyDefinition(string typeName,string name) {
+            this.TypeName=typeName;
+            this.Name=name;
+        }
+
+        public string TypeName { get; }
+        public string Name { get; }
+        public bool IsString => this.TypeName=="string"||this.TypeName=="global::System.String";
+        public bool IsUnmanaged => this.TypeName is "bool" or "byte" or "sbyte" or "short" or "ushort" or "int" or "uint" or "long" or "ulong" or "float" or "double" or "decimal" or "char";
     }
 
 }

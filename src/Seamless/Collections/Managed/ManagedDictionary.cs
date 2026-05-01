@@ -1,10 +1,10 @@
-ï»¿using System.Collections;
+using System.Collections;
 using System.Diagnostics;
 namespace Seamless.Collections;
 /// <summary>
-/// Tsavorite ã‚’ãƒãƒƒã‚¯ã‚¨ãƒ³ãƒ‰ã«ä½¿ã†ã‚ªãƒ³ãƒ¡ãƒ¢ãƒª Dictionaryã€‚
-/// <see cref="IDictionary{TKey,TValue}"/> ã‚’å®Ÿè£…ã—ã€åˆ©ç”¨è€…ã« Tsavorite ã®è©³ç´°ã‚’è¦‹ã›ãªã„ã€‚
-/// é™çš„ãƒãƒªãƒ¢ãƒ¼ãƒ•ã‚£ã‚ºãƒ ã«ã‚ˆã‚Šä»®æƒ³ãƒ‡ã‚£ã‚¹ãƒ‘ãƒƒãƒã‚’å›é¿ã™ã‚‹ã€‚
+/// Tsavorite ‚ğƒoƒbƒNƒGƒ“ƒh‚Ég‚¤ƒIƒ“ƒƒ‚ƒŠ DictionaryB
+/// <see cref="IDictionary{TKey,TValue}"/> ‚ğÀ‘•‚µA—˜—pÒ‚É Tsavorite ‚ÌÚ×‚ğŒ©‚¹‚È‚¢B
+/// Ã“Iƒ|ƒŠƒ‚[ƒtƒBƒYƒ€‚É‚æ‚è‰¼‘zƒfƒBƒXƒpƒbƒ`‚ğ‰ñ”ğ‚·‚éB
 /// </summary>
 [DebuggerTypeProxy(typeof(DictionaryDebugView<,,,>))]
 public abstract partial class ManagedDictionary<
@@ -19,10 +19,7 @@ public abstract partial class ManagedDictionary<
         TKeySerializer,
         TValueSerializer
     >,
-    IDictionary<TKey,TValue>
-    where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>
-    where TKeySerializer : ISerializer<TKey>
+    IDictionary<TKey,TValue>    where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
     public bool IsReadOnly => false;
     public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);

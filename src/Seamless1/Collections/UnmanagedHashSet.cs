@@ -1,13 +1,13 @@
-ï»¿using Seamless.Stores;
+using Seamless.Stores;
 
 using System.Diagnostics;
 namespace Seamless.Collections;
 
 /// <summary>
-/// UnmanagedHashSet ã® 1.1.1 å›ºæœ‰éƒ¨åˆ†ã€‚IntersectWith/SymmetricExceptWith å®Ÿè£…ã¨ã‚¤ãƒ†ãƒ¬ãƒ¼ã‚¿ã€‚
+/// UnmanagedHashSet ‚Ì 1.1.1 ŒÅ—L•”•ªBIntersectWith/SymmetricExceptWith À‘•‚ÆƒCƒeƒŒ[ƒ^B
 /// </summary>
 public partial class UnmanagedHashSet<TKey>
-    where TKey : unmanaged, IEquatable<TKey> {
+    where TKey : unmanaged {
     private ClientSession<
         TKey,
         EqualityEmpty,
@@ -352,7 +352,7 @@ public partial class UnmanagedHashSet<TKey>
         ,object syncRoot
     ):IScanIteratorFunctions<TKey,EqualityEmpty> {
         private bool ReaderCore(ref TKey key,ref EqualityEmpty value,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
-            //ã“ã“ã§if(this.self.WouldOverflowMutable(key.Length,1))
+            //‚±‚±‚Åif(this.self.WouldOverflowMutable(key.Length,1))
             //    throw this.self.ThrowLogFull();
             var input = default(EqualityEmpty);
             var output = default(EqualityEmpty);

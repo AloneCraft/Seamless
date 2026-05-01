@@ -5,31 +5,29 @@ namespace Seamless.SessionFunctions;
 using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
-/// ManagedCollection 用セッション関数。ManagedAdd は RMW と Upsert の両方で使われる。RMWではAddセマンティクス（キー既存時は拒否）。
-/// 内部でシリアライズするため、呼び側で PinnedSpanByte や GCHandle のピン止めが不要。
+/// ManagedCollection 用セチE��ョン関数、EanagedAdd は RMW と Upsert の両方で使われる。RMWではAddセマンチE��クス�E�キー既存時は拒否�E�、E
+/// 冁E��でシリアライズするため、呼び側で PinnedSpanByte めEGCHandle のピン止めが不要、E
 /// </summary>
 public readonly struct ManagedAdd<TValue, TValueSerializer>:
     ISessionFunctions<TValue,bool,EqualityEmpty>,
-    ICreate<ManagedAdd<TValue,TValueSerializer>>
-    where TValue : IEquatable<TValue>
-    where TValueSerializer : ISerializer<TValue> {
+    ICreate<ManagedAdd<TValue,TValueSerializer>>    where TValueSerializer : ISerializer<TValue> {
     public static ManagedAdd<TValue,TValueSerializer> Create() => new();
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static void ThrowReadDeleteEntryPoint() {
-        // ManagedAdd は RMW / Upsert にだけバインドされる。直接 Read / Delete のコールバックには到達しない。
+        // ManagedAdd は RMW / Upsert にだけバインドされる。直接 Read / Delete のコールバックには到達しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static T ThrowReadDeleteEntryPoint<T>() {
-        // ManagedAdd は RMW / Upsert にだけバインドされる。直接 Read / Delete のコールバックには到達しない。
+        // ManagedAdd は RMW / Upsert にだけバインドされる。直接 Read / Delete のコールバックには到達しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static T ThrowCopyUpdateEntryPoint<T>() {
-        // NeedCopyUpdate が常に false のため、CopyUpdater 系には到達しない。
+        // NeedCopyUpdate が常に false のため、CopyUpdater 系には到達しなぁE��E
         throw new NotSupportedException();
     }
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref ReadInfo readInfo)
@@ -108,7 +106,7 @@ public readonly struct ManagedAdd<TValue, TValueSerializer>:
     }
 
     /// <summary>
-    /// キー未存在時は新規作成する
+    /// キー未存在時�E新規作�Eする
     /// </summary>
     public bool NeedInitialUpdate<TKey>(TKey key,ref TValue input,ref bool output,ref RMWInfo rmwInfo)
         #if NET10_0_OR_GREATER
@@ -120,7 +118,7 @@ public readonly struct ManagedAdd<TValue, TValueSerializer>:
     }
 
     public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
-        // TValue を内部でシリアライズしてログレコードに書き込む
+        // TValue を�E部でシリアライズしてログレコードに書き込む
         return dstLogRecord.TrySetValueSpanAndPrepareOptionals(TValueSerializer.Serialize(ref input),in sizeInfo);
     }
 
@@ -147,7 +145,7 @@ public readonly struct ManagedAdd<TValue, TValueSerializer>:
     }
 
     /// <summary>
-    /// キー既存時は InPlaceUpdater=false で更新を拒否（output は default(false) のまま＝失敗）
+    /// キー既存時は InPlaceUpdater=false で更新を拒否�E�Eutput は default(false) のまま�E�失敗！E
     /// </summary>
     public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
         return false;

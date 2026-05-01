@@ -1,13 +1,12 @@
-﻿namespace Seamless.Collections;
+namespace Seamless.Collections;
 
-public readonly struct EqualityEmpty:IEquatable<EqualityEmpty>{
+#pragma warning disable CS0660, CS0661
+public readonly struct EqualityEmpty{
     /// <summary>
     /// Default
     /// </summary>
     public static readonly EqualityEmpty Default=default;
-    public bool Equals(EqualityEmpty other)=>true;
-    public override bool Equals(object? obj)=>true;
-    public override int GetHashCode()=>0;
     public static bool operator==(EqualityEmpty left,EqualityEmpty right)=>true;
     public static bool operator!=(EqualityEmpty left,EqualityEmpty right)=>false;
 }
+#pragma warning restore CS0660, CS0661

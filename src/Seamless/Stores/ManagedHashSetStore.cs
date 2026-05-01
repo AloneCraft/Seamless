@@ -1,10 +1,10 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
 using Seamless.Devices;
 
 
 namespace Seamless.Stores;
 
-public class ManagedHashSetStore<TKey>:ManagedCollectionStore<TKey,EqualityEmpty> where TKey : IEquatable<TKey> {
+public class ManagedHashSetStore<TKey>:ManagedCollectionStore<TKey,EqualityEmpty> {
     internal ManagedHashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes) :
         base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,OverflowMutableStrategyKind.Storage,StorageLimitFraction,StorageReserveBytes) { }
 
@@ -21,7 +21,7 @@ public class ManagedHashSetStore<TKey>:ManagedCollectionStore<TKey,EqualityEmpty
 }
 
 //public class ManagedUnmanagedHashSetStore<TKey>:ManagedHashSetStore<TKey>
-//    where TKey : IEquatable<TKey> {
+// {
 //    internal ManagedUnmanagedHashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir) :
 //        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir){ }
 
