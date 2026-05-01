@@ -1,5 +1,6 @@
 <Project>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)StaticSources\LinqInvocationFusionSupport.cs" Link="Seamless.SourceGenerator.Generated\LinqInvocationFusionSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)StaticSources\ListWhereQueryExtensions.cs" Link="Seamless.SourceGenerator.Generated\ListWhereQueryExtensions.cs" />
   </ItemGroup>
 </Project>
