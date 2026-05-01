@@ -21,6 +21,7 @@
     <Compile Include="Database\TPC_H.cs" />
     <Compile Include="Diagnostics\InterceptorSmokeTests.cs" />
     <Compile Include="DictionaryGuidEmptyRecoveryTests.cs" />
+    <Compile Include="GlobalUsings.cs" />
     <Compile Include="Intercept\Seamless\Linq\EnumerableMethod1.cs" />
     <Compile Include="Intercept\Seamless\Linq\EnumerableMethod2.cs" />
     <Compile Include="Intercept\Seamless\Linq\EnumerableMethodQuery.cs" />
@@ -41,7 +42,6 @@
     <Compile Include="Stress\StressReferenceAssert.cs" />
     <Compile Include="Stress\StressScale.cs" />
     <Compile Include="Stress\StressScript.cs" />
-    <Compile Include="Test.cs" />
     <Compile Include="TestKeyComparer.cs" />
     <Compile Include="TestPath.cs" />
     <Compile Include="TestRelation.cs" />
