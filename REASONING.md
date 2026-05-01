@@ -29,6 +29,7 @@
 - Lifetime approach: return a small enumerable wrapper that owns the temporary list and deletes its work directory on disposal/finalization, preserving normal `IEnumerable<T>` consumption while avoiding permanent work files.
 - Source-generator boundary: generated sequence-returning interceptors no longer choose `ManagedList<T>` or `UnmanagedList<T>` from result type. StorageList use is an explicit API choice, while scalar fusion still emits direct loops.
 - Nested translation approach: lambda bodies and nested method chains are recursively translated to `global::Seamless.Linq.Enumerable.*` so generated code does not depend on `using System.Linq` extension lookup.
+- Invocation fusion approach: nested direct LINQ invocations such as `Select(Select(source,...),...)` are intercepted in two phases. Inner non-indexed `Select` / `Where` / `Take` calls return a generated fusion source without materializing, and the outer materializing `Select` / `ToArray` / `ToList` path recognizes that source and enumerates the original root once while applying the accumulated operations.
 - Scope boundary: `ToList()` must keep returning `System.Collections.Generic.List<T>` for BCL compatibility; grouping/ordering internals may still use in-memory helper state until they have equivalent persistent data structures.
 
 # Build fix notes

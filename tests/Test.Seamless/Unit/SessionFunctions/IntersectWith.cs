@@ -1,10 +1,6 @@
-﻿using Azure;
-
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
-
-using Tsavorite.core;
 namespace Test.Seamless.Unit.SessionFunctions;
 
 public abstract class IntersectWith<TKey, TSet>:CommonWith<TKey,TSet>

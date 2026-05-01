@@ -1,5 +1,4 @@
-﻿using Seamless.Collections;
-namespace Test.Seamless.Unit.Stores;
+﻿namespace Test.Seamless.Unit.Stores;
 
 /// <summary>
 /// 4��ނ�Dictionary�����O�T�C�Y�ɍ����o�邱�Ƃ�m�F����e�X�g�B

@@ -1,8 +1,5 @@
-﻿using Seamless;
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Seamless.Stores;
-using Tsavorite.core;
-
 namespace Test.Seamless.Unit.SessionFunctions;
 
 //public abstract class UnionWithTests<TKey>

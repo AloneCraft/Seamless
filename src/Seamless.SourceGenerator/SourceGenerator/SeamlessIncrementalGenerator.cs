@@ -20,8 +20,10 @@ namespace Seamless.SourceGenerator;
 public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
     private const string DiagnosticCategory = "Seamless.SourceGenerator";
     private const string EnumerableImplementationResourceName = "Seamless.Linq.Enumerable.cs";
+    private const string HashSetImplementationResourceName = "Seamless.Linq.HashSet.cs";
 
-    private static readonly Lazy<AggregateImplementationSource?> EnumerableAggregateImplementation = new(LoadEnumerableAggregateImplementation);
+    private static readonly Lazy<LinqImplementationSource?> EnumerableImplementation = new(() => LoadLinqImplementationSource(EnumerableImplementationResourceName));
+    private static readonly Lazy<LinqImplementationSource?> HashSetImplementation = new(() => LoadLinqImplementationSource(HashSetImplementationResourceName));
 
     private static readonly DiagnosticDescriptor OptimizeClassMustBeNonSealed = new(
         "SEAMLESS001",
@@ -134,6 +136,10 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
     private static void AddInterceptorSources(SourceProductionContext context,string projectDirectory,ImmutableArray<WhereInterceptTarget> whereTargets,ImmutableArray<ContainerMethodInterceptTarget> containerMethodTargets,ImmutableArray<LinqInvocationInterceptTarget> linqInvocationTargets) {
         if(whereTargets.IsDefaultOrEmpty&&containerMethodTargets.IsDefaultOrEmpty&&linqInvocationTargets.IsDefaultOrEmpty) {
             return;
+        }
+
+        if(!linqInvocationTargets.IsDefaultOrEmpty) {
+            context.AddSource("Seamless.SourceGenerator.LinqInvocationFusionSupport.g.cs",SourceText.From(RemoveBlankLines(BuildLinqInvocationFusionSupportSource()),Encoding.UTF8));
         }
 
         var buckets = new Dictionary<string,InterceptorSourceBucket>(StringComparer.OrdinalIgnoreCase);
@@ -408,7 +414,7 @@ namespace Seamless {
         if(!IsContainerMethodInterceptCandidate(methodDefinition)) {
             return null;
         }
-        var translatedBody = TryTranslateMethod(context.SemanticModel.Compilation,methodDefinition);
+        var translatedBody = メソッド翻訳試行(context.SemanticModel.Compilation,methodDefinition);
         if(translatedBody is null) {
             return null;
         }
@@ -454,9 +460,6 @@ namespace Seamless {
         if(containingMethod is null) {
             return null;
         }
-        if(HasLinqInvocationAncestor(invocation,context.SemanticModel,cancellationToken)) {
-            return null;
-        }
         var interceptableLocation = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptableLocation(context.SemanticModel,invocation,cancellationToken);
         if(interceptableLocation is null) {
             return null;
@@ -470,7 +473,11 @@ namespace Seamless {
         if(IsListWhereInterceptorCandidate(invocation,method,context.SemanticModel,cancellationToken)) {
             return null;
         }
-        var translatedBody = TryTranslateLinqInvocationBody(method);
+        var hasLinqInvocationAncestor = HasLinqInvocationAncestor(invocation,context.SemanticModel,cancellationToken);
+        if(hasLinqInvocationAncestor&&!CanDeferLinqInvocationForFusion(method)) {
+            return null;
+        }
+        var translatedBody = LINQ呼び出しボディ翻訳試行(method,hasLinqInvocationAncestor);
         if(translatedBody is null) {
             return null;
         }
@@ -488,6 +495,8 @@ namespace Seamless {
             return null;
         }
 
+        var decoratedBody = LINQ呼び出しデバッグ式埋込(translatedBody.Value.Body,invocation,method);
+
         return new LinqInvocationInterceptTarget(
             id,
             span.Path,
@@ -497,126 +506,440 @@ namespace Seamless {
             BuildTypeParameterList(definition.TypeParameters),
             BuildTypeParameterConstraintList(definition.TypeParameters),
             parameterList,
-            translatedBody.Value.Body,
+            decoratedBody,
             translatedBody.Value.IsExpressionBody);
     }
 
-    private static TranslatedMethodBody? TryTranslateLinqInvocationBody(IMethodSymbol method) {
-        var aggregateBody = TryTranslateLinqInvocationAggregateBody(method);
-        if(aggregateBody is not null) {
-            return new TranslatedMethodBody(aggregateBody,false);
+    /// <summary>
+    /// LINQ メソッドのインターセプト本体を生成する入口。<br/>
+    /// 融合 → インライン展開 → コールスルーの優先順で変換方針を決定する。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前 (ユーザーコード):
+    /// source.Select(x => x * 2)
+    ///
+    /// // 融合が成立する場合   → LINQ呼び出し融合ボディ翻訳試行 が生成するブロック本体
+    /// // インライン展開が成立 → LINQ呼び出しインラインボディ翻訳試行 が生成する展開済み本体
+    /// // どちらも不可の場合  → Seamless.Linq.Enumerable.Select(source, selector) のコールスルー式
+    /// </code></example>
+    private static TranslatedMethodBody? LINQ呼び出しボディ翻訳試行(IMethodSymbol method,bool hasLinqInvocationAncestor) {
+        var fusionBody = LINQ呼び出し融合ボディ翻訳試行(method,hasLinqInvocationAncestor);
+        if(fusionBody is not null) {
+            return fusionBody;
         }
 
-        var toArrayBody = TryTranslateLinqInvocationToArrayBody(method);
-        if(toArrayBody is not null) {
-            return new TranslatedMethodBody(toArrayBody,false);
+        var inlineBody = LINQ呼び出しインラインボディ翻訳試行(method);
+        if(inlineBody is not null) {
+            return new TranslatedMethodBody(inlineBody,false);
         }
 
-        var shuffleBody = TryTranslateLinqInvocationShuffleBody(method);
-        if(shuffleBody is not null) {
-            return new TranslatedMethodBody(shuffleBody,false);
-        }
-
-        var callThroughExpression = TryTranslateLinqInvocationCallThroughExpression(method);
+        var callThroughExpression = LINQ呼び出しコールスルー式翻訳試行(method);
         return callThroughExpression is null
             ? null
             : new TranslatedMethodBody(callThroughExpression,true);
     }
 
-    private static string? TryTranslateLinqInvocationAggregateBody(IMethodSymbol method) {
-        var definition = GetLinqInvocationDefinition(method);
-        if(definition.Name!="Aggregate") {
-            return null;
-        }
-
-        var arguments = BuildLinqInvocationCallArguments(method);
-        if(arguments.Length!=2) {
-            return null;
-        }
-
-        var implementation = EnumerableAggregateImplementation.Value;
-        if(implementation is null) {
-            return null;
-        }
-
-        var replacements = new Dictionary<string,string>(StringComparer.Ordinal) {
-            ["source"]=arguments[0],
-            ["func"]=arguments[1]
-        };
-        var rewriter = new AggregateImplementationBodyRewriter(replacements,implementation.NoElementsExpression);
-        if(rewriter.Visit(implementation.Body) is not BlockSyntax body) {
-            return null;
-        }
-        return FormatEmbeddedImplementationBody(body);
+    private static bool CanDeferLinqInvocationForFusion(IMethodSymbol method) {
+        return 遅延LINQ融合式翻訳試行(method) is not null;
     }
 
-    private static string? TryTranslateLinqInvocationToArrayBody(IMethodSymbol method) {
+    /// <summary>
+    /// LINQ メソッドが上位の LINQ 呼び出し内に入れ子の場合は遅延式を返し、<br/>
+    /// そうでなければ選択融合またはパススルー融合のブロック本体を返す。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前 (内側の Select):
+    /// source.Where(x => x > 0).Select(x => x * 2)
+    ///
+    /// // hasLinqInvocationAncestor == true (入れ子) の場合:
+    /// //   → 遅延LINQ融合式翻訳試行 の結果:
+    /// //     global::...LinqInvocationFusionSupport.Create(source).選択追加(selector)
+    ///
+    /// // hasLinqInvocationAncestor == false (最外側) の場合:
+    /// //   → LINQ呼び出し選択融合ボディ翻訳試行 の結果:
+    /// //     { if (source is I融合ソース&lt;T&gt; 既存融合ソース) return 既存融合ソース.選択実体化(selector); ... }
+    /// </code></example>
+    private static TranslatedMethodBody? LINQ呼び出し融合ボディ翻訳試行(IMethodSymbol method,bool hasLinqInvocationAncestor) {
+        var deferredExpression = 遅延LINQ融合式翻訳試行(method);
+        if(hasLinqInvocationAncestor) {
+            return deferredExpression is null ? null : new TranslatedMethodBody(deferredExpression,true);
+        }
+
+        var selectBody = LINQ呼び出し選択融合ボディ翻訳試行(method);
+        if(selectBody is not null) {
+            return new TranslatedMethodBody(selectBody,false);
+        }
+
+        var passThroughBody = LINQ呼び出しパススルー融合ボディ翻訳試行(method);
+        if(passThroughBody is not null) {
+            return new TranslatedMethodBody(passThroughBody,false);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 入れ子の Select / Where / Take を融合ソースへの操作追加式に変換する。<br/>
+    /// 実体化は外側の実体化境界で行うため、ここでは列挙しない。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前:
+    /// source.Select(x => x * 2)
+    /// // 変換後:
+    /// global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).選択追加(selector)
+    ///
+    /// // 変換前:
+    /// source.Where(x => x > 0)
+    /// // 変換後:
+    /// global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).絞込追加(predicate)
+    ///
+    /// // 変換前:
+    /// source.Take(5)
+    /// // 変換後:
+    /// global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).先頭取得追加(count)
+    /// </code></example>
+    private static string? 遅延LINQ融合式翻訳試行(IMethodSymbol method) {
         var definition = GetLinqInvocationDefinition(method);
-        if(definition.Name!="ToArray"||definition.TypeParameters.Length!=1) {
-            return null;
-        }
-        if(definition.ReturnType is not IArrayTypeSymbol) {
-            return null;
-        }
         if(TryGetLinqInvocationTargetType(method) is null) {
             return null;
         }
 
-        var arguments = BuildLinqInvocationCallArguments(method);
-        if(arguments.Length!=1) {
-            return null;
+        // 入れ子 LINQ の内側 Select/Where/Take はここで列挙せず、融合ソースに操作だけを積む。
+        // 外側の実体化側が I融合ソースを検出して、元の source を 1 回だけ列挙する。
+        // 現状は元呼び出しの Func 引数を保持しているため、selector/predicate 自体は delegate 呼び出しになる。
+        // delegate 呼び出しを消すには、lambda を生成 static/strategy struct に下げる別段の変換が必要。
+        if(IsNonIndexedSelectMethod(definition)) {
+            // 内側の Select: 融合ソースに選択操作を積んで返す (実体化は外側の実体化境界で行う)。
+            return "global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).選択追加(selector)";
         }
-
-        var source = arguments[0];
-        var elementTypeName = definition.TypeParameters[0].Name;
-        return $$"""
-{
-    global::System.ArgumentNullException.ThrowIfNull({{source}});
-    var list = new global::System.Collections.Generic.List<{{elementTypeName}}>();
-    foreach(var item in {{source}}) {
-        list.Add(item);
-    }
-    return list.ToArray();
-}
-""";
+        if(IsNonIndexedWhereMethod(definition)) {
+            // 内側の Where: 融合ソースに絞込操作を積んで返す。
+            return "global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).絞込追加(predicate)";
+        }
+        if(IsCountTakeMethod(definition)) {
+            // 内側の Take: 融合ソースに先頭取得操作を積んで返す。
+            return "global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).先頭取得追加(count)";
+        }
+        return null;
     }
 
-    private static string? TryTranslateLinqInvocationShuffleBody(IMethodSymbol method) {
+    /// <summary>
+    /// Select が最外側の実体化境界になる場合のブロック本体を生成する。<br/>
+    /// source が <c>I融合ソース&lt;T&gt;</c> であれば蓄積済みパイプラインを通じて実体化し、
+    /// そうでなければ通常の <c>Seamless.Linq.Enumerable.Select</c> にフォールバックする。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前:
+    /// source.Where(x => x > 0).Select(x => x * 2)
+    ///
+    /// // 変換後 (生成される interceptor 本体):
+    /// {
+    ///     global::System.ArgumentNullException.ThrowIfNull(source);
+    ///     global::System.ArgumentNullException.ThrowIfNull(selector);
+    ///     if (source is global::...I融合ソース&lt;TSource&gt; 既存融合ソース)
+    ///         return 既存融合ソース.選択実体化(selector);
+    ///     return global::Seamless.Linq.Enumerable.Select&lt;TSource, TResult&gt;(source, selector);
+    /// }
+    /// </code></example>
+    private static string? LINQ呼び出し選択融合ボディ翻訳試行(IMethodSymbol method) {
         var definition = GetLinqInvocationDefinition(method);
-        if(definition.Name!="Shuffle"||definition.TypeParameters.Length!=1) {
+        if(!IsNonIndexedSelectMethod(definition)) {
             return null;
         }
         var targetType = TryGetLinqInvocationTargetType(method);
         if(targetType is null) {
             return null;
         }
+        return $$"""
+{
+    global::System.ArgumentNullException.ThrowIfNull(source);
+    global::System.ArgumentNullException.ThrowIfNull(selector);
+    // 内側の Select/Where/Take が融合ソースを返していた場合、ここが実体化境界になる。
+    // 蓄積済みプロジェクタを通して元ソースを 1 回だけ列挙し、最後の Select を適用して List にする。
+    // 現状の最後の selector は元呼び出しの Func なので delegate 実行になる。
+    // source が I融合ソース<TSource> であれば蓄積済み pipeline を通じて実体化する (ソースの二重列挙を回避)。
+    if(source is global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.I融合ソース<TSource> 既存融合ソース) {
+        return 既存融合ソース.選択実体化(selector);
+    }
+    return {{targetType}}.Select<TSource, TResult>(source,selector);
+}
+""";
+    }
 
-        var arguments = BuildLinqInvocationCallArguments(method);
-        if(arguments.Length!=1) {
+    /// <summary>
+    /// Where / Take が最外側で呼ばれた場合のブロック本体を生成する。<br/>
+    /// source が <c>I融合ソース&lt;T&gt;</c> なら操作を積んで融合ソースを返す (実体化を後回し)。
+    /// そうでなければ <c>Seamless.Linq.Enumerable</c> の同名メソッドにフォールバックする。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前:
+    /// source.Where(x => x > 0)
+    ///
+    /// // 変換後 (Where の interceptor 本体):
+    /// {
+    ///     global::System.ArgumentNullException.ThrowIfNull(source);
+    ///     global::System.ArgumentNullException.ThrowIfNull(predicate);
+    ///     if (source is global::...I融合ソース&lt;TSource&gt; 既存融合ソース)
+    ///         return 既存融合ソース.絞込追加(predicate);
+    ///     return global::Seamless.Linq.Enumerable.Where&lt;TSource&gt;(source, predicate);
+    /// }
+    /// </code></example>
+    private static string? LINQ呼び出しパススルー融合ボディ翻訳試行(IMethodSymbol method) {
+        var definition = GetLinqInvocationDefinition(method);
+        var targetType = TryGetLinqInvocationTargetType(method);
+        if(targetType is null) {
             return null;
         }
 
-        var source = arguments[0];
-        var elementTypeName = definition.TypeParameters[0].Name;
-        return $$"""
+        if(IsNonIndexedWhereMethod(definition)) {
+            return $$"""
 {
-    global::System.ArgumentNullException.ThrowIfNull({{source}});
-    // Keep the materialized return sequence separate from the shuffled working copy.
-    var result = new global::System.Collections.Generic.List<{{elementTypeName}}>();
-    // Materialize the source so the shuffle can swap elements by index.
-    var list = {{targetType}}.ToList<{{elementTypeName}}>({{source}});
-    // Fisher-Yates walks from the tail and swaps each slot with one remaining candidate.
-    for(var index = list.Count-1; index>0; index--) {
-        var swapIndex = global::System.Random.Shared.Next(index+1);
-        (list[index],list[swapIndex])=(list[swapIndex],list[index]);
+    global::System.ArgumentNullException.ThrowIfNull(source);
+    global::System.ArgumentNullException.ThrowIfNull(predicate);
+    // source が I融合ソース<TSource> であれば Where 操作を融合ソースの pipeline に積んで返す (実体化は後回し)。
+    if(source is global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.I融合ソース<TSource> 既存融合ソース) {
+        return 既存融合ソース.絞込追加(predicate);
     }
-    // Copy the shuffled working order into the return sequence.
-    foreach(var item in list) {
-        result.Add(item);
-    }
-    return result;
+    return {{targetType}}.Where<TSource>(source,predicate);
 }
 """;
+        }
+
+        if(IsCountTakeMethod(definition)) {
+            return $$"""
+{
+    global::System.ArgumentNullException.ThrowIfNull(source);
+    // source が I融合ソース<TSource> であれば Take 操作を融合ソースの pipeline に積んで返す (実体化は後回し)。
+    if(source is global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.I融合ソース<TSource> 既存融合ソース) {
+        return 既存融合ソース.先頭取得追加(count);
+    }
+    return {{targetType}}.Take<TSource>(source,count);
+}
+""";
+        }
+
+        return null;
+    }
+
+    private static bool IsNonIndexedSelectMethod(IMethodSymbol definition) {
+        return definition.Name=="Select"
+            &&definition.TypeParameters.Length==2
+            &&definition.Parameters.Length==2
+            &&IsFuncType(definition.Parameters[1].Type,2);
+    }
+
+    private static bool IsNonIndexedWhereMethod(IMethodSymbol definition) {
+        return definition.Name=="Where"
+            &&definition.TypeParameters.Length==1
+            &&definition.Parameters.Length==2
+            &&IsFuncType(definition.Parameters[1].Type,2);
+    }
+
+    private static bool IsCountTakeMethod(IMethodSymbol definition) {
+        return definition.Name=="Take"
+            &&definition.TypeParameters.Length==1
+            &&definition.Parameters.Length==2
+            &&definition.Parameters[1].Type.SpecialType==SpecialType.System_Int32;
+    }
+
+    private static bool IsFuncType(ITypeSymbol type,int typeArgumentCount) {
+        return type is INamedTypeSymbol namedType
+            &&namedType.Name=="Func"
+            &&namedType.ContainingNamespace.ToDisplayString()=="System"
+            &&namedType.TypeArguments.Length==typeArgumentCount;
+    }
+
+    /// <summary>
+    /// Aggregate / Select / ToList 等の埋め込み実装ソース (<c>Seamless.Linq.Enumerable.cs</c>) を読み込み、<br/>
+    /// 該当メソッドの実装をそのまま interceptor 本体としてインライン展開する。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前:
+    /// source.ToList()
+    ///
+    /// // 変換後 (Seamless.Linq.Enumerable.cs の ToList 実装を展開):
+    /// {
+    ///     global::System.ArgumentNullException.ThrowIfNull(source);
+    ///     var result = new global::System.Collections.Generic.List&lt;TSource&gt;();
+    ///     foreach (var item in source) result.Add(item);
+    ///     return result;
+    /// }
+    /// </code></example>
+    private static string? LINQ呼び出しインラインボディ翻訳試行(IMethodSymbol method) {
+        var definition = GetLinqInvocationDefinition(method);
+        if(!CanInlineLinqInvocationDefinition(definition)) {
+            return null;
+        }
+        var implementation = TryGetLinqImplementationSource(definition);
+        if(implementation is null) {
+            return null;
+        }
+
+        var implementationMethod = FindImplementationMethod(implementation,definition);
+        if(implementationMethod?.Body is null) {
+            return null;
+        }
+
+        var targetTypeName = TryGetLinqInvocationTargetType(method);
+        if(targetTypeName is null) {
+            return null;
+        }
+
+        var body = TryBuildInlineImplementationBody(implementation,implementationMethod,targetTypeName);
+        return body is null ? null : FormatEmbeddedImplementationBody(body);
+    }
+
+    private static bool CanInlineLinqInvocationDefinition(IMethodSymbol definition) {
+        return definition.Name=="Aggregate"
+            ||definition.Name=="Select"
+            ||definition.Name=="Shuffle"
+            ||definition.Name=="Take"
+            ||definition.Name=="ToArray"
+            ||definition.Name=="ToList"
+            ||definition.Name=="Where";
+    }
+
+    private static LinqImplementationSource? TryGetLinqImplementationSource(IMethodSymbol definition) {
+        var containingType = definition.ContainingType?.ToDisplayString();
+        return containingType switch {
+            "System.Linq.Enumerable" => EnumerableImplementation.Value,
+            "Seamless.Linq.Enumerable" => EnumerableImplementation.Value,
+            "Seamless.Linq.HashSet" => HashSetImplementation.Value,
+            _ => null,
+        };
+    }
+
+    private static MethodDeclarationSyntax? FindImplementationMethod(LinqImplementationSource implementation,IMethodSymbol definition) {
+        var candidates = implementation.Methods
+            .Where(candidate => candidate.Identifier.ValueText==definition.Name
+                &&(candidate.TypeParameterList?.Parameters.Count??0)==definition.TypeParameters.Length
+                &&candidate.ParameterList.Parameters.Count==definition.Parameters.Length)
+            .ToArray();
+        if(candidates.Length==0) {
+            return null;
+        }
+
+        var exactCandidates = candidates.Where(candidate => ParameterTypesMatch(candidate,definition)).ToArray();
+        if(exactCandidates.Length==1) {
+            return exactCandidates[0];
+        }
+        return candidates.Length==1 ? candidates[0] : null;
+    }
+
+    private static bool ParameterTypesMatch(MethodDeclarationSyntax candidate,IMethodSymbol definition) {
+        for(var index = 0; index<definition.Parameters.Length; index++) {
+            var candidateType = candidate.ParameterList.Parameters[index].Type?.ToString()??string.Empty;
+            var symbolType = definition.Parameters[index].Type.ToDisplayString(FullyQualifiedFormat);
+            if(NormalizeImplementationTypeText(candidateType)!=NormalizeImplementationTypeText(symbolType)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static string NormalizeImplementationTypeText(string typeText) {
+        return typeText
+            .Replace("global::",string.Empty)
+            .Replace("System.Collections.Generic.",string.Empty)
+            .Replace("System.",string.Empty)
+            .Replace("Collections.",string.Empty)
+            .Replace("Seamless.Collections.",string.Empty)
+            .Replace(" ",string.Empty);
+    }
+
+    private static BlockSyntax? TryBuildInlineImplementationBody(LinqImplementationSource implementation,MethodDeclarationSyntax method,string targetTypeName) {
+        if(method.Body is null) {
+            return null;
+        }
+
+        var body = method.Identifier.ValueText=="ToArray"&&method.ParameterList.Parameters.Count==1
+            ? TryBuildToArrayInlineBody(implementation,targetTypeName)
+            : TryInlineSingleReturnHelper(implementation,method,targetTypeName)??method.Body;
+        var rewriter = new LinqImplementationBodyRewriter(
+            new Dictionary<string,string>(StringComparer.Ordinal),
+            implementation.NoElementsExpression,
+            implementation,
+            targetTypeName);
+        return rewriter.Visit(body) as BlockSyntax;
+    }
+
+    private static BlockSyntax? TryBuildToArrayInlineBody(LinqImplementationSource implementation,string targetTypeName) {
+        var toList = implementation.Methods.FirstOrDefault(static candidate =>
+            candidate.Identifier.ValueText=="ToList"
+            &&(candidate.TypeParameterList?.Parameters.Count??0)==1
+            &&candidate.ParameterList.Parameters.Count==1);
+        if(toList?.Body is null) {
+            return null;
+        }
+
+        var toListBody = TryInlineSingleReturnHelper(implementation,toList,targetTypeName)??toList.Body;
+        return new ToArrayReturnRewriter().Visit(toListBody) as BlockSyntax;
+    }
+
+    private static BlockSyntax? TryInlineSingleReturnHelper(LinqImplementationSource implementation,MethodDeclarationSyntax method,string targetTypeName) {
+        if(method.Body is not { } methodBody||methodBody.Statements.Count==0) {
+            return null;
+        }
+        if(methodBody.Statements[methodBody.Statements.Count-1] is not ReturnStatementSyntax { Expression: InvocationExpressionSyntax invocation }) {
+            return null;
+        }
+        if(!TryGetInvocationSimpleName(invocation,out var helperName)) {
+            return null;
+        }
+        if(helperName==method.Identifier.ValueText) {
+            return null;
+        }
+
+        var helperCandidates = implementation.Methods
+            .Where(candidate => candidate.Identifier.ValueText==helperName
+                &&candidate.ParameterList.Parameters.Count==invocation.ArgumentList.Arguments.Count)
+            .ToArray();
+        var helper = helperCandidates.FirstOrDefault(candidate => HelperParameterNamesMatch(candidate,invocation))
+            ??(helperCandidates.Length==1 ? helperCandidates[0] : null);
+        if(helper?.Body is null) {
+            return null;
+        }
+
+        var replacements = new Dictionary<string,string>(StringComparer.Ordinal);
+        for(var index = 0; index<helper.ParameterList.Parameters.Count; index++) {
+            replacements[helper.ParameterList.Parameters[index].Identifier.ValueText]=NormalizeExpression(invocation.ArgumentList.Arguments[index].Expression);
+        }
+
+        var rewriter = new LinqImplementationBodyRewriter(replacements,implementation.NoElementsExpression,implementation,targetTypeName);
+        if(rewriter.Visit(helper.Body) is not BlockSyntax rewrittenHelperBody) {
+            return null;
+        }
+
+        var statements = new List<StatementSyntax>();
+        statements.AddRange(methodBody.Statements.Take(methodBody.Statements.Count-1));
+        statements.AddRange(rewrittenHelperBody.Statements);
+        return SyntaxFactory.Block(statements);
+    }
+
+    private static bool HelperParameterNamesMatch(MethodDeclarationSyntax helper,InvocationExpressionSyntax invocation) {
+        for(var index = 0; index<helper.ParameterList.Parameters.Count; index++) {
+            if(invocation.ArgumentList.Arguments[index].Expression is not IdentifierNameSyntax identifier) {
+                continue;
+            }
+            if(helper.ParameterList.Parameters[index].Identifier.ValueText!=identifier.Identifier.ValueText) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static bool TryGetInvocationSimpleName(InvocationExpressionSyntax invocation,out string name) {
+        name=string.Empty;
+        var expression = invocation.Expression;
+        if(expression is IdentifierNameSyntax identifier) {
+            name=identifier.Identifier.ValueText;
+            return !string.IsNullOrWhiteSpace(name);
+        }
+        if(expression is GenericNameSyntax genericName) {
+            name=genericName.Identifier.ValueText;
+            return !string.IsNullOrWhiteSpace(name);
+        }
+        return false;
     }
 
     private static string FormatEmbeddedImplementationBody(BlockSyntax body) {
@@ -650,8 +973,7 @@ namespace Seamless {
         if(lines.Count>1) {
             formatted.Add(lines[lines.Count-1].Trim());
         }
-        return string.Join("\n",formatted)
-            .Replace("System.ArgumentNullException.ThrowIfNull","global::System.ArgumentNullException.ThrowIfNull");
+        return string.Join("\n",formatted);
     }
 
     private static int CountLeadingWhitespace(string line) {
@@ -662,9 +984,9 @@ namespace Seamless {
         return count;
     }
 
-    private static AggregateImplementationSource? LoadEnumerableAggregateImplementation() {
+    private static LinqImplementationSource? LoadLinqImplementationSource(string resourceName) {
         var assembly = typeof(SeamlessIncrementalGenerator).Assembly;
-        using var stream = assembly.GetManifestResourceStream(EnumerableImplementationResourceName);
+        using var stream = assembly.GetManifestResourceStream(resourceName);
         if(stream is null) {
             return null;
         }
@@ -672,25 +994,12 @@ namespace Seamless {
         var source = reader.ReadToEnd();
         var root = CSharpSyntaxTree.ParseText(source).GetCompilationUnitRoot();
         var methods = root.DescendantNodes().OfType<MethodDeclarationSyntax>().ToArray();
-        var aggregate = methods.FirstOrDefault(static candidate =>
-            candidate.Identifier.ValueText=="Aggregate"
-            &&candidate.TypeParameterList?.Parameters.Count==1
-            &&candidate.ParameterList.Parameters.Count==2
-            &&candidate.ParameterList.Parameters[0].Identifier.ValueText=="source"
-            &&candidate.ParameterList.Parameters[1].Identifier.ValueText=="func");
-        if(aggregate?.Body is null) {
-            return null;
-        }
-
         var noElementsExpression = methods
             .Where(static candidate => candidate.Identifier.ValueText=="NoElements"&&candidate.ParameterList.Parameters.Count==0)
             .Select(static candidate => TryGetSingleReturnExpression(candidate))
-            .FirstOrDefault(static expression => expression is not null);
-        if(noElementsExpression is null) {
-            return null;
-        }
-
-        return new AggregateImplementationSource(aggregate.Body,noElementsExpression);
+            .FirstOrDefault(static expression => expression is not null)
+            ??SyntaxFactory.ParseExpression("new global::System.InvalidOperationException(\"Sequence contains no elements.\")");
+        return new LinqImplementationSource(methods,noElementsExpression);
     }
 
     private static ExpressionSyntax? TryGetSingleReturnExpression(MethodDeclarationSyntax method) {
@@ -703,7 +1012,18 @@ namespace Seamless {
         return returnStatement.Expression;
     }
 
-    private static string? TryTranslateLinqInvocationCallThroughExpression(IMethodSymbol method) {
+    /// <summary>
+    /// 融合もインライン展開もできない LINQ メソッドに対し、<br/>
+    /// <c>System.Linq.Enumerable</c> 呼び出しを <c>Seamless.Linq.Enumerable</c> 呼び出しへ差し替える式を返す。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前:
+    /// source.OrderBy(x => x.Key)
+    ///
+    /// // 変換後 (コールスルー式):
+    /// global::Seamless.Linq.Enumerable.OrderBy&lt;TSource, TKey&gt;(source, x => x.Key)
+    /// </code></example>
+    private static string? LINQ呼び出しコールスルー式翻訳試行(IMethodSymbol method) {
         var targetType = TryGetLinqInvocationTargetType(method);
         if(targetType is null) {
             return null;
@@ -771,6 +1091,55 @@ namespace Seamless {
         }
         parameterList=string.Join(", ",declarations);
         return true;
+    }
+
+    private static string LINQ呼び出しデバッグ式埋込(string body,InvocationExpressionSyntax invocation,IMethodSymbol method) {
+        var sourceExpression = LINQ呼び出しソース式取得(invocation,method);
+        if(sourceExpression is null) {
+            return body;
+        }
+
+        var updatedBody = body.Replace(
+            "global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source)",
+            $"global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source,{ToLiteral(sourceExpression)})");
+
+        var definition = GetLinqInvocationDefinition(method);
+        var operationArgumentIndex = LINQ呼び出し操作引数位置取得(method);
+        if(definition.Name=="Select"&&invocation.ArgumentList.Arguments.Count>operationArgumentIndex) {
+            var selectorExpression = NormalizeExpression(invocation.ArgumentList.Arguments[operationArgumentIndex].Expression);
+            updatedBody=updatedBody.Replace(
+                ".選択追加(selector)",
+                $".選択追加(selector,{ToLiteral(selectorExpression)})");
+        }
+        else if(definition.Name=="Where"&&invocation.ArgumentList.Arguments.Count>operationArgumentIndex) {
+            var predicateExpression = NormalizeExpression(invocation.ArgumentList.Arguments[operationArgumentIndex].Expression);
+            updatedBody=updatedBody.Replace(
+                ".絞込追加(predicate)",
+                $".絞込追加(predicate,{ToLiteral(predicateExpression)})");
+        }
+        else if(definition.Name=="Take"&&invocation.ArgumentList.Arguments.Count>operationArgumentIndex) {
+            var countExpression = NormalizeExpression(invocation.ArgumentList.Arguments[operationArgumentIndex].Expression);
+            updatedBody=updatedBody.Replace(
+                ".先頭取得追加(count)",
+                $".先頭取得追加(count,{ToLiteral(countExpression)})");
+        }
+
+        return updatedBody;
+    }
+
+    private static string? LINQ呼び出しソース式取得(InvocationExpressionSyntax invocation,IMethodSymbol method) {
+        if(method.ReducedFrom is not null) {
+            return invocation.Expression is MemberAccessExpressionSyntax memberAccess
+                ? NormalizeExpression(memberAccess.Expression)
+                : null;
+        }
+        return invocation.ArgumentList.Arguments.Count>0
+            ? NormalizeExpression(invocation.ArgumentList.Arguments[0].Expression)
+            : null;
+    }
+
+    private static int LINQ呼び出し操作引数位置取得(IMethodSymbol method) {
+        return method.ReducedFrom is null ? 1 : 0;
     }
 
     private static string BuildConcreteParameterDeclaration(IParameterSymbol parameter) {
@@ -1290,6 +1659,344 @@ namespace Seamless {
         builder.AppendLine("    }");
     }
 
+    private static string BuildLinqInvocationFusionSupportSource() => """
+namespace Seamless.SourceGenerator.Generated {
+    // LINQ 呼び出し連鎖 (Select/Where/Take の連続) を単一ループに統合する fusion 基盤クラス群。
+    // 「操作を積む」フェーズと「実体化」フェーズを分離することで、
+    // 元のシーケンスを 1 回だけ列挙しながら複数の操作を同時に適用できる。
+    // すべての中間型を struct にすることで仮想ディスパッチを排除し、JIT インライン展開を促進している。
+    internal static class LinqInvocationFusionSupport {
+        // fusion 対象シーケンスが実装するインターフェイス。
+        // interceptor 生成コードは source がこれを実装しているかを is 演算子で検出し、
+        // 外側の LINQ 操作をソースの再列挙なしに積むか実体化するかを切り替える。
+        internal interface I融合ソース<T>:global::System.Collections.Generic.IEnumerable<T> {
+            // Select 操作を pipeline の末尾に追加し、出力型が TResult に変わった新しい融合ソースを返す。
+            // 実際の列挙はまだ行わず、操作の記述だけを積む。
+            I融合ソース<TResult> 選択追加<TResult>(
+                global::System.Func<T,TResult> selector,
+                [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(selector))] string? selector式 = null);
+            // Where 操作を pipeline の末尾に追加し、同じ要素型の新しい融合ソースを返す。
+            I融合ソース<T> 絞込追加(
+                global::System.Func<T,bool> predicate,
+                [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(predicate))] string? predicate式 = null);
+            // Take 操作を pipeline の末尾に追加し、先頭 count 件に絞った新しい融合ソースを返す。
+            I融合ソース<T> 先頭取得追加(
+                int count,
+                [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(count))] string? count式 = null);
+            // pipeline をすべて適用しながらソースを 1 回列挙し、最後に selector を掛けた List<TResult> を返す。
+            global::System.Collections.Generic.List<TResult> 選択実体化<TResult>(global::System.Func<T,TResult> selector);
+            // pipeline をすべて適用しながらソースを 1 回列挙し、結果を List<T> で返す。
+            global::System.Collections.Generic.List<T> リスト実体化();
+            // pipeline をすべて適用しながらソースを 1 回列挙し、結果を T[] で返す。
+            T[] 配列実体化();
+            // デバッグ時に Watch/Locals へ表示する元のソース式と積み上げた操作列。
+            string ウォッチ式 { get; }
+        }
+        // 1 要素を pipeline に通した結果を表す軽量な判別共用体 (struct)。
+        // State==1: 値あり → 出力リストに追加する。
+        // State==2: 中断  → ループを直ちに打ち切る (Take の上限到達など)。
+        // default (State==0): スキップ → この要素は捨てて次へ進む (Where で弾かれた場合など)。
+        private readonly struct 融合ステップ<T> {
+            private 融合ステップ(byte state,T value) {
+                this.State=state;
+                this.Value=value;
+            }
+            // 現在の状態 (0=スキップ, 1=値あり, 2=中断)。
+            public byte State { get; }
+            // State==1 のときだけ有効な出力値。
+            public T Value { get; }
+            // 出力値を持つかどうか。
+            public bool HasValue => this.State==1;
+            // ループを打ち切るべきかどうか。
+            public bool Stop => this.State==2;
+            // 値ありステップを生成するファクトリメソッド。
+            public static 融合ステップ<T> Yield(T value) => new(1,value);
+            // 中断ステップを生成するファクトリメソッド。
+            public static 融合ステップ<T> StopStep() => new(2,default!);
+        }
+        // TRoot 型の生要素を受け取り TCurrent 型の融合ステップに変換するプロジェクタのインターフェイス。
+        // struct で実装して仮想ディスパッチを排除し、ジェネリクスによる静的ディスパッチに落とす。
+        private interface I融合プロジェクタ<TRoot,TCurrent> {
+            // まだ続きの要素を受け付けられるかどうか。false になったら外側のループを終了する。
+            bool CanContinue { get; }
+            // item を pipeline に通して融合ステップを返す。
+            融合ステップ<TCurrent> Project(TRoot item);
+        }
+        // プロジェクタを生成するファクトリのインターフェイス。
+        // 列挙を開始できるかどうかを CanStart で事前判定し、不要な列挙を省く。
+        // Create() は列挙ごとに独立した状態を持つ新しいプロジェクタを返す。
+        private interface I融合プロジェクタファクトリ<TRoot,TCurrent,TProjector>
+            where TProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
+            // 列挙を開始できるかどうか。false なら空シーケンスとして扱う。
+            bool CanStart { get; }
+            // 新しいプロジェクタインスタンスを生成する。
+            TProjector Create();
+        }
+        // 何も変換しない恒等プロジェクタのファクトリ。
+        // Create() の初期状態として使われ、Select/Where/Take が積まれる前の素通し状態を表す。
+        private readonly struct 恒等プロジェクタファクトリ<T>:I融合プロジェクタファクトリ<T,T,恒等プロジェクタ<T>> {
+            // 恒等変換は常に開始可能。
+            public bool CanStart => true;
+            public 恒等プロジェクタ<T> Create() => default;
+        }
+        // 要素をそのまま Yield する恒等プロジェクタ。Select/Where/Take が何も積まれていない初期状態で使われる。
+        private struct 恒等プロジェクタ<T>:I融合プロジェクタ<T,T> {
+            // 恒等変換は常に継続可能。
+            public bool CanContinue => true;
+            public 融合ステップ<T> Project(T item) => 融合ステップ<T>.Yield(item);
+        }
+        // 常に空を返すプロジェクタのファクトリ。Take(0) や Take(負数) の結果として生成される。
+        private readonly struct 空プロジェクタファクトリ<TRoot,TCurrent>:I融合プロジェクタファクトリ<TRoot,TCurrent,空プロジェクタ<TRoot,TCurrent>> {
+            // 空なので列挙を開始しない。
+            public bool CanStart => false;
+            public 空プロジェクタ<TRoot,TCurrent> Create() => default;
+        }
+        // 常に Stop を返すプロジェクタ。空ファクトリの Create() によって生成され、ループを即座に打ち切る。
+        private struct 空プロジェクタ<TRoot,TCurrent>:I融合プロジェクタ<TRoot,TCurrent> {
+            public bool CanContinue => false;
+            public 融合ステップ<TCurrent> Project(TRoot item) => 融合ステップ<TCurrent>.StopStep();
+        }
+        // Select 操作を前段に連結するプロジェクタのファクトリ。
+        // 前段プロジェクタ (TPreviousProjector) の出力値に selector を適用して TResult 型に変換する。
+        private readonly struct 選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TPreviousFactory,TPreviousProjector>:I融合プロジェクタファクトリ<TRoot,TResult,選択プロジェクタ<TRoot,TCurrent,TResult,TPreviousProjector>>
+            where TPreviousFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TPreviousProjector>
+            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
+            private readonly TPreviousFactory previousFactory;
+            private readonly global::System.Func<TCurrent,TResult> selector;
+            public 選択プロジェクタファクトリ(TPreviousFactory previousFactory,global::System.Func<TCurrent,TResult> selector) {
+                this.previousFactory=previousFactory;
+                this.selector=selector;
+            }
+            // 前段が開始できないなら自分も開始しない。
+            public bool CanStart => this.previousFactory.CanStart;
+            public 選択プロジェクタ<TRoot,TCurrent,TResult,TPreviousProjector> Create() => new(this.previousFactory.Create(),this.selector);
+        }
+        // Select を実行するプロジェクタ。前段の出力が HasValue のとき selector を呼び出し結果を Yield する。
+        // 前段が Stop を返したときは Stop を伝播し、スキップ (default) のときはそのままスキップする。
+        private struct 選択プロジェクタ<TRoot,TCurrent,TResult,TPreviousProjector>:I融合プロジェクタ<TRoot,TResult>
+            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
+            private TPreviousProjector previousProjector;
+            private readonly global::System.Func<TCurrent,TResult> selector;
+            public 選択プロジェクタ(TPreviousProjector previousProjector,global::System.Func<TCurrent,TResult> selector) {
+                this.previousProjector=previousProjector;
+                this.selector=selector;
+            }
+            public bool CanContinue => this.previousProjector.CanContinue;
+            public 融合ステップ<TResult> Project(TRoot item) {
+                var step = this.previousProjector.Project(item);
+                if(step.Stop) {
+                    return 融合ステップ<TResult>.StopStep();
+                }
+                if(!step.HasValue) {
+                    // 前段がスキップを返した: この要素は捨てて次へ。
+                    return default;
+                }
+                return 融合ステップ<TResult>.Yield(this.selector(step.Value));
+            }
+        }
+        // Where 操作を前段に連結するプロジェクタのファクトリ。
+        // 前段プロジェクタの出力値に predicate を適用して偽なら要素をスキップする。
+        private readonly struct 絞込プロジェクタファクトリ<TRoot,TCurrent,TPreviousFactory,TPreviousProjector>:I融合プロジェクタファクトリ<TRoot,TCurrent,絞込プロジェクタ<TRoot,TCurrent,TPreviousProjector>>
+            where TPreviousFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TPreviousProjector>
+            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
+            private readonly TPreviousFactory previousFactory;
+            private readonly global::System.Func<TCurrent,bool> predicate;
+            public 絞込プロジェクタファクトリ(TPreviousFactory previousFactory,global::System.Func<TCurrent,bool> predicate) {
+                this.previousFactory=previousFactory;
+                this.predicate=predicate;
+            }
+            public bool CanStart => this.previousFactory.CanStart;
+            public 絞込プロジェクタ<TRoot,TCurrent,TPreviousProjector> Create() => new(this.previousFactory.Create(),this.predicate);
+        }
+        // Where を実行するプロジェクタ。predicate が偽の要素は default (スキップ) を返す。
+        // Stop とスキップは前段の結果をそのまま伝播する。
+        private struct 絞込プロジェクタ<TRoot,TCurrent,TPreviousProjector>:I融合プロジェクタ<TRoot,TCurrent>
+            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
+            private TPreviousProjector previousProjector;
+            private readonly global::System.Func<TCurrent,bool> predicate;
+            public 絞込プロジェクタ(TPreviousProjector previousProjector,global::System.Func<TCurrent,bool> predicate) {
+                this.previousProjector=previousProjector;
+                this.predicate=predicate;
+            }
+            public bool CanContinue => this.previousProjector.CanContinue;
+            public 融合ステップ<TCurrent> Project(TRoot item) {
+                var step = this.previousProjector.Project(item);
+                if(step.Stop||!step.HasValue) {
+                    // Stop またはスキップはそのまま伝播する。
+                    return step;
+                }
+                // predicate が偽なら default (スキップ) を返す。
+                return this.predicate(step.Value) ? step : default;
+            }
+        }
+        // Take 操作を前段に連結するプロジェクタのファクトリ。
+        // count<=0 の場合は CanStart=false にして空ファクトリと同等の振る舞いをする。
+        private readonly struct 先頭取得プロジェクタファクトリ<TRoot,TCurrent,TPreviousFactory,TPreviousProjector>:I融合プロジェクタファクトリ<TRoot,TCurrent,先頭取得プロジェクタ<TRoot,TCurrent,TPreviousProjector>>
+            where TPreviousFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TPreviousProjector>
+            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
+            private readonly TPreviousFactory previousFactory;
+            private readonly int count;
+            public 先頭取得プロジェクタファクトリ(TPreviousFactory previousFactory,int count) {
+                this.previousFactory=previousFactory;
+                this.count=count;
+            }
+            // count<=0 または前段が開始不可なら列挙しない。
+            public bool CanStart => this.count>0&&this.previousFactory.CanStart;
+            public 先頭取得プロジェクタ<TRoot,TCurrent,TPreviousProjector> Create() => new(this.previousFactory.Create(),this.count);
+        }
+        // Take を実行するプロジェクタ。出力した件数を remaining でカウントし、
+        // 0 になったら Stop を返してループを打ち切る。
+        private struct 先頭取得プロジェクタ<TRoot,TCurrent,TPreviousProjector>:I融合プロジェクタ<TRoot,TCurrent>
+            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
+            private TPreviousProjector previousProjector;
+            // まだ出力できる残り件数。Yield するたびにデクリメントする。
+            private int remaining;
+            public 先頭取得プロジェクタ(TPreviousProjector previousProjector,int count) {
+                this.previousProjector=previousProjector;
+                this.remaining=count;
+            }
+            public bool CanContinue => this.remaining>0&&this.previousProjector.CanContinue;
+            public 融合ステップ<TCurrent> Project(TRoot item) {
+                if(this.remaining<=0||!this.previousProjector.CanContinue) {
+                    return 融合ステップ<TCurrent>.StopStep();
+                }
+                var step = this.previousProjector.Project(item);
+                if(step.Stop||!step.HasValue) {
+                    return step;
+                }
+                // 値を出力したので残り件数をデクリメントする。
+                this.remaining--;
+                return step;
+            }
+        }
+        // I融合ソース<TCurrent> の具体実装クラス。
+        // 元のシーケンス source と、積み上げた操作を表す projectorFactory を保持する。
+        // 選択追加/絞込追加/先頭取得追加 は新しい型引数セットで自分自身をラップした新インスタンスを返す。
+        // リスト実体化/配列実体化/選択実体化 で初めて source を GetEnumerator() で列挙する。
+        [global::System.Diagnostics.DebuggerDisplay("{ウォッチ式,nq}")]
+        private sealed class 融合ソース実装<TRoot,TCurrent,TProjectorFactory,TProjector>:I融合ソース<TCurrent>
+            where TProjectorFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TProjector>
+            where TProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
+            private readonly global::System.Collections.Generic.IEnumerable<TRoot> source;
+            private readonly TProjectorFactory projectorFactory;
+            private readonly string watchExpression;
+            public 融合ソース実装(global::System.Collections.Generic.IEnumerable<TRoot> source,TProjectorFactory projectorFactory,string? watchExpression) {
+                this.source=source;
+                this.projectorFactory=projectorFactory;
+                this.watchExpression=global::System.String.IsNullOrWhiteSpace(watchExpression) ? "source" : watchExpression!;
+            }
+            public string ウォッチ式 => this.watchExpression;
+            // 選択追加: Select 操作を pipeline に追加した新しい融合ソースを返す (出力型が TResult に変わる)。
+            public I融合ソース<TResult> 選択追加<TResult>(global::System.Func<TCurrent,TResult> selector,[global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(selector))] string? selector式 = null) {
+                global::System.ArgumentNullException.ThrowIfNull(selector);
+                var factory = new 選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TProjectorFactory,TProjector>(this.projectorFactory,selector);
+                return new 融合ソース実装<TRoot,TResult,選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TProjectorFactory,TProjector>,選択プロジェクタ<TRoot,TCurrent,TResult,TProjector>>(this.source,factory,$"{this.watchExpression}.Select({FormatWatchArgument(selector式)})");
+            }
+            // 絞込追加: Where 操作を pipeline に追加した新しい融合ソースを返す (出力型は変わらない)。
+            public I融合ソース<TCurrent> 絞込追加(global::System.Func<TCurrent,bool> predicate,[global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(predicate))] string? predicate式 = null) {
+                global::System.ArgumentNullException.ThrowIfNull(predicate);
+                var factory = new 絞込プロジェクタファクトリ<TRoot,TCurrent,TProjectorFactory,TProjector>(this.projectorFactory,predicate);
+                return new 融合ソース実装<TRoot,TCurrent,絞込プロジェクタファクトリ<TRoot,TCurrent,TProjectorFactory,TProjector>,絞込プロジェクタ<TRoot,TCurrent,TProjector>>(this.source,factory,$"{this.watchExpression}.Where({FormatWatchArgument(predicate式)})");
+            }
+            // 先頭取得追加: Take 操作を pipeline に追加した新しい融合ソースを返す。
+            // count<=0 のときは空プロジェクタファクトリで即座に空を表す融合ソースを返す。
+            public I融合ソース<TCurrent> 先頭取得追加(int count,[global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(count))] string? count式 = null) {
+                var watchExpression = $"{this.watchExpression}.Take({FormatWatchArgument(count式)})";
+                if(count<=0) {
+                    return new 融合ソース実装<TRoot,TCurrent,空プロジェクタファクトリ<TRoot,TCurrent>,空プロジェクタ<TRoot,TCurrent>>(this.source,default,watchExpression);
+                }
+                var factory = new 先頭取得プロジェクタファクトリ<TRoot,TCurrent,TProjectorFactory,TProjector>(this.projectorFactory,count);
+                return new 融合ソース実装<TRoot,TCurrent,先頭取得プロジェクタファクトリ<TRoot,TCurrent,TProjectorFactory,TProjector>,先頭取得プロジェクタ<TRoot,TCurrent,TProjector>>(this.source,factory,watchExpression);
+            }
+            // 選択実体化: ソースを 1 回列挙して蓄積済み pipeline を通し、最後に selector を適用した List<TResult> を返す。
+            // Select が外側にあり materialize 境界になった場合に呼ばれる。
+            public global::System.Collections.Generic.List<TResult> 選択実体化<TResult>(global::System.Func<TCurrent,TResult> selector) {
+                global::System.ArgumentNullException.ThrowIfNull(selector);
+                var result = new global::System.Collections.Generic.List<TResult>();
+                if(!this.projectorFactory.CanStart) {
+                    return result;
+                }
+                var projector = this.projectorFactory.Create();
+                if(!projector.CanContinue) {
+                    return result;
+                }
+                using var enumerator = this.source.GetEnumerator();
+                while(projector.CanContinue&&enumerator.MoveNext()) {
+                    var step = projector.Project(enumerator.Current);
+                    if(step.Stop) {
+                        break;
+                    }
+                    if(step.HasValue) {
+                        result.Add(selector(step.Value));
+                    }
+                }
+                return result;
+            }
+            // リスト実体化: ソースを 1 回列挙して蓄積済み pipeline を通した List<TCurrent> を返す。
+            public global::System.Collections.Generic.List<TCurrent> リスト実体化() {
+                var result = new global::System.Collections.Generic.List<TCurrent>();
+                if(!this.projectorFactory.CanStart) {
+                    return result;
+                }
+                var projector = this.projectorFactory.Create();
+                if(!projector.CanContinue) {
+                    return result;
+                }
+                using var enumerator = this.source.GetEnumerator();
+                while(projector.CanContinue&&enumerator.MoveNext()) {
+                    var step = projector.Project(enumerator.Current);
+                    if(step.Stop) {
+                        break;
+                    }
+                    if(step.HasValue) {
+                        result.Add(step.Value);
+                    }
+                }
+                return result;
+            }
+            // 配列実体化: リスト実体化 の結果を ToArray() で配列に変換して返す。
+            public TCurrent[] 配列実体化() => this.リスト実体化().ToArray();
+            // IEnumerable<TCurrent> として列挙するとき pipeline を通してストリーミング出力する。
+            // ToList/ToArray/Select 等の materialize 境界ではなく foreach で直接使われる場合のパス。
+            public global::System.Collections.Generic.IEnumerator<TCurrent> GetEnumerator() {
+                if(!this.projectorFactory.CanStart) {
+                    yield break;
+                }
+                var projector = this.projectorFactory.Create();
+                if(!projector.CanContinue) {
+                    yield break;
+                }
+                using var enumerator = this.source.GetEnumerator();
+                while(projector.CanContinue&&enumerator.MoveNext()) {
+                    var step = projector.Project(enumerator.Current);
+                    if(step.Stop) {
+                        yield break;
+                    }
+                    if(step.HasValue) {
+                        yield return step.Value;
+                    }
+                }
+            }
+            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
+            private static string FormatWatchArgument(string? argumentExpression) {
+                return global::System.String.IsNullOrWhiteSpace(argumentExpression) ? "?" : argumentExpression!;
+            }
+        }
+        // source が既に I融合ソース<T> であればそのまま返す (二重ラップを防ぐ)。
+        // そうでなければ恒等プロジェクタを初期状態として 融合ソース実装 を新規作成する。
+        internal static I融合ソース<T> Create<T>(
+            global::System.Collections.Generic.IEnumerable<T> source,
+            [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(source))] string? source式 = null) {
+            global::System.ArgumentNullException.ThrowIfNull(source);
+            if(source is I融合ソース<T> 既存融合ソース) {
+                return 既存融合ソース;
+            }
+            return new 融合ソース実装<T,T,恒等プロジェクタファクトリ<T>,恒等プロジェクタ<T>>(source,default,source式);
+        }
+    }
+}
+""";
+
     private static void AppendContainerMethodInterceptorSource(StringBuilder builder,ImmutableArray<ContainerMethodInterceptTarget> containerMethodTargets) {
         if(containerMethodTargets.IsDefaultOrEmpty) {
             return;
@@ -1663,7 +2370,7 @@ namespace Seamless {
             if(!IsOptimizedOverrideCandidate(method)) {
                 continue;
             }
-            var translatedBody = TryTranslateMethod(compilation,method);
+            var translatedBody = メソッド翻訳試行(compilation,method);
             if(translatedBody is null) {
                 continue;
             }
@@ -1849,59 +2556,71 @@ namespace Seamless {
         return type.ToDisplayString(FullyQualifiedFormat);
     }
 
-    // method translation の入口。
-    // invocation 系は OptimizeVisitor で Where pushdown を掛けてから文字列化する。
-    private static TranslatedMethodBody? TryTranslateMethod(Compilation compilation,IMethodSymbol method) {
+    /// <summary>
+    /// メソッドシンボルから構文を取得し、本体の形 (クエリ式・ラムダ・呼び出し文・呼び出し式) に応じて<br/>
+    /// 適切な翻訳を試みる最上位入口。Where pushdown 最適化を掴けてから翻訳する。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前 (ユーザーが定義したメソッド):
+    /// IEnumerable&lt;int&gt; GetPositive(IEnumerable&lt;int&gt; source)
+    ///     => source.Where(x => x > 0).Select(x => x * 2);
+    ///
+    /// // 翻訳後 (interceptor に挙入される本体):
+    /// => global::Seamless.Linq.Enumerable.Select&lt;int, int&gt;(
+    ///        global::Seamless.Linq.Enumerable.Where&lt;int&gt;(source, x => x > 0),
+    ///        x => x * 2)
+    /// </code></example>
+    private static TranslatedMethodBody? メソッド翻訳試行(Compilation compilation,IMethodSymbol method) {
         foreach(var syntaxReference in method.DeclaringSyntaxReferences) {
             if(syntaxReference.GetSyntax() is not MethodDeclarationSyntax syntax) {
                 continue;
             }
             var semanticModel = compilation.GetSemanticModel(syntax.SyntaxTree);
             if(syntax.ExpressionBody?.Expression is QueryExpressionSyntax expressionQuery) {
-                var translatedQuery = TryTranslateQueryExpression(expressionQuery,semanticModel);
+                var translatedQuery = クエリ式翻訳試行(expressionQuery,semanticModel);
                 return translatedQuery is null ? null : new TranslatedMethodBody(translatedQuery,true);
             }
             if(syntax.ExpressionBody?.Expression is LambdaExpressionSyntax expressionLambda) {
-                var translatedLambda = TryTranslateLambdaExpression(expressionLambda,semanticModel);
+                var translatedLambda = ラムダ式翻訳試行(expressionLambda,semanticModel);
                 return translatedLambda is null ? null : new TranslatedMethodBody(translatedLambda,true);
             }
             if(method.ReturnsVoid&&syntax.ExpressionBody?.Expression is InvocationExpressionSyntax expressionStatementInvocation) {
-                var translatedStatement = TryTranslateInvocationArgumentSequenceBody(expressionStatementInvocation,semanticModel);
+                var translatedStatement = 呼び出し引数シーケンスボディ翻訳試行(expressionStatementInvocation,semanticModel);
                 if(translatedStatement is not null) {
                     return new TranslatedMethodBody(translatedStatement,false);
                 }
             }
             if(syntax.ExpressionBody?.Expression is InvocationExpressionSyntax expressionInvocation) {
-                return TryTranslateInvocationBody(method,expressionInvocation,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(expressionInvocation),semanticModel);
+                return 呼び出しボディ翻訳試行(method,expressionInvocation,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(expressionInvocation),semanticModel);
             }
             var expressionWrapperInvocation = TryGetSingleArgumentInvocation(syntax.ExpressionBody?.Expression);
             if(expressionWrapperInvocation is not null) {
-                return TryTranslateInvocationBody(method,expressionWrapperInvocation,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(expressionWrapperInvocation),semanticModel);
+                return 呼び出しボディ翻訳試行(method,expressionWrapperInvocation,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(expressionWrapperInvocation),semanticModel);
             }
             if(syntax.Body is null||syntax.Body.Statements.Count!=1) {
                 continue;
             }
             if(method.ReturnsVoid&&syntax.Body.Statements[0] is ExpressionStatementSyntax expressionStatement&&expressionStatement.Expression is InvocationExpressionSyntax statementInvocation) {
-                var translatedStatement = TryTranslateInvocationArgumentSequenceBody(statementInvocation,semanticModel);
+                var translatedStatement = 呼び出し引数シーケンスボディ翻訳試行(statementInvocation,semanticModel);
                 if(translatedStatement is not null) {
                     return new TranslatedMethodBody(translatedStatement,false);
                 }
             }
             if(syntax.Body.Statements[0] is ReturnStatementSyntax returnStatement&&returnStatement.Expression is QueryExpressionSyntax blockQuery) {
-                var translatedQuery = TryTranslateQueryExpression(blockQuery,semanticModel);
+                var translatedQuery = クエリ式翻訳試行(blockQuery,semanticModel);
                 return translatedQuery is null ? null : new TranslatedMethodBody(translatedQuery,true);
             }
             if(syntax.Body.Statements[0] is ReturnStatementSyntax lambdaReturn&&lambdaReturn.Expression is LambdaExpressionSyntax blockLambda) {
-                var translatedLambda = TryTranslateLambdaExpression(blockLambda,semanticModel);
+                var translatedLambda = ラムダ式翻訳試行(blockLambda,semanticModel);
                 return translatedLambda is null ? null : new TranslatedMethodBody(translatedLambda,true);
             }
             if(syntax.Body.Statements[0] is ReturnStatementSyntax invocationReturn&&invocationReturn.Expression is InvocationExpressionSyntax blockInvocation) {
-                return TryTranslateInvocationBody(method,blockInvocation,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(blockInvocation),semanticModel);
+                return 呼び出しボディ翻訳試行(method,blockInvocation,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(blockInvocation),semanticModel);
             }
             if(syntax.Body.Statements[0] is ReturnStatementSyntax wrapperReturn) {
                 var blockWrapperInvocation = TryGetSingleArgumentInvocation(wrapperReturn.Expression);
                 if(blockWrapperInvocation is not null) {
-                    return TryTranslateInvocationBody(method,blockWrapperInvocation,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(blockWrapperInvocation),semanticModel);
+                    return 呼び出しボディ翻訳試行(method,blockWrapperInvocation,(InvocationExpressionSyntax)OptimizeVisitor.Optimize(blockWrapperInvocation),semanticModel);
                 }
             }
         }
@@ -1918,7 +2637,22 @@ namespace Seamless {
         };
     }
 
-    private static string? TryTranslateInvocationArgumentSequenceBody(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+    /// <summary>
+    /// メソッド引数として渡される LINQ 式を事前に一時リストへ実体化し、<br/>
+    /// その結果を引数として元の呼び出しに渡すブロック本体を生成する。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前:
+    /// ProcessItems(source.Where(x => x > 0))
+    ///
+    /// // 変換後 (引数を先に実体化してから呼び出す):
+    /// {
+    ///     // source.Where(x => x > 0) を一時リストに実体化
+    ///     var result = ...; // TemporaryResultList
+    ///     ProcessItems(result);
+    /// }
+    /// </code></example>
+    private static string? 呼び出し引数シーケンスボディ翻訳試行(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
         var materializedArguments = new Dictionary<int,string>();
         var materializationBlocks = new List<string>();
         for(var argumentIndex = 0; argumentIndex<invocation.ArgumentList.Arguments.Count; argumentIndex++) {
@@ -1935,7 +2669,7 @@ namespace Seamless {
             return null;
         }
 
-        var invocationText = TranslateInvocationStatement(invocation,semanticModel,materializedArguments);
+        var invocationText = 呼び出し文翻訳(invocation,semanticModel,materializedArguments);
         if(invocationText is null) {
             return null;
         }
@@ -1958,14 +2692,24 @@ namespace Seamless {
         return builder.ToString();
     }
 
-    private static string? TranslateInvocationStatement(InvocationExpressionSyntax invocation,SemanticModel semanticModel,IReadOnlyDictionary<int,string> materializedArguments) {
+    /// <summary>
+    /// 呼び出し式を引数リストが一部実体化済みの形式で完全修飾名式の呼び出し文字列に変換する。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前 (invocation 構文):
+    /// ProcessItems(source.Where(x => x > 0))
+    ///
+    /// // materializedArguments[0] = "result" となっている場合の変換後:
+    /// global::Example.ProcessItems(result)
+    /// </code></example>
+    private static string? 呼び出し文翻訳(InvocationExpressionSyntax invocation,SemanticModel semanticModel,IReadOnlyDictionary<int,string> materializedArguments) {
         var arguments = new List<string>(invocation.ArgumentList.Arguments.Count);
         for(var argumentIndex = 0; argumentIndex<invocation.ArgumentList.Arguments.Count; argumentIndex++) {
             if(materializedArguments.TryGetValue(argumentIndex,out var materializedArgument)) {
                 arguments.Add(materializedArgument);
                 continue;
             }
-            arguments.Add(TranslateNestedArgument(invocation.ArgumentList.Arguments[argumentIndex],semanticModel));
+            arguments.Add(入れ子引数翻訳(invocation.ArgumentList.Arguments[argumentIndex],semanticModel));
         }
 
         var argumentList = string.Join(",",arguments);
@@ -1982,7 +2726,7 @@ namespace Seamless {
         }
 
         if(invocation.Expression is MemberAccessExpressionSyntax memberAccess) {
-            var receiver = TranslateNestedExpression(memberAccess.Expression,semanticModel);
+            var receiver = 入れ子式翻訳(memberAccess.Expression,semanticModel);
             var typeArgumentListText = GetTypeArgumentListText(memberAccess.Name);
             return $"{receiver}.{memberAccess.Name.Identifier.ValueText}{typeArgumentListText}({argumentList})";
         }
@@ -1991,7 +2735,18 @@ namespace Seamless {
 
     // Expression<Func<...>> などの戻り値では、ラムダ本体の query / invocation だけを書き換えて
     // ラムダ自体の形とパラメータはそのまま維持する。
-    private static string? TryTranslateLambdaExpression(LambdaExpressionSyntax lambda,SemanticModel semanticModel) {
+    /// <summary>
+    /// <c>Expression&lt;Func&lt;...&gt;&gt;</c> などラムダ式の本体部分だけを翻訳し、<br/>
+    /// ラムダのパラメータ宣言や形はそのまま維持して返す。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前:
+    /// x => x.Items.Where(i => i > 0)
+    ///
+    /// // 変換後:
+    /// x => global::Seamless.Linq.Enumerable.Where&lt;int&gt;(x.Items, i => i > 0)
+    /// </code></example>
+    private static string? ラムダ式翻訳試行(LambdaExpressionSyntax lambda,SemanticModel semanticModel) {
         if(lambda.Body is not ExpressionSyntax lambdaBody) {
             return null;
         }
@@ -2000,8 +2755,8 @@ namespace Seamless {
         }
 
         string? translatedBody = lambdaBody switch {
-            QueryExpressionSyntax queryExpression => TryTranslateQueryExpression(queryExpression,semanticModel),
-            InvocationExpressionSyntax invocationExpression => TryTranslateInvocationExpression((InvocationExpressionSyntax)OptimizeVisitor.Optimize(invocationExpression),semanticModel),
+            QueryExpressionSyntax queryExpression => クエリ式翻訳試行(queryExpression,semanticModel),
+            InvocationExpressionSyntax invocationExpression => 呼び出し式翻訳試行((InvocationExpressionSyntax)OptimizeVisitor.Optimize(invocationExpression),semanticModel),
             _ => null,
         };
         if(translatedBody is null) {
@@ -2017,31 +2772,71 @@ namespace Seamless {
     }
 
     // invocation のうち先行評価・scalar fusion・Aggregate は block body に展開し、他は expression body のまま吐く。
-    private static TranslatedMethodBody? TryTranslateInvocationBody(IMethodSymbol method,InvocationExpressionSyntax originalInvocation,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
-        var 列挙結果Body = TryTranslateSequenceLoopFusionBody(method,originalInvocation,semanticModel);
+    /// <summary>
+    /// 呼び出し式を、シーケンス実体化・スカラー融合・Aggregate・式変換の順で試みる分岐入口。<br/>
+    /// 最初に成立した変換結果を返し、いずれも不可の場合は null を返す。
+    /// </summary>
+    /// <example><code>
+    /// // source.Where(x => x > 0).ToList()
+    /// //   → シーケンス融合ループボディ翻訳試行 (ToList + Where を 1 ループに融合)
+    ///
+    /// // source.Where(x => x > 0).Sum(x => x)
+    /// //   → スカラー融合ループボディ翻訳試行 (Sum + Where を 1 ループに融合)
+    ///
+    /// // source.Aggregate((a, b) => a + b)
+    /// //   → 集約ボディ翻訳試行 (明示的な列挙器ループに展開)
+    ///
+    /// // source.OrderBy(x => x)
+    /// //   → 呼び出し式翻訳試行 (Seamless.Linq へのコールスルー式)
+    /// </code></example>
+    private static TranslatedMethodBody? 呼び出しボディ翻訳試行(IMethodSymbol method,InvocationExpressionSyntax originalInvocation,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+        var 列挙結果Body = シーケンス融合ループボディ翻訳試行(method,originalInvocation,semanticModel);
         if(列挙結果Body is not null) {
             return new TranslatedMethodBody(列挙結果Body,false);
         }
-        var スカラー結果Body = TryTranslateScalarLoopFusionBody(method,originalInvocation,invocation,semanticModel);
+        var スカラー結果Body = スカラー融合ループボディ翻訳試行(method,originalInvocation,invocation,semanticModel);
         if(スカラー結果Body is not null) {
             return new TranslatedMethodBody(スカラー結果Body,false);
         }
-        var 集約Body = TryTranslateAggregateBody(method,invocation,semanticModel);
+        var 集約Body = 集約ボディ翻訳試行(method,invocation,semanticModel);
         if(集約Body is not null) {
             return new TranslatedMethodBody(集約Body,false);
         }
-        var 式Body = TryTranslateInvocationExpression(invocation,semanticModel);
+        var 式Body = 呼び出し式翻訳試行(invocation,semanticModel);
         return 式Body is null ? null : new TranslatedMethodBody(式Body,true);
     }
 
     // IEnumerable<T> を返す method-chain の先行評価候補。
     // StorageList を使うかどうかは空間と時間のトレードオフなので、generator は型から自動判断しない。
     // method / invocation / semanticModel は、明示的な Managed/Unmanaged 方針が呼び出し側から渡る形に戻すときの解析入力。
-    private static string? TryTranslateSequenceLoopFusionBody(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+    /// <summary>
+    /// <c>IEnumerable&lt;T&gt;</c> を返す Select / Where チェーンを一時リストへの単一 foreach ループに融合する。<br/>
+    /// Where 条件フィルタと Select 変換をループ内で順に適用し、結果を一時ストレージに追加する。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前:
+    /// source.Where(x => x > 0).Select(x => x * 2)
+    ///
+    /// // 変換後 (生成ブロック):
+    /// {
+    ///     var __seamlessSource = source;
+    ///     ...
+    ///     foreach (var __seamlessItem in __seamlessSource)
+    ///     {
+    ///         if (!(x > 0)) goto __seamlessContinue;
+    ///         var __seamlessValue0 = __seamlessItem * 2;
+    ///         __seamlessResultList.Add(__seamlessValue0);
+    ///         __seamlessContinue:;
+    ///     }
+    ///     var result = ...; // 一時ストレージを所有権付きで返す
+    ///     return result;
+    /// }
+    /// </code></example>
+    private static string? シーケンス融合ループボディ翻訳試行(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
         if(TryCreateSequenceMaterializationPipeline(invocation,semanticModel,out var pipeline,out var resultElementType)) {
             return new SequenceMaterializationEmitter(pipeline,BuildGeneratedTypeName(resultElementType),"result",CanUseUnmanagedTemporaryResultList(resultElementType),TryGetSequenceMaterializationWrapperReturnType(method.ReturnType)).BuildReturnBody();
         }
-        return TryTranslateSelectLoopFusionBody(method,invocation,semanticModel);
+        return 選択融合ループボディ翻訳試行(method,invocation,semanticModel);
     }
 
     private static string? TryGetSequenceMaterializationWrapperReturnType(ITypeSymbol returnType) {
@@ -2078,7 +2873,7 @@ namespace Seamless {
             }
 
             reversedOperations.Reverse();
-            pipeline=new ScalarFusionPipeline(TranslateNestedExpression(source,semanticModel),reversedOperations);
+            pipeline=new ScalarFusionPipeline(入れ子式翻訳(source,semanticModel),reversedOperations);
             return pipeline.Operations.Count>0;
         }
     }
@@ -2122,7 +2917,26 @@ namespace Seamless {
         return methodName=="Where"||methodName=="Select";
     }
 
-    private static string? TryTranslateSelectLoopFusionBody(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+    /// <summary>
+    /// Select が最外側かつ source が通常 IEnumerable の場合に、<br/>
+    /// 明示的な foreach + <c>List&lt;TResult&gt;</c> へ展開するブロック本体を生成する。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前:
+    /// source.Select(x => x.ToString())
+    ///
+    /// // 変換後:
+    /// {
+    ///     var __selectSource = source;
+    ///     Func&lt;int, string&gt; __selectSelector = x => x.ToString();
+    ///     var result = new List&lt;string&gt;();
+    ///     foreach (var item in __selectSource)
+    ///         result.Add(Inline(item, __selectSelector));
+    ///     return result;
+    ///     static string Inline(int item, Func&lt;int, string&gt; selector) => selector(item);
+    /// }
+    /// </code></example>
+    private static string? 選択融合ループボディ翻訳試行(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
         if(!TryGetScalarFusionCallInfo(invocation,out var selectCall)||selectCall.MethodName!="Select"||selectCall.Arguments.Length!=1) {
             return null;
         }
@@ -2154,8 +2968,8 @@ namespace Seamless {
 
         var sourceElementTypeName = BuildGeneratedTypeName(sourceElementType);
         var resultElementTypeName = BuildGeneratedTypeName(resultElementType);
-        var sourceExpression = TranslateNestedExpression(selectCall.Source,semanticModel);
-        var selectorExpression = TranslateNestedExpression(selectCall.Arguments[0].Expression,semanticModel);
+        var sourceExpression = 入れ子式翻訳(selectCall.Source,semanticModel);
+        var selectorExpression = 入れ子式翻訳(selectCall.Arguments[0].Expression,semanticModel);
 
         var builder = new StringBuilder();
         builder.AppendLine("{");
@@ -2226,7 +3040,29 @@ namespace Seamless {
     }
 
     // Sum / Average 終端の method-chain を、遅延中間操作を挟まず 1 つの列挙ループへ落とす。
-    private static string? TryTranslateScalarLoopFusionBody(IMethodSymbol method,InvocationExpressionSyntax originalInvocation,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+    /// <summary>
+    /// Sum / Average を終端とするメソッドチェーンを、中間 Where / Select を挟んだまま<br/>
+    /// 単一の foreach ループへ融合するブロック本体を生成する。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前:
+    /// source.Where(x => x > 0).Select(x => (double)x).Sum()
+    ///
+    /// // 変換後 (ScalarFusionEmitter が生成):
+    /// {
+    ///     var __seamlessSource = source;
+    ///     double __seamlessSum = default;
+    ///     foreach (var __seamlessItem in __seamlessSource)
+    ///     {
+    ///         if (!(x > 0)) goto __seamlessContinue0;
+    ///         var __seamlessValue0 = (double)__seamlessItem;
+    ///         __seamlessSum += __seamlessValue0;
+    ///         __seamlessContinue0:;
+    ///     }
+    ///     return __seamlessSum;
+    /// }
+    /// </code></example>
+    private static string? スカラー融合ループボディ翻訳試行(IMethodSymbol method,InvocationExpressionSyntax originalInvocation,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
         if(!TryCreateScalarFusionPipeline(invocation,semanticModel,out var pipeline)) {
             return null;
         }
@@ -2272,7 +3108,7 @@ namespace Seamless {
         }
 
         reversedOperations.Reverse();
-        pipeline=new ScalarFusionPipeline(TranslateNestedExpression(source,semanticModel),reversedOperations);
+        pipeline=new ScalarFusionPipeline(入れ子式翻訳(source,semanticModel),reversedOperations);
         return true;
     }
 
@@ -2994,16 +3830,39 @@ namespace Seamless {
     }
 
     // Aggregate は call-through にすると空列時例外や列挙手順の表現が曖昧になるため、明示的な列挙器ループへ展開する。
-    private static string? TryTranslateAggregateBody(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+    /// <summary>
+    /// Aggregate を明示的な列挙器 foreach ループへ展開するブロック本体を生成する。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前:
+    /// source.Aggregate((a, b) => a + b)
+    ///
+    /// // 変換後:
+    /// {
+    ///     var __aggregateSource = source;
+    ///     Func&lt;T, T, T&gt; __aggregateFunc = (a, b) => a + b;
+    ///     T __aggregateResult = default!;
+    ///     var __aggregateHasValue = false;
+    ///     foreach (var __aggregateCurrent in __aggregateSource)
+    ///     {
+    ///         if (!__aggregateHasValue)
+    ///             { __aggregateResult = __aggregateCurrent; __aggregateHasValue = true; continue; }
+    ///         __aggregateResult = __aggregateFunc(__aggregateResult, __aggregateCurrent);
+    ///     }
+    ///     if (!__aggregateHasValue) throw new InvalidOperationException("Sequence contains no elements.");
+    ///     return __aggregateResult;
+    /// }
+    /// </code></example>
+    private static string? 集約ボディ翻訳試行(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
         if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess) {
             return null;
         }
         if(memberAccess.Name.Identifier.ValueText!="Aggregate") {
             return null;
         }
-        var receiver = TranslateNestedExpression(memberAccess.Expression,semanticModel);
+        var receiver = 入れ子式翻訳(memberAccess.Expression,semanticModel);
         var arguments = invocation.ArgumentList.Arguments
-            .Select(argument => TranslateNestedExpression(argument.Expression,semanticModel))
+            .Select(argument => 入れ子式翻訳(argument.Expression,semanticModel))
             .ToArray();
 
         string sourceExpression;
@@ -3051,11 +3910,26 @@ namespace Seamless {
     // query syntax はまず extension-style の method chain に下ろし、
     // その後 OptimizeVisitor と既存の invocation translator に流す。
     // これで query continuation (`select ... into x where ...`) も invocation 側と同じ最適化経路に乗る。
-    private static string? TryTranslateQueryExpression(QueryExpressionSyntax query,SemanticModel? semanticModel = null) {
+    /// <summary>
+    /// クエリ式構文をメソッドチェーンへ脱糖化 (Lower) し、<br/>
+    /// OptimizeVisitor で最適化してから呼び出し式翻訳試行に流す。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前 (クエリ式):
+    /// from x in source where x > 0 select x * 2
+    ///
+    /// // 脱糖化後:
+    /// source.Where(x => x > 0).Select(x => x * 2)
+    ///
+    /// // さらに呼び出し式翻訳試行を経て:
+    /// global::Seamless.Linq.Enumerable.Select&lt;int, int&gt;(
+    ///     global::Seamless.Linq.Enumerable.Where&lt;int&gt;(source, x => x > 0), x => x * 2)
+    /// </code></example>
+    private static string? クエリ式翻訳試行(QueryExpressionSyntax query,SemanticModel? semanticModel = null) {
         if(TryLowerQueryExpressionToInvocation(query,semanticModel,out var loweredInvocation)) {
             var optimized = OptimizeVisitor.Optimize(loweredInvocation);
             return optimized is InvocationExpressionSyntax optimizedInvocation
-                ? TryTranslateInvocationExpression(optimizedInvocation,semanticModel)??NormalizeExpression(optimized)
+                ? 呼び出し式翻訳試行(optimizedInvocation,semanticModel)??NormalizeExpression(optimized)
                 : NormalizeExpression(optimized);
         }
         return null;
@@ -3064,7 +3938,7 @@ namespace Seamless {
     private static bool TryLowerQueryExpressionToInvocation(QueryExpressionSyntax query,SemanticModel? semanticModel,out InvocationExpressionSyntax invocation) {
         var temporaryIndex = 0;
         if(TryLowerQueryBody(
-                TranslateNestedExpression(query.FromClause.Expression,semanticModel),
+                入れ子式翻訳(query.FromClause.Expression,semanticModel),
                 QueryRangeScope.CreateIdentity(query.FromClause.Identifier.ValueText),
                 query.Body,
                 semanticModel,
@@ -3166,7 +4040,7 @@ namespace Seamless {
 
     private static string RewriteQueryRangeVariables(ExpressionSyntax expression,QueryRangeScope scope,SemanticModel? semanticModel) {
         var rewritten = new QueryRangeVariableRewriter(scope.RangeExpressions).Visit(expression);
-        return TranslateNestedExpression(rewritten as ExpressionSyntax??expression,semanticModel);
+        return 入れ子式翻訳(rewritten as ExpressionSyntax??expression,semanticModel);
     }
 
     private static string BuildCarrierCreationText(QueryRangeScope scope,params (string Name,string ExpressionText)[] additionalFields) {
@@ -3333,16 +4207,29 @@ namespace Seamless {
 
     // method chain を再帰的に辿って Seamless LINQ 呼び出しへそろえる。
     // semanticModel がある場合は呼び出し先の型で Enumerable / HashSet を正確に振り分ける。
-    private static string? TryTranslateInvocationExpression(InvocationExpressionSyntax invocation,SemanticModel? semanticModel = null) {
+    /// <summary>
+    /// メソッドチェーン呼び出しを再帰的に辿り、<br/>
+    /// <c>System.Linq.Enumerable</c> / <c>Seamless.Linq.HashSet</c> の呼び出しを<br/>
+    /// <c>global::Seamless.Linq.Enumerable</c> / <c>HashSet</c> へ差し替えた式文字列を返す。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前:
+    /// source.Where(x => x > 0).OrderBy(x => x)
+    ///
+    /// // 変換後:
+    /// global::Seamless.Linq.Enumerable.OrderBy&lt;int, int&gt;(
+    ///     global::Seamless.Linq.Enumerable.Where&lt;int&gt;(source, x => x > 0), x => x)
+    /// </code></example>
+    private static string? 呼び出し式翻訳試行(InvocationExpressionSyntax invocation,SemanticModel? semanticModel = null) {
         if(invocation.Expression is SimpleNameSyntax simpleName) {
-            return TryTranslateUnqualifiedMemberInvocation(invocation,simpleName,semanticModel);
+            return 非修飾メンバー呼び出し翻訳試行(invocation,simpleName,semanticModel);
         }
         if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess) {
             return null;
         }
         var methodName = memberAccess.Name.Identifier.ValueText;
         var typeArgumentListText = GetTypeArgumentListText(memberAccess.Name);
-        var receiver = TranslateNestedExpression(memberAccess.Expression,semanticModel);
+        var receiver = 入れ子式翻訳(memberAccess.Expression,semanticModel);
         var semanticTargetType = TryGetTranslatedLinqTarget(invocation,semanticModel,out var symbolResolved);
         var targetType = semanticTargetType
             ??(IsStaticHashSetReceiver(receiver) ? "HashSet" : null)
@@ -3356,7 +4243,7 @@ namespace Seamless {
             return null;
         }
         var arguments = invocation.ArgumentList.Arguments
-            .Select(argument => TranslateNestedArgument(argument,semanticModel))
+            .Select(argument => 入れ子引数翻訳(argument,semanticModel))
             .ToArray();
         if(IsStaticEnumerableReceiver(receiver)||IsStaticHashSetReceiver(receiver)) {
             return arguments.Length==0
@@ -3368,7 +4255,18 @@ namespace Seamless {
             : $"global::Seamless.Linq.{targetType}.{methodName}{typeArgumentListText}({receiver},{string.Join(",",arguments)})";
     }
 
-    private static string? TryTranslateUnqualifiedMemberInvocation(InvocationExpressionSyntax invocation,SimpleNameSyntax simpleName,SemanticModel? semanticModel) {
+    /// <summary>
+    /// レシーバーなし (非修飾) のメソッド呼び出しを、<br/>
+    /// セマンティックモデルで解決した完全修飾名に差し替えた式文字列を返す。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前 (using static 等で非修飾):
+    /// Where(source, x => x > 0)
+    ///
+    /// // 変換後 (完全修飾):
+    /// global::Seamless.Linq.Enumerable.Where&lt;int&gt;(source, x => x > 0)
+    /// </code></example>
+    private static string? 非修飾メンバー呼び出し翻訳試行(InvocationExpressionSyntax invocation,SimpleNameSyntax simpleName,SemanticModel? semanticModel) {
         if(!TryGetInvocationMethodSymbol(invocation,semanticModel,out var methodSymbol)) {
             return null;
         }
@@ -3377,7 +4275,7 @@ namespace Seamless {
             return null;
         }
         var arguments = invocation.ArgumentList.Arguments
-            .Select(argument => TranslateNestedArgument(argument,semanticModel))
+            .Select(argument => 入れ子引数翻訳(argument,semanticModel))
             .ToArray();
         var typeArgumentListText = GetTypeArgumentListText(simpleName);
         if(definition.IsStatic) {
@@ -3423,19 +4321,44 @@ namespace Seamless {
         return true;
     }
 
-    private static string TranslateNestedArgument(ArgumentSyntax argument,SemanticModel? semanticModel) {
-        var expression = TranslateNestedExpression(argument.Expression,semanticModel);
+    /// <summary>
+    /// 引数構文の式部分を入れ子式翻訳し、ref / out / in キーワードがあれば先頭に付加して返す。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前 (引数式):
+    /// source.Where(x => x > 0)
+    /// // 変換後:
+    /// global::Seamless.Linq.Enumerable.Where&lt;int&gt;(source, x => x > 0)
+    ///
+    /// // ref キーワード付きの場合:
+    /// ref myValue  =>  ref myValue  (式部分のみ翻訳、ref は維持)
+    /// </code></example>
+    private static string 入れ子引数翻訳(ArgumentSyntax argument,SemanticModel? semanticModel) {
+        var expression = 入れ子式翻訳(argument.Expression,semanticModel);
         return argument.RefKindKeyword.IsKind(SyntaxKind.None)
             ? expression
             : $"{argument.RefKindKeyword.Text} {expression}";
     }
 
-    private static string TranslateNestedExpression(ExpressionSyntax expression,SemanticModel? semanticModel = null) {
+    /// <summary>
+    /// 任意の式ノードを再帰的に追り、内部に含まれる LINQ 呼び出しを<br/>
+    /// Seamless.Linq 名前空間の呼び出しへ差し替えた文字列を返す。
+    /// </summary>
+    /// <example><code>
+    /// // 変換前:
+    /// items.Where(x => x.Values.Select(v => v * 2).Sum() > 0)
+    ///
+    /// // 変換後:
+    /// global::Seamless.Linq.Enumerable.Where&lt;Item&gt;(items,
+    ///     x => global::Seamless.Linq.Enumerable.Sum(
+    ///              global::Seamless.Linq.Enumerable.Select&lt;int, int&gt;(x.Values, v => v * 2)) > 0)
+    /// </code></example>
+    private static string 入れ子式翻訳(ExpressionSyntax expression,SemanticModel? semanticModel = null) {
         while(expression is ParenthesizedExpressionSyntax parenthesizedExpression) {
             expression=parenthesizedExpression.Expression;
         }
         if(expression is InvocationExpressionSyntax invocationExpression) {
-            return TryTranslateInvocationExpression(invocationExpression,semanticModel)??NormalizeExpression(invocationExpression);
+            return 呼び出し式翻訳試行(invocationExpression,semanticModel)??NormalizeExpression(invocationExpression);
         }
         var 入れ子Invocation変換後 = new NestedInvocationTranslator(semanticModel).Visit(expression) as ExpressionSyntax??expression;
         return NormalizeExpression(入れ子Invocation変換後);
@@ -3451,7 +4374,7 @@ namespace Seamless {
         }
 
         public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
-            var 変換済み = TryTranslateInvocationExpression(node,this.semanticModel);
+            var 変換済み = 呼び出し式翻訳試行(node,this.semanticModel);
             if(変換済み is not null) {
                 return SyntaxFactory.ParseExpression(変換済み);
             }
@@ -3910,16 +4833,20 @@ namespace Seamless {
         }
     }
 
-    private sealed class AggregateImplementationBodyRewriter:CSharpSyntaxRewriter {
+    private sealed class LinqImplementationBodyRewriter:CSharpSyntaxRewriter {
         private readonly IReadOnlyDictionary<string,string> replacements;
         private readonly ExpressionSyntax noElementsExpression;
+        private readonly LinqImplementationSource implementation;
+        private readonly string targetTypeName;
 
-        public AggregateImplementationBodyRewriter(IReadOnlyDictionary<string,string> replacements,ExpressionSyntax noElementsExpression) {
+        public LinqImplementationBodyRewriter(IReadOnlyDictionary<string,string> replacements,ExpressionSyntax noElementsExpression,LinqImplementationSource implementation,string targetTypeName) {
             this.replacements=replacements;
             this.noElementsExpression=noElementsExpression;
+            this.implementation=implementation;
+            this.targetTypeName=targetTypeName;
         }
 
-        public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
+        public override SyntaxNode VisitInvocationExpression(InvocationExpressionSyntax node) {
             if(node.Expression is IdentifierNameSyntax identifier
                 &&identifier.Identifier.ValueText=="NoElements"
                 &&node.ArgumentList.Arguments.Count==0) {
@@ -3928,12 +4855,35 @@ namespace Seamless {
                 }
                 return node;
             }
-            return base.VisitInvocationExpression(node);
+
+            if(base.VisitInvocationExpression(node) is not InvocationExpressionSyntax visited) {
+                return node;
+            }
+            if(TryGetSimpleName(visited.Expression,out var methodName)&&this.implementation.HasMethod(methodName)) {
+                var memberName = visited.Expression.WithoutTrivia() as SimpleNameSyntax;
+                if(memberName is null) {
+                    return visited;
+                }
+                var access = SyntaxFactory.MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    SyntaxFactory.ParseExpression(this.targetTypeName),
+                    memberName);
+                return visited.WithExpression(access.WithTriviaFrom(visited.Expression));
+            }
+            return visited;
         }
 
         public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node) {
-            if(node.Expression is IdentifierNameSyntax identifier&&identifier.Identifier.ValueText=="ArgumentNullException") {
-                return base.VisitMemberAccessExpression(node.WithExpression(SyntaxFactory.ParseExpression("global::System.ArgumentNullException")));
+            if(node.Expression is IdentifierNameSyntax identifier) {
+                var replacement = identifier.Identifier.ValueText switch {
+                    "ArgumentNullException" => "global::System.ArgumentNullException",
+                    "Enumerable" => "global::Seamless.Linq.Enumerable",
+                    "HashSet" => "global::Seamless.Linq.HashSet",
+                    _ => null,
+                };
+                if(replacement is not null) {
+                    return base.VisitMemberAccessExpression(node.WithExpression(SyntaxFactory.ParseExpression(replacement)));
+                }
             }
             return base.VisitMemberAccessExpression(node);
         }
@@ -3951,6 +4901,33 @@ namespace Seamless {
                 return SyntaxFactory.ParseExpression(replacement).WithTriviaFrom(node);
             }
             return base.VisitIdentifierName(node);
+        }
+
+        private static bool TryGetSimpleName(ExpressionSyntax expression,out string name) {
+            name=string.Empty;
+            if(expression is IdentifierNameSyntax identifier) {
+                name=identifier.Identifier.ValueText;
+                return !string.IsNullOrWhiteSpace(name);
+            }
+            if(expression is GenericNameSyntax genericName) {
+                name=genericName.Identifier.ValueText;
+                return !string.IsNullOrWhiteSpace(name);
+            }
+            return false;
+        }
+    }
+
+    private sealed class ToArrayReturnRewriter:CSharpSyntaxRewriter {
+        public override SyntaxNode VisitReturnStatement(ReturnStatementSyntax node) {
+            if(node.Expression is null) {
+                return node;
+            }
+            var expression = node.Expression.WithoutTrivia();
+            var toArray = SyntaxFactory.InvocationExpression(SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                expression,
+                SyntaxFactory.IdentifierName("ToArray")));
+            return node.WithExpression(toArray.WithTriviaFrom(node.Expression));
         }
     }
 
@@ -4154,14 +5131,18 @@ namespace Seamless {
         public Location Location { get; }
     }
 
-    private sealed class AggregateImplementationSource {
-        public AggregateImplementationSource(BlockSyntax body,ExpressionSyntax noElementsExpression) {
-            Body=body;
+    private sealed class LinqImplementationSource {
+        public LinqImplementationSource(IReadOnlyList<MethodDeclarationSyntax> methods,ExpressionSyntax noElementsExpression) {
+            Methods=methods;
             NoElementsExpression=noElementsExpression;
         }
 
-        public BlockSyntax Body { get; }
+        public IReadOnlyList<MethodDeclarationSyntax> Methods { get; }
         public ExpressionSyntax NoElementsExpression { get; }
+
+        public bool HasMethod(string name) {
+            return this.Methods.Any(method => method.Identifier.ValueText==name);
+        }
     }
 
     // DatabaseGenerator マーカー配下で見つけた型宣言の最小情報。

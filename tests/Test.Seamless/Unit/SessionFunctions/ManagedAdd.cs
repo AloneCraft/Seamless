@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-using Garnet.common;
+﻿using Garnet.common;
 using MemoryPack;
 using Seamless;
 using Seamless.Collections;
