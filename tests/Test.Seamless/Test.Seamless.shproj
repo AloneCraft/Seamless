@@ -23,9 +23,15 @@
     <Compile Include="DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Include="Intercept\Seamless\Linq\EnumerableMethod1.cs" />
     <Compile Include="Intercept\Seamless\Linq\EnumerableMethod2.cs" />
+    <Compile Include="Intercept\Seamless\Linq\EnumerableMethodQuery.cs" />
     <Compile Include="Intercept\Seamless\Linq\EnumerableQuery1.cs" />
+    <Compile Include="Intercept\Seamless\Linq\EnumerableQueryMethod.cs" />
     <Compile Include="Intercept\Seamless\Linq\HashSetMethod2.cs" />
     <Compile Include="Intercept\Seamless\Linq\HashSetMethod1.cs" />
+    <Compile Include="Intercept\Seamless\Linq\HashSetMethodQuery.cs" />
+    <Compile Include="Intercept\Seamless\Linq\HashSetQuery1.cs" />
+    <Compile Include="Intercept\Seamless\Linq\HashSetQuery2.cs" />
+    <Compile Include="Intercept\Seamless\Linq\HashSetQueryMethod.cs" />
     <Compile Include="Intercept\System\Linq\Enumerable.cs" />
     <Compile Include="Intercept\System\Linq\Enumerable2.cs" />
     <Compile Include="StoreCheckpoint.cs" />

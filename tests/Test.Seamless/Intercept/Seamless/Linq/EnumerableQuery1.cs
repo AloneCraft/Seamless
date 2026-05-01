@@ -1,12 +1,12 @@
-using Seamless.Linq;
+﻿using Seamless.Linq;
 using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Seamless.Intercept.Seamless.Linq;
 
 static class DatabaseGenerator;
 
-public sealed class EnumerableQuery1 {
-    [Fact,Trait("Category","Intercept")]
+public static class EnumerableQuery1 {
+    [Fact, Trait("Category","Intercept")]
     public static void GroupBy() {
         Assert.Equal(
             FormatGroups(SystemEnumerable.GroupBy(Rows(),static row => row.Key,static row => row.Value)),
@@ -14,7 +14,7 @@ public sealed class EnumerableQuery1 {
         );
     }
 
-    [Fact,Trait("Category","Intercept")]
+    [Fact, Trait("Category","Intercept")]
     public static void GroupJoin() {
         Assert.Equal(
             FormatGroupJoin(SystemEnumerable.GroupJoin(Source(),Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValues) => (outerValue,innerValues))),
@@ -22,7 +22,7 @@ public sealed class EnumerableQuery1 {
         );
     }
 
-    [Fact,Trait("Category","Intercept")]
+    [Fact, Trait("Category","Intercept")]
     public static void Join() {
         Assert.Equal(
             SystemEnumerable.Join(Source(),Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue),
@@ -30,7 +30,7 @@ public sealed class EnumerableQuery1 {
         );
     }
 
-    [Fact,Trait("Category","Intercept")]
+    [Fact, Trait("Category","Intercept")]
     public static void OrderBy() {
         Assert.Equal(
             SystemEnumerable.OrderBy(Rows(),static row => row.Key),
@@ -38,7 +38,7 @@ public sealed class EnumerableQuery1 {
         );
     }
 
-    [Fact,Trait("Category","Intercept")]
+    [Fact, Trait("Category","Intercept")]
     public static void OrderByDescending() {
         Assert.Equal(
             SystemEnumerable.OrderByDescending(Rows(),static row => row.Key),
@@ -46,7 +46,7 @@ public sealed class EnumerableQuery1 {
         );
     }
 
-    [Fact,Trait("Category","Intercept")]
+    [Fact, Trait("Category","Intercept")]
     public static void Select() {
         {
             Assert.Equal(
@@ -68,7 +68,7 @@ public sealed class EnumerableQuery1 {
         }
     }
 
-    [Fact,Trait("Category","Intercept")]
+    [Fact, Trait("Category","Intercept")]
     public static void SelectMany() {
         Assert.Equal(
             SystemEnumerable.SelectMany(Source(),static _ => Second(),static (outerValue,innerValue) => outerValue+innerValue),
@@ -76,23 +76,23 @@ public sealed class EnumerableQuery1 {
         );
     }
 
-    [Fact,Trait("Category","Intercept")]
+    [Fact, Trait("Category","Intercept")]
     public static void ThenBy() {
         Assert.Equal(
             SystemEnumerable.ThenBy(SystemEnumerable.OrderBy(OrderedRows(),static row => row.Key),static row => row.Name),
-            from row in OrderedRows() orderby row.Key,row.Name select row
+            from row in OrderedRows() orderby row.Key, row.Name select row
         );
     }
 
-    [Fact,Trait("Category","Intercept")]
+    [Fact, Trait("Category","Intercept")]
     public static void ThenByDescending() {
         Assert.Equal(
             SystemEnumerable.ThenByDescending(SystemEnumerable.OrderBy(OrderedRows(),static row => row.Key),static row => row.Name),
-            from row in OrderedRows() orderby row.Key,row.Name descending select row
+            from row in OrderedRows() orderby row.Key, row.Name descending select row
         );
     }
 
-    [Fact,Trait("Category","Intercept")]
+    [Fact, Trait("Category","Intercept")]
     public static void Where() {
         {
             Assert.Equal(
