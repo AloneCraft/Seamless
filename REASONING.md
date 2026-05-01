@@ -76,3 +76,20 @@
 - Goal: avoid maintaining a hand-written copy of `Seamless.Linq.Enumerable.Aggregate` inside the generator.
 - Approach: embed `src/Seamless/Linq/Enumerable.cs` into the source-generator assembly, parse the `Aggregate(source,func)` implementation and the shared `NoElements()` helper with Roslyn, then rewrite only the parameter names and required `global::System` qualifications for generated code.
 - Fallback: if the embedded source cannot be loaded or parsed, the specialized Aggregate body is skipped so the existing call-through path can still generate valid code.
+
+# Enumerable two-chain and query coverage notes
+
+- Scope: `EnumerableMethod2`, query-expression tests, and source-generator sequence materialization for intercepted container methods.
+- Goal: cover every two-step `Where`/`Select` chain shape, including indexed overloads, and make query-expression samples executable as normal `[Fact]` tests.
+- Chain approach: keep the two-step tests sorted by left operation and then right operation; expected values use `System.Linq.Enumerable`, while actual values flow through `Seamless.Linq.Enumerable` methods exposed from interceptable container methods.
+- Storage approach: sequence materialization generated for intercepted container methods now writes directly to temporary `UnmanagedList<T>` when the result element is known to satisfy unmanaged constraints, and otherwise writes to temporary `ManagedList<T>`.
+- Constraint note: the existing `Create`-style default tag overload trick cannot safely choose unmanaged storage for unconstrained LINQ generic interceptors, because C# overload resolution and generated interceptor signatures must respect compile-time generic constraints. The generator therefore uses unmanaged storage only when the generated method has enough type information or constraints.
+- Query approach: `EnumerableQuery` is renamed to `EnumerableQuery1`; each query-clause family is represented by a `[Fact]` method named after the extension method produced by C# query lowering (`Select`, `SelectMany`, `Where`, `Join`, `GroupJoin`, `GroupBy`, `OrderBy`, `OrderByDescending`, `ThenBy`, and `ThenByDescending`).
+
+# HashSet intercept coverage notes
+
+- Scope: expand `HashSetMethod1` to cover representative single-method `Seamless.Linq.HashSet` surface area, and expand `HashSetMethod2` with ordered two-step `Where`/`Select` chains like `EnumerableMethod2`.
+- `HashSetMethod1` approach: compare `System.Linq.Enumerable` over `System.Collections.Generic.HashSet<T>` against `Seamless.Linq.HashSet` over `Seamless.Collections.IHashSet<T>`, using normalized assertions only for grouped or keyed results whose enumeration order is not useful test signal.
+- `HashSetMethod2` approach: keep the same left-method then right-method ordering as `EnumerableMethod2`, but start the first operation from `Seamless.Linq.HashSet` and continue the second operation with `Seamless.Linq.Enumerable` because the first step materializes to `IEnumerable<T>`.
+- Resource note: `HashSetMethod2` keeps `IHashSet<T>` sources alive inside a disposable sample container so intercepted chain tests do not leak backing stores while still allowing the generated container methods to inline against stable fields.
+- Execution note: `HashSetMethod1` and `HashSetMethod2` run under a dedicated non-parallel xUnit collection because their unmanaged `HashStore` fixtures consume global `LightEpoch` slots, and the expanded surface area now exceeds that limit under default parallel scheduling.

@@ -23,7 +23,7 @@
     <Compile Include="DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Include="Intercept\Seamless\Linq\EnumerableMethod1.cs" />
     <Compile Include="Intercept\Seamless\Linq\EnumerableMethod2.cs" />
-    <Compile Include="Intercept\Seamless\Linq\EnumerableQuery.cs" />
+    <Compile Include="Intercept\Seamless\Linq\EnumerableQuery1.cs" />
     <Compile Include="Intercept\Seamless\Linq\HashSetMethod2.cs" />
     <Compile Include="Intercept\Seamless\Linq\HashSetMethod1.cs" />
     <Compile Include="Intercept\System\Linq\Enumerable.cs" />

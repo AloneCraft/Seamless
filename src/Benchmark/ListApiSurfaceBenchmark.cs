@@ -19,7 +19,6 @@ public enum ListAccessPattern {
 }
 
 [MemoryDiagnoser]
-[RankColumn]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [SimpleJob(warmupCount: 1,iterationCount: 5)]
 public class ListApiSurfaceBenchmark {

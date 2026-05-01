@@ -84,5 +84,22 @@
     <li>Approach: embed <code>src/Seamless/Linq/Enumerable.cs</code> into the source-generator assembly, parse the <code>Aggregate(source,func)</code> implementation and the shared <code>NoElements()</code> helper with Roslyn, then rewrite only the parameter names and required <code>global::System</code> qualifications for generated code.</li>
     <li>Fallback: if the embedded source cannot be loaded or parsed, the specialized Aggregate body is skipped so the existing call-through path can still generate valid code.</li>
   </ul>
+  <h1>Enumerable two-chain and query coverage notes</h1>
+  <ul>
+    <li>Scope: <code>EnumerableMethod2</code>, query-expression tests, and source-generator sequence materialization for intercepted container methods.</li>
+    <li>Goal: cover every two-step <code>Where</code>/<code>Select</code> chain shape, including indexed overloads, and make query-expression samples executable as normal <code>[Fact]</code> tests.</li>
+    <li>Chain approach: keep the two-step tests sorted by left operation and then right operation; expected values use <code>System.Linq.Enumerable</code>, while actual values flow through <code>Seamless.Linq.Enumerable</code> methods exposed from interceptable container methods.</li>
+    <li>Storage approach: sequence materialization generated for intercepted container methods now writes directly to temporary <code>UnmanagedList&lt;T&gt;</code> when the result element is known to satisfy unmanaged constraints, and otherwise writes to temporary <code>ManagedList&lt;T&gt;</code>.</li>
+    <li>Constraint note: the existing <code>Create</code>-style default tag overload trick cannot safely choose unmanaged storage for unconstrained LINQ generic interceptors, because C# overload resolution and generated interceptor signatures must respect compile-time generic constraints. The generator therefore uses unmanaged storage only when the generated method has enough type information or constraints.</li>
+    <li>Query approach: <code>EnumerableQuery</code> is renamed to <code>EnumerableQuery1</code>; each query-clause family is represented by a <code>[Fact]</code> method named after the extension method produced by C# query lowering (<code>Select</code>, <code>SelectMany</code>, <code>Where</code>, <code>Join</code>, <code>GroupJoin</code>, <code>GroupBy</code>, <code>OrderBy</code>, <code>OrderByDescending</code>, <code>ThenBy</code>, and <code>ThenByDescending</code>).</li>
+  </ul>
+  <h1>HashSet intercept coverage notes</h1>
+  <ul>
+    <li>Scope: expand <code>HashSetMethod1</code> to cover representative single-method <code>Seamless.Linq.HashSet</code> surface area, and expand <code>HashSetMethod2</code> with ordered two-step <code>Where</code>/<code>Select</code> chains like <code>EnumerableMethod2</code>.</li>
+    <li><code>HashSetMethod1</code> approach: compare <code>System.Linq.Enumerable</code> over <code>System.Collections.Generic.HashSet&lt;T&gt;</code> against <code>Seamless.Linq.HashSet</code> over <code>Seamless.Collections.IHashSet&lt;T&gt;</code>, using normalized assertions only for grouped or keyed results whose enumeration order is not useful test signal.</li>
+    <li><code>HashSetMethod2</code> approach: keep the same left-method then right-method ordering as <code>EnumerableMethod2</code>, but start the first operation from <code>Seamless.Linq.HashSet</code> and continue the second operation with <code>Seamless.Linq.Enumerable</code> because the first step materializes to <code>IEnumerable&lt;T&gt;</code>.</li>
+    <li>Resource note: <code>HashSetMethod2</code> keeps <code>IHashSet&lt;T&gt;</code> sources alive inside a disposable sample container so intercepted chain tests do not leak backing stores while still allowing the generated container methods to inline against stable fields.</li>
+    <li>Execution note: <code>HashSetMethod1</code> and <code>HashSetMethod2</code> run under a dedicated non-parallel xUnit collection because their unmanaged <code>HashStore</code> fixtures consume global <code>LightEpoch</code> slots, and the expanded surface area now exceeds that limit under default parallel scheduling.</li>
+  </ul>
 </body>
 </html>
