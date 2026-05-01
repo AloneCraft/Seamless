@@ -4,8 +4,8 @@ using Seamless.Devices;
 namespace Seamless.Stores;
 
 /// <summary>
-/// Tsavorite ストアを管理する抽象基底クラス。
-/// DictionaryStore および HashSetStore の共通実装を提供する。
+/// Tsavorite ストアを管琁E��る抽象基底クラス、E
+/// DictionaryStore および HashSetStore の共通実裁E��提供する、E
 /// </summary>
 public abstract partial class CollectionStore<
     TKey,
@@ -15,9 +15,7 @@ public abstract partial class CollectionStore<
     TStoreFunctions,
     TAllocator
 >
-    :CollectionStore, IDisposable
-    where TKey : IEquatable<TKey>
-    where TStoreFunctions : IStoreFunctions<TSessionKey,TSessionValue>
+    :CollectionStore, IDisposable    where TStoreFunctions : IStoreFunctions<TSessionKey,TSessionValue>
     where TAllocator : IAllocator<TSessionKey,TSessionValue,TStoreFunctions> {
     private KVSettings<TSessionKey,TSessionValue> Settings { get; }
     public readonly TsavoriteKV<TSessionKey,TSessionValue,TStoreFunctions,TAllocator> Store;
@@ -29,7 +27,7 @@ public abstract partial class CollectionStore<
     private int CheckpointInProgress;
     private bool UsesStorageDevice => this.Settings is not null&&(this.Settings.LogDevice is not MemoryOnlyDevice||this.Settings.ObjectLogDevice is not MemoryOnlyDevice);
 
-    /// <summary>テスト専用シーム: TakeCheckpointAsync 完了後・CompleteCheckpointAsync 前に呼び出されるコールバック。</summary>
+    /// <summary>チE��ト専用シーム: TakeCheckpointAsync 完亁E���ECompleteCheckpointAsync 前に呼び出されるコールバック、E/summary>
     private protected CollectionStore(
         TStoreFunctions StoreFunctions,
         Func<AllocatorSettings,TStoreFunctions,TAllocator> allocatorFactory,

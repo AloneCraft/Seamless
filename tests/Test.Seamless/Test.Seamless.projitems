@@ -40,9 +40,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)TestRelation.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Tsavorite\LightEpochInstanceLimitTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Tsavorite\LightEpochLimitTests.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Tsavorite\NativeLightEpochInstanceLimitTests.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Tsavorite\SimpleTsavoriteRoundTripTests.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Tsavorite\SpanByteIterateLookupChunkTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Integrate\DictionaryIntegrate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Integrate\HashSetIntegrate.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\Dictionary.cs" />

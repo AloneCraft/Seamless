@@ -1,9 +1,8 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Seamless.Collections;
 
-public interface ISet<TRecord>:IMemoryCollection<TRecord>, IReadOnlyCollection<TRecord>, IDisposable
-    where TRecord : IEquatable<TRecord> {
+public interface ISet<TRecord>:IMemoryCollection<TRecord>, IReadOnlyCollection<TRecord>, IDisposable {
     public interface IForEachStrategy<TSelf, TItem>
         where TSelf : struct, IForEachStrategy<TSelf,TItem> {
         static abstract bool Reader(ref TSelf self,in TItem item,long numberOfRecords);
@@ -47,8 +46,7 @@ public interface ISet<TRecord>:IMemoryCollection<TRecord>, IReadOnlyCollection<T
     }
 }
 public interface ISeamlessSet<TRecord, in TKey>:ISet<TRecord>
-    where TRecord : IRecord<TKey>, IEquatable<TRecord>
-    where TKey : IEquatable<TKey> {
+    where TRecord : IRecord<TKey> {
     //bool IsDisposed { get; }
     //long EntryCount { get; }
     //void Refresh() {
@@ -71,14 +69,12 @@ public interface ISeamlessSet<TRecord, in TKey>:ISet<TRecord>
 }
 
 internal static class SeamlessSetOperations {
-    public static void ExceptWith<TRecord>(ISet<TRecord> target,ISet<TRecord> other)
-        where TRecord : IEquatable<TRecord> {
+    public static void ExceptWith<TRecord>(ISet<TRecord> target,ISet<TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         foreach(var item in (ICollection<TRecord>)other)
             target.Remove(item);
     }
-    public static void IntersectWith<TRecord>(ISet<TRecord> target,ISet<TRecord> other)
-        where TRecord : IEquatable<TRecord> {
+    public static void IntersectWith<TRecord>(ISet<TRecord> target,ISet<TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var toRemove = new global::System.Collections.Generic.List<TRecord>();
         foreach(var item in (ICollection<TRecord>)target) {
@@ -88,8 +84,7 @@ internal static class SeamlessSetOperations {
         foreach(var item in toRemove)
             target.Remove(item);
     }
-    public static bool IsSubsetOf<TRecord>(ISet<TRecord> target,ISet<TRecord> other)
-        where TRecord : IEquatable<TRecord> {
+    public static bool IsSubsetOf<TRecord>(ISet<TRecord> target,ISet<TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         foreach(var item in (ICollection<TRecord>)target) {
             if(!other.Contains(item))
@@ -97,8 +92,7 @@ internal static class SeamlessSetOperations {
         }
         return true;
     }
-    public static bool IsSupersetOf<TRecord>(ISet<TRecord> target,ISet<TRecord> other)
-        where TRecord : IEquatable<TRecord> {
+    public static bool IsSupersetOf<TRecord>(ISet<TRecord> target,ISet<TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         foreach(var item in (ICollection<TRecord>)other) {
             if(!target.Contains(item))
@@ -106,22 +100,19 @@ internal static class SeamlessSetOperations {
         }
         return true;
     }
-    public static bool IsProperSubsetOf<TRecord>(ISet<TRecord> target,ISet<TRecord> other)
-        where TRecord : IEquatable<TRecord> {
+    public static bool IsProperSubsetOf<TRecord>(ISet<TRecord> target,ISet<TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         if(target.GetLongCount()>=other.GetLongCount())
             return false;
         return IsSubsetOf(target,other);
     }
-    public static bool IsProperSupersetOf<TRecord>(ISet<TRecord> target,ISet<TRecord> other)
-        where TRecord : IEquatable<TRecord> {
+    public static bool IsProperSupersetOf<TRecord>(ISet<TRecord> target,ISet<TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         if(target.GetLongCount()<=other.GetLongCount())
             return false;
         return IsSupersetOf(target,other);
     }
-    public static bool Overlaps<TRecord>(ISet<TRecord> target,ISet<TRecord> other)
-        where TRecord : IEquatable<TRecord> {
+    public static bool Overlaps<TRecord>(ISet<TRecord> target,ISet<TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         foreach(var item in (ICollection<TRecord>)other) {
             if(target.Contains(item))
@@ -129,15 +120,13 @@ internal static class SeamlessSetOperations {
         }
         return false;
     }
-    public static bool SetEquals<TRecord>(ISet<TRecord> target,ISet<TRecord> other)
-        where TRecord : IEquatable<TRecord> {
+    public static bool SetEquals<TRecord>(ISet<TRecord> target,ISet<TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         if(target.GetLongCount()!=other.GetLongCount())
             return false;
         return IsSubsetOf(target,other);
     }
-    public static void SymmetricExceptWith<TRecord>(ISet<TRecord> target,ISet<TRecord> other)
-        where TRecord : IEquatable<TRecord> {
+    public static void SymmetricExceptWith<TRecord>(ISet<TRecord> target,ISet<TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var toAdd = new global::System.Collections.Generic.List<TRecord>();
         var toRemove = new global::System.Collections.Generic.List<TRecord>();
@@ -152,8 +141,7 @@ internal static class SeamlessSetOperations {
         foreach(var item in toAdd)
             target.Add(item);
     }
-    public static void UnionWith<TRecord>(ISet<TRecord> target,ISet<TRecord> other)
-        where TRecord : IEquatable<TRecord> {
+    public static void UnionWith<TRecord>(ISet<TRecord> target,ISet<TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         foreach(var item in (ICollection<TRecord>)other)
             target.Add(item);

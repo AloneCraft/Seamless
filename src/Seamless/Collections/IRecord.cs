@@ -1,6 +1,5 @@
 namespace Seamless.Collections;
 
-public interface IRecord<TKey>
-    where TKey : IEquatable<TKey> {
+public interface IRecord<TKey> {
     TKey Key { get; }
 }

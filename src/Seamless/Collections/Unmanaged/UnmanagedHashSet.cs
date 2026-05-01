@@ -1,14 +1,14 @@
-ï»¿using System.Collections;
+using System.Collections;
 using System.Diagnostics;
 using Seamless.Stores;
 namespace Seamless.Collections;
 /// <summary>
-/// Tsavorite ã‚’ãƒãƒƒã‚¯ã‚¨ãƒ³ãƒ‰ã«ä½¿ã† UnmanagedHashSetã€‚
-/// é‡è¤‡ã‚’è¨±ã•ãšã€unmanaged ã‚­ãƒ¼ã®ã¿ã‚’æ ¼ç´ã™ã‚‹ã€‚å€¤ã¯ EqualityEmpty æ§‹é€ ä½“ã‚’ä½¿ç”¨ã™ã‚‹ã€‚
+/// Tsavorite ‚ğƒoƒbƒNƒGƒ“ƒh‚Ég‚¤ UnmanagedHashSetB
+/// d•¡‚ğ‹–‚³‚¸Aunmanaged ƒL[‚Ì‚İ‚ğŠi”[‚·‚éB’l‚Í EqualityEmpty \‘¢‘Ì‚ğg—p‚·‚éB
 /// </summary>
 [DebuggerTypeProxy(typeof(UnmanagedHashSetDebugView<>))]
 public partial class UnmanagedHashSet<TKey>:UnmanagedUnmanagedCollection<TKey,EqualityEmpty,UnmanagedSerializer<TKey>,UnmanagedSerializer<EqualityEmpty>>, IHashSet<TKey>
-    where TKey : unmanaged, IEquatable<TKey> {
+    where TKey : unmanaged {
     private IDisposable? ownedStore;
     public bool IsReadOnly => false;
     void ICollection<TKey>.Add(TKey item) => this.Add(item);

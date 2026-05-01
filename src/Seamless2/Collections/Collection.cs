@@ -1,4 +1,4 @@
-ï»¿using System;
+using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -18,9 +18,7 @@ public abstract class Collection<
     TContainsDeleteFunctions,
     TStoreFunctions,
     TAllocator
->:IDisposable
-    where TKey : IEquatable<TKey>
-    where TReadFunctions : struct, ISessionFunctions<
+>:IDisposable    where TReadFunctions : struct, ISessionFunctions<
         EqualityEmpty,
         TReadOutput,
         EqualityEmpty
@@ -43,10 +41,10 @@ public abstract class Collection<
         TStoreFunctions
     > {
     /// <summary>
-    /// IterateLookup ã§ã‚¹ãƒˆã‚¢ã®å…¨ãƒ¬ã‚³ãƒ¼ãƒ‰ã‚’ 1 ãƒªã‚¹ãƒˆ (= å‘¼ã³å‡ºã—å´ãŒæ¸¡ã™ä¸€æ™‚ ManagedList/UnmanagedList) ã«æµã—è¾¼ã‚€ãŸã‚ã®
-    /// IScanIteratorFunctions å®Ÿè£…å…¼ã‚¤ãƒ†ãƒ¬ãƒ¼ã‚¿åŸºåº•ã€‚å„ *Iterator å‹ã¯ã“ã®ã‚¯ãƒ©ã‚¹ã‚’ç¶™æ‰¿ã—ã¦
-    /// <see cref="Deserialize{TSourceLogRecord}"/> ã‚’å®Ÿè£…ã™ã‚‹ã€‚Enumerator æ§‹ç¯‰æ™‚ã«
-    /// <see cref="SetList"/> ã§å‡ºåŠ›å…ˆãƒªã‚¹ãƒˆã‚’å·®ã—è¾¼ã‚€ã€‚
+    /// IterateLookup ‚ÅƒXƒgƒA‚Ì‘SƒŒƒR[ƒh‚ğ 1 ƒŠƒXƒg (= ŒÄ‚Ño‚µ‘¤‚ª“n‚·ˆê ManagedList/UnmanagedList) ‚É—¬‚µ‚Ş‚½‚ß‚Ì
+    /// IScanIteratorFunctions À‘•Œ“ƒCƒeƒŒ[ƒ^Šî’êBŠe *Iterator Œ^‚Í‚±‚ÌƒNƒ‰ƒX‚ğŒp³‚µ‚Ä
+    /// <see cref="Deserialize{TSourceLogRecord}"/> ‚ğÀ‘•‚·‚éBEnumerator \’z‚É
+    /// <see cref="SetList"/> ‚Åo—ÍæƒŠƒXƒg‚ğ·‚µ‚ŞB
     /// </summary>
     public abstract class ScanIteratorFunctions_List<T, TList>:IScanIteratorFunctions
         where TList : List<T> {
@@ -233,8 +231,8 @@ public abstract class Collection<
         this.RecreateAdditionalSessions();
     }
     public virtual void Refresh() {
-        // Tsavorite ã® log truncation/segment deletion ã¯ã€å¤ã„ session ãŒä¿æŒã™ã‚‹ epoch ä¸–ä»£å‚ç…§ã«å½±éŸ¿ã•ã‚Œã‚‹ã€‚
-        // session ã‚’å¼µã‚Šæ›¿ãˆã¦ pending ã‚’è§£æ¶ˆã—ã€å¤ã„ä¸–ä»£ã‚’æ‰‹æ”¾ã™ã€‚
+        // Tsavorite ‚Ì log truncation/segment deletion ‚ÍAŒÃ‚¢ session ‚ª•Û‚·‚é epoch ¢‘ãQÆ‚É‰e‹¿‚³‚ê‚éB
+        // session ‚ğ’£‚è‘Ö‚¦‚Ä pending ‚ğ‰ğÁ‚µAŒÃ‚¢¢‘ã‚ğè•ú‚·B
         this.DisposeAdditionalSessions();
         this.DisposeCoreSessions();
         this.RecreateCoreSessions();
@@ -728,7 +726,7 @@ public abstract class Collection<
         return IsSubsetOfSet(Self,Other);
     }
     /// <summary>
-    /// ManagedHashSet,UnmanagedHashSetãŒä½¿ã†
+    /// ManagedHashSet,UnmanagedHashSet‚ªg‚¤
     /// </summary>
     /// <typeparam name="TCollection"></typeparam>
     /// <param name="self"></param>
@@ -764,8 +762,8 @@ public abstract class Collection<
         try {
             using var keysToExpire = new global::Seamless.Collections.ManagedList<byte[]>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
             var Iterator = new ScanIteratorFunctions_IntersectWith<TCollection>(other,keysToExpire);
-            // IntersectWith ã¯èµ°æŸ»ã—ãªãŒã‚‰ RMW ã§ tombstone ã‚’è¿½è¨˜ã™ã‚‹ãŸã‚ã€
-            // èµ°æŸ»é–‹å§‹æ™‚ã® TailAddress ã‚’ä¸Šé™ã«å›ºå®šã—ã¦æ–°è¦è¿½è¨˜åˆ†ã‚’å†èµ°æŸ»ã—ãªã„ã€‚
+            // IntersectWith ‚Í‘–¸‚µ‚È‚ª‚ç RMW ‚Å tombstone ‚ğ’Ç‹L‚·‚é‚½‚ßA
+            // ‘–¸ŠJn‚Ì TailAddress ‚ğãŒÀ‚ÉŒÅ’è‚µ‚ÄV‹K’Ç‹L•ª‚ğÄ‘–¸‚µ‚È‚¢B
             var Cursor = 0L;
             ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
             ReadSession.BasicContext.CompletePending(wait: true);

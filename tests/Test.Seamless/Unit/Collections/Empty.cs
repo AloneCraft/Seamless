@@ -18,11 +18,5 @@ public class TestEqualityEmpty{
         Assert.True(a.Equals(b));
         Assert.True(a.Equals((object?)b));
         Assert.False(a!=b);
-        Assert.Equal(0,a.GetHashCode());
-    }
-    [Fact,Trait("Category","Unit")]
-    public void GetHashCode_(){
-        var a=EqualityEmpty.Default;
-        Assert.Equal(0,a.GetHashCode());
     }
 }

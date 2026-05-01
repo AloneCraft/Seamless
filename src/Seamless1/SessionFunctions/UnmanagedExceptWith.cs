@@ -3,7 +3,7 @@ namespace Seamless.SessionFunctions;
 
 internal readonly struct UnmanagedExceptWith<TKey>:
     ISessionFunctions<TKey,EqualityEmpty,EqualityEmpty,EqualityEmpty,EqualityEmpty>
-    where TKey : unmanaged, IEquatable<TKey> {
+    where TKey : unmanaged {
     [ExcludeFromCodeCoverage]
     public bool SingleReader(ref TKey key,ref EqualityEmpty input,ref EqualityEmpty value,ref EqualityEmpty output,ref ReadInfo readInfo) {
         throw new NotSupportedException();

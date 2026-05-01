@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Diagnostics;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
@@ -17,10 +17,7 @@ public abstract class ManagedCollection<TKey, TValue, TKeySerializer, TValueSeri
     ManagedContainsDelete,//TContainsDeleteFunction
     ManagedStoreFunctions,//TStoreFunctions
     ManagedAllocator//TAllocator
->
-    where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>
-    where TKeySerializer : ISerializer<TKey>
+>    where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
     public sealed class KeyIterator:ScanIteratorFunctions_List<TKey,List<TKey>> {
         private protected override TKey Deserialize(ref SpanByte key,ref SpanByte value) =>

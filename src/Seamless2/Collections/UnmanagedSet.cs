@@ -3,8 +3,8 @@ using System.Collections;
 namespace Seamless.Collections;
 
 public partial class UnmanagedSet<TRecord, TKey>
-    where TRecord : unmanaged, IRecord<TKey>, IEquatable<TRecord>
-    where TKey : unmanaged, IEquatable<TKey> {
+    where TRecord : unmanaged, IRecord<TKey>
+    where TKey : unmanaged {
     public UnmanagedList<TRecord>.Enumerator GetEnumerator() {
         var workListPath = CreateTemporaryWorkListPath("unmanaged-set-enumerator");
         try {

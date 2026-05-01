@@ -210,9 +210,9 @@ namespace Test.Seamless.Database.Database0 {
                 .Where(value => value>=minimumColumn1);
         }
 
-        internal Types.Type0[] Type0Table => [new(1,10),new(2,20),new(3,30)];
+        internal Records.Type0[] Type0Table => [new(1,10),new(2,20),new(3,30)];
 
-        private IEnumerable<Types.Type0> FilterType0(int minimumColumn1) =>
+        private IEnumerable<Records.Type0> FilterType0(int minimumColumn1) =>
             from row in this.Type0Table
             where row.Column1>=minimumColumn1
             select row;
@@ -235,7 +235,7 @@ namespace Test.Seamless.Database.Database0 {
         }
     }
 
-    namespace Types {
+    namespace Records {
         public partial struct Type0 {
             public partial int Column0 { get; }
             public partial int Column1 { get; }

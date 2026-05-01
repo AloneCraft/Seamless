@@ -4,8 +4,7 @@ using Seamless.Devices;
 namespace Seamless.Stores;
 
 public class ManagedSetStore<TRecord, TKey>:ManagedCollectionStore<TKey,TRecord>
-    where TRecord : IRecord<TKey>, IEquatable<TRecord>
-    where TKey : IEquatable<TKey> {
+    where TRecord : IRecord<TKey> {
     internal ManagedSetStore(long indexSize,long pageSize,long segmentSize,long memorySize,double mutableFraction) :
         base(indexSize,pageSize,segmentSize,memorySize,mutableFraction,new MemoryOnlyDevice(segmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory) {
     }

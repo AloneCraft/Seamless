@@ -1,4 +1,4 @@
-﻿namespace Seamless.Stores;
+namespace Seamless.Stores;
 
 public abstract partial class ManagedCollectionStore<TKey, TValue>
    :CollectionStore<
@@ -6,7 +6,5 @@ public abstract partial class ManagedCollectionStore<TKey, TValue>
         TValue,
         ManagedStoreFunctions,
         ManagedAllocator
-    >
-    where TKey:IEquatable<TKey>
-    where TValue:IEquatable<TValue> {
+    > {
 }

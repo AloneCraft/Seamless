@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Seamless.Stores;
 
 namespace Seamless.Collections;
@@ -6,8 +6,8 @@ namespace Seamless.Collections;
 public partial class UnmanagedSet<TRecord, TKey>:
     UnmanagedUnmanagedCollection<TKey,TRecord,UnmanagedSerializer<TKey>,UnmanagedSerializer<TRecord>>,
     ISeamlessSet<TRecord,TKey>
-    where TRecord : unmanaged, IRecord<TKey>, IEquatable<TRecord>
-    where TKey : unmanaged, IEquatable<TKey> {
+    where TRecord : unmanaged, IRecord<TKey>
+    where TKey : unmanaged {
     private readonly IDisposable? ownedStore;
     internal UnmanagedSet(UnmanagedCollectionStore<TKey,TRecord> collectionStore,IDisposable? ownedStore = null) : base(collectionStore) {
         this.ownedStore=ownedStore;

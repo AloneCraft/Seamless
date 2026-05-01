@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Seamless.SessionFunctions;
@@ -51,8 +51,8 @@ public abstract partial class UnmanagedCollection<TKey, TValue, TKeySerializer, 
 
 
 >
-    where TKey : unmanaged, IEquatable<TKey>
-    where TValue : unmanaged, IEquatable<TValue>
+    where TKey : unmanaged
+    where TValue : unmanaged
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
     public sealed partial class KeyIterator:ScanIteratorFunctions_List<TKey,UnmanagedList<TKey>> {

@@ -1,14 +1,14 @@
-ï»¿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 namespace Seamless.Stores;
 
-/// <summary>Managed/Unmanaged ã‚ªãƒ¼ãƒãƒ¼ãƒ­ãƒ¼ãƒ‰è§£æ±ºç”¨ã‚¿ã‚°ã€‚</summary>
+/// <summary>Managed/Unmanaged ƒI[ƒo[ƒ[ƒh‰ğŒˆ—pƒ^ƒOB</summary>
 public readonly struct ManagedTag;
-/// <summary>Managed/Unmanaged ã‚ªãƒ¼ãƒãƒ¼ãƒ­ãƒ¼ãƒ‰è§£æ±ºç”¨ã‚¿ã‚°ã€‚</summary>
+/// <summary>Managed/Unmanaged ƒI[ƒo[ƒ[ƒh‰ğŒˆ—pƒ^ƒOB</summary>
 public readonly struct UnmanagedTag;
 /// <summary>
-/// Store ãƒ•ã‚¡ã‚¯ãƒˆãƒªã€‚
-/// Create ã‚ªãƒ¼ãƒãƒ¼ãƒ­ãƒ¼ãƒ‰ã¯ default å¼•æ•°ã§ ManagedTag/UnmanagedTag ã‚’å—ã‘å–ã‚‹ã“ã¨ã§ã€Managed/Unmanaged ã®ã‚ªãƒ¼ãƒãƒ¼ãƒ­ãƒ¼ãƒ‰è§£æ±ºã‚’è¡Œã†ã€‚
+/// Store ƒtƒ@ƒNƒgƒŠB
+/// Create ƒI[ƒo[ƒ[ƒh‚Í default ˆø”‚Å ManagedTag/UnmanagedTag ‚ğó‚¯æ‚é‚±‚Æ‚ÅAManaged/Unmanaged ‚ÌƒI[ƒo[ƒ[ƒh‰ğŒˆ‚ğs‚¤B
 /// </summary>
 public readonly struct HashStore {
     private readonly long IndexSize, PageSize, SegmentSize, MemorySize;
@@ -40,7 +40,7 @@ public readonly struct HashStore {
         this.StorageReserveBytes=StorageReserveBytes;
         this.CheckpointDir=CheckpointDir;
     }
-    /// <summary>æ§‹æˆãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚’æŒ‡å®šã—ã¦ HashStore ã‚’ç”Ÿæˆã™ã‚‹ã€‚</summary>
+    /// <summary>\¬ƒpƒ‰ƒ[ƒ^‚ğw’è‚µ‚Ä HashStore ‚ğ¶¬‚·‚éB</summary>
     public static HashStore Create(
         long IndexSize = Const.IndexSize,
         long PageSize = Const.PageSize,
@@ -145,66 +145,57 @@ public readonly struct HashStore {
 
     private sealed record CheckpointIndexMetadata(Guid Token,long EntryCount,long RecommendedIndexSize);
 
-    // â”€â”€ Memory Dictionary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    /// <summary>Managed Key Ã— Managed Value</summary>
+    // „Ÿ„Ÿ Memory Dictionary „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    /// <summary>Managed Key ~ Managed Value</summary>
     public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         ManagedTag _0 = default,
         ManagedTag _1 = default
-    )
-        where TKey : IEquatable<TKey>
-        where TValue : IEquatable<TValue> =>
+    ) =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,keyUsesManagedSerializer: true,valueUsesManagedSerializer: true);
-    /// <summary>Managed Key Ã— Unmanaged Value</summary>
+    /// <summary>Managed Key ~ Unmanaged Value</summary>
     [OverloadResolutionPriority(1)]
     public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         ManagedTag _0 = default,
         UnmanagedTag _1 = default
-    )
-        where TKey : IEquatable<TKey>
-        where TValue : unmanaged, IEquatable<TValue> =>
+    )        where TValue : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,keyUsesManagedSerializer: true,valueUsesManagedSerializer: false);
-    /// <summary>Unmanaged Key Ã— Managed Value</summary>
+    /// <summary>Unmanaged Key ~ Managed Value</summary>
     [OverloadResolutionPriority(1)]
     public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         UnmanagedTag _0 = default,
         ManagedTag _1 = default
     )
-        where TKey : unmanaged, IEquatable<TKey>
-        where TValue : IEquatable<TValue> =>
+        where TKey : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,keyUsesManagedSerializer: false,valueUsesManagedSerializer: true);
-    /// <summary>Unmanaged Key Ã— Unmanaged Value</summary>
+    /// <summary>Unmanaged Key ~ Unmanaged Value</summary>
     [OverloadResolutionPriority(2)]
     public UnmanagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         UnmanagedTag _0 = default,
         UnmanagedTag _1 = default
     )
-        where TKey : unmanaged, IEquatable<TKey>
-        where TValue : unmanaged, IEquatable<TValue> =>
+        where TKey : unmanaged
+        where TValue : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
 
-    // â”€â”€ Storage Dictionary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    /// <summary>Managed Key Ã— Managed Valueï¼ˆã‚¹ãƒˆãƒ¬ãƒ¼ã‚¸ä»˜ãï¼‰</summary>
+    // „Ÿ„Ÿ Storage Dictionary „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    /// <summary>Managed Key ~ Managed ValueiƒXƒgƒŒ[ƒW•t‚«j</summary>
     public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
         ManagedTag _0 = default,
         ManagedTag _1 = default
-    )
-        where TKey : IEquatable<TKey>
-        where TValue : IEquatable<TValue> =>
+    ) =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes,keyUsesManagedSerializer: true,valueUsesManagedSerializer: true);
-    /// <summary>Managed Key Ã— Unmanaged Valueï¼ˆã‚¹ãƒˆãƒ¬ãƒ¼ã‚¸ä»˜ãï¼‰</summary>
+    /// <summary>Managed Key ~ Unmanaged ValueiƒXƒgƒŒ[ƒW•t‚«j</summary>
     [OverloadResolutionPriority(1)]
     public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
         ManagedTag _0 = default,
         UnmanagedTag _1 = default
-    )
-        where TKey : IEquatable<TKey>
-        where TValue : unmanaged, IEquatable<TValue> =>
+    )        where TValue : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes,keyUsesManagedSerializer: true,valueUsesManagedSerializer: false);
-    /// <summary>Unmanaged Key Ã— Managed Valueï¼ˆã‚¹ãƒˆãƒ¬ãƒ¼ã‚¸ä»˜ãï¼‰</summary>
+    /// <summary>Unmanaged Key ~ Managed ValueiƒXƒgƒŒ[ƒW•t‚«j</summary>
     [OverloadResolutionPriority(1)]
     public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         IDevice LogDevice,
@@ -212,10 +203,9 @@ public readonly struct HashStore {
         UnmanagedTag _0 = default,
         ManagedTag _1 = default
     )
-        where TKey : unmanaged, IEquatable<TKey>
-        where TValue : IEquatable<TValue> =>
+        where TKey : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes,keyUsesManagedSerializer: false,valueUsesManagedSerializer: true);
-    /// <summary>Unmanaged Key Ã— Unmanaged Valueï¼ˆã‚¹ãƒˆãƒ¬ãƒ¼ã‚¸ä»˜ãï¼‰</summary>
+    /// <summary>Unmanaged Key ~ Unmanaged ValueiƒXƒgƒŒ[ƒW•t‚«j</summary>
     [OverloadResolutionPriority(2)]
     public UnmanagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
         IDevice LogDevice,
@@ -223,41 +213,37 @@ public readonly struct HashStore {
         UnmanagedTag _0 = default,
         UnmanagedTag _1 = default
     )
-        where TKey : unmanaged, IEquatable<TKey>
-        where TValue : unmanaged, IEquatable<TValue> =>
+        where TKey : unmanaged
+        where TValue : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
 
-    // â”€â”€ Managed HashSet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // „Ÿ„Ÿ Managed HashSet „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
     /// <summary>Memory ManagedHashSet</summary>
-    public ManagedHashSetStore<TKey> Create<TKey>(ManagedTag _0 = default)
-        where TKey : IEquatable<TKey> =>
+    public ManagedHashSetStore<TKey> Create<TKey>(ManagedTag _0 = default) =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
-    public ManagedHashSetStore<TKey> CreateManagedHashSet<TKey>()
-        where TKey : IEquatable<TKey> =>
+    public ManagedHashSetStore<TKey> CreateManagedHashSet<TKey>() =>
         this.Create<TKey>(new ManagedTag());
     /// <summary>Storage ManagedHashSet</summary>
     public ManagedHashSetStore<TKey> Create<TKey>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
         ManagedTag _0 = default
-    )
-        where TKey : IEquatable<TKey> =>
+    ) =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
     public ManagedHashSetStore<TKey> CreateManagedHashSet<TKey>(
         IDevice LogDevice,
         IDevice ObjectLogDevice
-    )
-        where TKey : IEquatable<TKey> =>
+    ) =>
         this.Create<TKey>(LogDevice,ObjectLogDevice,new ManagedTag());
 
-    // â”€â”€ Unmanaged HashSet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // „Ÿ„Ÿ Unmanaged HashSet „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
     /// <summary>Memory UnmanagedHashSet</summary>
     [OverloadResolutionPriority(1)]
     public UnmanagedHashSetStore<TKey> Create<TKey>(UnmanagedTag _0 = default)
-        where TKey : unmanaged, IEquatable<TKey> =>
+        where TKey : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     public UnmanagedHashSetStore<TKey> CreateUnmanagedHashSet<TKey>()
-        where TKey : unmanaged, IEquatable<TKey> =>
+        where TKey : unmanaged =>
         this.Create<TKey>(new UnmanagedTag());
     /// <summary>Storage UnmanagedHashSet</summary>
     [OverloadResolutionPriority(1)]
@@ -266,40 +252,38 @@ public readonly struct HashStore {
         IDevice ObjectLogDevice,
         UnmanagedTag _0 = default
     )
-        where TKey : unmanaged, IEquatable<TKey> =>
+        where TKey : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
     public UnmanagedHashSetStore<TKey> CreateUnmanagedHashSet<TKey>(
         IDevice LogDevice,
         IDevice ObjectLogDevice
     )
-        where TKey : unmanaged, IEquatable<TKey> =>
+        where TKey : unmanaged =>
         this.Create<TKey>(LogDevice,ObjectLogDevice,new UnmanagedTag());
 
     /// <summary>Memory ManagedSet</summary>
     public ManagedSetStore<TRecord,TKey> CreateManagedSet<TRecord, TKey>()
-        where TRecord : Collections.IRecord<TKey>, IEquatable<TRecord>
-        where TKey : IEquatable<TKey> =>
+        where TRecord : Collections.IRecord<TKey> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Storage ManagedSet</summary>
     public ManagedSetStore<TRecord,TKey> CreateManagedSet<TRecord, TKey>(
         IDevice LogDevice,
         IDevice ObjectLogDevice
     )
-        where TRecord : Collections.IRecord<TKey>, IEquatable<TRecord>
-        where TKey : IEquatable<TKey> =>
+        where TRecord : Collections.IRecord<TKey> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
 
     /// <summary>Memory UnmanagedSet</summary>
     public UnmanagedSetStore<TRecord,TKey> CreateUnmanagedSet<TRecord, TKey>()
-        where TRecord : unmanaged, Collections.IRecord<TKey>, IEquatable<TRecord>
-        where TKey : unmanaged, IEquatable<TKey> =>
+        where TRecord : unmanaged, Collections.IRecord<TKey>
+        where TKey : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Storage UnmanagedSet</summary>
     public UnmanagedSetStore<TRecord,TKey> CreateUnmanagedSet<TRecord, TKey>(
         IDevice LogDevice,
         IDevice ObjectLogDevice
     )
-        where TRecord : unmanaged, Collections.IRecord<TKey>, IEquatable<TRecord>
-        where TKey : unmanaged, IEquatable<TKey> =>
+        where TRecord : unmanaged, Collections.IRecord<TKey>
+        where TKey : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
 }

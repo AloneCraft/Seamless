@@ -1,11 +1,11 @@
-﻿
+
 using Seamless.Collections;
 using Seamless.Devices;
 namespace Seamless.Stores;
 
 public class UnmanagedDictionaryStore<TKey, TValue>:UnmanagedCollectionStore<TKey,TValue>
-    where TKey : unmanaged, IEquatable<TKey>
-    where TValue : unmanaged, IEquatable<TValue> {
+    where TKey : unmanaged
+    where TValue : unmanaged {
     internal UnmanagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction) :
         base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory) {
     }
@@ -23,8 +23,8 @@ public class UnmanagedDictionaryStore<TKey, TValue>:UnmanagedCollectionStore<TKe
 }
 
 //public class UnmanagedUnmanagedDictionaryStore<TKey, TValue>:UnmanagedDictionaryStore<TKey,TValue>
-//    where TKey : unmanaged, IEquatable<TKey>
-//    where TValue : unmanaged, IEquatable<TValue> {
+//    where TKey : unmanaged
+//    where TValue : unmanaged {
 //    internal UnmanagedUnmanagedDictionaryStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction) :
 //        base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction){ }
 

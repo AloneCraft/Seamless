@@ -1,9 +1,7 @@
-﻿using Seamless.Stores;
+using Seamless.Stores;
 namespace Seamless.Collections;
 public sealed partial class ManagedUnmanagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer>
-    :ManagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
-    where TKey : IEquatable<TKey>
-    where TValue : unmanaged, IEquatable<TValue>
+    :ManagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>    where TValue : unmanaged
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
     internal ManagedUnmanagedDictionary(ManagedCollectionStore<TKey,TValue> collectionStore) : base(collectionStore){
