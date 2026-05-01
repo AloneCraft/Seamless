@@ -1,12 +1,12 @@
-﻿//using System.Linq;
-//using NonGenericEnumerable = System.Collections.IEnumerable;
+﻿using System;
+using System.Collections.Generic;
 using e = System.Linq.Enumerable;
 using a = Seamless.Linq.Enumerable;
 
 namespace Test.Seamless.Intercept.Seamless.Linq;
 
 
-public sealed class EnumerableMethod {
+public sealed class EnumerableMethod1 {
     [Fact, Trait("Category","Intercept")]private static void Aggregate_func()=>Assert.Equal(
         e.Aggregate(Source(),static (left,right) => left+right),
         a.Aggregate(Source(),static (left,right) => left+right)
@@ -415,7 +415,6 @@ public sealed class EnumerableMethod {
     [Fact, Trait("Category","Intercept")]private static void Zip_second_third()=>Assert.Equal(
         e.Zip(Source(),Second(),Third()), a.Zip(Source(),Second(),Third())
     );
-
     private static int[] Source() => [1,2,3,4];
     private static int[] Second() => [3,4,5];
     private static int[] Third() => [10,20,30];
@@ -425,11 +424,5 @@ public sealed class EnumerableMethod {
     private static object[] MixedObjects() => [1,"skip",2,3.0,4];
     private static Row[] Rows() => [new(1,10,"beta"),new(2,20,"alpha"),new(3,30,"gamma")];
     private static Row[] OtherRows() => [new(3,300,"gamma-2"),new(4,40,"delta")];
-
     private sealed record Row(int Key,int Value,string Name);
-
-    [Fact, Trait("Category","Unit")]
-    public void SmokeTest() {
-        //Assert.True(new Enumerable().Smoke()>0);
-    }
 }

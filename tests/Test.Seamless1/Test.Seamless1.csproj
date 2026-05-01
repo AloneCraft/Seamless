@@ -22,7 +22,6 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <Compile Remove="CheckpointRecoveryTests.cs" />
-	  <Compile Remove="Tsavorite\IterateLookupChunkTests.cs" />
 	</ItemGroup>
 
 	<ItemGroup>
