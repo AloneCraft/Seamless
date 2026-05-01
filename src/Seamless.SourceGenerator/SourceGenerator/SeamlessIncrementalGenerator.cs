@@ -1928,7 +1928,7 @@ namespace Seamless {
                 &&TryCreateSequenceMaterializationPipeline(argumentInvocation,semanticModel,out var pipeline,out var resultElementType)) {
                 var resultName = materializedArguments.Count==0 ? "result" : $"result{materializedArguments.Count}";
                 materializedArguments.Add(argumentIndex,resultName);
-                materializationBlocks.Add(new SequenceMaterializationEmitter(pipeline,BuildGeneratedTypeName(resultElementType),resultName).BuildStatements());
+                materializationBlocks.Add(new SequenceMaterializationEmitter(pipeline,BuildGeneratedTypeName(resultElementType),resultName,CanUseUnmanagedTemporaryResultList(resultElementType)).BuildStatements());
             }
         }
         if(materializedArguments.Count==0) {
@@ -2039,9 +2039,18 @@ namespace Seamless {
     // method / invocation / semanticModel は、明示的な Managed/Unmanaged 方針が呼び出し側から渡る形に戻すときの解析入力。
     private static string? TryTranslateSequenceLoopFusionBody(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
         if(TryCreateSequenceMaterializationPipeline(invocation,semanticModel,out var pipeline,out var resultElementType)) {
-            return new SequenceMaterializationEmitter(pipeline,BuildGeneratedTypeName(resultElementType),"result").BuildReturnBody();
+            return new SequenceMaterializationEmitter(pipeline,BuildGeneratedTypeName(resultElementType),"result",CanUseUnmanagedTemporaryResultList(resultElementType),TryGetSequenceMaterializationWrapperReturnType(method.ReturnType)).BuildReturnBody();
         }
         return TryTranslateSelectLoopFusionBody(method,invocation,semanticModel);
+    }
+
+    private static string? TryGetSequenceMaterializationWrapperReturnType(ITypeSymbol returnType) {
+        if(returnType is INamedTypeSymbol namedType
+            &&namedType.Name=="IEnumerable"
+            &&namedType.ContainingNamespace.ToDisplayString()=="Seamless.Collections.Generic") {
+            return BuildGeneratedTypeName(returnType);
+        }
+        return null;
     }
 
     private static bool TryCreateSequenceMaterializationPipeline(InvocationExpressionSyntax invocation,SemanticModel semanticModel,out ScalarFusionPipeline pipeline,out ITypeSymbol resultElementType) {
@@ -2178,6 +2187,40 @@ namespace Seamless {
                 return namedType.TupleElements.Any(static element => ContainsAnonymousType(element.Type));
             }
             return namedType.TypeArguments.Any(ContainsAnonymousType);
+        }
+        return false;
+    }
+
+    private static bool CanUseUnmanagedTemporaryResultList(ITypeSymbol type) {
+        if(type is ITypeParameterSymbol typeParameter) {
+            return typeParameter.HasUnmanagedTypeConstraint;
+        }
+        if(!type.IsUnmanagedType) {
+            return false;
+        }
+        return !ContainsUnconstrainedTypeParameter(type);
+    }
+
+    private static bool ContainsUnconstrainedTypeParameter(ITypeSymbol type) {
+        if(type is ITypeParameterSymbol typeParameter) {
+            return !typeParameter.HasUnmanagedTypeConstraint;
+        }
+        if(type is IArrayTypeSymbol arrayType) {
+            return ContainsUnconstrainedTypeParameter(arrayType.ElementType);
+        }
+        if(type is INamedTypeSymbol namedType) {
+            foreach(var typeArgument in namedType.TypeArguments) {
+                if(ContainsUnconstrainedTypeParameter(typeArgument)) {
+                    return true;
+                }
+            }
+            if(namedType.IsTupleType) {
+                foreach(var element in namedType.TupleElements) {
+                    if(ContainsUnconstrainedTypeParameter(element.Type)) {
+                        return true;
+                    }
+                }
+            }
         }
         return false;
     }
@@ -2441,15 +2484,19 @@ namespace Seamless {
         private readonly ScalarFusionPipeline pipeline;
         private readonly string resultElementTypeName;
         private readonly string resultName;
+        private readonly bool useUnmanagedStorage;
+        private readonly string? returnWrapperTypeName;
         private readonly string suffix;
         private readonly List<string> lines = new();
         private int indent;
         private int valueIndex;
 
-        public SequenceMaterializationEmitter(ScalarFusionPipeline pipeline,string resultElementTypeName,string resultName) {
+        public SequenceMaterializationEmitter(ScalarFusionPipeline pipeline,string resultElementTypeName,string resultName,bool useUnmanagedStorage,string? returnWrapperTypeName = null) {
             this.pipeline=pipeline;
             this.resultElementTypeName=resultElementTypeName;
             this.resultName=resultName;
+            this.useUnmanagedStorage=useUnmanagedStorage;
+            this.returnWrapperTypeName=returnWrapperTypeName;
             this.suffix=resultName=="result" ? string.Empty : resultName.Substring("result".Length);
         }
 
@@ -2457,7 +2504,12 @@ namespace Seamless {
             this.Add("{");
             this.indent++;
             this.EmitMaterialization();
-            this.Add($"return {this.resultName};");
+            if(this.returnWrapperTypeName is null) {
+                this.Add($"return {this.resultName};");
+            }
+            else {
+                this.Add($"return new {this.returnWrapperTypeName}({this.resultName});");
+            }
             this.indent--;
             this.Add("}");
             return string.Join("\n",this.lines);
@@ -2472,16 +2524,33 @@ namespace Seamless {
             var sourceName = this.Name("__seamlessSource");
             var itemName = this.Name("__seamlessItem");
             var continueLabel = this.Name("__seamlessContinue");
+            var resultPathName = this.Name("__seamlessResultPath");
+            var resultListName = this.Name("__seamlessResultList");
             this.Add($"var {sourceName} = {this.pipeline.SourceExpression};");
             this.Add($"global::System.ArgumentNullException.ThrowIfNull({sourceName});");
             this.DeclareOperationState();
-            this.Add($"var {this.resultName} = new global::System.Collections.Generic.List<{this.resultElementTypeName}>();");
+            this.Add($"var {resultPathName} = global::Seamless.Linq.Enumerable.CreateTemporaryResultListPath(\"intercept-chain-{this.StorageKindName()}\");");
+            this.Add($"var {resultListName} = {this.CreateTemporaryResultListExpression(resultPathName)};");
+            this.Add("try {");
+            this.indent++;
             this.Add($"foreach(var {itemName} in {sourceName}) {{");
             this.indent++;
-            this.EmitOperations(0,itemName,continueLabel);
-            this.Add($"{continueLabel}:;");
+            this.EmitOperations(0,itemName,continueLabel,resultListName);
+            if(this.UsesContinueLabel()) {
+                this.Add($"{continueLabel}:;");
+            }
             this.indent--;
             this.Add("}");
+            this.indent--;
+            this.Add("}");
+            this.Add("catch {");
+            this.indent++;
+            this.Add($"{resultListName}.Dispose();");
+            this.Add($"global::Seamless.Linq.Enumerable.DeleteTemporaryResultListPath({resultPathName});");
+            this.Add("throw;");
+            this.indent--;
+            this.Add("}");
+            this.Add($"var {this.resultName} = {this.OwnTemporaryResultListExpression(resultListName,resultPathName)};");
         }
 
         private void DeclareOperationState() {
@@ -2493,9 +2562,18 @@ namespace Seamless {
             }
         }
 
-        private void EmitOperations(int operationIndex,string valueExpression,string continueLabel) {
+        private bool UsesContinueLabel() {
+            foreach(var operation in this.pipeline.Operations) {
+                if(operation.MethodName=="Where") {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void EmitOperations(int operationIndex,string valueExpression,string continueLabel,string resultListName) {
             if(operationIndex>=this.pipeline.Operations.Count) {
-                this.Add($"{this.resultName}.Add({valueExpression});");
+                this.Add($"{resultListName}.Add({valueExpression});");
                 return;
             }
 
@@ -2508,16 +2586,37 @@ namespace Seamless {
                     this.Add($"goto {continueLabel};");
                     this.indent--;
                     this.Add("}");
-                    this.EmitOperations(operationIndex+1,valueExpression,continueLabel);
+                    this.EmitOperations(operationIndex+1,valueExpression,continueLabel,resultListName);
                     break;
 
                 case "Select":
                     this.EmitIndexedLambdaAdvance(operationIndex,operation);
                     var selectedValue = this.NextValueName();
                     this.Add($"var {selectedValue} = {this.InlineLambda(operation.Lambda!,valueExpression,this.GetIndexArgument(operationIndex,operation))};");
-                    this.EmitOperations(operationIndex+1,selectedValue,continueLabel);
+                    this.EmitOperations(operationIndex+1,selectedValue,continueLabel,resultListName);
                     break;
             }
+        }
+
+        private string StorageKindName() {
+            if(this.useUnmanagedStorage) {
+                return "unmanaged";
+            }
+            return "managed";
+        }
+
+        private string CreateTemporaryResultListExpression(string pathName) {
+            if(this.useUnmanagedStorage) {
+                return $"global::Seamless.Linq.UnmanagedEnumerable.CreateTemporaryResultList<{this.resultElementTypeName}>({pathName})";
+            }
+            return $"global::Seamless.Linq.ManagedEnumerable.CreateTemporaryResultList<{this.resultElementTypeName}>({pathName})";
+        }
+
+        private string OwnTemporaryResultListExpression(string resultListName,string pathName) {
+            if(this.useUnmanagedStorage) {
+                return $"global::Seamless.Linq.UnmanagedEnumerable.OwnTemporaryResultList({resultListName},{pathName})";
+            }
+            return $"global::Seamless.Linq.ManagedEnumerable.OwnTemporaryResultList({resultListName},{pathName})";
         }
 
         private void EmitIndexedLambdaAdvance(int operationIndex,ScalarFusionOperation operation) {

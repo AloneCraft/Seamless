@@ -8,7 +8,6 @@ namespace BenchmarkExe.Benchmarks;
 static class DatabaseGenerator;
 
 [MemoryDiagnoser]
-[RankColumn]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [SimpleJob(warmupCount: 1,iterationCount: 5)]
 public class LinqSequenceFusionBenchmark {

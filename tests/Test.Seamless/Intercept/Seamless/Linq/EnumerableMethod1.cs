@@ -193,8 +193,8 @@ public sealed class EnumerableMethod {
     );
     [Fact, Trait("Category","Intercept")]
     private static void InfiniteSequence_start_step() => Assert.Equal(
-        e.InfiniteSequence(1,1),
-        a.InfiniteSequence(1,1)
+        e.Take(e.InfiniteSequence(1, 1),1000),
+        a.Take(a.InfiniteSequence(1, 1),1000)
     );
     [Fact, Trait("Category","Intercept")]
     private static void Intersect_second() => Assert.Equal(

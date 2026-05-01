@@ -24,7 +24,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\System\Linq\Enumerable.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\System\Linq\Enumerable2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\EnumerableMethod1.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\EnumerableQuery.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\EnumerableQuery1.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\EnumerableMethod2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\HashSetMethod1.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\HashSetMethod2.cs" />
