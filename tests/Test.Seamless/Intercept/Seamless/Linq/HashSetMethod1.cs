@@ -1,10 +1,8 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Seamless.Stores;
+
 using SeamlessHashSet = Seamless.Linq.HashSet;
 using SystemEnumerable = System.Linq.Enumerable;
-
 namespace Test.Seamless.Intercept.Seamless.Linq.HashSetSample;
 
 [Collection("HashSetIntercept")]
@@ -387,13 +385,13 @@ public sealed class HashSetMethod1 {
     private static IEnumerable<string> FormatIntKeyValuePairs(IEnumerable<KeyValuePair<int,int>> values) =>
         SystemEnumerable.Select(values,static value => $"{value.Key}:{value.Value}");
 
-    private static IEnumerable<string> FormatPairGroups(IEnumerable<IGrouping<int,int>> values) =>
+    private static IEnumerable<string> FormatPairGroups(IEnumerable<global::System.Linq.IGrouping<int,int>> values) =>
         SystemEnumerable.Select(values,static value => $"{value.Key}:{string.Join(',',SystemEnumerable.OrderBy(value,static element => element))}");
 
     private static IEnumerable<string> FormatDictionary(Dictionary<int,int> dictionary) =>
         SystemEnumerable.Select(SystemEnumerable.OrderBy(dictionary,static value => value.Key),static value => $"{value.Key}:{value.Value}");
 
-    private static IEnumerable<string> FormatLookup(ILookup<int,int> lookup) =>
+    private static IEnumerable<string> FormatLookup(global::System.Linq.ILookup<int,int> lookup) =>
         SystemEnumerable.Select(SystemEnumerable.OrderBy(lookup,static value => value.Key),static value => $"{value.Key}:{string.Join(',',SystemEnumerable.OrderBy(value,static element => element))}");
 
     private static HashSet<int> eSource() => [1,2,3,4];
