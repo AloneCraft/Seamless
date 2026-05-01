@@ -2,7 +2,7 @@
 using NonGenericEnumerable = System.Collections.IEnumerable;
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace Test.Seamless.Intersept.System.Linq;
+namespace Test.Seamless.Intercept.System.Linq;
 
 static class DatabaseGenerator;
 

@@ -2,7 +2,7 @@
 using System.Reflection;
 using SeamlessEnumerable = Seamless.Linq.Enumerable;
 
-namespace Test.Seamless.Intersept.Seamless.Linq;
+namespace Test.Seamless.Intercept.Seamless.Linq;
 
 public sealed class Enumerable2 {
     public int Smoke() {

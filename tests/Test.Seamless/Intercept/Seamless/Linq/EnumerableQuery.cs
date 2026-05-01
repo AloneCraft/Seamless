@@ -45,7 +45,7 @@ public sealed class EnumerableQuery{
     private static int[] Third() => [10,20,30];
     private static int[] Duplicates() => [1,2,2,3,3,4];
     private static int[] SingleSource() => [2];
-    private static System.Collections.IEnumerable CastObjects() => new object[] { 1,2,3 };
+    private static IEnumerable CastObjects() => new object[] { 1,2,3 };
     private static object[] MixedObjects() => [1,"skip",2,3.0,4];
     private static Row[] Rows() => [new(1,10,"beta"),new(2,20,"alpha"),new(3,30,"gamma")];
     private static Row[] OtherRows() => [new(3,300,"gamma-2"),new(4,40,"delta")];

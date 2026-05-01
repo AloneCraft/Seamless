@@ -2,7 +2,7 @@
 using GenericHashSet = System.Collections.Generic.HashSet<int>;
 using SeamlessHashSet = Seamless.Linq.HashSet;
 
-namespace Test.Seamless.Intersept.Seamless.Linq.HashSetSample;
+namespace Test.Seamless.Intercept.Seamless.Linq.HashSetSample;
 
 static class DatabaseGenerator;
 
