@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using SampleContainer = Test.Seamless.Database.Database0.Container;
-using OptimizedSampleContainer = Test.Seamless.Database.Database0.OptimizedContainer;
+using OptimizedSampleContainer = Test.Seamless.Database.Database0.Container;
 
 namespace Test.Seamless.Unit.Linq;
 

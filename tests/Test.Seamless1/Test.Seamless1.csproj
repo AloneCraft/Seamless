@@ -54,6 +54,16 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Content Remove="C:\Users\kazuh\.nuget\packages\microsoft.testplatform.testhost\18.3.0\build\net8.0\x64\testhost.dll" />
+	  <Content Remove="C:\Users\kazuh\.nuget\packages\microsoft.testplatform.testhost\18.3.0\build\net8.0\x64\testhost.exe" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Remove="C:\Users\kazuh\.nuget\packages\xunit.runner.visualstudio\3.1.5\build\net8.0\xunit.abstractions.dll" />
+	  <None Remove="C:\Users\kazuh\.nuget\packages\xunit.runner.visualstudio\3.1.5\build\net8.0\xunit.runner.visualstudio.testadapter.dll" />
+	</ItemGroup>
+
+	<ItemGroup>
 	  <ProjectReference Include="..\..\src\Seamless1\Seamless1.csproj" />
 	  <ProjectReference Include="..\..\src\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
