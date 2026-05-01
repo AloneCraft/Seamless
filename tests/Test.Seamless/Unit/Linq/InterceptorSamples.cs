@@ -1,7 +1,7 @@
 ﻿using Seamless.Stores;
-using HashSetSample = Test.Seamless.Intersept.Seamless.Linq.HashSetSample.HashSet;
-using SeamlessEnumerableSample = Test.Seamless.Intersept.Seamless.Linq.Enumerable;
-using SystemEnumerableSample = Test.Seamless.Intersept.System.Linq.Enumerable;
+using HashSetSample = Test.Seamless.Intercept.Seamless.Linq.HashSetSample.HashSet;
+using SeamlessEnumerableSample = Test.Seamless.Intercept.Seamless.Linq.EnumerableMethod;
+using SystemEnumerableSample = Test.Seamless.Intercept.System.Linq.Enumerable;
 
 namespace Test.Seamless.Unit.Linq;
 

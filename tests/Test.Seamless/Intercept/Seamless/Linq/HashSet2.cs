@@ -1,9 +1,9 @@
-using System.Linq;
+﻿using System.Linq;
 using System.Reflection;
 using SeamlessEnumerable = Seamless.Linq.Enumerable;
 using SeamlessHashSet = Seamless.Linq.HashSet;
 
-namespace Test.Seamless.Intersept.Seamless.Linq;
+namespace Test.Seamless.Intercept.Seamless.Linq;
 
 public sealed class HashSet2 {
     public int Smoke(global::Seamless.Collections.IHashSet<int> source) {

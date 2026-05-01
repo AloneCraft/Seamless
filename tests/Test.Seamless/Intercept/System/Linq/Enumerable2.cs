@@ -1,8 +1,8 @@
-using System.Linq;
+﻿using System.Linq;
 using System.Reflection;
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace Test.Seamless.Intersept.System.Linq;
+namespace Test.Seamless.Intercept.System.Linq;
 
 public sealed class Enumerable2 {
     public int Smoke() {

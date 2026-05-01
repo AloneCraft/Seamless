@@ -21,7 +21,7 @@
     <Compile Include="Database\TPC_H.cs" />
     <Compile Include="Diagnostics\InterceptorSmokeTests.cs" />
     <Compile Include="DictionaryGuidEmptyRecoveryTests.cs" />
-    <Compile Include="Intercept\Seamless\Linq\Enumerable.cs" />
+    <Compile Include="Intercept\Seamless\Linq\EnumerableMethod.cs" />
     <Compile Include="Intercept\Seamless\Linq\Enumerable2.cs" />
     <Compile Include="Intercept\Seamless\Linq\EnumerablePattern.cs" />
     <Compile Include="Intercept\Seamless\Linq\EnumerableQuery.cs" />

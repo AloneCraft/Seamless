@@ -1,8 +1,8 @@
-using SeamlessEnumerable = Seamless.Linq.Enumerable;
+﻿using SeamlessEnumerable = Seamless.Linq.Enumerable;
 using System.Linq;
 using System.Reflection;
 
-namespace Test.Seamless.Intersept.Seamless.Linq;
+namespace Test.Seamless.Intercept.Seamless.Linq;
 
 public sealed class EnumerablePattern {
     public int Total { get; private set; }
