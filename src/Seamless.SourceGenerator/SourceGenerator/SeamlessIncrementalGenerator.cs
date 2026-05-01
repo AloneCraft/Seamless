@@ -1167,7 +1167,7 @@ namespace Seamless {
     }
 
     private static bool CanReferenceNamedTypeFromGeneratedSource(INamedTypeSymbol type) {
-        for(INamedTypeSymbol? current = type; current is not null; current=current.ContainingType) {
+        for(var current = type; current is not null; current=current.ContainingType) {
             if(current.DeclaredAccessibility is Accessibility.Private or Accessibility.Protected or Accessibility.ProtectedAndInternal) {
                 return false;
             }
@@ -1237,7 +1237,7 @@ namespace Seamless {
             var typeName = $"__絞込ラムダ_{identifier}";
             var source = $$"""
         private readonly struct {{typeName}}:global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.I融合絞込<{{sourceTypeName}}> {
-            public bool Invoke({{sourceTypeName}} {{parameterName}}) => {{lambdaBodyText}};
+            public static bool Invoke({{sourceTypeName}} {{parameterName}}) => {{lambdaBodyText}};
         }
 """;
             strategy=new LinqInvocationLambdaStrategy("Where",typeName,"",lambdaExpressionText,source);
@@ -1250,7 +1250,7 @@ namespace Seamless {
         var selectorTypeName = $"__選択ラムダ_{identifier}";
         var selectorSource = $$"""
         private readonly struct {{selectorTypeName}}:global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.I融合選択<{{sourceTypeName}},{{resultTypeName}}> {
-            public {{resultTypeName}} Invoke({{sourceTypeName}} {{parameterName}}) => {{lambdaBodyText}};
+            public static {{resultTypeName}} Invoke({{sourceTypeName}} {{parameterName}}) => {{lambdaBodyText}};
         }
 """;
         strategy=new LinqInvocationLambdaStrategy("Select",selectorTypeName,resultTypeName,lambdaExpressionText,selectorSource);
@@ -1280,12 +1280,12 @@ namespace Seamless {
         var literal = ToLiteral(strategy.ExpressionText);
         return strategy.Kind switch {
             "Where" => body
-                .Replace($".絞込追加(predicate,{literal})",$".絞込追加<{strategy.TypeName}>(default({strategy.TypeName}),{literal})")
-                .Replace(".絞込追加(predicate)",$".絞込追加<{strategy.TypeName}>(default({strategy.TypeName}))"),
+                .Replace($".絞込追加(predicate,{literal})",$".絞込追加<{strategy.TypeName}>({literal})")
+                .Replace(".絞込追加(predicate)",$".絞込追加<{strategy.TypeName}>()"),
             "Select" => body
-                .Replace($".選択追加(selector,{literal})",$".選択追加<{strategy.ResultTypeName},{strategy.TypeName}>(default({strategy.TypeName}),{literal})")
-                .Replace(".選択追加(selector)",$".選択追加<{strategy.ResultTypeName},{strategy.TypeName}>(default({strategy.TypeName}))")
-                .Replace(".選択実体化(selector)",$".選択実体化<{strategy.ResultTypeName},{strategy.TypeName}>(default({strategy.TypeName}))"),
+                .Replace($".選択追加(selector,{literal})",$".選択追加<{strategy.ResultTypeName},{strategy.TypeName}>({literal})")
+                .Replace(".選択追加(selector)",$".選択追加<{strategy.ResultTypeName},{strategy.TypeName}>()")
+                .Replace(".選択実体化(selector)",$".選択実体化<{strategy.ResultTypeName},{strategy.TypeName}>()"),
             _ => body
         };
     }
@@ -1875,18 +1875,16 @@ namespace Seamless.SourceGenerator.Generated {
             I融合ソース<TResult> 選択追加<TResult>(
                 global::System.Func<T,TResult> selector,
                 [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(selector))] string? selector式 = null);
-            // delegate を保持せず、生成 struct strategy で Select 操作を pipeline の末尾に追加する。
+            // delegate を保持せず、生成 struct strategy の static interface 呼び出しで Select 操作を pipeline の末尾に追加する。
             I融合ソース<TResult> 選択追加<TResult,TSelector>(
-                TSelector selector,
                 string? selector式 = null)
                 where TSelector : struct,I融合選択<T,TResult>;
             // Where 操作を pipeline の末尾に追加し、同じ要素型の新しい融合ソースを返す。
             I融合ソース<T> 絞込追加(
                 global::System.Func<T,bool> predicate,
                 [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(predicate))] string? predicate式 = null);
-            // delegate を保持せず、生成 struct strategy で Where 操作を pipeline の末尾に追加する。
+            // delegate を保持せず、生成 struct strategy の static interface 呼び出しで Where 操作を pipeline の末尾に追加する。
             I融合ソース<T> 絞込追加<TPredicate>(
-                TPredicate predicate,
                 string? predicate式 = null)
                 where TPredicate : struct,I融合絞込<T>;
             // Take 操作を pipeline の末尾に追加し、先頭 count 件に絞った新しい融合ソースを返す。
@@ -1895,8 +1893,8 @@ namespace Seamless.SourceGenerator.Generated {
                 [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(count))] string? count式 = null);
             // pipeline をすべて適用しながらソースを 1 回列挙し、最後に selector を掛けた List<TResult> を返す。
             global::System.Collections.Generic.List<TResult> 選択実体化<TResult>(global::System.Func<T,TResult> selector);
-            // pipeline をすべて適用しながらソースを 1 回列挙し、最後に struct strategy selector を掛けた List<TResult> を返す。
-            global::System.Collections.Generic.List<TResult> 選択実体化<TResult,TSelector>(TSelector selector)
+            // pipeline をすべて適用しながらソースを 1 回列挙し、最後に static interface strategy selector を掛けた List<TResult> を返す。
+            global::System.Collections.Generic.List<TResult> 選択実体化<TResult,TSelector>()
                 where TSelector : struct,I融合選択<T,TResult>;
             // pipeline をすべて適用しながらソースを 1 回列挙し、結果を List<T> で返す。
             global::System.Collections.Generic.List<T> リスト実体化();
@@ -1905,13 +1903,13 @@ namespace Seamless.SourceGenerator.Generated {
             // デバッグ時に Watch/Locals へ表示する元のソース式と積み上げた操作列。
             string ウォッチ式 { get; }
         }
-        // Select のラムダ本文を生成 struct の Invoke に下げるための strategy interface。
+        // Select の static ラムダ本文を生成 struct の static Invoke に下げるための strategy interface。
         internal interface I融合選択<T,TResult> {
-            TResult Invoke(T value);
+            static abstract TResult Invoke(T value);
         }
-        // Where のラムダ本文を生成 struct の Invoke に下げるための strategy interface。
+        // Where の static ラムダ本文を生成 struct の static Invoke に下げるための strategy interface。
         internal interface I融合絞込<T> {
-            bool Invoke(T value);
+            static abstract bool Invoke(T value);
         }
         // 1 要素を pipeline に通した結果を表す軽量な判別共用体 (struct)。
         // State==1: 値あり → 出力リストに追加する。
@@ -2021,23 +2019,19 @@ namespace Seamless.SourceGenerator.Generated {
             where TPreviousFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TPreviousProjector>
             where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
             private readonly TPreviousFactory previousFactory;
-            private readonly TSelector selector;
-            public 静的選択プロジェクタファクトリ(TPreviousFactory previousFactory,TSelector selector) {
+            public 静的選択プロジェクタファクトリ(TPreviousFactory previousFactory) {
                 this.previousFactory=previousFactory;
-                this.selector=selector;
             }
             public bool CanStart => this.previousFactory.CanStart;
-            public 静的選択プロジェクタ<TRoot,TCurrent,TResult,TSelector,TPreviousProjector> Create() => new(this.previousFactory.Create(),this.selector);
+            public 静的選択プロジェクタ<TRoot,TCurrent,TResult,TSelector,TPreviousProjector> Create() => new(this.previousFactory.Create());
         }
-        // Select を struct strategy の constrained call で実行するプロジェクタ。
+        // Select を struct strategy の static interface 呼び出しで実行するプロジェクタ。
         private struct 静的選択プロジェクタ<TRoot,TCurrent,TResult,TSelector,TPreviousProjector>:I融合プロジェクタ<TRoot,TResult>
             where TSelector : struct,I融合選択<TCurrent,TResult>
             where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
             private TPreviousProjector previousProjector;
-            private TSelector selector;
-            public 静的選択プロジェクタ(TPreviousProjector previousProjector,TSelector selector) {
+            public 静的選択プロジェクタ(TPreviousProjector previousProjector) {
                 this.previousProjector=previousProjector;
-                this.selector=selector;
             }
             public bool CanContinue => this.previousProjector.CanContinue;
             public 融合ステップ<TResult> Project(TRoot item) {
@@ -2048,7 +2042,7 @@ namespace Seamless.SourceGenerator.Generated {
                 if(!step.HasValue) {
                     return default;
                 }
-                return 融合ステップ<TResult>.Yield(this.selector.Invoke(step.Value));
+                return 融合ステップ<TResult>.Yield(TSelector.Invoke(step.Value));
             }
         }
         // Where 操作を前段に連結するプロジェクタのファクトリ。
@@ -2092,23 +2086,19 @@ namespace Seamless.SourceGenerator.Generated {
             where TPreviousFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TPreviousProjector>
             where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
             private readonly TPreviousFactory previousFactory;
-            private readonly TPredicate predicate;
-            public 静的絞込プロジェクタファクトリ(TPreviousFactory previousFactory,TPredicate predicate) {
+            public 静的絞込プロジェクタファクトリ(TPreviousFactory previousFactory) {
                 this.previousFactory=previousFactory;
-                this.predicate=predicate;
             }
             public bool CanStart => this.previousFactory.CanStart;
-            public 静的絞込プロジェクタ<TRoot,TCurrent,TPredicate,TPreviousProjector> Create() => new(this.previousFactory.Create(),this.predicate);
+            public 静的絞込プロジェクタ<TRoot,TCurrent,TPredicate,TPreviousProjector> Create() => new(this.previousFactory.Create());
         }
-        // Where を struct strategy の constrained call で実行するプロジェクタ。
+        // Where を struct strategy の static interface 呼び出しで実行するプロジェクタ。
         private struct 静的絞込プロジェクタ<TRoot,TCurrent,TPredicate,TPreviousProjector>:I融合プロジェクタ<TRoot,TCurrent>
             where TPredicate : struct,I融合絞込<TCurrent>
             where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
             private TPreviousProjector previousProjector;
-            private TPredicate predicate;
-            public 静的絞込プロジェクタ(TPreviousProjector previousProjector,TPredicate predicate) {
+            public 静的絞込プロジェクタ(TPreviousProjector previousProjector) {
                 this.previousProjector=previousProjector;
-                this.predicate=predicate;
             }
             public bool CanContinue => this.previousProjector.CanContinue;
             public 融合ステップ<TCurrent> Project(TRoot item) {
@@ -2116,7 +2106,7 @@ namespace Seamless.SourceGenerator.Generated {
                 if(step.Stop||!step.HasValue) {
                     return step;
                 }
-                return this.predicate.Invoke(step.Value) ? step : default;
+                return TPredicate.Invoke(step.Value) ? step : default;
             }
         }
         // Take 操作を前段に連結するプロジェクタのファクトリ。
@@ -2182,10 +2172,10 @@ namespace Seamless.SourceGenerator.Generated {
                 var factory = new 選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TProjectorFactory,TProjector>(this.projectorFactory,selector);
                 return new 融合ソース実装<TRoot,TResult,選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TProjectorFactory,TProjector>,選択プロジェクタ<TRoot,TCurrent,TResult,TProjector>>(this.source,factory,$"{this.watchExpression}.Select({FormatWatchArgument(selector式)})");
             }
-            // 選択追加: Select 操作を struct strategy として pipeline に追加する。
-            public I融合ソース<TResult> 選択追加<TResult,TSelector>(TSelector selector,string? selector式 = null)
+            // 選択追加: Select 操作を static interface strategy として pipeline に追加する。
+            public I融合ソース<TResult> 選択追加<TResult,TSelector>(string? selector式 = null)
                 where TSelector : struct,I融合選択<TCurrent,TResult> {
-                var factory = new 静的選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TSelector,TProjectorFactory,TProjector>(this.projectorFactory,selector);
+                var factory = new 静的選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TSelector,TProjectorFactory,TProjector>(this.projectorFactory);
                 return new 融合ソース実装<TRoot,TResult,静的選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TSelector,TProjectorFactory,TProjector>,静的選択プロジェクタ<TRoot,TCurrent,TResult,TSelector,TProjector>>(this.source,factory,$"{this.watchExpression}.Select({FormatWatchArgument(selector式)})");
             }
             // 絞込追加: Where 操作を pipeline に追加した新しい融合ソースを返す (出力型は変わらない)。
@@ -2194,10 +2184,10 @@ namespace Seamless.SourceGenerator.Generated {
                 var factory = new 絞込プロジェクタファクトリ<TRoot,TCurrent,TProjectorFactory,TProjector>(this.projectorFactory,predicate);
                 return new 融合ソース実装<TRoot,TCurrent,絞込プロジェクタファクトリ<TRoot,TCurrent,TProjectorFactory,TProjector>,絞込プロジェクタ<TRoot,TCurrent,TProjector>>(this.source,factory,$"{this.watchExpression}.Where({FormatWatchArgument(predicate式)})");
             }
-            // 絞込追加: Where 操作を struct strategy として pipeline に追加する。
-            public I融合ソース<TCurrent> 絞込追加<TPredicate>(TPredicate predicate,string? predicate式 = null)
+            // 絞込追加: Where 操作を static interface strategy として pipeline に追加する。
+            public I融合ソース<TCurrent> 絞込追加<TPredicate>(string? predicate式 = null)
                 where TPredicate : struct,I融合絞込<TCurrent> {
-                var factory = new 静的絞込プロジェクタファクトリ<TRoot,TCurrent,TPredicate,TProjectorFactory,TProjector>(this.projectorFactory,predicate);
+                var factory = new 静的絞込プロジェクタファクトリ<TRoot,TCurrent,TPredicate,TProjectorFactory,TProjector>(this.projectorFactory);
                 return new 融合ソース実装<TRoot,TCurrent,静的絞込プロジェクタファクトリ<TRoot,TCurrent,TPredicate,TProjectorFactory,TProjector>,静的絞込プロジェクタ<TRoot,TCurrent,TPredicate,TProjector>>(this.source,factory,$"{this.watchExpression}.Where({FormatWatchArgument(predicate式)})");
             }
             // 先頭取得追加: Take 操作を pipeline に追加した新しい融合ソースを返す。
@@ -2234,8 +2224,8 @@ namespace Seamless.SourceGenerator.Generated {
                 }
                 return result;
             }
-            // 選択実体化: 最後の Select を struct strategy として実行する。
-            public global::System.Collections.Generic.List<TResult> 選択実体化<TResult,TSelector>(TSelector selector)
+            // 選択実体化: 最後の Select を static interface strategy として実行する。
+            public global::System.Collections.Generic.List<TResult> 選択実体化<TResult,TSelector>()
                 where TSelector : struct,I融合選択<TCurrent,TResult> {
                 var result = new global::System.Collections.Generic.List<TResult>();
                 if(!this.projectorFactory.CanStart) {
@@ -2252,7 +2242,7 @@ namespace Seamless.SourceGenerator.Generated {
                         break;
                     }
                     if(step.HasValue) {
-                        result.Add(selector.Invoke(step.Value));
+                        result.Add(TSelector.Invoke(step.Value));
                     }
                 }
                 return result;
