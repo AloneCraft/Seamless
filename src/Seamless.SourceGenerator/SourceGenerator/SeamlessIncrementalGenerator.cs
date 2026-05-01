@@ -491,23 +491,37 @@ namespace Seamless {
         if(string.IsNullOrWhiteSpace(interceptsLocationAttributeText)) {
             return null;
         }
-        if(!TryBuildLinqInvocationParameterList(invocation,method,context.SemanticModel,out var parameterList)) {
+        var staticLambdaStrategy = TryBuildStaticLinqLambdaStrategy(invocation,method,id,out var strategy)
+            &&CanUseConcreteLinqInvocationInterceptor(method)
+            ? strategy
+            : null;
+        var useConcreteSignature = staticLambdaStrategy is not null;
+        if(!(useConcreteSignature
+                ? TryBuildConcreteLinqInvocationParameterList(invocation,method,out var parameterList)
+                : TryBuildLinqInvocationParameterList(invocation,method,context.SemanticModel,out parameterList))) {
             return null;
         }
 
-        var decoratedBody = LINQ呼び出しデバッグ式埋込(translatedBody.Value.Body,invocation,method);
+        var body = useConcreteSignature
+            ? LINQ呼び出し型引数具体化(translatedBody.Value.Body,method)
+            : translatedBody.Value.Body;
+        var decoratedBody = LINQ呼び出しデバッグ式埋込(body,invocation,method);
+        if(staticLambdaStrategy is not null) {
+            decoratedBody=LINQ呼び出し静的ラムダ適用(decoratedBody,staticLambdaStrategy);
+        }
 
         return new LinqInvocationInterceptTarget(
             id,
             span.Path,
             BuildMethodCref(containingMethod),
             interceptsLocationAttributeText,
-            BuildGeneratedTypeName(definition.ReturnType),
-            BuildTypeParameterList(definition.TypeParameters),
-            BuildTypeParameterConstraintList(definition.TypeParameters),
+            useConcreteSignature ? BuildGeneratedTypeName(method.ReturnType) : BuildGeneratedTypeName(definition.ReturnType),
+            useConcreteSignature ? string.Empty : BuildTypeParameterList(definition.TypeParameters),
+            useConcreteSignature ? string.Empty : BuildTypeParameterConstraintList(definition.TypeParameters),
             parameterList,
             decoratedBody,
-            translatedBody.Value.IsExpressionBody);
+            translatedBody.Value.IsExpressionBody,
+            staticLambdaStrategy?.Source);
     }
 
     /// <summary>
@@ -606,8 +620,8 @@ namespace Seamless {
 
         // 入れ子 LINQ の内側 Select/Where/Take はここで列挙せず、融合ソースに操作だけを積む。
         // 外側の実体化側が I融合ソースを検出して、元の source を 1 回だけ列挙する。
-        // 現状は元呼び出しの Func 引数を保持しているため、selector/predicate 自体は delegate 呼び出しになる。
-        // delegate 呼び出しを消すには、lambda を生成 static/strategy struct に下げる別段の変換が必要。
+        // static で生成先へ安全に移動できる lambda は、後段で生成 strategy struct に差し替えて delegate 呼び出しを避ける。
+        // クロージャや生成先から見えない型・メンバーを含む lambda は、従来どおり Func 引数の delegate 経路にフォールバックする。
         if(IsNonIndexedSelectMethod(definition)) {
             // 内側の Select: 融合ソースに選択操作を積んで返す (実体化は外側の実体化境界で行う)。
             return "global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).選択追加(selector)";
@@ -656,7 +670,7 @@ namespace Seamless {
     global::System.ArgumentNullException.ThrowIfNull(selector);
     // 内側の Select/Where/Take が融合ソースを返していた場合、ここが実体化境界になる。
     // 蓄積済みプロジェクタを通して元ソースを 1 回だけ列挙し、最後の Select を適用して List にする。
-    // 現状の最後の selector は元呼び出しの Func なので delegate 実行になる。
+    // 最後の selector も static で生成先へ安全に移動できる場合は、後段で生成 strategy struct に差し替える。
     // source が I融合ソース<TSource> であれば蓄積済み pipeline を通じて実体化する (ソースの二重列挙を回避)。
     if(source is global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.I融合ソース<TSource> 既存融合ソース) {
         return 既存融合ソース.選択実体化(selector);
@@ -1091,6 +1105,189 @@ namespace Seamless {
         }
         parameterList=string.Join(", ",declarations);
         return true;
+    }
+
+    private static bool TryBuildConcreteLinqInvocationParameterList(InvocationExpressionSyntax invocation,IMethodSymbol method,out string parameterList) {
+        var declarations = new List<string>();
+        var definition = GetLinqInvocationDefinition(method);
+        if(method.ReducedFrom is not null) {
+            if(invocation.Expression is not MemberAccessExpressionSyntax||method.ReceiverType is null) {
+                parameterList=string.Empty;
+                return false;
+            }
+            declarations.Add($"this {BuildGeneratedTypeName(method.ReceiverType)} {definition.Parameters[0].Name}");
+        }
+        foreach(var parameter in method.Parameters) {
+            declarations.Add(BuildConcreteParameterDeclaration(parameter));
+        }
+        parameterList=string.Join(", ",declarations);
+        return true;
+    }
+
+    private static bool CanUseConcreteLinqInvocationInterceptor(IMethodSymbol method) {
+        if(ContainsTypeParameter(method.ReturnType)||!CanReferenceTypeFromGeneratedSource(method.ReturnType)) {
+            return false;
+        }
+        if(method.ReducedFrom is not null&&(method.ReceiverType is null||ContainsTypeParameter(method.ReceiverType)||!CanReferenceTypeFromGeneratedSource(method.ReceiverType))) {
+            return false;
+        }
+        foreach(var parameter in method.Parameters) {
+            if(ContainsTypeParameter(parameter.Type)||!CanReferenceTypeFromGeneratedSource(parameter.Type)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static bool CanReferenceTypeFromGeneratedSource(ITypeSymbol type) {
+        if(type is IArrayTypeSymbol arrayType) {
+            return CanReferenceTypeFromGeneratedSource(arrayType.ElementType);
+        }
+        if(type is IPointerTypeSymbol pointerType) {
+            return CanReferenceTypeFromGeneratedSource(pointerType.PointedAtType);
+        }
+        if(type is INamedTypeSymbol namedType) {
+            if(!CanReferenceNamedTypeFromGeneratedSource(namedType)) {
+                return false;
+            }
+            foreach(var typeArgument in namedType.TypeArguments) {
+                if(!CanReferenceTypeFromGeneratedSource(typeArgument)) {
+                    return false;
+                }
+            }
+            if(namedType.IsTupleType) {
+                foreach(var element in namedType.TupleElements) {
+                    if(!CanReferenceTypeFromGeneratedSource(element.Type)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    private static bool CanReferenceNamedTypeFromGeneratedSource(INamedTypeSymbol type) {
+        for(INamedTypeSymbol? current = type; current is not null; current=current.ContainingType) {
+            if(current.DeclaredAccessibility is Accessibility.Private or Accessibility.Protected or Accessibility.ProtectedAndInternal) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static bool ContainsTypeParameter(ITypeSymbol type) {
+        if(type is ITypeParameterSymbol) {
+            return true;
+        }
+        if(type is IArrayTypeSymbol arrayType) {
+            return ContainsTypeParameter(arrayType.ElementType);
+        }
+        if(type is INamedTypeSymbol namedType) {
+            foreach(var typeArgument in namedType.TypeArguments) {
+                if(ContainsTypeParameter(typeArgument)) {
+                    return true;
+                }
+            }
+            if(namedType.IsTupleType) {
+                foreach(var element in namedType.TupleElements) {
+                    if(ContainsTypeParameter(element.Type)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private static string LINQ呼び出し型引数具体化(string body,IMethodSymbol method) {
+        var definition = GetLinqInvocationDefinition(method);
+        var updatedBody = body;
+        for(var index = 0; index<definition.TypeParameters.Length&&index<method.TypeArguments.Length; index++) {
+            updatedBody=updatedBody.Replace(definition.TypeParameters[index].Name,BuildGeneratedTypeName(method.TypeArguments[index]));
+        }
+        return updatedBody;
+    }
+
+    private static bool TryBuildStaticLinqLambdaStrategy(InvocationExpressionSyntax invocation,IMethodSymbol method,string identifier,out LinqInvocationLambdaStrategy strategy) {
+        strategy=null!;
+        var definition = GetLinqInvocationDefinition(method);
+        if(definition.Name!="Where"&&definition.Name!="Select") {
+            return false;
+        }
+        var operationArgumentIndex = LINQ呼び出し操作引数位置取得(method);
+        if(invocation.ArgumentList.Arguments.Count<=operationArgumentIndex
+            ||invocation.ArgumentList.Arguments[operationArgumentIndex].Expression is not LambdaExpressionSyntax lambda
+            ||!IsStaticLambda(lambda)
+            ||lambda.Body is not ExpressionSyntax lambdaBody) {
+            return false;
+        }
+        if(!TryGetSingleLambdaParameterName(lambda,out var parameterName)) {
+            return false;
+        }
+        if(!CanMoveStaticLambdaBody(lambdaBody,parameterName)) {
+            return false;
+        }
+        if(method.TypeArguments.Length==0||method.TypeArguments.Any(ContainsTypeParameter)) {
+            return false;
+        }
+        var sourceTypeName = BuildGeneratedTypeName(method.TypeArguments[0]);
+        var lambdaBodyText = NormalizeExpression(lambdaBody);
+        var lambdaExpressionText = NormalizeExpression(lambda);
+        if(definition.Name=="Where") {
+            var typeName = $"__絞込ラムダ_{identifier}";
+            var source = $$"""
+        private readonly struct {{typeName}}:global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.I融合絞込<{{sourceTypeName}}> {
+            public bool Invoke({{sourceTypeName}} {{parameterName}}) => {{lambdaBodyText}};
+        }
+""";
+            strategy=new LinqInvocationLambdaStrategy("Where",typeName,"",lambdaExpressionText,source);
+            return true;
+        }
+        if(method.TypeArguments.Length<2) {
+            return false;
+        }
+        var resultTypeName = BuildGeneratedTypeName(method.TypeArguments[1]);
+        var selectorTypeName = $"__選択ラムダ_{identifier}";
+        var selectorSource = $$"""
+        private readonly struct {{selectorTypeName}}:global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.I融合選択<{{sourceTypeName}},{{resultTypeName}}> {
+            public {{resultTypeName}} Invoke({{sourceTypeName}} {{parameterName}}) => {{lambdaBodyText}};
+        }
+""";
+        strategy=new LinqInvocationLambdaStrategy("Select",selectorTypeName,resultTypeName,lambdaExpressionText,selectorSource);
+        return true;
+    }
+
+    private static bool CanMoveStaticLambdaBody(ExpressionSyntax lambdaBody,string parameterName) {
+        var checker = new MovableStaticLambdaBodyChecker(parameterName);
+        checker.Visit(lambdaBody);
+        return checker.CanMove;
+    }
+
+    private static bool IsStaticLambda(LambdaExpressionSyntax lambda) {
+        return lambda.Modifiers.Any(SyntaxKind.StaticKeyword);
+    }
+
+    private static bool TryGetSingleLambdaParameterName(LambdaExpressionSyntax lambda,out string parameterName) {
+        parameterName=lambda switch {
+            SimpleLambdaExpressionSyntax simpleLambda => simpleLambda.Parameter.Identifier.ValueText,
+            ParenthesizedLambdaExpressionSyntax parenthesizedLambda when parenthesizedLambda.ParameterList.Parameters.Count==1 => parenthesizedLambda.ParameterList.Parameters[0].Identifier.ValueText,
+            _ => string.Empty
+        };
+        return !string.IsNullOrWhiteSpace(parameterName);
+    }
+
+    private static string LINQ呼び出し静的ラムダ適用(string body,LinqInvocationLambdaStrategy strategy) {
+        var literal = ToLiteral(strategy.ExpressionText);
+        return strategy.Kind switch {
+            "Where" => body
+                .Replace($".絞込追加(predicate,{literal})",$".絞込追加<{strategy.TypeName}>(default({strategy.TypeName}),{literal})")
+                .Replace(".絞込追加(predicate)",$".絞込追加<{strategy.TypeName}>(default({strategy.TypeName}))"),
+            "Select" => body
+                .Replace($".選択追加(selector,{literal})",$".選択追加<{strategy.ResultTypeName},{strategy.TypeName}>(default({strategy.TypeName}),{literal})")
+                .Replace(".選択追加(selector)",$".選択追加<{strategy.ResultTypeName},{strategy.TypeName}>(default({strategy.TypeName}))")
+                .Replace(".選択実体化(selector)",$".選択実体化<{strategy.ResultTypeName},{strategy.TypeName}>(default({strategy.TypeName}))"),
+            _ => body
+        };
     }
 
     private static string LINQ呼び出しデバッグ式埋込(string body,InvocationExpressionSyntax invocation,IMethodSymbol method) {
@@ -1654,6 +1851,9 @@ namespace Seamless {
             builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
             var methodDeclaration = $"public static {target.ReturnTypeName} {target.MethodName}{target.TypeParameterList}({target.ParameterList}){target.TypeParameterConstraintList}";
             AppendIndented(builder,BuildTranslatedMemberSource(methodDeclaration,target.Body,target.IsExpressionBody),"        ");
+            if(!string.IsNullOrWhiteSpace(target.StaticLambdaStrategySource)) {
+                builder.AppendLine(target.StaticLambdaStrategySource);
+            }
             builder.AppendLine();
         }
         builder.AppendLine("    }");
@@ -1675,22 +1875,43 @@ namespace Seamless.SourceGenerator.Generated {
             I融合ソース<TResult> 選択追加<TResult>(
                 global::System.Func<T,TResult> selector,
                 [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(selector))] string? selector式 = null);
+            // delegate を保持せず、生成 struct strategy で Select 操作を pipeline の末尾に追加する。
+            I融合ソース<TResult> 選択追加<TResult,TSelector>(
+                TSelector selector,
+                string? selector式 = null)
+                where TSelector : struct,I融合選択<T,TResult>;
             // Where 操作を pipeline の末尾に追加し、同じ要素型の新しい融合ソースを返す。
             I融合ソース<T> 絞込追加(
                 global::System.Func<T,bool> predicate,
                 [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(predicate))] string? predicate式 = null);
+            // delegate を保持せず、生成 struct strategy で Where 操作を pipeline の末尾に追加する。
+            I融合ソース<T> 絞込追加<TPredicate>(
+                TPredicate predicate,
+                string? predicate式 = null)
+                where TPredicate : struct,I融合絞込<T>;
             // Take 操作を pipeline の末尾に追加し、先頭 count 件に絞った新しい融合ソースを返す。
             I融合ソース<T> 先頭取得追加(
                 int count,
                 [global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(count))] string? count式 = null);
             // pipeline をすべて適用しながらソースを 1 回列挙し、最後に selector を掛けた List<TResult> を返す。
             global::System.Collections.Generic.List<TResult> 選択実体化<TResult>(global::System.Func<T,TResult> selector);
+            // pipeline をすべて適用しながらソースを 1 回列挙し、最後に struct strategy selector を掛けた List<TResult> を返す。
+            global::System.Collections.Generic.List<TResult> 選択実体化<TResult,TSelector>(TSelector selector)
+                where TSelector : struct,I融合選択<T,TResult>;
             // pipeline をすべて適用しながらソースを 1 回列挙し、結果を List<T> で返す。
             global::System.Collections.Generic.List<T> リスト実体化();
             // pipeline をすべて適用しながらソースを 1 回列挙し、結果を T[] で返す。
             T[] 配列実体化();
             // デバッグ時に Watch/Locals へ表示する元のソース式と積み上げた操作列。
             string ウォッチ式 { get; }
+        }
+        // Select のラムダ本文を生成 struct の Invoke に下げるための strategy interface。
+        internal interface I融合選択<T,TResult> {
+            TResult Invoke(T value);
+        }
+        // Where のラムダ本文を生成 struct の Invoke に下げるための strategy interface。
+        internal interface I融合絞込<T> {
+            bool Invoke(T value);
         }
         // 1 要素を pipeline に通した結果を表す軽量な判別共用体 (struct)。
         // State==1: 値あり → 出力リストに追加する。
@@ -1794,6 +2015,42 @@ namespace Seamless.SourceGenerator.Generated {
                 return 融合ステップ<TResult>.Yield(this.selector(step.Value));
             }
         }
+        // Select 操作を生成 struct strategy として前段に連結するプロジェクタのファクトリ。
+        private readonly struct 静的選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TSelector,TPreviousFactory,TPreviousProjector>:I融合プロジェクタファクトリ<TRoot,TResult,静的選択プロジェクタ<TRoot,TCurrent,TResult,TSelector,TPreviousProjector>>
+            where TSelector : struct,I融合選択<TCurrent,TResult>
+            where TPreviousFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TPreviousProjector>
+            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
+            private readonly TPreviousFactory previousFactory;
+            private readonly TSelector selector;
+            public 静的選択プロジェクタファクトリ(TPreviousFactory previousFactory,TSelector selector) {
+                this.previousFactory=previousFactory;
+                this.selector=selector;
+            }
+            public bool CanStart => this.previousFactory.CanStart;
+            public 静的選択プロジェクタ<TRoot,TCurrent,TResult,TSelector,TPreviousProjector> Create() => new(this.previousFactory.Create(),this.selector);
+        }
+        // Select を struct strategy の constrained call で実行するプロジェクタ。
+        private struct 静的選択プロジェクタ<TRoot,TCurrent,TResult,TSelector,TPreviousProjector>:I融合プロジェクタ<TRoot,TResult>
+            where TSelector : struct,I融合選択<TCurrent,TResult>
+            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
+            private TPreviousProjector previousProjector;
+            private TSelector selector;
+            public 静的選択プロジェクタ(TPreviousProjector previousProjector,TSelector selector) {
+                this.previousProjector=previousProjector;
+                this.selector=selector;
+            }
+            public bool CanContinue => this.previousProjector.CanContinue;
+            public 融合ステップ<TResult> Project(TRoot item) {
+                var step = this.previousProjector.Project(item);
+                if(step.Stop) {
+                    return 融合ステップ<TResult>.StopStep();
+                }
+                if(!step.HasValue) {
+                    return default;
+                }
+                return 融合ステップ<TResult>.Yield(this.selector.Invoke(step.Value));
+            }
+        }
         // Where 操作を前段に連結するプロジェクタのファクトリ。
         // 前段プロジェクタの出力値に predicate を適用して偽なら要素をスキップする。
         private readonly struct 絞込プロジェクタファクトリ<TRoot,TCurrent,TPreviousFactory,TPreviousProjector>:I融合プロジェクタファクトリ<TRoot,TCurrent,絞込プロジェクタ<TRoot,TCurrent,TPreviousProjector>>
@@ -1827,6 +2084,39 @@ namespace Seamless.SourceGenerator.Generated {
                 }
                 // predicate が偽なら default (スキップ) を返す。
                 return this.predicate(step.Value) ? step : default;
+            }
+        }
+        // Where 操作を生成 struct strategy として前段に連結するプロジェクタのファクトリ。
+        private readonly struct 静的絞込プロジェクタファクトリ<TRoot,TCurrent,TPredicate,TPreviousFactory,TPreviousProjector>:I融合プロジェクタファクトリ<TRoot,TCurrent,静的絞込プロジェクタ<TRoot,TCurrent,TPredicate,TPreviousProjector>>
+            where TPredicate : struct,I融合絞込<TCurrent>
+            where TPreviousFactory : struct,I融合プロジェクタファクトリ<TRoot,TCurrent,TPreviousProjector>
+            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
+            private readonly TPreviousFactory previousFactory;
+            private readonly TPredicate predicate;
+            public 静的絞込プロジェクタファクトリ(TPreviousFactory previousFactory,TPredicate predicate) {
+                this.previousFactory=previousFactory;
+                this.predicate=predicate;
+            }
+            public bool CanStart => this.previousFactory.CanStart;
+            public 静的絞込プロジェクタ<TRoot,TCurrent,TPredicate,TPreviousProjector> Create() => new(this.previousFactory.Create(),this.predicate);
+        }
+        // Where を struct strategy の constrained call で実行するプロジェクタ。
+        private struct 静的絞込プロジェクタ<TRoot,TCurrent,TPredicate,TPreviousProjector>:I融合プロジェクタ<TRoot,TCurrent>
+            where TPredicate : struct,I融合絞込<TCurrent>
+            where TPreviousProjector : struct,I融合プロジェクタ<TRoot,TCurrent> {
+            private TPreviousProjector previousProjector;
+            private TPredicate predicate;
+            public 静的絞込プロジェクタ(TPreviousProjector previousProjector,TPredicate predicate) {
+                this.previousProjector=previousProjector;
+                this.predicate=predicate;
+            }
+            public bool CanContinue => this.previousProjector.CanContinue;
+            public 融合ステップ<TCurrent> Project(TRoot item) {
+                var step = this.previousProjector.Project(item);
+                if(step.Stop||!step.HasValue) {
+                    return step;
+                }
+                return this.predicate.Invoke(step.Value) ? step : default;
             }
         }
         // Take 操作を前段に連結するプロジェクタのファクトリ。
@@ -1892,11 +2182,23 @@ namespace Seamless.SourceGenerator.Generated {
                 var factory = new 選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TProjectorFactory,TProjector>(this.projectorFactory,selector);
                 return new 融合ソース実装<TRoot,TResult,選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TProjectorFactory,TProjector>,選択プロジェクタ<TRoot,TCurrent,TResult,TProjector>>(this.source,factory,$"{this.watchExpression}.Select({FormatWatchArgument(selector式)})");
             }
+            // 選択追加: Select 操作を struct strategy として pipeline に追加する。
+            public I融合ソース<TResult> 選択追加<TResult,TSelector>(TSelector selector,string? selector式 = null)
+                where TSelector : struct,I融合選択<TCurrent,TResult> {
+                var factory = new 静的選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TSelector,TProjectorFactory,TProjector>(this.projectorFactory,selector);
+                return new 融合ソース実装<TRoot,TResult,静的選択プロジェクタファクトリ<TRoot,TCurrent,TResult,TSelector,TProjectorFactory,TProjector>,静的選択プロジェクタ<TRoot,TCurrent,TResult,TSelector,TProjector>>(this.source,factory,$"{this.watchExpression}.Select({FormatWatchArgument(selector式)})");
+            }
             // 絞込追加: Where 操作を pipeline に追加した新しい融合ソースを返す (出力型は変わらない)。
             public I融合ソース<TCurrent> 絞込追加(global::System.Func<TCurrent,bool> predicate,[global::System.Runtime.CompilerServices.CallerArgumentExpression(nameof(predicate))] string? predicate式 = null) {
                 global::System.ArgumentNullException.ThrowIfNull(predicate);
                 var factory = new 絞込プロジェクタファクトリ<TRoot,TCurrent,TProjectorFactory,TProjector>(this.projectorFactory,predicate);
                 return new 融合ソース実装<TRoot,TCurrent,絞込プロジェクタファクトリ<TRoot,TCurrent,TProjectorFactory,TProjector>,絞込プロジェクタ<TRoot,TCurrent,TProjector>>(this.source,factory,$"{this.watchExpression}.Where({FormatWatchArgument(predicate式)})");
+            }
+            // 絞込追加: Where 操作を struct strategy として pipeline に追加する。
+            public I融合ソース<TCurrent> 絞込追加<TPredicate>(TPredicate predicate,string? predicate式 = null)
+                where TPredicate : struct,I融合絞込<TCurrent> {
+                var factory = new 静的絞込プロジェクタファクトリ<TRoot,TCurrent,TPredicate,TProjectorFactory,TProjector>(this.projectorFactory,predicate);
+                return new 融合ソース実装<TRoot,TCurrent,静的絞込プロジェクタファクトリ<TRoot,TCurrent,TPredicate,TProjectorFactory,TProjector>,静的絞込プロジェクタ<TRoot,TCurrent,TPredicate,TProjector>>(this.source,factory,$"{this.watchExpression}.Where({FormatWatchArgument(predicate式)})");
             }
             // 先頭取得追加: Take 操作を pipeline に追加した新しい融合ソースを返す。
             // count<=0 のときは空プロジェクタファクトリで即座に空を表す融合ソースを返す。
@@ -1928,6 +2230,29 @@ namespace Seamless.SourceGenerator.Generated {
                     }
                     if(step.HasValue) {
                         result.Add(selector(step.Value));
+                    }
+                }
+                return result;
+            }
+            // 選択実体化: 最後の Select を struct strategy として実行する。
+            public global::System.Collections.Generic.List<TResult> 選択実体化<TResult,TSelector>(TSelector selector)
+                where TSelector : struct,I融合選択<TCurrent,TResult> {
+                var result = new global::System.Collections.Generic.List<TResult>();
+                if(!this.projectorFactory.CanStart) {
+                    return result;
+                }
+                var projector = this.projectorFactory.Create();
+                if(!projector.CanContinue) {
+                    return result;
+                }
+                using var enumerator = this.source.GetEnumerator();
+                while(projector.CanContinue&&enumerator.MoveNext()) {
+                    var step = projector.Project(enumerator.Current);
+                    if(step.Stop) {
+                        break;
+                    }
+                    if(step.HasValue) {
+                        result.Add(selector.Invoke(step.Value));
                     }
                 }
                 return result;
@@ -5084,7 +5409,7 @@ namespace Seamless.SourceGenerator.Generated {
     }
 
     private sealed class LinqInvocationInterceptTarget {
-        public LinqInvocationInterceptTarget(string identifier,string filePath,string containingMethodCref,string interceptsLocationAttributeText,string returnTypeName,string typeParameterList,string typeParameterConstraintList,string parameterList,string body,bool isExpressionBody) {
+        public LinqInvocationInterceptTarget(string identifier,string filePath,string containingMethodCref,string interceptsLocationAttributeText,string returnTypeName,string typeParameterList,string typeParameterConstraintList,string parameterList,string body,bool isExpressionBody,string? staticLambdaStrategySource = null) {
             this.Identifier=identifier;
             this.FilePath=filePath;
             this.ContainingMethodCref=containingMethodCref;
@@ -5095,6 +5420,7 @@ namespace Seamless.SourceGenerator.Generated {
             this.ParameterList=parameterList;
             this.Body=body;
             this.IsExpressionBody=isExpressionBody;
+            this.StaticLambdaStrategySource=staticLambdaStrategySource;
         }
 
         public string Identifier { get; }
@@ -5107,7 +5433,53 @@ namespace Seamless.SourceGenerator.Generated {
         public string ParameterList { get; }
         public string Body { get; }
         public bool IsExpressionBody { get; }
+        public string? StaticLambdaStrategySource { get; }
         public string MethodName => $"OptimizedLinqInvocation_{this.Identifier}";
+    }
+
+    private sealed class LinqInvocationLambdaStrategy {
+        public LinqInvocationLambdaStrategy(string kind,string typeName,string resultTypeName,string expressionText,string source) {
+            this.Kind=kind;
+            this.TypeName=typeName;
+            this.ResultTypeName=resultTypeName;
+            this.ExpressionText=expressionText;
+            this.Source=source;
+        }
+
+        public string Kind { get; }
+        public string TypeName { get; }
+        public string ResultTypeName { get; }
+        public string ExpressionText { get; }
+        public string Source { get; }
+    }
+
+    private sealed class MovableStaticLambdaBodyChecker:CSharpSyntaxWalker {
+        private readonly string parameterName;
+
+        public MovableStaticLambdaBodyChecker(string parameterName) {
+            this.parameterName=parameterName;
+        }
+
+        public bool CanMove { get; private set; } = true;
+
+        public override void VisitIdentifierName(IdentifierNameSyntax node) {
+            if(!this.CanMove) {
+                return;
+            }
+            if(node.Identifier.ValueText==this.parameterName) {
+                base.VisitIdentifierName(node);
+                return;
+            }
+            if(node.Parent is MemberAccessExpressionSyntax memberAccess&&ReferenceEquals(memberAccess.Name,node)) {
+                base.VisitIdentifierName(node);
+                return;
+            }
+            if(node.Parent is QualifiedNameSyntax qualifiedName&&ReferenceEquals(qualifiedName.Right,node)) {
+                base.VisitIdentifierName(node);
+                return;
+            }
+            this.CanMove=false;
+        }
     }
 
     private sealed class InterceptorSourceBucket {
