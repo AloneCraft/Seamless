@@ -54,6 +54,7 @@ public sealed class Enumerable2 {
         var optimized = new OptimizedSampleContainer();
         var outer = new[] { 1,2,3,2 };
         var inner = new[] { 10,20 };
+        optimized.FusedJoinSelectSequence();
 
         Assert.Equal(container.Select_Method(outer),optimized.Select_Method(outer));
         Assert.Equal(
@@ -157,3 +158,4 @@ public sealed class Enumerable2 {
         return (TResult)method.MakeGenericMethod(typeArguments).Invoke(target,arguments)!;
     }
 }
+

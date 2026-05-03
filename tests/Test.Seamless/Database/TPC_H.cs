@@ -1,8 +1,9 @@
-using System.Globalization;
-using System.Linq;
-using Seamless;
+﻿using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
+using System.Globalization;
+using System.Linq;
+using Tsavorite.core;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedType.Global
@@ -13,8 +14,7 @@ namespace Test.Seamless.Database.TPC_H {
     // source generator がボイラーコード (コンストラクター・_u/_m フィールド・MemoryPack 実装) を生成する。
     static class DatabaseGenerator;
 
-    [Optimize]
-    public partial class Container:IDisposable {
+    public sealed class Container:IDisposable {
         private readonly global::System.Collections.Generic.List<IDisposable> disposables = [];
 
         public Container() {
@@ -38,8 +38,17 @@ namespace Test.Seamless.Database.TPC_H {
         public ManagedHashSet<Records.lineitem> lineitems { get; }
 
         private ManagedHashSet<T> CreateTable<T>() {
-            var store = HashStore.Create(IndexSize: 1L<<12).CreateManagedHashSet<T>();
+            var loadCheckpointDir = Path.Combine(Environment.CurrentDirectory,this.GetType().FullName!);
+            Directory.CreateDirectory(loadCheckpointDir);
+
+            var logPath = Path.Combine(loadCheckpointDir,"log");
+            var objPath = Path.Combine(loadCheckpointDir,"obj");
+            var logDevice = Devices.CreateLogDevice(logPath);
+            var objDevice = Devices.CreateLogDevice(objPath);
+            var store = HashStore.Create(IndexSize: 1L<<12).Create<T>(logDevice,objDevice);
             var table = store.Create();
+            this.disposables.Add(logDevice);
+            this.disposables.Add(objDevice);
             this.disposables.Add(store);
             this.disposables.Add(table);
             return table;
@@ -62,7 +71,7 @@ namespace Test.Seamless.Database.TPC_H {
             _ => value.ToString()??string.Empty,
         };
 
-        public virtual IEnumerable<string> Q01Method() =>
+        public IEnumerable<string> Q01Method() =>
             this.lineitems
                 .Where(line => line.l_shipdate<=19981201)
                 .GroupBy(line => new { line.l_returnflag,line.l_linestatus })
@@ -70,14 +79,14 @@ namespace Test.Seamless.Database.TPC_H {
                 .ThenBy(group => group.Key.l_linestatus)
                 .Select(group => Row(1,group.Key.l_returnflag,group.Key.l_linestatus,group.Sum(line => line.l_quantity),group.Sum(line => line.l_extendedprice)));
 
-        public virtual IEnumerable<string> Q01Query() =>
+        public IEnumerable<string> Q01Query() =>
             from line in this.lineitems
             where line.l_shipdate<=19981201
             group line by new { line.l_returnflag,line.l_linestatus } into grouped
             orderby grouped.Key.l_returnflag, grouped.Key.l_linestatus
             select Row(1,grouped.Key.l_returnflag,grouped.Key.l_linestatus,grouped.Sum(line => line.l_quantity),grouped.Sum(line => line.l_extendedprice));
 
-        public virtual IEnumerable<string> Q02Method() =>
+        public IEnumerable<string> Q02Method() =>
             this.parts
                 .Where(part => part.p_size==15&&part.p_type.Contains("BRASS"))
                 .Join(this.partsupps,part => part.p_partkey,partsupp => partsupp.ps_partkey,(part,partsupp) => new { part,partsupp })
@@ -90,7 +99,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .Take(3)
                 .Select(row => Row(2,row.supplier.s_name,row.nation.n_name,row.part.p_partkey,row.partsupp.ps_supplycost));
 
-        public virtual IEnumerable<string> Q02Query() =>
+        public IEnumerable<string> Q02Query() =>
             (from part in this.parts
              join partsupp in this.partsupps on part.p_partkey equals partsupp.ps_partkey
              join supplier in this.suppliers on partsupp.ps_suppkey equals supplier.s_suppkey
@@ -102,7 +111,7 @@ namespace Test.Seamless.Database.TPC_H {
             .Take(3)
             .Select(row => Row(2,row.supplier.s_name,row.nation.n_name,row.part.p_partkey,row.partsupp.ps_supplycost));
 
-        public virtual IEnumerable<string> Q03Method() =>
+        public IEnumerable<string> Q03Method() =>
             this.customers
                 .Where(customer => customer.c_mktsegment=="BUILDING")
                 .Join(this.orders,customer => customer.c_custkey,order => order.o_custkey,(customer,order) => new { customer,order })
@@ -112,7 +121,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .OrderByDescending(group => group.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)))
                 .Select(group => Row(3,group.Key,group.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount))));
 
-        public virtual IEnumerable<string> Q03Query() =>
+        public IEnumerable<string> Q03Query() =>
             from customer in this.customers
             join order in this.orders on customer.c_custkey equals order.o_custkey
             join line in this.lineitems on order.o_orderkey equals line.l_orderkey
@@ -121,7 +130,7 @@ namespace Test.Seamless.Database.TPC_H {
             orderby grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)) descending
             select Row(3,grouped.Key,grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)));
 
-        public virtual IEnumerable<string> Q04Method() =>
+        public IEnumerable<string> Q04Method() =>
             this.orders
                 .Where(order => order.o_orderdate>=19930701&&order.o_orderdate<19931001)
                 .Where(order => this.lineitems.Any(line => line.l_orderkey==order.o_orderkey&&line.l_commitdate<line.l_receiptdate))
@@ -129,7 +138,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .OrderBy(group => group.Key)
                 .Select(group => Row(4,group.Key,group.Count()));
 
-        public virtual IEnumerable<string> Q04Query() =>
+        public IEnumerable<string> Q04Query() =>
             from order in this.orders
             where order.o_orderdate>=19930701&&order.o_orderdate<19931001
             where this.lineitems.Any(line => line.l_orderkey==order.o_orderkey&&line.l_commitdate<line.l_receiptdate)
@@ -137,7 +146,7 @@ namespace Test.Seamless.Database.TPC_H {
             orderby grouped.Key
             select Row(4,grouped.Key,grouped.Count());
 
-        public virtual IEnumerable<string> Q05Method() =>
+        public IEnumerable<string> Q05Method() =>
             this.customers
                 .Join(this.orders,customer => customer.c_custkey,order => order.o_custkey,(customer,order) => new { customer,order })
                 .Join(this.lineitems,row => row.order.o_orderkey,line => line.l_orderkey,(row,line) => new { row.customer,row.order,line })
@@ -148,7 +157,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .OrderByDescending(group => group.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)))
                 .Select(group => Row(5,group.Key,group.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount))));
 
-        public virtual IEnumerable<string> Q05Query() =>
+        public IEnumerable<string> Q05Query() =>
             from customer in this.customers
             join order in this.orders on customer.c_custkey equals order.o_custkey
             join line in this.lineitems on order.o_orderkey equals line.l_orderkey
@@ -159,17 +168,17 @@ namespace Test.Seamless.Database.TPC_H {
             orderby grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)) descending
             select Row(5,grouped.Key,grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)));
 
-        public virtual IEnumerable<string> Q06Method() =>
+        public IEnumerable<string> Q06Method() =>
             this.lineitems
                 .Where(line => line.l_shipdate>=19940101&&line.l_shipdate<19950101&&line.l_discount>=0.05m&&line.l_discount<=0.07m&&line.l_quantity<24m)
                 .Select(line => Row(6,line.l_extendedprice*line.l_discount));
 
-        public virtual IEnumerable<string> Q06Query() =>
+        public IEnumerable<string> Q06Query() =>
             from line in this.lineitems
             where line.l_shipdate>=19940101&&line.l_shipdate<19950101&&line.l_discount>=0.05m&&line.l_discount<=0.07m&&line.l_quantity<24m
             select Row(6,line.l_extendedprice*line.l_discount);
 
-        public virtual IEnumerable<string> Q07Method() =>
+        public IEnumerable<string> Q07Method() =>
             this.suppliers
                 .Join(this.nations,supplier => supplier.s_nationkey,nation => nation.n_nationkey,(supplier,supplierNation) => new { supplier,supplierNation })
                 .Join(this.lineitems,row => row.supplier.s_suppkey,line => line.l_suppkey,(row,line) => new { row.supplier,row.supplierNation,line })
@@ -182,7 +191,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .ThenBy(group => group.Key.Customer)
                 .Select(group => Row(7,group.Key.Supplier,group.Key.Customer,group.Key.Year,group.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount))));
 
-        public virtual IEnumerable<string> Q07Query() =>
+        public IEnumerable<string> Q07Query() =>
             from supplier in this.suppliers
             join supplierNation in this.nations on supplier.s_nationkey equals supplierNation.n_nationkey
             join line in this.lineitems on supplier.s_suppkey equals line.l_suppkey
@@ -194,7 +203,7 @@ namespace Test.Seamless.Database.TPC_H {
             orderby grouped.Key.Supplier, grouped.Key.Customer
             select Row(7,grouped.Key.Supplier,grouped.Key.Customer,grouped.Key.Year,grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)));
 
-        public virtual IEnumerable<string> Q08Method() =>
+        public IEnumerable<string> Q08Method() =>
             this.parts
                 .Where(part => part.p_type.Contains("BRASS"))
                 .Join(this.lineitems,part => part.p_partkey,line => line.l_partkey,(part,line) => new { part,line })
@@ -204,7 +213,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .OrderBy(group => group.Key)
                 .Select(group => Row(8,group.Key,group.Sum(row => row.nation.n_name=="BRAZIL" ? row.line.l_extendedprice*(1-row.line.l_discount) : 0m),group.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount))));
 
-        public virtual IEnumerable<string> Q08Query() =>
+        public IEnumerable<string> Q08Query() =>
             from part in this.parts
             join line in this.lineitems on part.p_partkey equals line.l_partkey
             join supplier in this.suppliers on line.l_suppkey equals supplier.s_suppkey
@@ -214,7 +223,7 @@ namespace Test.Seamless.Database.TPC_H {
             orderby grouped.Key
             select Row(8,grouped.Key,grouped.Sum(row => row.nation.n_name=="BRAZIL" ? row.line.l_extendedprice*(1-row.line.l_discount) : 0m),grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)));
 
-        public virtual IEnumerable<string> Q09Method() =>
+        public IEnumerable<string> Q09Method() =>
             this.parts
                 .Where(part => part.p_name.Contains("forest"))
                 .Join(this.lineitems,part => part.p_partkey,line => line.l_partkey,(part,line) => new { part,line })
@@ -226,7 +235,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .ThenByDescending(group => group.Key.Year)
                 .Select(group => Row(9,group.Key.n_name,group.Key.Year,group.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)-row.partsupp.ps_supplycost*row.line.l_quantity)));
 
-        public virtual IEnumerable<string> Q09Query() =>
+        public IEnumerable<string> Q09Query() =>
             from part in this.parts
             join line in this.lineitems on part.p_partkey equals line.l_partkey
             join partsupp in this.partsupps on new { line.l_partkey,line.l_suppkey } equals new { l_partkey = partsupp.ps_partkey,l_suppkey = partsupp.ps_suppkey }
@@ -237,7 +246,7 @@ namespace Test.Seamless.Database.TPC_H {
             orderby grouped.Key.n_name, grouped.Key.Year descending
             select Row(9,grouped.Key.n_name,grouped.Key.Year,grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)-row.partsupp.ps_supplycost*row.line.l_quantity));
 
-        public virtual IEnumerable<string> Q10Method() =>
+        public IEnumerable<string> Q10Method() =>
             this.customers
                 .Join(this.orders,customer => customer.c_custkey,order => order.o_custkey,(customer,order) => new { customer,order })
                 .Join(this.lineitems,row => row.order.o_orderkey,line => line.l_orderkey,(row,line) => new { row.customer,row.order,line })
@@ -246,7 +255,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .OrderByDescending(group => group.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)))
                 .Select(group => Row(10,group.Key.c_custkey,group.Key.c_name,group.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount))));
 
-        public virtual IEnumerable<string> Q10Query() =>
+        public IEnumerable<string> Q10Query() =>
             from customer in this.customers
             join order in this.orders on customer.c_custkey equals order.o_custkey
             join line in this.lineitems on order.o_orderkey equals line.l_orderkey
@@ -255,7 +264,7 @@ namespace Test.Seamless.Database.TPC_H {
             orderby grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)) descending
             select Row(10,grouped.Key.c_custkey,grouped.Key.c_name,grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)));
 
-        public virtual IEnumerable<string> Q11Method() =>
+        public IEnumerable<string> Q11Method() =>
             this.partsupps
                 .Join(this.suppliers,partsupp => partsupp.ps_suppkey,supplier => supplier.s_suppkey,(partsupp,supplier) => new { partsupp,supplier })
                 .Join(this.nations,row => row.supplier.s_nationkey,nation => nation.n_nationkey,(row,nation) => new { row.partsupp,nation })
@@ -264,7 +273,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .OrderByDescending(group => group.Sum(row => row.partsupp.ps_supplycost*row.partsupp.ps_availqty))
                 .Select(group => Row(11,group.Key,group.Sum(row => row.partsupp.ps_supplycost*row.partsupp.ps_availqty)));
 
-        public virtual IEnumerable<string> Q11Query() =>
+        public IEnumerable<string> Q11Query() =>
             from partsupp in this.partsupps
             join supplier in this.suppliers on partsupp.ps_suppkey equals supplier.s_suppkey
             join nation in this.nations on supplier.s_nationkey equals nation.n_nationkey
@@ -273,7 +282,7 @@ namespace Test.Seamless.Database.TPC_H {
             orderby grouped.Sum(partsupp => partsupp.ps_supplycost*partsupp.ps_availqty) descending
             select Row(11,grouped.Key,grouped.Sum(partsupp => partsupp.ps_supplycost*partsupp.ps_availqty));
 
-        public virtual IEnumerable<string> Q12Method() =>
+        public IEnumerable<string> Q12Method() =>
             this.orders
                 .Join(this.lineitems,order => order.o_orderkey,line => line.l_orderkey,(order,line) => new { order,line })
                 .Where(row => (row.line.l_shipmode=="MAIL"||row.line.l_shipmode=="SHIP")&&row.line.l_receiptdate>=19940101&&row.line.l_receiptdate<19950101)
@@ -281,7 +290,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .OrderBy(group => group.Key)
                 .Select(group => Row(12,group.Key,group.Count(row => row.order.o_orderpriority=="1-URGENT"||row.order.o_orderpriority=="2-HIGH"),group.Count(row => row.order.o_orderpriority!="1-URGENT"&&row.order.o_orderpriority!="2-HIGH")));
 
-        public virtual IEnumerable<string> Q12Query() =>
+        public IEnumerable<string> Q12Query() =>
             from order in this.orders
             join line in this.lineitems on order.o_orderkey equals line.l_orderkey
             where (line.l_shipmode=="MAIL"||line.l_shipmode=="SHIP")&&line.l_receiptdate>=19940101&&line.l_receiptdate<19950101
@@ -289,7 +298,7 @@ namespace Test.Seamless.Database.TPC_H {
             orderby grouped.Key
             select Row(12,grouped.Key,grouped.Count(row => row.order.o_orderpriority=="1-URGENT"||row.order.o_orderpriority=="2-HIGH"),grouped.Count(row => row.order.o_orderpriority!="1-URGENT"&&row.order.o_orderpriority!="2-HIGH"));
 
-        public virtual IEnumerable<string> Q13Method() =>
+        public IEnumerable<string> Q13Method() =>
             this.customers
                 .GroupJoin(this.orders.Where(order => !order.o_comment.Contains("special requests")),customer => customer.c_custkey,order => order.o_custkey,(customer,orders) => new { customer,OrderCount = orders.Count() })
                 .GroupBy(row => row.OrderCount)
@@ -297,7 +306,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .ThenByDescending(group => group.Key)
                 .Select(group => Row(13,group.Key,group.Count()));
 
-        public virtual IEnumerable<string> Q13Query() =>
+        public IEnumerable<string> Q13Query() =>
             from customer in this.customers
             join order in this.orders.Where(order => !order.o_comment.Contains("special requests")) on customer.c_custkey equals order.o_custkey into customerOrders
             let orderCount = customerOrders.Count()
@@ -305,21 +314,21 @@ namespace Test.Seamless.Database.TPC_H {
             orderby grouped.Count() descending, grouped.Key descending
             select Row(13,grouped.Key,grouped.Count());
 
-        public virtual IEnumerable<string> Q14Method() =>
+        public IEnumerable<string> Q14Method() =>
             this.parts
                 .Join(this.lineitems,part => part.p_partkey,line => line.l_partkey,(part,line) => new { part,line })
                 .Where(row => row.line.l_shipdate>=19950901&&row.line.l_shipdate<19951001)
                 .GroupBy(_ => 1)
                 .Select(group => Row(14,group.Sum(row => row.part.p_type.StartsWith("PROMO") ? row.line.l_extendedprice*(1-row.line.l_discount) : 0m),group.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount))));
 
-        public virtual IEnumerable<string> Q14Query() =>
+        public IEnumerable<string> Q14Query() =>
             from part in this.parts
             join line in this.lineitems on part.p_partkey equals line.l_partkey
             where line.l_shipdate>=19950901&&line.l_shipdate<19951001
             group new { part,line } by 1 into grouped
             select Row(14,grouped.Sum(row => row.part.p_type.StartsWith("PROMO") ? row.line.l_extendedprice*(1-row.line.l_discount) : 0m),grouped.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount)));
 
-        public virtual IEnumerable<string> Q15Method() =>
+        public IEnumerable<string> Q15Method() =>
             this.suppliers
                 .Join(this.lineitems.Where(line => line.l_shipdate>=19960101&&line.l_shipdate<19960401),supplier => supplier.s_suppkey,line => line.l_suppkey,(supplier,line) => new { supplier,line })
                 .GroupBy(row => new { row.supplier.s_suppkey,row.supplier.s_name })
@@ -327,7 +336,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .Take(1)
                 .Select(group => Row(15,group.Key.s_suppkey,group.Key.s_name,group.Sum(row => row.line.l_extendedprice*(1-row.line.l_discount))));
 
-        public virtual IEnumerable<string> Q15Query() =>
+        public IEnumerable<string> Q15Query() =>
             (from supplier in this.suppliers
              join line in this.lineitems.Where(line => line.l_shipdate>=19960101&&line.l_shipdate<19960401) on supplier.s_suppkey equals line.l_suppkey
              group new { line } by new { supplier.s_suppkey,supplier.s_name } into grouped
@@ -336,7 +345,7 @@ namespace Test.Seamless.Database.TPC_H {
             .Take(1)
             .Select(row => Row(15,row.s_suppkey,row.s_name,row.Revenue));
 
-        public virtual IEnumerable<string> Q16Method() =>
+        public IEnumerable<string> Q16Method() =>
             this.parts
                 .Where(part => part.p_brand!="Brand#45"&&!part.p_type.StartsWith("MEDIUM POLISHED")&&part.p_size>=1)
                 .Join(this.partsupps,part => part.p_partkey,partsupp => partsupp.ps_partkey,(part,partsupp) => new { part,partsupp })
@@ -344,7 +353,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .OrderByDescending(group => group.Select(row => row.partsupp.ps_suppkey).Distinct().Count())
                 .Select(group => Row(16,group.Key.p_brand,group.Key.p_type,group.Key.p_size,group.Select(row => row.partsupp.ps_suppkey).Distinct().Count()));
 
-        public virtual IEnumerable<string> Q16Query() =>
+        public IEnumerable<string> Q16Query() =>
             from part in this.parts
             join partsupp in this.partsupps on part.p_partkey equals partsupp.ps_partkey
             where part.p_brand!="Brand#45"&&!part.p_type.StartsWith("MEDIUM POLISHED")&&part.p_size>=1
@@ -352,28 +361,28 @@ namespace Test.Seamless.Database.TPC_H {
             orderby grouped.Select(row => row.partsupp.ps_suppkey).Distinct().Count() descending
             select Row(16,grouped.Key.p_brand,grouped.Key.p_type,grouped.Key.p_size,grouped.Select(row => row.partsupp.ps_suppkey).Distinct().Count());
 
-        public virtual IEnumerable<string> Q17Method() =>
+        public IEnumerable<string> Q17Method() =>
             this.parts
                 .Where(part => part.p_brand=="Brand#23"&&part.p_container=="MED BOX")
                 .Join(this.lineitems,part => part.p_partkey,line => line.l_partkey,(part,line) => new { part,line })
                 .Where(row => row.line.l_quantity<this.lineitems.Where(line => line.l_partkey==row.part.p_partkey).Average(line => line.l_quantity)*0.2m)
                 .Select(row => Row(17,row.part.p_partkey,row.line.l_extendedprice/7m));
 
-        public virtual IEnumerable<string> Q17Query() =>
+        public IEnumerable<string> Q17Query() =>
             from part in this.parts
             join line in this.lineitems on part.p_partkey equals line.l_partkey
             where part.p_brand=="Brand#23"&&part.p_container=="MED BOX"
             where line.l_quantity<this.lineitems.Where(inner => inner.l_partkey==part.p_partkey).Average(inner => inner.l_quantity)*0.2m
             select Row(17,part.p_partkey,line.l_extendedprice/7m);
 
-        public virtual IEnumerable<string> Q18Method() =>
+        public IEnumerable<string> Q18Method() =>
             this.orders
                 .Join(this.customers,order => order.o_custkey,customer => customer.c_custkey,(order,customer) => new { order,customer })
                 .Where(row => this.lineitems.Where(line => line.l_orderkey==row.order.o_orderkey).Sum(line => line.l_quantity)>20m)
                 .OrderByDescending(row => row.order.o_totalprice)
                 .Select(row => Row(18,row.customer.c_name,row.order.o_orderkey,row.order.o_totalprice,this.lineitems.Where(line => line.l_orderkey==row.order.o_orderkey).Sum(line => line.l_quantity)));
 
-        public virtual IEnumerable<string> Q18Query() =>
+        public IEnumerable<string> Q18Query() =>
             from order in this.orders
             join customer in this.customers on order.o_custkey equals customer.c_custkey
             let quantity = this.lineitems.Where(line => line.l_orderkey==order.o_orderkey).Sum(line => line.l_quantity)
@@ -381,19 +390,19 @@ namespace Test.Seamless.Database.TPC_H {
             orderby order.o_totalprice descending
             select Row(18,customer.c_name,order.o_orderkey,order.o_totalprice,quantity);
 
-        public virtual IEnumerable<string> Q19Method() =>
+        public IEnumerable<string> Q19Method() =>
             this.parts
                 .Join(this.lineitems,part => part.p_partkey,line => line.l_partkey,(part,line) => new { part,line })
                 .Where(row => row.part.p_brand=="Brand#12"&&row.part.p_container.Contains("BOX")&&row.line.l_quantity>=1m&&row.line.l_quantity<=11m&&row.line.l_shipmode=="AIR")
                 .Select(row => Row(19,row.part.p_brand,row.line.l_extendedprice*(1-row.line.l_discount)));
 
-        public virtual IEnumerable<string> Q19Query() =>
+        public IEnumerable<string> Q19Query() =>
             from part in this.parts
             join line in this.lineitems on part.p_partkey equals line.l_partkey
             where part.p_brand=="Brand#12"&&part.p_container.Contains("BOX")&&line.l_quantity>=1m&&line.l_quantity<=11m&&line.l_shipmode=="AIR"
             select Row(19,part.p_brand,line.l_extendedprice*(1-line.l_discount));
 
-        public virtual IEnumerable<string> Q20Method() =>
+        public IEnumerable<string> Q20Method() =>
             this.suppliers
                 .Join(this.nations,supplier => supplier.s_nationkey,nation => nation.n_nationkey,(supplier,nation) => new { supplier,nation })
                 .Where(row => row.nation.n_name=="CANADA")
@@ -401,7 +410,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .OrderBy(row => row.supplier.s_name)
                 .Select(row => Row(20,row.supplier.s_name,row.nation.n_name));
 
-        public virtual IEnumerable<string> Q20Query() =>
+        public IEnumerable<string> Q20Query() =>
             from supplier in this.suppliers
             join nation in this.nations on supplier.s_nationkey equals nation.n_nationkey
             where nation.n_name=="CANADA"
@@ -409,7 +418,7 @@ namespace Test.Seamless.Database.TPC_H {
             orderby supplier.s_name
             select Row(20,supplier.s_name,nation.n_name);
 
-        public virtual IEnumerable<string> Q21Method() =>
+        public IEnumerable<string> Q21Method() =>
             this.suppliers
                 .Join(this.lineitems,supplier => supplier.s_suppkey,line => line.l_suppkey,(supplier,line) => new { supplier,line })
                 .Join(this.orders,row => row.line.l_orderkey,order => order.o_orderkey,(row,order) => new { row.supplier,row.line,order })
@@ -419,7 +428,7 @@ namespace Test.Seamless.Database.TPC_H {
                 .OrderByDescending(group => group.Count())
                 .Select(group => Row(21,group.Key,group.Count()));
 
-        public virtual IEnumerable<string> Q21Query() =>
+        public IEnumerable<string> Q21Query() =>
             from supplier in this.suppliers
             join line in this.lineitems on supplier.s_suppkey equals line.l_suppkey
             join order in this.orders on line.l_orderkey equals order.o_orderkey
@@ -429,14 +438,14 @@ namespace Test.Seamless.Database.TPC_H {
             orderby grouped.Count() descending
             select Row(21,grouped.Key,grouped.Count());
 
-        public virtual IEnumerable<string> Q22Method() =>
+        public IEnumerable<string> Q22Method() =>
             this.customers
                 .Where(customer => customer.c_acctbal>0m&&(customer.c_phone.StartsWith("13")||customer.c_phone.StartsWith("31")))
                 .GroupBy(customer => customer.c_phone[..2])
                 .OrderBy(group => group.Key)
                 .Select(group => Row(22,group.Key,group.Count(),group.Sum(customer => customer.c_acctbal)));
 
-        public virtual IEnumerable<string> Q22Query() =>
+        public IEnumerable<string> Q22Query() =>
             from customer in this.customers
             where customer.c_acctbal>0m&&(customer.c_phone.StartsWith("13")||customer.c_phone.StartsWith("31"))
             group customer by customer.c_phone[..2] into grouped
@@ -444,59 +453,212 @@ namespace Test.Seamless.Database.TPC_H {
             select Row(22,grouped.Key,grouped.Count(),grouped.Sum(customer => customer.c_acctbal));
     }
 
-    public sealed class TpchTests {
-        private static Container CreateMinimalContainer() {
+    public sealed class ContainerFixture:IDisposable {
+        public Container Container { get; } = TpchTests.Load();
+        public void Dispose() => Container.Dispose();
+    }
+
+    [Collection("TpchCollection")]
+    public sealed class TpchTests(ContainerFixture fixture):IClassFixture<ContainerFixture> {
+        private const long SF = 1;
+        private Container Container => fixture.Container;
+        internal static Container Load() {
             var container = new Container();
-            container.regions.Add(new Records.region(0,"AFRICA","region"));
-            container.regions.Add(new Records.region(1,"AMERICA","region"));
-            container.regions.Add(new Records.region(2,"ASIA","region"));
-            container.regions.Add(new Records.region(3,"EUROPE","region"));
-            container.regions.Add(new Records.region(4,"MIDDLE EAST","region"));
 
-            container.nations.Add(new Records.nation(1,"ALGERIA",0,"nation"));
-            container.nations.Add(new Records.nation(2,"BRAZIL",1,"nation"));
-            container.nations.Add(new Records.nation(3,"CANADA",1,"nation"));
-            container.nations.Add(new Records.nation(4,"FRANCE",3,"nation"));
-            container.nations.Add(new Records.nation(5,"GERMANY",3,"nation"));
-            container.nations.Add(new Records.nation(6,"SAUDI ARABIA",4,"nation"));
-            container.nations.Add(new Records.nation(7,"UNITED STATES",1,"nation"));
+            // TPC-H v3.0.1 の構造・比率に合わせる。テストは実行時間のため 1/100 スケールで生成する。
+            const int unitScaleDivisor = 100;
+            var supplierCount = (int)global::System.Math.Max(5,SF*10000/unitScaleDivisor);
+            var customerCount = (int)global::System.Math.Max(10,SF*150000/unitScaleDivisor);
+            var partCount = (int)global::System.Math.Max(20,SF*200000/unitScaleDivisor);
+            var orderCount = (int)global::System.Math.Max(50,SF*1500000/unitScaleDivisor);
 
-            container.suppliers.Add(new Records.supplier(1,"Supplier#FR","Paris",4,"31-111",100m,"supplier"));
-            container.suppliers.Add(new Records.supplier(2,"Supplier#DE","Berlin",5,"32-222",200m,"supplier"));
-            container.suppliers.Add(new Records.supplier(3,"Supplier#SA","Riyadh",6,"33-333",300m,"supplier"));
-            container.suppliers.Add(new Records.supplier(4,"Supplier#CA","Ottawa",3,"13-444",400m,"supplier"));
-            container.suppliers.Add(new Records.supplier(5,"Supplier#BR","Rio",2,"34-555",500m,"supplier"));
+            var random = new global::System.Random(20260502);
+            var regions = new[] {
+                (0,"AFRICA"),
+                (1,"AMERICA"),
+                (2,"ASIA"),
+                (3,"EUROPE"),
+                (4,"MIDDLE EAST"),
+            };
+            foreach(var region in regions) {
+                container.regions.Add(new Records.region(region.Item1,region.Item2,"tpch region"));
+            }
 
-            container.customers.Add(new Records.customer(1,"Customer#US","Seattle",7,"13-111",10m,"BUILDING","customer"));
-            container.customers.Add(new Records.customer(2,"Customer#FR","Lyon",4,"31-222",20m,"AUTOMOBILE","customer"));
-            container.customers.Add(new Records.customer(3,"Customer#BR","Sao Paulo",2,"18-333",30m,"BUILDING","customer"));
+            var nations = Nations;
+            foreach(var nation in nations) {
+                container.nations.Add(new Records.nation(nation.Key,nation.Name,nation.RegionKey,"tpch nation"));
+            }
 
-            container.parts.Add(new Records.part(1,"forest green brass","MFGR#1","Brand#12","SMALL BRASS",15,"SM BOX",100m,"part"));
-            container.parts.Add(new Records.part(2,"promo part","MFGR#2","Brand#23","PROMO BURNISHED",5,"MED BOX",200m,"part"));
-            container.parts.Add(new Records.part(3,"forest widget","MFGR#3","Brand#45","LARGE ANODIZED",9,"LG BOX",300m,"part"));
+            for(var supplierKey = 1; supplierKey<=supplierCount; supplierKey++) {
+                var nationKey = nations[random.Next(nations.Length)].Key;
+                var item = new Records.supplier(
+                    supplierKey,
+                    $"Supplier#{supplierKey:D9}",
+                    BuildAddress(random),
+                    nationKey,
+                    BuildPhone(random,nationKey),
+                    BuildAccountBalance(random),
+                    supplierKey%37==0 ? "Customer Complaints" : "tpch supplier");
+                container.suppliers.Add(item);
+            }
 
-            container.partsupps.Add(new Records.partsupp(1,1,50,20m,"partsupp"));
-            container.partsupps.Add(new Records.partsupp(1,2,60,15m,"partsupp"));
-            container.partsupps.Add(new Records.partsupp(1,5,70,12m,"partsupp"));
-            container.partsupps.Add(new Records.partsupp(2,2,80,25m,"partsupp"));
-            container.partsupps.Add(new Records.partsupp(3,3,90,30m,"partsupp"));
-            container.partsupps.Add(new Records.partsupp(3,4,100,18m,"partsupp"));
+            for(var customerKey = 1; customerKey<=customerCount; customerKey++) {
+                var nationKey = nations[random.Next(nations.Length)].Key;
+                container.customers.Add(new Records.customer(
+                    customerKey,
+                    $"Customer#{customerKey:D9}",
+                    BuildAddress(random),
+                    nationKey,
+                    BuildPhone(random,nationKey),
+                    BuildAccountBalance(random),
+                    Segments[random.Next(Segments.Length)],
+                    customerKey%29==0 ? "special requests" : "tpch customer"));
+            }
 
-            container.orders.Add(new Records.orders(100,1,"O",1500m,19950310,"1-URGENT","Clerk#1",0,"regular order"));
-            container.orders.Add(new Records.orders(101,2,"F",2500m,19930715,"2-HIGH","Clerk#2",0,"regular order"));
-            container.orders.Add(new Records.orders(102,3,"F",3500m,19940110,"3-MEDIUM","Clerk#3",0,"special requests"));
-            container.orders.Add(new Records.orders(103,1,"F",4500m,19960110,"5-LOW","Clerk#4",0,"regular order"));
+            var partSuppliers = new global::System.Collections.Generic.Dictionary<int,int[]>(partCount);
+            for(var partKey = 1; partKey<=partCount; partKey++) {
+                var partName = partKey%7==0 ? $"forest part {partKey}" : $"part {partKey}";
+                var brand = $"Brand#{(partKey%55)+1:D2}";
+                var containerName = Containers[random.Next(Containers.Length)];
+                var type = PartTypes[random.Next(PartTypes.Length)];
+                container.parts.Add(new Records.part(
+                    partKey,
+                    partName,
+                    $"Manufacturer#{(partKey%5)+1}",
+                    brand,
+                    type,
+                    (partKey%50)+1,
+                    containerName,
+                    RetailPrice(partKey),
+                    "tpch part"));
 
-            container.lineitems.Add(new Records.lineitem(100,1,1,1,10m,1000m,0.05m,0.10m,"R","F",19950320,19950318,19950322,"DELIVER","AIR","line"));
-            container.lineitems.Add(new Records.lineitem(100,2,2,2,5m,500m,0.06m,0.00m,"N","O",19950910,19950909,19950912,"DELIVER","SHIP","line"));
-            container.lineitems.Add(new Records.lineitem(101,3,3,1,30m,900m,0.04m,0.00m,"R","F",19930720,19930718,19930725,"DELIVER","MAIL","line"));
-            container.lineitems.Add(new Records.lineitem(102,1,5,1,3m,700m,0.07m,0.00m,"N","F",19940120,19940118,19940123,"DELIVER","AIR","line"));
-            container.lineitems.Add(new Records.lineitem(103,3,4,1,35m,1200m,0.03m,0.00m,"N","F",19960120,19960115,19960125,"DELIVER","SHIP","line"));
+                var suppKeys = new int[4];
+                for(var slot = 0; slot<suppKeys.Length; slot++) {
+                    var suppKey = ((partKey*37)+(slot*53))%supplierCount+1;
+                    while(global::System.Array.IndexOf(suppKeys,suppKey)>=0) {
+                        suppKey=suppKey==supplierCount ? 1 : suppKey+1;
+                    }
+                    suppKeys[slot]=suppKey;
+                    container.partsupps.Add(new Records.partsupp(
+                        partKey,
+                        suppKey,
+                        random.Next(1,10000),
+                        BuildSupplyCost(random),
+                        "tpch partsupp"));
+                }
+                partSuppliers[partKey]=suppKeys;
+            }
+
+            for(var orderKey = 1; orderKey<=orderCount; orderKey++) {
+                var customerKey = random.Next(1,customerCount+1);
+                var orderDate = RandomDateInt(random,new global::System.DateTime(1992,1,1),new global::System.DateTime(1998,8,2));
+                var lineCount = random.Next(1,8);
+                decimal total = 0m;
+                for(var lineNumber = 1; lineNumber<=lineCount; lineNumber++) {
+                    var partKey = random.Next(1,partCount+1);
+                    var suppChoices = partSuppliers[partKey];
+                    var suppKey = suppChoices[random.Next(suppChoices.Length)];
+                    var quantity = random.Next(1,51);
+                    var extendedPrice = global::System.Math.Round(RetailPrice(partKey)*quantity,2,MidpointRounding.AwayFromZero);
+                    var discount = global::System.Math.Round(random.Next(0,11)/100m,2,MidpointRounding.AwayFromZero);
+                    var tax = global::System.Math.Round(random.Next(0,9)/100m,2,MidpointRounding.AwayFromZero);
+                    var shipDate = AddDays(orderDate,random.Next(1,121));
+                    var commitDate = AddDays(orderDate,random.Next(1,90));
+                    var receiptDate = AddDays(shipDate,random.Next(1,31));
+                    if(commitDate>=receiptDate) {
+                        commitDate=AddDays(receiptDate,-1);
+                    }
+
+                    total+=extendedPrice*(1m-discount)*(1m+tax);
+                    container.lineitems.Add(new Records.lineitem(
+                        orderKey,
+                        partKey,
+                        suppKey,
+                        lineNumber,
+                        quantity,
+                        extendedPrice,
+                        discount,
+                        tax,
+                        ReturnFlags[random.Next(ReturnFlags.Length)],
+                        shipDate<=19980902 ? "F" : "O",
+                        shipDate,
+                        commitDate,
+                        receiptDate,
+                        ShipInstructs[random.Next(ShipInstructs.Length)],
+                        ShipModes[random.Next(ShipModes.Length)],
+                        "tpch lineitem"));
+                }
+
+                var orderStatus = orderKey%3==0 ? "F" : (orderKey%3==1 ? "O" : "P");
+                container.orders.Add(new Records.orders(
+                    orderKey,
+                    customerKey,
+                    orderStatus,
+                    global::System.Math.Round(total,2,MidpointRounding.AwayFromZero),
+                    orderDate,
+                    Priorities[random.Next(Priorities.Length)],
+                    $"Clerk#{(orderKey%1000):D3}",
+                    0,
+                    orderKey%17==0 ? "special requests" : "tpch order"));
+            }
             return container;
         }
 
-        private static string[] QueryRows(int query,bool querySyntax) {
-            using var container = CreateMinimalContainer();
+        private static readonly (int Key,string Name,int RegionKey)[] Nations = {
+            (1,"ALGERIA",0),(2,"ARGENTINA",1),(3,"BRAZIL",1),(4,"CANADA",1),(5,"EGYPT",4),
+            (6,"ETHIOPIA",0),(7,"FRANCE",3),(8,"GERMANY",3),(9,"INDIA",2),(10,"INDONESIA",2),
+            (11,"IRAN",4),(12,"IRAQ",4),(13,"JAPAN",2),(14,"JORDAN",4),(15,"KENYA",0),
+            (16,"MOROCCO",0),(17,"MOZAMBIQUE",0),(18,"PERU",1),(19,"CHINA",2),(20,"ROMANIA",3),
+            (21,"SAUDI ARABIA",4),(22,"VIETNAM",2),(23,"RUSSIA",3),(24,"UNITED KINGDOM",3),(25,"UNITED STATES",1),
+        };
+
+        private static readonly string[] Segments = { "AUTOMOBILE","BUILDING","FURNITURE","HOUSEHOLD","MACHINERY" };
+        private static readonly string[] Priorities = { "1-URGENT","2-HIGH","3-MEDIUM","4-NOT SPECIFIED","5-LOW" };
+        private static readonly string[] ReturnFlags = { "R","A","N" };
+        private static readonly string[] ShipModes = { "REG AIR","AIR","RAIL","SHIP","TRUCK","MAIL","FOB" };
+        private static readonly string[] ShipInstructs = { "DELIVER IN PERSON","COLLECT COD","NONE","TAKE BACK RETURN" };
+        private static readonly string[] Containers = { "SM BOX","SM PACK","MED BOX","MED BAG","LG BOX","JUMBO PACK" };
+        private static readonly string[] PartTypes = {
+            "SMALL BRASS","MEDIUM POLISHED","LARGE ANODIZED","PROMO BURNISHED","ECONOMY BRASS","STANDARD POLISHED"
+        };
+
+        private static string BuildAddress(global::System.Random random) {
+            return $"Addr-{random.Next(100000,999999):D6}";
+        }
+
+        private static string BuildPhone(global::System.Random random,int nationKey) {
+            var country = 10+(nationKey%90);
+            return $"{country:D2}-{random.Next(100,1000):D3}-{random.Next(1000,10000):D4}";
+        }
+
+        private static decimal BuildAccountBalance(global::System.Random random) {
+            return global::System.Math.Round((decimal)random.NextDouble()*11000m-1000m,2,MidpointRounding.AwayFromZero);
+        }
+
+        private static decimal BuildSupplyCost(global::System.Random random) {
+            return global::System.Math.Round((decimal)random.NextDouble()*999m+1m,2,MidpointRounding.AwayFromZero);
+        }
+
+        private static decimal RetailPrice(int partKey) {
+            return global::System.Math.Round(900m+(partKey*0.37m),2,MidpointRounding.AwayFromZero);
+        }
+
+        private static int RandomDateInt(global::System.Random random,global::System.DateTime start,global::System.DateTime endInclusive) {
+            var days = (endInclusive-start).Days;
+            var offset = random.Next(0,days+1);
+            var date = start.AddDays(offset);
+            return (date.Year*10000)+(date.Month*100)+date.Day;
+        }
+
+        private static int AddDays(int yyyymmdd,int days) {
+            var year = yyyymmdd/10000;
+            var month = (yyyymmdd/100)%100;
+            var day = yyyymmdd%100;
+            var date = new global::System.DateTime(year,month,day).AddDays(days);
+            return (date.Year*10000)+(date.Month*100)+date.Day;
+        }
+
+        private static string[] QueryRows(Container container,int query,bool querySyntax) {
             var rows = query switch {
                 1 => querySyntax ? container.Q01Query() : container.Q01Method(),
                 2 => querySyntax ? container.Q02Query() : container.Q02Method(),
@@ -525,10 +687,14 @@ namespace Test.Seamless.Database.TPC_H {
             return rows.OrderBy(row => row,StringComparer.Ordinal).ToArray();
         }
 
-        private static void AssertMethodAndQuery(int query) => Assert.Equal(QueryRows(query,false),QueryRows(query,true));
+        private void AssertMethodAndQuery(int query) {
+            var method = QueryRows(this.Container,query,false);
+            var queryResult = QueryRows(this.Container,query,true);
+            Assert.Equal(method,queryResult);
+        }
 
-        private static void AssertStorageListRoundTrip(int query) {
-            var expected = QueryRows(query,false);
+        private void AssertStorageListRoundTrip(int query) {
+            var expected = QueryRows(this.Container,query,false);
             var folder = TestPath.Directory<TpchTests>($"Q{query:D2}");
             using(var list = new ManagedList<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
                 foreach(var row in expected) {

@@ -2,7 +2,7 @@ using System.Collections;
 
 namespace Seamless.Collections;
 
-public partial class UnmanagedSet<TRecord, TKey>
+public partial class UnmanagedSet<TKey, TRecord>
     where TRecord : unmanaged, IRecord<TKey>
     where TKey : unmanaged {
     public UnmanagedList<TRecord>.Enumerator GetEnumerator() {

@@ -7,6 +7,9 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(ImportingProject)' != ''" />
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Attributes\LinqInterceptAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Attributes\OptimizationAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Attributes\OptimizeAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\EqualityEmpty.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\IMemoryCollection.cs" />

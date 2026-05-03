@@ -2,7 +2,7 @@ using System.Collections;
 
 namespace Seamless.Collections;
 
-public partial class ManagedSet<TRecord, TKey>
+public partial class ManagedSet<TKey, TRecord>
     where TRecord : IRecord<TKey> {
     public IEnumerator<TRecord> GetEnumerator() => new Enumerator<ValueIterator,TRecord>(this.ReadSession,new());
     IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator() => this.GetEnumerator();

@@ -3,7 +3,7 @@ using Seamless.Devices;
 
 namespace Seamless.Stores;
 
-public class ManagedSetStore<TRecord, TKey>:ManagedCollectionStore<TKey,TRecord>
+public class ManagedSetStore<TKey, TRecord>:ManagedCollectionStore<TKey,TRecord>
     where TRecord : IRecord<TKey> {
     internal ManagedSetStore(long indexSize,long pageSize,long segmentSize,long memorySize,double mutableFraction) :
         base(indexSize,pageSize,segmentSize,memorySize,mutableFraction,new MemoryOnlyDevice(segmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory) {
@@ -18,5 +18,5 @@ public class ManagedSetStore<TRecord, TKey>:ManagedCollectionStore<TKey,TRecord>
         return set.GetLongCount();
     }
 
-    public ManagedSet<TRecord,TKey> Create() => new(this);
+    public ManagedSet<TKey,TRecord> Create() => new(this);
 }

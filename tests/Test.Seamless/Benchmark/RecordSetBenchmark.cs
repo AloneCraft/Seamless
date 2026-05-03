@@ -28,7 +28,7 @@ public abstract class RecordSetBenchmark<TRecord>(ITestOutputHelper output):Benc
     protected abstract TRecord CreateRecord(int seed);
 
     protected abstract class Handle:IDisposable {
-        public abstract ISeamlessSet<TRecord,int> Set { get; }
+        public abstract ISeamlessSet<int,TRecord> Set { get; }
         public abstract Handle CreateSibling();
         public abstract void Dispose();
     }
@@ -174,8 +174,8 @@ public sealed class ManagedRecordSetBenchmark(ITestOutputHelper output):RecordSe
         private readonly long segmentSize;
         private readonly int memorySizeBits;
         private readonly int pageSizeBits;
-        private readonly ManagedSetStore<ManagedBenchmarkSetRecord,int> store;
-        private readonly ManagedSet<ManagedBenchmarkSetRecord,int> set;
+        private readonly ManagedSetStore<int,ManagedBenchmarkSetRecord> store;
+        private readonly ManagedSet<int,ManagedBenchmarkSetRecord> set;
 
         public ManagedHandle(double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits) {
             this.mutableFraction=mutableFraction;
@@ -189,11 +189,11 @@ public sealed class ManagedRecordSetBenchmark(ITestOutputHelper output):RecordSe
                 SegmentSize: segmentSize,
                 MemorySize: 1L<<memorySizeBits,
                 MutableFraction: mutableFraction
-            ).CreateManagedSet<ManagedBenchmarkSetRecord,int>();
+            ).CreateSet<int,ManagedBenchmarkSetRecord>();
             this.set=this.store.Create();
         }
 
-        public override ISeamlessSet<ManagedBenchmarkSetRecord,int> Set => this.set;
+        public override ISeamlessSet<int,ManagedBenchmarkSetRecord> Set => this.set;
 
         public override Handle CreateSibling() => new ManagedHandle(this.mutableFraction,this.indexSize,this.segmentSize,this.memorySizeBits,this.pageSizeBits);
 
@@ -217,8 +217,8 @@ public sealed class UnmanagedRecordSetBenchmark(ITestOutputHelper output):Record
         private readonly long segmentSize;
         private readonly int memorySizeBits;
         private readonly int pageSizeBits;
-        private readonly UnmanagedSetStore<UnmanagedBenchmarkSetRecord,int> store;
-        private readonly UnmanagedSet<UnmanagedBenchmarkSetRecord,int> set;
+        private readonly UnmanagedSetStore<int,UnmanagedBenchmarkSetRecord> store;
+        private readonly UnmanagedSet<int,UnmanagedBenchmarkSetRecord> set;
 
         public UnmanagedHandle(double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits) {
             this.mutableFraction=mutableFraction;
@@ -232,11 +232,11 @@ public sealed class UnmanagedRecordSetBenchmark(ITestOutputHelper output):Record
                 SegmentSize: segmentSize,
                 MemorySize: 1L<<memorySizeBits,
                 MutableFraction: mutableFraction
-            ).CreateUnmanagedSet<UnmanagedBenchmarkSetRecord,int>();
+            ).CreateUnmanagedSet<int,UnmanagedBenchmarkSetRecord>();
             this.set=this.store.Create();
         }
 
-        public override ISeamlessSet<UnmanagedBenchmarkSetRecord,int> Set => this.set;
+        public override ISeamlessSet<int,UnmanagedBenchmarkSetRecord> Set => this.set;
 
         public override Handle CreateSibling() => new UnmanagedHandle(this.mutableFraction,this.indexSize,this.segmentSize,this.memorySizeBits,this.pageSizeBits);
 

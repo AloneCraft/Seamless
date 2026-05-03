@@ -1,10 +1,10 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Diagnostics;
 namespace Seamless.Collections;
 /// <summary>
-/// Tsavorite ‚ğƒoƒbƒNƒGƒ“ƒh‚Ég‚¤ƒIƒ“ƒƒ‚ƒŠ DictionaryB
-/// <see cref="IDictionary{TKey,TValue}"/> ‚ğÀ‘•‚µA—˜—pÒ‚É Tsavorite ‚ÌÚ×‚ğŒ©‚¹‚È‚¢B
-/// Ã“Iƒ|ƒŠƒ‚[ƒtƒBƒYƒ€‚É‚æ‚è‰¼‘zƒfƒBƒXƒpƒbƒ`‚ğ‰ñ”ğ‚·‚éB
+/// Tsavorite ï¿½ï¿½ï¿½oï¿½bï¿½Nï¿½Gï¿½ï¿½ï¿½hï¿½Égï¿½ï¿½ï¿½Iï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Dictionaryï¿½B
+/// <see cref="IDictionary{TKey,TValue}"/> ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Aï¿½ï¿½ï¿½pï¿½Ò‚ï¿½ Tsavorite ï¿½ÌÚ×‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È‚ï¿½ï¿½B
+/// ï¿½Ã“Iï¿½|ï¿½ï¿½ï¿½ï¿½ï¿½[ï¿½tï¿½Bï¿½Yï¿½ï¿½ï¿½É‚ï¿½è‰¼ï¿½zï¿½fï¿½Bï¿½Xï¿½pï¿½bï¿½`ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½B
 /// </summary>
 [DebuggerTypeProxy(typeof(DictionaryDebugView<,,,>))]
 public abstract partial class ManagedDictionary<
@@ -27,7 +27,7 @@ public abstract partial class ManagedDictionary<
         var status = this.Read(item.Key,out var output);
         if(status.NotFound)
             return false;
-        return output.Equals(item.Value);
+        return EqualityComparer<TValue>.Default.Equals(output,item.Value);
     }
     public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex) {
         ArgumentNullException.ThrowIfNull(array);

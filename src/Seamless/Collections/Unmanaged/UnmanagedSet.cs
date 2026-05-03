@@ -1,11 +1,11 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Seamless.Stores;
 
 namespace Seamless.Collections;
 
-public partial class UnmanagedSet<TRecord, TKey>:
+public partial class UnmanagedSet<TKey, TRecord>:
     UnmanagedUnmanagedCollection<TKey,TRecord,UnmanagedSerializer<TKey>,UnmanagedSerializer<TRecord>>,
-    ISeamlessSet<TRecord,TKey>
+    ISeamlessSet<TKey,TRecord>
     where TRecord : unmanaged, IRecord<TKey>
     where TKey : unmanaged {
     private readonly IDisposable? ownedStore;
@@ -47,29 +47,29 @@ public partial class UnmanagedSet<TRecord, TKey>:
         foreach(var item in this)
             array[arrayIndex++]=item;
     }
-    public void ExceptWith(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.ExceptWith(this,other);
-    public void ExceptWith(UnmanagedSet<TRecord,TKey> other) => this.ExceptWith((ISeamlessSet<TRecord,TKey>)other);
-    public void IntersectWith(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.IntersectWith(this,other);
-    public void IntersectWith(UnmanagedSet<TRecord,TKey> other) => this.IntersectWith((ISeamlessSet<TRecord,TKey>)other);
-    public bool IsSubsetOf(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.IsSubsetOf(this,other);
-    public bool IsSubsetOf(UnmanagedSet<TRecord,TKey> other) => this.IsSubsetOf((ISeamlessSet<TRecord,TKey>)other);
-    public bool IsSupersetOf(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.IsSupersetOf(this,other);
-    public bool IsSupersetOf(UnmanagedSet<TRecord,TKey> other) => this.IsSupersetOf((ISeamlessSet<TRecord,TKey>)other);
-    public bool IsProperSubsetOf(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.IsProperSubsetOf(this,other);
-    public bool IsProperSubsetOf(UnmanagedSet<TRecord,TKey> other) => this.IsProperSubsetOf((ISeamlessSet<TRecord,TKey>)other);
-    public bool IsProperSupersetOf(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.IsProperSupersetOf(this,other);
-    public bool IsProperSupersetOf(UnmanagedSet<TRecord,TKey> other) => this.IsProperSupersetOf((ISeamlessSet<TRecord,TKey>)other);
-    public bool Overlaps(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.Overlaps(this,other);
-    public bool Overlaps(UnmanagedSet<TRecord,TKey> other) => this.Overlaps((ISeamlessSet<TRecord,TKey>)other);
-    public bool SetEquals(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.SetEquals(this,other);
-    public bool SetEquals(UnmanagedSet<TRecord,TKey> other) => this.SetEquals((ISeamlessSet<TRecord,TKey>)other);
-    public void SymmetricExceptWith(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.SymmetricExceptWith(this,other);
-    public void SymmetricExceptWith(UnmanagedSet<TRecord,TKey> other) => this.SymmetricExceptWith((ISeamlessSet<TRecord,TKey>)other);
-    public void UnionWith(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.UnionWith(this,other);
-    public void UnionWith(UnmanagedSet<TRecord,TKey> other) => this.UnionWith((ISeamlessSet<TRecord,TKey>)other);
+    public void ExceptWith(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.ExceptWith(this,other);
+    public void ExceptWith(UnmanagedSet<TKey,TRecord> other) => this.ExceptWith((ISeamlessSet<TKey,TRecord>)other);
+    public void IntersectWith(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IntersectWith(this,other);
+    public void IntersectWith(UnmanagedSet<TKey,TRecord> other) => this.IntersectWith((ISeamlessSet<TKey,TRecord>)other);
+    public bool IsSubsetOf(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IsSubsetOf(this,other);
+    public bool IsSubsetOf(UnmanagedSet<TKey,TRecord> other) => this.IsSubsetOf((ISeamlessSet<TKey,TRecord>)other);
+    public bool IsSupersetOf(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IsSupersetOf(this,other);
+    public bool IsSupersetOf(UnmanagedSet<TKey,TRecord> other) => this.IsSupersetOf((ISeamlessSet<TKey,TRecord>)other);
+    public bool IsProperSubsetOf(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IsProperSubsetOf(this,other);
+    public bool IsProperSubsetOf(UnmanagedSet<TKey,TRecord> other) => this.IsProperSubsetOf((ISeamlessSet<TKey,TRecord>)other);
+    public bool IsProperSupersetOf(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IsProperSupersetOf(this,other);
+    public bool IsProperSupersetOf(UnmanagedSet<TKey,TRecord> other) => this.IsProperSupersetOf((ISeamlessSet<TKey,TRecord>)other);
+    public bool Overlaps(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.Overlaps(this,other);
+    public bool Overlaps(UnmanagedSet<TKey,TRecord> other) => this.Overlaps((ISeamlessSet<TKey,TRecord>)other);
+    public bool SetEquals(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.SetEquals(this,other);
+    public bool SetEquals(UnmanagedSet<TKey,TRecord> other) => this.SetEquals((ISeamlessSet<TKey,TRecord>)other);
+    public void SymmetricExceptWith(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.SymmetricExceptWith(this,other);
+    public void SymmetricExceptWith(UnmanagedSet<TKey,TRecord> other) => this.SymmetricExceptWith((ISeamlessSet<TKey,TRecord>)other);
+    public void UnionWith(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.UnionWith(this,other);
+    public void UnionWith(UnmanagedSet<TKey,TRecord> other) => this.UnionWith((ISeamlessSet<TKey,TRecord>)other);
 
-    public UnmanagedSet<TRecord,TKey> Except(UnmanagedSet<TRecord,TKey> other) => (UnmanagedSet<TRecord,TKey>)this.Except((ISeamlessSet<TRecord,TKey>)other);
-    public ISeamlessSet<TRecord,TKey> Except(ISeamlessSet<TRecord,TKey> other) {
+    public UnmanagedSet<TKey,TRecord> Except(UnmanagedSet<TKey,TRecord> other) => (UnmanagedSet<TKey,TRecord>)this.Except((ISeamlessSet<TKey,TRecord>)other);
+    public ISeamlessSet<TKey,TRecord> Except(ISeamlessSet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this) {
@@ -89,8 +89,8 @@ public partial class UnmanagedSet<TRecord, TKey>:
         return result;
     }
 
-    public UnmanagedSet<TRecord,TKey> Intersect(UnmanagedSet<TRecord,TKey> other) => (UnmanagedSet<TRecord,TKey>)this.Intersect((ISeamlessSet<TRecord,TKey>)other);
-    public ISeamlessSet<TRecord,TKey> Intersect(ISeamlessSet<TRecord,TKey> other) {
+    public UnmanagedSet<TKey,TRecord> Intersect(UnmanagedSet<TKey,TRecord> other) => (UnmanagedSet<TKey,TRecord>)this.Intersect((ISeamlessSet<TKey,TRecord>)other);
+    public ISeamlessSet<TKey,TRecord> Intersect(ISeamlessSet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this) {
@@ -110,8 +110,8 @@ public partial class UnmanagedSet<TRecord, TKey>:
         return result;
     }
 
-    public UnmanagedSet<TRecord,TKey> SymmetricExcept(UnmanagedSet<TRecord,TKey> other) => (UnmanagedSet<TRecord,TKey>)this.SymmetricExcept((ISeamlessSet<TRecord,TKey>)other);
-    public ISeamlessSet<TRecord,TKey> SymmetricExcept(ISeamlessSet<TRecord,TKey> other) {
+    public UnmanagedSet<TKey,TRecord> SymmetricExcept(UnmanagedSet<TKey,TRecord> other) => (UnmanagedSet<TKey,TRecord>)this.SymmetricExcept((ISeamlessSet<TKey,TRecord>)other);
+    public ISeamlessSet<TKey,TRecord> SymmetricExcept(ISeamlessSet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this) {
@@ -139,8 +139,8 @@ public partial class UnmanagedSet<TRecord, TKey>:
         return result;
     }
 
-    public UnmanagedSet<TRecord,TKey> Union(UnmanagedSet<TRecord,TKey> other) => (UnmanagedSet<TRecord,TKey>)this.Union((ISeamlessSet<TRecord,TKey>)other);
-    public ISeamlessSet<TRecord,TKey> Union(ISeamlessSet<TRecord,TKey> other) {
+    public UnmanagedSet<TKey,TRecord> Union(UnmanagedSet<TKey,TRecord> other) => (UnmanagedSet<TKey,TRecord>)this.Union((ISeamlessSet<TKey,TRecord>)other);
+    public ISeamlessSet<TKey,TRecord> Union(ISeamlessSet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this)
@@ -160,13 +160,13 @@ public partial class UnmanagedSet<TRecord, TKey>:
         return result;
     }
 
-    private static UnmanagedSet<TRecord,TKey> CreateOwnedResultSet() {
-        var store = HashStore.Create().CreateUnmanagedSet<TRecord,TKey>();
+    private static UnmanagedSet<TKey,TRecord> CreateOwnedResultSet() {
+        var store = HashStore.Create().CreateUnmanagedSet<TKey,TRecord>();
         return new(store,store);
     }
 
     private static UnmanagedHashSet<TKey> CreateOwnedKeyResultSet() {
-        var store = HashStore.Create().CreateUnmanagedHashSet<TKey>();
+        var store = HashStore.Create().Create<TKey>();
         return store.CreateOwned();
     }
 

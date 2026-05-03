@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 
@@ -32,14 +32,14 @@ public class ManagedSet<TRecord>:ManagedList<TRecord>, ISet<TRecord> {
     public new int Count => checked((int)this.GetLongCount());
     public bool IsReadOnly => false;
     public long EntryCount => this.GetLongCount();
-    public IEnumerator<TRecord> GetEnumerator(){
+    public IEnumerator<TRecord> GetEnumerator() {
         throw new NotImplementedException();
     }
-    IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator()=>this.GetEnumerator();
+    IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator() => this.GetEnumerator();
 }
-public partial class ManagedSet<TRecord, TKey>:
+public partial class ManagedSet<TKey, TRecord>:
     ManagedManagedCollection<TKey,TRecord,ManagedSerializer<TKey>,ManagedSerializer<TRecord>>,
-    ISeamlessSet<TRecord,TKey>
+    ISeamlessSet<TKey,TRecord>
     where TRecord : IRecord<TKey> {
     private readonly IDisposable? ownedStore;
     internal ManagedSet(ManagedCollectionStore<TKey,TRecord> collectionStore,IDisposable? ownedStore = null) : base(collectionStore) {
@@ -80,29 +80,29 @@ public partial class ManagedSet<TRecord, TKey>:
         foreach(var item in this)
             array[arrayIndex++]=item;
     }
-    public void ExceptWith(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.ExceptWith(this,other);
-    public void ExceptWith(ManagedSet<TRecord,TKey> other) => this.ExceptWith((ISeamlessSet<TRecord,TKey>)other);
-    public void IntersectWith(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.IntersectWith(this,other);
-    public void IntersectWith(ManagedSet<TRecord,TKey> other) => this.IntersectWith((ISeamlessSet<TRecord,TKey>)other);
-    public bool IsSubsetOf(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.IsSubsetOf(this,other);
-    public bool IsSubsetOf(ManagedSet<TRecord,TKey> other) => this.IsSubsetOf((ISeamlessSet<TRecord,TKey>)other);
-    public bool IsSupersetOf(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.IsSupersetOf(this,other);
-    public bool IsSupersetOf(ManagedSet<TRecord,TKey> other) => this.IsSupersetOf((ISeamlessSet<TRecord,TKey>)other);
-    public bool IsProperSubsetOf(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.IsProperSubsetOf(this,other);
-    public bool IsProperSubsetOf(ManagedSet<TRecord,TKey> other) => this.IsProperSubsetOf((ISeamlessSet<TRecord,TKey>)other);
-    public bool IsProperSupersetOf(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.IsProperSupersetOf(this,other);
-    public bool IsProperSupersetOf(ManagedSet<TRecord,TKey> other) => this.IsProperSupersetOf((ISeamlessSet<TRecord,TKey>)other);
-    public bool Overlaps(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.Overlaps(this,other);
-    public bool Overlaps(ManagedSet<TRecord,TKey> other) => this.Overlaps((ISeamlessSet<TRecord,TKey>)other);
-    public bool SetEquals(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.SetEquals(this,other);
-    public bool SetEquals(ManagedSet<TRecord,TKey> other) => this.SetEquals((ISeamlessSet<TRecord,TKey>)other);
-    public void SymmetricExceptWith(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.SymmetricExceptWith(this,other);
-    public void SymmetricExceptWith(ManagedSet<TRecord,TKey> other) => this.SymmetricExceptWith((ISeamlessSet<TRecord,TKey>)other);
-    public void UnionWith(ISeamlessSet<TRecord,TKey> other) => SeamlessSetOperations.UnionWith(this,other);
-    public void UnionWith(ManagedSet<TRecord,TKey> other) => this.UnionWith((ISeamlessSet<TRecord,TKey>)other);
+    public void ExceptWith(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.ExceptWith(this,other);
+    public void ExceptWith(ManagedSet<TKey,TRecord> other) => this.ExceptWith((ISeamlessSet<TKey,TRecord>)other);
+    public void IntersectWith(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IntersectWith(this,other);
+    public void IntersectWith(ManagedSet<TKey,TRecord> other) => this.IntersectWith((ISeamlessSet<TKey,TRecord>)other);
+    public bool IsSubsetOf(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IsSubsetOf(this,other);
+    public bool IsSubsetOf(ManagedSet<TKey,TRecord> other) => this.IsSubsetOf((ISeamlessSet<TKey,TRecord>)other);
+    public bool IsSupersetOf(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IsSupersetOf(this,other);
+    public bool IsSupersetOf(ManagedSet<TKey,TRecord> other) => this.IsSupersetOf((ISeamlessSet<TKey,TRecord>)other);
+    public bool IsProperSubsetOf(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IsProperSubsetOf(this,other);
+    public bool IsProperSubsetOf(ManagedSet<TKey,TRecord> other) => this.IsProperSubsetOf((ISeamlessSet<TKey,TRecord>)other);
+    public bool IsProperSupersetOf(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IsProperSupersetOf(this,other);
+    public bool IsProperSupersetOf(ManagedSet<TKey,TRecord> other) => this.IsProperSupersetOf((ISeamlessSet<TKey,TRecord>)other);
+    public bool Overlaps(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.Overlaps(this,other);
+    public bool Overlaps(ManagedSet<TKey,TRecord> other) => this.Overlaps((ISeamlessSet<TKey,TRecord>)other);
+    public bool SetEquals(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.SetEquals(this,other);
+    public bool SetEquals(ManagedSet<TKey,TRecord> other) => this.SetEquals((ISeamlessSet<TKey,TRecord>)other);
+    public void SymmetricExceptWith(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.SymmetricExceptWith(this,other);
+    public void SymmetricExceptWith(ManagedSet<TKey,TRecord> other) => this.SymmetricExceptWith((ISeamlessSet<TKey,TRecord>)other);
+    public void UnionWith(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.UnionWith(this,other);
+    public void UnionWith(ManagedSet<TKey,TRecord> other) => this.UnionWith((ISeamlessSet<TKey,TRecord>)other);
 
-    public ManagedSet<TRecord,TKey> Except(ManagedSet<TRecord,TKey> other) => (ManagedSet<TRecord,TKey>)this.Except((ISeamlessSet<TRecord,TKey>)other);
-    public ISeamlessSet<TRecord,TKey> Except(ISeamlessSet<TRecord,TKey> other) {
+    public ManagedSet<TKey,TRecord> Except(ManagedSet<TKey,TRecord> other) => (ManagedSet<TKey,TRecord>)this.Except((ISeamlessSet<TKey,TRecord>)other);
+    public ISeamlessSet<TKey,TRecord> Except(ISeamlessSet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this) {
@@ -122,8 +122,8 @@ public partial class ManagedSet<TRecord, TKey>:
         return result;
     }
 
-    public ManagedSet<TRecord,TKey> Intersect(ManagedSet<TRecord,TKey> other) => (ManagedSet<TRecord,TKey>)this.Intersect((ISeamlessSet<TRecord,TKey>)other);
-    public ISeamlessSet<TRecord,TKey> Intersect(ISeamlessSet<TRecord,TKey> other) {
+    public ManagedSet<TKey,TRecord> Intersect(ManagedSet<TKey,TRecord> other) => (ManagedSet<TKey,TRecord>)this.Intersect((ISeamlessSet<TKey,TRecord>)other);
+    public ISeamlessSet<TKey,TRecord> Intersect(ISeamlessSet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this) {
@@ -143,8 +143,8 @@ public partial class ManagedSet<TRecord, TKey>:
         return result;
     }
 
-    public ManagedSet<TRecord,TKey> SymmetricExcept(ManagedSet<TRecord,TKey> other) => (ManagedSet<TRecord,TKey>)this.SymmetricExcept((ISeamlessSet<TRecord,TKey>)other);
-    public ISeamlessSet<TRecord,TKey> SymmetricExcept(ISeamlessSet<TRecord,TKey> other) {
+    public ManagedSet<TKey,TRecord> SymmetricExcept(ManagedSet<TKey,TRecord> other) => (ManagedSet<TKey,TRecord>)this.SymmetricExcept((ISeamlessSet<TKey,TRecord>)other);
+    public ISeamlessSet<TKey,TRecord> SymmetricExcept(ISeamlessSet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this) {
@@ -172,8 +172,8 @@ public partial class ManagedSet<TRecord, TKey>:
         return result;
     }
 
-    public ManagedSet<TRecord,TKey> Union(ManagedSet<TRecord,TKey> other) => (ManagedSet<TRecord,TKey>)this.Union((ISeamlessSet<TRecord,TKey>)other);
-    public ISeamlessSet<TRecord,TKey> Union(ISeamlessSet<TRecord,TKey> other) {
+    public ManagedSet<TKey,TRecord> Union(ManagedSet<TKey,TRecord> other) => (ManagedSet<TKey,TRecord>)this.Union((ISeamlessSet<TKey,TRecord>)other);
+    public ISeamlessSet<TKey,TRecord> Union(ISeamlessSet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this)
@@ -193,13 +193,13 @@ public partial class ManagedSet<TRecord, TKey>:
         return result;
     }
 
-    private static ManagedSet<TRecord,TKey> CreateOwnedResultSet() {
-        var store = HashStore.Create().CreateManagedSet<TRecord,TKey>();
+    private static ManagedSet<TKey,TRecord> CreateOwnedResultSet() {
+        var store = HashStore.Create().CreateSet<TKey,TRecord>();
         return new(store,store);
     }
 
     private static ManagedHashSet<TKey> CreateOwnedKeyResultSet() {
-        var store = HashStore.Create().CreateManagedHashSet<TKey>();
+        var store = HashStore.Create().Create<TKey>();
         return store.CreateOwned();
     }
 
