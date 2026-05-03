@@ -12,7 +12,7 @@ public readonly record struct UnmanagedSetRecord(int Key,long Value):IRecord<int
 public class SetTests {
     [Fact, Trait("Category","Unit")]
     public void ManagedSet_AddTryGetRemove_UsesRecordKey() {
-        using var store = HashStore.Create().CreateManagedSet<ManagedSetRecord,int>();
+        using var store = HashStore.Create().CreateSet<int,ManagedSetRecord>();
         using var set = store.Create();
 
         var record = new ManagedSetRecord(1,"alpha");
@@ -31,8 +31,8 @@ public class SetTests {
 
     [Fact, Trait("Category","Unit")]
     public void ManagedSet_UnionWith_KeepsExistingRecordForDuplicateKey() {
-        using var store = HashStore.Create().CreateManagedSet<ManagedSetRecord,int>();
-        using var otherStore = HashStore.Create().CreateManagedSet<ManagedSetRecord,int>();
+        using var store = HashStore.Create().CreateSet<int,ManagedSetRecord>();
+        using var otherStore = HashStore.Create().CreateSet<int,ManagedSetRecord>();
         using var set = store.Create();
         using var other = otherStore.Create();
 
@@ -55,7 +55,7 @@ public class SetTests {
 
     [Fact, Trait("Category","Unit")]
     public void UnmanagedSet_AddTryGetRemove_UsesRecordKey() {
-        using var store = HashStore.Create().CreateUnmanagedSet<UnmanagedSetRecord,int>();
+        using var store = HashStore.Create().CreateUnmanagedSet<int,UnmanagedSetRecord>();
         using var set = store.Create();
 
         var record = new UnmanagedSetRecord(7,99);
@@ -72,8 +72,8 @@ public class SetTests {
 
     [Fact, Trait("Category","Unit")]
     public void ManagedSet_FunctionalOperations_WithManagedSet_KeepReturnTypesAndValues() {
-        using var store = HashStore.Create().CreateManagedSet<ManagedSetRecord,int>();
-        using var otherStore = HashStore.Create().CreateManagedSet<ManagedSetRecord,int>();
+        using var store = HashStore.Create().CreateSet<int,ManagedSetRecord>();
+        using var otherStore = HashStore.Create().CreateSet<int,ManagedSetRecord>();
         using var set = store.Create();
         using var other = otherStore.Create();
 
@@ -88,14 +88,14 @@ public class SetTests {
         other.Add(charlie);
 
         using var union = set.Union(other);
-        Assert.IsType<ManagedSet<ManagedSetRecord,int>>(union);
+        Assert.IsType<ManagedSet<int,ManagedSetRecord>>(union);
         Assert.Equal(3,union.Count);
         Assert.True(union.TryGetValue(2,out var foundBravo));
         Assert.Equal(bravo,foundBravo);
         Assert.True(union.TryGetValue(3,out var foundCharlie));
         Assert.Equal(charlie,foundCharlie);
 
-        using ISeamlessSet<ManagedSetRecord,int> intersect = set.Intersect((ISeamlessSet<ManagedSetRecord,int>)other);
+        using ISeamlessSet<int,ManagedSetRecord> intersect = set.Intersect((ISeamlessSet<int,ManagedSetRecord>)other);
         Assert.Single(intersect);
         Assert.True(intersect.TryGetValue(2,out var intersected));
         Assert.Equal(bravo,intersected);
@@ -118,7 +118,7 @@ public class SetTests {
 
     [Fact, Trait("Category","Unit")]
     public void ManagedSet_FunctionalOperations_WithManagedHashSet_KeepReturnTypesAndValues() {
-        using var store = HashStore.Create().CreateManagedSet<ManagedSetRecord,int>();
+        using var store = HashStore.Create().CreateSet<int,ManagedSetRecord>();
         using var set = store.Create();
         using var keyStore = HashStore.Create().CreateManagedHashSet<int>();
         using var keys = keyStore.Create();
@@ -151,8 +151,8 @@ public class SetTests {
 
     [Fact, Trait("Category","Unit")]
     public void UnmanagedSet_FunctionalOperations_WithUnmanagedSet_KeepReturnTypesAndValues() {
-        using var store = HashStore.Create().CreateUnmanagedSet<UnmanagedSetRecord,int>();
-        using var otherStore = HashStore.Create().CreateUnmanagedSet<UnmanagedSetRecord,int>();
+        using var store = HashStore.Create().CreateUnmanagedSet<int,UnmanagedSetRecord>();
+        using var otherStore = HashStore.Create().CreateUnmanagedSet<int,UnmanagedSetRecord>();
         using var set = store.Create();
         using var other = otherStore.Create();
 
@@ -167,14 +167,14 @@ public class SetTests {
         other.Add(charlie);
 
         using var union = set.Union(other);
-        Assert.IsType<UnmanagedSet<UnmanagedSetRecord,int>>(union);
+        Assert.IsType<UnmanagedSet<int,UnmanagedSetRecord>>(union);
         Assert.Equal(3,union.Count);
         Assert.True(union.TryGetValue(2,out var foundBravo));
         Assert.Equal(bravo,foundBravo);
         Assert.True(union.TryGetValue(3,out var foundCharlie));
         Assert.Equal(charlie,foundCharlie);
 
-        using ISeamlessSet<UnmanagedSetRecord,int> intersect = set.Intersect((ISeamlessSet<UnmanagedSetRecord,int>)other);
+        using ISeamlessSet<int,UnmanagedSetRecord> intersect = set.Intersect((ISeamlessSet<int,UnmanagedSetRecord>)other);
         Assert.Single(intersect);
         Assert.True(intersect.TryGetValue(2,out var intersected));
         Assert.Equal(bravo,intersected);
@@ -194,7 +194,7 @@ public class SetTests {
 
     [Fact, Trait("Category","Unit")]
     public void UnmanagedSet_FunctionalOperations_WithUnmanagedHashSet_KeepReturnTypesAndValues() {
-        using var store = HashStore.Create().CreateUnmanagedSet<UnmanagedSetRecord,int>();
+        using var store = HashStore.Create().CreateUnmanagedSet<int,UnmanagedSetRecord>();
         using var set = store.Create();
         using var keyStore = HashStore.Create().CreateUnmanagedHashSet<int>();
         using var keys = keyStore.Create();

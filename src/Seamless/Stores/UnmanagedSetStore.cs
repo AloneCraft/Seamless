@@ -3,7 +3,7 @@ using Seamless.Devices;
 
 namespace Seamless.Stores;
 
-public class UnmanagedSetStore<TRecord, TKey>:UnmanagedCollectionStore<TKey,TRecord>
+public class UnmanagedSetStore<TKey, TRecord>:UnmanagedCollectionStore<TKey,TRecord>
     where TRecord : unmanaged, IRecord<TKey>
     where TKey : unmanaged {
     internal UnmanagedSetStore(long indexSize,long pageSize,long segmentSize,long memorySize,double mutableFraction) :
@@ -19,5 +19,5 @@ public class UnmanagedSetStore<TRecord, TKey>:UnmanagedCollectionStore<TKey,TRec
         return set.GetLongCount();
     }
 
-    public UnmanagedSet<TRecord,TKey> Create() => new(this);
+    public UnmanagedSet<TKey,TRecord> Create() => new(this);
 }

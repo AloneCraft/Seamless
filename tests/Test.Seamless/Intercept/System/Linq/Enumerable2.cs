@@ -28,7 +28,7 @@ public sealed class Enumerable2 {
     }
 
     private static bool HasGeneratedInterceptor(string methodName) {
-        var interceptorType = typeof(Enumerable2).Assembly.GetType("Seamless.SourceGenerator.Generated.ContainerMethodInterceptors");
+        var interceptorType = typeof(Enumerable2).Assembly.GetType("Seamless.SourceGenerator.Generated.LinqInvocationInterceptors");
         Assert.NotNull(interceptorType);
         return interceptorType.GetMethods(BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic)
             .Any(method => method.Name.Contains($"Enumerable2_{methodName}_",StringComparison.Ordinal));

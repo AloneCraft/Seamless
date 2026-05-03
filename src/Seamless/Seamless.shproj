@@ -9,6 +9,9 @@
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.Common.props" />
   <PropertyGroup />
   <ItemGroup>
+    <Compile Include="Attributes\LinqInterceptAttribute.cs" />
+    <Compile Include="Attributes\OptimizationAttribute.cs" />
+    <Compile Include="Attributes\OptimizeAttribute.cs" />
     <Compile Include="Collections\DebugView.cs" />
     <Compile Include="Collections\EqualityEmpty.cs" />
     <Compile Include="Collections\IMemoryCollection.cs" />

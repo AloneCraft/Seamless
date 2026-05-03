@@ -1,4 +1,5 @@
-﻿namespace Test.Seamless.Unit.Stores;
+﻿using Seamless.Stores;
+namespace Test.Seamless.Unit.Stores;
 
 /// <summary>
 /// 4��ނ�Dictionary�����O�T�C�Y�ɍ����o�邱�Ƃ�m�F����e�X�g�B
@@ -24,12 +25,80 @@ public partial class KindDictionarySize(ITestOutputHelper output) {
     }
 
     [Fact, Trait("Category","Unit")]
-    public partial void UnmanagedUnmanaged_vs_ManagedManaged_SizeIsSmaller();
+    public void UnmanagedUnmanaged_vs_ManagedManaged_SizeIsSmaller() {
+        using var uuStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>();
+        using var uuDict = uuStore.Create();
+        var uuBytes = MeasureLogBytes(() => uuStore.Store.Log.TailAddress,uuDict);
+
+        using var mmStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
+        using var mmDict = mmStore.Create();
+        var mmBytes = MeasureLogBytes(() => mmStore.Store.Log.TailAddress,mmDict);
+
+        AssertUnmanagedUnmanagedVsManagedManaged(uuBytes,mmBytes);
+    }
+
     [Fact, Trait("Category","Unit")]
-    public partial void ManagedUnmanaged_vs_ManagedManaged_ValuePartDiffers();
+    public void ManagedUnmanaged_vs_ManagedManaged_ValuePartDiffers() {
+        using var muStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),default);
+        using var muDict = muStore.Create();
+        var muBytes = MeasureLogBytes(() => muStore.Store.Log.TailAddress,muDict);
+
+        using var mmStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
+        using var mmDict = mmStore.Create();
+        var mmBytes = MeasureLogBytes(() => mmStore.Store.Log.TailAddress,mmDict);
+
+        AssertManagedUnmanagedVsManagedManaged(muBytes,mmBytes);
+    }
+
     [Fact, Trait("Category","Unit")]
-    public partial void UnmanagedManaged_vs_ManagedManaged_ValuePartDiffers();
+    public void UnmanagedManaged_vs_ManagedManaged_ValuePartDiffers() {
+        using var umStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(default,new ManagedTag());
+        using var umDict = umStore.Create();
+        var umBytes = MeasureLogBytes(() => umStore.Store.Log.TailAddress,umDict);
+
+        using var mmStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
+        using var mmDict = mmStore.Create();
+        var mmBytes = MeasureLogBytes(() => mmStore.Store.Log.TailAddress,mmDict);
+
+        AssertUnmanagedManagedVsManagedManaged(umBytes,mmBytes);
+    }
+
     [Fact, Trait("Category","Unit")]
-    public partial void OutputsLogSizesForAllFourKinds();
+    public void OutputsLogSizesForAllFourKinds() {
+        var sizes = new System.Collections.Generic.Dictionary<string,long>();
+
+        {
+            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>();
+            using var dict = store.Create();
+            sizes["UnmanagedUnmanaged"]=MeasureLogBytes(() => store.Store.Log.TailAddress,dict);
+        }
+        {
+            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>(default,new ManagedTag());
+            using var dict = store.Create();
+            sizes["UnmanagedManaged"]=MeasureLogBytes(() => store.Store.Log.TailAddress,dict);
+        }
+        {
+            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),default);
+            using var dict = store.Create();
+            sizes["ManagedUnmanaged"]=MeasureLogBytes(() => store.Store.Log.TailAddress,dict);
+        }
+        {
+            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
+            using var dict = store.Create();
+            sizes["ManagedManaged"]=MeasureLogBytes(() => store.Store.Log.TailAddress,dict);
+        }
+
+        var expected = GetExpectedSizes();
+
+        foreach(var kind in KindOrder)
+            output.WriteLine($"{kind}: {sizes[kind]} bytes ({sizes[kind]/N} bytes/entry)");
+
+        foreach(var kind in KindOrder)
+            Assert.Equal(expected[kind],sizes[kind]);
+    }
+
+    private static partial void AssertUnmanagedUnmanagedVsManagedManaged(long uuBytes,long mmBytes);
+    private static partial void AssertManagedUnmanagedVsManagedManaged(long muBytes,long mmBytes);
+    private static partial void AssertUnmanagedManagedVsManagedManaged(long umBytes,long mmBytes);
     private static partial System.Collections.Generic.Dictionary<string,long> GetExpectedSizes();
 }

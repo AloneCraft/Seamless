@@ -2,7 +2,7 @@ using System.Collections;
 
 namespace Seamless.Collections;
 
-public partial class ManagedSet<TRecord, TKey>
+public partial class ManagedSet<TKey, TRecord>
     where TRecord : IRecord<TKey> {
     public ManagedList<TRecord>.Enumerator GetEnumerator() {
         var items = new InMemoryList<TRecord>(Const.Chunk_Length);
