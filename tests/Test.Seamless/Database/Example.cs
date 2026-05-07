@@ -180,6 +180,7 @@ namespace Test.Seamless.Database.Example {
         }
 #endif
     }
+    static class DatabaseGenerator;
     namespace Keys {
         public partial struct Key0 {
             public int Column0 { get; private init; }

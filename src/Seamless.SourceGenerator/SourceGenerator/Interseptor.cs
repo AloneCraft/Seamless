@@ -14,10 +14,8 @@ using Microsoft.CodeAnalysis.Text;
 namespace Seamless.SourceGenerator;
 
 [Generator]
-// この generator は 2 系統の生成をまとめて担当する。
-// 1. List<T>.Where を軽量 enumerable に差し替える interceptor 系コード
-// 2. DatabaseGenerator マーカー配下の schema / optimized container コード
-public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
+// Interseptor.cs contains optimization and interceptor generation.
+public sealed partial class SeamlessIncrementalGenerator:IIncrementalGenerator {
     private const string 診断カテゴリー = "Seamless.SourceGenerator";
     private const string 列挙実装リソース名 = "Seamless.Linq.Enumerable.cs";
     private const string ハッシュセット実装リソース名 = "Seamless.Linq.HashSet.cs";
@@ -345,7 +343,7 @@ namespace Seamless.SourceGenerator.Generated {
             }
 
             public IFusionSource<TResult> Select<TResult>(global::System.Func<TCurrent,TResult> selector) {
-                global::System.ArgumentNullException.ThrowIfNull(selector);
+                if(selector is null) { throw new global::System.ArgumentNullException(nameof(selector)); }
                 var factory = new SelectFactory<TRoot,TCurrent,TResult,TProjectorFactory,TProjector>(this.projectorFactory,selector);
                 return new FusionSource<TRoot,TResult,SelectFactory<TRoot,TCurrent,TResult,TProjectorFactory,TProjector>,SelectProjector<TRoot,TCurrent,TResult,TProjector>>(this.source,factory);
             }
@@ -357,7 +355,7 @@ namespace Seamless.SourceGenerator.Generated {
             }
 
             public IFusionSource<TCurrent> Where(global::System.Func<TCurrent,bool> predicate) {
-                global::System.ArgumentNullException.ThrowIfNull(predicate);
+                if(predicate is null) { throw new global::System.ArgumentNullException(nameof(predicate)); }
                 var factory = new WhereFactory<TRoot,TCurrent,TProjectorFactory,TProjector>(this.projectorFactory,predicate);
                 return new FusionSource<TRoot,TCurrent,WhereFactory<TRoot,TCurrent,TProjectorFactory,TProjector>,WhereProjector<TRoot,TCurrent,TProjector>>(this.source,factory);
             }
@@ -380,7 +378,7 @@ namespace Seamless.SourceGenerator.Generated {
             }
 
             public global::System.Collections.Generic.List<TResult> SelectToList<TResult>(global::System.Func<TCurrent,TResult> selector) {
-                global::System.ArgumentNullException.ThrowIfNull(selector);
+                if(selector is null) { throw new global::System.ArgumentNullException(nameof(selector)); }
                 var result = new global::System.Collections.Generic.List<TResult>();
                 var projector = this.projectorFactory.Create();
                 foreach(var item in this.source) {
@@ -416,7 +414,7 @@ namespace Seamless.SourceGenerator.Generated {
         }
 
         internal static IFusionSource<T> Create<T>(global::System.Collections.Generic.IEnumerable<T> source) {
-            global::System.ArgumentNullException.ThrowIfNull(source);
+            if(source is null) { throw new global::System.ArgumentNullException(nameof(source)); }
             if(source is IFusionSource<T> fusionSource) {
                 return fusionSource;
             }
@@ -715,6 +713,11 @@ namespace Seamless.SourceGenerator.Generated {
         if(context.SemanticModel.GetSymbolInfo(invocation,cancellationToken).Symbol is not IMethodSymbol method) {
             return null;
         }
+        // 拡張メソッドがインターセプト対象にして
+        // メソッド呼び出しは最適化インターセプト対象にしない
+        if(!拡張メソッド構文呼び出し判定(method)) {
+            return null;
+        }
         if(!サポートLINQメソッド判定(method)) {
             return null;
         }
@@ -917,8 +920,8 @@ namespace Seamless.SourceGenerator.Generated {
         var operationParameterName = 非インデックスWhereメソッド判定(definition) ? "predicate" : "selector";
         return $$"""
 {
-    global::System.ArgumentNullException.ThrowIfNull(source);
-    global::System.ArgumentNullException.ThrowIfNull({{operationParameterName}});
+    if(source is null) { throw new global::System.ArgumentNullException(nameof(source)); }
+    if({{operationParameterName}} is null) { throw new global::System.ArgumentNullException(nameof({{operationParameterName}})); }
     return source;
 }
 """;
@@ -971,8 +974,8 @@ namespace Seamless.SourceGenerator.Generated {
         }
         return $$"""
 {
-    global::System.ArgumentNullException.ThrowIfNull(source);
-    global::System.ArgumentNullException.ThrowIfNull(selector);
+    if(source is null) { throw new global::System.ArgumentNullException(nameof(source)); }
+    if(selector is null) { throw new global::System.ArgumentNullException(nameof(selector)); }
     if(source is global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.IFusionSource<TSource> fusionSource) {
         return fusionSource.SelectToList(selector);
     }
@@ -992,8 +995,8 @@ namespace Seamless.SourceGenerator.Generated {
         }
         return $$"""
 {
-    global::System.ArgumentNullException.ThrowIfNull(source);
-    global::System.ArgumentNullException.ThrowIfNull(predicate);
+    if(source is null) { throw new global::System.ArgumentNullException(nameof(source)); }
+    if(predicate is null) { throw new global::System.ArgumentNullException(nameof(predicate)); }
     if(source is global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.IFusionSource<TSource> fusionSource) {
         return fusionSource.Where(predicate);
     }
@@ -1056,7 +1059,7 @@ namespace Seamless.SourceGenerator.Generated {
     ///
     /// // 変換後 (Seamless.Linq.Enumerable.cs の ToList 実装を展開):
     /// {
-    ///     global::System.ArgumentNullException.ThrowIfNull(source);
+    ///     if(source is null) { throw new global::System.ArgumentNullException(nameof(source)); }
     ///     var result = new global::System.Collections.Generic.List&lt;TSource&gt;();
     ///     foreach (var item in source) result.Add(item);
     ///     return result;
@@ -1612,6 +1615,10 @@ namespace Seamless.SourceGenerator.Generated {
         return containingType=="System.Linq.Enumerable"
             ||containingType=="Seamless.Linq.Enumerable"
             ||containingType=="Seamless.Linq.HashSet";
+    }
+
+    private static bool 拡張メソッド構文呼び出し判定(IMethodSymbol method) {
+        return method.ReducedFrom is not null;
     }
 
     private static bool コンテナメソッドLINQ呼び出し含有判定(Compilation compilation,IMethodSymbol method,System.Threading.CancellationToken cancellationToken) {
@@ -2244,140 +2251,6 @@ namespace Seamless.SourceGenerator.Generated {
             .Replace("\"","&quot;")
             .Replace("<","&lt;")
             .Replace(">","&gt;");
-    }
-
-    // DatabaseGenerator を起点にして schema struct を生成する。
-    private static string データベースソース構築(ImmutableArray<型対象型> typeTargets) {
-        var builder = new StringBuilder();
-        var rootNamespaces = typeTargets
-            .Where(static target => target.Symbol.Name=="DatabaseGenerator")
-            .Select(static target => 名前空間テキスト取得(target.Symbol.ContainingNamespace))
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-        if(rootNamespaces.Length==0) {
-            return string.Empty;
-        }
-        builder.AppendLine("#pragma warning disable CS0164, CS8601, CS8981");
-
-        foreach(var rootNamespace in rootNamespaces) {
-            var keys = typeTargets
-                .Where(target => target.IsPartial
-                    &&target.Symbol.TypeKind==TypeKind.Struct
-                    &&名前空間一致判定(target.Symbol.ContainingNamespace.ToDisplayString(),rootNamespace,"Keys"))
-                .Select(target => target.Symbol)
-                .GroupBy(static symbol => symbol.ToDisplayString(完全修飾形式),StringComparer.Ordinal)
-                .Select(static group => group.First())
-                .OrderBy(static symbol => symbol.Name,StringComparer.Ordinal)
-                .ToArray();
-            var types = typeTargets
-                .Where(target => target.IsPartial
-                    &&target.Symbol.TypeKind==TypeKind.Struct
-                    &&名前空間一致判定(target.Symbol.ContainingNamespace.ToDisplayString(),rootNamespace,"Records"))
-                .Select(target => target.Symbol)
-                .GroupBy(static symbol => symbol.ToDisplayString(完全修飾形式),StringComparer.Ordinal)
-                .Select(static group => group.First())
-                .OrderBy(static symbol => symbol.Name,StringComparer.Ordinal)
-                .ToArray();
-            var keysNamespace = string.IsNullOrEmpty(rootNamespace)
-                ? "Keys"
-                : $"{rootNamespace}.Keys";
-            var recordsNamespace = string.IsNullOrEmpty(rootNamespace)
-                ? "Records"
-                : $"{rootNamespace}.Records";
-
-            if(keys.Length>0) {
-                builder.AppendLine($"// Generated: schema key records declared under {keysNamespace}.");
-                builder.AppendLine($"namespace {keysNamespace} {{");
-                foreach(var key in keys) {
-                    レコードソース本体追記(builder,key,"    ");
-                }
-                builder.AppendLine("}");
-                builder.AppendLine();
-            }
-
-            if(types.Length>0) {
-                builder.AppendLine($"// Generated: schema row/value records declared under {recordsNamespace}.");
-                builder.AppendLine($"namespace {recordsNamespace} {{");
-                foreach(var type in types) {
-                    レコードソース本体追記(builder,type,"    ");
-                }
-                builder.AppendLine("}");
-                builder.AppendLine();
-            }
-        }
-
-        return builder.ToString();
-    }
-
-    // Key / Record の partial struct を、MemoryPack で保存できる完全な schema record にする。
-    // unmanaged フィールドは _u、managed フィールドは _m に寄せ、backend から扱いやすい形へ整える。
-    private static void レコードソース本体追記(StringBuilder builder,INamedTypeSymbol symbol,string indent) {
-        var properties = 生成対象プロパティ取得(symbol);
-        if(properties.Length==0) {
-            return;
-        }
-
-        var symbolTypeName = symbol.ToDisplayString(完全修飾形式);
-
-        var unmanagedProperties = properties.Where(static property => property.Type.IsUnmanagedType).ToImmutableArray();
-        var managedProperties = properties.Where(static property => !property.Type.IsUnmanagedType).ToImmutableArray();
-
-        var innerBuilder = new StringBuilder();
-        {
-            var indentedBuilder = innerBuilder;
-            indentedBuilder.AppendLine($"// Generated: completed schema record for {symbolTypeName}. unmanaged data lives in _u and managed data lives in _m.");
-            indentedBuilder.AppendLine($"partial struct {symbol.Name}:global::MemoryPack.IMemoryPackable<{symbolTypeName}> {{");
-            indentedBuilder.AppendLine($"    public {symbol.Name}({string.Join(", ",properties.Select(static property => $"{property.Type.ToDisplayString(完全修飾形式)} {パラメーター名取得(property)}"))}) {{");
-            if(unmanagedProperties.Length>0) {
-                indentedBuilder.AppendLine($"        this._u=new({string.Join(", ",unmanagedProperties.Select(static property => パラメーター名取得(property)))});");
-            }
-            else {
-                indentedBuilder.AppendLine("        this._u=new();");
-            }
-            if(managedProperties.Length>0) {
-                indentedBuilder.AppendLine($"        this._m=new({string.Join(", ",managedProperties.Select(static property => パラメーター名取得(property)))});");
-            }
-            else {
-                indentedBuilder.AppendLine("        this._m=new();");
-            }
-            indentedBuilder.AppendLine("    }");
-            indentedBuilder.AppendLine();
-            非管理レコードソース追記(indentedBuilder,unmanagedProperties);
-            indentedBuilder.AppendLine("    private _U _u;");
-            indentedBuilder.AppendLine();
-            管理レコードソース追記(indentedBuilder,managedProperties);
-            indentedBuilder.AppendLine("    private _M _m;");
-            indentedBuilder.AppendLine();
-            foreach(var property in properties) {
-                indentedBuilder.AppendLine($"    public partial {property.Type.ToDisplayString(完全修飾形式)} {property.Name} => this.{格納先名取得(property)}.{property.Name};");
-            }
-            indentedBuilder.AppendLine();
-            indentedBuilder.AppendLine($"    static {symbol.Name}() {{");
-            indentedBuilder.AppendLine($"        global::MemoryPack.MemoryPackFormatterProvider.Register<{symbolTypeName}>();");
-            indentedBuilder.AppendLine("    }");
-            indentedBuilder.AppendLine();
-            indentedBuilder.AppendLine("    static void global::MemoryPack.IMemoryPackFormatterRegister.RegisterFormatter() {");
-            indentedBuilder.AppendLine($"        if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<{symbolTypeName}>()) {{");
-            indentedBuilder.AppendLine($"            global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.MemoryPackableFormatter<{symbolTypeName}>());");
-            indentedBuilder.AppendLine("        }");
-            indentedBuilder.AppendLine($"        if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<{symbolTypeName}[]>()) {{");
-            indentedBuilder.AppendLine($"            global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.ArrayFormatter<{symbolTypeName}>());");
-            indentedBuilder.AppendLine("        }");
-            indentedBuilder.AppendLine("    }");
-            indentedBuilder.AppendLine();
-            indentedBuilder.AppendLine($"    static void global::MemoryPack.IMemoryPackable<{symbolTypeName}>.Serialize<TBufferWriter>(ref global::MemoryPack.MemoryPackWriter<TBufferWriter> writer,scoped ref {symbolTypeName} value) {{");
-            indentedBuilder.AppendLine("        writer.WriteUnmanaged(value._u);");
-            indentedBuilder.AppendLine("        writer.WritePackable(value._m);");
-            indentedBuilder.AppendLine("    }");
-            indentedBuilder.AppendLine();
-            indentedBuilder.AppendLine($"    static void global::MemoryPack.IMemoryPackable<{symbolTypeName}>.Deserialize(ref global::MemoryPack.MemoryPackReader reader,scoped ref {symbolTypeName} value) {{");
-            indentedBuilder.AppendLine("        reader.ReadUnmanaged(out value._u);");
-            indentedBuilder.AppendLine("        reader.ReadPackable(ref value._m);");
-            indentedBuilder.AppendLine("    }");
-            indentedBuilder.AppendLine("}");
-        }
-        インデント付き追記(builder,innerBuilder.ToString(),indent);
-        builder.AppendLine();
     }
 
     // [Optimize] class と [Optimize] virtual method の組だけを optimized subclass へ出力する。
@@ -3048,8 +2921,8 @@ namespace Seamless.SourceGenerator.Generated {
         builder.AppendLine("{");
         builder.AppendLine($"    var __selectSource = {sourceExpression};");
         builder.AppendLine($"    global::System.Func<{sourceElementTypeName},{resultElementTypeName}> __selectSelector = {selectorExpression};");
-        builder.AppendLine("    global::System.ArgumentNullException.ThrowIfNull(__selectSource);");
-        builder.AppendLine("    global::System.ArgumentNullException.ThrowIfNull(__selectSelector);");
+        builder.AppendLine("    if(__selectSource is null) { throw new global::System.ArgumentNullException(nameof(__selectSource)); }");
+        builder.AppendLine("    if(__selectSelector is null) { throw new global::System.ArgumentNullException(nameof(__selectSelector)); }");
         builder.AppendLine($"    var result = new global::System.Collections.Generic.List<{resultElementTypeName}>();");
         builder.AppendLine("    foreach(var item in __selectSource) {");
         builder.AppendLine("        result.Add(Inline(item,__selectSelector));");
@@ -3480,7 +3353,7 @@ namespace Seamless.SourceGenerator.Generated {
             var resultPathName = this.Name("__seamlessResultPath");
             var resultListName = this.Name("__seamlessResultList");
             this.Add($"var {sourceName} = {this.pipeline.SourceExpression};");
-            this.Add($"global::System.ArgumentNullException.ThrowIfNull({sourceName});");
+            this.Add($"if({sourceName} is null) {{ throw new global::System.ArgumentNullException(nameof({sourceName})); }}");
             this.DeclareOperationState();
             this.Add($"var {resultPathName} = global::Seamless.Linq.Enumerable.CreateTemporaryResultListPath(\"intercept-chain-{this.StorageKindName()}\");");
             this.Add($"var {resultListName} = {this.CreateTemporaryResultListExpression(resultPathName)};");
@@ -3648,7 +3521,7 @@ namespace Seamless.SourceGenerator.Generated {
             const string itemName = "__seamlessItem";
             const string continueLabel = "__seamlessContinue";
             this.Add($"var {sourceName} = {this.sourceExpression};");
-            this.Add($"global::System.ArgumentNullException.ThrowIfNull({sourceName});");
+            this.Add($"if({sourceName} is null) {{ throw new global::System.ArgumentNullException(nameof({sourceName})); }}");
             this.DeclareOperationState();
             this.Add($"var {this.resultName} = new global::System.Collections.Generic.List<{this.resultElementTypeName}>();");
             this.Add($"foreach(var {itemName} in {sourceName}) {{");
@@ -3765,7 +3638,7 @@ namespace Seamless.SourceGenerator.Generated {
             this.Add("{");
             this.indent++;
             this.Add($"var __seamlessSource = {this.pipeline.SourceExpression};");
-            this.Add("global::System.ArgumentNullException.ThrowIfNull(__seamlessSource);");
+            this.Add("if(__seamlessSource is null) { throw new global::System.ArgumentNullException(nameof(__seamlessSource)); }");
             this.DeclareOperationState();
             this.DeclareAccumulator();
             this.EmitTakeEmptyShortCircuit();
@@ -4133,9 +4006,9 @@ namespace Seamless.SourceGenerator.Generated {
         return string.Join("\n",new[] {
             "{",
             $"    var __aggregateSource = {sourceExpression};",
-            "    global::System.ArgumentNullException.ThrowIfNull(__aggregateSource);",
+            "    if(__aggregateSource is null) { throw new global::System.ArgumentNullException(nameof(__aggregateSource)); }",
             $"    global::System.Func<{returnType}, {returnType}, {returnType}> __aggregateFunc = {funcExpression};",
-            "    global::System.ArgumentNullException.ThrowIfNull(__aggregateFunc);",
+            "    if(__aggregateFunc is null) { throw new global::System.ArgumentNullException(nameof(__aggregateFunc)); }",
             $"    {returnType} __aggregateResult = default!;",
             "    var __aggregateHasValue = false;",
             "    foreach(var __aggregateCurrent in __aggregateSource) {",
@@ -4642,56 +4515,6 @@ namespace Seamless.SourceGenerator.Generated {
             ||receiver.EndsWith(".HashSet",StringComparison.Ordinal);
     }
 
-    private static ImmutableArray<IPropertySymbol> 生成対象プロパティ取得(INamedTypeSymbol symbol) {
-        var builder = ImmutableArray.CreateBuilder<IPropertySymbol>();
-        foreach(var property in symbol.GetMembers().OfType<IPropertySymbol>()) {
-            if(プロパティ生成対象判定(property)) {
-                builder.Add(property);
-            }
-        }
-        return builder.ToImmutable();
-    }
-
-    private static bool プロパティ生成対象判定(IPropertySymbol property) {
-        foreach(var syntaxReference in property.DeclaringSyntaxReferences) {
-            if(syntaxReference.GetSyntax() is not PropertyDeclarationSyntax syntax) {
-                continue;
-            }
-            if(!syntax.Modifiers.Any(SyntaxKind.PartialKeyword)) {
-                continue;
-            }
-            if(syntax.ExpressionBody is not null) {
-                continue;
-            }
-            if(syntax.AccessorList is null||syntax.AccessorList.Accessors.Count!=1) {
-                continue;
-            }
-            var accessor = syntax.AccessorList.Accessors[0];
-            if(accessor.Kind()!=SyntaxKind.GetAccessorDeclaration) {
-                continue;
-            }
-            if(accessor.Body is not null||accessor.ExpressionBody is not null) {
-                continue;
-            }
-            return true;
-        }
-        return false;
-    }
-
-    private static string パラメーター名取得(IPropertySymbol property) {
-        return パラメーター名取得(property.Name);
-    }
-
-    private static string パラメーター名取得(string name) {
-        if(string.IsNullOrEmpty(name)) {
-            return "value";
-        }
-        if(name.Length==1) {
-            return char.ToLowerInvariant(name[0]).ToString();
-        }
-        return char.ToLowerInvariant(name[0])+name.Substring(1);
-    }
-
     private static string NormalizeExpression(ExpressionSyntax expression) {
         return expression.ToString();
     }
@@ -4701,10 +4524,6 @@ namespace Seamless.SourceGenerator.Generated {
             expression=parenthesized.Expression;
         }
         return expression;
-    }
-
-    private static bool 名前空間一致判定(string candidateNamespace,string rootNamespace,string childNamespace) {
-        return string.Equals(candidateNamespace,$"{rootNamespace}.{childNamespace}",StringComparison.OrdinalIgnoreCase);
     }
 
     private static string SanitizeIdentifier(string value) {
@@ -4725,68 +4544,6 @@ namespace Seamless.SourceGenerator.Generated {
 
     private static string 文字列リテラル構築(string value) {
         return SymbolDisplay.FormatLiteral(value,quote: true);
-    }
-
-    // unmanaged フィールドは record struct にまとめて一括シリアライズしやすくする。
-    private static void 非管理レコードソース追記(StringBuilder builder,ImmutableArray<IPropertySymbol> unmanagedProperties) {
-        if(unmanagedProperties.Length>0) {
-            builder.AppendLine($"    private readonly record struct _U({string.Join(", ",unmanagedProperties.Select(static property => $"{property.Type.ToDisplayString(完全修飾形式)} {property.Name}"))});");
-            return;
-        }
-
-        builder.AppendLine("    private struct _U {");
-        builder.AppendLine("    }");
-    }
-
-    // managed フィールドは MemoryPackable な _M 側へ寄せ、型別の serialize / deserialize 文をここで組み立てる。
-    private static void 管理レコードソース追記(StringBuilder builder,ImmutableArray<IPropertySymbol> managedProperties) {
-        builder.AppendLine("    private struct _M:global::MemoryPack.IMemoryPackable<_M> {");
-        foreach(var property in managedProperties) {
-            builder.AppendLine($"        public {property.Type.ToDisplayString(完全修飾形式)} {property.Name};");
-        }
-        if(managedProperties.Length>0) {
-            builder.AppendLine();
-            builder.AppendLine($"        public _M({string.Join(", ",managedProperties.Select(static property => $"{property.Type.ToDisplayString(完全修飾形式)} {パラメーター名取得(property)}"))}) {{");
-            foreach(var property in managedProperties) {
-                builder.AppendLine($"            this.{property.Name}={パラメーター名取得(property)};");
-            }
-            builder.AppendLine("        }");
-            builder.AppendLine();
-        }
-        builder.AppendLine("        static void global::MemoryPack.IMemoryPackFormatterRegister.RegisterFormatter() {");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        static void global::MemoryPack.IMemoryPackable<_M>.Serialize<TBufferWriter>(ref global::MemoryPack.MemoryPackWriter<TBufferWriter> writer,scoped ref _M value) {");
-        foreach(var property in managedProperties) {
-            builder.AppendLine($"            {管理シリアライズ文構築(property)}");
-        }
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        static void global::MemoryPack.IMemoryPackable<_M>.Deserialize(ref global::MemoryPack.MemoryPackReader reader,scoped ref _M value) {");
-        foreach(var property in managedProperties) {
-            builder.AppendLine($"            {管理デシリアライズ文構築(property)}");
-        }
-        builder.AppendLine("        }");
-        builder.AppendLine("    }");
-    }
-
-    private static string 管理シリアライズ文構築(IPropertySymbol property) {
-        var propertyAccess = $"value.{property.Name}";
-        if(property.Type.SpecialType==SpecialType.System_String) {
-            return $"writer.WriteString({propertyAccess});";
-        }
-        return $"writer.WritePackable({propertyAccess});";
-    }
-
-    private static string 管理デシリアライズ文構築(IPropertySymbol property) {
-        if(property.Type.SpecialType==SpecialType.System_String) {
-            return $"value.{property.Name}=reader.ReadString()!;";
-        }
-        return $"reader.ReadPackable(ref value.{property.Name});";
-    }
-
-    private static string 格納先名取得(IPropertySymbol property) {
-        return property.Type.IsUnmanagedType ? "_u" : "_m";
     }
 
     private static void インデント付き追記(StringBuilder builder,string value,string indent) {
@@ -5469,3 +5226,5 @@ namespace Seamless.SourceGenerator.Generated {
     }
 
 }
+
+

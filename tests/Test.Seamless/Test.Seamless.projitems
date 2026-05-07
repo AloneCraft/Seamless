@@ -24,7 +24,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)Database\TPC_H.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\System\Linq\Enumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Intercept\System\Linq\Enumerable1.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\System\Linq\Enumerable2.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Intercept\System\Linq\Enumerable3.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\EnumerableMethod1.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\EnumerableQuery1.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\EnumerableMethod2.cs" />
