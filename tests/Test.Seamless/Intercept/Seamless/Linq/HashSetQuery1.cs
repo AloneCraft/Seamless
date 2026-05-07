@@ -12,7 +12,7 @@ public sealed class HashSetQuery1 {
         using var rows = CreateUnmanagedSource(Rows());
         AssertStringNormalizedSequence(
             FormatGroups(SystemEnumerable.GroupBy(Rows(),static row => row.Key,static row => row.Value)),
-            FormatGroups(from row in rows group row.Value by row.Key)
+            FormatGroups(rows.GroupBy(static row => row.Key,static row => row.Value))
         );
     }
 
@@ -22,7 +22,7 @@ public sealed class HashSetQuery1 {
         using var second = CreateUnmanagedSource(Second());
         AssertStringNormalizedSequence(
             FormatGroupJoin(SystemEnumerable.GroupJoin(Source(),Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValues) => (outerValue,innerValues))),
-            FormatGroupJoin(from outerValue in source join innerValue in second on outerValue equals innerValue into innerValues select (outerValue,innerValues))
+            FormatGroupJoin(source.GroupJoin(second,static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValues) => (outerValue,innerValues)))
         );
     }
 
@@ -32,7 +32,7 @@ public sealed class HashSetQuery1 {
         using var second = CreateUnmanagedSource(Second());
         AssertIntNormalizedSequence(
             SystemEnumerable.Join(Source(),Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue),
-            from outerValue in source join innerValue in second on outerValue equals innerValue select outerValue+innerValue
+            source.Join(second,static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue)
         );
     }
 
@@ -41,7 +41,7 @@ public sealed class HashSetQuery1 {
         using var rows = CreateUnmanagedSource(Rows());
         AssertRowSequence(
             SystemEnumerable.OrderBy(Rows(),static row => row.Key),
-            from row in rows orderby row.Key select row
+            rows.OrderBy(static row => row.Key)
         );
     }
 
@@ -50,7 +50,7 @@ public sealed class HashSetQuery1 {
         using var rows = CreateUnmanagedSource(Rows());
         AssertRowSequence(
             SystemEnumerable.OrderByDescending(Rows(),static row => row.Key),
-            from row in rows orderby row.Key descending select row
+            rows.OrderByDescending(static row => row.Key)
         );
     }
 
@@ -60,15 +60,15 @@ public sealed class HashSetQuery1 {
 
         AssertIntNormalizedSequence(
             SystemEnumerable.Select(Source(),static value => value*2),
-            from value in source select value*2
+            source.Select(static value => value*2)
         );
         AssertIntNormalizedSequence(
             SystemEnumerable.Select(Source(),static value => value*2+1),
-            from value in source let doubled = value*2 select doubled+1
+            source.Select(static value => value*2+1)
         );
         AssertIntNormalizedSequence(
             SystemEnumerable.Select(SystemEnumerable.Select(Source(),static value => value*2),static selected => selected+1),
-            from value in source select value*2 into selected select selected+1
+            source.Select(static value => value*2).Select(static selected => selected+1)
         );
     }
 
@@ -78,7 +78,7 @@ public sealed class HashSetQuery1 {
         using var second = CreateUnmanagedSource(Second());
         AssertIntNormalizedSequence(
             SystemEnumerable.SelectMany(Source(),static _ => Second(),static (outerValue,innerValue) => outerValue+innerValue),
-            from outerValue in source from innerValue in second select outerValue+innerValue
+            source.SelectMany(_ => second,static (outerValue,innerValue) => outerValue+innerValue)
         );
     }
 
@@ -87,7 +87,7 @@ public sealed class HashSetQuery1 {
         using var rows = CreateUnmanagedSource(OrderedRows());
         AssertRowSequence(
             SystemEnumerable.ThenBy(SystemEnumerable.OrderBy(OrderedRows(),static row => row.Key),static row => row.Rank),
-            from row in rows orderby row.Key, row.Rank select row
+            rows.OrderBy(static row => row.Key).ThenBy(static row => row.Rank)
         );
     }
 
@@ -96,7 +96,7 @@ public sealed class HashSetQuery1 {
         using var rows = CreateUnmanagedSource(OrderedRows());
         AssertRowSequence(
             SystemEnumerable.ThenByDescending(SystemEnumerable.OrderBy(OrderedRows(),static row => row.Key),static row => row.Rank),
-            from row in rows orderby row.Key, row.Rank descending select row
+            rows.OrderBy(static row => row.Key).ThenByDescending(static row => row.Rank)
         );
     }
 
@@ -106,11 +106,11 @@ public sealed class HashSetQuery1 {
 
         AssertIntNormalizedSequence(
             SystemEnumerable.Where(Source(),static value => value>2),
-            from value in source where value>2 select value
+            source.Where(static value => value>2)
         );
         AssertIntNormalizedSequence(
             SystemEnumerable.Where(SystemEnumerable.Select(Source(),static value => value*2),static selected => selected>4),
-            from value in source select value*2 into selected where selected>4 select selected
+            source.Select(static value => value*2).Where(static selected => selected>4)
         );
     }
 

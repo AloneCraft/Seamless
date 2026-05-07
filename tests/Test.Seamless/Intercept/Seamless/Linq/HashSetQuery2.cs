@@ -12,7 +12,7 @@ public sealed class HashSetQuery2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Select(SystemEnumerable.Select(Source(),static value => value+1),static value => value*10),
-            from value in source select value+1 into selected select selected*10
+            source.Select(static value => value+1).Select(static selected => selected*10)
         );
     }
 
@@ -21,7 +21,7 @@ public sealed class HashSetQuery2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Where(SystemEnumerable.Select(Source(),static value => value*10),static value => value>20),
-            from value in source select value*10 into selected where selected>20 select selected
+            source.Select(static value => value*10).Where(static selected => selected>20)
         );
     }
 
@@ -30,7 +30,7 @@ public sealed class HashSetQuery2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Select(SystemEnumerable.Where(Source(),static value => value>1),static value => value*10),
-            from value in source where value>1 select value into selected select selected*10
+            source.Where(static value => value>1).Select(static selected => selected*10)
         );
     }
 
@@ -39,7 +39,7 @@ public sealed class HashSetQuery2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Where(SystemEnumerable.Where(Source(),static value => value>1),static value => value<4),
-            from value in source where value>1 select value into selected where selected<4 select selected
+            source.Where(static value => value>1).Where(static selected => selected<4)
         );
     }
 
