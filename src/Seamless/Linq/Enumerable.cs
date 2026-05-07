@@ -4070,20 +4070,20 @@ public static partial class Enumerable {
         "var result$=new List<TResult>();",
         "var index$=-1;",
         "foreach(var item$ in source$){",
+        "    checked { index$++; }\n"+
         "    foreach(var selectorItem$ in struct$.selector(item$,index$)){\n"+
         "        result$.Add(selectorItem$);\n"+
-        "    }\n"+
-        "    checked { index$++; }",
+        "    }",
         "result$"
     )]
     public static IEnumerable<TResult> SelectMany<TSource, TResult>(this IEnumerable<TSource> source,Func<TSource,int,IEnumerable<TResult>> selector){
         var result=new List<TResult>();
         var index=-1;
         foreach(var item in source){
+            checked { index++; }
             foreach(var selectorItem in selector(item,index)){
                 result.Add(selectorItem);
             }
-            checked { index++; }
         }
         return result;
     }
@@ -4159,17 +4159,18 @@ public static partial class Enumerable {
         "var result$=new List<TResult>();",
         "var index$=-1;",
         "foreach(var item$ in source$){",
+        "    checked { index$++; }\n"+
         "    var selectorItem$=struct$.selector(item$,index$);\n"+
         "    result$.Add(selectorItem$);\n"+
-        "    checked { index$++; }",
+        "",
         "result$"
     )]
     public static IEnumerable<TResult> Select<TSource, TResult>(this IEnumerable<TSource> source,Func<TSource,int,TResult> selector){
         var result=new List<TResult>();
         var index=-1;
         foreach(var item in source){
-            result.Add(selector(item,index));
             checked { index++; }
+            result.Add(selector(item,index));
         }
         return result;
     }
@@ -5789,8 +5790,8 @@ public static partial class Enumerable {
         "var result$=new List<TSource>();",
         "var index$=-1;",
         "foreach(var item$ in source$){",
-        "    var r$=struct$.predicate(item$,index$);\n"+
         "    checked { index$++; }\n"+
+        "    var r$=struct$.predicate(item$,index$);\n"+
         "    if(!r$) continue;\n"+
         "    result$.Add(item$);",
         "result$"
@@ -5799,8 +5800,8 @@ public static partial class Enumerable {
         var result=new List<TSource>();
         var index=-1;
         foreach(var item in source){
-            var r=predicate(item,index);
             checked { index++; }
+            var r=predicate(item,index);
             if(!r) continue;
             result.Add(item);
         }
