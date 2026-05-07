@@ -1,4 +1,4 @@
-using Test.Seamless.Unit.Helpers.Collections;
+﻿using Test.Seamless.Unit.Helpers.Collections;
 namespace Test.Seamless.Unit.Collections;
 
 public abstract class ManagedHashSet<TStrategy, T> : HashSetTestBase<TStrategy, T>

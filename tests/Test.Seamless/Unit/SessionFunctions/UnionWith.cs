@@ -154,7 +154,7 @@ public sealed class ManagedUnionWith:UnionWith<string,ManagedHashSet<string>> {
         return (store.Create(),store);
     }
     protected override void With(ManagedHashSet<string> set,ManagedHashSet<string> other) => set.UnionWith(other);
-    protected override void ExpectedWith(HashSet<string> set,HashSet<string> other) => set.UnionWith(other);
+    protected override void ExpectedWith(global::System.Collections.Generic.HashSet<string> set,global::System.Collections.Generic.HashSet<string> other) => set.UnionWith(other);
 }
 
 public sealed class UnmanagedUnionWith:UnionWith<int,UnmanagedHashSet<int>> {
@@ -164,5 +164,5 @@ public sealed class UnmanagedUnionWith:UnionWith<int,UnmanagedHashSet<int>> {
         return (store.Create(),store);
     }
     protected override void With(UnmanagedHashSet<int> set,UnmanagedHashSet<int> other) => set.UnionWith(other);
-    protected override void ExpectedWith(HashSet<int> set,HashSet<int> other) => set.UnionWith(other);
+    protected override void ExpectedWith(global::System.Collections.Generic.HashSet<int> set,global::System.Collections.Generic.HashSet<int> other) => set.UnionWith(other);
 }

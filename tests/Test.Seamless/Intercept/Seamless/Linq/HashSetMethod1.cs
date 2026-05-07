@@ -301,70 +301,70 @@ public sealed class HashSetMethod1 {
         static source => SeamlessHashSet.Where(source,static (value,index) => value>index)
     );
 
-    private static void AssertInt<TResult>(Func<HashSet<int>,TResult> expectedSelector,Func<IHashSet<int>,TResult> actualSelector) {
+    private static void AssertInt<TResult>(Func<global::System.Collections.Generic.HashSet<int>,TResult> expectedSelector,Func<IHashSet<int>,TResult> actualSelector) {
         using var source = aSource();
         Assert.Equal(expectedSelector(eSource()),actualSelector(source));
     }
 
-    private static void AssertPair<TResult>(Func<HashSet<Pair>,TResult> expectedSelector,Func<IHashSet<Pair>,TResult> actualSelector) {
+    private static void AssertPair<TResult>(Func<global::System.Collections.Generic.HashSet<Pair>,TResult> expectedSelector,Func<IHashSet<Pair>,TResult> actualSelector) {
         using var source = aPairSource();
         Assert.Equal(expectedSelector(PairSource()),actualSelector(source));
     }
 
-    private static void AssertIntSequence(Func<HashSet<int>,IEnumerable<int>> expectedSelector,Func<IHashSet<int>,IEnumerable<int>> actualSelector) {
+    private static void AssertIntSequence(Func<global::System.Collections.Generic.HashSet<int>,IEnumerable<int>> expectedSelector,Func<IHashSet<int>,IEnumerable<int>> actualSelector) {
         using var source = aSource();
         Assert.Equal(expectedSelector(eSource()),actualSelector(source));
     }
 
-    private static void AssertEmptyIntSequence(Func<HashSet<int>,IEnumerable<int>> expectedSelector,Func<IHashSet<int>,IEnumerable<int>> actualSelector) {
+    private static void AssertEmptyIntSequence(Func<global::System.Collections.Generic.HashSet<int>,IEnumerable<int>> expectedSelector,Func<IHashSet<int>,IEnumerable<int>> actualSelector) {
         using var source = aEmptySource();
         Assert.Equal(expectedSelector(EmptySource()),actualSelector(source));
     }
 
-    private static void AssertIntNormalizedSequence(Func<HashSet<int>,IEnumerable<int>> expectedSelector,Func<IHashSet<int>,IEnumerable<int>> actualSelector) {
+    private static void AssertIntNormalizedSequence(Func<global::System.Collections.Generic.HashSet<int>,IEnumerable<int>> expectedSelector,Func<IHashSet<int>,IEnumerable<int>> actualSelector) {
         using var source = aSource();
         Assert.Equal(NormalizeIntSequence(expectedSelector(eSource())),NormalizeIntSequence(actualSelector(source)));
     }
 
-    private static void AssertIntStringsNormalized(Func<HashSet<int>,IEnumerable<string>> expectedSelector,Func<IHashSet<int>,IEnumerable<string>> actualSelector) {
+    private static void AssertIntStringsNormalized(Func<global::System.Collections.Generic.HashSet<int>,IEnumerable<string>> expectedSelector,Func<IHashSet<int>,IEnumerable<string>> actualSelector) {
         using var source = aSource();
         Assert.Equal(NormalizeStringSequence(expectedSelector(eSource())),NormalizeStringSequence(actualSelector(source)));
     }
 
-    private static void AssertPairSequence(Func<HashSet<Pair>,IEnumerable<Pair>> expectedSelector,Func<IHashSet<Pair>,IEnumerable<Pair>> actualSelector) {
+    private static void AssertPairSequence(Func<global::System.Collections.Generic.HashSet<Pair>,IEnumerable<Pair>> expectedSelector,Func<IHashSet<Pair>,IEnumerable<Pair>> actualSelector) {
         using var source = aPairSource();
         Assert.Equal(FormatPairSequence(expectedSelector(PairSource())),FormatPairSequence(actualSelector(source)));
     }
 
-    private static void AssertPairStrings(Func<HashSet<Pair>,IEnumerable<string>> expectedSelector,Func<IHashSet<Pair>,IEnumerable<string>> actualSelector) {
+    private static void AssertPairStrings(Func<global::System.Collections.Generic.HashSet<Pair>,IEnumerable<string>> expectedSelector,Func<IHashSet<Pair>,IEnumerable<string>> actualSelector) {
         using var source = aPairSource();
         Assert.Equal(expectedSelector(PairSource()),actualSelector(source));
     }
 
-    private static void AssertPairStringsNormalized(Func<HashSet<Pair>,IEnumerable<string>> expectedSelector,Func<IHashSet<Pair>,IEnumerable<string>> actualSelector) {
+    private static void AssertPairStringsNormalized(Func<global::System.Collections.Generic.HashSet<Pair>,IEnumerable<string>> expectedSelector,Func<IHashSet<Pair>,IEnumerable<string>> actualSelector) {
         using var source = aPairSource();
         Assert.Equal(NormalizeStringSequence(expectedSelector(PairSource())),NormalizeStringSequence(actualSelector(source)));
     }
 
-    private static void AssertIntSecondNormalizedSequence(Func<HashSet<int>,HashSet<int>,IEnumerable<int>> expectedSelector,Func<IHashSet<int>,IHashSet<int>,IEnumerable<int>> actualSelector) {
+    private static void AssertIntSecondNormalizedSequence(Func<global::System.Collections.Generic.HashSet<int>,global::System.Collections.Generic.HashSet<int>,IEnumerable<int>> expectedSelector,Func<IHashSet<int>,IHashSet<int>,IEnumerable<int>> actualSelector) {
         using var first = aSource();
         using var second = aSecondSource();
         Assert.Equal(NormalizeIntSequence(expectedSelector(eSource(),Second())),NormalizeIntSequence(actualSelector(first,second)));
     }
 
-    private static void AssertPairKeyNormalizedSequence(Func<HashSet<Pair>,HashSet<int>,IEnumerable<Pair>> expectedSelector,Func<IHashSet<Pair>,IHashSet<int>,IEnumerable<Pair>> actualSelector) {
+    private static void AssertPairKeyNormalizedSequence(Func<global::System.Collections.Generic.HashSet<Pair>,global::System.Collections.Generic.HashSet<int>,IEnumerable<Pair>> expectedSelector,Func<IHashSet<Pair>,IHashSet<int>,IEnumerable<Pair>> actualSelector) {
         using var source = aPairSource();
         using var keys = aKeySource();
         Assert.Equal(NormalizePairSequence(expectedSelector(PairSource(),KeySource())),NormalizePairSequence(actualSelector(source,keys)));
     }
 
-    private static void AssertPairPairNormalizedSequence(Func<HashSet<Pair>,HashSet<Pair>,IEnumerable<Pair>> expectedSelector,Func<IHashSet<Pair>,IHashSet<Pair>,IEnumerable<Pair>> actualSelector) {
+    private static void AssertPairPairNormalizedSequence(Func<global::System.Collections.Generic.HashSet<Pair>,global::System.Collections.Generic.HashSet<Pair>,IEnumerable<Pair>> expectedSelector,Func<IHashSet<Pair>,IHashSet<Pair>,IEnumerable<Pair>> actualSelector) {
         using var first = aPairSource();
         using var second = aPairSecondSource();
         Assert.Equal(NormalizePairSequence(expectedSelector(PairSource(),PairSecond())),NormalizePairSequence(actualSelector(first,second)));
     }
 
-    private static void AssertPairPairStringsNormalized(Func<HashSet<Pair>,HashSet<Pair>,IEnumerable<string>> expectedSelector,Func<IHashSet<Pair>,IHashSet<Pair>,IEnumerable<string>> actualSelector) {
+    private static void AssertPairPairStringsNormalized(Func<global::System.Collections.Generic.HashSet<Pair>,global::System.Collections.Generic.HashSet<Pair>,IEnumerable<string>> expectedSelector,Func<IHashSet<Pair>,IHashSet<Pair>,IEnumerable<string>> actualSelector) {
         using var first = aPairSource();
         using var second = aPairSecondSource();
         Assert.Equal(NormalizeStringSequence(expectedSelector(PairSource(),PairSecond())),NormalizeStringSequence(actualSelector(first,second)));
@@ -394,12 +394,12 @@ public sealed class HashSetMethod1 {
     private static IEnumerable<string> FormatLookup(global::System.Linq.ILookup<int,int> lookup) =>
         SystemEnumerable.Select(SystemEnumerable.OrderBy(lookup,static value => value.Key),static value => $"{value.Key}:{string.Join(',',SystemEnumerable.OrderBy(value,static element => element))}");
 
-    private static HashSet<int> eSource() => [1,2,3,4];
-    private static HashSet<int> Second() => [3,4,5];
-    private static HashSet<int> EmptySource() => [];
-    private static HashSet<int> KeySource() => [1,3];
-    private static HashSet<Pair> PairSource() => [new(1,10),new(1,11),new(2,20),new(3,30)];
-    private static HashSet<Pair> PairSecond() => [new(1,100),new(1,101),new(3,300),new(4,400)];
+    private static global::System.Collections.Generic.HashSet<int> eSource() => [1,2,3,4];
+    private static global::System.Collections.Generic.HashSet<int> Second() => [3,4,5];
+    private static global::System.Collections.Generic.HashSet<int> EmptySource() => [];
+    private static global::System.Collections.Generic.HashSet<int> KeySource() => [1,3];
+    private static global::System.Collections.Generic.HashSet<Pair> PairSource() => [new(1,10),new(1,11),new(2,20),new(3,30)];
+    private static global::System.Collections.Generic.HashSet<Pair> PairSecond() => [new(1,100),new(1,101),new(3,300),new(4,400)];
 
     private static IHashSet<int> aSource() => CreateUnmanagedSet(eSource());
     private static IHashSet<int> aSecondSource() => CreateUnmanagedSet(Second());

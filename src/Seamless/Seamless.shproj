@@ -10,8 +10,6 @@
   <PropertyGroup />
   <ItemGroup>
     <Compile Include="Attributes\LinqInterceptAttribute.cs" />
-    <Compile Include="Attributes\OptimizationAttribute.cs" />
-    <Compile Include="Attributes\OptimizeAttribute.cs" />
     <Compile Include="Collections\DebugView.cs" />
     <Compile Include="Collections\EqualityEmpty.cs" />
     <Compile Include="Collections\IMemoryCollection.cs" />
@@ -28,6 +26,7 @@
     <Compile Include="Collections\List.cs" />
     <Compile Include="Linq\Enumerable.cs" />
     <Compile Include="Linq\EnumerableStrategy.cs" />
+    <Compile Include="Linq\IFunction.cs" />
     <Compile Include="Linq\ManagedEnumerable.cs" />
     <Compile Include="Linq\ManagedHashSetEnumerable.cs" />
     <Compile Include="Linq\StorageEnumerableCore.cs" />
@@ -50,6 +49,7 @@
     <Compile Include="Collections\Serializers\ISerializer.cs" />
     <Compile Include="Collections\TryAddResult.cs" />
     <Compile Include="Collections\Unmanaged\UnmanagedCollection.cs" />
+    <Compile Include="Collections\Unmanaged\RenamedCollections.cs" />
     <Compile Include="Collections\Unmanaged\UnmanagedDictionary.cs" />
     <Compile Include="Collections\Unmanaged\UnmanagedHashSet.cs" />
     <Compile Include="Collections\Unmanaged\UnmanagedSet.cs" />
@@ -57,6 +57,7 @@
     <Compile Include="Devices\MemoryOnlyDevice.cs" />
     <Compile Include="Stores\HashStore.cs" />
     <Compile Include="Stores\ICreate.cs" />
+    <Compile Include="Stores\SerializerStrategy.cs" />
     <Compile Include="Stores\CollectionStore.cs" />
     <Compile Include="Stores\ManagedDictionaryStore.cs" />
     <Compile Include="Stores\ManagedDictionaryStoreExtensions.cs" />

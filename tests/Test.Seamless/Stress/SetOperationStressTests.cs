@@ -1,4 +1,4 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Seamless.Stores;
 using System.Linq;
 using Tsavorite.core;
@@ -37,7 +37,7 @@ public class SetOperationStressTests {
             var objA = Path.Combine(temp,"objA");
             var logB = Path.Combine(temp,"logB");
             var objB = Path.Combine(temp,"objB");
-            var probeKeys = new HashSet<int>(keysA);
+            var probeKeys = new global::System.Collections.Generic.HashSet<int>(keysA);
             probeKeys.UnionWith(keysB);
             using(var logDevA = Devices.CreateLogDevice(logA))
             using(var objDevA = Devices.CreateLogDevice(objA))
@@ -56,23 +56,23 @@ public class SetOperationStressTests {
                         storeA.Store.Log.FlushAndEvict(wait: true);
                         storeB.Store.Log.FlushAndEvict(wait: true);
                         op(setA,setB);
-                        var expected = new HashSet<int>(keysA);
+                        var expected = new global::System.Collections.Generic.HashSet<int>(keysA);
                         expected.UnionWith(keysB);
                         switch(opName) {
                             case "IntersectWith":
-                                expected=new HashSet<int>(keysA);
+                                expected=new global::System.Collections.Generic.HashSet<int>(keysA);
                                 expected.IntersectWith(keysB);
                                 break;
                             case "SymmetricExceptWith":
-                                expected=new HashSet<int>(keysA);
+                                expected=new global::System.Collections.Generic.HashSet<int>(keysA);
                                 expected.SymmetricExceptWith(keysB);
                                 break;
                             case "UnionWith":
-                                expected=new HashSet<int>(keysA);
+                                expected=new global::System.Collections.Generic.HashSet<int>(keysA);
                                 expected.UnionWith(keysB);
                                 break;
                             case "ExceptWith":
-                                expected=new HashSet<int>(keysA);
+                                expected=new global::System.Collections.Generic.HashSet<int>(keysA);
                                 expected.ExceptWith(keysB);
                                 break;
                             default:
@@ -128,7 +128,7 @@ public class SetOperationStressTests {
             var objA = Path.Combine(temp,"objA");
             var logB = Path.Combine(temp,"logB");
             var objB = Path.Combine(temp,"objB");
-            var probeKeys = new HashSet<string>(keysA,StringComparer.Ordinal);
+            var probeKeys = new global::System.Collections.Generic.HashSet<string>(keysA,StringComparer.Ordinal);
             probeKeys.UnionWith(keysB);
             using(var logDevA = Devices.CreateLogDevice(logA))
             using(var objDevA = Devices.CreateLogDevice(objA))
@@ -147,7 +147,7 @@ public class SetOperationStressTests {
                         storeA.Store.Log.FlushAndEvict(wait: true);
                         storeB.Store.Log.FlushAndEvict(wait: true);
                         op(setA,setB);
-                        var expected = new HashSet<string>(keysA,StringComparer.Ordinal);
+                        var expected = new global::System.Collections.Generic.HashSet<string>(keysA,StringComparer.Ordinal);
                         switch(opName) {
                             case "IntersectWith":
                                 expected.IntersectWith(keysB);

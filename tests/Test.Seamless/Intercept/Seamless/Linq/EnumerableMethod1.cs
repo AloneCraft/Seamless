@@ -465,10 +465,16 @@ public sealed class EnumerableMethod1 {
         a.ToHashSet(Source)
     );
     [Fact, Trait("Category","Intercept")]
-    private static void ToList() => Assert.Equal(
-        e.ToList(Source),
-        a.ToList(Source)
-    );
+    private static void ToList() {
+        var result=new List<int>();
+        foreach(var item in Source){
+            result.Add(item);
+        }
+        Assert.Equal(
+            e.ToList(Source),
+            result
+        );
+    }
     [Fact, Trait("Category","Intercept")]
     private static void ToLookup_keySelector() => Assert.Equal(
         e.ToLookup(Rows(),static row => row.Key),

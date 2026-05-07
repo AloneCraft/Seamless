@@ -159,10 +159,10 @@ public sealed class HashSetQuery1 {
     private static IEnumerable<string> FormatGroupJoin(IEnumerable<(int outerValue,IEnumerable<int> innerValues)> rows) =>
         SystemEnumerable.Select(rows,static row => row.outerValue+":"+string.Join(",",SystemEnumerable.OrderBy(row.innerValues,static value => value)));
 
-    private static HashSet<int> Source() => [1,2,3,4];
-    private static HashSet<int> Second() => [3,4,5];
-    private static HashSet<Row> Rows() => [new(1,10,2),new(2,20,1),new(3,30,3)];
-    private static HashSet<Row> OrderedRows() => [new(1,30,3),new(1,10,1),new(2,20,2)];
+    private static global::System.Collections.Generic.HashSet<int> Source() => [1,2,3,4];
+    private static global::System.Collections.Generic.HashSet<int> Second() => [3,4,5];
+    private static global::System.Collections.Generic.HashSet<Row> Rows() => [new(1,10,2),new(2,20,1),new(3,30,3)];
+    private static global::System.Collections.Generic.HashSet<Row> OrderedRows() => [new(1,30,3),new(1,10,1),new(2,20,2)];
 
     private static IHashSet<T> CreateUnmanagedSource<T>(IEnumerable<T> values)
         where T : unmanaged, IEquatable<T> {

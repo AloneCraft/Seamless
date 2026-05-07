@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
@@ -8,8 +8,6 @@
   <ItemDefinitionGroup Condition="'$(ImportingProject)' != ''" />
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Attributes\LinqInterceptAttribute.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Attributes\OptimizationAttribute.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Attributes\OptimizeAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\DebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\EqualityEmpty.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\IMemoryCollection.cs" />
@@ -21,6 +19,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\InMemoryList.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\List.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Linq\Enumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Linq\IFunction.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Linq\EnumerableStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Linq\HashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Linq\HashSetStrategy.cs" />
@@ -43,6 +42,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializers\ManagedSerializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Serializers\ISerializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Unmanaged\UnmanagedCollection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Collections\Unmanaged\RenamedCollections.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Unmanaged\UnmanagedDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Unmanaged\UnmanagedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Collections\Unmanaged\UnmanagedList.cs" />
@@ -56,6 +56,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Stores\HashStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ListStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ICreate.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Stores\SerializerStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedDictionaryStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedDictionaryStoreExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Stores\ManagedHashSetStore.cs" />

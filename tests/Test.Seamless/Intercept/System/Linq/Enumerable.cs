@@ -210,7 +210,7 @@ public sealed class Enumerable {
     private static IOrderedEnumerable<Row> ThenByDescending_keySelector() => SystemEnumerable.ThenByDescending(SystemEnumerable.OrderBy(Rows(),static row => row.Key),static row => row.Name);
     private static int[] ToArray() => SystemEnumerable.ToArray(Source());
     private static Dictionary<int,Row> ToDictionary_keySelector() => SystemEnumerable.ToDictionary(Rows(),static row => row.Key);
-    private static HashSet<int> ToHashSet() => SystemEnumerable.ToHashSet(Source());
+    private static global::System.Collections.Generic.HashSet<int> ToHashSet() => SystemEnumerable.ToHashSet(Source());
     private static List<int> ToList() => SystemEnumerable.ToList(Source());
     private static ILookup<int,Row> ToLookup_keySelector() => SystemEnumerable.ToLookup(Rows(),static row => row.Key);
     private static bool TryGetNonEnumeratedCount_source(out int count) => SystemEnumerable.TryGetNonEnumeratedCount(Source(),out count);

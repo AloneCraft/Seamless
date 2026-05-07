@@ -15,11 +15,11 @@
   <ItemGroup>
     <Compile Remove="StaticSources\**\*.cs" />
     <None Include="StaticSources\**\*.cs" Pack="true" PackagePath="buildTransitive\StaticSources\" />
-    <None Include="buildTransitive\Seamless.SourceGenerator.targets" Pack="true" PackagePath="buildTransitive\Seamless.SourceGenerator.targets" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="..\Seamless\Linq\Enumerable.cs" LogicalName="Seamless.Linq.Enumerable.cs" />
     <EmbeddedResource Include="..\Seamless\Linq\HashSet.cs" LogicalName="Seamless.Linq.HashSet.cs" />
   </ItemGroup>
+
 </Project>

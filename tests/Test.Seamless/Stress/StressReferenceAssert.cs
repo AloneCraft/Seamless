@@ -1,4 +1,4 @@
-namespace Test.Seamless.Stress;
+﻿namespace Test.Seamless.Stress;
 
 internal static class StressReferenceAssert {
     public static void DictionaryEquals(IEnumerable<int> probeKeys,Dictionary<int,int> expected,Func<int,(bool Found,int Value)> actualTryGet) {
@@ -21,12 +21,12 @@ internal static class StressReferenceAssert {
         }
     }
 
-    public static void SetEquals(IEnumerable<int> probeKeys,HashSet<int> expected,Func<int,bool> actualContains) {
+    public static void SetEquals(IEnumerable<int> probeKeys,global::System.Collections.Generic.HashSet<int> expected,Func<int,bool> actualContains) {
         foreach(var key in probeKeys)
             Assert.Equal(expected.Contains(key),actualContains(key));
     }
 
-    public static void SetEquals(IEnumerable<string> probeKeys,HashSet<string> expected,Func<string,bool> actualContains) {
+    public static void SetEquals(IEnumerable<string> probeKeys,global::System.Collections.Generic.HashSet<string> expected,Func<string,bool> actualContains) {
         foreach(var key in probeKeys)
             Assert.Equal(expected.Contains(key),actualContains(key));
     }

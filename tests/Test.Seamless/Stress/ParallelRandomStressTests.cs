@@ -1,4 +1,4 @@
-using Seamless.Stores;
+﻿using Seamless.Stores;
 using System.Linq;
 using Tsavorite.core;
 namespace Test.Seamless.Stress;
@@ -193,8 +193,8 @@ public class ParallelRandomStressTests {
             var keyToRemove = new Dictionary<int,bool>(count);
             for(var i = 0; i<keys.Length; i++) keyToRemove[keys[i]]=removeMaskFlat[i];
             var partitions = Partition(keys,ThreadCount);
-            var expected = new HashSet<int>(keys);
-            var expectedAfterRemove = new HashSet<int>(expected);
+            var expected = new global::System.Collections.Generic.HashSet<int>(keys);
+            var expectedAfterRemove = new global::System.Collections.Generic.HashSet<int>(expected);
             for(var i = 0; i<keys.Length; i++) {
                 if(removeMaskFlat[i])
                     expectedAfterRemove.Remove(keys[i]);
@@ -246,8 +246,8 @@ public class ParallelRandomStressTests {
             for(var i = 0; i<keys.Length; i++) keyToRemove[keys[i]]=removeMaskFlat[i];
             var partitions = Partition([.. Enumerable.Range(0,keys.Length)],ThreadCount)
                 .Select(idxs => idxs.Select(i => keys[i]).ToArray()).ToArray();
-            var expected = new HashSet<string>(keys,StringComparer.Ordinal);
-            var expectedAfterRemove = new HashSet<string>(expected,StringComparer.Ordinal);
+            var expected = new global::System.Collections.Generic.HashSet<string>(keys,StringComparer.Ordinal);
+            var expectedAfterRemove = new global::System.Collections.Generic.HashSet<string>(expected,StringComparer.Ordinal);
             for(var i = 0; i<keys.Length; i++) {
                 if(removeMaskFlat[i])
                     expectedAfterRemove.Remove(keys[i]);

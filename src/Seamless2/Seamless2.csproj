@@ -8,6 +8,12 @@
 	<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 	<DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="ScanIteratorFunctions\**" />
+    <EmbeddedResource Remove="ScanIteratorFunctions\**" />
+    <None Remove="ScanIteratorFunctions\**" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="Microsoft.Garnet" Version="2.0.0-beta.3" GeneratePathProperty="true" />
@@ -25,10 +31,12 @@
 
   <ItemGroup>
     <Compile Remove="G:\GitHub\Seamless\Seamless\src\Seamless\Collections\ICreate.cs" />
+    <Compile Remove="..\Seamless\Attributes\OptimizeAttribute.cs" />
+    <Compile Remove="..\Seamless\Attributes\OptimizationAttribute.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="ScanIteratorFunctions\" />
+    <ProjectReference Include="..\..\Seamless.Common\Seamless.Common.csproj" />
   </ItemGroup>
 
 </Project>

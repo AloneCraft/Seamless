@@ -1,6 +1,6 @@
 using Seamless.Stores;
 namespace Seamless.Collections;
-public sealed class UnmanagedUnmanagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer>
+public class UnmanagedUnmanagedDictionary<TKey, TValue, TKeySerializer, TValueSerializer>
     :UnmanagedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
     where TKey : unmanaged
     where TValue : unmanaged
