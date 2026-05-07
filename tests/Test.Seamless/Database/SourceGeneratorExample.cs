@@ -86,6 +86,27 @@ namespace Test.Seamless.Database.Database0 {
             }
             Assert.Equal(インターセプト後,インターセプト前);
         }
+        private struct StructSelectSelectSelect {
+            public static int selector0(int p) => p+1;
+            public static int selector1(int p) => p*p;
+            public static int selector2(int q) => q-1;
+        }
+        [Fact, Trait("Category","Unit")]
+        public void SelectSelectSelect() {
+            var インターセプト前 = new int[3].Select(p => p+1).Select(p => p*p).Select(q => q-1);
+            var インターセプト後 = 置き換え先メソッド();
+            static List<int> 置き換え先メソッド() {
+                var result0 = new List<int>();
+                foreach(var item0 in new int[3]) {
+                    var selectorItem0 = StructSelectSelectSelect.selector0(item0);
+                    var selectorItem1 = StructSelectSelectSelect.selector1(selectorItem0);
+                    var selectorItem2 = StructSelectSelectSelect.selector2(selectorItem1);
+                    result0.Add(selectorItem2);
+                }
+                return result0;
+            }
+            Assert.Equal(インターセプト後,インターセプト前);
+        }
         private struct StructWhereWhere {
             public static bool predicate0(int p) => p%2==0;
             public static bool predicate1(int p) => p>0;
