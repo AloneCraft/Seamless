@@ -133,6 +133,10 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             インターセプターソースバケット取得(buckets,target.FilePath).LinqInvocationTargets.Add(target);
         }
 
+        if(linqInvocationTargets.Any(static target => target.RequiresFusionSupport)) {
+            context.AddSource("Seamless.SourceGenerator.LinqInvocationFusionSupport.g.cs",SourceText.From(空行除去(LINQ呼び出し融合サポートソース構築()),Encoding.UTF8));
+        }
+
         var usedHintNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach(var bucket in buckets.Values.OrderBy(static bucket => bucket.FilePath,StringComparer.OrdinalIgnoreCase)) {
             var interceptorSource = インターセプターソース構築(
@@ -145,6 +149,282 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             var hintName = ヒント名重複排除(生成ソースヒント名構築(projectDirectory,bucket.FilePath),usedHintNames);
             context.AddSource(hintName,SourceText.From(空行除去(interceptorSource),Encoding.UTF8));
         }
+    }
+
+    private static string LINQ呼び出し融合サポートソース構築() {
+        return """
+#nullable enable
+namespace Seamless.SourceGenerator.Generated {
+    internal static class LinqInvocationFusionSupport {
+        internal interface ISelector<TSource,TResult> {
+            static abstract TResult Invoke(TSource value);
+        }
+
+        internal interface IPredicate<TSource> {
+            static abstract bool Invoke(TSource value);
+        }
+
+        internal interface IFusionSource<T> : global::System.Collections.Generic.IEnumerable<T> {
+            IFusionSource<TResult> Select<TResult>(global::System.Func<T,TResult> selector);
+            IFusionSource<TResult> Select<TResult,TSelector>()
+                where TSelector : struct, ISelector<T,TResult>;
+            IFusionSource<T> Where(global::System.Func<T,bool> predicate);
+            IFusionSource<T> Where<TPredicate>()
+                where TPredicate : struct, IPredicate<T>;
+            global::System.Collections.Generic.List<T> ToList();
+            global::System.Collections.Generic.List<TResult> SelectToList<TResult>(global::System.Func<T,TResult> selector);
+            global::System.Collections.Generic.List<TResult> SelectToList<TResult,TSelector>()
+                where TSelector : struct, ISelector<T,TResult>;
+        }
+
+        private interface IProjector<TRoot,TCurrent> {
+            bool TryProject(TRoot item,out TCurrent value);
+        }
+
+        private interface IProjectorFactory<TRoot,TCurrent,TProjector>
+            where TProjector : struct, IProjector<TRoot,TCurrent> {
+            TProjector Create();
+        }
+
+        private readonly struct IdentityFactory<T> : IProjectorFactory<T,T,IdentityProjector<T>> {
+            public IdentityProjector<T> Create() => default;
+        }
+
+        private struct IdentityProjector<T> : IProjector<T,T> {
+            public bool TryProject(T item,out T value) {
+                value=item;
+                return true;
+            }
+        }
+
+        private readonly struct SelectFactory<TRoot,TCurrent,TResult,TPreviousFactory,TPreviousProjector> : IProjectorFactory<TRoot,TResult,SelectProjector<TRoot,TCurrent,TResult,TPreviousProjector>>
+            where TPreviousFactory : struct, IProjectorFactory<TRoot,TCurrent,TPreviousProjector>
+            where TPreviousProjector : struct, IProjector<TRoot,TCurrent> {
+            private readonly TPreviousFactory previousFactory;
+            private readonly global::System.Func<TCurrent,TResult> selector;
+
+            public SelectFactory(TPreviousFactory previousFactory,global::System.Func<TCurrent,TResult> selector) {
+                this.previousFactory=previousFactory;
+                this.selector=selector;
+            }
+
+            public SelectProjector<TRoot,TCurrent,TResult,TPreviousProjector> Create() => new(this.previousFactory.Create(),this.selector);
+        }
+
+        private struct SelectProjector<TRoot,TCurrent,TResult,TPreviousProjector> : IProjector<TRoot,TResult>
+            where TPreviousProjector : struct, IProjector<TRoot,TCurrent> {
+            private TPreviousProjector previousProjector;
+            private readonly global::System.Func<TCurrent,TResult> selector;
+
+            public SelectProjector(TPreviousProjector previousProjector,global::System.Func<TCurrent,TResult> selector) {
+                this.previousProjector=previousProjector;
+                this.selector=selector;
+            }
+
+            public bool TryProject(TRoot item,out TResult value) {
+                if(!this.previousProjector.TryProject(item,out var previousValue)) {
+                    value=default!;
+                    return false;
+                }
+                value=this.selector(previousValue);
+                return true;
+            }
+        }
+
+        private readonly struct StaticSelectFactory<TRoot,TCurrent,TResult,TSelector,TPreviousFactory,TPreviousProjector> : IProjectorFactory<TRoot,TResult,StaticSelectProjector<TRoot,TCurrent,TResult,TSelector,TPreviousProjector>>
+            where TSelector : struct, ISelector<TCurrent,TResult>
+            where TPreviousFactory : struct, IProjectorFactory<TRoot,TCurrent,TPreviousProjector>
+            where TPreviousProjector : struct, IProjector<TRoot,TCurrent> {
+            private readonly TPreviousFactory previousFactory;
+
+            public StaticSelectFactory(TPreviousFactory previousFactory) {
+                this.previousFactory=previousFactory;
+            }
+
+            public StaticSelectProjector<TRoot,TCurrent,TResult,TSelector,TPreviousProjector> Create() => new(this.previousFactory.Create());
+        }
+
+        private struct StaticSelectProjector<TRoot,TCurrent,TResult,TSelector,TPreviousProjector> : IProjector<TRoot,TResult>
+            where TSelector : struct, ISelector<TCurrent,TResult>
+            where TPreviousProjector : struct, IProjector<TRoot,TCurrent> {
+            private TPreviousProjector previousProjector;
+
+            public StaticSelectProjector(TPreviousProjector previousProjector) {
+                this.previousProjector=previousProjector;
+            }
+
+            public bool TryProject(TRoot item,out TResult value) {
+                if(!this.previousProjector.TryProject(item,out var previousValue)) {
+                    value=default!;
+                    return false;
+                }
+                value=TSelector.Invoke(previousValue);
+                return true;
+            }
+        }
+
+        private readonly struct WhereFactory<TRoot,TCurrent,TPreviousFactory,TPreviousProjector> : IProjectorFactory<TRoot,TCurrent,WhereProjector<TRoot,TCurrent,TPreviousProjector>>
+            where TPreviousFactory : struct, IProjectorFactory<TRoot,TCurrent,TPreviousProjector>
+            where TPreviousProjector : struct, IProjector<TRoot,TCurrent> {
+            private readonly TPreviousFactory previousFactory;
+            private readonly global::System.Func<TCurrent,bool> predicate;
+
+            public WhereFactory(TPreviousFactory previousFactory,global::System.Func<TCurrent,bool> predicate) {
+                this.previousFactory=previousFactory;
+                this.predicate=predicate;
+            }
+
+            public WhereProjector<TRoot,TCurrent,TPreviousProjector> Create() => new(this.previousFactory.Create(),this.predicate);
+        }
+
+        private struct WhereProjector<TRoot,TCurrent,TPreviousProjector> : IProjector<TRoot,TCurrent>
+            where TPreviousProjector : struct, IProjector<TRoot,TCurrent> {
+            private TPreviousProjector previousProjector;
+            private readonly global::System.Func<TCurrent,bool> predicate;
+
+            public WhereProjector(TPreviousProjector previousProjector,global::System.Func<TCurrent,bool> predicate) {
+                this.previousProjector=previousProjector;
+                this.predicate=predicate;
+            }
+
+            public bool TryProject(TRoot item,out TCurrent value) {
+                if(!this.previousProjector.TryProject(item,out value)) {
+                    return false;
+                }
+                if(this.predicate(value)) {
+                    return true;
+                }
+                value=default!;
+                return false;
+            }
+        }
+
+        private readonly struct StaticWhereFactory<TRoot,TCurrent,TPredicate,TPreviousFactory,TPreviousProjector> : IProjectorFactory<TRoot,TCurrent,StaticWhereProjector<TRoot,TCurrent,TPredicate,TPreviousProjector>>
+            where TPredicate : struct, IPredicate<TCurrent>
+            where TPreviousFactory : struct, IProjectorFactory<TRoot,TCurrent,TPreviousProjector>
+            where TPreviousProjector : struct, IProjector<TRoot,TCurrent> {
+            private readonly TPreviousFactory previousFactory;
+
+            public StaticWhereFactory(TPreviousFactory previousFactory) {
+                this.previousFactory=previousFactory;
+            }
+
+            public StaticWhereProjector<TRoot,TCurrent,TPredicate,TPreviousProjector> Create() => new(this.previousFactory.Create());
+        }
+
+        private struct StaticWhereProjector<TRoot,TCurrent,TPredicate,TPreviousProjector> : IProjector<TRoot,TCurrent>
+            where TPredicate : struct, IPredicate<TCurrent>
+            where TPreviousProjector : struct, IProjector<TRoot,TCurrent> {
+            private TPreviousProjector previousProjector;
+
+            public StaticWhereProjector(TPreviousProjector previousProjector) {
+                this.previousProjector=previousProjector;
+            }
+
+            public bool TryProject(TRoot item,out TCurrent value) {
+                if(!this.previousProjector.TryProject(item,out value)) {
+                    return false;
+                }
+                if(TPredicate.Invoke(value)) {
+                    return true;
+                }
+                value=default!;
+                return false;
+            }
+        }
+
+        private sealed class FusionSource<TRoot,TCurrent,TProjectorFactory,TProjector> : IFusionSource<TCurrent>
+            where TProjectorFactory : struct, IProjectorFactory<TRoot,TCurrent,TProjector>
+            where TProjector : struct, IProjector<TRoot,TCurrent> {
+            private readonly global::System.Collections.Generic.IEnumerable<TRoot> source;
+            private readonly TProjectorFactory projectorFactory;
+
+            public FusionSource(global::System.Collections.Generic.IEnumerable<TRoot> source,TProjectorFactory projectorFactory) {
+                this.source=source;
+                this.projectorFactory=projectorFactory;
+            }
+
+            public IFusionSource<TResult> Select<TResult>(global::System.Func<TCurrent,TResult> selector) {
+                global::System.ArgumentNullException.ThrowIfNull(selector);
+                var factory = new SelectFactory<TRoot,TCurrent,TResult,TProjectorFactory,TProjector>(this.projectorFactory,selector);
+                return new FusionSource<TRoot,TResult,SelectFactory<TRoot,TCurrent,TResult,TProjectorFactory,TProjector>,SelectProjector<TRoot,TCurrent,TResult,TProjector>>(this.source,factory);
+            }
+
+            public IFusionSource<TResult> Select<TResult,TSelector>()
+                where TSelector : struct, ISelector<TCurrent,TResult> {
+                var factory = new StaticSelectFactory<TRoot,TCurrent,TResult,TSelector,TProjectorFactory,TProjector>(this.projectorFactory);
+                return new FusionSource<TRoot,TResult,StaticSelectFactory<TRoot,TCurrent,TResult,TSelector,TProjectorFactory,TProjector>,StaticSelectProjector<TRoot,TCurrent,TResult,TSelector,TProjector>>(this.source,factory);
+            }
+
+            public IFusionSource<TCurrent> Where(global::System.Func<TCurrent,bool> predicate) {
+                global::System.ArgumentNullException.ThrowIfNull(predicate);
+                var factory = new WhereFactory<TRoot,TCurrent,TProjectorFactory,TProjector>(this.projectorFactory,predicate);
+                return new FusionSource<TRoot,TCurrent,WhereFactory<TRoot,TCurrent,TProjectorFactory,TProjector>,WhereProjector<TRoot,TCurrent,TProjector>>(this.source,factory);
+            }
+
+            public IFusionSource<TCurrent> Where<TPredicate>()
+                where TPredicate : struct, IPredicate<TCurrent> {
+                var factory = new StaticWhereFactory<TRoot,TCurrent,TPredicate,TProjectorFactory,TProjector>(this.projectorFactory);
+                return new FusionSource<TRoot,TCurrent,StaticWhereFactory<TRoot,TCurrent,TPredicate,TProjectorFactory,TProjector>,StaticWhereProjector<TRoot,TCurrent,TPredicate,TProjector>>(this.source,factory);
+            }
+
+            public global::System.Collections.Generic.List<TCurrent> ToList() {
+                var result = new global::System.Collections.Generic.List<TCurrent>();
+                var projector = this.projectorFactory.Create();
+                foreach(var item in this.source) {
+                    if(projector.TryProject(item,out var value)) {
+                        result.Add(value);
+                    }
+                }
+                return result;
+            }
+
+            public global::System.Collections.Generic.List<TResult> SelectToList<TResult>(global::System.Func<TCurrent,TResult> selector) {
+                global::System.ArgumentNullException.ThrowIfNull(selector);
+                var result = new global::System.Collections.Generic.List<TResult>();
+                var projector = this.projectorFactory.Create();
+                foreach(var item in this.source) {
+                    if(projector.TryProject(item,out var value)) {
+                        result.Add(selector(value));
+                    }
+                }
+                return result;
+            }
+
+            public global::System.Collections.Generic.List<TResult> SelectToList<TResult,TSelector>()
+                where TSelector : struct, ISelector<TCurrent,TResult> {
+                var result = new global::System.Collections.Generic.List<TResult>();
+                var projector = this.projectorFactory.Create();
+                foreach(var item in this.source) {
+                    if(projector.TryProject(item,out var value)) {
+                        result.Add(TSelector.Invoke(value));
+                    }
+                }
+                return result;
+            }
+
+            public global::System.Collections.Generic.IEnumerator<TCurrent> GetEnumerator() {
+                var projector = this.projectorFactory.Create();
+                foreach(var item in this.source) {
+                    if(projector.TryProject(item,out var value)) {
+                        yield return value;
+                    }
+                }
+            }
+
+            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
+        }
+
+        internal static IFusionSource<T> Create<T>(global::System.Collections.Generic.IEnumerable<T> source) {
+            global::System.ArgumentNullException.ThrowIfNull(source);
+            if(source is IFusionSource<T> fusionSource) {
+                return fusionSource;
+            }
+            return new FusionSource<T,T,IdentityFactory<T>,IdentityProjector<T>>(source,default);
+        }
+    }
+}
+""";
     }
 
     private static インターセプターソースバケット型 インターセプターソースバケット取得(Dictionary<string,インターセプターソースバケット型> buckets,string filePath) {
@@ -453,10 +733,13 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             return null;
         }
         var 祖先フラグ = LINQ呼び出し祖先判定(invocation,context.SemanticModel,cancellationToken);
-        if(祖先フラグ&&!LINQ呼び出し融合延期可能判定(method)) {
-            return null;
+        var translatedBody = LINQ呼び出し上位具体展開NoOpボディ翻訳試行(invocation,method,context.SemanticModel,cancellationToken);
+        if(translatedBody is null) {
+            if(祖先フラグ&&!LINQ呼び出し融合延期可能判定(method)) {
+                return null;
+            }
+            translatedBody=LINQ呼び出しボディ翻訳試行(method,invocation,context.SemanticModel,祖先フラグ);
         }
-        var translatedBody = LINQ呼び出しボディ翻訳試行(method,祖先フラグ);
         if(translatedBody is null) {
             return null;
         }
@@ -487,7 +770,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         var body = useConcreteSignature
             ? LINQ呼び出し型引数具体化(translatedBody.Value.Body,method)
             : translatedBody.Value.Body;
-        var decoratedBody = LINQ呼び出しデバッグ式埋込(body,invocation,method);
+        var decoratedBody = body;
         if(staticLambdaStrategy is not null) {
             decoratedBody=LINQ呼び出し静的ラムダ適用(decoratedBody,staticLambdaStrategy);
         }
@@ -508,18 +791,23 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
 
     /// <summary>
     /// LINQ メソッドのインターセプト本体を生成する入口。<br/>
-    /// 融合 → インライン展開 → コールスルーの優先順で変換方針を決定する。
+    /// 入れ子呼び出し融合 → インライン展開 → コールスルーの優先順で変換方針を決定する。
     /// </summary>
     /// <example><code>
     /// // 変換前 (ユーザーコード):
     /// source.Select(x => x * 2)
     ///
-    /// // 融合が成立する場合   → LINQ呼び出し融合ボディ翻訳試行 が生成するブロック本体
+    /// // 入れ子融合が成立     → 内側は fusion source、外側 Select は 1 ループ実体化
     /// // インライン展開が成立 → LINQ呼び出しインラインボディ翻訳試行 が生成する展開済み本体
-    /// // どちらも不可の場合  → Seamless.Linq.Enumerable.Select(source, selector) のコールスルー式
+    /// // 不可の場合          → Seamless.Linq.Enumerable.Select(source, selector) のコールスルー式
     /// </code></example>
-    private static 翻訳メソッドボディ型? LINQ呼び出しボディ翻訳試行(IMethodSymbol method,bool LINQ呼び出し祖先判定) {
-        var fusionBody = LINQ呼び出し融合ボディ翻訳試行(method,LINQ呼び出し祖先判定);
+    private static 翻訳メソッドボディ型? LINQ呼び出しボディ翻訳試行(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel,bool LINQ呼び出し祖先判定) {
+        var concreteSequenceBody = LINQ呼び出し具体シーケンス展開ボディ翻訳試行(method,invocation,semanticModel,LINQ呼び出し祖先判定);
+        if(concreteSequenceBody is not null) {
+            return concreteSequenceBody;
+        }
+
+        var fusionBody = LINQ呼び出し融合ボディ翻訳試行(method,invocation,semanticModel,LINQ呼び出し祖先判定);
         if(fusionBody is not null) {
             return fusionBody;
         }
@@ -535,108 +823,143 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             : new 翻訳メソッドボディ型(callThroughExpression,true);
     }
 
+    private static 翻訳メソッドボディ型? LINQ呼び出し具体シーケンス展開ボディ翻訳試行(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel,bool LINQ呼び出し祖先判定) {
+        if(LINQ呼び出し祖先判定) {
+            return null;
+        }
+        if(!LINQ呼び出し具体的インターセプター使用可能判定(method)) {
+            return null;
+        }
+        if(!TryGetEnumerableElementType(method.ReturnType,out var resultElementType)) {
+            return null;
+        }
+        if(!TryCreateSequenceMaterializationPipeline(invocation,semanticModel,out var pipeline,out _)) {
+            return null;
+        }
+        if(pipeline.Operations.Count<2) {
+            return null;
+        }
+        if(!LINQ呼び出し具体シーケンス展開可能判定(invocation,pipeline,semanticModel)) {
+            return null;
+        }
+
+        var sourceParameterName = LINQ呼び出し定義取得(method).Parameters[0].Name;
+        var body = new ConcreteSequenceMaterializationEmitter(pipeline,生成型名構築(resultElementType),"result",sourceParameterName).BuildReturnBody();
+        return new 翻訳メソッドボディ型(body,false);
+    }
+
+    private static bool LINQ呼び出し具体シーケンス展開可能判定(InvocationExpressionSyntax invocation,ScalarFusionPipeline pipeline,SemanticModel semanticModel) {
+        if(pipeline.Operations.Any(static operation => operation.Lambda is null||operation.Lambda.Parameters.Length!=1)) {
+            return false;
+        }
+
+        var innerInvocations = new List<InvocationExpressionSyntax>();
+        var currentInvocation = invocation;
+        while(TryGetScalarFusionCallInfo(currentInvocation,out var call)) {
+            var source = RemoveParentheses(call.Source);
+            if(source is not InvocationExpressionSyntax sourceInvocation||!IsSequenceMaterializationOperationName(GetInvocationMethodName(sourceInvocation))) {
+                break;
+            }
+            innerInvocations.Add(sourceInvocation);
+            currentInvocation=sourceInvocation;
+        }
+
+        if(innerInvocations.Count+1!=pipeline.Operations.Count) {
+            return false;
+        }
+
+        foreach(var innerInvocation in innerInvocations) {
+            if(semanticModel.GetSymbolInfo(innerInvocation).Symbol is not IMethodSymbol innerMethod
+                ||!LINQ呼び出しNoOp可能判定(innerMethod)
+                ||!LINQ呼び出し具体的インターセプター使用可能判定(innerMethod)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static 翻訳メソッドボディ型? LINQ呼び出し上位具体展開NoOpボディ翻訳試行(InvocationExpressionSyntax invocation,IMethodSymbol method,SemanticModel semanticModel,System.Threading.CancellationToken cancellationToken) {
+        if(!LINQ呼び出しNoOp可能判定(method)) {
+            return null;
+        }
+        for(var current = invocation.Parent; current is not null; current=current.Parent) {
+            if(current is StatementSyntax or LambdaExpressionSyntax) {
+                return null;
+            }
+            if(current is not InvocationExpressionSyntax parentInvocation) {
+                continue;
+            }
+            if(semanticModel.GetSymbolInfo(parentInvocation,cancellationToken).Symbol is not IMethodSymbol parentMethod
+                ||!サポートLINQメソッド判定(parentMethod)) {
+                continue;
+            }
+            return LINQ呼び出し具体シーケンス展開ボディ翻訳試行(parentMethod,parentInvocation,semanticModel,false) is null
+                ? null
+                : new 翻訳メソッドボディ型(LINQ呼び出しNoOpボディ構築(method),false);
+        }
+        return null;
+    }
+
+    private static bool LINQ呼び出しNoOp可能判定(IMethodSymbol method) {
+        var definition = LINQ呼び出し定義取得(method);
+        if(非インデックスWhereメソッド判定(definition)) {
+            return true;
+        }
+        if(!非インデックスSelectメソッド判定(definition)||method.TypeArguments.Length<2) {
+            return false;
+        }
+        return SymbolEqualityComparer.Default.Equals(method.TypeArguments[0],method.TypeArguments[1]);
+    }
+
+    private static string LINQ呼び出しNoOpボディ構築(IMethodSymbol method) {
+        var definition = LINQ呼び出し定義取得(method);
+        var operationParameterName = 非インデックスWhereメソッド判定(definition) ? "predicate" : "selector";
+        return $$"""
+{
+    global::System.ArgumentNullException.ThrowIfNull(source);
+    global::System.ArgumentNullException.ThrowIfNull({{operationParameterName}});
+    return source;
+}
+""";
+    }
+
     private static bool LINQ呼び出し融合延期可能判定(IMethodSymbol method) {
         return 遅延LINQ融合式翻訳試行(method) is not null;
     }
 
-    /// <summary>
-    /// LINQ メソッドが上位の LINQ 呼び出し内に入れ子の場合は遅延式を返し、<br/>
-    /// そうでなければ選択融合またはパススルー融合のブロック本体を返す。
-    /// </summary>
-    /// <example><code>
-    /// // 変換前 (内側の Select):
-    /// source.Where(x => x > 0).Select(x => x * 2)
-    ///
-    /// // LINQ呼び出し祖先判定 == true (入れ子) の場合:
-    /// //   → 遅延LINQ融合式翻訳試行 の結果:
-    /// //     global::...LinqInvocationFusionSupport.Create(source).選択追加(selector)
-    ///
-    /// // LINQ呼び出し祖先判定 == false (最外側) の場合:
-    /// //   → LINQ呼び出し選択融合ボディ翻訳試行 の結果:
-    /// //     { if (source is I融合ソース&lt;T&gt; 既存融合ソース) return 既存融合ソース.選択実体化(selector); ... }
-    /// </code></example>
-    private static 翻訳メソッドボディ型? LINQ呼び出し融合ボディ翻訳試行(IMethodSymbol method,bool LINQ呼び出し祖先判定) {
+    private static 翻訳メソッドボディ型? LINQ呼び出し融合ボディ翻訳試行(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel,bool LINQ呼び出し祖先判定) {
         var deferredExpression = 遅延LINQ融合式翻訳試行(method);
         if(LINQ呼び出し祖先判定) {
             return deferredExpression is null ? null : new 翻訳メソッドボディ型(deferredExpression,true);
+        }
+
+        if(!LINQ呼び出し融合ソース判定(invocation,method,semanticModel)) {
+            return null;
         }
 
         var selectBody = LINQ呼び出し選択融合ボディ翻訳試行(method);
         if(selectBody is not null) {
             return new 翻訳メソッドボディ型(selectBody,false);
         }
-
-        var passThroughBody = LINQ呼び出しパススルー融合ボディ翻訳試行(method);
-        if(passThroughBody is not null) {
-            return new 翻訳メソッドボディ型(passThroughBody,false);
-        }
-
-        return null;
+        var whereBody = LINQ呼び出し絞込融合ボディ翻訳試行(method);
+        return whereBody is null ? null : new 翻訳メソッドボディ型(whereBody,false);
     }
 
-    /// <summary>
-    /// 入れ子の Select / Where / Take を融合ソースへの操作追加式に変換する。<br/>
-    /// 実体化は外側の実体化境界で行うため、ここでは列挙しない。
-    /// </summary>
-    /// <example><code>
-    /// // 変換前:
-    /// source.Select(x => x * 2)
-    /// // 変換後:
-    /// global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).選択追加(selector)
-    ///
-    /// // 変換前:
-    /// source.Where(x => x > 0)
-    /// // 変換後:
-    /// global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).絞込追加(predicate)
-    ///
-    /// // 変換前:
-    /// source.Take(5)
-    /// // 変換後:
-    /// global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).先頭取得追加(count)
-    /// </code></example>
     private static string? 遅延LINQ融合式翻訳試行(IMethodSymbol method) {
         var definition = LINQ呼び出し定義取得(method);
         if(LINQ呼び出しターゲット型取得試行(method) is null) {
             return null;
         }
-
-        // 入れ子 LINQ の内側 Select/Where/Take はここで列挙せず、融合ソースに操作だけを積む。
-        // 外側の実体化側が I融合ソースを検出して、元の source を 1 回だけ列挙する。
-        // static で生成先へ安全に移動できる lambda は、後段で生成 strategy struct に差し替えて delegate 呼び出しを避ける。
-        // クロージャや生成先から見えない型・メンバーを含む lambda は、従来どおり Func 引数の delegate 経路にフォールバックする。
         if(非インデックスSelectメソッド判定(definition)) {
-            // 内側の Select: 融合ソースに選択操作を積んで返す (実体化は外側の実体化境界で行う)。
-            return "global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).選択追加(selector)";
+            return "global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).Select(selector)";
         }
         if(非インデックスWhereメソッド判定(definition)) {
-            // 内側の Where: 融合ソースに絞込操作を積んで返す。
-            return "global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).絞込追加(predicate)";
-        }
-        if(CountTakeメソッド判定(definition)) {
-            // 内側の Take: 融合ソースに先頭取得操作を積んで返す。
-            return "global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).先頭取得追加(count)";
+            return "global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source).Where(predicate)";
         }
         return null;
     }
 
-    /// <summary>
-    /// Select が最外側の実体化境界になる場合のブロック本体を生成する。<br/>
-    /// source が <c>I融合ソース&lt;T&gt;</c> であれば蓄積済みパイプラインを通じて実体化し、
-    /// そうでなければ通常の <c>Seamless.Linq.Enumerable.Select</c> にフォールバックする。
-    /// </summary>
-    /// <example><code>
-    /// // 変換前:
-    /// source.Where(x => x > 0).Select(x => x * 2)
-    ///
-    /// // 変換後 (生成される interceptor 本体):
-    /// {
-    ///     global::System.ArgumentNullException.ThrowIfNull(source);
-    ///     global::System.ArgumentNullException.ThrowIfNull(selector);
-    ///     if (source is global::...I融合ソース&lt;TSource&gt; 既存融合ソース)
-    ///         return 既存融合ソース.選択実体化(selector);
-    ///     return global::Seamless.Linq.Enumerable.Select&lt;TSource, TResult&gt;(source, selector);
-    /// }
-    /// </code></example>
     private static string? LINQ呼び出し選択融合ボディ翻訳試行(IMethodSymbol method) {
         var definition = LINQ呼び出し定義取得(method);
         if(!非インデックスSelectメソッド判定(definition)) {
@@ -650,71 +973,56 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
 {
     global::System.ArgumentNullException.ThrowIfNull(source);
     global::System.ArgumentNullException.ThrowIfNull(selector);
-    // 内側の Select/Where/Take が融合ソースを返していた場合、ここが実体化境界になる。
-    // 蓄積済みプロジェクタを通して元ソースを 1 回だけ列挙し、最後の Select を適用して List にする。
-    // 最後の selector も static で生成先へ安全に移動できる場合は、後段で生成 strategy struct に差し替える。
-    // source が I融合ソース<TSource> であれば蓄積済み pipeline を通じて実体化する (ソースの二重列挙を回避)。
-    if(source is global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.I融合ソース<TSource> 既存融合ソース) {
-        return 既存融合ソース.選択実体化(selector);
+    if(source is global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.IFusionSource<TSource> fusionSource) {
+        return fusionSource.SelectToList(selector);
     }
     return {{targetType}}.Select<TSource, TResult>(source,selector);
 }
 """;
     }
 
-    /// <summary>
-    /// Where / Take が最外側で呼ばれた場合のブロック本体を生成する。<br/>
-    /// source が <c>I融合ソース&lt;T&gt;</c> なら操作を積んで融合ソースを返す (実体化を後回し)。
-    /// そうでなければ <c>Seamless.Linq.Enumerable</c> の同名メソッドにフォールバックする。
-    /// </summary>
-    /// <example><code>
-    /// // 変換前:
-    /// source.Where(x => x > 0)
-    ///
-    /// // 変換後 (Where の interceptor 本体):
-    /// {
-    ///     global::System.ArgumentNullException.ThrowIfNull(source);
-    ///     global::System.ArgumentNullException.ThrowIfNull(predicate);
-    ///     if (source is global::...I融合ソース&lt;TSource&gt; 既存融合ソース)
-    ///         return 既存融合ソース.絞込追加(predicate);
-    ///     return global::Seamless.Linq.Enumerable.Where&lt;TSource&gt;(source, predicate);
-    /// }
-    /// </code></example>
-    private static string? LINQ呼び出しパススルー融合ボディ翻訳試行(IMethodSymbol method) {
+    private static string? LINQ呼び出し絞込融合ボディ翻訳試行(IMethodSymbol method) {
         var definition = LINQ呼び出し定義取得(method);
+        if(!非インデックスWhereメソッド判定(definition)) {
+            return null;
+        }
         var targetType = LINQ呼び出しターゲット型取得試行(method);
         if(targetType is null) {
             return null;
         }
-
-        if(非インデックスWhereメソッド判定(definition)) {
-            return $$"""
+        return $$"""
 {
     global::System.ArgumentNullException.ThrowIfNull(source);
     global::System.ArgumentNullException.ThrowIfNull(predicate);
-    // source が I融合ソース<TSource> であれば Where 操作を融合ソースの pipeline に積んで返す (実体化は後回し)。
-    if(source is global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.I融合ソース<TSource> 既存融合ソース) {
-        return 既存融合ソース.絞込追加(predicate);
+    if(source is global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.IFusionSource<TSource> fusionSource) {
+        return fusionSource.Where(predicate);
     }
     return {{targetType}}.Where<TSource>(source,predicate);
 }
 """;
-        }
-
-        if(CountTakeメソッド判定(definition)) {
-            return $$"""
-{
-    global::System.ArgumentNullException.ThrowIfNull(source);
-    // source が I融合ソース<TSource> であれば Take 操作を融合ソースの pipeline に積んで返す (実体化は後回し)。
-    if(source is global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.I融合ソース<TSource> 既存融合ソース) {
-        return 既存融合ソース.先頭取得追加(count);
     }
-    return {{targetType}}.Take<TSource>(source,count);
-}
-""";
-        }
 
-        return null;
+    private static bool LINQ呼び出し融合ソース判定(InvocationExpressionSyntax invocation,IMethodSymbol method,SemanticModel semanticModel) {
+        var sourceExpression = LINQ呼び出しソース構文取得(invocation,method);
+        if(sourceExpression is null) {
+            return false;
+        }
+        if(RemoveParentheses(sourceExpression) is not InvocationExpressionSyntax sourceInvocation) {
+            return false;
+        }
+        return TryGetInvocationMethodSymbol(sourceInvocation,semanticModel,out var sourceMethod)
+            &&LINQ呼び出し融合延期可能判定(sourceMethod);
+    }
+
+    private static ExpressionSyntax? LINQ呼び出しソース構文取得(InvocationExpressionSyntax invocation,IMethodSymbol method) {
+        if(method.ReducedFrom is not null) {
+            return invocation.Expression is MemberAccessExpressionSyntax memberAccess
+                ? memberAccess.Expression
+                : null;
+        }
+        return invocation.ArgumentList.Arguments.Count>0
+            ? invocation.ArgumentList.Arguments[0].Expression
+            : null;
     }
 
     private static bool 非インデックスSelectメソッド判定(IMethodSymbol definition) {
@@ -729,13 +1037,6 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             &&definition.TypeParameters.Length==1
             &&definition.Parameters.Length==2
             &&Func型判定(definition.Parameters[1].Type,2);
-    }
-
-    private static bool CountTakeメソッド判定(IMethodSymbol definition) {
-        return definition.Name=="Take"
-            &&definition.TypeParameters.Length==1
-            &&definition.Parameters.Length==2
-            &&definition.Parameters[1].Type.SpecialType==SpecialType.System_Int32;
     }
 
     private static bool Func型判定(ITypeSymbol type,int typeArgumentCount) {
@@ -1064,7 +1365,8 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
                 return false;
             }
             if(current is InvocationExpressionSyntax parentInvocation) {
-                return semanticModel.GetSymbolInfo(parentInvocation,cancellationToken).Symbol is IMethodSymbol parentMethod&&サポートLINQメソッド判定(parentMethod);
+                return semanticModel.GetSymbolInfo(parentInvocation,cancellationToken).Symbol is IMethodSymbol parentMethod
+                    &&サポートLINQメソッド判定(parentMethod);
             }
         }
         return false;
@@ -1199,7 +1501,6 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         var operationArgumentIndex = LINQ呼び出し操作引数位置取得(method);
         if(invocation.ArgumentList.Arguments.Count<=operationArgumentIndex
             ||invocation.ArgumentList.Arguments[operationArgumentIndex].Expression is not LambdaExpressionSyntax lambda
-            ||!静的ラムダ判定(lambda)
             ||lambda.Body is not ExpressionSyntax lambdaBody) {
             return false;
         }
@@ -1214,33 +1515,38 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         }
         var sourceTypeName = 生成型名構築(method.TypeArguments[0]);
         var lambdaBodyText = NormalizeExpression(lambdaBody);
-        var lambdaExpressionText = NormalizeExpression(lambda);
         if(definition.Name=="Where") {
-            var typeName = $"__絞込ラムダ_{identifier}";
+            var typeName = $"Where_predicate0_{identifier}";
             var source = $$"""
-        private readonly struct {{typeName}}:global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.I融合絞込<{{sourceTypeName}}> {
-            public static bool Invoke({{sourceTypeName}} {{parameterName}}) => {{lambdaBodyText}};
+        private readonly struct {{typeName}}:global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.IPredicate<{{sourceTypeName}}> {
+            public static bool predicate({{sourceTypeName}} {{parameterName}}) => {{lambdaBodyText}};
+            public static bool Invoke({{sourceTypeName}} {{parameterName}}) => predicate({{parameterName}});
         }
 """;
-            strategy=new LINQ呼び出しラムダストラテジー("Where",typeName,"",lambdaExpressionText,source);
+            strategy=new LINQ呼び出しラムダストラテジー("Where",typeName,source);
             return true;
         }
         if(method.TypeArguments.Length<2) {
             return false;
         }
         var resultTypeName = 生成型名構築(method.TypeArguments[1]);
-        var selectorTypeName = $"__選択ラムダ_{identifier}";
+        var selectorTypeName = $"Select_selector0_{identifier}";
         var selectorSource = $$"""
-        private readonly struct {{selectorTypeName}}:global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.I融合選択<{{sourceTypeName}},{{resultTypeName}}> {
-            public static {{resultTypeName}} Invoke({{sourceTypeName}} {{parameterName}}) => {{lambdaBodyText}};
+        private readonly struct {{selectorTypeName}}:global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.ISelector<{{sourceTypeName}},{{resultTypeName}}> {
+            public static {{resultTypeName}} selector({{sourceTypeName}} {{parameterName}}) => {{lambdaBodyText}};
+            public static {{resultTypeName}} Invoke({{sourceTypeName}} {{parameterName}}) => selector({{parameterName}});
         }
 """;
-        strategy=new LINQ呼び出しラムダストラテジー("Select",selectorTypeName,resultTypeName,lambdaExpressionText,selectorSource);
+        strategy=new LINQ呼び出しラムダストラテジー("Select",selectorTypeName,selectorSource,resultTypeName);
         return true;
     }
 
     private static bool 静的ラムダ本体移動可能判定(ExpressionSyntax lambdaBody,string parameterName) {
-        var checker = new MovableStaticLambdaBodyChecker(parameterName);
+        return 静的ラムダ本体移動可能判定(lambdaBody,new[] { parameterName });
+    }
+
+    private static bool 静的ラムダ本体移動可能判定(ExpressionSyntax lambdaBody,IReadOnlyCollection<string> parameterNames) {
+        var checker = new MovableStaticLambdaBodyChecker(parameterNames);
         checker.Visit(lambdaBody);
         return checker.CanMove;
     }
@@ -1259,62 +1565,16 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
     }
 
     private static string LINQ呼び出し静的ラムダ適用(string body,LINQ呼び出しラムダストラテジー strategy) {
-        var literal = 文字列リテラル構築(strategy.ExpressionText);
         return strategy.Kind switch {
             "Where" => body
-                .Replace($".絞込追加(predicate,{literal})",$".絞込追加<{strategy.TypeName}>({literal})")
-                .Replace(".絞込追加(predicate)",$".絞込追加<{strategy.TypeName}>()"),
+                .Replace(".Where(predicate)",$".Where<{strategy.TypeName}>()")
+                .Replace("predicate(",$"{strategy.TypeName}.predicate("),
             "Select" => body
-                .Replace($".選択追加(selector,{literal})",$".選択追加<{strategy.ResultTypeName},{strategy.TypeName}>({literal})")
-                .Replace(".選択追加(selector)",$".選択追加<{strategy.ResultTypeName},{strategy.TypeName}>()")
-                .Replace(".選択実体化(selector)",$".選択実体化<{strategy.ResultTypeName},{strategy.TypeName}>()"),
+                .Replace(".SelectToList(selector)",$".SelectToList<{strategy.ResultTypeName},{strategy.TypeName}>()")
+                .Replace(".Select(selector)",$".Select<{strategy.ResultTypeName},{strategy.TypeName}>()")
+                .Replace("selector(",$"{strategy.TypeName}.selector("),
             _ => body
         };
-    }
-
-    private static string LINQ呼び出しデバッグ式埋込(string body,InvocationExpressionSyntax invocation,IMethodSymbol method) {
-        var sourceExpression = LINQ呼び出しソース式取得(invocation,method);
-        if(sourceExpression is null) {
-            return body;
-        }
-
-        var updatedBody = body.Replace(
-            "global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source)",
-            $"global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.Create(source,{文字列リテラル構築(sourceExpression)})");
-
-        var definition = LINQ呼び出し定義取得(method);
-        var operationArgumentIndex = LINQ呼び出し操作引数位置取得(method);
-        if(definition.Name=="Select"&&invocation.ArgumentList.Arguments.Count>operationArgumentIndex) {
-            var selectorExpression = NormalizeExpression(invocation.ArgumentList.Arguments[operationArgumentIndex].Expression);
-            updatedBody=updatedBody.Replace(
-                ".選択追加(selector)",
-                $".選択追加(selector,{文字列リテラル構築(selectorExpression)})");
-        }
-        else if(definition.Name=="Where"&&invocation.ArgumentList.Arguments.Count>operationArgumentIndex) {
-            var predicateExpression = NormalizeExpression(invocation.ArgumentList.Arguments[operationArgumentIndex].Expression);
-            updatedBody=updatedBody.Replace(
-                ".絞込追加(predicate)",
-                $".絞込追加(predicate,{文字列リテラル構築(predicateExpression)})");
-        }
-        else if(definition.Name=="Take"&&invocation.ArgumentList.Arguments.Count>operationArgumentIndex) {
-            var countExpression = NormalizeExpression(invocation.ArgumentList.Arguments[operationArgumentIndex].Expression);
-            updatedBody=updatedBody.Replace(
-                ".先頭取得追加(count)",
-                $".先頭取得追加(count,{文字列リテラル構築(countExpression)})");
-        }
-
-        return updatedBody;
-    }
-
-    private static string? LINQ呼び出しソース式取得(InvocationExpressionSyntax invocation,IMethodSymbol method) {
-        if(method.ReducedFrom is not null) {
-            return invocation.Expression is MemberAccessExpressionSyntax memberAccess
-                ? NormalizeExpression(memberAccess.Expression)
-                : null;
-        }
-        return invocation.ArgumentList.Arguments.Count>0
-            ? NormalizeExpression(invocation.ArgumentList.Arguments[0].Expression)
-            : null;
     }
 
     private static int LINQ呼び出し操作引数位置取得(IMethodSymbol method) {
@@ -1814,6 +2074,8 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         var builder = new StringBuilder();
         builder.AppendLine("#nullable enable");
         builder.AppendLine("#pragma warning disable CS8603, CS8619, CS8620, CS9159");
+        builder.AppendLine("using global::System;");
+        builder.AppendLine("using global::System.Collections.Generic;");
         builder.AppendLine("using global::System.Linq;");
         builder.AppendLine("// Generated: Roslyn interceptors resolve the preview attribute by metadata name.");
         builder.AppendLine("// The target framework does not provide it, so this file-local definition is required by the generated [InterceptsLocation] entry points below.");
@@ -3057,13 +3319,22 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
 
     private static bool TryCreateLambda(ExpressionSyntax expression,out FusionLambda lambda) {
         lambda=null!;
+        if(expression is not LambdaExpressionSyntax) {
+            return false;
+        }
         if(expression is SimpleLambdaExpressionSyntax simpleLambda&&simpleLambda.Body is ExpressionSyntax simpleBody) {
-            lambda=new FusionLambda(new[] { simpleLambda.Parameter.Identifier.ValueText },simpleBody);
-            return !string.IsNullOrWhiteSpace(lambda.Parameters[0]);
+            var parameters = new[] { simpleLambda.Parameter.Identifier.ValueText };
+            if(string.IsNullOrWhiteSpace(parameters[0])||!静的ラムダ本体移動可能判定(simpleBody,parameters)) {
+                return false;
+            }
+            lambda=new FusionLambda(parameters,simpleBody);
+            return true;
         }
         if(expression is ParenthesizedLambdaExpressionSyntax parenthesizedLambda&&parenthesizedLambda.Body is ExpressionSyntax parenthesizedBody) {
             var parameters = parenthesizedLambda.ParameterList.Parameters.Select(static parameter => parameter.Identifier.ValueText).ToArray();
-            if(parameters.Length==0||parameters.Any(static parameter => string.IsNullOrWhiteSpace(parameter))) {
+            if(parameters.Length==0
+                ||parameters.Any(static parameter => string.IsNullOrWhiteSpace(parameter))
+                ||!静的ラムダ本体移動可能判定(parenthesizedBody,parameters)) {
                 return false;
             }
             lambda=new FusionLambda(parameters,parenthesizedBody);
@@ -3339,6 +3610,136 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
 
         private string Name(string baseName) {
             return string.IsNullOrEmpty(this.suffix) ? baseName : $"{baseName}{this.suffix}";
+        }
+
+        private void Add(string line) {
+            this.lines.Add(new string(' ',this.indent*4)+line);
+        }
+    }
+
+    private sealed class ConcreteSequenceMaterializationEmitter {
+        private readonly ScalarFusionPipeline pipeline;
+        private readonly string resultElementTypeName;
+        private readonly string resultName;
+        private readonly string sourceExpression;
+        private readonly List<string> lines = new();
+        private int indent;
+        private int valueIndex;
+
+        public ConcreteSequenceMaterializationEmitter(ScalarFusionPipeline pipeline,string resultElementTypeName,string resultName,string sourceExpression) {
+            this.pipeline=pipeline;
+            this.resultElementTypeName=resultElementTypeName;
+            this.resultName=resultName;
+            this.sourceExpression=sourceExpression;
+        }
+
+        public string BuildReturnBody() {
+            this.Add("{");
+            this.indent++;
+            this.EmitMaterialization();
+            this.Add($"return {this.resultName};");
+            this.indent--;
+            this.Add("}");
+            return string.Join("\n",this.lines);
+        }
+
+        private void EmitMaterialization() {
+            const string sourceName = "__seamlessSource";
+            const string itemName = "__seamlessItem";
+            const string continueLabel = "__seamlessContinue";
+            this.Add($"var {sourceName} = {this.sourceExpression};");
+            this.Add($"global::System.ArgumentNullException.ThrowIfNull({sourceName});");
+            this.DeclareOperationState();
+            this.Add($"var {this.resultName} = new global::System.Collections.Generic.List<{this.resultElementTypeName}>();");
+            this.Add($"foreach(var {itemName} in {sourceName}) {{");
+            this.indent++;
+            this.EmitOperations(0,itemName,continueLabel,this.resultName);
+            if(this.UsesContinueLabel()) {
+                this.Add($"{continueLabel}:;");
+            }
+            this.indent--;
+            this.Add("}");
+        }
+
+        private void DeclareOperationState() {
+            for(var index = 0; index<this.pipeline.Operations.Count; index++) {
+                var operation = this.pipeline.Operations[index];
+                if(operation.Lambda is not null&&operation.Lambda.Parameters.Length==2) {
+                    this.Add($"var {this.IndexName(index)} = -1;");
+                }
+            }
+        }
+
+        private bool UsesContinueLabel() {
+            foreach(var operation in this.pipeline.Operations) {
+                if(operation.MethodName=="Where") {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void EmitOperations(int operationIndex,string valueExpression,string continueLabel,string resultListName) {
+            if(operationIndex>=this.pipeline.Operations.Count) {
+                this.Add($"{resultListName}.Add({valueExpression});");
+                return;
+            }
+
+            var operation = this.pipeline.Operations[operationIndex];
+            switch(operation.MethodName) {
+                case "Where":
+                    this.EmitIndexedLambdaAdvance(operationIndex,operation);
+                    this.Add($"if(!({this.InlineLambda(operation.Lambda!,valueExpression,this.GetIndexArgument(operationIndex,operation))})) {{");
+                    this.indent++;
+                    this.Add($"goto {continueLabel};");
+                    this.indent--;
+                    this.Add("}");
+                    this.EmitOperations(operationIndex+1,valueExpression,continueLabel,resultListName);
+                    break;
+
+                case "Select":
+                    this.EmitIndexedLambdaAdvance(operationIndex,operation);
+                    var selectedValue = this.NextValueName();
+                    this.Add($"var {selectedValue} = {this.InlineLambda(operation.Lambda!,valueExpression,this.GetIndexArgument(operationIndex,operation))};");
+                    this.EmitOperations(operationIndex+1,selectedValue,continueLabel,resultListName);
+                    break;
+            }
+        }
+
+        private void EmitIndexedLambdaAdvance(int operationIndex,ScalarFusionOperation operation) {
+            if(operation.Lambda is null||operation.Lambda.Parameters.Length!=2) {
+                return;
+            }
+            this.Add("checked {");
+            this.indent++;
+            this.Add($"{this.IndexName(operationIndex)}++;");
+            this.indent--;
+            this.Add("}");
+        }
+
+        private string? GetIndexArgument(int operationIndex,ScalarFusionOperation operation) {
+            return operation.Lambda is not null&&operation.Lambda.Parameters.Length==2
+                ? this.IndexName(operationIndex)
+                : null;
+        }
+
+        private string InlineLambda(FusionLambda lambda,string firstArgument,string? secondArgument) {
+            var replacements = new Dictionary<string,ExpressionSyntax>(StringComparer.Ordinal) {
+                [lambda.Parameters[0]]=SyntaxFactory.ParseExpression(firstArgument),
+            };
+            if(secondArgument is not null&&lambda.Parameters.Length>1) {
+                replacements[lambda.Parameters[1]]=SyntaxFactory.ParseExpression(secondArgument);
+            }
+            var rewritten = new LambdaParameterInlineRewriter(replacements).Visit(lambda.Body) as ExpressionSyntax??lambda.Body;
+            return NormalizeExpression(rewritten);
+        }
+
+        private string IndexName(int operationIndex) {
+            return $"__seamlessIndex{operationIndex}";
+        }
+
+        private string NextValueName() {
+            return $"__seamlessValue{this.valueIndex++}";
         }
 
         private void Add(string line) {
@@ -4958,30 +5359,37 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
         public string Body { get; }
         public bool IsExpressionBody { get; }
         public string? StaticLambdaStrategySource { get; }
+        public bool RequiresFusionSupport {
+            get {
+                if(this.Body.IndexOf("LinqInvocationFusionSupport",StringComparison.Ordinal)>=0) {
+                    return true;
+                }
+                var source = this.StaticLambdaStrategySource;
+                return source is not null&&source.IndexOf("LinqInvocationFusionSupport",StringComparison.Ordinal)>=0;
+            }
+        }
         public string MethodName => $"OptimizedLinqInvocation_{this.Identifier}";
     }
 
     private sealed class LINQ呼び出しラムダストラテジー {
-        public LINQ呼び出しラムダストラテジー(string kind,string typeName,string resultTypeName,string expressionText,string source) {
+        public LINQ呼び出しラムダストラテジー(string kind,string typeName,string source,string resultTypeName = "") {
             this.Kind=kind;
             this.TypeName=typeName;
-            this.ResultTypeName=resultTypeName;
-            this.ExpressionText=expressionText;
             this.Source=source;
+            this.ResultTypeName=resultTypeName;
         }
 
         public string Kind { get; }
         public string TypeName { get; }
-        public string ResultTypeName { get; }
-        public string ExpressionText { get; }
         public string Source { get; }
+        public string ResultTypeName { get; }
     }
 
     private sealed class MovableStaticLambdaBodyChecker:CSharpSyntaxWalker {
-        private readonly string parameterName;
+        private readonly HashSet<string> parameterNames;
 
-        public MovableStaticLambdaBodyChecker(string parameterName) {
-            this.parameterName=parameterName;
+        public MovableStaticLambdaBodyChecker(IEnumerable<string> parameterNames) {
+            this.parameterNames=new HashSet<string>(parameterNames,StringComparer.Ordinal);
         }
 
         public bool CanMove { get; private set; } = true;
@@ -4990,7 +5398,7 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
             if(!this.CanMove) {
                 return;
             }
-            if(node.Identifier.ValueText==this.parameterName) {
+            if(this.parameterNames.Contains(node.Identifier.ValueText)) {
                 base.VisitIdentifierName(node);
                 return;
             }
@@ -5002,6 +5410,14 @@ public sealed class SeamlessIncrementalGenerator:IIncrementalGenerator {
                 base.VisitIdentifierName(node);
                 return;
             }
+            this.CanMove=false;
+        }
+
+        public override void VisitThisExpression(ThisExpressionSyntax node) {
+            this.CanMove=false;
+        }
+
+        public override void VisitBaseExpression(BaseExpressionSyntax node) {
             this.CanMove=false;
         }
     }

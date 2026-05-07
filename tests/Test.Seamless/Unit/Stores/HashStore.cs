@@ -1,4 +1,4 @@
-using Seamless.Collections;
+﻿using Seamless.Collections;
 using Seamless.Stores;
 using Test.Seamless.Collections;
 namespace Test.Seamless.Unit.Stores;

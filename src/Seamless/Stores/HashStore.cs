@@ -177,6 +177,32 @@ public readonly struct HashStore {
         where TValue : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
 
+    public UnmanagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+        BlittableStrategy _0,
+        BlittableStrategy _1
+    )
+        where TKey : unmanaged
+        where TValue : unmanaged =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
+
+    public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+        MemoryPackSerializerStrategy _0,
+        MemoryPackSerializerStrategy _1
+    ) =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,keyUsesManagedSerializer: true,valueUsesManagedSerializer: true);
+
+    public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+        MemoryPackSerializerStrategy _0,
+        BlittableStrategy _1
+    ) where TValue : unmanaged =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,keyUsesManagedSerializer: true,valueUsesManagedSerializer: false);
+
+    public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+        BlittableStrategy _0,
+        MemoryPackSerializerStrategy _1
+    ) where TKey : unmanaged =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,keyUsesManagedSerializer: false,valueUsesManagedSerializer: true);
+
     // ── Storage Dictionary ─────────────────────────────────────────
     /// <summary>Managed Key × Managed Value（ストレージ付き）</summary>
     public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
@@ -217,6 +243,40 @@ public readonly struct HashStore {
         where TValue : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
 
+    public UnmanagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+        IDevice LogDevice,
+        IDevice ObjectLogDevice,
+        BlittableStrategy _0,
+        BlittableStrategy _1
+    )
+        where TKey : unmanaged
+        where TValue : unmanaged =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
+
+    public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+        IDevice LogDevice,
+        IDevice ObjectLogDevice,
+        MemoryPackSerializerStrategy _0,
+        MemoryPackSerializerStrategy _1
+    ) =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes,keyUsesManagedSerializer: true,valueUsesManagedSerializer: true);
+
+    public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+        IDevice LogDevice,
+        IDevice ObjectLogDevice,
+        MemoryPackSerializerStrategy _0,
+        BlittableStrategy _1
+    ) where TValue : unmanaged =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes,keyUsesManagedSerializer: true,valueUsesManagedSerializer: false);
+
+    public ManagedDictionaryStore<TKey,TValue> Create<TKey, TValue>(
+        IDevice LogDevice,
+        IDevice ObjectLogDevice,
+        BlittableStrategy _0,
+        MemoryPackSerializerStrategy _1
+    ) where TKey : unmanaged =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes,keyUsesManagedSerializer: false,valueUsesManagedSerializer: true);
+
     // ── Managed HashSet ────────────────────────────────────────────
     /// <summary>Memory ManagedHashSet</summary>
     public ManagedHashSetStore<TKey> Create<TKey>(ManagedTag _0 = default) =>
@@ -243,6 +303,13 @@ public readonly struct HashStore {
     public UnmanagedHashSetStore<TKey> Create<TKey>(UnmanagedTag _0 = default)
         where TKey : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
+
+    public UnmanagedHashSetStore<TKey> Create<TKey>(BlittableStrategy _0)
+        where TKey : unmanaged =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
+
+    public ManagedHashSetStore<TKey> Create<TKey>(MemoryPackSerializerStrategy _0) =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Memory UnmanagedHashSet (named overload)</summary>
     public UnmanagedHashSetStore<TKey> CreateUnmanagedHashSet<TKey>()
         where TKey : unmanaged =>
@@ -255,6 +322,21 @@ public readonly struct HashStore {
         UnmanagedTag _0 = default
     )
         where TKey : unmanaged =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
+
+    public UnmanagedHashSetStore<TKey> Create<TKey>(
+        IDevice LogDevice,
+        IDevice ObjectLogDevice,
+        BlittableStrategy _0
+    )
+        where TKey : unmanaged =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
+
+    public ManagedHashSetStore<TKey> Create<TKey>(
+        IDevice LogDevice,
+        IDevice ObjectLogDevice,
+        MemoryPackSerializerStrategy _0
+    ) =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
     //public UnmanagedHashSetStore<TKey> CreateUnmanagedHashSet<TKey>(
     //    IDevice LogDevice,
@@ -302,16 +384,30 @@ public readonly struct HashStore {
     //    new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
 
     /// <summary>Memory UnmanagedSet</summary>
-    public UnmanagedSetStore<TKey,TRecord> CreateUnmanagedSet<TKey, TRecord>()
+    public UnmanagedSetStore<TKey,TRecord> CreateSet<TKey, TRecord>(BlittableStrategy _0)
         where TRecord : unmanaged, Collections.IRecord<TKey>
         where TKey : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Storage UnmanagedSet</summary>
+    public UnmanagedSetStore<TKey,TRecord> CreateSet<TKey, TRecord>(
+        IDevice LogDevice,
+        IDevice ObjectLogDevice,
+        BlittableStrategy _0
+    )
+        where TRecord : unmanaged, Collections.IRecord<TKey>
+        where TKey : unmanaged =>
+        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
+
+    public UnmanagedSetStore<TKey,TRecord> CreateUnmanagedSet<TKey, TRecord>()
+        where TRecord : unmanaged, Collections.IRecord<TKey>
+        where TKey : unmanaged =>
+        this.CreateSet<TKey,TRecord>(new BlittableStrategy());
+
     public UnmanagedSetStore<TKey,TRecord> CreateUnmanagedSet<TKey, TRecord>(
         IDevice LogDevice,
         IDevice ObjectLogDevice
     )
         where TRecord : unmanaged, Collections.IRecord<TKey>
         where TKey : unmanaged =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
+        this.CreateSet<TKey,TRecord>(LogDevice,ObjectLogDevice,new BlittableStrategy());
 }

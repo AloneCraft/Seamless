@@ -17,7 +17,9 @@
     <Compile Include="Benchmark\ListBenchmark.cs" />
     <Compile Include="Benchmark\RecordSetBenchmark.cs" />
     <Compile Include="Benchmark\ViewSetBenchmark.cs" />
+    <Compile Include="Database\Example.cs" />
     <Compile Include="Database\Database0.cs" />
+    <Compile Include="Database\SourceGeneratorExample.cs" />
     <Compile Include="Database\TPC_H.cs" />
     <Compile Include="Diagnostics\InterceptorSmokeTests.cs" />
     <Compile Include="DictionaryGuidEmptyRecoveryTests.cs" />

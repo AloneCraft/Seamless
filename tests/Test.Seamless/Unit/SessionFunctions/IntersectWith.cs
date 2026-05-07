@@ -20,7 +20,7 @@ public sealed class ManagedIntersectWith:IntersectWith<string,ManagedHashSet<str
         return (store.Create(),store);
     }
     protected override void With(ManagedHashSet<string> set,ManagedHashSet<string> other) => set.IntersectWith(other);
-    protected override void ExpectedWith(HashSet<string> set,HashSet<string> other) => set.IntersectWith(other);
+    protected override void ExpectedWith(global::System.Collections.Generic.HashSet<string> set,global::System.Collections.Generic.HashSet<string> other) => set.IntersectWith(other);
 
 #if TSAVORITE2_0BETA3
     [Fact, Trait("Category","Unit")]
@@ -67,7 +67,7 @@ public sealed class UnmanagedIntersectWith:IntersectWith<int,UnmanagedHashSet<in
         return (store.Create(),store);
     }
     protected override void With(UnmanagedHashSet<int> set,UnmanagedHashSet<int> other) => set.IntersectWith(other);
-    protected override void ExpectedWith(HashSet<int> set,HashSet<int> other) => set.IntersectWith(other);
+    protected override void ExpectedWith(global::System.Collections.Generic.HashSet<int> set,global::System.Collections.Generic.HashSet<int> other) => set.IntersectWith(other);
 
 #if TSAVORITE2_0BETA3
     [Fact, Trait("Category","Unit")]

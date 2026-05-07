@@ -56,8 +56,8 @@ public class UnmanagedHashSetStore<TKey>
         return set.GetLongCount();
     }
 
-    public UnmanagedHashSet<TKey> Create() => new(this);
-    internal UnmanagedHashSet<TKey> CreateOwned() => new(this,this);
+    public Seamless.Collections.HashSet<TKey> Create() => new(this);
+    internal Seamless.Collections.HashSet<TKey> CreateOwned() => new(this,this);
 }
 
 //public class UnmanagedUnmanagedHashSetStore<TKey>:UnmanagedHashSetStore<TKey>

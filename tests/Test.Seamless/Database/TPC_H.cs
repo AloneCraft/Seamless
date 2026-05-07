@@ -12,7 +12,7 @@ using Tsavorite.core;
 namespace Test.Seamless.Database.TPC_H {
     // DatabaseGenerator marker — Keys / Records の schema struct は namespace Keys / Records に直接宣言する。
     // source generator がボイラーコード (コンストラクター・_u/_m フィールド・MemoryPack 実装) を生成する。
-    static class DatabaseGenerator;
+    static partial class DatabaseGenerator;
 
     public sealed class Container:IDisposable {
         private readonly global::System.Collections.Generic.List<IDisposable> disposables = [];

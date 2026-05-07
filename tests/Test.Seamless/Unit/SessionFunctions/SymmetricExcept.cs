@@ -156,7 +156,7 @@ public sealed class ManagedSymmetricExceptWith:SymmetricExceptWith<string,Manage
         return (store.Create(),store);
     }
     protected override void With(ManagedHashSet<string> set,ManagedHashSet<string> other) => set.SymmetricExceptWith(other);
-    protected override void ExpectedWith(HashSet<string> set,HashSet<string> other) => set.SymmetricExceptWith(other);
+    protected override void ExpectedWith(global::System.Collections.Generic.HashSet<string> set,global::System.Collections.Generic.HashSet<string> other) => set.SymmetricExceptWith(other);
 }
 
 public sealed class UnmanagedSymmetricExceptWith:SymmetricExceptWith<int,UnmanagedHashSet<int>> {
@@ -166,5 +166,5 @@ public sealed class UnmanagedSymmetricExceptWith:SymmetricExceptWith<int,Unmanag
         return (store.Create(),store);
     }
     protected override void With(UnmanagedHashSet<int> set,UnmanagedHashSet<int> other) => set.SymmetricExceptWith(other);
-    protected override void ExpectedWith(HashSet<int> set,HashSet<int> other) => set.SymmetricExceptWith(other);
+    protected override void ExpectedWith(global::System.Collections.Generic.HashSet<int> set,global::System.Collections.Generic.HashSet<int> other) => set.SymmetricExceptWith(other);
 }

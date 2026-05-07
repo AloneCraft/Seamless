@@ -19,6 +19,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\RecordSetBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmark\ViewSetBenchmark.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Database\Database0.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Database\Example.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Database\SourceGeneratorExample.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Database\TPC_H.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DictionaryGuidEmptyRecoveryTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\System\Linq\Enumerable.cs" />

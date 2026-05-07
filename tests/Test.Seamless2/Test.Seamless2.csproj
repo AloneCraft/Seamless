@@ -60,6 +60,7 @@
     <None Remove="C:\Users\kazuh\.nuget\packages\xunit.runner.visualstudio\3.1.5\build\net8.0\xunit.runner.visualstudio.testadapter.dll" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Seamless.Common\Seamless.Common.csproj" />
     <ProjectReference Include="..\..\src\Seamless2\Seamless2.csproj" />
     <ProjectReference Include="..\..\src\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>

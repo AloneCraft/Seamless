@@ -19,5 +19,5 @@ public class UnmanagedSetStore<TKey, TRecord>:UnmanagedCollectionStore<TKey,TRec
         return set.GetLongCount();
     }
 
-    public UnmanagedSet<TKey,TRecord> Create() => new(this);
+    public Set<TKey,TRecord> Create() => new(this);
 }

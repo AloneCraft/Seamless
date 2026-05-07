@@ -54,7 +54,7 @@ public sealed class HashSetQuery2 {
         }
     }
 
-    private static HashSet<int> Source() => [1,2,3,4];
+    private static global::System.Collections.Generic.HashSet<int> Source() => [1,2,3,4];
 
     private static IHashSet<T> CreateUnmanagedSource<T>(IEnumerable<T> values)
         where T : unmanaged, IEquatable<T> {

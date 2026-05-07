@@ -9,6 +9,8 @@
 		<IsTestProject>true</IsTestProject>
 		<RootNamespace>Test.Seamless</RootNamespace>
 		<DefineConstants>$(DefineConstants);TSAVORITE1_1_1</DefineConstants>
+		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+		<CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)GeneratedFiles</CompilerGeneratedFilesOutputPath>
 		</PropertyGroup>
 		<ItemGroup>
 		  <Compile Remove="artifacts\**" />
@@ -59,6 +61,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <ProjectReference Include="..\..\Seamless.Common\Seamless.Common.csproj" />
 	  <ProjectReference Include="..\..\src\Seamless1\Seamless1.csproj" />
 	  <ProjectReference Include="..\..\src\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>

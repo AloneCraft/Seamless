@@ -9,6 +9,12 @@
 	  <DefineConstants>$(DefineConstants);TSAVORITE1_1_1</DefineConstants>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="artifacts\**" />
+    <EmbeddedResource Remove="artifacts\**" />
+    <None Remove="artifacts\**" />
+  </ItemGroup>
+
   <!--<ItemGroup>
     <Compile Remove="Device\**" />
     <Compile Remove="RelationalDatabase\**" />
@@ -44,6 +50,11 @@
   <Import Project="..\Seamless\Seamless.projitems" Label="Shared" />
   <ItemGroup>
     <Compile Remove="G:\GitHub\Seamless\Seamless\src\Seamless\Collections\ICreate.cs" />
+    <Compile Remove="..\Seamless\Attributes\OptimizeAttribute.cs" />
+    <Compile Remove="..\Seamless\Attributes\OptimizationAttribute.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Seamless.Common\Seamless.Common.csproj" />
   </ItemGroup>
 
 </Project>

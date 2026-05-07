@@ -185,10 +185,10 @@ public sealed class HashSetMethod2 {
         }
     }
 
-    internal static HashSet<int> Source() => [1,2,3,4];
-    internal static HashSet<long> LongSource() => [1L,2L,3L,4L];
-    internal static HashSet<string> StringSource() => ["a","bb","ccc"];
-    internal static HashSet<ManagedStruct> ManagedStructSource() => [new() { Name="a" },new() { Name="bb" },new() { Name="ccc" }];
+    internal static global::System.Collections.Generic.HashSet<int> Source() => [1,2,3,4];
+    internal static global::System.Collections.Generic.HashSet<long> LongSource() => [1L,2L,3L,4L];
+    internal static global::System.Collections.Generic.HashSet<string> StringSource() => ["a","bb","ccc"];
+    internal static global::System.Collections.Generic.HashSet<ManagedStruct> ManagedStructSource() => [new() { Name="a" },new() { Name="bb" },new() { Name="ccc" }];
     internal static ManagedStruct CreateManagedStruct(ManagedStruct value) => new() { Name=value.Name+"!" };
 
     private static IHashSet<T> CreateUnmanagedSource<T>(IEnumerable<T> values)
