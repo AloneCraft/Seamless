@@ -30,14 +30,11 @@
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\EnumerableMethod1.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\EnumerableQuery1.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\EnumerableMethod2.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\EnumerableQueryMethod.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\EnumerableMethodQuery.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\EnumerableQuery2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\HashSetMethod1.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\HashSetMethod2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\HashSetQuery1.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\HashSetQuery2.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\HashSetQueryMethod.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Intercept\Seamless\Linq\HashSetMethodQuery.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)StoreCheckpoint.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestPath.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestKeyComparer.cs" />

@@ -13,13 +13,9 @@ public static class EnumerableMethod2 {
     public static void Seamless_Linq_Enumerableがインライン化されることを期待する0() {
         //インライン前
         {
-            var expected = a.Select(
-                a.Where(
-                    Source,
-                    static value => value%2==0
-                ),
-                static value => value+1
-            );
+            var expected = Source
+                .Where(static value => value%2==0)
+                .Select(static value => value+1);
         }
         //インライン後0
         {
@@ -39,7 +35,7 @@ public static class EnumerableMethod2 {
     public static void Seamless_Linq_Enumerableがインライン化されることを期待する1() {
         //インライン前
         {
-            var expected = a.Select(Source,static value => value+1);
+            var expected = Source.Select(static value => value+1);
         }
         //インライン後0
         {
@@ -59,7 +55,7 @@ public static class EnumerableMethod2 {
     public static void Seamless_Linq_Enumerableがインライン化されることを期待する2() {
         //インライン前
         {
-            var expected = a.Select(a.Where(Source,static value => value==1),static value => value*10);
+            var expected = Source.Where(static value => value==1).Select(static value => value*10);
         }
         //インライン後0
         {
@@ -103,124 +99,124 @@ public static class EnumerableMethod2 {
     [Fact, Trait("Category","Intercept")]
     public static void Select_Select_ToArray() => AssertChain(
         e.Select(e.Select(Source,static value => value+1),static value => value*10),
-        a.Select(a.Select(Source,static value => value+1),static value => value*10)
+        Source.Select(static value => value+1).Select(static value => value*10)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Select_Select_index_ToArray() => AssertChain(
         e.Select(e.Select(Source,static value => value+1),static (value,index) => value+index),
-        a.Select(a.Select(Source,static value => value+1),static (value,index) => value+index)
+        Source.Select(static value => value+1).Select(static (value,index) => value+index)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Select_Where_ToArray() => AssertChain(
         e.Where(e.Select(Source,static value => value*10),static value => value>20),
-        a.Where(a.Select(Source,static value => value*10),static value => value>20)
+        Source.Select(static value => value*10).Where(static value => value>20)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Select_Where_index_ToArray() => AssertChain(
         e.Where(e.Select(Source,static value => value*10),static (value,index) => value>20&&index>0),
-        a.Where(a.Select(Source,static value => value*10),static (value,index) => value>20&&index>0)
+        Source.Select(static value => value*10).Where(static (value,index) => value>20&&index>0)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Select_index_Select_ToArray() => AssertChain(
         e.Select(e.Select(Source,static (value,index) => value+index),static value => value*10),
-        a.Select(a.Select(Source,static (value,index) => value+index),static value => value*10)
+        Source.Select(static (value,index) => value+index).Select(static value => value*10)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Select_index_Select_index_ToArray() => AssertChain(
         e.Select(e.Select(Source,static (value,index) => value+index),static (value,index) => value+index),
-        a.Select(a.Select(Source,static (value,index) => value+index),static (value,index) => value+index)
+        Source.Select(static (value,index) => value+index).Select(static (value,index) => value+index)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Select_index_Where_ToArray() => AssertChain(
         e.Where(e.Select(Source,static (value,index) => value+index),static value => value>4),
-        a.Where(a.Select(Source,static (value,index) => value+index),static value => value>4)
+        Source.Select(static (value,index) => value+index).Where(static value => value>4)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Select_index_Where_index_ToArray() => AssertChain(
         e.Where(e.Select(Source,static (value,index) => value+index),static (value,index) => value>3&&index>1),
-        a.Where(a.Select(Source,static (value,index) => value+index),static (value,index) => value>3&&index>1)
+        Source.Select(static (value,index) => value+index).Where(static (value,index) => value>3&&index>1)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Where_Select_ToArray() => AssertChain(
         e.Select(e.Where(Source,static value => value>1),static value => value*10),
-        a.Select(a.Where(Source,static value => value>1),static value => value*10)
+        Source.Where(static value => value>1).Select(static value => value*10)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Where_Select_index_ToArray() => AssertChain(
         e.Select(e.Where(Source,static value => value>1),static (value,index) => value+index),
-        a.Select(a.Where(Source,static value => value>1),static (value,index) => value+index)
+        Source.Where(static value => value>1).Select(static (value,index) => value+index)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Where_Where_ToArray() => AssertChain(
         e.Where(e.Where(Source,static value => value>1),static value => value<4),
-        a.Where(a.Where(Source,static value => value>1),static value => value<4)
+        Source.Where(static value => value>1).Where(static value => value<4)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Where_Where_index_ToArray() => AssertChain(
         e.Where(e.Where(Source,static value => value>1),static (value,index) => value<4&&index<2),
-        a.Where(a.Where(Source,static value => value>1),static (value,index) => value<4&&index<2)
+        Source.Where(static value => value>1).Where(static (value,index) => value<4&&index<2)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Where_index_Select_ToArray() => AssertChain(
         e.Select(e.Where(Source,static (value,index) => value>index),static value => value*10),
-        a.Select(a.Where(Source,static (value,index) => value>index),static value => value*10)
+        Source.Where(static (value,index) => value>index).Select(static value => value*10)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Where_index_Select_index_ToArray() => AssertChain(
         e.Select(e.Where(Source,static (value,index) => value>index),static (value,index) => value+index),
-        a.Select(a.Where(Source,static (value,index) => value>index),static (value,index) => value+index)
+        Source.Where(static (value,index) => value>index).Select(static (value,index) => value+index)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Where_index_Where_ToArray() => AssertChain(
         e.Where(e.Where(Source,static (value,index) => value>index),static value => value<4),
-        a.Where(a.Where(Source,static (value,index) => value>index),static value => value<4)
+        Source.Where(static (value,index) => value>index).Where(static value => value<4)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Where_index_Where_index_ToArray() => AssertChain(
         e.Where(e.Where(Source,static (value,index) => value>index),static (value,index) => value<4&&index<2),
-        a.Where(a.Where(Source,static (value,index) => value>index),static (value,index) => value<4&&index<2)
+        Source.Where(static (value,index) => value>index).Where(static (value,index) => value<4&&index<2)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Select_Take_Select_ToArray() => AssertChain(
         e.Select(e.Take(e.Select(Source,static value => value+1),2),static value => value*10),
-        a.Select(a.Take(a.Select(Source,static value => value+1),2),static value => value*10)
+        Source.Select(static value => value+1).Take(2).Select(static value => value*10)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Take_zero_Select_does_not_enumerate_source_ToArray() => AssertChain(
         e.Select(e.Take(ThrowingSource(),0),static value => value*10),
-        a.Select(a.Take(ThrowingSource(),0),static value => value*10)
+        ThrowingSource().Take(0).Select(static value => value*10)
     );
 
     [Fact, Trait("Category","Intercept")]
     public static void Select_Where_TypeVariants_ToArray() {
         AssertChain(
             e.Where(e.Select(LongSource,static value => value*10L),static value => value>20L),
-            a.Where(a.Select(LongSource,static value => value*10L),static value => value>20L)
+            LongSource.Select(static value => value*10L).Where(static value => value>20L)
         );
         AssertChain(
             e.Where(e.Select(StringSource,static value => value.ToUpperInvariant()),static value => value.Length>1),
-            a.Where(a.Select(StringSource,static value => value.ToUpperInvariant()),static value => value.Length>1)
+            StringSource.Select(static value => value.ToUpperInvariant()).Where(static value => value.Length>1)
         );
         AssertChain(
             e.Where(e.Select(ManagedStructSource,static value => CreateManagedStruct(value)),static value => value.Name.Length>2),
-            a.Where(a.Select(ManagedStructSource,static value => CreateManagedStruct(value)),static value => value.Name.Length>2)
+            ManagedStructSource.Select(static value => CreateManagedStruct(value)).Where(static value => value.Name.Length>2)
         );
     }
 

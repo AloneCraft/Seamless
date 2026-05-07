@@ -10,7 +10,7 @@ public static class EnumerableQuery1 {
     public static void GroupBy() {
         Assert.Equal(
             FormatGroups(SystemEnumerable.GroupBy(Rows(),static row => row.Key,static row => row.Value)),
-            FormatGroups(from row in Rows() group row.Value by row.Key)
+            FormatGroups(Rows().GroupBy(static row => row.Key,static row => row.Value))
         );
     }
 
@@ -18,7 +18,7 @@ public static class EnumerableQuery1 {
     public static void GroupJoin() {
         Assert.Equal(
             FormatGroupJoin(SystemEnumerable.GroupJoin(Source(),Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValues) => (outerValue,innerValues))),
-            FormatGroupJoin(from outerValue in Source() join innerValue in Second() on outerValue equals innerValue into innerValues select (outerValue,innerValues))
+            FormatGroupJoin(Source().GroupJoin(Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValues) => (outerValue,innerValues)))
         );
     }
 
@@ -26,7 +26,7 @@ public static class EnumerableQuery1 {
     public static void Join() {
         Assert.Equal(
             SystemEnumerable.Join(Source(),Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue),
-            from outerValue in Source() join innerValue in Second() on outerValue equals innerValue select outerValue+innerValue
+            Source().Join(Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue)
         );
     }
 
@@ -34,7 +34,7 @@ public static class EnumerableQuery1 {
     public static void OrderBy() {
         Assert.Equal(
             SystemEnumerable.OrderBy(Rows(),static row => row.Key),
-            from row in Rows() orderby row.Key select row
+            Rows().OrderBy(static row => row.Key)
         );
     }
 
@@ -42,7 +42,7 @@ public static class EnumerableQuery1 {
     public static void OrderByDescending() {
         Assert.Equal(
             SystemEnumerable.OrderByDescending(Rows(),static row => row.Key),
-            from row in Rows() orderby row.Key descending select row
+            Rows().OrderByDescending(static row => row.Key)
         );
     }
 
@@ -51,19 +51,19 @@ public static class EnumerableQuery1 {
         {
             Assert.Equal(
                 SystemEnumerable.Select(Source(),static value => value*2),
-                from value in Source() select value*2
+                Source().Select(static value => value*2)
             );
         }
         {
             Assert.Equal(
                 SystemEnumerable.Select(Source(),static value => value*2+1),
-                from value in Source() let doubled = value*2 select doubled+1
+                Source().Select(static value => value*2+1)
             );
         }
         {
             Assert.Equal(
                 SystemEnumerable.Select(SystemEnumerable.Select(Source(),static value => value*2),static selected => selected+1),
-                from value in Source() select value*2 into selected select selected+1
+                Source().Select(static value => value*2).Select(static selected => selected+1)
             );
         }
     }
@@ -72,7 +72,7 @@ public static class EnumerableQuery1 {
     public static void SelectMany() {
         Assert.Equal(
             SystemEnumerable.SelectMany(Source(),static _ => Second(),static (outerValue,innerValue) => outerValue+innerValue),
-            from outerValue in Source() from innerValue in Second() select outerValue+innerValue
+            Source().SelectMany(static _ => Second(),static (outerValue,innerValue) => outerValue+innerValue)
         );
     }
 
@@ -80,7 +80,7 @@ public static class EnumerableQuery1 {
     public static void ThenBy() {
         Assert.Equal(
             SystemEnumerable.ThenBy(SystemEnumerable.OrderBy(OrderedRows(),static row => row.Key),static row => row.Name),
-            from row in OrderedRows() orderby row.Key, row.Name select row
+            OrderedRows().OrderBy(static row => row.Key).ThenBy(static row => row.Name)
         );
     }
 
@@ -88,7 +88,7 @@ public static class EnumerableQuery1 {
     public static void ThenByDescending() {
         Assert.Equal(
             SystemEnumerable.ThenByDescending(SystemEnumerable.OrderBy(OrderedRows(),static row => row.Key),static row => row.Name),
-            from row in OrderedRows() orderby row.Key, row.Name descending select row
+            OrderedRows().OrderBy(static row => row.Key).ThenByDescending(static row => row.Name)
         );
     }
 
@@ -97,13 +97,13 @@ public static class EnumerableQuery1 {
         {
             Assert.Equal(
                 SystemEnumerable.Where(Source(),static value => value>2),
-                from value in Source() where value>2 select value
+                Source().Where(static value => value>2)
             );
         }
         {
             Assert.Equal(
                 SystemEnumerable.Where(SystemEnumerable.Select(Source(),static value => value*2),static selected => selected>4),
-                from value in Source() select value*2 into selected where selected>4 select selected
+                Source().Select(static value => value*2).Where(static selected => selected>4)
             );
         }
     }

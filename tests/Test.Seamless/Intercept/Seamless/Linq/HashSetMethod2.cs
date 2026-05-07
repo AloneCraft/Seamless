@@ -1,4 +1,5 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
+using Seamless.Linq;
 using Seamless.Stores;
 using SeamlessEnumerable = Seamless.Linq.Enumerable;
 using SeamlessHashSet = Seamless.Linq.HashSet;
@@ -14,7 +15,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Select(SystemEnumerable.Select(Source(),static value => value+1),static value => value*10),
-            SeamlessEnumerable.Select(SeamlessHashSet.Select(source,static value => value+1),static value => value*10)
+            source.Select(static value => value+1).Select(static value => value*10)
         );
     }
 
@@ -23,7 +24,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Select(SystemEnumerable.Select(Source(),static value => value+1),static (value,index) => value+index),
-            SeamlessEnumerable.Select(SeamlessHashSet.Select(source,static value => value+1),static (value,index) => value+index)
+            source.Select(static value => value+1).Select(static (value,index) => value+index)
         );
     }
 
@@ -32,7 +33,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Where(SystemEnumerable.Select(Source(),static value => value*10),static value => value>20),
-            SeamlessEnumerable.Where(SeamlessHashSet.Select(source,static value => value*10),static value => value>20)
+            source.Select(static value => value*10).Where(static value => value>20)
         );
     }
 
@@ -41,7 +42,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Where(SystemEnumerable.Select(Source(),static value => value*10),static (value,index) => value>20&&index>0),
-            SeamlessEnumerable.Where(SeamlessHashSet.Select(source,static value => value*10),static (value,index) => value>20&&index>0)
+            source.Select(static value => value*10).Where(static (value,index) => value>20&&index>0)
         );
     }
 
@@ -50,7 +51,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Select(SystemEnumerable.Select(Source(),static (value,index) => value+index),static value => value*10),
-            SeamlessEnumerable.Select(SeamlessHashSet.Select(source,static (value,index) => value+index),static value => value*10)
+            source.Select(static (value,index) => value+index).Select(static value => value*10)
         );
     }
 
@@ -59,7 +60,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Select(SystemEnumerable.Select(Source(),static (value,index) => value+index),static (value,index) => value+index),
-            SeamlessEnumerable.Select(SeamlessHashSet.Select(source,static (value,index) => value+index),static (value,index) => value+index)
+            source.Select(static (value,index) => value+index).Select(static (value,index) => value+index)
         );
     }
 
@@ -68,7 +69,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Where(SystemEnumerable.Select(Source(),static (value,index) => value+index),static value => value>4),
-            SeamlessEnumerable.Where(SeamlessHashSet.Select(source,static (value,index) => value+index),static value => value>4)
+            source.Select(static (value,index) => value+index).Where(static value => value>4)
         );
     }
 
@@ -77,7 +78,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Where(SystemEnumerable.Select(Source(),static (value,index) => value+index),static (value,index) => value>3&&index>1),
-            SeamlessEnumerable.Where(SeamlessHashSet.Select(source,static (value,index) => value+index),static (value,index) => value>3&&index>1)
+            source.Select(static (value,index) => value+index).Where(static (value,index) => value>3&&index>1)
         );
     }
 
@@ -86,7 +87,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Select(SystemEnumerable.Where(Source(),static value => value>1),static value => value*10),
-            SeamlessEnumerable.Select(SeamlessHashSet.Where(source,static value => value>1),static value => value*10)
+            source.Where(static value => value>1).Select(static value => value*10)
         );
     }
 
@@ -95,7 +96,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Select(SystemEnumerable.Where(Source(),static value => value>1),static (value,index) => value+index),
-            SeamlessEnumerable.Select(SeamlessHashSet.Where(source,static value => value>1),static (value,index) => value+index)
+            source.Where(static value => value>1).Select(static (value,index) => value+index)
         );
     }
 
@@ -104,7 +105,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Where(SystemEnumerable.Where(Source(),static value => value>1),static value => value<4),
-            SeamlessEnumerable.Where(SeamlessHashSet.Where(source,static value => value>1),static value => value<4)
+            source.Where(static value => value>1).Where(static value => value<4)
         );
     }
 
@@ -113,7 +114,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Where(SystemEnumerable.Where(Source(),static value => value>1),static (value,index) => value<4&&index<2),
-            SeamlessEnumerable.Where(SeamlessHashSet.Where(source,static value => value>1),static (value,index) => value<4&&index<2)
+            source.Where(static value => value>1).Where(static (value,index) => value<4&&index<2)
         );
     }
 
@@ -122,7 +123,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Select(SystemEnumerable.Where(Source(),static (value,index) => value>index),static value => value*10),
-            SeamlessEnumerable.Select(SeamlessHashSet.Where(source,static (value,index) => value>index),static value => value*10)
+            source.Where(static (value,index) => value>index).Select(static value => value*10)
         );
     }
 
@@ -131,7 +132,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Select(SystemEnumerable.Where(Source(),static (value,index) => value>index),static (value,index) => value+index),
-            SeamlessEnumerable.Select(SeamlessHashSet.Where(source,static (value,index) => value>index),static (value,index) => value+index)
+            source.Where(static (value,index) => value>index).Select(static (value,index) => value+index)
         );
     }
 
@@ -140,7 +141,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Where(SystemEnumerable.Where(Source(),static (value,index) => value>index),static value => value<4),
-            SeamlessEnumerable.Where(SeamlessHashSet.Where(source,static (value,index) => value>index),static value => value<4)
+            source.Where(static (value,index) => value>index).Where(static value => value<4)
         );
     }
 
@@ -149,7 +150,7 @@ public sealed class HashSetMethod2 {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
             SystemEnumerable.Where(SystemEnumerable.Where(Source(),static (value,index) => value>index),static (value,index) => value<4&&index<2),
-            SeamlessEnumerable.Where(SeamlessHashSet.Where(source,static (value,index) => value>index),static (value,index) => value<4&&index<2)
+            source.Where(static (value,index) => value>index).Where(static (value,index) => value<4&&index<2)
         );
     }
 
@@ -161,15 +162,15 @@ public sealed class HashSetMethod2 {
 
         AssertChain(
             SystemEnumerable.Where(SystemEnumerable.Select(LongSource(),static value => value*10L),static value => value>20L),
-            SeamlessEnumerable.Where(SeamlessHashSet.Select(longSource,static value => value*10L),static value => value>20L)
+            longSource.Select(static value => value*10L).Where(static value => value>20L)
         );
         AssertChain(
             SystemEnumerable.Where(SystemEnumerable.Select(StringSource(),static value => value.ToUpperInvariant()),static value => value.Length>1),
-            SeamlessEnumerable.Where(SeamlessHashSet.Select(stringSource,static value => value.ToUpperInvariant()),static value => value.Length>1)
+            stringSource.Select(static value => value.ToUpperInvariant()).Where(static value => value.Length>1)
         );
         AssertChain(
             SystemEnumerable.Where(SystemEnumerable.Select(ManagedStructSource(),static value => CreateManagedStruct(value)),static value => value.Name.Length>2),
-            SeamlessEnumerable.Where(SeamlessHashSet.Select(managedStructSource,static value => CreateManagedStruct(value)),static value => value.Name.Length>2)
+            managedStructSource.Select(static value => CreateManagedStruct(value)).Where(static value => value.Name.Length>2)
         );
     }
 
