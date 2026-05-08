@@ -171,7 +171,17 @@ public static partial class HashSet {
     ///   <paramref name="source" /> contains no elements.</exception>
     /// <returns>The average of the sequence of values.</returns>
     public static double Average(this IHashSet<double> source) {
-        return Enumerable.Average(source);
+        var sum=0D;
+        var count=0L;
+        foreach(var item in (IEnumerable<double>)source){
+            sum+=item;
+            checked {
+                count++;
+            }
+        }
+        if(count==0)
+            throw Enumerable.NoElements();
+        return sum/count;
     }
 
     /// <summary>Computes the average of a sequence of <see cref="T:System.Int32" /> values.</summary>

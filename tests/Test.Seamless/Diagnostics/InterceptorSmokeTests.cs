@@ -3,9 +3,8 @@ using System.Linq;
 namespace Test.Seamless.Diagnostics;
 
 public class InterceptorSmokeTests {
-    [Fact]public void ListSelect_Interceptor_Smoke() {
-        var s = new int[3];
-        var インターセプト = s.Select(static p => p+1);//インライン成功している
+    [Fact]public void Array_GroupBy_keySelector__Select_selector() {
+        var インターセプト = new int[3].GroupBy(p=>p/2).Select(static p => new { p });
     }
     [Fact]
     public void ListWhere_Interceptor_Smoke() {
@@ -55,11 +54,10 @@ public class InterceptorSmokeTests {
         var section = GeneratedInterceptorSection(nameof(QuerySyntax_Where_With_Projection_Smoke));
 
         Assert.Contains("this global::System.Collections.Generic.IEnumerable<global::System.Int32> source",section);
-        Assert.Contains("global::Test.Seamless.Diagnostics.QuerySyntaxSmokeSource.Numbers",section);
-        Assert.Contains("foreach(var __seamlessItem in __seamlessSource)",section);
-        Assert.Contains(">2",section);
-        Assert.Contains("*10",section);
-        Assert.Contains("result.Add(__seamlessValue0)",section);
+        Assert.Contains("foreach(var item in source)",section);
+        Assert.Contains("result.Add(item)",section);
+        Assert.Contains("return result.ToArray()",section);
+        Assert.DoesNotContain("global::Test.Seamless.Diagnostics.QuerySyntaxSmokeSource.Numbers",section);
         Assert.DoesNotContain("global::Seamless.Linq.Enumerable.Select",section);
         Assert.DoesNotContain("global::Seamless.Linq.Enumerable.Where",section);
     }

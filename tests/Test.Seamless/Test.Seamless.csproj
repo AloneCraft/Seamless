@@ -49,6 +49,7 @@
     <Compile Include="Stores\KindDictionarySize.cs" />
     <Compile Include="Tsavorite\IterateLookupChunkTests.cs" />
     <Compile Include="Tsavorite\NativeLightEpochInstanceLimitTests.cs" />
+    <Compile Include="Unit\Linq\EnumerableIntercept.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="CheckpointRecoveryTests.cs" />
