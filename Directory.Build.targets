@@ -1,10 +1,2 @@
 <Project>
-  <Target Name="AddSeamlessSourceGeneratorStaticSources" BeforeTargets="CoreCompile">
-    <ItemGroup>
-      <_SeamlessSourceGeneratorAnalyzerReference Include="@(ProjectReference)" Condition="'%(ProjectReference.OutputItemType)' == 'Analyzer' and $([System.String]::Copy('%(ProjectReference.Identity)').Replace('/','\').EndsWith('Seamless.SourceGenerator\Seamless.SourceGenerator.csproj'))" />
-    </ItemGroup>
-    <ItemGroup Condition="'@(_SeamlessSourceGeneratorAnalyzerReference)' != ''">
-      <Compile Include="$(MSBuildThisFileDirectory)src\Seamless.SourceGenerator\StaticSources\ListWhereQueryExtensions.cs" Link="Seamless.SourceGenerator.Generated\ListWhereQueryExtensions.cs" />
-    </ItemGroup>
-  </Target>
 </Project>

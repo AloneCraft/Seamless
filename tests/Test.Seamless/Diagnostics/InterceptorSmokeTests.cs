@@ -33,7 +33,7 @@ public class InterceptorSmokeTests {
 
         var filteredTypeName = filtered.GetType().FullName;
         Assert.NotNull(filteredTypeName);
-        Assert.Contains("OptimizedListWhereEnumerable",filteredTypeName!);
+        Assert.Contains("OptimizedWhereEnumerable",filteredTypeName!);
         Assert.Equal(new[] { 3,4,5 },filtered.ToArray());
     }
 

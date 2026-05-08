@@ -10,6 +10,7 @@
     <RootNamespace>Test.Seamless</RootNamespace>
     <DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="artifacts\**" />

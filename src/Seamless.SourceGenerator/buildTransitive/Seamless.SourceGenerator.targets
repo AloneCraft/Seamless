@@ -1,5 +1,2 @@
 <Project>
-  <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)StaticSources\ListWhereQueryExtensions.cs" Link="Seamless.SourceGenerator.Generated\ListWhereQueryExtensions.cs" />
-  </ItemGroup>
 </Project>
