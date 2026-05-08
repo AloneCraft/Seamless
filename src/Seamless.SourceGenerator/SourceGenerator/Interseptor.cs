@@ -567,67 +567,9 @@ namespace Seamless.SourceGenerator.Generated {
         return builder.ToString();
     }
 
-    // Enumerable.Where 呼び出しのうち、List<T> 最適化に落とせるものだけを抽出する。
+    // List<T>.Where も LINQ invocation interceptor 側で Select と同じインライン経路に乗せる。
     private static Where傍受対象型? Where傍受対象生成(GeneratorSyntaxContext context,System.Threading.CancellationToken cancellationToken) {
-        if(context.Node is not InvocationExpressionSyntax invocation) {
-            return null;
-        }
-        if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess) {
-            return null;
-        }
-        var interceptableLocation = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptableLocation(context.SemanticModel,invocation,cancellationToken);
-        if(interceptableLocation is null) {
-            return null;
-        }
-        if(context.SemanticModel.GetSymbolInfo(invocation,cancellationToken).Symbol is not IMethodSymbol method) {
-            return null;
-        }
-        if(!包含メソッド取得試行(invocation,context.SemanticModel,cancellationToken,out var containingMethod)) {
-            return null;
-        }
-        if(最適化モード解決(containingMethod)==最適化モード種別.Disabled) {
-            return null;
-        }
-        if(method.Name!="Where"||!method.IsExtensionMethod) {
-            return null;
-        }
-        var reducedMethod = method.ReducedFrom??method;
-        if(reducedMethod.ContainingType.ToDisplayString()!="System.Linq.Enumerable") {
-            return null;
-        }
-        if(!Where述語情報取得試行(reducedMethod,out var usesIndex)) {
-            return null;
-        }
-        if(!Where呼び出し情報取得試行(invocation,memberAccess,method,out var sourceExpression,out var predicateExpression)) {
-            return null;
-        }
-        if(!List要素型取得試行(context.SemanticModel.GetTypeInfo(sourceExpression,cancellationToken).Type,out var elementType)) {
-            return null;
-        }
-        if(!述語情報取得試行(context.SemanticModel,predicateExpression,cancellationToken,usesIndex,out var elementParameterName,out var indexParameterName,out var predicateText,out var usePredicateDelegate)) {
-            return null;
-        }
-        var span = memberAccess.Name.GetLocation().GetLineSpan();
-        var line = span.StartLinePosition.Line+1;
-        var character = span.StartLinePosition.Character+1;
-        var id = SanitizeIdentifier($"{ファイルパス識別子構築(span.Path)}_{line}_{character}");
-        var interceptsLocationAttributeText = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptsLocationAttributeSyntax(interceptableLocation);
-        if(string.IsNullOrWhiteSpace(interceptsLocationAttributeText)) {
-            return null;
-        }
-        return new Where傍受対象型(
-            id,
-            span.Path,
-            line,
-            character,
-            メソッドCref構築(containingMethod),
-            interceptsLocationAttributeText,
-            elementType.ToDisplayString(完全修飾形式),
-            usesIndex,
-            elementParameterName,
-            indexParameterName,
-            predicateText,
-            usePredicateDelegate);
+        return null;
     }
 
     // container method 呼び出しを optimized static interceptor へ差し替える。
@@ -729,9 +671,6 @@ namespace Seamless.SourceGenerator.Generated {
             ||式内エラー型含有判定(invocation,context.SemanticModel,cancellationToken)) {
             return null;
         }
-        if(ListWhere傍受候補判定(invocation,method,context.SemanticModel,cancellationToken)) {
-            return null;
-        }
         var 祖先フラグ = LINQ呼び出し祖先判定(invocation,context.SemanticModel,cancellationToken);
         var translatedBody = LINQ呼び出し上位具体展開NoOpボディ翻訳試行(invocation,method,context.SemanticModel,cancellationToken);
         if(translatedBody is null) {
@@ -760,7 +699,7 @@ namespace Seamless.SourceGenerator.Generated {
         if(最適化モード==最適化モード種別.LoopStrategy&&staticLambdaStrategy is null) {
             return null;
         }
-        var useConcreteSignature = staticLambdaStrategy is not null;
+        var useConcreteSignature = staticLambdaStrategy is not null||translatedBody.Value.RequiresConcreteSignature;
         if(!(useConcreteSignature
                 ? LINQ呼び出し具体的パラメーターリスト構築試行(invocation,method,out var parameterList)
                 : LINQ呼び出しパラメーターリスト構築試行(invocation,method,context.SemanticModel,out parameterList))) {
@@ -803,6 +742,16 @@ namespace Seamless.SourceGenerator.Generated {
     /// // 不可の場合          → Seamless.Linq.Enumerable.Select(source, selector) のコールスルー式
     /// </code></example>
     private static 翻訳メソッドボディ型? LINQ呼び出しボディ翻訳試行(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel,bool LINQ呼び出し祖先判定) {
+        var querySyntaxBody = QuerySyntaxMaterializationBody翻訳試行(method,invocation,semanticModel);
+        if(querySyntaxBody is not null) {
+            return querySyntaxBody;
+        }
+
+        var terminalMaterializationBody = LINQ呼び出し終端実体化ボディ翻訳試行(method,invocation,semanticModel);
+        if(terminalMaterializationBody is not null) {
+            return terminalMaterializationBody;
+        }
+
         var concreteSequenceBody = LINQ呼び出し具体シーケンス展開ボディ翻訳試行(method,invocation,semanticModel,LINQ呼び出し祖先判定);
         if(concreteSequenceBody is not null) {
             return concreteSequenceBody;
@@ -811,6 +760,11 @@ namespace Seamless.SourceGenerator.Generated {
         var fusionBody = LINQ呼び出し融合ボディ翻訳試行(method,invocation,semanticModel,LINQ呼び出し祖先判定);
         if(fusionBody is not null) {
             return fusionBody;
+        }
+
+        var singleWhereBody = LINQ呼び出し単独Where展開ボディ翻訳試行(method);
+        if(singleWhereBody is not null) {
+            return new 翻訳メソッドボディ型(singleWhereBody,false,true);
         }
 
         var inlineBody = LINQ呼び出しインラインボディ翻訳試行(method);
@@ -822,6 +776,108 @@ namespace Seamless.SourceGenerator.Generated {
         return callThroughExpression is null
             ? null
             : new 翻訳メソッドボディ型(callThroughExpression,true);
+    }
+
+    private static 翻訳メソッドボディ型? QuerySyntaxMaterializationBody翻訳試行(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+        if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess) {
+            return null;
+        }
+        var methodName = memberAccess.Name is GenericNameSyntax genericName
+            ? genericName.Identifier.ValueText
+            : memberAccess.Name.Identifier.ValueText;
+        if(methodName!="ToArray"&&methodName!="ToList") {
+            return null;
+        }
+        if(!LINQ呼び出し具体的インターセプター使用可能判定(method)) {
+            return null;
+        }
+        var receiver = RemoveParentheses(memberAccess.Expression);
+        if(receiver is not QueryExpressionSyntax query) {
+            return null;
+        }
+        if(ローカルまたはパラメーター参照含有判定(query,semanticModel)) {
+            return null;
+        }
+        if(!TryLowerQueryExpressionToInvocation(query,semanticModel,out var loweredInvocation)) {
+            return null;
+        }
+        var optimized = OptimizeVisitor.Optimize(loweredInvocation);
+        if(optimized is not InvocationExpressionSyntax optimizedInvocation) {
+            return null;
+        }
+        if(!TryCreateSequenceMaterializationPipelineWithoutSemantic(optimizedInvocation,out var pipeline)) {
+            return null;
+        }
+        if(!TryGetEnumerableElementType(method.ReturnType,out var resultElementType)) {
+            return null;
+        }
+
+        var emitter = new ConcreteSequenceMaterializationEmitter(pipeline,生成型名構築(resultElementType),"result",pipeline.SourceExpression);
+        var body = methodName=="ToArray"
+            ? emitter.BuildReturnArrayBody()
+            : emitter.BuildReturnBody();
+        return new 翻訳メソッドボディ型(body,false,true);
+    }
+
+    private static 翻訳メソッドボディ型? LINQ呼び出し終端実体化ボディ翻訳試行(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+        if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess) {
+            return null;
+        }
+        var methodName = memberAccess.Name is GenericNameSyntax genericName
+            ? genericName.Identifier.ValueText
+            : memberAccess.Name.Identifier.ValueText;
+        if(methodName!="ToArray"&&methodName!="ToList") {
+            return null;
+        }
+        if(!LINQ呼び出し具体的インターセプター使用可能判定(method)) {
+            return null;
+        }
+        if(RemoveParentheses(memberAccess.Expression) is not InvocationExpressionSyntax sourceInvocation) {
+            return null;
+        }
+        if(ローカルまたはパラメーター参照含有判定(sourceInvocation,semanticModel)) {
+            return null;
+        }
+        if(!TryCreateSequenceMaterializationPipeline(sourceInvocation,semanticModel,out var pipeline,out var resultElementType)) {
+            return null;
+        }
+
+        var emitter = new ConcreteSequenceMaterializationEmitter(pipeline,生成型名構築(resultElementType),"result",pipeline.SourceExpression);
+        var body = methodName=="ToArray"
+            ? emitter.BuildReturnArrayBody()
+            : emitter.BuildReturnBody();
+        return new 翻訳メソッドボディ型(body,false,true);
+    }
+
+    private static bool ローカルまたはパラメーター参照含有判定(SyntaxNode node,SemanticModel semanticModel) {
+        foreach(var identifier in node.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>()) {
+            var symbol = semanticModel.GetSymbolInfo(identifier).Symbol;
+            if(symbol is ILocalSymbol or IParameterSymbol) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool TryCreateSequenceMaterializationPipelineWithoutSemantic(InvocationExpressionSyntax invocation,out ScalarFusionPipeline pipeline) {
+        pipeline=null!;
+        var reversedOperations = new List<ScalarFusionOperation>();
+        var currentInvocation = invocation;
+        while(true) {
+            if(!TryGetScalarFusionCallInfo(currentInvocation,out var call)||!TryCreateSequenceMaterializationOperation(call,out var operation)) {
+                return false;
+            }
+            reversedOperations.Add(operation);
+            var source = RemoveParentheses(call.Source);
+            if(source is InvocationExpressionSyntax sourceInvocation&&IsSequenceMaterializationOperationName(GetInvocationMethodName(sourceInvocation))) {
+                currentInvocation=sourceInvocation;
+                continue;
+            }
+
+            reversedOperations.Reverse();
+            pipeline=new ScalarFusionPipeline(入れ子式翻訳(source),reversedOperations);
+            return pipeline.Operations.Count>0;
+        }
     }
 
     private static 翻訳メソッドボディ型? LINQ呼び出し具体シーケンス展開ボディ翻訳試行(IMethodSymbol method,InvocationExpressionSyntax invocation,SemanticModel semanticModel,bool LINQ呼び出し祖先判定) {
@@ -846,7 +902,7 @@ namespace Seamless.SourceGenerator.Generated {
 
         var sourceParameterName = LINQ呼び出し定義取得(method).Parameters[0].Name;
         var body = new ConcreteSequenceMaterializationEmitter(pipeline,生成型名構築(resultElementType),"result",sourceParameterName).BuildReturnBody();
-        return new 翻訳メソッドボディ型(body,false);
+        return new 翻訳メソッドボディ型(body,false,true);
     }
 
     private static bool LINQ呼び出し具体シーケンス展開可能判定(InvocationExpressionSyntax invocation,ScalarFusionPipeline pipeline,SemanticModel semanticModel) {
@@ -999,6 +1055,27 @@ namespace Seamless.SourceGenerator.Generated {
         return fusionSource.Where(predicate);
     }
     return {{targetType}}.Where<TSource>(source,predicate);
+}
+""";
+    }
+
+    private static string? LINQ呼び出し単独Where展開ボディ翻訳試行(IMethodSymbol method) {
+        var definition = LINQ呼び出し定義取得(method);
+        if(!非インデックスWhereメソッド判定(definition)||method.TypeArguments.Length<1) {
+            return null;
+        }
+        var sourceElementTypeName = 生成型名構築(method.TypeArguments[0]);
+        return $$"""
+{
+    if(source is null) { throw new global::System.ArgumentNullException(nameof(source)); }
+    if(predicate is null) { throw new global::System.ArgumentNullException(nameof(predicate)); }
+    var result = new global::System.Collections.Generic.List<{{sourceElementTypeName}}>();
+    foreach(var item in source) {
+        if(predicate(item)) {
+            result.Add(item);
+        }
+    }
+    return result;
 }
 """;
     }
@@ -2562,13 +2639,15 @@ namespace Seamless.SourceGenerator.Generated {
     }
 
     private readonly struct 翻訳メソッドボディ型 {
-        public 翻訳メソッドボディ型(string body,bool isExpressionBody) {
+        public 翻訳メソッドボディ型(string body,bool isExpressionBody,bool requiresConcreteSignature = false) {
             Body=body;
             IsExpressionBody=isExpressionBody;
+            RequiresConcreteSignature=requiresConcreteSignature;
         }
 
         public string Body { get; }
         public bool IsExpressionBody { get; }
+        public bool RequiresConcreteSignature { get; }
     }
 
     private static string 型パラメーター一覧構築(ImmutableArray<ITypeParameterSymbol> typeParameters) {
@@ -3669,6 +3748,16 @@ namespace Seamless.SourceGenerator.Generated {
             this.indent++;
             this.EmitMaterialization();
             this.Add($"return {this.resultName};");
+            this.indent--;
+            this.Add("}");
+            return string.Join("\n",this.lines);
+        }
+
+        public string BuildReturnArrayBody() {
+            this.Add("{");
+            this.indent++;
+            this.EmitMaterialization();
+            this.Add($"return {this.resultName}.ToArray();");
             this.indent--;
             this.Add("}");
             return string.Join("\n",this.lines);
