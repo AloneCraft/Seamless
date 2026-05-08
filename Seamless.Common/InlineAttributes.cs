@@ -29,65 +29,131 @@ namespace Seamless.Common
     /// }
     /// {#selector#}はstructメソッドを表す。例えばWhereのラムダ式はSelectのラムダ式になるからSelectのコードにWhereのラムダ式を置換する。
     /// CollectionAttribute(コレクション関数)の文字列仕様:
-    /// 前のチェインメソッドのループ先頭を利用するなら
-    /// ループ前処理→前のチェインメソッドループ先頭→ループ内部先頭→次のメソッドに渡す→ループ内部末尾→前のチェインメソッド"}"→return文
-    /// 前がチェインメソッドでなかったら
-    /// ループ前処理→ループ内部先頭→ループ内部Add→ループ内部末尾→前のチェインメソッド"}"→return文
+    /// ループ文には foreach(...) / while(...) など、ループ開始文そのものを書く。
+    /// ループ前処理→ループ文→ループ内部先頭→ループ内部Add→ループ内部末尾→評価式 の順で組み立てる。
+    /// 出力要素式は、後続のチェインメソッドへ渡す1要素分の式を表す。
     /// AggregateAttribute(集約関数)の文字列仕様:
+    /// 集約関数はスカラ値を返す。前のチェインメソッドから受け取るループ変数はinput$にする。
     /// 前のチェインメソッドのループ先頭を利用するなら
-    /// ループ前処理→前のチェインメソッドループ先頭→ループ内部→前のチェインメソッド"}"→return文
+    /// ループ前処理→前のチェインメソッドループ先頭(input$)→ループ内部→前のチェインメソッド"}"→return文
     /// 前がチェインメソッドでなかったら
-    /// ループ前処理→ループ先頭→ループ内部→"}"→return文
+    /// ループ前処理→ループ先頭(input$)→ループ内部→"}"→return文
+    /// ifが1ステートメントなら{}を付けず同じ行に書く。forが1ステートメントなら{}を付けず次行にインデントして書く。
     /// </summary>
+    public enum CollectionLoopKind {
+        Single,
+        Sequential,
+        LockStep,
+        Nested,
+        BuildLookupThenProbe
+    }
+    public enum CollectionStopMode {
+        None,
+        Shortest,
+        ExhaustFirstThenSecond,
+        AllMatches
+    }
     [AttributeUsage(AttributeTargets.Method)]
-    public sealed class CollectionAttribute : Attribute
-    {
-        public readonly string Enumerableを返す場合の初期化処理;
-        public readonly string ループ前処理;
-        public readonly string ループ先頭;
-        public readonly string ループ内部先頭;
-        public readonly string ループ内部Add;
-        public readonly string ループ内部末尾;
-
+    public sealed class CollectionAttribute : Attribute {
+        public readonly string 初期化;
+        public readonly string ループ前処理0;
+        public readonly string ループ文0;
+        public readonly string ループ内部先頭0;
+        public readonly string ループ内部Add0;
+        public readonly string ループ内部末尾0;
+        public readonly string ループ前処理1;
+        public readonly string ループ文1;
+        public readonly string ループ内部先頭1;
+        public readonly string ループ内部Add1;
+        public readonly string ループ内部末尾1;
+        public readonly string ループ前処理2;
+        public readonly string ループ文2;
+        public readonly string ループ内部先頭2;
+        public readonly string ループ内部Add2;
+        public readonly string ループ内部末尾2;
+        public readonly string 出力要素式;
         public readonly string 評価式;
-        public readonly string Return文;
+        public CollectionLoopKind LoopKind { get; set; }=CollectionLoopKind.Single;
+        public string[] Sources { get; set; }=Array.Empty<string>();
+        public string[] EnumeratorNames { get; set; }=Array.Empty<string>();
+        public string[] CurrentNames { get; set; }=Array.Empty<string>();
+        public string MoveNextCondition { get; set; }="";
+        public string Build { get; set; }="";
+        public string Emit { get; set; }="";
+        public string EmitValue { get; set; }="";
+        public CollectionStopMode StopMode { get; set; }=CollectionStopMode.None;
         public CollectionAttribute(
-            string  Enumerableを返す場合の初期化処理,string ループ前処理,string ループ先頭,string ループ内部先頭,string ループ内部Add,string ループ内部末尾,string 評価式,string return文
-        )
-        {
-            this.Enumerableを返す場合の初期化処理=Enumerableを返す場合の初期化処理;
-            this.ループ前処理  =ループ前処理;
-            this.ループ先頭    =ループ先頭;
-            this.ループ内部先頭=ループ内部先頭;
-            this.ループ内部Add =ループ内部Add;
-            this.ループ内部末尾=ループ内部末尾;
+            string 初期化,
+            string ループ前処理0,
+            string ループ文0,
+            string ループ内部先頭0,
+            string ループ内部Add0,
+            string ループ内部末尾0,
+            string ループ前処理1,
+            string ループ文1,
+            string ループ内部先頭1,
+            string ループ内部Add1,
+            string ループ内部末尾1,
+            string ループ前処理2,
+            string ループ文2,
+            string ループ内部先頭2,
+            string ループ内部Add2,
+            string ループ内部末尾2,
+            string 出力要素式,
+            string 評価式
+        ) {
+            this.初期化=初期化;
+            this.ループ前処理0=ループ前処理0;
+            this.ループ文0=ループ文0;
+            this.ループ内部先頭0=ループ内部先頭0;
+            this.ループ内部Add0=ループ内部Add0;
+            this.ループ内部末尾0=ループ内部末尾0;
+            this.ループ前処理1=ループ前処理1;
+            this.ループ文1=ループ文1;
+            this.ループ内部先頭1=ループ内部先頭1;
+            this.ループ内部Add1=ループ内部Add1;
+            this.ループ内部末尾1=ループ内部末尾1;
+            this.ループ前処理2=ループ前処理2;
+            this.ループ文2=ループ文2;
+            this.ループ内部先頭2=ループ内部先頭2;
+            this.ループ内部Add2=ループ内部Add2;
+            this.ループ内部末尾2=ループ内部末尾2;
+            this.出力要素式=出力要素式;
             this.評価式=評価式;
-            this.Return文      =return文;
+        }
+        public CollectionAttribute(
+            string  初期化,
+            string ループ前処理,
+            string ループ文,
+            string ループ内部先頭,
+            string ループ内部Add,
+            string ループ内部末尾,
+            string 出力要素式,
+            string 評価式
+        ) : this(初期化,ループ前処理,ループ文,ループ内部先頭,ループ内部Add,ループ内部末尾,"","","","","","","","","","",出力要素式,評価式){
         }
 
         public CollectionAttribute(
-            string Enumerableを返す場合の初期化処理,string ループ前処理,string ループ先頭,string ループ内部先頭,string return文
-        ) : this(Enumerableを返す場合の初期化処理,ループ前処理,ループ先頭,ループ内部先頭,"","","",return文)
+            string 初期化,string ループ前処理0,string ループ文0,string ループ内部先頭0,string 評価式
+        ) : this(初期化,ループ前処理0,ループ文0,ループ内部先頭0,"","","",評価式)
         {
         }
     }
     [AttributeUsage(AttributeTargets.Method)]
     public sealed class AggregateAttribute : Attribute{
-        public readonly string ループ前処理;
-        public readonly string ループ先頭;
-        public readonly string ループ内部;
+        public readonly string 初期化;
+        public readonly string foreach前処理;
+        public readonly string foreach文;
+        public readonly string foreach内部;
         public readonly string 評価式;
-        public AggregateAttribute(string ループ前処理,string ループ先頭,string ループ内部,string 評価式){
-            this.ループ前処理               =ループ前処理;
-            this.ループ先頭                =ループ先頭;
-            this.ループ内部              =ループ内部;
-            this.評価式              =評価式;
+        public AggregateAttribute(string foreach前処理,string foreach文,string foreach内部,string 評価式):this("",foreach前処理,foreach文,foreach内部,評価式){
         }
-        public AggregateAttribute(string 未使用,string ループ前処理,string ループ先頭,string ループ内部,string 評価式){
-            this.ループ前処理=ループ前処理;
-            this.ループ先頭=ループ先頭;
-            this.ループ内部=ループ内部;
-            this.評価式=評価式;
+        public AggregateAttribute(string 初期化,string foreach前処理,string foreach文,string foreach内部,string 評価式){
+            this.初期化       =初期化;
+            this.foreach前処理=foreach前処理;
+            this.foreach文  =foreach文;
+            this.foreach内部 =foreach内部;
+            this.評価式       =評価式;
         }
     }
     /// <summary>

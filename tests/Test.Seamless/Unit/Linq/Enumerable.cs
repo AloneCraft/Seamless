@@ -59,7 +59,19 @@ public sealed class Enumerable {
         AssertSameValue(() => SystemEnumerable.Average(ints),                                   () => SeamlessEnumerable.Average(ints));
         AssertSameValue(() => SystemEnumerable.Average(longs),                                  () => SeamlessEnumerable.Average(longs));
         AssertSameValue(() => SystemEnumerable.Average(floats),                                 () => SeamlessEnumerable.Average(floats));
-        AssertSameValue(() => SystemEnumerable.Average(doubles),                                () => SeamlessEnumerable.Average(doubles));
+        AssertSameValue(() => SystemEnumerable.Average(doubles),                                () =>{
+            var sum=0D;
+            var count=0L;
+            foreach(var item in doubles){
+                sum+=item;
+                checked {
+                    count++;
+                }
+            }
+            if(count==0)
+                throw SeamlessEnumerable.NoElements();
+            return sum/count;
+        });
         AssertSameValue(() => SystemEnumerable.Average(decimals),                               () =>{
             var sum=0m;
             var count=0L;
@@ -75,7 +87,19 @@ public sealed class Enumerable {
         });
         AssertSameValue(() => SystemEnumerable.Average(new int?[] { 1,null,2,2 }),              () => SeamlessEnumerable.Average(new int?[] { 1,null,2,2 }));
         AssertSameValue(() => SystemEnumerable.Average(new long?[] { 1L,null,4L,4L }),          () => SeamlessEnumerable.Average(new long?[] { 1L,null,4L,4L }));
-        AssertSameValue(() => SystemEnumerable.Average(new float?[] { 1.5f,null,2.5f,2.5f }),   () => SeamlessEnumerable.Average(new float?[] { 1.5f,null,2.5f,2.5f }));
+        AssertSameValue(() => SystemEnumerable.Average(new float?[] { 1.5f,null,2.5f,2.5f }),   () =>{
+            var sum=0D;
+            var count=0L;
+            foreach(var item in new float?[] { 1.5f,null,2.5f,2.5f }){
+                if(item.HasValue){
+                    sum+=item.GetValueOrDefault();
+                    checked {
+                        count++;
+                    }
+                }
+            }
+            return count==0?null:(float)(sum/count);
+        });
         AssertSameValue(() => SystemEnumerable.Average(new double?[] { 1.5d,null,2.5d,2.5d }),  () => SeamlessEnumerable.Average(new double?[] { 1.5d,null,2.5d,2.5d }));
         AssertSameValue(() => SystemEnumerable.Average(new decimal?[] { 1.5m,null,2.5m,2.5m }), () => SeamlessEnumerable.Average(new decimal?[] { 1.5m,null,2.5m,2.5m }));
         AssertSameValue(() => SystemEnumerable.Average(rows,static row => row.Amount),          () => SeamlessEnumerable.Average(rows,static row => row.Amount));
@@ -328,9 +352,13 @@ public sealed class Enumerable {
     public void Max() {
         var rows = RowsWithDuplicates();
         AssertNumericMax(rows);
-        AssertSameValue(() => SystemEnumerable.Max(DuplicateNumbers()),() => SeamlessEnumerable.Max(DuplicateNumbers()));
-        AssertSameValue(() => SystemEnumerable.Max(DuplicateNumbers(),Comparer<int>.Default),() => SeamlessEnumerable.Max(DuplicateNumbers(),Comparer<int>.Default));
-        AssertSameValue(() => SystemEnumerable.Max(rows,static row => row.Note),() => SeamlessEnumerable.Max(rows,static row => row.Note));
+        AssertSameValue(() => SystemEnumerable.Max(DuplicateNumbers()),                       () => SeamlessEnumerable.Max(DuplicateNumbers()));
+        AssertSameValue<int>(() => SystemEnumerable.Max(DuplicateNumbers(),Comparer<int>.Default),() =>{
+            IEnumerable<int> source=DuplicateNumbers();
+            IComparer<int>? comparer1=Comparer<int>.Default;
+            return SeamlessEnumerable.Max(source,comparer1);
+        });
+        AssertSameValue(() => SystemEnumerable.Max(rows,              static row => row.Note),() => SeamlessEnumerable.Max(rows,static row => row.Note));
     }
 
     [Fact, Trait("Category","Unit")]
@@ -846,3 +874,6 @@ public sealed class Enumerable {
         public int Compare(int left,int right) => right.CompareTo(left);
     }
 }
+
+
+
