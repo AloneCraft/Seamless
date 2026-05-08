@@ -16,6 +16,21 @@ namespace Test.Seamless.Database.Database0 {
             public static int selector0(int p) => p+1;
         }
         [Fact, Trait("Category","Unit")]
+        public void Select0() {
+            var s = new int[3];
+            var インターセプト前 = s.Select(static p => p+1);//インライン成功している
+            var インターセプト後 = 置き換え先メソッド();
+            static List<int> 置き換え先メソッド() {
+                var result0 = new List<int>();
+                foreach(var item0 in new int[3]) {
+                    var selectorItem0 = StructSelect.selector0(item0);
+                    result0.Add(selectorItem0);
+                }
+                return result0;
+            }
+            Assert.Equal(インターセプト後,インターセプト前);
+        }
+        [Fact, Trait("Category","Unit")]
         public void Select() {
             var インターセプト前 = new int[3].Select(static p => p+1);//インライン成功している
             var インターセプト後 = 置き換え先メソッド();

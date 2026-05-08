@@ -3,6 +3,10 @@ using System.Linq;
 namespace Test.Seamless.Diagnostics;
 
 public class InterceptorSmokeTests {
+    [Fact]public void ListSelect_Interceptor_Smoke() {
+        var s = new int[3];
+        var インターセプト = s.Select(static p => p+1);//インライン成功している
+    }
     [Fact]
     public void ListWhere_Interceptor_Smoke() {
         var numbers = new List<int> { 1,2,3,4,5 };
@@ -26,26 +30,38 @@ public class InterceptorSmokeTests {
     [Fact]
     public void QuerySyntax_Where_Helper_Smoke() {
         var numbers = new List<int> { 1,2,3,4,5 };
+        var f0 = new List<int> { 1,2,3,4,5 }.Where(value => value>2).Select(value => value).ToArray();
+        var f1 = numbers.Where(value => value>2).Select(value => value).ToArray();
+        //var filtered = from value in numbers
+        //               where value>2
+        //               select value;
 
-        var filtered = from value in numbers
-                       where value>2
-                       select value;
-
-        var filteredTypeName = filtered.GetType().FullName;
-        Assert.NotNull(filteredTypeName);
-        Assert.Contains("OptimizedWhereEnumerable",filteredTypeName!);
-        Assert.Equal(new[] { 3,4,5 },filtered.ToArray());
+        Assert.Equal(new[] { 3,4,5 },(from value in numbers
+            where value>2
+            select value).ToArray());
     }
 
     [Fact]
     public void QuerySyntax_Where_With_Projection_Smoke() {
-        var numbers = new List<int> { 1,2,3,4,5 };
+        var filtered = (from value in global::Test.Seamless.Diagnostics.QuerySyntaxSmokeSource.Numbers
+                        where value>2
+                        select value*10).ToArray();
 
-        var filtered = from value in numbers
-                       where value>2
-                       select value*10;
+        Assert.Equal(new[] { 30,40,50 },filtered);
+    }
 
-        Assert.Equal(new[] { 30,40,50 },filtered.ToArray());
+    [Fact]
+    public void QuerySyntax_Where_With_Projection_Generated_Source_Smoke() {
+        var section = GeneratedInterceptorSection(nameof(QuerySyntax_Where_With_Projection_Smoke));
+
+        Assert.Contains("this global::System.Collections.Generic.IEnumerable<global::System.Int32> source",section);
+        Assert.Contains("global::Test.Seamless.Diagnostics.QuerySyntaxSmokeSource.Numbers",section);
+        Assert.Contains("foreach(var __seamlessItem in __seamlessSource)",section);
+        Assert.Contains(">2",section);
+        Assert.Contains("*10",section);
+        Assert.Contains("result.Add(__seamlessValue0)",section);
+        Assert.DoesNotContain("global::Seamless.Linq.Enumerable.Select",section);
+        Assert.DoesNotContain("global::Seamless.Linq.Enumerable.Where",section);
     }
 
     [Fact]
@@ -85,4 +101,49 @@ public class InterceptorSmokeTests {
 
         static bool IsGreaterThanTwo(int value) => value>2;
     }
+
+    private static string GeneratedInterceptorSection(string containingMethodName) {
+        var source = GeneratedInterceptorSource();
+        var markerIndex = source.IndexOf(containingMethodName,StringComparison.Ordinal);
+        Assert.True(markerIndex>=0,$"Generated interceptor source did not contain '{containingMethodName}'.");
+
+        var nextSummaryIndex = source.IndexOf("        /// <summary>",markerIndex+containingMethodName.Length,StringComparison.Ordinal);
+        return nextSummaryIndex<0 ? source[markerIndex..] : source[markerIndex..nextSummaryIndex];
+    }
+
+    private static string GeneratedInterceptorSource() {
+        var generatedRoot = GeneratedSourceRoot();
+        Assert.True(Directory.Exists(generatedRoot),$"Generated source directory does not exist: {generatedRoot}");
+
+        var matches = Directory
+            .EnumerateFiles(generatedRoot,"*.g.cs",SearchOption.AllDirectories)
+            .Select(File.ReadAllText)
+            .Where(static text => text.Contains("internal static partial class LinqInvocationInterceptors",StringComparison.Ordinal))
+            .Where(static text => text.Contains(nameof(QuerySyntax_Where_With_Projection_Smoke),StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.Single(matches);
+        return matches[0];
+    }
+
+    private static string GeneratedSourceRoot() {
+        var assemblyDirectory = Path.GetDirectoryName(typeof(InterceptorSmokeTests).Assembly.Location)
+            ?? throw new InvalidOperationException("Could not resolve test assembly directory.");
+        var targetFrameworkDirectory = new DirectoryInfo(assemblyDirectory);
+        var configurationDirectory = targetFrameworkDirectory.Parent
+            ?? throw new InvalidOperationException("Could not resolve configuration directory.");
+        var projectDirectory = configurationDirectory.Parent?.Parent
+            ?? throw new InvalidOperationException("Could not resolve project directory.");
+
+        return Path.Combine(
+            projectDirectory.FullName,
+            "obj",
+            configurationDirectory.Name,
+            targetFrameworkDirectory.Name,
+            "generated");
+    }
+}
+
+internal static class QuerySyntaxSmokeSource {
+    public static readonly int[] Numbers = [1,2,3,4,5];
 }
