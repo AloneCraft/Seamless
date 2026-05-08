@@ -595,9 +595,6 @@ namespace Seamless.SourceGenerator.Generated {
         if(reducedMethod.ContainingType.ToDisplayString()!="System.Linq.Enumerable") {
             return null;
         }
-        if(method.ReducedFrom is not null) {
-            return null;
-        }
         if(!Where述語情報取得試行(reducedMethod,out var usesIndex)) {
             return null;
         }
@@ -2263,54 +2260,69 @@ namespace Seamless.SourceGenerator.Generated {
                 builder.AppendLine($"        public static global::System.Collections.Generic.IEnumerable<{elementTypeName}> {target.MethodName}(this global::System.Collections.Generic.IEnumerable<{elementTypeName}> source,{predicateTypeName} predicate) {{");
                 builder.AppendLine($"            global::System.Diagnostics.Debug.WriteLine(\"Seamless interceptor: {target.MethodName} ({target.Line}:{target.Character}) predicate=\" + {文字列リテラル構築(target.PredicateText)});");
                 builder.AppendLine($"            global::System.Console.WriteLine(\"Seamless interceptor: {target.MethodName} ({target.Line}:{target.Character})\");");
-                builder.AppendLine($"            return new {target.EnumerableTypeName}((global::System.Collections.Generic.List<{elementTypeName}>)source,predicate);");
+                builder.AppendLine(target.UsePredicateDelegate
+                    ? $"            return new {target.EnumerableTypeName}((global::System.Collections.Generic.List<{elementTypeName}>)source,predicate);"
+                    : $"            return new {target.EnumerableTypeName}((global::System.Collections.Generic.List<{elementTypeName}>)source);");
                 builder.AppendLine("        }");
                 builder.AppendLine();
                 builder.AppendLine($"        public readonly struct {target.EnumerableTypeName}:global::System.Collections.Generic.IEnumerable<{elementTypeName}> {{");
                 builder.AppendLine($"            private readonly global::System.Collections.Generic.List<{elementTypeName}> source;");
-                builder.AppendLine($"            private readonly {predicateTypeName} predicate;");
+                if(target.UsePredicateDelegate) {
+                    builder.AppendLine($"            private readonly {predicateTypeName} predicate;");
+                }
                 builder.AppendLine();
-                builder.AppendLine($"            public {target.EnumerableTypeName}(global::System.Collections.Generic.List<{elementTypeName}> source,{predicateTypeName} predicate) {{");
+                var enumerableConstructorParameters = target.UsePredicateDelegate
+                    ? $"global::System.Collections.Generic.List<{elementTypeName}> source,{predicateTypeName} predicate"
+                    : $"global::System.Collections.Generic.List<{elementTypeName}> source";
+                builder.AppendLine($"            public {target.EnumerableTypeName}({enumerableConstructorParameters}) {{");
                 builder.AppendLine("                this.source=source ?? throw new global::System.ArgumentNullException(nameof(source));");
-                builder.AppendLine("                this.predicate=predicate ?? throw new global::System.ArgumentNullException(nameof(predicate));");
+                if(target.UsePredicateDelegate) {
+                    builder.AppendLine("                this.predicate=predicate ?? throw new global::System.ArgumentNullException(nameof(predicate));");
+                }
                 builder.AppendLine("            }");
                 builder.AppendLine();
                 builder.AppendLine("            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
-                builder.AppendLine("            public Enumerator GetEnumerator() => new(this.source,this.predicate);");
+                builder.AppendLine(target.UsePredicateDelegate
+                    ? "            public Enumerator GetEnumerator() => new(this.source,this.predicate);"
+                    : "            public Enumerator GetEnumerator() => new(this.source);");
                 builder.AppendLine();
-                builder.AppendLine($"            global::System.Collections.Generic.IEnumerator<{elementTypeName}> global::System.Collections.Generic.IEnumerable<{elementTypeName}>.GetEnumerator() {{");
-                builder.AppendLine("                var enumerator = this.GetEnumerator();");
-                builder.AppendLine("                while(enumerator.MoveNext()) {");
-                builder.AppendLine("                    yield return enumerator.Current;");
-                builder.AppendLine("                }");
-                builder.AppendLine("            }");
+                builder.AppendLine($"            global::System.Collections.Generic.IEnumerator<{elementTypeName}> global::System.Collections.Generic.IEnumerable<{elementTypeName}>.GetEnumerator() => this.GetEnumerator();");
                 builder.AppendLine();
-                builder.AppendLine($"            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => ((global::System.Collections.Generic.IEnumerable<{elementTypeName}>)this).GetEnumerator();");
+                builder.AppendLine("            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();");
                 builder.AppendLine();
-                builder.AppendLine("            public struct Enumerator {");
-                builder.AppendLine($"                private readonly global::System.Collections.Generic.List<{elementTypeName}> source;");
-                builder.AppendLine($"                private readonly {predicateTypeName} predicate;");
+                builder.AppendLine($"            public struct Enumerator:global::System.Collections.Generic.IEnumerator<{elementTypeName}> {{");
+                builder.AppendLine($"                private global::System.Collections.Generic.List<{elementTypeName}>.Enumerator sourceEnumerator;");
+                if(target.UsePredicateDelegate) {
+                    builder.AppendLine($"                private readonly {predicateTypeName} predicate;");
+                }
                 builder.AppendLine("                private int index;");
                 builder.AppendLine();
-                builder.AppendLine($"                public Enumerator(global::System.Collections.Generic.List<{elementTypeName}> source,{predicateTypeName} predicate) {{");
-                builder.AppendLine("                    this.source=source;");
-                builder.AppendLine("                    this.predicate=predicate;");
+                var enumeratorConstructorParameters = target.UsePredicateDelegate
+                    ? $"global::System.Collections.Generic.List<{elementTypeName}> source,{predicateTypeName} predicate"
+                    : $"global::System.Collections.Generic.List<{elementTypeName}> source";
+                builder.AppendLine($"                public Enumerator({enumeratorConstructorParameters}) {{");
+                builder.AppendLine("                    this.sourceEnumerator=source.GetEnumerator();");
+                if(target.UsePredicateDelegate) {
+                    builder.AppendLine("                    this.predicate=predicate;");
+                }
                 builder.AppendLine("                    this.index=-1;");
                 builder.AppendLine("                    this.Current=default!;");
                 builder.AppendLine("                }");
                 builder.AppendLine();
                 builder.AppendLine($"                public {elementTypeName} Current {{ get; private set; }}");
                 builder.AppendLine();
+                builder.AppendLine("                object? global::System.Collections.IEnumerator.Current => this.Current;");
+                builder.AppendLine();
                 builder.AppendLine("                [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
                 builder.AppendLine("                public bool MoveNext() {");
                 builder.AppendLine("                    while(true) {");
-                builder.AppendLine("                        var next = this.index+1;");
-                builder.AppendLine("                        if(next>=this.source.Count) {");
+                builder.AppendLine("                        if(!this.sourceEnumerator.MoveNext()) {");
                 builder.AppendLine("                            return false;");
                 builder.AppendLine("                        }");
+                builder.AppendLine("                        var next = this.index+1;");
                 builder.AppendLine("                        this.index=next;");
                 if(target.UsePredicateDelegate) {
-                    builder.AppendLine("                        var candidate = this.source[next];");
+                    builder.AppendLine("                        var candidate = this.sourceEnumerator.Current;");
                     builder.AppendLine(target.UsesIndex
                         ? "                        if(!this.predicate(candidate,next)) {"
                         : "                        if(!this.predicate(candidate)) {");
@@ -2319,7 +2331,7 @@ namespace Seamless.SourceGenerator.Generated {
                     builder.AppendLine("                        this.Current=candidate;");
                 }
                 else {
-                    builder.AppendLine($"                        var {target.ParameterName} = this.source[next];");
+                    builder.AppendLine($"                        var {target.ParameterName} = this.sourceEnumerator.Current;");
                     if(target.IndexParameterName is not null) {
                         builder.AppendLine($"                        var {target.IndexParameterName} = next;");
                     }
@@ -2331,6 +2343,10 @@ namespace Seamless.SourceGenerator.Generated {
                 builder.AppendLine("                        return true;");
                 builder.AppendLine("                    }");
                 builder.AppendLine("                }");
+                builder.AppendLine();
+                builder.AppendLine("                public void Dispose() => this.sourceEnumerator.Dispose();");
+                builder.AppendLine();
+                builder.AppendLine("                void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();");
                 builder.AppendLine("            }");
                 builder.AppendLine("        }");
                 builder.AppendLine();
