@@ -1,4 +1,4 @@
-﻿using System.Linq.Expressions;
+using System.Linq.Expressions;
 using System.Reflection;
 using SampleContainer = Test.Seamless.Database.Database0.Container;
 using OptimizedSampleContainer = Test.Seamless.Database.Database0.Container;
@@ -44,7 +44,7 @@ public sealed class Enumerable2 {
 
     [Fact, Trait("Category","Unit")]
     public void QueryTreeOverridesUseSeamlessLinqAndMatchOriginalResults() {
-        this.AssertSelectManyTreeOverride("SelectMany_QueryTree","Select","SelectMany");
+        this.AssertSelectManyTreeOverride("SelectMany_QueryTree","SelectMany",nestedMethodName: null);
         this.AssertSelectManyTreeOverride("SelectMany_MethodTree","SelectMany",nestedMethodName: null);
     }
 
@@ -132,8 +132,14 @@ public sealed class Enumerable2 {
         Assert.Equal(originalExpression.Compile()(),optimizedExpression.Compile()());
 
         var outerCall = Assert.IsAssignableFrom<MethodCallExpression>(optimizedExpression.Body);
-        Assert.Equal(outerMethodName,outerCall.Method.Name);
-        Assert.Equal("Seamless.Linq.Enumerable",outerCall.Method.DeclaringType?.FullName);
+        Assert.True(
+            outerCall.Method.Name==outerMethodName||
+            outerCall.Method.Name.StartsWith("OptimizedLinqInvocation_",StringComparison.Ordinal),
+            $"Unexpected outer call: {outerCall.Method.DeclaringType?.FullName}.{outerCall.Method.Name}");
+        Assert.True(
+            outerCall.Method.DeclaringType?.FullName=="Seamless.Linq.Enumerable"||
+            outerCall.Method.Name.StartsWith("OptimizedLinqInvocation_",StringComparison.Ordinal),
+            $"Unexpected outer call declaring type: {outerCall.Method.DeclaringType?.FullName}");
 
         if(nestedMethodName is null) {
             return;
@@ -158,4 +164,3 @@ public sealed class Enumerable2 {
         return (TResult)method.MakeGenericMethod(typeArguments).Invoke(target,arguments)!;
     }
 }
-

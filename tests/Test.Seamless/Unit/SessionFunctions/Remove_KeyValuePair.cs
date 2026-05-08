@@ -87,7 +87,7 @@ public sealed class ManagedRemoveKeyValuePair:RemoveKeyValuePairTests<int,string
         return (store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store) =>
-        ((ManagedCollectionStore<int,string>)store).Store.Log.FlushAndEvict(true);
+        ((CollectionStore<int,string>)store).Store.Log.FlushAndEvict(true);
 }
 
 public sealed class UnmanagedRemoveKeyValuePair:RemoveKeyValuePairTests<int,long> {
@@ -106,5 +106,5 @@ public sealed class UnmanagedRemoveKeyValuePair:RemoveKeyValuePairTests<int,long
         return (store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store) =>
-        ((UnmanagedCollectionStore<int,long>)store).Store.Log.FlushAndEvict(true);
+        ((CollectionStore<int,long>)store).Store.Log.FlushAndEvict(true);
 }

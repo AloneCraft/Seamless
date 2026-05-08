@@ -1,10 +1,10 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Seamless.Collections;
-//using IntList = global::Seamless.Collections.UnmanagedList<int>;
-//using StringList = global::Seamless.Collections.ManagedList<string>;
+//using IntList = global::Seamless.Collections.List<int>;
+//using StringList = global::Seamless.Collections.List<string>;
 
 namespace Test.Seamless.Unit.Collections;
 
@@ -83,16 +83,15 @@ public sealed class ListTests {
             list.Add(20);
             list.Add(30);
 
-            ref var first = ref list[0];
-            first=15;
+            Assert.Equal(10,list[0]);
 
             Assert.Equal(3L,list.Count);
-            Assert.Equal(15,list[0]);
+            Assert.Equal(10,list[0]);
             Assert.Equal(20,list[1]);
             Assert.Equal(30,list[2]);
 
             var items = list.ToArray();
-            Assert.Equal(new long[] { 15,20,30 },items);
+            Assert.Equal(new long[] { 10,20,30 },items);
         }
         finally {
             TryDeleteDirectory(path);
@@ -162,7 +161,7 @@ public sealed class ListTests {
     public void UnmanagedList_SetTuning_AfterConstruction_PreservesValues() {
         var path = CreatePath();
         try {
-            global::Seamless.Collections.List<int> list = ListStore.Create<int>(path,initialCapacity: 1);
+            global::Seamless.Collections.ListBase<int> list = ListStore.Create<int>(path,initialCapacity: 1);
             list.Add(1);
             list.Add(2);
 
@@ -187,18 +186,18 @@ public sealed class ListTests {
     }
 
     [Fact, Trait("Category","Unit")]
-    public void ManagedList_AddT_AddSpanByte_AndDuplicateRemoval() {
+    public void List_AddT_AddSpanByte_AndDuplicateRemoval() {
         var path = CreatePath();
         try {
             using var list = ListStore.Create<string>(path,initialCapacity: 1,initialDataCapacity: 32);
             var bravo = CreateFixedWidthUnicodeLine(1);
             var alpha = CreateFixedWidthUnicodeLine(0);
             list.Add(bravo);
-            var alphaBytes = global::Seamless.Collections.ManagedSerializer<string>.Serialize(ref alpha).ToArray();
+            var alphaBytes = global::Seamless.Collections.MemoryPackSerializer<string>.Serialize(ref alpha).ToArray();
 #if TSAVORITE1_1_1
             list.Add(global::Tsavorite.core.SpanByte.FromPinnedSpan(alphaBytes));
 #else
-            list.Add(alphaBytes);
+            list.AddRawBytes(alphaBytes);
 #endif
             list.Add(alpha);
 
@@ -214,7 +213,7 @@ public sealed class ListTests {
     }
 
     [Fact, Trait("Category","Unit")]
-    public void ManagedList_SetTuning_AfterConstruction_PreservesValues() {
+    public void List_SetTuning_AfterConstruction_PreservesValues() {
         var path = CreatePath();
         try {
             global::Seamless.Collections.List<string> list = ListStore.Create<string>(path,initialCapacity: 1,initialDataCapacity: 64);
@@ -243,7 +242,7 @@ public sealed class ListTests {
     }
 
     [Fact, Trait("Category","Unit")]
-    public void ManagedList_Reopen_PreservesCountAndValues() {
+    public void List_Reopen_PreservesCountAndValues() {
         var path = CreatePath();
         var values = new[] {
             CreateFixedWidthUnicodeLine(0),
@@ -266,7 +265,7 @@ public sealed class ListTests {
     }
 
     [Fact, Trait("Category","Unit")]
-    public void ManagedList_Reopen_AfterCountShrink_PreservesOnlyLiveValues() {
+    public void List_Reopen_AfterCountShrink_PreservesOnlyLiveValues() {
         var path = CreatePath();
         var bravo = CreateFixedWidthUnicodeLine(1);
         var alpha = CreateFixedWidthUnicodeLine(0);
@@ -301,3 +300,4 @@ public sealed class ListTests {
         }
     }
 }
+

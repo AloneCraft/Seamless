@@ -3,22 +3,22 @@ using System.Linq;
 namespace Test.Seamless.Tsavorite;
 
 /// <summary>
-/// LightEpoch の制限を確認するテスト。
+/// LightEpoch 縺ｮ蛻ｶ髯舌ｒ遒ｺ隱阪☆繧九ユ繧ｹ繝医・
 /// <list type="bullet">
-///   <item><description>MaxInstances = 16: 同時に存在できる TsavoriteKV (= Store) は最大 16 個。</description></item>
-///   <item><description>kTableSize = 128: 1 つの Store に同時アクセスできるスレッドは最大 128 個。</description></item>
+///   <item><description>MaxInstances = 16: 蜷梧凾縺ｫ蟄伜惠縺ｧ縺阪ｋ TsavoriteKV (= Store) 縺ｯ譛螟ｧ 16 蛟九・/description></item>
+///   <item><description>kTableSize = 128: 1 縺､縺ｮ Store 縺ｫ蜷梧凾繧｢繧ｯ繧ｻ繧ｹ縺ｧ縺阪ｋ繧ｹ繝ｬ繝・ラ縺ｯ譛螟ｧ 128 蛟九・/description></item>
 /// </list>
-/// MaxInstances 超過テストは LightEpoch のグローバル状態に依存するため、
-/// <c>[Collection("LightEpochLimit")]</c> で並列実行を防いでいる。
+/// MaxInstances 雜・℃繝・せ繝医・ LightEpoch 縺ｮ繧ｰ繝ｭ繝ｼ繝舌Ν迥ｶ諷九↓萓晏ｭ倥☆繧九◆繧√・
+/// <c>[Collection("LightEpochLimit")]</c> 縺ｧ荳ｦ蛻怜ｮ溯｡後ｒ髦ｲ縺・〒縺・ｋ縲・
 /// </summary>
 [Collection("LightEpochLimit")]
 public class LightEpochLimitTests {
     /// <summary>
-    /// 16 個の Store を同時に作成・保持できることを確認する (MaxInstances = 16 の正常系)。
+    /// 16 蛟九・ Store 繧貞酔譎ゅ↓菴懈・繝ｻ菫晄戟縺ｧ縺阪ｋ縺薙→繧堤｢ｺ隱阪☆繧・(MaxInstances = 16 縺ｮ豁｣蟶ｸ邉ｻ)縲・
     /// </summary>
     [Fact]
     public void MaxInstances_16Stores_AllSucceed() {
-        var stores = new global::System.Collections.Generic.List<UnmanagedDictionaryStore<int,int>>();
+        var stores = new global::System.Collections.Generic.List<DictionaryStore<int,int>>();
         try {
             for(var i = 0; i<16; i++) {
                 stores.Add(HashStore.Create().Create<int,int>());
@@ -31,13 +31,13 @@ public class LightEpochLimitTests {
     }
 
     /// <summary>
-    /// 17 個目の Store 作成が例外になることを確認する (MaxInstances = 16 超過)。
-    /// 他のテストが Store を保持した状態で並列実行されると結果が変わるため、
-    /// 同コレクション内で直列実行される。
+    /// 17 蛟狗岼縺ｮ Store 菴懈・縺御ｾ句､悶↓縺ｪ繧九％縺ｨ繧堤｢ｺ隱阪☆繧・(MaxInstances = 16 雜・℃)縲・
+    /// 莉悶・繝・せ繝医′ Store 繧剃ｿ晄戟縺励◆迥ｶ諷九〒荳ｦ蛻怜ｮ溯｡後＆繧後ｋ縺ｨ邨先棡縺悟､峨ｏ繧九◆繧√・
+    /// 蜷後さ繝ｬ繧ｯ繧ｷ繝ｧ繝ｳ蜀・〒逶ｴ蛻怜ｮ溯｡後＆繧後ｋ縲・
     /// </summary>
     [Fact]
     public void MaxInstances_17thStore_ThrowsException() {
-        var stores = new global::System.Collections.Generic.List<UnmanagedDictionaryStore<int,int>>();
+        var stores = new global::System.Collections.Generic.List<DictionaryStore<int,int>>();
         try {
             for(var i = 0; i<16; i++) {
                 stores.Add(HashStore.Create().Create<int,int>());
@@ -52,10 +52,10 @@ public class LightEpochLimitTests {
     }
 
     /// <summary>
-    /// 128 スレッドが同一 Store に同時アクセスできることを確認する (kTableSize = 128 の正常系)。
-    /// UnmanagedDictionary は Store ごとに 5 セッションを持つため、
-    /// 1 Store あたり最大 floor(kTableSize / 5) = 25 インスタンスまで同時保持可能。
-    /// このテストでは各スレッドが一時 dict を生成して操作し、即 Dispose する。
+    /// 128 繧ｹ繝ｬ繝・ラ縺悟酔荳 Store 縺ｫ蜷梧凾繧｢繧ｯ繧ｻ繧ｹ縺ｧ縺阪ｋ縺薙→繧堤｢ｺ隱阪☆繧・(kTableSize = 128 縺ｮ豁｣蟶ｸ邉ｻ)縲・
+    /// UnmanagedDictionary 縺ｯ Store 縺斐→縺ｫ 5 繧ｻ繝・す繝ｧ繝ｳ繧呈戟縺､縺溘ａ縲・
+    /// 1 Store 縺ゅ◆繧頑怙螟ｧ floor(kTableSize / 5) = 25 繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ縺ｾ縺ｧ蜷梧凾菫晄戟蜿ｯ閭ｽ縲・
+    /// 縺薙・繝・せ繝医〒縺ｯ蜷・せ繝ｬ繝・ラ縺御ｸ譎・dict 繧堤函謌舌＠縺ｦ謫堺ｽ懊＠縲∝叉 Dispose 縺吶ｋ縲・
     /// </summary>
     [Fact]
     public void kTableSize_128Threads_AllSucceed() {
@@ -78,20 +78,20 @@ public class LightEpochLimitTests {
         Assert.Empty(errors);
     }
 
-    // ── NewSession 境界値テスト ────────────────────────────────────────
-    // UnmanagedDictionary は 1 インスタンスにつき 5 つの ClientSession を NewSession で確保する。
-    //   Collection 基底: ReadClientSession / AddClientSession / ContainsDeleteClientSession  (3)
-    //   UnmanagedDictionary 追加: Remove_TKey_TValue_ClientSession / Remove_KeyValuePair_ClientSession  (2)
-    //   合計 5 セッション / dict
+    // 笏笏 NewSession 蠅・阜蛟､繝・せ繝・笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    // UnmanagedDictionary 縺ｯ 1 繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ縺ｫ縺､縺・5 縺､縺ｮ ClientSession 繧・NewSession 縺ｧ遒ｺ菫昴☆繧九・
+    //   Collection 蝓ｺ蠎・ ReadClientSession / AddClientSession / ContainsDeleteClientSession  (3)
+    //   UnmanagedDictionary 霑ｽ蜉: Remove_TKey_TValue_ClientSession / Remove_KeyValuePair_ClientSession  (2)
+    //   蜷郁ｨ・5 繧ｻ繝・す繝ｧ繝ｳ / dict
     //
-    // kTableSize = 128 は「同時に epoch を保持しているスレッド数」の上限であり、
-    // NewSession で生成できるセッション数の上限ではない。
-    // セッションは操作ごとに epoch を Acquire/Release するだけなので、
-    // 26 dict (130 セッション) を同時保持しても作成自体は成功する。
-    // 制限が発動するのは「同時に 128 スレッドを超えるスレッドが epoch 保護区間を実行した」場合。
+    // kTableSize = 128 縺ｯ縲悟酔譎ゅ↓ epoch 繧剃ｿ晄戟縺励※縺・ｋ繧ｹ繝ｬ繝・ラ謨ｰ縲阪・荳企剞縺ｧ縺ゅｊ縲・
+    // NewSession 縺ｧ逕滓・縺ｧ縺阪ｋ繧ｻ繝・す繝ｧ繝ｳ謨ｰ縺ｮ荳企剞縺ｧ縺ｯ縺ｪ縺・・
+    // 繧ｻ繝・す繝ｧ繝ｳ縺ｯ謫堺ｽ懊＃縺ｨ縺ｫ epoch 繧・Acquire/Release 縺吶ｋ縺縺代↑縺ｮ縺ｧ縲・
+    // 26 dict (130 繧ｻ繝・す繝ｧ繝ｳ) 繧貞酔譎ゆｿ晄戟縺励※繧ゆｽ懈・閾ｪ菴薙・謌仙粥縺吶ｋ縲・
+    // 蛻ｶ髯舌′逋ｺ蜍輔☆繧九・縺ｯ縲悟酔譎ゅ↓ 128 繧ｹ繝ｬ繝・ラ繧定ｶ・∴繧九せ繝ｬ繝・ラ縺・epoch 菫晁ｭｷ蛹ｺ髢薙ｒ螳溯｡後＠縺溘榊ｴ蜷医・
 
     /// <summary>
-    /// 同一 Store から 25 個の dict を同時保持できることを確認する。
+    /// 蜷御ｸ Store 縺九ｉ 25 蛟九・ dict 繧貞酔譎ゆｿ晄戟縺ｧ縺阪ｋ縺薙→繧堤｢ｺ隱阪☆繧九・
     /// </summary>
     [Fact]
     public void SessionCount_25Dicts_AllSucceed() {
@@ -109,12 +109,12 @@ public class LightEpochLimitTests {
     }
 
     /// <summary>
-    /// kTableSize はセッション生成数を制限しないため、26 個 (130 セッション) も作成できる。
+    /// kTableSize 縺ｯ繧ｻ繝・す繝ｧ繝ｳ逕滓・謨ｰ繧貞宛髯舌＠縺ｪ縺・◆繧√・6 蛟・(130 繧ｻ繝・す繝ｧ繝ｳ) 繧ゆｽ懈・縺ｧ縺阪ｋ縲・
     /// </summary>
     [Fact]
     public void SessionCount_26Dicts_AllSucceed() {
-        // kTableSize = 128 はセッション生成数の上限ではなく、
-        // 同時 epoch 保持スレッド数の上限。26 dict (130 session) でも作成は成功する。
+        // kTableSize = 128 縺ｯ繧ｻ繝・す繝ｧ繝ｳ逕滓・謨ｰ縺ｮ荳企剞縺ｧ縺ｯ縺ｪ縺上・
+        // 蜷梧凾 epoch 菫晄戟繧ｹ繝ｬ繝・ラ謨ｰ縺ｮ荳企剞縲・6 dict (130 session) 縺ｧ繧ゆｽ懈・縺ｯ謌仙粥縺吶ｋ縲・
         using var store = HashStore.Create().Create<int,int>();
         var dicts = new global::System.Collections.Generic.List<IDisposable>();
         try {
@@ -129,12 +129,12 @@ public class LightEpochLimitTests {
     }
 
     /// <summary>
-    /// dict を Dispose してセッションを解放した後、再度 dict を作成できることを確認する。
+    /// dict 繧・Dispose 縺励※繧ｻ繝・す繝ｧ繝ｳ繧定ｧ｣謾ｾ縺励◆蠕後∝・蠎ｦ dict 繧剃ｽ懈・縺ｧ縺阪ｋ縺薙→繧堤｢ｺ隱阪☆繧九・
     /// </summary>
     [Fact]
     public void SessionCount_DisposeAndRecreate_Succeeds() {
         using var store = HashStore.Create().Create<int,int>();
-        // 25 個作成 → 全 Dispose → 再び 25 個作成できる
+        // 25 蛟倶ｽ懈・ 竊・蜈ｨ Dispose 竊・蜀阪・ 25 蛟倶ｽ懈・縺ｧ縺阪ｋ
         for(var round = 0; round<2; round++) {
             var dicts = new global::System.Collections.Generic.List<IDisposable>();
             try {
@@ -151,8 +151,8 @@ public class LightEpochLimitTests {
 }
 
 /// <summary>
-/// LightEpochLimit コレクション定義。
-/// このコレクションに属するテストは互いに並列実行されない。
+/// LightEpochLimit 繧ｳ繝ｬ繧ｯ繧ｷ繝ｧ繝ｳ螳夂ｾｩ縲・
+/// 縺薙・繧ｳ繝ｬ繧ｯ繧ｷ繝ｧ繝ｳ縺ｫ螻槭☆繧九ユ繧ｹ繝医・莠偵＞縺ｫ荳ｦ蛻怜ｮ溯｡後＆繧後↑縺・・
 /// </summary>
 [CollectionDefinition("LightEpochLimit",DisableParallelization = true)]
 public sealed class LightEpochLimitCollection;

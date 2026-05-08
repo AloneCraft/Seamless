@@ -1,4 +1,4 @@
-﻿namespace Test.Seamless.Stress;
+namespace Test.Seamless.Stress;
 
 internal static class StressReferenceAssert {
     public static void DictionaryEquals(IEnumerable<int> probeKeys,Dictionary<int,int> expected,Func<int,(bool Found,int Value)> actualTryGet) {

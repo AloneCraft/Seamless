@@ -1,4 +1,4 @@
-﻿using Seamless.Stores;
+using Seamless.Stores;
 using Tsavorite.core;
 
 namespace Test.Seamless.Benchmarks;
@@ -370,7 +370,7 @@ public sealed class ManagedDictionaryBenchmark(ITestOutputHelper output):Diction
         return new H(mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits);
     }
     private sealed class H:Handle {
-        private readonly ManagedDictionaryStore<string,string> store;
+        private readonly DictionaryStore<string,string> store;
         private readonly global::Seamless.Collections.IDictionary<string,string> dict;
         private readonly long indexSize;
         private readonly long segmentSize;
@@ -400,7 +400,7 @@ public sealed class ManagedDictionaryBenchmark(ITestOutputHelper output):Diction
                 MemorySize: 1L<<memorySizeBits,
                 MutableFraction: mutableFraction,
                 CheckpointDir: checkpointDir
-            ).Create<string,string>(this.logDevice,this.objDevice,new ManagedTag(),new ManagedTag());
+            ).Create<string,string>(this.logDevice,this.objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
             this.dict=this.store.Create();
         }
         public override global::Seamless.Collections.IDictionary<string,string> Dict => this.dict;
@@ -443,7 +443,7 @@ public sealed class UnmanagedDictionaryBenchmark(ITestOutputHelper output):Dicti
         return new H(mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits);
     }
     private sealed class H:Handle {
-        private readonly UnmanagedDictionaryStore<int,int> store;
+        private readonly DictionaryStore<int,int> store;
         private readonly global::Seamless.Collections.IDictionary<int,int> dict;
         private readonly long indexSize;
         private readonly long segmentSize;
@@ -473,7 +473,7 @@ public sealed class UnmanagedDictionaryBenchmark(ITestOutputHelper output):Dicti
                 MemorySize: 1L<<memorySizeBits,
                 MutableFraction: mutableFraction,
                 CheckpointDir: checkpointDir
-            ).Create<int,int>(this.logDevice,this.objDevice,new UnmanagedTag(),new UnmanagedTag());
+            ).Create<int,int>(this.logDevice,this.objDevice,new BlittableStrategy(),new BlittableStrategy());
             this.dict=this.store.Create();
         }
         public override global::Seamless.Collections.IDictionary<int,int> Dict => this.dict;

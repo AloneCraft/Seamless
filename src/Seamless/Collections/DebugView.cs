@@ -3,7 +3,7 @@ namespace Seamless.Collections;
 
 public abstract class DebugView<TKey> {
     /// <summary>
-    /// ƒfƒoƒbƒK[‚É•\¦‚·‚é—v‘f‚ÌãŒÀB.NET ‚Ì List&lt;T&gt; ƒfƒoƒbƒOƒrƒ…[‚É•í‚¢ 10,000 Œ‚Æ‚·‚éB
+    /// ãƒ‡ãƒãƒƒã‚¬ãƒ¼ã«è¡¨ç¤ºã™ã‚‹è¦ç´ ã®ä¸Šé™ã€‚.NET ã® List&lt;T&gt; ãƒ‡ãƒãƒƒã‚°ãƒ“ãƒ¥ãƒ¼ã«å€£ã„ 10,000 ä»¶ã¨ã™ã‚‹ã€‚
     /// </summary>
     private const int MaxItems = 10_000;
     private readonly IMemoryCollection<TKey> Collection;
@@ -42,18 +42,13 @@ public abstract class DebugView<TKey, TValue>:DebugView<KeyValuePair<TKey,TValue
     private protected DebugView(IMemoryCollection<KeyValuePair<TKey,TValue>> collection) : base(collection) {
     }
 }
-public class ManagedHashSetDebugView<TKey>:DebugView<TKey> {
-    public ManagedHashSetDebugView(IMemoryCollection<TKey> collection) : base(collection) {
-    }
-}
-public class UnmanagedHashSetDebugView<TKey>:DebugView<TKey>
-    where TKey : unmanaged {
-    public UnmanagedHashSetDebugView(IMemoryCollection<TKey> collection) : base(collection) {
+public class HashSetDebugView<TKey>:DebugView<TKey> {
+    public HashSetDebugView(IMemoryCollection<TKey> collection) : base(collection) {
     }
 }
 /// <summary>
-/// DebuggerTypeProxy ‚ÌŒ^ˆø””‚ğ Dictionary ‚Ì 4 Œ^ˆø”‚É‡‚í‚¹‚é‚½‚ß‚Ìƒ‰ƒbƒp[B
-/// ƒfƒoƒbƒK[‚ÍƒI[ƒvƒ“ƒWƒFƒlƒŠƒbƒNŒ^‚ğg‚¤Û‚ÉŒ^ˆø””‚ªˆê’v‚µ‚Ä‚¢‚é•K—v‚ª‚ ‚éB
+/// DebuggerTypeProxy ã®å‹å¼•æ•°æ•°ã‚’ Dictionary ã® 4 å‹å¼•æ•°ã«åˆã‚ã›ã‚‹ãŸã‚ã®ãƒ©ãƒƒãƒ‘ãƒ¼ã€‚
+/// ãƒ‡ãƒãƒƒã‚¬ãƒ¼ã¯ã‚ªãƒ¼ãƒ—ãƒ³ã‚¸ã‚§ãƒãƒªãƒƒã‚¯å‹ã‚’ä½¿ã†éš›ã«å‹å¼•æ•°æ•°ãŒä¸€è‡´ã—ã¦ã„ã‚‹å¿…è¦ãŒã‚ã‚‹ã€‚
 /// </summary>
 public class DictionaryDebugView<TKey, TValue, TKeySerializer, TValueSerializer>:DebugView<TKey,TValue>    where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {

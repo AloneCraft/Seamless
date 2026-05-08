@@ -1,4 +1,4 @@
-﻿using global::Seamless.Collections;
+using global::Seamless.Collections;
 namespace Test.Seamless.Benchmarks;
 
 /// <summary>
@@ -10,7 +10,7 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
     protected abstract Handle CreateHandle(string listPath,FileOptions accessPattern);
 
     protected abstract class Handle:IDisposable {
-        public abstract global::Seamless.Collections.List<int> List { get; }
+        public abstract global::Seamless.Collections.ListBase<int> List { get; }
         public abstract void Dispose();
     }
 
@@ -42,8 +42,8 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
         int parallel,
         FileOptions accessPattern,
         long itemCount,
-        Action<global::Seamless.Collections.List<int>> prefill,
-        Action<global::Seamless.Collections.List<int>> measured,
+        Action<global::Seamless.Collections.ListBase<int>> prefill,
+        Action<global::Seamless.Collections.ListBase<int>> measured,
         string label
     ) {
         var tempDir = CreateTempDirectory();
@@ -72,9 +72,9 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
         }
     }
 
-    private static void PrefillNone(global::Seamless.Collections.List<int> _) { }
+    private static void PrefillNone(global::Seamless.Collections.ListBase<int> _) { }
 
-    private void PrefillAll(global::Seamless.Collections.List<int> list) {
+    private void PrefillAll(global::Seamless.Collections.ListBase<int> list) {
         var n = Scaled;
         for(var i = 0; i<n; i++) {
             list.Add(i);
@@ -196,7 +196,7 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
 }
 
 /// <summary>
-/// ManagedList ベンチマーク実装。
+/// List ベンチマーク実装。
 /// </summary>
 [Collection("Benchmark")]
 public class ManagedListBenchmark(ITestOutputHelper output):ListBenchmark(output) {
@@ -205,12 +205,12 @@ public class ManagedListBenchmark(ITestOutputHelper output):ListBenchmark(output
     }
 
     private class ManagedListHandle:Handle {
-        private readonly ManagedList<int> list;
+        private readonly global::Seamless.Collections.List<int> list;
 
-        public override global::Seamless.Collections.List<int> List => this.list;
+        public override global::Seamless.Collections.ListBase<int> List => this.list;
 
         public ManagedListHandle(string listPath,FileOptions accessPattern) {
-            this.list=new ManagedList<int>(listPath,initialCapacity: 16,initialDataCapacity: 4096);
+            this.list=new global::Seamless.Collections.List<int>(listPath,initialCapacity: 16,initialDataCapacity: 4096);
             this.list.SetTuning(new TempListTuning(FileAccess.ReadWrite,accessPattern));
         }
 
@@ -230,12 +230,12 @@ public class UnmanagedListBenchmark(ITestOutputHelper output):ListBenchmark(outp
     }
 
     private class UnmanagedListHandle:Handle {
-        private readonly UnmanagedList<int> list;
+        private readonly global::Seamless.Collections.List<int,global::Seamless.Collections.BlittableSerializer<int>> list;
 
-        public override global::Seamless.Collections.List<int> List => this.list;
+        public override global::Seamless.Collections.ListBase<int> List => this.list;
 
         public UnmanagedListHandle(string listPath,FileOptions accessPattern) {
-            this.list=new UnmanagedList<int>(listPath,initialCapacity: 16);
+            this.list=new global::Seamless.Collections.List<int,global::Seamless.Collections.BlittableSerializer<int>>(listPath,initialCapacity: 16);
             this.list.SetTuning(new TempListTuning(FileAccess.ReadWrite,accessPattern));
         }
 

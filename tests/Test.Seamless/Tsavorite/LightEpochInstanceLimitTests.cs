@@ -1,4 +1,4 @@
-﻿using Seamless.Stores;
+using Seamless.Stores;
 using Tsavorite.core;
 
 namespace Test.Seamless.Tsavorite;
@@ -14,14 +14,14 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
 
     [Fact]
     public void Can_Create_16_Stores() {
-        var stores = new global::System.Collections.Generic.List<UnmanagedHashSetStore<int>>();
+        var stores = new global::System.Collections.Generic.List<HashSetStore<int>>();
         try {
             for(int i = 0; i<16; i++) {
                 var dir = TempDir($"store-{i}");
                 var store = HashStore.Create(CheckpointDir: Path.Combine(dir,"checkpoint")).Create<int>(
                     Devices.CreateLogDevice(Path.Combine(dir,"log")),
                     Devices.CreateLogDevice(Path.Combine(dir,"obj")),
-                    new UnmanagedTag()
+                    new BlittableStrategy()
                 );
                 stores.Add(store);
             }
@@ -37,7 +37,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
 
     [Fact]
     public void Cannot_Create_17_Stores_Simultaneously() {
-        var stores = new global::System.Collections.Generic.List<UnmanagedHashSetStore<int>>();
+        var stores = new global::System.Collections.Generic.List<HashSetStore<int>>();
 
         try {
             for(int i = 0; i<17; i++) {
@@ -46,7 +46,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
                     var store = HashStore.Create(CheckpointDir: Path.Combine(dir,"checkpoint")).Create<int>(
                         Devices.CreateLogDevice(Path.Combine(dir,"log")),
                         Devices.CreateLogDevice(Path.Combine(dir,"obj")),
-                        new UnmanagedTag()
+                        new BlittableStrategy()
                     );
                     stores.Add(store);
                 }
@@ -72,7 +72,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
 
     [Fact]
     public void Can_Reuse_Slots_After_Dispose() {
-        var stores = new global::System.Collections.Generic.List<UnmanagedHashSetStore<int>>();
+        var stores = new global::System.Collections.Generic.List<HashSetStore<int>>();
 
         try {
             // バッチ 1: 16 ストアを作成
@@ -81,7 +81,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
                 var store = HashStore.Create(CheckpointDir: Path.Combine(dir,"checkpoint")).Create<int>(
                     Devices.CreateLogDevice(Path.Combine(dir,"log")),
                     Devices.CreateLogDevice(Path.Combine(dir,"obj")),
-                    new UnmanagedTag()
+                    new BlittableStrategy()
                 );
                 stores.Add(store);
             }
@@ -102,7 +102,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
                 ).Create<int>(
                     Devices.CreateLogDevice(Path.Combine(dir,"log")),
                     Devices.CreateLogDevice(Path.Combine(dir,"obj")),
-                    new UnmanagedTag()
+                    new BlittableStrategy()
                 );
                 stores.Add(store);
             }
@@ -119,7 +119,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
     [Fact]
     public void Interleaved_Create_And_Dispose_Respects_Limit() {
         // スロットが 16 に満たないうちに新規作成はできるが、16 を超えるとエラー
-        var slots = new Stack<UnmanagedHashSetStore<int>>();
+        var slots = new Stack<HashSetStore<int>>();
 
         try {
             // 8 個作成
@@ -130,7 +130,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
                 ).Create<int>(
                     Devices.CreateLogDevice(Path.Combine(dir,"log")),
                     Devices.CreateLogDevice(Path.Combine(dir,"obj")),
-                    new UnmanagedTag()
+                    new BlittableStrategy()
                 );
                 slots.Push(store);
             }
@@ -142,7 +142,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
                 var store = HashStore.Create(CheckpointDir: Path.Combine(dir,"checkpoint")).Create<int>(
                     Devices.CreateLogDevice(Path.Combine(dir,"log")),
                     Devices.CreateLogDevice(Path.Combine(dir,"obj")),
-                    new UnmanagedTag()
+                    new BlittableStrategy()
                 );
                 slots.Push(store);
             }
@@ -160,7 +160,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
             ).Create<int>(
                 Devices.CreateLogDevice(Path.Combine(dir9,"log")),
                 Devices.CreateLogDevice(Path.Combine(dir9,"obj")),
-                new UnmanagedTag()
+                new BlittableStrategy()
             );
             slots.Push(store9);
             output.WriteLine($"Step 4: ✓ Successfully created 1 more store in released slot (16/16 slots used again)");
@@ -173,7 +173,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
                 ).Create<int>(
                     Devices.CreateLogDevice(Path.Combine(dir17,"log")),
                     Devices.CreateLogDevice(Path.Combine(dir17,"obj")),
-                    new UnmanagedTag()
+                    new BlittableStrategy()
                 );
             });
             output.WriteLine($"Step 5: ✓ Attempt to create 17th store correctly failed: {ex.Message}");

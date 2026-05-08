@@ -1,4 +1,4 @@
-﻿using Seamless;
+using Seamless;
 using Seamless.Stores;
 using Tsavorite.core;
 namespace Test.Seamless.Unit.SessionFunctions;
@@ -85,7 +85,7 @@ public sealed class ManagedDelete:DeleteTests<int,string> {
         return (store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store) =>
-        ((ManagedCollectionStore<int,string>)store).Store.Log.FlushAndEvict(true);
+        ((CollectionStore<int,string>)store).Store.Log.FlushAndEvict(true);
 }
 
 public sealed class UnmanagedDelete:DeleteTests<int,long> {
@@ -104,5 +104,5 @@ public sealed class UnmanagedDelete:DeleteTests<int,long> {
         return (store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store) =>
-        ((UnmanagedCollectionStore<int,long>)store).Store.Log.FlushAndEvict(true);
+        ((CollectionStore<int,long>)store).Store.Log.FlushAndEvict(true);
 }

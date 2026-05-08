@@ -1,4 +1,4 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
 
 namespace Test.Seamless.Unit.SessionFunctions;
 

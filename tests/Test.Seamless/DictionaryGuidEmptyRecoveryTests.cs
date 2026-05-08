@@ -1,4 +1,4 @@
-using Tsavorite.core;
+﻿using Tsavorite.core;
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 namespace Test.Seamless;

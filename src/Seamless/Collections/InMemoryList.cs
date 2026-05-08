@@ -5,7 +5,7 @@ namespace Seamless.Collections;
 /// これはSystem.Collections.Generic.List<T>に使えるならそれに置き換えてこれは削除して
 /// </summary>
 /// <typeparam name="T"></typeparam>
-public sealed class InMemoryList<T>:List<T> {
+public sealed class InMemoryList<T>:ListBase<T> {
     private readonly global::System.Collections.Generic.List<T> items;
     private TempListTuning tuning = new(FileAccess.ReadWrite,FileOptions.SequentialScan);
 

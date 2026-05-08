@@ -1,12 +1,12 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
 using Seamless.Stores;
 using System.Linq;
 using Tsavorite.core;
 namespace Test.Seamless.Stress;
 
 /// <summary>
-/// HashSet の集合演算 (IntersectWith / SymmetricExceptWith / UnionWith / ExceptWith)
-/// の決定論的 Stress テスト。シード違いで 2 セットを構築し演算結果をゴールデン比較する。
+/// HashSet 縺ｮ髮・粋貍皮ｮ・(IntersectWith / SymmetricExceptWith / UnionWith / ExceptWith)
+/// 縺ｮ豎ｺ螳夊ｫ也噪 Stress 繝・せ繝医ゅす繝ｼ繝蛾＆縺・〒 2 繧ｻ繝・ヨ繧呈ｧ狗ｯ峨＠貍皮ｮ礼ｵ先棡繧偵ざ繝ｼ繝ｫ繝・Φ豈碑ｼ・☆繧九・
 /// </summary>
 [Trait("Category","Stress")]
 public class SetOperationStressTests {
@@ -28,7 +28,7 @@ public class SetOperationStressTests {
         string opName,
         int count,
         int repeat,
-        Action<UnmanagedHashSet<int>,UnmanagedHashSet<int>> op) {
+        Action<global::Seamless.Collections.HashSet<int>,global::Seamless.Collections.HashSet<int>> op) {
         var temp = CreateTempDir("uintset_"+opName);
         try {
             var keysA = StressScript.SampleKeys(SeedA,count*4,count);
@@ -117,7 +117,7 @@ public class SetOperationStressTests {
         string opName,
         int count,
         int repeat,
-        Action<ManagedHashSet<string>,ManagedHashSet<string>> op) {
+        Action<global::Seamless.Collections.HashSet<string>,global::Seamless.Collections.HashSet<string>> op) {
         var temp = CreateTempDir("strset_"+opName);
         try {
             var rawA = StressScript.SampleKeys(SeedA,count*4,count);
@@ -134,8 +134,8 @@ public class SetOperationStressTests {
             using(var objDevA = Devices.CreateLogDevice(objA))
             using(var logDevB = Devices.CreateLogDevice(logB))
             using(var objDevB = Devices.CreateLogDevice(objB))
-            using(var storeA = HashStore.Create().Create<string>(logDevA,objDevA,new ManagedTag()))
-            using(var storeB = HashStore.Create().Create<string>(logDevB,objDevB,new ManagedTag()))
+            using(var storeA = HashStore.Create().Create<string>(logDevA,objDevA,new MemoryPackSerializerStrategy()))
+            using(var storeB = HashStore.Create().Create<string>(logDevB,objDevB,new MemoryPackSerializerStrategy()))
             using(var setA = storeA.Create())
             using(var setB = storeB.Create()) {
                 try {

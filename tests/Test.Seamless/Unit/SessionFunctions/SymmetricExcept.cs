@@ -1,13 +1,13 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
 using Seamless.Stores;
 namespace Test.Seamless.Unit.SessionFunctions;
 
 //public abstract class SymmetricExceptTests<TKey>
 //    where TKey : IEquatable<TKey> {
 //    protected abstract TKey Key(int seed);
-//    protected abstract (ManagedHashSet<TKey> Set,IDisposable Store) CreateMemory();
-//    protected abstract (ManagedHashSet<TKey> Set,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice);
-//    protected abstract (ManagedHashSet<TKey> Set,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice);
+//    protected abstract (global::Seamless.Collections.HashSet<TKey> Set,IDisposable Store) CreateMemory();
+//    protected abstract (global::Seamless.Collections.HashSet<TKey> Set,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice);
+//    protected abstract (global::Seamless.Collections.HashSet<TKey> Set,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice);
 //    protected abstract void ShiftReadOnly(IDisposable store);
 //    protected abstract void FlushAndEvict(IDisposable store);
 //    private static string CreateDiskFolder() => Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
@@ -118,24 +118,24 @@ namespace Test.Seamless.Unit.SessionFunctions;
 
 //public sealed class ManagedSymmetricExcept:SymmetricExceptTests<int> {
 //    protected override int Key(int seed) => seed;
-//    protected override (ManagedHashSet<int> Set,IDisposable Store) CreateMemory() {
-//        var store = HashStore.Create().Create<int>(new ManagedTag());
+//    protected override (global::Seamless.Collections.HashSet<int> Set,IDisposable Store) CreateMemory() {
+//        var store = HashStore.Create().Create<int>(new MemoryPackSerializerStrategy());
 //        return (store.Create(),store);
 //    }
-//    protected override (ManagedHashSet<int> Set,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
-//        var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity).Create<int>(logDevice,objDevice,new ManagedTag());
+//    protected override (global::Seamless.Collections.HashSet<int> Set,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
+//        var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity).Create<int>(logDevice,objDevice,new MemoryPackSerializerStrategy());
 //        return (store.Create(),store);
 //    }
-//    protected override (ManagedHashSet<int> Set,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
-//        var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDevice,objDevice,new ManagedTag());
+//    protected override (global::Seamless.Collections.HashSet<int> Set,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
+//        var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDevice,objDevice,new MemoryPackSerializerStrategy());
 //        return (store.Create(),store);
 //    }
 //    protected override void ShiftReadOnly(IDisposable store) {
-//        var s = (ManagedHashSetStore<int>)store;
+//        var s = (HashSetStore<int>)store;
 //        s.Store.Log.ShiftReadOnlyAddress(s.Store.Log.TailAddress,true);
 //    }
 //    protected override void FlushAndEvict(IDisposable store) =>
-//        ((ManagedHashSetStore<int>)store).Store.Log.FlushAndEvict(true);
+//        ((HashSetStore<int>)store).Store.Log.FlushAndEvict(true);
 
 //}
 
@@ -149,22 +149,22 @@ public abstract class SymmetricExceptWith<TKey,TSet>:CommonWith<TKey,TSet>
     public void SymmetricExceptWithAA() => this.RunWithAA();
 }
 
-public sealed class ManagedSymmetricExceptWith:SymmetricExceptWith<string,ManagedHashSet<string>> {
+public sealed class ManagedSymmetricExceptWith:SymmetricExceptWith<string,global::Seamless.Collections.HashSet<string>> {
     protected override string CreateKey(int seed) => seed.ToString();
-    protected override (ManagedHashSet<string> Set,IDisposable Store) CreateSet() {
-        var store = HashStore.Create().Create<string>(new ManagedTag());
+    protected override (global::Seamless.Collections.HashSet<string> Set,IDisposable Store) CreateSet() {
+        var store = HashStore.Create().Create<string>(new MemoryPackSerializerStrategy());
         return (store.Create(),store);
     }
-    protected override void With(ManagedHashSet<string> set,ManagedHashSet<string> other) => set.SymmetricExceptWith(other);
+    protected override void With(global::Seamless.Collections.HashSet<string> set,global::Seamless.Collections.HashSet<string> other) => set.SymmetricExceptWith(other);
     protected override void ExpectedWith(global::System.Collections.Generic.HashSet<string> set,global::System.Collections.Generic.HashSet<string> other) => set.SymmetricExceptWith(other);
 }
 
-public sealed class UnmanagedSymmetricExceptWith:SymmetricExceptWith<int,UnmanagedHashSet<int>> {
+public sealed class UnmanagedSymmetricExceptWith:SymmetricExceptWith<int,global::Seamless.Collections.HashSet<int>> {
     protected override int CreateKey(int seed) => seed;
-    protected override (UnmanagedHashSet<int> Set,IDisposable Store) CreateSet() {
+    protected override (global::Seamless.Collections.HashSet<int> Set,IDisposable Store) CreateSet() {
         var store = HashStore.Create().Create<int>();
         return (store.Create(),store);
     }
-    protected override void With(UnmanagedHashSet<int> set,UnmanagedHashSet<int> other) => set.SymmetricExceptWith(other);
+    protected override void With(global::Seamless.Collections.HashSet<int> set,global::Seamless.Collections.HashSet<int> other) => set.SymmetricExceptWith(other);
     protected override void ExpectedWith(global::System.Collections.Generic.HashSet<int> set,global::System.Collections.Generic.HashSet<int> other) => set.SymmetricExceptWith(other);
 }

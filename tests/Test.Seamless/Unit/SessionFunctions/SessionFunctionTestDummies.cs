@@ -1,3 +1,3 @@
-﻿namespace Test.Seamless.Unit.SessionFunctions;
+namespace Test.Seamless.Unit.SessionFunctions;
 
 

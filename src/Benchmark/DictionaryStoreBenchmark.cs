@@ -125,21 +125,21 @@ public class DictionaryStoreBenchmark {
         var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.Count*128L);
         var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: this.loadCheckpointDir)
             .WithRecoveryIndexSize(this.loadToken);
-        using var store = factory.Create<int,int>(logDevice,objDevice);
+        using var store = factory.Create<int,int>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy());
         store.Load(this.loadToken);
         using var dict = store.Create();
         return dict.GetLongCount();
     }
 
-    private UnmanagedDictionaryStore<int,int> CreateStore(string? checkpointDir = null) {
+    private DictionaryStore<int,int> CreateStore(string? checkpointDir = null) {
         var indexSize = BenchmarkHashStoreSizing.GetIndexSize(this.Count);
         var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.Count*128L);
-        return HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: checkpointDir).Create<int,int>();
+        return HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: checkpointDir).Create<int,int>(new BlittableStrategy(),new BlittableStrategy());
     }
 
-    private UnmanagedDictionaryStore<int,int> CreateStore(string checkpointDir,IDevice logDevice,IDevice objDevice) {
+    private DictionaryStore<int,int> CreateStore(string checkpointDir,IDevice logDevice,IDevice objDevice) {
         var indexSize = BenchmarkHashStoreSizing.GetIndexSize(this.Count);
         var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.Count*128L);
-        return HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: checkpointDir).Create<int,int>(logDevice,objDevice);
+        return HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: checkpointDir).Create<int,int>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy());
     }
 }

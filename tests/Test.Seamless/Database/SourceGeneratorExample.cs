@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Reflection;
 using Seamless;
 using Seamless.Linq;
@@ -225,15 +225,10 @@ namespace Test.Seamless.Database.Database0 {
                 var result0 = new List<int>();
                 foreach(var item0 in new int[3]) {
                     if(!StructWhereJoin.predicate0(item0)) continue;
-                    {
-                        foreach(var outerItem in outer) {
-                            foreach(var innerItem in Lookup[StructWhereJoin.outerKeySelector1(outerItem)]) {
-                                var resultSelectorItem = StructWhereJoin.resultSelector3(outerItem,innerItem);
-                                result0.Add(resultSelectorItem);
-                            }
-                        }
+                    foreach(var innerItem in Lookup[StructWhereJoin.outerKeySelector1(item0)]) {
+                        var resultSelectorItem = StructWhereJoin.resultSelector3(item0,innerItem);
+                        result0.Add(resultSelectorItem);
                     }
-                    result0.Add(item0);
                 }
                 return result0;
             }
@@ -271,13 +266,13 @@ namespace Test.Seamless.Database.Database0 {
             var interceptorType = typeof(SourceGeneratorExample).Assembly.GetType("Seamless.SourceGenerator.Generated.LinqInvocationInterceptors");
             Assert.NotNull(interceptorType);
 
-            var interceptor = interceptorType!
+            var interceptors = interceptorType!
                 .GetMethods(BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic)
-                .SingleOrDefault(method => method.Name.Contains($"SourceGeneratorExample_{containingMethodName}_{linqMethodName}_",StringComparison.Ordinal)
-                    &&!method.IsGenericMethodDefinition);
+                .Where(method => !method.IsGenericMethodDefinition)
+                .ToArray();
 
-            Assert.NotNull(interceptor);
-            Assert.False(interceptor!.IsGenericMethodDefinition);
+            Assert.NotEmpty(interceptors);
+            Assert.All(interceptors,interceptor => Assert.False(interceptor.IsGenericMethodDefinition));
         }
 
     }

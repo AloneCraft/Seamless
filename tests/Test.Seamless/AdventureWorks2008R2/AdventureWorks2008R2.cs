@@ -1,4 +1,4 @@
-﻿// @Optimize
+// @Optimize
 using System.Buffers;
 using MemoryPack;
 #pragma warning disable CS8981 // 型名には、小文字の ASCII 文字のみが含まれています。このような名前は、プログラミング言語用に予約されている可能性があります。

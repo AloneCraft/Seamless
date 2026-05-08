@@ -1,4 +1,4 @@
-﻿using Seamless.Stores;
+using Seamless.Stores;
 namespace Test.Seamless.Unit.Collections;
 
 
@@ -17,14 +17,14 @@ public class DebugView {
             dict.Add(a);
         }
     }
-    [Fact, Trait("Category","Unit")]public void ManagedDictionary() {
+    [Fact, Trait("Category","Unit")]public void Dictionary() {
         using var store = HashStore.Create().Create<string,string>();
         using var dict = store.Create();
         for(var a=0;a<10;a++){
             dict.Add(a.ToString(),a.ToString());
         }
     }
-    [Fact, Trait("Category","Unit")]public void ManagedHashSet() {
+    [Fact, Trait("Category","Unit")]public void HashSet() {
         using var store = HashStore.Create().Create<string>();
         using var dict = store.Create();
         for(var a=0;a<10;a++){

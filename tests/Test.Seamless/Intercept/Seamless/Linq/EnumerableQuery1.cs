@@ -1,4 +1,4 @@
-﻿using Seamless.Linq;
+using Seamless.Linq;
 using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Seamless.Intercept.Seamless.Linq;

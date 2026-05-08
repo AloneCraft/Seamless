@@ -53,7 +53,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\ListTests.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\Set.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\StoreHandle.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\UnmanagedHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\Collections\BlittableHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Devices\MemoryOnlyDevice.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Helpers\Collections\DictionaryStrategy.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Helpers\Collections\DictionaryTestBase.cs" />
@@ -72,13 +72,13 @@
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\CommonWith.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\ExceptWith.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\IntersectWith.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\ManagedAdd.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\Upsert.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\Remove_KeyValuePair.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\Remove_TKey_TValue.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\SessionFunctionTestDummies.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\SymmetricExcept.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\UnionWith.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\UnmanagedAdd.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Unit\SessionFunctions\BlittableUpsert.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Stores\CollectionStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Stores\HashStore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Unit\Stores\KindDictionarySize.cs" />

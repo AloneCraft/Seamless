@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -169,7 +169,7 @@ namespace Test.Seamless.Database.Example {
 
 #if TSAVORITE2_0BETA3
         private static byte[] RoundTrip_Tsavorite2_0BETA3(Keys.Key0 key,byte[] valueBytes) {
-            using var store = HashStore.Create().Create<Keys.Key0,byte[]>(new ManagedTag(),new ManagedTag());
+            using var store = HashStore.Create().Create<Keys.Key0,byte[]>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
             using var dict = store.Create();
 
             dict[key]=valueBytes;

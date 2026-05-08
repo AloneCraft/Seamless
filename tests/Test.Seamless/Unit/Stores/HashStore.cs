@@ -1,4 +1,4 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
 using Seamless.Stores;
 using Test.Seamless.Collections;
 namespace Test.Seamless.Unit.Stores;
@@ -7,97 +7,97 @@ public class HashStoreTests {
     [Fact, Trait("Category","Unit")]
     public void Create_UnmanagedKey_UnmanagedValue_ReturnsUnmanagedDictionaryStore() {
         using var store = HashStore.Create().Create<int,long>();
-        Assert.IsType<UnmanagedDictionaryStore<int,long>>(store);
+        Assert.IsType<DictionaryStore<int,long>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Create_UnmanagedKey_ManagedValue_ReturnsUnmanagedAndManagedSerializers() {
+    public void Create_UnmanagedKey_ManagedValue_ReturnsUnmanagedAndMemoryPackSerializers() {
         using var store = HashStore.Create().Create<int,string>();
-        Assert.IsType<ManagedDictionaryStore<int,string>>(store);
+        Assert.IsType<DictionaryStore<int,string>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Create_ManagedKey_UnmanagedValue_ReturnsManagedAndUnmanagedSerializers() {
+    public void Create_ManagedKey_UnmanagedValue_ReturnsManagedAndBlittableSerializers() {
         using var store = HashStore.Create().Create<string,int>();
-        Assert.IsType<ManagedDictionaryStore<string,int>>(store);
+        Assert.IsType<DictionaryStore<string,int>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Create_ManagedKey_ManagedValue_ReturnsManagedSerializer() {
+    public void Create_ManagedKey_ManagedValue_ReturnsMemoryPackSerializer() {
         using var store = HashStore.Create().Create<string,string>();
-        Assert.IsType<ManagedDictionaryStore<string,string>>(store);
+        Assert.IsType<DictionaryStore<string,string>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Create_ManagedTagExplicit_UnmanagedKey_UnmanagedValue_ReturnsManagedSerializer() {
-        using var store = HashStore.Create().Create<int,int>(new ManagedTag(),new ManagedTag());
-        Assert.IsType<ManagedDictionaryStore<int,int>>(store);
+    public void Create_MemoryPackSerializerStrategyExplicit_UnmanagedKey_UnmanagedValue_ReturnsMemoryPackSerializer() {
+        using var store = HashStore.Create().Create<int,int>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+        Assert.IsType<DictionaryStore<int,int>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Create_UnmanagedStruct_UnmanagedStruct_ReturnsUnmanagedDictionaryStore() {
         using var store = HashStore.Create().Create<UnmanagedStruct,UnmanagedStruct>();
-        Assert.IsType<UnmanagedDictionaryStore<UnmanagedStruct,UnmanagedStruct>>(store);
+        Assert.IsType<DictionaryStore<UnmanagedStruct,UnmanagedStruct>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Create_ManagedStruct_ManagedStruct_ReturnsManagedSerializer() {
+    public void Create_ManagedStruct_ManagedStruct_ReturnsMemoryPackSerializer() {
         using var store = HashStore.Create().Create<ManagedStruct,ManagedStruct>();
-        Assert.IsType<ManagedDictionaryStore<ManagedStruct,ManagedStruct>>(store);
+        Assert.IsType<DictionaryStore<ManagedStruct,ManagedStruct>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Create_UnmanagedStruct_ManagedStruct_ReturnsUnmanagedAndManagedSerializers() {
+    public void Create_UnmanagedStruct_ManagedStruct_ReturnsUnmanagedAndMemoryPackSerializers() {
         using var store = HashStore.Create().Create<UnmanagedStruct,ManagedStruct>();
-        Assert.IsType<ManagedDictionaryStore<UnmanagedStruct,ManagedStruct>>(store);
+        Assert.IsType<DictionaryStore<UnmanagedStruct,ManagedStruct>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Create_ManagedStruct_UnmanagedStruct_ReturnsManagedAndUnmanagedSerializers() {
+    public void Create_ManagedStruct_UnmanagedStruct_ReturnsManagedAndBlittableSerializers() {
         using var store = HashStore.Create().Create<ManagedStruct,UnmanagedStruct>();
-        Assert.IsType<ManagedDictionaryStore<ManagedStruct,UnmanagedStruct>>(store);
+        Assert.IsType<DictionaryStore<ManagedStruct,UnmanagedStruct>>(store);
     }
 
     [Fact, Trait("Category","Unit")]
     public void CreateManagedManaged_ReturnsManagedManagedDictionary() {
         using var store = HashStore.Create().Create<string,string>();
         using var dictionary = store.Create();
-        Assert.IsType<ManagedManagedDictionary<string,string,ManagedSerializer<string>,ManagedSerializer<string>>>(dictionary);
+        Assert.IsType<Dictionary<string,string,MemoryPackSerializer<string>,MemoryPackSerializer<string>>>(dictionary);
     }
 
     [Fact, Trait("Category","Unit")]
     public void CreateUnmanagedManaged_ReturnsUnmanagedManagedDictionary() {
         using var store = HashStore.Create().Create<int,string>();
         using var dictionary = store.Create();
-        Assert.IsType<UnmanagedManagedDictionary<int,string,UnmanagedSerializer<int>,ManagedSerializer<string>>>(dictionary);
+        Assert.IsType<Dictionary<int,string,BlittableSerializer<int>,MemoryPackSerializer<string>>>(dictionary);
     }
 
     [Fact, Trait("Category","Unit")]
     public void CreateManagedUnmanaged_ReturnsManagedUnmanagedDictionary() {
         using var store = HashStore.Create().Create<string,int>();
         using var dictionary = store.Create();
-        Assert.IsType<ManagedUnmanagedDictionary<string,int,ManagedSerializer<string>,UnmanagedSerializer<int>>>(dictionary);
+        Assert.IsType<Dictionary<string,int,MemoryPackSerializer<string>,BlittableSerializer<int>>>(dictionary);
     }
 
     [Fact, Trait("Category","Unit")]
     public void CreateUnmanagedUnmanaged_ReturnsUnmanagedUnmanagedDictionary() {
         using var store = HashStore.Create().Create<int,int>();
         using var dictionary = store.Create();
-        Assert.IsType<UnmanagedUnmanagedDictionary<int,int,UnmanagedSerializer<int>,UnmanagedSerializer<int>>>(dictionary);
+        Assert.IsType<Dictionary<int,int,BlittableSerializer<int>,BlittableSerializer<int>>>(dictionary);
     }
 
     [Fact, Trait("Category","Unit")]
     public void CreateManagedUnmanagedHashSet_ReturnsManagedUnmanagedHashSet() {
-        using var store = HashStore.Create().Create<string>(new ManagedTag());
+        using var store = HashStore.Create().Create<string>(new MemoryPackSerializerStrategy());
         using var set = store.Create();
-        Assert.IsType<ManagedHashSet<string>>(set);
+        Assert.IsType<global::Seamless.Collections.HashSet<string>>(set);
     }
 
     [Fact, Trait("Category","Unit")]
     public void CreateUnmanagedUnmanagedHashSet_ReturnsUnmanagedUnmanagedHashSet() {
         using var store = HashStore.Create().Create<int>();
         using var set = store.Create();
-        Assert.IsType<UnmanagedHashSet<int>>(set);
+        Assert.IsType<global::Seamless.Collections.HashSet<int>>(set);
     }
 
     [Fact, Trait("Category","Unit")]

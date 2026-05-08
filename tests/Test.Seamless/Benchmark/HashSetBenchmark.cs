@@ -1,4 +1,4 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
 
@@ -6,7 +6,7 @@ namespace Test.Seamless.Benchmarks;
 
 /// <summary>
 /// HashSet ベンチマークの共通土台。
-/// <see cref="ManagedHashSet{T}"/> / <see cref="UnmanagedHashSet{T}"/> が
+/// <see cref="HashSet{T}"/> / <see cref="UnmanagedHashSet{T}"/> が
 /// 提供する集合演算および <see cref="ICollection{T}"/> / <see cref="IReadOnlyCollection{T}"/>
 /// 経由の操作を計測する。
 /// 集合演算 (IntersectWith/SymmetricExceptWith/IsXxxOf/Overlaps/SetEquals) は
@@ -20,7 +20,7 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
     /// Drive2 用 Matrix。
     /// Tsavorite の LightEpoch インスタンス上限 (MaxInstances=16) により
     /// Drive2 は primary + sibling = 2×parallel 個のストアを同時保持するため
-    /// parallel ≤ 8 (2×8=16 ≤ MaxInstances) に制限する。
+    /// parallel ? 8 (2×8=16 ? MaxInstances) に制限する。
     /// </summary>
     public static TheoryData<int,double,long,long,int,int> MatrixPairs {
         get {
@@ -296,8 +296,8 @@ public sealed class ManagedHashSetBenchmark(ITestOutputHelper output):HashSetBen
         return new H(mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits);
     }
     private sealed class H:Handle {
-        private readonly ManagedHashSetStore<string> store;
-        private readonly ManagedHashSet<string> set;
+        private readonly HashSetStore<string> store;
+        private readonly global::Seamless.Collections.HashSet<string> set;
         private readonly double mf;
         private readonly long indexSize;
         private readonly long segmentSize;
@@ -328,7 +328,7 @@ public sealed class ManagedHashSetBenchmark(ITestOutputHelper output):HashSetBen
                 MemorySize: 1L<<memorySizeBits,
                 MutableFraction: mutableFraction,
                 CheckpointDir: checkpointDir
-            ).Create<string>(this.logDevice,this.objDevice,new ManagedTag());
+            ).Create<string>(this.logDevice,this.objDevice,new MemoryPackSerializerStrategy());
             this.set=this.store.Create();
         }
         public override IHashSet<string> Set => this.set;
@@ -361,7 +361,7 @@ public sealed class ManagedHashSetBenchmark(ITestOutputHelper output):HashSetBen
             }
         }
         public override Handle CreateSibling() => new H(this.mf,this.indexSize,this.segmentSize,this.memorySizeBits,this.pageSizeBits);
-        private static ManagedHashSet<string> C(Handle h) => ((H)h).set;
+        private static global::Seamless.Collections.HashSet<string> C(Handle h) => ((H)h).set;
         public override void IntersectWith(Handle other) => this.set.IntersectWith(C(other));
         public override void SymmetricExceptWith(Handle other) => this.set.SymmetricExceptWith(C(other));
         public override bool IsSubsetOf(Handle other) => this.set.IsSubsetOf(C(other));
@@ -380,8 +380,8 @@ public sealed class UnmanagedHashSetBenchmark(ITestOutputHelper output):HashSetB
         return new H(mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits);
     }
     private sealed class H:Handle {
-        private readonly UnmanagedHashSetStore<int> store;
-        private readonly UnmanagedHashSet<int> set;
+        private readonly HashSetStore<int> store;
+        private readonly global::Seamless.Collections.HashSet<int> set;
         private readonly double mf;
         private readonly long indexSize;
         private readonly long segmentSize;
@@ -412,7 +412,7 @@ public sealed class UnmanagedHashSetBenchmark(ITestOutputHelper output):HashSetB
                 MemorySize: 1L<<memorySizeBits,
                 MutableFraction: mutableFraction,
                 CheckpointDir: checkpointDir
-            ).Create<int>(this.logDevice,this.objDevice,new UnmanagedTag());
+            ).Create<int>(this.logDevice,this.objDevice,new BlittableStrategy());
             this.set=this.store.Create();
         }
         public override IHashSet<int> Set => this.set;
@@ -445,7 +445,7 @@ public sealed class UnmanagedHashSetBenchmark(ITestOutputHelper output):HashSetB
             }
         }
         public override Handle CreateSibling() => new H(this.mf,this.indexSize,this.segmentSize,this.memorySizeBits,this.pageSizeBits);
-        private static UnmanagedHashSet<int> C(Handle h) => ((H)h).set;
+        private static global::Seamless.Collections.HashSet<int> C(Handle h) => ((H)h).set;
         public override void IntersectWith(Handle other) => this.set.IntersectWith(C(other));
         public override void SymmetricExceptWith(Handle other) => this.set.SymmetricExceptWith(C(other));
         public override bool IsSubsetOf(Handle other) => this.set.IsSubsetOf(C(other));

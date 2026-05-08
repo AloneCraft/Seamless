@@ -1,4 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Order;
 using Seamless.Collections;
@@ -9,7 +9,7 @@ namespace BenchmarkExe.Benchmarks;
 
 public enum CollectionImplKind {
     Managed,
-    Unmanaged,
+    Blittable,
 }
 
 public enum RegionKind {
@@ -48,10 +48,10 @@ public class DictionaryApiSurfaceBenchmark {
     private string[] stringValues = null!;
     private string checkpointRoot = null!;
 
-    private Seamless.Collections.IDictionary<int,int>? unmanagedDict;
+    private Seamless.Collections.IDictionary<int,int>? blittableDict;
     private Seamless.Collections.IDictionary<string,string>? managedDict;
-    private UnmanagedDictionaryStore<int,int>? unmanagedStore;
-    private ManagedDictionaryStore<string,string>? managedStore;
+    private DictionaryStore<int,int>? blittableStore;
+    private DictionaryStore<string,string>? managedStore;
     private IDevice? logDevice;
     private IDevice? objDevice;
     private string? loadCheckpointDir;
@@ -60,7 +60,7 @@ public class DictionaryApiSurfaceBenchmark {
     [Params(10_000)]
     public int CountValue { get; set; }
 
-    [Params(CollectionImplKind.Managed,CollectionImplKind.Unmanaged)]
+    [Params(CollectionImplKind.Managed,CollectionImplKind.Blittable)]
     public CollectionImplKind Impl { get; set; }
 
     [Params(RegionKind.Mutable,RegionKind.Immutable,RegionKind.Storage)]
@@ -123,24 +123,24 @@ public class DictionaryApiSurfaceBenchmark {
 
         var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir);
 
-        if(this.Impl==CollectionImplKind.Unmanaged) {
-            this.unmanagedStore=useStorage
-                ? factory.Create<int,int>(this.logDevice!,this.objDevice!)
-                : factory.Create<int,int>();
-            this.unmanagedDict=this.unmanagedStore.Create();
-            this.PrepareUnmanagedData();
+        if(this.Impl==CollectionImplKind.Blittable) {
+            this.blittableStore=useStorage
+                ? factory.Create<int,int>(this.logDevice!,this.objDevice!,new BlittableStrategy(),new BlittableStrategy())
+                : factory.Create<int,int>(new BlittableStrategy(),new BlittableStrategy());
+            this.blittableDict=this.blittableStore.Create();
+            this.PrepareBlittableData();
         }
         else {
             this.managedStore=useStorage
-                ? factory.Create<string,string>(this.logDevice!,this.objDevice!,new ManagedTag(),new ManagedTag())
-                : factory.Create<string,string>(new ManagedTag(),new ManagedTag());
+                ? factory.Create<string,string>(this.logDevice!,this.objDevice!,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy())
+                : factory.Create<string,string>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
             this.managedDict=this.managedStore.Create();
             this.PrepareManagedData();
         }
 
         if(this.Region==RegionKind.Immutable) {
-            if(this.unmanagedStore is not null) {
-                this.unmanagedStore.Store.Log.FlushAndEvict(wait: true);
+            if(this.blittableStore is not null) {
+                this.blittableStore.Store.Log.FlushAndEvict(wait: true);
             }
             if(this.managedStore is not null) {
                 this.managedStore.Store.Log.FlushAndEvict(wait: true);
@@ -167,13 +167,13 @@ public class DictionaryApiSurfaceBenchmark {
 
     [Benchmark]
     public long Run() {
-        return this.Impl==CollectionImplKind.Unmanaged
-            ? this.RunUnmanaged()
+        return this.Impl==CollectionImplKind.Blittable
+            ? this.RunBlittable()
             : this.RunManaged();
     }
 
-    private void PrepareUnmanagedData() {
-        if(this.unmanagedDict is null) {
+    private void PrepareBlittableData() {
+        if(this.blittableDict is null) {
             return;
         }
 
@@ -182,7 +182,7 @@ public class DictionaryApiSurfaceBenchmark {
         }
 
         for(var i = 0; i<this.intKeys.Length; i++) {
-            this.unmanagedDict[this.intKeys[i]]=this.intKeys[i]*2;
+            this.blittableDict[this.intKeys[i]]=this.intKeys[i]*2;
         }
     }
 
@@ -213,8 +213,8 @@ public class DictionaryApiSurfaceBenchmark {
         var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.CountValue*128L);
         var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: this.loadCheckpointDir);
 
-        if(this.Impl==CollectionImplKind.Unmanaged) {
-            using var store = factory.Create<int,int>(log,obj);
+        if(this.Impl==CollectionImplKind.Blittable) {
+            using var store = factory.Create<int,int>(log,obj,new BlittableStrategy(),new BlittableStrategy());
             using var dict = store.Create();
             foreach(var t in this.intKeys){
                 dict[t]=t*2;
@@ -222,7 +222,7 @@ public class DictionaryApiSurfaceBenchmark {
             this.loadToken=store.Save();
         }
         else {
-            using var store = factory.Create<string,string>(log,obj,new ManagedTag(),new ManagedTag());
+            using var store = factory.Create<string,string>(log,obj,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
             using var dict = store.Create();
             for(var i = 0; i<this.stringKeys.Length; i++) {
                 dict[this.stringKeys[i]]=this.stringValues[i];
@@ -231,8 +231,8 @@ public class DictionaryApiSurfaceBenchmark {
         }
     }
 
-    private long RunUnmanaged() {
-        var dict = this.unmanagedDict!;
+    private long RunBlittable() {
+        var dict = this.blittableDict!;
         var iDict = (System.Collections.Generic.IDictionary<int,int>)dict;
         var ro = (IReadOnlyDictionary<int,int>)dict;
         var coll = (ICollection<KeyValuePair<int,int>>)dict;
@@ -436,9 +436,9 @@ public class DictionaryApiSurfaceBenchmark {
     }
 
     private int SaveCurrent() {
-        if(this.unmanagedStore is not null) {
-            this.unmanagedStore.Save();
-            return this.unmanagedDict?.Count??0;
+        if(this.blittableStore is not null) {
+            this.blittableStore.Save();
+            return this.blittableDict?.Count??0;
         }
         if(this.managedStore is not null) {
             this.managedStore.Save();
@@ -462,13 +462,13 @@ public class DictionaryApiSurfaceBenchmark {
         var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: this.loadCheckpointDir)
             .WithRecoveryIndexSize(this.loadToken);
 
-        if(this.Impl==CollectionImplKind.Unmanaged) {
-            using var store = factory.Create<int,int>(log,obj);
+        if(this.Impl==CollectionImplKind.Blittable) {
+            using var store = factory.Create<int,int>(log,obj,new BlittableStrategy(),new BlittableStrategy());
             store.Load(this.loadToken);
             using var dict = store.Create();
             return dict.Count;
         }
-        using var mstore = factory.Create<string,string>(log,obj,new ManagedTag(),new ManagedTag());
+        using var mstore = factory.Create<string,string>(log,obj,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
         {
             mstore.Load(this.loadToken);
             using var dict = mstore.Create();
@@ -477,13 +477,13 @@ public class DictionaryApiSurfaceBenchmark {
     }
 
     private void DisposeIterationResources() {
-        this.unmanagedDict?.Dispose();
-        this.unmanagedDict=null;
+        this.blittableDict?.Dispose();
+        this.blittableDict=null;
         this.managedDict?.Dispose();
         this.managedDict=null;
 
-        this.unmanagedStore?.Dispose();
-        this.unmanagedStore=null;
+        this.blittableStore?.Dispose();
+        this.blittableStore=null;
         this.managedStore?.Dispose();
         this.managedStore=null;
 

@@ -23,12 +23,12 @@ public enum ListAccessPattern {
 [SimpleJob(warmupCount: 1,iterationCount: 5)]
 public class ListApiSurfaceBenchmark {
     private string iterationDir = null!;
-    private global::Seamless.Collections.List<int>? list;
+    private global::Seamless.Collections.ListBase<int>? list;
 
     [Params(10_000)]
     public int CountValue { get; set; }
 
-    [Params(CollectionImplKind.Managed,CollectionImplKind.Unmanaged)]
+    [Params(CollectionImplKind.Managed,CollectionImplKind.Blittable)]
     public CollectionImplKind Impl { get; set; }
 
     [Params(ListAccessPattern.SequentialScan,ListAccessPattern.RandomAccess)]
@@ -46,8 +46,8 @@ public class ListApiSurfaceBenchmark {
 
         var listPath = Path.Combine(this.iterationDir,"list.data");
         this.list=this.Impl==CollectionImplKind.Managed
-            ? ListStore.Create<int>(listPath,initialCapacity: 16,initialDataCapacity: Math.Max(4096,this.CountValue*8),new ManagedTag())
-            : ListStore.Create<int>(listPath,initialCapacity: Math.Max(16,this.CountValue),new UnmanagedTag());
+            ? ListStore.Create<int>(listPath,initialCapacity: 16,initialDataCapacity: Math.Max(4096,this.CountValue*8),new MemoryPackSerializerStrategy())
+            : ListStore.Create<int>(listPath,initialCapacity: Math.Max(16,this.CountValue),new BlittableStrategy());
 
         this.list.SetTuning(new TempListTuning(FileAccess.ReadWrite,this.ToFileOptions(this.AccessPattern)));
 
@@ -75,14 +75,14 @@ public class ListApiSurfaceBenchmark {
         };
     }
 
-    private long RunAdd(global::Seamless.Collections.List<int> target) {
+    private long RunAdd(global::Seamless.Collections.ListBase<int> target) {
         for(var i = 0; i<this.CountValue; i++) {
             target.Add(i);
         }
         return target.Count;
     }
 
-    private long RunRead(global::Seamless.Collections.List<int> target) {
+    private long RunRead(global::Seamless.Collections.ListBase<int> target) {
         long sum = 0;
         for(var i = 0; i<this.CountValue; i++) {
             sum+=target[i];
@@ -90,7 +90,7 @@ public class ListApiSurfaceBenchmark {
         return sum;
     }
 
-    private long RunMixed(global::Seamless.Collections.List<int> target) {
+    private long RunMixed(global::Seamless.Collections.ListBase<int> target) {
         var n = this.CountValue/2;
         for(var i = 0; i<n; i++) {
             target.Add(i);

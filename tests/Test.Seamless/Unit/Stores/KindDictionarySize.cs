@@ -1,4 +1,4 @@
-﻿using Seamless.Stores;
+using Seamless.Stores;
 namespace Test.Seamless.Unit.Stores;
 
 /// <summary>
@@ -30,7 +30,7 @@ public partial class KindDictionarySize(ITestOutputHelper output) {
         using var uuDict = uuStore.Create();
         var uuBytes = MeasureLogBytes(() => uuStore.Store.Log.TailAddress,uuDict);
 
-        using var mmStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
+        using var mmStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
         using var mmDict = mmStore.Create();
         var mmBytes = MeasureLogBytes(() => mmStore.Store.Log.TailAddress,mmDict);
 
@@ -39,11 +39,11 @@ public partial class KindDictionarySize(ITestOutputHelper output) {
 
     [Fact, Trait("Category","Unit")]
     public void ManagedUnmanaged_vs_ManagedManaged_ValuePartDiffers() {
-        using var muStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),default);
+        using var muStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new MemoryPackSerializerStrategy(),new BlittableStrategy());
         using var muDict = muStore.Create();
         var muBytes = MeasureLogBytes(() => muStore.Store.Log.TailAddress,muDict);
 
-        using var mmStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
+        using var mmStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
         using var mmDict = mmStore.Create();
         var mmBytes = MeasureLogBytes(() => mmStore.Store.Log.TailAddress,mmDict);
 
@@ -52,11 +52,11 @@ public partial class KindDictionarySize(ITestOutputHelper output) {
 
     [Fact, Trait("Category","Unit")]
     public void UnmanagedManaged_vs_ManagedManaged_ValuePartDiffers() {
-        using var umStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(default,new ManagedTag());
+        using var umStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new BlittableStrategy(),new MemoryPackSerializerStrategy());
         using var umDict = umStore.Create();
         var umBytes = MeasureLogBytes(() => umStore.Store.Log.TailAddress,umDict);
 
-        using var mmStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
+        using var mmStore = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
         using var mmDict = mmStore.Create();
         var mmBytes = MeasureLogBytes(() => mmStore.Store.Log.TailAddress,mmDict);
 
@@ -73,17 +73,17 @@ public partial class KindDictionarySize(ITestOutputHelper output) {
             sizes["UnmanagedUnmanaged"]=MeasureLogBytes(() => store.Store.Log.TailAddress,dict);
         }
         {
-            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>(default,new ManagedTag());
+            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new BlittableStrategy(),new MemoryPackSerializerStrategy());
             using var dict = store.Create();
             sizes["UnmanagedManaged"]=MeasureLogBytes(() => store.Store.Log.TailAddress,dict);
         }
         {
-            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),default);
+            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new MemoryPackSerializerStrategy(),new BlittableStrategy());
             using var dict = store.Create();
             sizes["ManagedUnmanaged"]=MeasureLogBytes(() => store.Store.Log.TailAddress,dict);
         }
         {
-            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new ManagedTag(),new ManagedTag());
+            using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
             using var dict = store.Create();
             sizes["ManagedManaged"]=MeasureLogBytes(() => store.Store.Log.TailAddress,dict);
         }

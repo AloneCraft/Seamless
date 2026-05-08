@@ -15,9 +15,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <SeamlessBenchmarkOutputLabel Condition="'$(SeamlessBenchmarkOutputLabel)' == '' and $([System.String]::Copy('$(SeamlessBenchmarkTarget)').StartsWith('1.'))">1.*</SeamlessBenchmarkOutputLabel>
-    <SeamlessBenchmarkOutputLabel Condition="'$(SeamlessBenchmarkOutputLabel)' == '' and $([System.String]::Copy('$(SeamlessBenchmarkTarget)').StartsWith('2.'))">2.*</SeamlessBenchmarkOutputLabel>
-    <SeamlessBenchmarkOutputLabel Condition="'$(SeamlessBenchmarkOutputLabel)' == ''">$(SeamlessBenchmarkTarget)</SeamlessBenchmarkOutputLabel>
+    <SeamlessBenchmarkOutputLabel Condition="'$(SeamlessBenchmarkOutputLabel)' == ''">Seamless</SeamlessBenchmarkOutputLabel>
 
     <SeamlessBenchmarkOutputFrameworkLabel Condition="'$(SeamlessTargetFramework)' == 'net8.0'">net8</SeamlessBenchmarkOutputFrameworkLabel>
     <SeamlessBenchmarkOutputFrameworkLabel Condition="'$(SeamlessTargetFramework)' == 'net9.0'">net9</SeamlessBenchmarkOutputFrameworkLabel>
@@ -41,10 +39,6 @@
 	<DebugType>portable</DebugType>
 	<DefineConstants>TRACE</DefineConstants>
   </PropertyGroup>
-
-  <Target Name="ValidateSeamlessBenchmarkTarget" BeforeTargets="CollectPackageReferences;ResolveProjectReferences">
-    <Error Condition="'$(SeamlessBenchmarkTarget)' != '1.1.1' and '$(SeamlessBenchmarkTarget)' != '2.0beta3'" Text="SeamlessBenchmarkTarget must be '1.1.1' or '2.0beta3'. Current value: '$(SeamlessBenchmarkTarget)'." />
-  </Target>
 
   <ItemGroup>
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
@@ -88,15 +82,8 @@
     <PackageReference Include="MemoryPack" Version="1.*" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(SeamlessBenchmarkTarget)' == '1.1.1'">
-    <ProjectReference Include="..\Seamless1\Seamless1.csproj" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(SeamlessBenchmarkTarget)' == '2.0beta3'">
-    <ProjectReference Include="..\Seamless2\Seamless2.csproj" />
-  </ItemGroup>
-
   <ItemGroup>
+    <ProjectReference Include="..\Seamless\Seamless.csproj" />
     <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>
