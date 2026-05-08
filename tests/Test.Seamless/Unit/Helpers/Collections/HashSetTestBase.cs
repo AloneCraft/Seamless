@@ -1,4 +1,4 @@
-﻿namespace Test.Seamless.Unit.Helpers.Collections;
+namespace Test.Seamless.Unit.Helpers.Collections;
 /// <summary>
 /// HashSet �e�X�g�̋��ʊ��N���X�B
 /// Dictionary �� DictionaryTestBase �Ɠ��l�ɁA

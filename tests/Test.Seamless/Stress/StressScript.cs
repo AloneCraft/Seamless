@@ -1,13 +1,13 @@
 namespace Test.Seamless.Stress;
 
 /// <summary>
-/// 決定論的 Stress スクリプト生成器。
-/// 同一シードで必ず同じ操作列・同じキー列を出す。
+/// 豎ｺ螳夊ｫ也噪 Stress 繧ｹ繧ｯ繝ｪ繝励ヨ逕滓・蝎ｨ縲・
+/// 蜷御ｸ繧ｷ繝ｼ繝峨〒蠢・★蜷後§謫堺ｽ懷・繝ｻ蜷後§繧ｭ繝ｼ蛻励ｒ蜃ｺ縺吶・
 /// </summary>
 internal static class StressScript {
     /// <summary>
-    /// [0, range) からの非重複キー配列を返す。Fisher-Yates シャッフルで決定論的。
-    /// <paramref name="count"/> は <paramref name="range"/> 以下。
+    /// [0, range) 縺九ｉ縺ｮ髱樣㍾隍・く繝ｼ驟榊・繧定ｿ斐☆縲・isher-Yates 繧ｷ繝｣繝・ヵ繝ｫ縺ｧ豎ｺ螳夊ｫ也噪縲・
+    /// <paramref name="count"/> 縺ｯ <paramref name="range"/> 莉･荳九・
     /// </summary>
     public static int[] SampleKeys(int seed,int range,int count) {
         if(count>range)
@@ -23,7 +23,7 @@ internal static class StressScript {
         return pool;
     }
 
-    /// <summary>Remove 対象のマスク（length 個、true 率 removeRate）。</summary>
+    /// <summary>Remove 蟇ｾ雎｡縺ｮ繝槭せ繧ｯ・・ength 蛟九》rue 邇・removeRate・峨・/summary>
     public static bool[] RemoveMask(int seed,int length,double removeRate) {
         var rng = new Random(seed);
         var mask = new bool[length];

@@ -402,14 +402,14 @@ public sealed class HashSetMethod1 {
     private static global::System.Collections.Generic.HashSet<Pair> PairSource() => [new(1,10),new(1,11),new(2,20),new(3,30)];
     private static global::System.Collections.Generic.HashSet<Pair> PairSecond() => [new(1,100),new(1,101),new(3,300),new(4,400)];
 
-    private static IHashSet<int> aSource() => CreateUnmanagedSet(eSource());
-    private static IHashSet<int> aSecondSource() => CreateUnmanagedSet(Second());
-    private static IHashSet<int> aEmptySource() => CreateUnmanagedSet(EmptySource());
-    private static IHashSet<int> aKeySource() => CreateUnmanagedSet(KeySource());
-    private static IHashSet<Pair> aPairSource() => CreateUnmanagedSet(PairSource());
-    private static IHashSet<Pair> aPairSecondSource() => CreateUnmanagedSet(PairSecond());
+    private static IHashSet<int> aSource() => CreateSet(eSource());
+    private static IHashSet<int> aSecondSource() => CreateSet(Second());
+    private static IHashSet<int> aEmptySource() => CreateSet(EmptySource());
+    private static IHashSet<int> aKeySource() => CreateSet(KeySource());
+    private static IHashSet<Pair> aPairSource() => CreateSet(PairSource());
+    private static IHashSet<Pair> aPairSecondSource() => CreateSet(PairSecond());
 
-    private static IHashSet<T> CreateUnmanagedSet<T>(IEnumerable<T> values)
+    private static IHashSet<T> CreateSet<T>(IEnumerable<T> values)
         where T : unmanaged, IEquatable<T> {
         var store = HashStore.Create().Create<T>();
         var result = store.CreateOwned();

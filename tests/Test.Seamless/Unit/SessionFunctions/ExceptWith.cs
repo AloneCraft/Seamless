@@ -1,4 +1,4 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
 using Seamless.Stores;
 
 namespace Test.Seamless.Unit.SessionFunctions;
@@ -17,22 +17,22 @@ public abstract class ExceptWith<TKey, TSet>:CommonWith<TKey,TSet>
     }
 }
 
-public sealed class ManagedExceptWith:ExceptWith<string,ManagedHashSet<string>> {
+public sealed class ManagedExceptWith:ExceptWith<string,global::Seamless.Collections.HashSet<string>> {
     protected override string CreateKey(int seed) => seed.ToString();
-    protected override (ManagedHashSet<string> Set,IDisposable Store) CreateSet() {
-        var store = HashStore.Create().Create<string>(new ManagedTag());
+    protected override (global::Seamless.Collections.HashSet<string> Set,IDisposable Store) CreateSet() {
+        var store = HashStore.Create().Create<string>(new MemoryPackSerializerStrategy());
         return (store.Create(),store);
     }
-    protected override void With(ManagedHashSet<string> set,ManagedHashSet<string> other) => set.ExceptWith(other);
+    protected override void With(global::Seamless.Collections.HashSet<string> set,global::Seamless.Collections.HashSet<string> other) => set.ExceptWith(other);
     protected override void ExpectedWith(global::System.Collections.Generic.HashSet<string> set,global::System.Collections.Generic.HashSet<string> other) => set.ExceptWith(other);
 }
 
-public sealed class UnmanagedExceptWith:ExceptWith<int,UnmanagedHashSet<int>> {
+public sealed class UnmanagedExceptWith:ExceptWith<int,global::Seamless.Collections.HashSet<int>> {
     protected override int CreateKey(int seed) => seed;
-    protected override (UnmanagedHashSet<int> Set,IDisposable Store) CreateSet() {
+    protected override (global::Seamless.Collections.HashSet<int> Set,IDisposable Store) CreateSet() {
         var store = HashStore.Create().Create<int>();
         return (store.Create(),store);
     }
-    protected override void With(UnmanagedHashSet<int> set,UnmanagedHashSet<int> other) => set.ExceptWith(other);
+    protected override void With(global::Seamless.Collections.HashSet<int> set,global::Seamless.Collections.HashSet<int> other) => set.ExceptWith(other);
     protected override void ExpectedWith(global::System.Collections.Generic.HashSet<int> set,global::System.Collections.Generic.HashSet<int> other) => set.ExceptWith(other);
 }

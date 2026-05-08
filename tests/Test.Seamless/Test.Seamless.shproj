@@ -61,7 +61,7 @@
     <Compile Include="Unit\Collections\ListTests.cs" />
     <Compile Include="Unit\Collections\Set.cs" />
     <Compile Include="Unit\Collections\StoreHandle.cs" />
-    <Compile Include="Unit\Collections\UnmanagedHashSet.cs" />
+    <Compile Include="Unit\Collections\BlittableHashSet.cs" />
     <Compile Include="Unit\Devices\MemoryOnlyDevice.cs" />
     <Compile Include="Unit\Helpers\Collections\DictionaryStrategy.cs" />
     <Compile Include="Unit\Helpers\Collections\DictionaryTestBase.cs" />
@@ -80,13 +80,13 @@
     <Compile Include="Unit\SessionFunctions\CommonWith.cs" />
     <Compile Include="Unit\SessionFunctions\ExceptWith.cs" />
     <Compile Include="Unit\SessionFunctions\IntersectWith.cs" />
-    <Compile Include="Unit\SessionFunctions\ManagedAdd.cs" />
+    <Compile Include="Unit\SessionFunctions\Upsert.cs" />
     <Compile Include="Unit\SessionFunctions\Remove_KeyValuePair.cs" />
     <Compile Include="Unit\SessionFunctions\Remove_TKey_TValue.cs" />
     <Compile Include="Unit\SessionFunctions\SessionFunctionTestDummies.cs" />
     <Compile Include="Unit\SessionFunctions\SymmetricExcept.cs" />
     <Compile Include="Unit\SessionFunctions\UnionWith.cs" />
-    <Compile Include="Unit\SessionFunctions\UnmanagedAdd.cs" />
+    <Compile Include="Unit\SessionFunctions\BlittableUpsert.cs" />
     <Compile Include="Unit\Stores\CollectionStore.cs" />
     <Compile Include="Unit\Stores\HashStore.cs" />
     <Compile Include="Unit\Stores\KindDictionarySize.cs" />

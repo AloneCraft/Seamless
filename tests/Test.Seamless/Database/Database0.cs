@@ -1,4 +1,4 @@
-﻿using Seamless;
+using Seamless;
 using Seamless.Linq;
 
 using System.Linq.Expressions;

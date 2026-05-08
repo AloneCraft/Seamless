@@ -1,4 +1,4 @@
-﻿using Seamless;
+using Seamless;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Tsavorite.core;

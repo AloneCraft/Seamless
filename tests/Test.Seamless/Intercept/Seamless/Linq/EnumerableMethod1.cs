@@ -192,8 +192,8 @@ public sealed class EnumerableMethod1 {
     );
     [Fact, Trait("Category","Intercept")]
     private static void InfiniteSequence_start_step() => Assert.Equal(
-        e.Take(e.InfiniteSequence(1, 1),1000),
-        a.InfiniteSequence(1, 1).Take(1000)
+        e.Take(e.InfiniteSequence(1,1),1000),
+        a.InfiniteSequence(1,1).Take(1000)
     );
     [Fact, Trait("Category","Intercept")]
     private static void Intersect_second() => Assert.Equal(
@@ -467,8 +467,8 @@ public sealed class EnumerableMethod1 {
     );
     [Fact, Trait("Category","Intercept")]
     private static void ToList() {
-        var result=new List<int>();
-        foreach(var item in Source){
+        var result = new List<int>();
+        foreach(var item in Source) {
             result.Add(item);
         }
         Assert.Equal(
@@ -522,10 +522,10 @@ public sealed class EnumerableMethod1 {
     private static void Zip_second_third() => Assert.Equal(
         e.Zip(Source,Second,Third),Source.Zip(Second,Third)
     );
-    private static readonly int[] Source=[1,2,3,4];
-    private static int[] Second=>[3,4,5];
-    private static int[] Third=>[10,20,30];
-    private static int[] Duplicates=>[1,2,2,3,3,4];
+    private static readonly int[] Source = [1,2,3,4];
+    private static int[] Second => [3,4,5];
+    private static int[] Third => [10,20,30];
+    private static int[] Duplicates => [1,2,2,3,3,4];
     private static int[] SingleSource() => [2];
     private static global::System.Collections.IEnumerable CastObjects() => new object[] { 1,2,3 };
     private static object[] MixedObjects() => [1,"skip",2,3.0,4];

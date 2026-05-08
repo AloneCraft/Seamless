@@ -1,4 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Order;
 using Seamless.Collections;
@@ -36,15 +36,15 @@ public class HashSetApiSurfaceBenchmark {
     private string[] stringKeys = null!;
     private string[] stringOtherKeys = null!;
 
-    private IHashSet<int>? unmanagedSet;
-    private IHashSet<int>? unmanagedOther;
+    private IHashSet<int>? blittableSet;
+    private IHashSet<int>? blittableOther;
     private IHashSet<string>? managedSet;
     private IHashSet<string>? managedOther;
 
-    private UnmanagedHashSetStore<int>? unmanagedStore;
-    private UnmanagedHashSetStore<int>? unmanagedOtherStore;
-    private ManagedHashSetStore<string>? managedStore;
-    private ManagedHashSetStore<string>? managedOtherStore;
+    private HashSetStore<int>? blittableStore;
+    private HashSetStore<int>? blittableOtherStore;
+    private HashSetStore<string>? managedStore;
+    private HashSetStore<string>? managedOtherStore;
     private IDevice? logA;
     private IDevice? objA;
     private IDevice? logB;
@@ -54,7 +54,7 @@ public class HashSetApiSurfaceBenchmark {
     [Params(10_000)]
     public int CountValue { get; set; }
 
-    [Params(CollectionImplKind.Managed,CollectionImplKind.Unmanaged)]
+    [Params(CollectionImplKind.Managed,CollectionImplKind.Blittable)]
     public CollectionImplKind Impl { get; set; }
 
     [Params(RegionKind.Mutable,RegionKind.Immutable,RegionKind.Storage)]
@@ -117,28 +117,28 @@ public class HashSetApiSurfaceBenchmark {
 
         var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: mutableFraction);
 
-        if(this.Impl==CollectionImplKind.Unmanaged) {
-            this.unmanagedStore=useStorage
-                ? factory.Create<int>(this.logA!,this.objA!,new UnmanagedTag())
-                : factory.Create<int>(new UnmanagedTag());
-            this.unmanagedOtherStore=useStorage
-                ? factory.Create<int>(this.logB!,this.objB!,new UnmanagedTag())
-                : factory.Create<int>(new UnmanagedTag());
-            this.unmanagedSet=this.unmanagedStore.Create();
-            this.unmanagedOther=this.unmanagedOtherStore.Create();
-            this.PrepareUnmanaged();
+        if(this.Impl==CollectionImplKind.Blittable) {
+            this.blittableStore=useStorage
+                ? factory.Create<int>(this.logA!,this.objA!,new BlittableStrategy())
+                : factory.Create<int>(new BlittableStrategy());
+            this.blittableOtherStore=useStorage
+                ? factory.Create<int>(this.logB!,this.objB!,new BlittableStrategy())
+                : factory.Create<int>(new BlittableStrategy());
+            this.blittableSet=this.blittableStore.Create();
+            this.blittableOther=this.blittableOtherStore.Create();
+            this.PrepareBlittable();
             if(this.Region==RegionKind.Immutable) {
-                this.unmanagedStore.Store.Log.FlushAndEvict(wait: true);
-                this.unmanagedOtherStore.Store.Log.FlushAndEvict(wait: true);
+                this.blittableStore.Store.Log.FlushAndEvict(wait: true);
+                this.blittableOtherStore.Store.Log.FlushAndEvict(wait: true);
             }
         }
         else {
             this.managedStore=useStorage
-                ? factory.Create<string>(this.logA!,this.objA!,new ManagedTag())
-                : factory.Create<string>(new ManagedTag());
+                ? factory.Create<string>(this.logA!,this.objA!,new MemoryPackSerializerStrategy())
+                : factory.Create<string>(new MemoryPackSerializerStrategy());
             this.managedOtherStore=useStorage
-                ? factory.Create<string>(this.logB!,this.objB!,new ManagedTag())
-                : factory.Create<string>(new ManagedTag());
+                ? factory.Create<string>(this.logB!,this.objB!,new MemoryPackSerializerStrategy())
+                : factory.Create<string>(new MemoryPackSerializerStrategy());
             this.managedSet=this.managedStore.Create();
             this.managedOther=this.managedOtherStore.Create();
             this.PrepareManaged();
@@ -164,22 +164,22 @@ public class HashSetApiSurfaceBenchmark {
 
     [Benchmark]
     public long Run() {
-        return this.Impl==CollectionImplKind.Unmanaged
-            ? this.RunUnmanaged()
+        return this.Impl==CollectionImplKind.Blittable
+            ? this.RunBlittable()
             : this.RunManaged();
     }
 
-    private void PrepareUnmanaged() {
-        if(this.unmanagedSet is null||this.unmanagedOther is null) {
+    private void PrepareBlittable() {
+        if(this.blittableSet is null||this.blittableOther is null) {
             return;
         }
         if(this.Operation!=HashSetOperation.Add) {
             for(var i = 0; i<this.intKeys.Length; i++) {
-                this.unmanagedSet.Add(this.intKeys[i]);
+                this.blittableSet.Add(this.intKeys[i]);
             }
         }
         for(var i = 0; i<this.intOtherKeys.Length; i++) {
-            this.unmanagedOther.Add(this.intOtherKeys[i]);
+            this.blittableOther.Add(this.intOtherKeys[i]);
         }
     }
 
@@ -197,9 +197,9 @@ public class HashSetApiSurfaceBenchmark {
         }
     }
 
-    private long RunUnmanaged() {
-        var set = this.unmanagedSet!;
-        var other = this.unmanagedOther!;
+    private long RunBlittable() {
+        var set = this.blittableSet!;
+        var other = this.blittableOther!;
         var coll = (ICollection<int>)set;
         var ie = (IEnumerable<int>)set;
 
@@ -303,19 +303,19 @@ public class HashSetApiSurfaceBenchmark {
     }
 
     private void DisposeIterationResources() {
-        this.unmanagedSet?.Dispose();
-        this.unmanagedSet=null;
-        this.unmanagedOther?.Dispose();
-        this.unmanagedOther=null;
+        this.blittableSet?.Dispose();
+        this.blittableSet=null;
+        this.blittableOther?.Dispose();
+        this.blittableOther=null;
         this.managedSet?.Dispose();
         this.managedSet=null;
         this.managedOther?.Dispose();
         this.managedOther=null;
 
-        this.unmanagedStore?.Dispose();
-        this.unmanagedStore=null;
-        this.unmanagedOtherStore?.Dispose();
-        this.unmanagedOtherStore=null;
+        this.blittableStore?.Dispose();
+        this.blittableStore=null;
+        this.blittableOtherStore?.Dispose();
+        this.blittableOtherStore=null;
         this.managedStore?.Dispose();
         this.managedStore=null;
         this.managedOtherStore?.Dispose();

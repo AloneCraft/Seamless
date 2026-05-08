@@ -49,14 +49,14 @@ public sealed class ManagedViewSetBenchmark(ITestOutputHelper output):Benchmark(
             nameof(this.Set_Read_Sequential));
     }
 
-    private void Drive(int parallel,FileOptions accessPattern,Action<global::Seamless.Collections.ManagedSet<string>> prefill,Action<global::Seamless.Collections.ManagedSet<string>> measured,string label) {
+    private void Drive(int parallel,FileOptions accessPattern,Action<global::Seamless.Collections.Set<string>> prefill,Action<global::Seamless.Collections.Set<string>> measured,string label) {
         var tempDir = CreateTempDirectory();
-        var sets = new global::Seamless.Collections.ManagedSet<string>?[parallel];
+        var sets = new global::Seamless.Collections.Set<string>?[parallel];
         try {
             this.RunMeasured(parallel,0,0,0,0,0,Scaled,
                 setup: id => {
                     var path = Path.Combine(tempDir,$"managed_set_{id}.dat");
-                    var set = new global::Seamless.Collections.ManagedSet<string>(path,initialCapacity: 16,initialDataCapacity: 4096);
+                    var set = new global::Seamless.Collections.Set<string>(path,initialCapacity: 16,initialDataCapacity: 4096);
                     set.SetTuning(new TempListTuning(FileAccess.ReadWrite,accessPattern));
                     sets[id]=set;
                     prefill(set);
@@ -137,14 +137,14 @@ public sealed class UnmanagedViewSetBenchmark(ITestOutputHelper output):Benchmar
             nameof(this.Set_Read_Sequential));
     }
 
-    private void Drive(int parallel,FileOptions accessPattern,Action<global::Seamless.Collections.UnmanagedSet<int>> prefill,Action<global::Seamless.Collections.UnmanagedSet<int>> measured,string label) {
+    private void Drive(int parallel,FileOptions accessPattern,Action<global::Seamless.Collections.Set<int>> prefill,Action<global::Seamless.Collections.Set<int>> measured,string label) {
         var tempDir = CreateTempDirectory();
-        var sets = new global::Seamless.Collections.UnmanagedSet<int>?[parallel];
+        var sets = new global::Seamless.Collections.Set<int>?[parallel];
         try {
             this.RunMeasured(parallel,0,0,0,0,0,Scaled,
                 setup: id => {
                     var path = Path.Combine(tempDir,$"unmanaged_set_{id}.dat");
-                    var set = new global::Seamless.Collections.UnmanagedSet<int>(path,initialCapacity: 16);
+                    var set = new global::Seamless.Collections.Set<int>(path,initialCapacity: 16);
                     set.SetTuning(new TempListTuning(FileAccess.ReadWrite,accessPattern));
                     sets[id]=set;
                     prefill(set);

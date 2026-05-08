@@ -777,6 +777,7 @@ namespace Seamless.SourceGenerator.Generated {
         if(staticLambdaStrategy is not null) {
             decoratedBody=LINQ呼び出し静的ラムダ適用(decoratedBody,staticLambdaStrategy);
         }
+        decoratedBody=LINQ呼び出し集約プレースホルダー適用(decoratedBody,staticLambdaStrategy);
 
         return new LINQ呼び出し傍受対象型(
             id,
@@ -1498,8 +1499,11 @@ namespace Seamless.SourceGenerator.Generated {
     private static bool 静的LINQラムダストラテジー構築試行(InvocationExpressionSyntax invocation,IMethodSymbol method,string identifier,out LINQ呼び出しラムダストラテジー strategy) {
         strategy=null!;
         var definition = LINQ呼び出し定義取得(method);
-        if(definition.Name!="Where"&&definition.Name!="Select") {
+        if(definition.Name!="Where"&&definition.Name!="Select"&&definition.Name!="Aggregate") {
             return false;
+        }
+        if(definition.Name=="Aggregate") {
+            return 静的Aggregateラムダストラテジー構築試行(invocation,method,identifier,out strategy);
         }
         var operationArgumentIndex = LINQ呼び出し操作引数位置取得(method);
         if(invocation.ArgumentList.Arguments.Count<=operationArgumentIndex
@@ -1544,6 +1548,100 @@ namespace Seamless.SourceGenerator.Generated {
         return true;
     }
 
+    private static bool 静的Aggregateラムダストラテジー構築試行(InvocationExpressionSyntax invocation,IMethodSymbol method,string identifier,out LINQ呼び出しラムダストラテジー strategy) {
+        strategy=null!;
+        int funcArgumentIndex;
+        int? resultSelectorArgumentIndex;
+        if(method.ReducedFrom is null) {
+            if(method.Parameters.Length==2&&invocation.ArgumentList.Arguments.Count==2) {
+                funcArgumentIndex=1;
+                resultSelectorArgumentIndex=null;
+            }
+            else if(method.Parameters.Length==3&&invocation.ArgumentList.Arguments.Count==3) {
+                funcArgumentIndex=2;
+                resultSelectorArgumentIndex=null;
+            }
+            else if(method.Parameters.Length==4&&invocation.ArgumentList.Arguments.Count==4) {
+                funcArgumentIndex=2;
+                resultSelectorArgumentIndex=3;
+            }
+            else {
+                funcArgumentIndex=-1;
+                resultSelectorArgumentIndex=null;
+            }
+        }
+        else {
+            if(method.Parameters.Length==1&&invocation.ArgumentList.Arguments.Count==1) {
+                funcArgumentIndex=0;
+                resultSelectorArgumentIndex=null;
+            }
+            else if(method.Parameters.Length==2&&invocation.ArgumentList.Arguments.Count==2) {
+                funcArgumentIndex=1;
+                resultSelectorArgumentIndex=null;
+            }
+            else if(method.Parameters.Length==3&&invocation.ArgumentList.Arguments.Count==3) {
+                funcArgumentIndex=1;
+                resultSelectorArgumentIndex=2;
+            }
+            else {
+                funcArgumentIndex=-1;
+                resultSelectorArgumentIndex=null;
+            }
+        }
+        if(funcArgumentIndex<0) {
+            return false;
+        }
+        if(invocation.ArgumentList.Arguments[funcArgumentIndex].Expression is not LambdaExpressionSyntax lambda
+            ||lambda.Body is not ExpressionSyntax lambdaBody
+            ||!二引数ラムダパラメーター名取得試行(lambda,out var leftParameterName,out var rightParameterName)) {
+            return false;
+        }
+        if(!静的ラムダ本体移動可能判定(lambdaBody,new[] { leftParameterName,rightParameterName })) {
+            return false;
+        }
+        if(method.Parameters[funcArgumentIndex].Type is not INamedTypeSymbol funcType
+            ||funcType.Name!="Func"
+            ||funcType.TypeArguments.Length!=3
+            ||funcType.TypeArguments.Any(型パラメーター含有判定)) {
+            return false;
+        }
+        var resultSelectorTypeName = string.Empty;
+        var resultSelectorSource = string.Empty;
+        if(resultSelectorArgumentIndex is int resultSelectorIndex) {
+            if(invocation.ArgumentList.Arguments[resultSelectorIndex].Expression is not LambdaExpressionSyntax resultSelectorLambda
+                ||resultSelectorLambda.Body is not ExpressionSyntax resultSelectorBody
+                ||!単一ラムダパラメーター名取得試行(resultSelectorLambda,out var resultSelectorParameterName)
+                ||!静的ラムダ本体移動可能判定(resultSelectorBody,resultSelectorParameterName)
+                ||method.Parameters[resultSelectorIndex].Type is not INamedTypeSymbol resultSelectorFuncType
+                ||resultSelectorFuncType.Name!="Func"
+                ||resultSelectorFuncType.TypeArguments.Length!=2
+                ||resultSelectorFuncType.TypeArguments.Any(型パラメーター含有判定)) {
+                return false;
+            }
+            var resultSelectorArgumentTypeName = 生成型名構築(resultSelectorFuncType.TypeArguments[0]);
+            var resultSelectorResultTypeName = 生成型名構築(resultSelectorFuncType.TypeArguments[1]);
+            var resultSelectorBodyText = NormalizeExpression(resultSelectorBody);
+            resultSelectorTypeName=$"Aggregate_resultSelector0_{identifier}";
+            resultSelectorSource=$$"""
+        private readonly struct {{resultSelectorTypeName}} {
+            public static {{resultSelectorResultTypeName}} resultSelector({{resultSelectorArgumentTypeName}} {{resultSelectorParameterName}}) => {{resultSelectorBodyText}};
+        }
+""";
+        }
+        var leftTypeName = 生成型名構築(funcType.TypeArguments[0]);
+        var rightTypeName = 生成型名構築(funcType.TypeArguments[1]);
+        var resultTypeName = 生成型名構築(funcType.TypeArguments[2]);
+        var lambdaBodyText = NormalizeExpression(lambdaBody);
+        var typeName = $"Aggregate_func0_{identifier}";
+        var source = $$"""
+        private readonly struct {{typeName}} {
+            public static {{resultTypeName}} func({{leftTypeName}} {{leftParameterName}},{{rightTypeName}} {{rightParameterName}}) => {{lambdaBodyText}};
+        }
+""";
+        strategy=new LINQ呼び出しラムダストラテジー("Aggregate",typeName,source+"\n"+resultSelectorSource,resultTypeName,resultSelectorTypeName);
+        return true;
+    }
+
     private static bool 静的ラムダ本体移動可能判定(ExpressionSyntax lambdaBody,string parameterName) {
         return 静的ラムダ本体移動可能判定(lambdaBody,new[] { parameterName });
     }
@@ -1567,6 +1665,17 @@ namespace Seamless.SourceGenerator.Generated {
         return !string.IsNullOrWhiteSpace(parameterName);
     }
 
+    private static bool 二引数ラムダパラメーター名取得試行(LambdaExpressionSyntax lambda,out string leftParameterName,out string rightParameterName) {
+        if(lambda is ParenthesizedLambdaExpressionSyntax parenthesizedLambda&&parenthesizedLambda.ParameterList.Parameters.Count==2) {
+            leftParameterName=parenthesizedLambda.ParameterList.Parameters[0].Identifier.ValueText;
+            rightParameterName=parenthesizedLambda.ParameterList.Parameters[1].Identifier.ValueText;
+            return !string.IsNullOrWhiteSpace(leftParameterName)&&!string.IsNullOrWhiteSpace(rightParameterName);
+        }
+        leftParameterName=string.Empty;
+        rightParameterName=string.Empty;
+        return false;
+    }
+
     private static string LINQ呼び出し静的ラムダ適用(string body,LINQ呼び出しラムダストラテジー strategy) {
         return strategy.Kind switch {
             "Where" => body
@@ -1576,8 +1685,47 @@ namespace Seamless.SourceGenerator.Generated {
                 .Replace(".SelectToList(selector)",$".SelectToList<{strategy.ResultTypeName},{strategy.TypeName}>()")
                 .Replace(".Select(selector)",$".Select<{strategy.ResultTypeName},{strategy.TypeName}>()")
                 .Replace("selector(",$"{strategy.TypeName}.selector("),
+            "Aggregate" => string.IsNullOrWhiteSpace(strategy.SecondaryTypeName)
+                ? body.Replace("func(",$"{strategy.TypeName}.func(")
+                : body
+                    .Replace("func(",$"{strategy.TypeName}.func(")
+                    .Replace("resultSelector(",$"{strategy.SecondaryTypeName}.resultSelector("),
             _ => body
         };
+    }
+
+    private static string LINQ呼び出し集約プレースホルダー適用(string body,LINQ呼び出しラムダストラテジー? strategy) {
+        const string declarationMarker = "__SEAMLESS_AGGREGATE_FUNC_DECL__";
+        const string nullCheckMarker = "__SEAMLESS_AGGREGATE_FUNC_NULL_CHECK__";
+        const string invokeMarker = "__SEAMLESS_AGGREGATE_FUNC_INVOKE__";
+        const string resultSelectorDeclarationMarker = "__SEAMLESS_AGGREGATE_RESULT_SELECTOR_DECL__";
+        const string resultSelectorNullCheckMarker = "__SEAMLESS_AGGREGATE_RESULT_SELECTOR_NULL_CHECK__";
+        const string resultSelectorInvokeMarker = "__SEAMLESS_AGGREGATE_RESULT_SELECTOR_INVOKE__";
+        if(body.IndexOf(invokeMarker,StringComparison.Ordinal)<0&&body.IndexOf(resultSelectorInvokeMarker,StringComparison.Ordinal)<0) {
+            return body;
+        }
+        if(strategy?.Kind=="Aggregate") {
+            var lines = body.Split('\n')
+                .Where(line => line.IndexOf(declarationMarker,StringComparison.Ordinal)<0
+                    &&line.IndexOf(nullCheckMarker,StringComparison.Ordinal)<0
+                    &&(string.IsNullOrWhiteSpace(strategy.SecondaryTypeName)
+                        ||(line.IndexOf(resultSelectorDeclarationMarker,StringComparison.Ordinal)<0&&line.IndexOf(resultSelectorNullCheckMarker,StringComparison.Ordinal)<0)))
+                .Select(line => {
+                    var updated = line.Replace(invokeMarker,$"{strategy.TypeName}.func");
+                    if(!string.IsNullOrWhiteSpace(strategy.SecondaryTypeName)) {
+                        updated=updated.Replace(resultSelectorInvokeMarker,$"{strategy.SecondaryTypeName}.resultSelector");
+                    }
+                    return updated;
+                });
+            return string.Join("\n",lines);
+        }
+        return body
+            .Replace(declarationMarker,string.Empty)
+            .Replace(nullCheckMarker,string.Empty)
+            .Replace(invokeMarker,"__aggregateFunc")
+            .Replace(resultSelectorDeclarationMarker,string.Empty)
+            .Replace(resultSelectorNullCheckMarker,string.Empty)
+            .Replace(resultSelectorInvokeMarker,"__aggregateResultSelector");
     }
 
     private static int LINQ呼び出し操作引数位置取得(IMethodSymbol method) {
@@ -3426,23 +3574,17 @@ namespace Seamless.SourceGenerator.Generated {
 
         private string StorageKindName() {
             if(this.useUnmanagedStorage) {
-                return "unmanaged";
+                return "blittable";
             }
-            return "managed";
+            return "memorypack";
         }
 
         private string CreateTemporaryResultListExpression(string pathName) {
-            if(this.useUnmanagedStorage) {
-                return $"global::Seamless.Linq.UnmanagedEnumerable.CreateTemporaryResultList<{this.resultElementTypeName}>({pathName})";
-            }
-            return $"global::Seamless.Linq.ManagedEnumerable.CreateTemporaryResultList<{this.resultElementTypeName}>({pathName})";
+            return $"global::Seamless.Linq.Enumerable.CreateTemporaryResultList<{this.resultElementTypeName}>({pathName})";
         }
 
         private string OwnTemporaryResultListExpression(string resultListName,string pathName) {
-            if(this.useUnmanagedStorage) {
-                return $"global::Seamless.Linq.UnmanagedEnumerable.OwnTemporaryResultList({resultListName},{pathName})";
-            }
-            return $"global::Seamless.Linq.ManagedEnumerable.OwnTemporaryResultList({resultListName},{pathName})";
+            return $"global::Seamless.Linq.Enumerable.OwnTemporaryResultList({resultListName},{pathName})";
         }
 
         private void EmitIndexedLambdaAdvance(int operationIndex,ScalarFusionOperation operation) {
@@ -3986,30 +4128,117 @@ namespace Seamless.SourceGenerator.Generated {
             .ToArray();
 
         string sourceExpression;
+        string? seedExpression;
         string funcExpression;
+        int funcParameterIndex;
+        string? resultSelectorExpression;
+        int? resultSelectorParameterIndex;
         if(IsStaticEnumerableReceiver(receiver)) {
-            if(arguments.Length!=2) {
+            if(arguments.Length==2&&method.Parameters.Length==2) {
+                sourceExpression=arguments[0];
+                seedExpression=null;
+                funcExpression=arguments[1];
+                funcParameterIndex=1;
+                resultSelectorExpression=null;
+                resultSelectorParameterIndex=null;
+            }
+            else if(arguments.Length==3&&method.Parameters.Length==3) {
+                sourceExpression=arguments[0];
+                seedExpression=arguments[1];
+                funcExpression=arguments[2];
+                funcParameterIndex=2;
+                resultSelectorExpression=null;
+                resultSelectorParameterIndex=null;
+            }
+            else if(arguments.Length==4&&method.Parameters.Length==4) {
+                sourceExpression=arguments[0];
+                seedExpression=arguments[1];
+                funcExpression=arguments[2];
+                funcParameterIndex=2;
+                resultSelectorExpression=arguments[3];
+                resultSelectorParameterIndex=3;
+            }
+            else {
                 return null;
             }
-            sourceExpression=arguments[0];
-            funcExpression=arguments[1];
         }
         else {
-            if(arguments.Length!=1) {
+            if(arguments.Length==1&&method.Parameters.Length==1) {
+                sourceExpression=receiver;
+                seedExpression=null;
+                funcExpression=arguments[0];
+                funcParameterIndex=0;
+                resultSelectorExpression=null;
+                resultSelectorParameterIndex=null;
+            }
+            else if(arguments.Length==2&&method.Parameters.Length==2) {
+                sourceExpression=receiver;
+                seedExpression=arguments[0];
+                funcExpression=arguments[1];
+                funcParameterIndex=1;
+                resultSelectorExpression=null;
+                resultSelectorParameterIndex=null;
+            }
+            else if(arguments.Length==3&&method.Parameters.Length==3) {
+                sourceExpression=receiver;
+                seedExpression=arguments[0];
+                funcExpression=arguments[1];
+                funcParameterIndex=1;
+                resultSelectorExpression=arguments[2];
+                resultSelectorParameterIndex=2;
+            }
+            else {
                 return null;
             }
-            sourceExpression=receiver;
-            funcExpression=arguments[0];
+        }
+        if(method.Parameters[funcParameterIndex].Type is not INamedTypeSymbol funcType||funcType.TypeArguments.Length!=3) {
+            return null;
         }
 
-        var returnType = method.ReturnType.ToDisplayString(完全修飾形式);
+        var leftType = 生成型名構築(funcType.TypeArguments[0]);
+        var rightType = 生成型名構築(funcType.TypeArguments[1]);
+        var resultType = 生成型名構築(funcType.TypeArguments[2]);
+        string[] resultSelectorLines = Array.Empty<string>();
+        var returnExpression = "__aggregateResult";
+        if(resultSelectorExpression is not null&&resultSelectorParameterIndex is int selectorParameterIndex) {
+            if(method.Parameters[selectorParameterIndex].Type is not INamedTypeSymbol resultSelectorFuncType||resultSelectorFuncType.TypeArguments.Length!=2) {
+                return null;
+            }
+            var resultSelectorArgumentType = 生成型名構築(resultSelectorFuncType.TypeArguments[0]);
+            var resultSelectorResultType = 生成型名構築(resultSelectorFuncType.TypeArguments[1]);
+            resultSelectorLines = new[] {
+                $"    __SEAMLESS_AGGREGATE_RESULT_SELECTOR_DECL__global::System.Func<{resultSelectorArgumentType}, {resultSelectorResultType}> __aggregateResultSelector = {resultSelectorExpression};",
+                "    __SEAMLESS_AGGREGATE_RESULT_SELECTOR_NULL_CHECK__if(__aggregateResultSelector is null) { throw new global::System.ArgumentNullException(nameof(__aggregateResultSelector)); }"
+            };
+            returnExpression = "__SEAMLESS_AGGREGATE_RESULT_SELECTOR_INVOKE__(__aggregateResult)";
+        }
+        if(seedExpression is not null) {
+            var lines = new List<string> {
+                "{",
+                $"    var __aggregateSource = {sourceExpression};",
+                "    if(__aggregateSource is null) { throw new global::System.ArgumentNullException(nameof(__aggregateSource)); }",
+                $"    __SEAMLESS_AGGREGATE_FUNC_DECL__global::System.Func<{leftType}, {rightType}, {resultType}> __aggregateFunc = {funcExpression};",
+                "    __SEAMLESS_AGGREGATE_FUNC_NULL_CHECK__if(__aggregateFunc is null) { throw new global::System.ArgumentNullException(nameof(__aggregateFunc)); }",
+            };
+            lines.AddRange(resultSelectorLines);
+            lines.AddRange(new[] {
+                $"    {resultType} __aggregateResult = {seedExpression};",
+                "    foreach(var __aggregateCurrent in __aggregateSource) {",
+                "        __aggregateResult = __SEAMLESS_AGGREGATE_FUNC_INVOKE__(__aggregateResult,__aggregateCurrent);",
+                "    }",
+                $"    return {returnExpression};",
+                "}"
+            });
+            return string.Join("\n",lines);
+        }
+
         return string.Join("\n",new[] {
             "{",
             $"    var __aggregateSource = {sourceExpression};",
             "    if(__aggregateSource is null) { throw new global::System.ArgumentNullException(nameof(__aggregateSource)); }",
-            $"    global::System.Func<{returnType}, {returnType}, {returnType}> __aggregateFunc = {funcExpression};",
-            "    if(__aggregateFunc is null) { throw new global::System.ArgumentNullException(nameof(__aggregateFunc)); }",
-            $"    {returnType} __aggregateResult = default!;",
+            $"    __SEAMLESS_AGGREGATE_FUNC_DECL__global::System.Func<{leftType}, {rightType}, {resultType}> __aggregateFunc = {funcExpression};",
+            "    __SEAMLESS_AGGREGATE_FUNC_NULL_CHECK__if(__aggregateFunc is null) { throw new global::System.ArgumentNullException(nameof(__aggregateFunc)); }",
+            $"    {resultType} __aggregateResult = default!;",
             "    var __aggregateHasValue = false;",
             "    foreach(var __aggregateCurrent in __aggregateSource) {",
             "        if(!__aggregateHasValue) {",
@@ -4017,7 +4246,7 @@ namespace Seamless.SourceGenerator.Generated {
             "            __aggregateHasValue = true;",
             "            continue;",
             "        }",
-            "        __aggregateResult = __aggregateFunc(__aggregateResult,__aggregateCurrent);",
+            "        __aggregateResult = __SEAMLESS_AGGREGATE_FUNC_INVOKE__(__aggregateResult,__aggregateCurrent);",
             "    }",
             "    if(!__aggregateHasValue) {",
             "        throw new global::System.InvalidOperationException(\"Sequence contains no elements.\");",
@@ -5129,17 +5358,19 @@ namespace Seamless.SourceGenerator.Generated {
     }
 
     private sealed class LINQ呼び出しラムダストラテジー {
-        public LINQ呼び出しラムダストラテジー(string kind,string typeName,string source,string resultTypeName = "") {
+        public LINQ呼び出しラムダストラテジー(string kind,string typeName,string source,string resultTypeName = "",string secondaryTypeName = "") {
             this.Kind=kind;
             this.TypeName=typeName;
             this.Source=source;
             this.ResultTypeName=resultTypeName;
+            this.SecondaryTypeName=secondaryTypeName;
         }
 
         public string Kind { get; }
         public string TypeName { get; }
         public string Source { get; }
         public string ResultTypeName { get; }
+        public string SecondaryTypeName { get; }
     }
 
     private sealed class MovableStaticLambdaBodyChecker:CSharpSyntaxWalker {

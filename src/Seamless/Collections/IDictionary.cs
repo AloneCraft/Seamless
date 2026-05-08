@@ -24,6 +24,8 @@ public interface IDictionary<TKey, TValue>:System.Collections.Generic.IDictionar
     long GetLongCount() => this.EntryCount;
     /// <summary>キーが存在しない場合のみ追加する。</summary>
     TryAddResult TryAdd(TKey key,TValue value);
+    /// <summary>指定したキーが存在するかどうかを返す。</summary>
+    bool Contains(TKey key) => this.ContainsKey(key);
     /// <summary>キーを削除し、削除された値を返す。</summary>
     bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value);
     // IDictionary<TKey,TValue> と IReadOnlyDictionary<TKey,TValue> の両方に同名メンバーが存在するため、

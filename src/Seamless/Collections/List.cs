@@ -1,323 +1,398 @@
-﻿using System.Collections;
+using System.Collections;
 using System.IO.MemoryMappedFiles;
-using System.Runtime.InteropServices;
-
+using Garnet.networking;
 namespace Seamless.Collections;
 
-public readonly record struct TempListTuning(FileAccess OptimizationMode,FileOptions accessPattern) {
-    public FileAccess OptimizationMode { get; } = ValidateOptimizationMode(OptimizationMode);
-    public FileOptions AccessPattern { get; } = ValidateAccessPattern(accessPattern);
-
-    private static FileAccess ValidateOptimizationMode(FileAccess optimizationMode) =>
-        optimizationMode is FileAccess.Read or FileAccess.Write or FileAccess.ReadWrite
-            ? optimizationMode
-            : throw new ArgumentOutOfRangeException(nameof(optimizationMode));
-
-    private static FileOptions ValidateAccessPattern(FileOptions accessPattern) {
-        const FileOptions supportedAccessPatterns = FileOptions.SequentialScan|FileOptions.RandomAccess;
-
-        if((accessPattern&~supportedAccessPatterns)!=0)
-            throw new ArgumentOutOfRangeException(nameof(accessPattern));
-        if(accessPattern==supportedAccessPatterns)
-            throw new ArgumentException("SequentialScan and RandomAccess cannot be combined.",nameof(accessPattern));
-        return accessPattern;
-    }
+public class List<T>:List<T,MemoryPackSerializer<T>> {
+    public List(string path,long initialCapacity = 16,long initialDataCapacity = 4096) :
+        base(path,initialCapacity,initialDataCapacity) { }
 }
 
-public abstract class List<T>:IReadOnlyList<T>, IDisposable {
-    private protected const int BufferSize = 4096;
-    public string Path { get; }
-    public long Count { get; protected set; }
-    public long Capacity { get; protected set; }
-    public bool IsDisposed { get; private set; }
+public class List<T, TSerializer>:ListBase<T>
+    where TSerializer : ISerializer<T> {
+    private const long UnusedIndex = -1;
 
-    int IReadOnlyCollection<T>.Count => checked((int)this.Count);
-    T IReadOnlyList<T>.this[int index] => this[index];
+    private FileStream indexStream = null!;
+    private MemoryMappedFile indexMappedFile = null!;
+    private MemoryMappedViewAccessor indexAccessor = null!;
+    private FileStream dataStream = null!;
+    private MemoryMappedFile dataMappedFile = null!;
+    private MemoryMappedViewAccessor dataAccessor = null!;
+    private long persistedCount;
+    private TempListTuning tuning = new(FileAccess.ReadWrite,FileOptions.SequentialScan);
 
-    public T this[int index] => this[(long)index];
+    public string IndexPath { get; }
+    public long DataLength { get; private set; }
+    public long DataCapacity { get; private set; }
+    public override FileAccess OptimizationMode => this.tuning.OptimizationMode;
+    public override FileOptions AccessPattern => this.tuning.AccessPattern;
 
-    public T this[long index] {
-        get {
-            this.ThrowIfDisposed();
-            if((ulong)index>=(ulong)this.Count)
-                throw new ArgumentOutOfRangeException(nameof(index));
-            return this.GetItem(index);
+    internal List(string path,long initialCapacity = 16,long initialDataCapacity = 4096) : base(path) {
+        if(initialCapacity<1)
+            throw new ArgumentOutOfRangeException(nameof(initialCapacity));
+        if(initialDataCapacity<1)
+            throw new ArgumentOutOfRangeException(nameof(initialDataCapacity));
+
+        this.IndexPath=path+".index";
+        this.indexStream=this.OpenStream(this.IndexPath);
+        this.dataStream=this.OpenStream(this.Path);
+
+        if(this.indexStream.Length==0&&this.dataStream.Length==0) {
+            this.Count=0;
+            this.Capacity=this.AlignIndexCapacity(initialCapacity);
+            this.DataLength=0;
+            this.DataCapacity=this.AlignDataCapacity(initialDataCapacity);
+            this.indexStream.SetLength(this.GetIndexFileLength(this.Capacity));
+            this.dataStream.SetLength(this.GetDataFileLength(this.DataCapacity));
+            this.CreateMappings();
+            this.InitializeIndexRange(0,this.Capacity);
+            this.persistedCount=0;
         }
-    }
-
-    public ReadOnlySpan<T> AsSpan(long start) {
-        this.ThrowIfDisposed();
-        if((ulong)start>(ulong)this.Count)
-            throw new ArgumentOutOfRangeException(nameof(start));
-        return this.AsSpan(start,checked((int)(this.Count-start)));
-    }
-
-    public virtual ReadOnlySpan<T> AsSpan(long start,int length) {
-        this.ThrowIfDisposed();
-        this.ValidateSpanRange(start,length);
-        if(length==0)
-            return ReadOnlySpan<T>.Empty;
-
-        var items = new T[length];
-        for(var index = 0; index<length; index++) {
-            items[index]=this.GetItem(start+index);
-        }
-        return items;
-    }
-
-    private protected List() {
-        this.Path=string.Empty;
-    }
-
-    private protected List(string path) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
-
-        var directoryPath = System.IO.Path.GetDirectoryName(path);
-        if(!string.IsNullOrEmpty(directoryPath)) {
-            Directory.CreateDirectory(directoryPath);
+        else {
+            if(this.indexStream.Length==0||this.dataStream.Length==0)
+                throw new InvalidDataException("List companion files are incomplete.");
+            this.CreateMappings();
+            this.LoadState();
         }
 
-        this.Path=path;
+        this.ApplyTuning();
     }
-    public long GetLongCount() => this.Count;
-    public abstract void Add(T item);
-
-    public abstract FileAccess OptimizationMode { get; }
-    public abstract FileOptions AccessPattern { get; }
-    public TempListTuning Tuning => new(this.OptimizationMode,this.AccessPattern);
-    public void SetOptimizationMode(FileAccess optimizationMode) {
-        this.SetTuning(new(optimizationMode,this.AccessPattern));
-    }
-
-    public void SetAccessPattern(FileOptions accessPattern) {
-        this.SetTuning(new(this.OptimizationMode,accessPattern));
-    }
-
-    public abstract void SetTuning(TempListTuning tuning);
-
-    //public abstract void Add(scoped ReadOnlySpan<byte> item);
-
-    //public abstract void Add(global::Tsavorite.core.SpanByte item);
-
-    public bool Remove() {
+    public override void SetTuning(TempListTuning tuning) {
         this.ThrowIfDisposed();
-        if(this.Count==0)
-            return false;
-        this.Count--;
+        if(this.tuning.Equals(tuning))
+            return;
+
+        var requiresReopen = MemoryMappedListTuning.RequiresReopen(this.tuning,tuning);
+        this.tuning=tuning;
+        if(requiresReopen) {
+            this.ReopenMappings();
+            return;
+        }
+
+        this.ApplyTuning();
+    }
+
+    public override void Add(T item) {
+        this.ThrowIfDisposed();
+        var bytes = TSerializer.Serialize(ref item);
+        this.AppendRecord(bytes.ToArray());
+    }
+
+    internal void AddRawBytes(ReadOnlySpan<byte> item) {
+        this.ThrowIfDisposed();
+        this.AppendRecord(item.ToArray());
+    }
+
+    //    public override void Add(scoped ReadOnlySpan<byte> item) {
+    //        this.ThrowIfDisposed();
+    //        this.AppendRecord(item.ToArray());
+    //    }
+
+#if TSAVORITE1_1_1
+    public void Add(global::Tsavorite.core.SpanByte item) {
+        this.ThrowIfDisposed();
+        this.AppendRecord(item.ToByteArray());
+    }
+#endif
+
+    public void DuplicateRemoval() {
+        this.ThrowIfDisposed();
+        if(this.Count<2)
+            return;
+
+        this.SortBySerializedBits();
+
+        var writeIndex = 1L;
+        var previousOffset = this.ReadIndexUnchecked(0);
+        for(var readIndex = 1L; readIndex<this.Count; readIndex++) {
+            var currentOffset = this.ReadIndexUnchecked(readIndex);
+            if(this.CompareData(previousOffset,currentOffset)==0)
+                continue;
+            if(writeIndex!=readIndex) {
+                this.WriteIndexUnchecked(writeIndex,currentOffset);
+            }
+            previousOffset=currentOffset;
+            writeIndex++;
+        }
+
+        this.Count=writeIndex;
         this.OnCountChanged();
-        return true;
+        this.indexAccessor.Flush();
     }
 
-    public Enumerator GetEnumerator() {
-        this.ThrowIfDisposed();
-        return new(this);
+    private void LoadState() {
+        if(this.indexStream.Length%sizeof(long)!=0)
+            throw new InvalidDataException("The managed list index file length is invalid.");
+
+        this.Capacity=this.indexStream.Length/sizeof(long);
+        this.DataCapacity=this.dataStream.Length;
+        if(this.Capacity<1)
+            throw new InvalidDataException("The managed list index file is empty.");
+        if(this.DataCapacity<1)
+            throw new InvalidDataException("The managed list data file is empty.");
+
+        this.Count=this.LoadCount();
+        this.DataLength=this.LoadDataLength();
+        this.persistedCount=this.Count;
     }
 
-    IEnumerator<T> IEnumerable<T>.GetEnumerator() => this.GetEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    private void CreateMappings() {
+        this.indexMappedFile=MemoryMappedFile.CreateFromFile(this.indexStream,null,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
+        this.indexAccessor=this.indexMappedFile.CreateViewAccessor(0,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.dataMappedFile=MemoryMappedFile.CreateFromFile(this.dataStream,null,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
+        this.dataAccessor=this.dataMappedFile.CreateViewAccessor(0,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite);
+    }
 
-    public void Dispose() {
-        if(this.IsDisposed)
+    private void ReopenMappings() {
+        this.indexAccessor.Flush();
+        this.dataAccessor.Flush();
+        this.indexAccessor.Dispose();
+        this.indexMappedFile.Dispose();
+        this.indexStream.Dispose();
+        this.dataAccessor.Dispose();
+        this.dataMappedFile.Dispose();
+        this.dataStream.Dispose();
+        this.indexStream=this.OpenStream(this.IndexPath);
+        this.dataStream=this.OpenStream(this.Path);
+        this.CreateMappings();
+        this.ApplyTuning();
+    }
+
+    private void AppendRecord(byte[] bytes) {
+        this.EnsureIndexCapacity(this.Count+1);
+        var recordOffset = this.DataLength;
+        var recordLength = checked(sizeof(int)+(long)bytes.Length);
+        this.EnsureDataCapacity(recordOffset+recordLength);
+        this.WriteRecord(recordOffset,bytes);
+        this.WriteIndexUnchecked(this.Count,recordOffset);
+        this.Count++;
+        this.DataLength=recordOffset+recordLength;
+        this.OnCountChanged();
+    }
+
+    private void EnsureIndexCapacity(long minimumCapacity) {
+        if(minimumCapacity<=this.Capacity)
             return;
-        this.IsDisposed=true;
-        this.DisposeCore();
+        var newCapacity = this.AlignIndexCapacity(Math.Max(this.Capacity*2,minimumCapacity));
+        this.RemapIndex(newCapacity);
     }
 
-    protected void ThrowIfDisposed() {
-        ObjectDisposedException.ThrowIf(this.IsDisposed,this);
+    private void EnsureDataCapacity(long minimumLength) {
+        if(minimumLength<=this.DataCapacity)
+            return;
+        var newCapacity = this.AlignDataCapacity(Math.Max(this.DataCapacity*2,minimumLength));
+        this.RemapData(newCapacity);
     }
 
-    private protected void ValidateSpanRange(long start,int length) {
-        if(start<0)
-            throw new ArgumentOutOfRangeException(nameof(start));
-        if(length<0)
-            throw new ArgumentOutOfRangeException(nameof(length));
-        if(start>this.Count)
-            throw new ArgumentOutOfRangeException(nameof(start));
-        if(length>this.Count-start)
-            throw new ArgumentOutOfRangeException(nameof(length));
+    private void RemapIndex(long newCapacity) {
+        var oldCapacity = this.Capacity;
+        this.indexAccessor.Flush();
+        this.indexAccessor.Dispose();
+        this.indexMappedFile.Dispose();
+        this.Capacity=newCapacity;
+        this.indexStream.SetLength(this.GetIndexFileLength(newCapacity));
+        this.indexMappedFile=MemoryMappedFile.CreateFromFile(this.indexStream,null,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
+        this.indexAccessor=this.indexMappedFile.CreateViewAccessor(0,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.InitializeIndexRange(oldCapacity,newCapacity);
+        this.ApplyTuning();
     }
 
-    protected abstract T GetItem(long index);
-    protected abstract void OnCountChanged();
-    protected abstract void DisposeCore();
+    private void RemapData(long newCapacity) {
+        this.dataAccessor.Flush();
+        this.dataAccessor.Dispose();
+        this.dataMappedFile.Dispose();
+        this.DataCapacity=newCapacity;
+        this.dataStream.SetLength(this.GetDataFileLength(newCapacity));
+        this.dataMappedFile=MemoryMappedFile.CreateFromFile(this.dataStream,null,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
+        this.dataAccessor=this.dataMappedFile.CreateViewAccessor(0,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.ApplyTuning();
+    }
 
-    public struct Enumerator(List<T> list,bool ownsList = false,global::System.Action? disposeAction = null):IEnumerator<T> {
-        private long index = -1;
-        public T Current => list[this.index];
-        object IEnumerator.Current => this.Current!;
-        public bool MoveNext() {
-            var nextIndex = this.index+1;
-            if(nextIndex>=list.Count)
-                return false;
-            this.index=nextIndex;
-            return true;
-        }
-        public void Reset() {
-            this.index=-1;
-        }
-        public readonly void Dispose() {
-            if(ownsList) {
-                list.Dispose();
+    private void SortBySerializedBits() {
+        var stack = new Stack<(long Left,long Right)>();
+        stack.Push((0,this.Count-1));
+
+        while(stack.Count>0) {
+            var (leftStart,rightStart)=stack.Pop();
+            var left = leftStart;
+            var right = rightStart;
+
+            while(left<right) {
+                var i = left;
+                var j = right;
+                var pivotOffset = this.ReadIndexUnchecked(left+((right-left)>>1));
+
+                while(i<=j) {
+                    while(this.CompareData(this.ReadIndexUnchecked(i),pivotOffset)<0) {
+                        i++;
+                    }
+                    while(this.CompareData(this.ReadIndexUnchecked(j),pivotOffset)>0) {
+                        j--;
+                    }
+                    if(i<=j) {
+                        if(i!=j) {
+                            this.SwapIndex(i,j);
+                        }
+                        i++;
+                        j--;
+                    }
+                }
+
+                if((j-left)<(right-i)) {
+                    if(i<right) {
+                        stack.Push((i,right));
+                    }
+                    right=j;
+                }
+                else {
+                    if(left<j) {
+                        stack.Push((left,j));
+                    }
+                    left=i;
+                }
             }
-            disposeAction?.Invoke();
         }
     }
-}
 
-internal static class MemoryMappedListTuning {
-    private const int PosixFadvNormal = 0;
-    private const int PosixFadvRandom = 1;
-    private const int PosixFadvSequential = 2;
-    private const int PosixFadvWillNeed = 3;
-    private const int MadvNormal = 0;
-    private const int MadvRandom = 1;
-    private const int MadvSequential = 2;
-    private const int MadvWillNeed = 3;
+    private void SwapIndex(long left,long right) {
+        var leftOffset = this.ReadIndexUnchecked(left);
+        var rightOffset = this.ReadIndexUnchecked(right);
+        this.WriteIndexUnchecked(left,rightOffset);
+        this.WriteIndexUnchecked(right,leftOffset);
+    }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private readonly struct Win32MemoryRangeEntry {
-        public readonly nuint VirtualAddress;
-        public readonly nuint NumberOfBytes;
+    private int CompareData(long leftOffset,long rightOffset) {
+        if(leftOffset==rightOffset)
+            return 0;
 
-        public Win32MemoryRangeEntry(nuint virtualAddress,nuint numberOfBytes) {
-            this.VirtualAddress=virtualAddress;
-            this.NumberOfBytes=numberOfBytes;
+        var leftLength = this.ReadRecordLength(leftOffset);
+        var rightLength = this.ReadRecordLength(rightOffset);
+        var leftPosition = this.GetRecordPosition(leftOffset)+sizeof(int);
+        var rightPosition = this.GetRecordPosition(rightOffset)+sizeof(int);
+        var minimumLength = Math.Min(leftLength,rightLength);
+
+        for(var i = 0; i<minimumLength; i++) {
+            var leftByte = this.dataAccessor.ReadByte(leftPosition+i);
+            var rightByte = this.dataAccessor.ReadByte(rightPosition+i);
+            if(leftByte!=rightByte)
+                return leftByte.CompareTo(rightByte);
+        }
+
+        return leftLength.CompareTo(rightLength);
+    }
+
+    protected override T GetItem(long index) {
+        return this.DeserializeAt(this.ReadIndexUnchecked(index));
+    }
+
+    protected override void OnCountChanged() {
+        if(this.Count<this.persistedCount) {
+            this.InitializeIndexRange(this.Count,this.persistedCount);
+        }
+        this.persistedCount=this.Count;
+    }
+
+    protected override void DisposeCore() {
+        this.indexAccessor.Flush();
+        this.dataAccessor.Flush();
+        this.indexAccessor.Dispose();
+        this.indexMappedFile.Dispose();
+        this.indexStream.Dispose();
+        this.dataAccessor.Dispose();
+        this.dataMappedFile.Dispose();
+        this.dataStream.Dispose();
+    }
+
+    private T DeserializeAt(long recordOffset) {
+        var bytes = this.ReadRecord(recordOffset);
+        return TSerializer.Deserialize(bytes);
+    }
+
+    private byte[] ReadRecord(long recordOffset) {
+        var length = this.ReadRecordLength(recordOffset);
+        var bytes = new byte[length];
+        if(length==0)
+            return bytes;
+        this.dataAccessor.ReadArray(this.GetRecordPosition(recordOffset)+sizeof(int),bytes,0,length);
+        return bytes;
+    }
+
+    private int ReadRecordLength(long recordOffset) => this.ReadRecordLength(recordOffset,this.DataLength);
+
+    private int ReadRecordLength(long recordOffset,long dataLength) {
+        if(recordOffset<0||recordOffset>dataLength-sizeof(int))
+            throw new InvalidDataException("The managed list record offset is invalid.");
+
+        var length = this.dataAccessor.ReadInt32(this.GetRecordPosition(recordOffset));
+        if(length<0||recordOffset+sizeof(int)+(long)length>dataLength)
+            throw new InvalidDataException("The managed list record length is invalid.");
+        return length;
+    }
+
+    private void WriteRecord(long recordOffset,byte[] bytes) {
+        var position = this.GetRecordPosition(recordOffset);
+        this.dataAccessor.Write(position,bytes.Length);
+        if(bytes.Length!=0) {
+            this.dataAccessor.WriteArray(position+sizeof(int),bytes,0,bytes.Length);
         }
     }
-    public static long AlignBytes(long byteLength) {
-        if(byteLength<1)
-            throw new ArgumentOutOfRangeException(nameof(byteLength));
 
-        var pageSize = Math.Max(Environment.SystemPageSize,1);
-        var remainder = byteLength%pageSize;
-        return remainder==0
-            ? byteLength
-            : checked(byteLength+(pageSize-remainder));
+    private long GetIndexFileLength(long capacity) => checked(capacity*sizeof(long));
+    private long GetDataFileLength(long dataCapacity) => dataCapacity;
+    private long GetIndexOffset(long index) => checked(index*sizeof(long));
+    private long GetRecordPosition(long recordOffset) => recordOffset;
+
+    private long AlignIndexCapacity(long capacity) => MemoryMappedListTuning.AlignElementCapacity(capacity,sizeof(long));
+    private long AlignDataCapacity(long capacity) => MemoryMappedListTuning.AlignBytes(capacity);
+
+    private FileStream OpenStream(string path) {
+        return new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,BufferSize,MemoryMappedListTuning.GetFileOptions(this.Tuning));
     }
 
-    public static long AlignElementCapacity(long capacity,int elementSize) {
-        if(capacity<1)
-            throw new ArgumentOutOfRangeException(nameof(capacity));
-        if(elementSize<1)
-            throw new ArgumentOutOfRangeException(nameof(elementSize));
-
-        var bytes = checked(capacity*(long)elementSize);
-        return AlignBytes(bytes)/elementSize;
+    private void ApplyTuning() {
+        MemoryMappedListTuning.ApplyTuning(this.indexStream,this.indexAccessor,this.Tuning);
+        MemoryMappedListTuning.ApplyTuning(this.dataStream,this.dataAccessor,this.Tuning);
     }
 
-    public static FileOptions GetFileOptions(TempListTuning tuning) {
-        if(!OperatingSystem.IsWindows())
-            return FileOptions.None;
+    private long ReadIndexUnchecked(long index) => this.indexAccessor.ReadInt64(this.GetIndexOffset(index));
 
-        return tuning.AccessPattern;
+    private void WriteIndexUnchecked(long index,long recordOffset) {
+        this.indexAccessor.Write(this.GetIndexOffset(index),recordOffset);
     }
 
-    public static bool RequiresReopen(TempListTuning currentTuning,TempListTuning nextTuning) {
-        return OperatingSystem.IsWindows()
-            &&currentTuning.AccessPattern!=nextTuning.AccessPattern;
-    }
-
-    public static void ApplyTuning(FileStream stream,MemoryMappedViewAccessor accessor,TempListTuning tuning) {
-        ArgumentNullException.ThrowIfNull(stream);
-        ArgumentNullException.ThrowIfNull(accessor);
-
-        if(accessor.Capacity<=0)
-            return;
-
-        if(OperatingSystem.IsWindows()) {
-            if(tuning.OptimizationMode==FileAccess.Read
-                &&tuning.AccessPattern==FileOptions.SequentialScan) {
-                PrefetchWindows(accessor);
+    private long LoadCount() {
+        var count = 0L;
+        var foundUnused = false;
+        for(var index = 0L; index<this.Capacity; index++) {
+            var recordOffset = this.ReadIndexUnchecked(index);
+            if(recordOffset==UnusedIndex) {
+                foundUnused=true;
+                continue;
             }
-            return;
+            if(recordOffset<0)
+                throw new InvalidDataException("The managed list index file contains an invalid offset.");
+            if(foundUnused)
+                throw new InvalidDataException("The managed list index file contains a gap between live entries.");
+            count++;
         }
-
-        if(OperatingSystem.IsLinux()||OperatingSystem.IsMacOS()) {
-            ApplyPosixFileHint(stream,tuning);
-            ApplyPosixMemoryHint(accessor,tuning);
-        }
+        return count;
     }
 
-
-    private static void ApplyPosixFileHint(FileStream stream,TempListTuning tuning) {
-        try {
-            var fileDescriptor = unchecked((int)stream.SafeFileHandle.DangerousGetHandle());
-            var advice = tuning.OptimizationMode==FileAccess.Write
-                ? PosixFadvNormal
-                : GetPosixFileAdvice(tuning.AccessPattern);
-            _=posix_fadvise(fileDescriptor,0,0,advice);
-            if(tuning.OptimizationMode==FileAccess.Read)
-                _=posix_fadvise(fileDescriptor,0,0,PosixFadvWillNeed);
+    private long LoadDataLength() {
+        var dataLength = 0L;
+        for(var index = 0L; index<this.Count; index++) {
+            var recordOffset = this.ReadIndexUnchecked(index);
+            var recordLength = this.ReadRecordLength(recordOffset,this.DataCapacity);
+            var recordEnd = checked(recordOffset+sizeof(int)+(long)recordLength);
+            if(recordEnd>dataLength)
+                dataLength=recordEnd;
         }
-        catch {
-        }
+        return dataLength;
     }
 
-    private static unsafe void ApplyPosixMemoryHint(MemoryMappedViewAccessor accessor,TempListTuning tuning) {
-        byte* pointer = null;
-        accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref pointer);
-        try {
-            if(pointer is null)
-                return;
-
-            var advice = tuning.OptimizationMode==FileAccess.Write
-                ? MadvNormal
-                : GetPosixMemoryAdvice(tuning.AccessPattern);
-            _=madvise((nint)pointer,checked((nuint)accessor.Capacity),advice);
-            if(tuning.OptimizationMode==FileAccess.Read)
-                _=madvise((nint)pointer,checked((nuint)accessor.Capacity),MadvWillNeed);
-        }
-        catch {
-        }
-        finally {
-            if(pointer is not null)
-                accessor.SafeMemoryMappedViewHandle.ReleasePointer();
+    private void InitializeIndexRange(long startIndex,long endIndexExclusive) {
+        for(var index = startIndex; index<endIndexExclusive; index++) {
+            this.WriteIndexUnchecked(index,UnusedIndex);
         }
     }
-
-    private static int GetPosixFileAdvice(FileOptions accessPattern) => accessPattern switch {
-        FileOptions.SequentialScan => PosixFadvSequential,
-        FileOptions.RandomAccess => PosixFadvRandom,
-        _ => PosixFadvNormal,
-    };
-
-    private static int GetPosixMemoryAdvice(FileOptions accessPattern) => accessPattern switch {
-        FileOptions.SequentialScan => MadvSequential,
-        FileOptions.RandomAccess => MadvRandom,
-        _ => MadvNormal,
-    };
-
-    private static unsafe void PrefetchWindows(MemoryMappedViewAccessor accessor) {
-        byte* pointer = null;
-        accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref pointer);
-        try {
-            if(pointer is null)
-                return;
-
-            var ranges = new[] {
-                new Win32MemoryRangeEntry((nuint)pointer,checked((nuint)accessor.Capacity))
-            };
-            _=PrefetchVirtualMemory(GetCurrentProcess(),(nuint)ranges.Length,ranges,0);
-        }
-        catch {
-        }
-        finally {
-            if(pointer is not null)
-                accessor.SafeMemoryMappedViewHandle.ReleasePointer();
-        }
-    }
-
-    [DllImport("kernel32.dll",SetLastError = true)]
-    private static extern IntPtr GetCurrentProcess();
-
-    [DllImport("kernel32.dll",SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool PrefetchVirtualMemory(IntPtr hProcess,nuint numberOfEntries,[In] Win32MemoryRangeEntry[] virtualAddresses,uint flags);
-
-    [DllImport("libc",SetLastError = true)]
-    private static extern int posix_fadvise(int fd,long offset,long length,int advice);
-
-    [DllImport("libc",SetLastError = true)]
-    private static extern int madvise(nint addr,nuint length,int advice);
 }

@@ -1,12 +1,12 @@
-﻿//using Seamless.Collections;
+//using Seamless.Collections;
 //using Seamless.Stores;
 //namespace Test.Seamless.Collections;
 
 //public class HashSetDebugView{
 //    [Fact,Trait("Category","Unit")]
 //    public void Items_�S�G���g����Ԃ�(){
-//        using var store=HashStore.Create().CreateUnmanagedHashSet<int>();
-//        using UnmanagedHashSet<int> set=store.Create();
+//        using var store=HashStore.Create().CreateHashSet<int>();
+//        using HashSet<int> set=store.Create();
 //        set.Add(10);
 //        set.Add(20);
 //        var view=new DebugView<int>(set);

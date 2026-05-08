@@ -1,4 +1,4 @@
-﻿using Seamless;
+using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 using System.Globalization;
@@ -10,8 +10,8 @@ using Tsavorite.core;
 #pragma warning disable CS8981
 
 namespace Test.Seamless.Database.TPC_H {
-    // DatabaseGenerator marker — Keys / Records の schema struct は namespace Keys / Records に直接宣言する。
-    // source generator がボイラーコード (コンストラクター・_u/_m フィールド・MemoryPack 実装) を生成する。
+    // DatabaseGenerator marker ? Keys / Records ・ｽ・ｽ schema struct ・ｽ・ｽ namespace Keys / Records ・ｽﾉ抵ｿｽ・ｽﾚ宣言・ｽ・ｽ・ｽ・ｽB
+    // source generator ・ｽ・ｽ・ｽ{・ｽC・ｽ・ｽ・ｽ[・ｽR・ｽ[・ｽh (・ｽR・ｽ・ｽ・ｽX・ｽg・ｽ・ｽ・ｽN・ｽ^・ｽ[・ｽE_u/_m ・ｽt・ｽB・ｽ[・ｽ・ｽ・ｽh・ｽEMemoryPack ・ｽ・ｽ・ｽ・ｽ) ・ｽｶ撰ｿｽ・ｽ・ｽ・ｽ・ｽB
     static partial class DatabaseGenerator;
 
     public sealed class Container:IDisposable {
@@ -28,16 +28,16 @@ namespace Test.Seamless.Database.TPC_H {
             this.lineitems=this.CreateTable<Records.lineitem>();
         }
 
-        public ManagedHashSet<Records.region> regions { get; }
-        public ManagedHashSet<Records.nation> nations { get; }
-        public ManagedHashSet<Records.supplier> suppliers { get; }
-        public ManagedHashSet<Records.customer> customers { get; }
-        public ManagedHashSet<Records.part> parts { get; }
-        public ManagedHashSet<Records.partsupp> partsupps { get; }
-        public ManagedHashSet<Records.orders> orders { get; }
-        public ManagedHashSet<Records.lineitem> lineitems { get; }
+        public global::Seamless.Collections.HashSet<Records.region> regions { get; }
+        public global::Seamless.Collections.HashSet<Records.nation> nations { get; }
+        public global::Seamless.Collections.HashSet<Records.supplier> suppliers { get; }
+        public global::Seamless.Collections.HashSet<Records.customer> customers { get; }
+        public global::Seamless.Collections.HashSet<Records.part> parts { get; }
+        public global::Seamless.Collections.HashSet<Records.partsupp> partsupps { get; }
+        public global::Seamless.Collections.HashSet<Records.orders> orders { get; }
+        public global::Seamless.Collections.HashSet<Records.lineitem> lineitems { get; }
 
-        private ManagedHashSet<T> CreateTable<T>() {
+        private global::Seamless.Collections.HashSet<T> CreateTable<T>() {
             var loadCheckpointDir = Path.Combine(Environment.CurrentDirectory,this.GetType().FullName!);
             Directory.CreateDirectory(loadCheckpointDir);
 
@@ -45,7 +45,7 @@ namespace Test.Seamless.Database.TPC_H {
             var objPath = Path.Combine(loadCheckpointDir,"obj");
             var logDevice = Devices.CreateLogDevice(logPath);
             var objDevice = Devices.CreateLogDevice(objPath);
-            var store = HashStore.Create(IndexSize: 1L<<12).Create<T>(logDevice,objDevice);
+            var store = HashStore.Create(IndexSize: 1L<<12,MemorySize: 1L<<24).Create<T>(logDevice,objDevice);
             var table = store.Create();
             this.disposables.Add(logDevice);
             this.disposables.Add(objDevice);
@@ -465,8 +465,8 @@ namespace Test.Seamless.Database.TPC_H {
         internal static Container Load() {
             var container = new Container();
 
-            // TPC-H v3.0.1 の構造・比率に合わせる。テストは実行時間のため 1/100 スケールで生成する。
-            const int unitScaleDivisor = 100;
+            // TPC-H v3.0.1 ・ｽﾌ構・ｽ・ｽ・ｽE・ｽ范ｦ・ｽﾉ搾ｿｽ・ｽ墲ｹ・ｽ・ｽB・ｽe・ｽX・ｽg・ｽﾍ趣ｿｽ・ｽs・ｽ・ｽ・ｽﾔのゑｿｽ・ｽ・ｽ 1/100 ・ｽX・ｽP・ｽ[・ｽ・ｽ・ｽﾅ撰ｿｽ・ｽ・ｽ・ｽ・ｽ・ｽ・ｽB
+            const int unitScaleDivisor = 1000;
             var supplierCount = (int)global::System.Math.Max(5,SF*10000/unitScaleDivisor);
             var customerCount = (int)global::System.Math.Max(10,SF*150000/unitScaleDivisor);
             var partCount = (int)global::System.Math.Max(20,SF*200000/unitScaleDivisor);
@@ -696,12 +696,12 @@ namespace Test.Seamless.Database.TPC_H {
         private void AssertStorageListRoundTrip(int query) {
             var expected = QueryRows(this.Container,query,false);
             var folder = TestPath.Directory<TpchTests>($"Q{query:D2}");
-            using(var list = new ManagedList<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
+            using(var list = new global::Seamless.Collections.List<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
                 foreach(var row in expected) {
                     list.Add(row);
                 }
             }
-            using(var list = new ManagedList<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
+            using(var list = new global::Seamless.Collections.List<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
                 var actual = list.OrderBy(row => row,StringComparer.Ordinal).ToArray();
                 Assert.Equal(expected,actual);
             }
@@ -754,8 +754,8 @@ namespace Test.Seamless.Database.TPC_H {
         [Fact] public void Q22_StorageList_RoundTrips() => AssertStorageListRoundTrip(22);
     }
 
-    // TPC-H の 8 テーブルに対応するキー struct。
-    // source generator がコンストラクター・_u フィールド・MemoryPack 実装を補完する。
+    // TPC-H ・ｽ・ｽ 8 ・ｽe・ｽ[・ｽu・ｽ・ｽ・ｽﾉ対会ｿｽ・ｽ・ｽ・ｽ・ｽL・ｽ[ struct・ｽB
+    // source generator ・ｽ・ｽ・ｽR・ｽ・ｽ・ｽX・ｽg・ｽ・ｽ・ｽN・ｽ^・ｽ[・ｽE_u ・ｽt・ｽB・ｽ[・ｽ・ｽ・ｽh・ｽEMemoryPack ・ｽ・ｽ・ｽ・ｽ・ｽ・ｽ竓ｮ・ｽ・ｽ・ｽ・ｽB
     namespace Keys {
         public partial struct region {
             public partial int r_regionkey { get; }
@@ -785,8 +785,8 @@ namespace Test.Seamless.Database.TPC_H {
         }
     }
 
-    // TPC-H の 8 テーブルに対応するレコード struct。
-    // source generator がコンストラクター・_u/_m フィールド・MemoryPack 実装を補完する。
+    // TPC-H ・ｽ・ｽ 8 ・ｽe・ｽ[・ｽu・ｽ・ｽ・ｽﾉ対会ｿｽ・ｽ・ｽ・ｽ驛鯉ｿｽR・ｽ[・ｽh struct・ｽB
+    // source generator ・ｽ・ｽ・ｽR・ｽ・ｽ・ｽX・ｽg・ｽ・ｽ・ｽN・ｽ^・ｽ[・ｽE_u/_m ・ｽt・ｽB・ｽ[・ｽ・ｽ・ｽh・ｽEMemoryPack ・ｽ・ｽ・ｽ・ｽ・ｽ・ｽ竓ｮ・ｽ・ｽ・ｽ・ｽB
     namespace Records {
         public partial struct region {
             public partial int r_regionkey { get; }

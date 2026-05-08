@@ -1,4 +1,4 @@
-﻿using Seamless;
+using Seamless;
 using Seamless.Collections;
 using Seamless.Stores;
 namespace Test.Seamless.Unit.Helpers.Collections;
@@ -33,18 +33,18 @@ public interface IHashSetTestStrategy<T>
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0);
 }
-public readonly struct ManagedHashSetStrategy<TProvider, T>:IHashSetTestStrategy<T>
+public readonly struct MemoryPackHashSetStrategy<TProvider, T>:IHashSetTestStrategy<T>
     where TProvider : IHashSetValueProvider<T>
     where T : IEquatable<T> {
     public static T Elem(int i) => TProvider.Create(i);
     public static HashSetHandle<T> CreateMemorySet(
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0){
-        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<T>(new ManagedTag());
+        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<T>(new MemoryPackSerializerStrategy());
         return new HashSetHandle<T>(store,store.Create());
     }
 }
-public readonly struct UnmanagedHashSetStrategy<TProvider, T>:IHashSetTestStrategy<T>
+public readonly struct BlittableHashSetStrategy<TProvider, T>:IHashSetTestStrategy<T>
     where TProvider : IHashSetValueProvider<T>
     where T : unmanaged, IEquatable<T> {
     public static T Elem(int i) => TProvider.Create(i);

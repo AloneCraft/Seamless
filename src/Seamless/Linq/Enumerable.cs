@@ -4192,6 +4192,8 @@ public static partial class Enumerable {
         "result$"
     )]
     public static IEnumerable<TResult> Select<TSource, TResult>(this IEnumerable<TSource> source,Func<TSource,TResult> selector){
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(selector);
         var result=new List<TResult>();
         foreach(var item in source){
             result.Add(selector(item));//selector(item)
@@ -5879,6 +5881,75 @@ public static partial class Enumerable {
         }
         return result;
     }
+
+    public static string CreateTemporaryResultListPath(string operationName) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(operationName);
+        var directoryPath=global::System.IO.Path.Combine(
+            global::System.IO.Path.GetTempPath(),
+            "seamless-linq-"+operationName+"-"+global::System.Guid.NewGuid().ToString("N"));
+        global::System.IO.Directory.CreateDirectory(directoryPath);
+        return global::System.IO.Path.Combine(directoryPath,"items.dat");
+    }
+
+    public static global::Seamless.Collections.List<T> CreateTemporaryResultList<T>(
+        string path,
+        long initialCapacity=16,
+        long initialDataCapacity=4096,
+        global::Seamless.Stores.MemoryPackSerializerStrategy _=default) {
+        return global::Seamless.Collections.ListStore.Create<T>(path,initialCapacity,initialDataCapacity,_);
+    }
+
+    public static IEnumerable<T> OwnTemporaryResultList<T>(global::Seamless.Collections.List<T> list,string path) {
+        ArgumentNullException.ThrowIfNull(list);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        return new TemporaryResultListEnumerable<T>(list,path);
+    }
+
+    public static void DeleteTemporaryResultListPath(string path) {
+        var directoryPath=global::System.IO.Path.GetDirectoryName(path);
+        if(string.IsNullOrWhiteSpace(directoryPath))
+            return;
+        try {
+            global::System.IO.Directory.Delete(directoryPath,recursive: true);
+        }
+        catch {
+        }
+    }
+
+    private sealed class TemporaryResultListEnumerable<T>:IEnumerable<T>, IDisposable {
+        private global::Seamless.Collections.List<T>? list;
+        private string? path;
+
+        public TemporaryResultListEnumerable(global::Seamless.Collections.List<T> list,string path) {
+            this.list=list;
+            this.path=path;
+        }
+
+        ~TemporaryResultListEnumerable() {
+            this.Dispose();
+        }
+
+        public IEnumerator<T> GetEnumerator() {
+            if(this.list is null)
+                throw new ObjectDisposedException(nameof(TemporaryResultListEnumerable<T>));
+            return this.list.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+
+        public void Dispose() {
+            var currentList=this.list;
+            var currentPath=this.path;
+            if(currentList is null)
+                return;
+            this.list=null;
+            this.path=null;
+            currentList.Dispose();
+            if(currentPath is not null)
+                DeleteTemporaryResultListPath(currentPath);
+            GC.SuppressFinalize(this);
+        }
+    }
     //[Collection(
     //    "",
     //    "",
@@ -5901,19 +5972,8 @@ public static partial class Enumerable {
     //    "",
     //    "global::Seamless.Collections.ListStore.Create<T>(path$,initialCapacity$,initialDataCapacity$,_)"
     //)]
-    //public static global::Seamless.Collections.ManagedList<T> CreateTemporaryResultList<T>(string path,long initialCapacity=16,long initialDataCapacity=4096,global::Seamless.Stores.ManagedTag _=default){
+    //public static global::Seamless.Collections.List<T> CreateTemporaryResultList<T>(string path,long initialCapacity=16,long initialDataCapacity=4096,global::Seamless.Stores.MemoryPackSerializerStrategy _=default){
     //    return global::Seamless.Collections.ListStore.Create<T>(path,initialCapacity,initialDataCapacity,_);
-    //}
-    //[Collection(
-    //    "",
-    //    "",
-    //    "",
-    //    "",
-    //    "global::Seamless.Collections.ListStore.Create<T>(path$,initialCapacity$,_)"
-    //)]
-    //public static global::Seamless.Collections.UnmanagedList<T> CreateTemporaryResultList<T>(string path,long initialCapacity=16,global::Seamless.Stores.UnmanagedTag _=default)
-    //    where T : unmanaged {
-    //    return global::Seamless.Collections.ListStore.Create<T>(path,initialCapacity,_);
     //}
     //[Inline(
     //    "",

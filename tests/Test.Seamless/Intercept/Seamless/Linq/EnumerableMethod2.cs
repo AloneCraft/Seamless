@@ -1,4 +1,4 @@
-﻿using Seamless.Linq;
+using Seamless.Linq;
 using Test.Seamless.Collections;
 
 using NonGenericEnumerable = System.Collections.IEnumerable;

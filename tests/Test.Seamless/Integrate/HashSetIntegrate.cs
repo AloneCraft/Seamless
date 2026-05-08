@@ -1,4 +1,4 @@
-﻿using Seamless.Collections;
+using Seamless.Collections;
 using Seamless.Stores;
 using Tsavorite.core;
 
@@ -336,7 +336,7 @@ public class ManagementHashSet(ITestOutputHelper output):HashSetIntegrateBase<st
         new ManagedHandle(rootDir,checkpointDir,deleteOnDispose);
 
     private sealed class ManagedHandle:Handle {
-        private readonly ManagedHashSetStore<string> store;
+        private readonly HashSetStore<string> store;
 
         public ManagedHandle(string rootDir,string? checkpointDir,bool deleteOnDispose) : base(rootDir,deleteOnDispose) {
             var factory = HashStore.Create(
@@ -347,7 +347,7 @@ public class ManagementHashSet(ITestOutputHelper output):HashSetIntegrateBase<st
                 MutableFraction: 0.05,
                 CheckpointDir: checkpointDir
             );
-            this.store=factory.Create<string>(this.logDevice,this.objDevice,new ManagedTag());
+            this.store=factory.Create<string>(this.logDevice,this.objDevice,new MemoryPackSerializerStrategy());
         }
 
         public override IHashSet<string> Create() =>
@@ -394,7 +394,7 @@ public class UnmanagementHashSet(ITestOutputHelper output):HashSetIntegrateBase<
         new UnmanagedHandle(rootDir,checkpointDir,deleteOnDispose);
 
     private sealed class UnmanagedHandle:Handle {
-        private readonly UnmanagedHashSetStore<int> store;
+        private readonly HashSetStore<int> store;
 
         public UnmanagedHandle(string rootDir,string? checkpointDir,bool deleteOnDispose) : base(rootDir,deleteOnDispose) {
             var factory = HashStore.Create(
@@ -405,7 +405,7 @@ public class UnmanagementHashSet(ITestOutputHelper output):HashSetIntegrateBase<
                 MutableFraction: 0.05,
                 CheckpointDir: checkpointDir
             );
-            this.store=factory.Create<int>(this.logDevice,this.objDevice,new UnmanagedTag());
+            this.store=factory.Create<int>(this.logDevice,this.objDevice,new BlittableStrategy());
         }
 
         public override IHashSet<int> Create() =>

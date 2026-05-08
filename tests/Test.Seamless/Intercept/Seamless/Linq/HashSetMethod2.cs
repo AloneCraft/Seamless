@@ -204,7 +204,7 @@ public sealed class HashSetMethod2 {
 
     private static IHashSet<T> CreateManagedSource<T>(IEnumerable<T> values)
         where T : IEquatable<T> {
-        var store = HashStore.Create().Create<T>(new ManagedTag());
+        var store = HashStore.Create().Create<T>(new MemoryPackSerializerStrategy());
         var result = store.CreateOwned();
         foreach(var value in values) {
             result.Add(value);

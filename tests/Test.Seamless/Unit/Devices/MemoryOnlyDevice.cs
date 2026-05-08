@@ -1,4 +1,4 @@
-﻿namespace Test.Seamless.Unit.Devices;
+namespace Test.Seamless.Unit.Devices;
 
 
 public class MemoryOnlyDevice {

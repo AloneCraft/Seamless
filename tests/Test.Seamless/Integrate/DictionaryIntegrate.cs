@@ -1,4 +1,4 @@
-﻿using Seamless.Stores;
+using Seamless.Stores;
 using Tsavorite.core;
 
 namespace Test.Seamless.Integrate;
@@ -298,7 +298,7 @@ public class ManagementDictionary(ITestOutputHelper output):DictionaryIntegrateB
         new ManagedHandle(rootDir,checkpointDir,deleteOnDispose);
 
     private sealed class ManagedHandle:Handle {
-        private readonly ManagedDictionaryStore<string,string> store;
+        private readonly DictionaryStore<string,string> store;
 
         public ManagedHandle(string rootDir,string? checkpointDir,bool deleteOnDispose) : base(rootDir,deleteOnDispose) {
             var factory = HashStore.Create(
@@ -309,7 +309,7 @@ public class ManagementDictionary(ITestOutputHelper output):DictionaryIntegrateB
                 MutableFraction: 0.05,
                 CheckpointDir: checkpointDir
             );
-            this.store=factory.Create<string,string>(this.logDevice,this.objDevice,new ManagedTag(),new ManagedTag());
+            this.store=factory.Create<string,string>(this.logDevice,this.objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
         }
 
         public override global::Seamless.Collections.IDictionary<string,string> Create() =>
@@ -352,7 +352,7 @@ public class UnmanagementDictionary(ITestOutputHelper output):DictionaryIntegrat
         new UnmanagedHandle(rootDir,checkpointDir,deleteOnDispose);
 
     private sealed class UnmanagedHandle:Handle {
-        private readonly UnmanagedDictionaryStore<int,int> store;
+        private readonly DictionaryStore<int,int> store;
 
         public UnmanagedHandle(string rootDir,string? checkpointDir,bool deleteOnDispose) : base(rootDir,deleteOnDispose) {
             var factory = HashStore.Create(
@@ -363,7 +363,7 @@ public class UnmanagementDictionary(ITestOutputHelper output):DictionaryIntegrat
                 MutableFraction: 0.05,
                 CheckpointDir: checkpointDir
             );
-            this.store=factory.Create<int,int>(this.logDevice,this.objDevice,new UnmanagedTag(),new UnmanagedTag());
+            this.store=factory.Create<int,int>(this.logDevice,this.objDevice,new BlittableStrategy(),new BlittableStrategy());
         }
 
         public override global::Seamless.Collections.IDictionary<int,int> Create() =>

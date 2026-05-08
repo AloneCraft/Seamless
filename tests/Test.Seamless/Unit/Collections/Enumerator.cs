@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using Seamless;
 using Seamless.Stores;
 namespace Test.Seamless.Unit.Collections;
@@ -191,7 +191,7 @@ public class Enumerator {
         try {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-            using var store = HashStore.Create().Create<string>(logDevice,objDevice,new ManagedTag());
+            using var store = HashStore.Create().Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy());
             using var set = store.Create();
             var expected = Enumerable.Range(0,2048).Select(i => "s"+i).ToArray();
             foreach(var value in expected)

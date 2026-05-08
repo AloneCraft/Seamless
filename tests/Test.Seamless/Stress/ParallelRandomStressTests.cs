@@ -1,4 +1,4 @@
-﻿using Seamless.Stores;
+using Seamless.Stores;
 using System.Linq;
 using Tsavorite.core;
 namespace Test.Seamless.Stress;
@@ -138,7 +138,7 @@ public class ParallelRandomStressTests {
             }
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
-            using(var store = HashStore.Create().Create<string,string>(logDevice,objDevice,new ManagedTag(),new ManagedTag())) {
+            using(var store = HashStore.Create().Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy())) {
                 for(var r = 0; r<repeat; r++) {
                     using(var dict = store.Create()) {
                         dict.Clear();
@@ -254,7 +254,7 @@ public class ParallelRandomStressTests {
             }
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
-            using(var store = HashStore.Create().Create<string>(logDevice,objDevice,new ManagedTag())) {
+            using(var store = HashStore.Create().Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy())) {
                 for(var r = 0; r<repeat; r++) {
                     using(var set = store.Create()) {
                         set.Clear();

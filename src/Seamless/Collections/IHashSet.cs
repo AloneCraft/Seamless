@@ -5,16 +5,16 @@ using Seamless.Linq;
 namespace Seamless.Collections;
 
 /// <summary>
-/// Tsavorite ƒoƒbƒNƒGƒ“ƒh‚ğ‚Â HashSet ‚Ì‹¤’ÊƒCƒ“ƒ^[ƒtƒF[ƒXB
-/// ManagedHashSet ‚Æ UnmanagedHashSet ‚Ì—¼À‘•‚ª‹¤—L‚·‚é‘€ì‚ğŒöŠJ‚·‚éB
-/// ˆø”‚Í ISeamlessHashSet&lt;T&gt; ‚ğó‚¯æ‚éŠù’èÀ‘•‚ğ‚ÂB
+/// Tsavorite ãƒãƒƒã‚¯ã‚¨ãƒ³ãƒ‰ã‚’æŒã¤ HashSet ã®å…±é€šã‚¤ãƒ³ã‚¿ãƒ¼ãƒ•ã‚§ãƒ¼ã‚¹ã€‚
+/// HashSet ã¨ HashSet ã®ä¸¡å®Ÿè£…ãŒå…±æœ‰ã™ã‚‹æ“ä½œã‚’å…¬é–‹ã™ã‚‹ã€‚
+/// å¼•æ•°ã¯ ISeamlessHashSet&lt;T&gt; ã‚’å—ã‘å–ã‚‹æ—¢å®šå®Ÿè£…ã‚’æŒã¤ã€‚
 /// </summary>
 public interface IHashSet<T>:IMemoryCollection<T>, IDisposable {
-    /// <summary>‚±‚ÌƒCƒ“ƒXƒ^ƒ“ƒX‚ªŠù‚É”jŠü‚³‚ê‚Ä‚¢‚é‚©‚Ç‚¤‚©‚ğæ“¾‚·‚éB</summary>
+    /// <summary>ã“ã®ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ãŒæ—¢ã«ç ´æ£„ã•ã‚Œã¦ã„ã‚‹ã‹ã©ã†ã‹ã‚’å–å¾—ã™ã‚‹ã€‚</summary>
     bool IsDisposed { get; }
     /// <summary>
-    /// “à•” session ‚ğ’£‚è‘Ö‚¦‚ÄATsavorite ‚ª•Û‚µ‚Ä‚¢‚éŒÃ‚¢ epoch ¢‘ãQÆ‚ğ‰ğ•ú‚·‚éB
-    /// Šù’èÀ‘•‚Í no-op ‚ÅAsession ‚ğ–¾¦ŠÇ—‚·‚éÀ‘•‚ª•K—v‚É‰‚¶‚Äã‘‚«‚·‚éB
+    /// å†…éƒ¨ session ã‚’å¼µã‚Šæ›¿ãˆã¦ã€Tsavorite ãŒä¿æŒã—ã¦ã„ã‚‹å¤ã„ epoch ä¸–ä»£å‚ç…§ã‚’è§£æ”¾ã™ã‚‹ã€‚
+    /// æ—¢å®šå®Ÿè£…ã¯ no-op ã§ã€session ã‚’æ˜ç¤ºç®¡ç†ã™ã‚‹å®Ÿè£…ãŒå¿…è¦ã«å¿œã˜ã¦ä¸Šæ›¸ãã™ã‚‹ã€‚
     /// </summary>
     void Refresh() {
     }

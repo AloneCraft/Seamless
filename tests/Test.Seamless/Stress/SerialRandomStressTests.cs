@@ -1,4 +1,4 @@
-﻿using Seamless.Stores;
+using Seamless.Stores;
 using System.Linq;
 using Tsavorite.core;
 namespace Test.Seamless.Stress;
@@ -24,7 +24,7 @@ public class SerialRandomStressTests {
         catch { /* best-effort */ }
     }
 
-    // ──────────── UnmanagedUnmanagedDictionary<int,int> ────────────
+    // ──────────── Dictionary<int,int> ────────────
     [Theory, InlineData(StressCountSmall), InlineData(StressCountLarge)]
     public void UnmanagedIntDictionary_AddEvictSaveLoadRemove_Deterministic(int count) {
         const int Count = 1;
@@ -85,7 +85,7 @@ public class SerialRandomStressTests {
         }
     }
 
-    // ──────────── ManagedManagedDictionary<string,string> ────────────
+    // ──────────── Dictionary<string,string> ────────────
     [Theory, InlineData(StressCountSmall), InlineData(StressCountLarge)]
     public void ManagedStringDictionary_AddEvictSaveLoadRemove_Deterministic(int count) {
         const int Count = 3;
@@ -113,7 +113,7 @@ public class SerialRandomStressTests {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
                     using var store = HashStore.Create(CheckpointDir: checkpointDir)
-                        .Create<string,string>(logDevice,objDevice,new ManagedTag(),new ManagedTag());
+                        .Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
                     using var dict = store.Create();
                     for(var i = 0; i<keys.Length; i++)
                         dict.Add(keys[i],values[i]);
@@ -124,7 +124,7 @@ public class SerialRandomStressTests {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
                     using var store = HashStore.Create(CheckpointDir: checkpointDir)
-                        .Create<string,string>(logDevice,objDevice,new ManagedTag(),new ManagedTag());
+                        .Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
                     store.Load(token);
                     using var dict = store.Create();
                     foreach(var t in keys)
@@ -149,7 +149,7 @@ public class SerialRandomStressTests {
         }
     }
 
-    // ──────────── UnmanagedHashSet<int> ────────────
+    // ──────────── HashSet<int> ────────────
     [Theory, InlineData(StressCountSmall), InlineData(StressCountLarge)]
     public void UnmanagedIntHashSet_AddEvictSaveLoadRemove_Deterministic(int count) {
         const int Count = 1;
@@ -203,7 +203,7 @@ public class SerialRandomStressTests {
         }
     }
 
-    // ──────────── ManagedHashSet<string> ────────────
+    // ──────────── HashSet<string> ────────────
     [Theory, InlineData(StressCountSmall), InlineData(StressCountLarge)]
     public void ManagedStringHashSet_AddEvictSaveLoadRemove_Deterministic(int count) {
         const int Count = 5;
@@ -228,7 +228,7 @@ public class SerialRandomStressTests {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
                     using var store = HashStore.Create(CheckpointDir: checkpointDir)
-                        .Create<string>(logDevice,objDevice,new ManagedTag());
+                        .Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy());
                     using var set = store.Create();
                     for(var i = 0; i<keys.Length; i++)
                         Assert.True(set.Add(keys[i]));
@@ -239,7 +239,7 @@ public class SerialRandomStressTests {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
                     using var store = HashStore.Create(CheckpointDir: checkpointDir)
-                        .Create<string>(logDevice,objDevice,new ManagedTag());
+                        .Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy());
                     store.Load(token);
                     using var set = store.Create();
                     for(var i = 0; i<keys.Length; i++)

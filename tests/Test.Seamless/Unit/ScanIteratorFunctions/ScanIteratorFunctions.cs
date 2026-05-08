@@ -17,7 +17,7 @@ public class ScanIteratorFunctions{
     [Fact,Trait("Category","Unit")] public void OnStop()=>Common();
     [Fact,Trait("Category","Unit")]
     public void OnException(){
-        var iter=new ManagedDictionary<int,int,ManagedSerializer<int>,ManagedSerializer<int>>.KeyIterator();
+        var iter=new Dictionary<int,int,MemoryPackSerializer<int>,MemoryPackSerializer<int>>.KeyIterator();
         iter.OnException(new Exception("test"),0);
     }
 }

@@ -1,4 +1,4 @@
-﻿using MemoryPack;
+using MemoryPack;
 using Seamless.Collections;
 using Seamless.Stores;
 
@@ -55,7 +55,7 @@ public class SetTests {
 
     [Fact, Trait("Category","Unit")]
     public void UnmanagedSet_AddTryGetRemove_UsesRecordKey() {
-        using var store = HashStore.Create().CreateUnmanagedSet<int,UnmanagedSetRecord>();
+        using var store = HashStore.Create().CreateSet<int,UnmanagedSetRecord>();
         using var set = store.Create();
 
         var record = new UnmanagedSetRecord(7,99);
@@ -88,7 +88,7 @@ public class SetTests {
         other.Add(charlie);
 
         using var union = set.Union(other);
-        Assert.IsType<ManagedSet<int,ManagedSetRecord>>(union);
+        Assert.IsType<Set<int,ManagedSetRecord>>(union);
         Assert.Equal(3,union.Count);
         Assert.True(union.TryGetValue(2,out var foundBravo));
         Assert.Equal(bravo,foundBravo);
@@ -120,7 +120,7 @@ public class SetTests {
     public void ManagedSet_FunctionalOperations_WithManagedHashSet_KeepReturnTypesAndValues() {
         using var store = HashStore.Create().CreateSet<int,ManagedSetRecord>();
         using var set = store.Create();
-        using var keyStore = HashStore.Create().CreateManagedHashSet<int>();
+        using var keyStore = HashStore.Create().CreateHashSet<int>();
         using var keys = keyStore.Create();
 
         set.Add(new ManagedSetRecord(1,"alpha"));
@@ -129,7 +129,7 @@ public class SetTests {
         keys.Add(3);
 
         using var union = set.Union(keys);
-        Assert.IsType<ManagedHashSet<int>>(union);
+        Assert.IsType<global::Seamless.Collections.HashSet<int>>(union);
         Assert.Equal(3,union.Count);
         Assert.True(union.Contains(1));
         Assert.True(union.Contains(2));
@@ -151,8 +151,8 @@ public class SetTests {
 
     [Fact, Trait("Category","Unit")]
     public void UnmanagedSet_FunctionalOperations_WithUnmanagedSet_KeepReturnTypesAndValues() {
-        using var store = HashStore.Create().CreateUnmanagedSet<int,UnmanagedSetRecord>();
-        using var otherStore = HashStore.Create().CreateUnmanagedSet<int,UnmanagedSetRecord>();
+        using var store = HashStore.Create().CreateSet<int,UnmanagedSetRecord>();
+        using var otherStore = HashStore.Create().CreateSet<int,UnmanagedSetRecord>();
         using var set = store.Create();
         using var other = otherStore.Create();
 
@@ -167,7 +167,7 @@ public class SetTests {
         other.Add(charlie);
 
         using var union = set.Union(other);
-        Assert.IsType<UnmanagedSet<int,UnmanagedSetRecord>>(union);
+        Assert.IsType<Set<int,UnmanagedSetRecord>>(union);
         Assert.Equal(3,union.Count);
         Assert.True(union.TryGetValue(2,out var foundBravo));
         Assert.Equal(bravo,foundBravo);
@@ -194,9 +194,9 @@ public class SetTests {
 
     [Fact, Trait("Category","Unit")]
     public void UnmanagedSet_FunctionalOperations_WithUnmanagedHashSet_KeepReturnTypesAndValues() {
-        using var store = HashStore.Create().CreateUnmanagedSet<int,UnmanagedSetRecord>();
+        using var store = HashStore.Create().CreateSet<int,UnmanagedSetRecord>();
         using var set = store.Create();
-        using var keyStore = HashStore.Create().CreateUnmanagedHashSet<int>();
+        using var keyStore = HashStore.Create().Create<int>(new BlittableStrategy());
         using var keys = keyStore.Create();
 
         set.Add(new UnmanagedSetRecord(1,10));
@@ -205,7 +205,7 @@ public class SetTests {
         keys.Add(3);
 
         using var union = set.Union(keys);
-        Assert.IsType<UnmanagedHashSet<int>>(union);
+        Assert.IsType<global::Seamless.Collections.HashSet<int>>(union);
         Assert.Equal(3,union.Count);
         Assert.True(union.Contains(1));
         Assert.True(union.Contains(2));
@@ -229,7 +229,7 @@ public class SetTests {
     public void ManagedSetOfT_Distinct_SortsAndDeduplicates() {
         var path = CreatePath("managed-view-set");
         try {
-            using var set = new ManagedSet<string>(path,initialCapacity: 1,initialDataCapacity: 128);
+            using var set = new Set<string>(path,initialCapacity: 1,initialDataCapacity: 128);
             set.Add("bravo");
             set.Add("alpha");
             set.Add("alpha");
@@ -250,7 +250,7 @@ public class SetTests {
     public void UnmanagedSetOfT_Distinct_SortsAndDeduplicates() {
         var path = CreatePath("unmanaged-view-set");
         try {
-            using var set = new UnmanagedSet<int>(path,initialCapacity: 1);
+            using var set = new Set<int>(path,initialCapacity: 1);
             set.Add(5);
             set.Add(3);
             set.Add(5);
