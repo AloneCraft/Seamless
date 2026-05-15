@@ -12,7 +12,7 @@ namespace Seamless.SourceGenerator;
 // LINQ translation template の試作置き場。
 // L は Expression の MethodInfo を Roslyn symbol に橋渡しし、
 // OriginalDefinition ベースの汎用キー文字列を返す。
-public partial class Template {
+public class Template {
     private static readonly SymbolDisplayFormat TemplateMethodSignatureFormat = new(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
