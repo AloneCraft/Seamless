@@ -7,10 +7,10 @@
     <AssemblyName>Seamless</AssemblyName>
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Linq/EnumerableSourceStub.cs" />
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="Microsoft.Garnet" Version="2.0.0-beta.3" GeneratePathProperty="true" />
     <PackageReference Include="ZLinq" Version="1.*" />
