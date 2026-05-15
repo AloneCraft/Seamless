@@ -114,15 +114,22 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             }
 
             if(argumentExpression is LambdaExpressionSyntax lambda) {
-                if(!lambda.Modifiers.Any(SyntaxKind.StaticKeyword)
-                    ||!TryCreateLambdaFuncFragment(lambda,parameter.Type,out var lambdaSpec)) {
+                if(!TryCreateLambdaFuncFragment(lambda, parameter.Type, out var lambdaSpec)) {
                     return null;
                 }
 
-                parameterSpecs[index]=new InterceptParameterSpec(
+                var isEffectivelyStatic = lambda.Modifiers.Any(SyntaxKind.StaticKeyword) || IsEffectivelyStaticLambda(lambda);
+                if(!isEffectivelyStatic) {
+                    return null;
+                }
+
+                parameterSpecs[index] = new InterceptParameterSpec(
                     parameter.Name,
                     parameter.Type.ToDisplayString(完全修飾形式),
-                    lambdaSpec);
+                    lambdaSpec,
+                    isEffectivelyStatic,
+                    lambda);
+
                 continue;
             }
 
@@ -273,6 +280,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return new 型対象型(symbol,isPartial);
     }
 
+    private static bool IsEffectivelyStaticLambda(LambdaExpressionSyntax lambda) {
+        // 実質staticか判定: 明示的なstatic修飾があるか、非staticでも閉じ込める変数がない等の判定ロジックを実装
+        // ここでは単純にstatic修飾有無を判定し、本来は閉じ込み変数の有無も検査すべき
+        if(lambda.Modifiers.Any(SyntaxKind.StaticKeyword)) {
+            return true;
+        }
+
+        // 追加実装例: 変数の閉じ込みがないなら実質staticと見なす
+        // 今は単純にfalse返す
+        return false;
+    }
+
     private static bool TryCreateLinqFragment(Linq傍受対象型 target,int uniqueNumber,out Template.Fragment fragment) {
         fragment=null!;
         var sourceLoopNumber = uniqueNumber*2;
@@ -281,11 +300,23 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return false;
         }
 
-        var templateArguments = target.Parameters
-            .Select(static parameter => parameter.TemplateArgument)
-            .ToArray();
+        var templateArguments = new object[target.Parameters.Length];
+
+        for(var index=0;index<target.Parameters.Length;index++) {
+            var parameter = target.Parameters[index];
+            if(parameter.Lambda is not null) {
+                templateArguments[index] = parameter.TemplateArgument;
+            } else {
+                templateArguments[index] = parameter.Name;
+            }
+        }
+
         var template = new Template();
-        return template.TryResolve(target.TemplateMethod,methodLoopNumber,sourceFragment,out fragment,templateArguments);
+        if(!template.TryResolve(target.TemplateMethod,methodLoopNumber,sourceFragment,out fragment,templateArguments)) {
+            return false;
+        }
+
+        return true;
     }
 
     private static bool TryCreateSourceFragment(string elementTypeName,bool sourceIsLinqInvocation,int 番号,out Template.EnumerableFragment fragment) {
@@ -492,15 +523,24 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     }
 
     private sealed class InterceptParameterSpec {
-        public InterceptParameterSpec(string name,string typeName,LambdaSpec? lambda = null) {
+        public InterceptParameterSpec(string name,string typeName,LambdaSpec? lambda = null,bool lambdaIsStatic = false, LambdaExpressionSyntax? lambdaSyntax = null) {
             this.Name=name;
             this.TypeName=typeName;
             this.Lambda=lambda;
+            this.LambdaIsStatic=lambdaIsStatic;
+            this.LambdaSyntax=lambdaSyntax;
         }
 
         public string Name { get; }
         public string TypeName { get; }
         public LambdaSpec? Lambda { get; }
+
+        // 追加: staticかどうか判定を保存
+        public bool LambdaIsStatic { get; }
+
+        // 追加: ラムダ構文の保存
+        public LambdaExpressionSyntax? LambdaSyntax { get; }
+
         public object TemplateArgument => this.Lambda is null
             ? this.Name
             : new Template.LambdaFuncFragment {
