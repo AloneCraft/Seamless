@@ -20,10 +20,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandNullable);
 
     public void Initialize(IncrementalGeneratorInitializationContext context) {
-        var aggregateTargets = context.SyntaxProvider
+        var interceptTargets = context.SyntaxProvider
             .CreateSyntaxProvider(
                 static (node,_) => node is InvocationExpressionSyntax,
-                static (syntaxContext,cancellationToken) => AggregateFunc傍受対象生成(syntaxContext,cancellationToken))
+                static (syntaxContext,cancellationToken) => Linq傍受対象生成(syntaxContext,cancellationToken))
             .Where(static target => target is not null)
             .Select(static (target,_) => target!);
 
@@ -34,9 +34,9 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .Where(static target => target is not null)
             .Select(static (target,_) => target!);
 
-        var combined = aggregateTargets.Collect().Combine(typeTargets.Collect());
+        var combined = interceptTargets.Collect().Combine(typeTargets.Collect());
         context.RegisterSourceOutput(combined,static (productionContext,pair) => {
-            var aggregateTargets = pair.Left;
+            var interceptTargets = pair.Left;
             var typeTargets = pair.Right;
 
             if(!typeTargets.IsDefaultOrEmpty) {
@@ -46,18 +46,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 }
             }
 
-            if(aggregateTargets.IsDefaultOrEmpty) {
+            if(interceptTargets.IsDefaultOrEmpty) {
                 return;
             }
 
-            var source = インターセプターソース構築(aggregateTargets.Distinct(AggregateFuncInterceptTargetComparer.Instance).ToImmutableArray());
+            var source = インターセプターソース構築(interceptTargets.Distinct(LinqInterceptTargetComparer.Instance).ToImmutableArray());
             if(source.Length>0) {
-                productionContext.AddSource("Seamless.SourceGenerator.AggregateInterceptors.g.cs",SourceText.From(source,Encoding.UTF8));
+                productionContext.AddSource("Seamless.SourceGenerator.LinqInterceptors.g.cs",SourceText.From(source,Encoding.UTF8));
             }
         });
     }
 
-    private static AggregateFunc傍受対象型? AggregateFunc傍受対象生成(GeneratorSyntaxContext context,System.Threading.CancellationToken cancellationToken) {
+    private static Linq傍受対象型? Linq傍受対象生成(GeneratorSyntaxContext context,System.Threading.CancellationToken cancellationToken) {
         if(context.Node is not InvocationExpressionSyntax invocation) {
             return null;
         }
@@ -67,7 +67,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
 
         var definition = method.ReducedFrom ?? method;
-        if(!AggregateFuncメソッド判定(definition)) {
+        if(!Linqメソッド判定(definition)) {
             return null;
         }
 
@@ -94,63 +94,73 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         var line = invocationLineSpan.StartLinePosition.Line+1;
         var character = invocationLineSpan.StartLinePosition.Character+1;
         var identifier = SanitizeIdentifier($"{System.IO.Path.GetFileNameWithoutExtension(invocationLineSpan.Path)}_{containingMethod.Name}_{line}_{character}");
-        var parameterType = method.TypeArguments[0].ToDisplayString(完全修飾形式);
-        var funcType = $"global::System.Func<{parameterType},{parameterType},{parameterType}>";
         var sourceIsLinqInvocation = InvocationSourceがLinq呼び出しか(context.SemanticModel,invocation,cancellationToken);
-        if(invocation.ArgumentList.Arguments.Count!=1
-            ||invocation.ArgumentList.Arguments[0].Expression is not LambdaExpressionSyntax lambda
-            ||!lambda.Modifiers.Any(SyntaxKind.StaticKeyword)
-            ||!TryCreateLambdaFuncFragment(lambda,parameterType,out var funcFragment)) {
+        if(method.ReducedFrom is null) {
             return null;
         }
 
-        return new AggregateFunc傍受対象型(
+        var parameters = method.Parameters;
+        var arguments = invocation.ArgumentList.Arguments;
+        if(parameters.Length!=arguments.Count) {
+            return null;
+        }
+
+        var parameterSpecs = new InterceptParameterSpec[parameters.Length];
+        for(var index = 0; index<parameters.Length; index++) {
+            var parameter = parameters[index];
+            var argumentExpression = arguments[index].Expression;
+            if(IsSecondarySequenceType(parameter.Type)) {
+                return null;
+            }
+
+            if(argumentExpression is LambdaExpressionSyntax lambda) {
+                if(!lambda.Modifiers.Any(SyntaxKind.StaticKeyword)
+                    ||!TryCreateLambdaFuncFragment(lambda,parameter.Type,out var lambdaSpec)) {
+                    return null;
+                }
+
+                parameterSpecs[index]=new InterceptParameterSpec(
+                    parameter.Name,
+                    parameter.Type.ToDisplayString(完全修飾形式),
+                    lambdaSpec);
+                continue;
+            }
+
+            if(IsInlineDelegateType(parameter.Type)) {
+                return null;
+            }
+
+            parameterSpecs[index]=new InterceptParameterSpec(
+                parameter.Name,
+                parameter.Type.ToDisplayString(完全修飾形式));
+        }
+
+        return new Linq傍受対象型(
             identifier,
             containingMethod.Name,
             interceptsLocationAttributeText,
-            parameterType,
-            funcType,
+            method,
+            definition,
             sourceIsLinqInvocation,
-            funcFragment.ParameterNames,
-            NormalizeExpressionText(GetLambdaBodyText(lambda)));
+            parameterSpecs);
     }
 
-    private static bool AggregateFuncメソッド判定(IMethodSymbol method) {
-        if(method.Name!="Aggregate"
-            ||!method.IsExtensionMethod
-            ||method.Arity!=1
-            ||method.Parameters.Length!=2
+    private static bool Linqメソッド判定(IMethodSymbol method) {
+        if(!method.IsExtensionMethod
             ||method.ContainingType.ToDisplayString()!="System.Linq.Enumerable") {
-            return false;
-        }
-
-        var typeParameter = method.TypeArguments[0];
-        if(!SymbolEqualityComparer.Default.Equals(method.ReturnType,typeParameter)) {
             return false;
         }
 
         if(method.Parameters[0].Type is not INamedTypeSymbol sourceType
             ||sourceType.TypeArguments.Length!=1
-            ||sourceType.OriginalDefinition.ToDisplayString()!="System.Collections.Generic.IEnumerable<T>") {
+            ||!IsIEnumerableType(sourceType)) {
             return false;
         }
 
-        if(!SymbolEqualityComparer.Default.Equals(sourceType.TypeArguments[0],typeParameter)) {
-            return false;
-        }
-
-        if(method.Parameters[1].Type is not INamedTypeSymbol funcType
-            ||funcType.TypeArguments.Length!=3
-            ||funcType.OriginalDefinition.ToDisplayString()!="System.Func<T1, T2, TResult>") {
-            return false;
-        }
-
-        return SymbolEqualityComparer.Default.Equals(funcType.TypeArguments[0],typeParameter)
-            &&SymbolEqualityComparer.Default.Equals(funcType.TypeArguments[1],typeParameter)
-            &&SymbolEqualityComparer.Default.Equals(funcType.TypeArguments[2],typeParameter);
+        return SupportsPlainLambdaFragments(method);
     }
 
-    private static string インターセプターソース構築(ImmutableArray<AggregateFunc傍受対象型> targets) {
+    private static string インターセプターソース構築(ImmutableArray<Linq傍受対象型> targets) {
         var builder = new StringBuilder();
         builder.AppendLine("#nullable enable");
         builder.AppendLine("namespace System.Runtime.CompilerServices {");
@@ -170,25 +180,19 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
 
         var index = 0;
         foreach(var target in targets) {
-            var funcFragment = new Template.LambdaFuncFragment {
-                ReturnTypeName=target.ParameterTypeName,
-                ParameterTypeNames=[target.ParameterTypeName,target.ParameterTypeName],
-                ParameterNames=target.LambdaParameterNames,
-                DefineLambda=$" => {target.LambdaBody};"
-            };
-            if(!TryCreateAggregateFragment(target.ParameterTypeName,target.SourceIsLinqInvocation,funcFragment,index,out var fragment)) {
+            if(!TryCreateLinqFragment(target,index,out var fragment)) {
                 index++;
                 continue;
             }
 
-            builder.AppendLine($"        /// <summary>Intercepts Aggregate(func) inside {target.ContainingMethodName}.</summary>");
+            builder.AppendLine($"        /// <summary>Intercepts {target.Method.Name} inside {target.ContainingMethodName}.</summary>");
             if(!string.IsNullOrWhiteSpace(fragment.staticメソッド)) {
                 インデント付き追記(builder,fragment.staticメソッド,"        ");
             }
             builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
             builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
-            builder.AppendLine($"        public static {target.ParameterTypeName} {target.MethodName}(this global::System.Collections.Generic.IEnumerable<{target.ParameterTypeName}> source,{target.FuncTypeName} func) {{");
-            インデント付き追記(builder,RenderFragmentBody(fragment,target.ParameterTypeName),"            ");
+            builder.AppendLine($"        public static {target.ReturnTypeName} {target.MethodName}(this global::System.Collections.Generic.IEnumerable<{target.SourceElementTypeName}> source{target.MethodParameterList}) {{");
+            インデント付き追記(builder,RenderFragmentBody(fragment,target.ReturnTypeName),"            ");
             builder.AppendLine("        }");
             builder.AppendLine();
             index++;
@@ -269,34 +273,37 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return new 型対象型(symbol,isPartial);
     }
 
-    private static bool TryCreateAggregateFragment(string elementTypeName,bool sourceIsLinqInvocation,Template.LambdaFuncFragment funcFragment,int uniqueNumber,out Template.Fragment fragment) {
+    private static bool TryCreateLinqFragment(Linq傍受対象型 target,int uniqueNumber,out Template.Fragment fragment) {
         fragment=null!;
         var sourceLoopNumber = uniqueNumber*2;
-        var aggregateLoopNumber = uniqueNumber*2+1;
-        if(!TryCreateSourceFragment(elementTypeName,sourceIsLinqInvocation,sourceLoopNumber,out var sourceFragment)) {
+        var methodLoopNumber = uniqueNumber*2+1;
+        if(!TryCreateSourceFragment(target.SourceElementTypeName,target.SourceIsLinqInvocation,sourceLoopNumber,out var sourceFragment)) {
             return false;
         }
 
-        fragment=Template.ResolveAggregateFunc(sourceFragment,funcFragment,aggregateLoopNumber);
-        return true;
+        var templateArguments = target.Parameters
+            .Select(static parameter => parameter.TemplateArgument)
+            .ToArray();
+        var template = new Template();
+        return template.TryResolve(target.TemplateMethod,methodLoopNumber,sourceFragment,out fragment,templateArguments);
     }
 
-    private static bool TryCreateSourceFragment(string elementTypeName,bool sourceIsLinqInvocation,int uniqueNumber,out Template.EnumerableFragment fragment) {
+    private static bool TryCreateSourceFragment(string elementTypeName,bool sourceIsLinqInvocation,int 番号,out Template.EnumerableFragment fragment) {
         if(sourceIsLinqInvocation) {
             // Chained LINQ source composition will be resolved here as operators are added incrementally.
             fragment=null!;
             return false;
         }
 
-        fragment=CreateRootEnumerableFragment("source",elementTypeName,uniqueNumber);
+        fragment=CreateRootEnumerableFragment("source",elementTypeName,番号);
         return true;
     }
 
-    private static Template.EnumerableFragment CreateRootEnumerableFragment(string result,string elementTypeName,int uniqueNumber) {
-        var e = $"e{uniqueNumber}";
-        var Start = $"Start{uniqueNumber}";
-        var Head = $"Head{uniqueNumber}";
-        var Element = $"item{uniqueNumber}";
+    private static Template.EnumerableFragment CreateRootEnumerableFragment(string result,string elementTypeName,int 番号) {
+        var e = $"e{番号}";
+        var Start = $"Start{番号}";
+        var Head = $"Head{番号}";
+        var Element = $"item{番号}";
         var MoveNext = $"{e}.MoveNext()";
         return new Template.EnumerableFragment(
             string.Empty,
@@ -331,23 +338,51 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             && (sourceMethod.ReducedFrom ?? sourceMethod).ContainingType.ToDisplayString()=="System.Linq.Enumerable";
     }
 
-    private static bool TryCreateLambdaFuncFragment(LambdaExpressionSyntax lambda,string parameterTypeName,out Template.LambdaFuncFragment fragment) {
-        fragment=new Template.LambdaFuncFragment();
+    private static bool TryCreateLambdaFuncFragment(LambdaExpressionSyntax lambda,ITypeSymbol delegateType,out LambdaSpec fragment) {
+        fragment=null!;
         if(!TryGetLambdaExpressionBody(lambda,out var body)) {
             return false;
         }
 
         var parameters = GetLambdaParameters(lambda);
-        if(parameters.Count!=2) {
+        if(delegateType is not INamedTypeSymbol funcType
+            ||!IsInlineDelegateType(funcType)) {
             return false;
         }
 
-        fragment.ReturnTypeName=parameterTypeName;
-        fragment.ParameterTypeNames=[parameterTypeName,parameterTypeName];
-        fragment.ParameterNames=[parameters[0],parameters[1]];
-        fragment.DefineLambda=$" => {NormalizeExpressionText(body.ToString())};";
+        var typeArguments = funcType.TypeArguments.Select(typeArgument => typeArgument.ToDisplayString(完全修飾形式)).ToArray();
+        var parameterTypeNames = typeArguments.Take(typeArguments.Length-1).ToArray();
+        if(parameters.Count!=parameterTypeNames.Length) {
+            return false;
+        }
+
+        fragment=new LambdaSpec(
+            typeArguments[^1],
+            parameterTypeNames,
+            parameters.ToArray(),
+            NormalizeExpressionText(body.ToString()));
         return true;
     }
+
+    private static bool IsInlineDelegateType(ITypeSymbol type)
+        => type is INamedTypeSymbol namedType
+            && IsInlineDelegateType(namedType);
+
+    private static bool IsInlineDelegateType(INamedTypeSymbol namedType)
+        => namedType.ContainingNamespace.ToDisplayString()=="System"
+            && namedType.MetadataName is "Func`2" or "Func`3"
+            && !IsSecondarySequenceType(namedType.TypeArguments[^1]);
+
+    private static bool IsIEnumerableType(INamedTypeSymbol namedType)
+        => namedType.ContainingNamespace.ToDisplayString()=="System.Collections.Generic"
+            && namedType.MetadataName=="IEnumerable`1";
+
+    private static bool IsSecondarySequenceType(ITypeSymbol type)
+        => type is INamedTypeSymbol namedType
+            && IsIEnumerableType(namedType);
+
+    private static bool SupportsPlainLambdaFragments(IMethodSymbol method)
+        => method.Name=="Aggregate";
 
     private static string GetLambdaBodyText(LambdaExpressionSyntax lambda) {
         return TryGetLambdaExpressionBody(lambda,out var body)
@@ -415,33 +450,85 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         builder.AppendLine(value.Trim());
     }
 
-    private sealed class AggregateFunc傍受対象型 {
-        public AggregateFunc傍受対象型(string identifier,string containingMethodName,string interceptsLocationAttributeText,string parameterTypeName,string funcTypeName,bool sourceIsLinqInvocation,string[] lambdaParameterNames,string lambdaBody) {
+    private sealed class Linq傍受対象型 {
+        public Linq傍受対象型(string identifier,string containingMethodName,string interceptsLocationAttributeText,IMethodSymbol method,IMethodSymbol templateMethod,bool sourceIsLinqInvocation,InterceptParameterSpec[] parameters) {
             this.Identifier=identifier;
             this.ContainingMethodName=containingMethodName;
             this.InterceptsLocationAttributeText=interceptsLocationAttributeText;
-            this.ParameterTypeName=parameterTypeName;
-            this.FuncTypeName=funcTypeName;
+            this.Method=method;
+            this.TemplateMethod=templateMethod;
             this.SourceIsLinqInvocation=sourceIsLinqInvocation;
-            this.LambdaParameterNames=lambdaParameterNames;
-            this.LambdaBody=lambdaBody;
+            this.Parameters=parameters;
         }
 
         public string Identifier { get; }
         public string ContainingMethodName { get; }
         public string InterceptsLocationAttributeText { get; }
-        public string ParameterTypeName { get; }
-        public string FuncTypeName { get; }
+        public IMethodSymbol Method { get; }
+        public IMethodSymbol TemplateMethod { get; }
         public bool SourceIsLinqInvocation { get; }
-        public string[] LambdaParameterNames { get; }
-        public string LambdaBody { get; }
-        public string MethodName => $"OptimizedAggregate_{this.Identifier}";
+        public InterceptParameterSpec[] Parameters { get; }
+        public string SourceElementTypeName {
+            get {
+                if(this.Method.TypeArguments.Length>0) {
+                    return this.Method.TypeArguments[0].ToDisplayString(完全修飾形式);
+                }
+
+                var parameters = this.TemplateMethod.Parameters;
+                if(parameters.Length==0
+                    ||parameters[0].Type is not INamedTypeSymbol sourceType
+                    ||sourceType.TypeArguments.Length!=1) {
+                    throw new InvalidOperationException($"Could not determine source element type for '{this.TemplateMethod.ToDisplayString(完全修飾形式)}'.");
+                }
+
+                return sourceType.TypeArguments[0].ToDisplayString(完全修飾形式);
+            }
+        }
+        public string ReturnTypeName => this.Method.ReturnType.ToDisplayString(完全修飾形式);
+        public string MethodParameterList => this.Parameters.Length==0
+            ? string.Empty
+            : ", "+string.Join(", ",this.Parameters.Select(static parameter => $"{parameter.TypeName} {parameter.Name}"));
+        public string MethodName => $"OptimizedLinq_{this.Identifier}";
     }
 
-    private sealed class AggregateFuncInterceptTargetComparer : IEqualityComparer<AggregateFunc傍受対象型> {
-        public static readonly AggregateFuncInterceptTargetComparer Instance = new();
+    private sealed class InterceptParameterSpec {
+        public InterceptParameterSpec(string name,string typeName,LambdaSpec? lambda = null) {
+            this.Name=name;
+            this.TypeName=typeName;
+            this.Lambda=lambda;
+        }
 
-        public bool Equals(AggregateFunc傍受対象型? x,AggregateFunc傍受対象型? y) {
+        public string Name { get; }
+        public string TypeName { get; }
+        public LambdaSpec? Lambda { get; }
+        public object TemplateArgument => this.Lambda is null
+            ? this.Name
+            : new Template.LambdaFuncFragment {
+                ReturnTypeName=this.Lambda.ReturnTypeName,
+                ParameterTypeNames=this.Lambda.ParameterTypeNames,
+                ParameterNames=this.Lambda.ParameterNames,
+                DefineLambda=$" => {this.Lambda.Body};"
+            };
+    }
+
+    private sealed class LambdaSpec {
+        public LambdaSpec(string returnTypeName,string[] parameterTypeNames,string[] parameterNames,string body) {
+            this.ReturnTypeName=returnTypeName;
+            this.ParameterTypeNames=parameterTypeNames;
+            this.ParameterNames=parameterNames;
+            this.Body=body;
+        }
+
+        public string ReturnTypeName { get; }
+        public string[] ParameterTypeNames { get; }
+        public string[] ParameterNames { get; }
+        public string Body { get; }
+    }
+
+    private sealed class LinqInterceptTargetComparer : IEqualityComparer<Linq傍受対象型> {
+        public static readonly LinqInterceptTargetComparer Instance = new();
+
+        public bool Equals(Linq傍受対象型? x,Linq傍受対象型? y) {
             if(ReferenceEquals(x,y)) {
                 return true;
             }
@@ -451,7 +538,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return x.InterceptsLocationAttributeText==y.InterceptsLocationAttributeText;
         }
 
-        public int GetHashCode(AggregateFunc傍受対象型 obj) {
+        public int GetHashCode(Linq傍受対象型 obj) {
             return obj.InterceptsLocationAttributeText.GetHashCode(StringComparison.Ordinal);
         }
     }

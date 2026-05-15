@@ -9,7 +9,6 @@
     <IsTestProject>true</IsTestProject>
     <RootNamespace>Test.Seamless</RootNamespace>
     <DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
   </PropertyGroup>
   <ItemGroup>
@@ -44,13 +43,6 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
-  <Import Project="Test.Seamless.projitems" Label="Shared" />
-  <ItemGroup>
-    <Compile Include="Stores\KindDictionarySize.cs" />
-    <Compile Include="Tsavorite\IterateLookupChunkTests.cs" />
-    <Compile Include="Tsavorite\NativeLightEpochInstanceLimitTests.cs" />
-    <Compile Include="Unit\Linq\EnumerableIntercept.cs" />
-  </ItemGroup>
   <ItemGroup>
     <Compile Remove="CheckpointRecoveryTests.cs" />
     <Compile Remove="TestKeyComparer.cs" />
@@ -72,6 +64,5 @@
     <ProjectReference Include="..\..\src\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>
-
 
 
