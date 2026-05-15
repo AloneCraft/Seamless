@@ -170,7 +170,7 @@ public partial class Template {
             if(candidate is not IMethodSymbol methodSymbol) {
                 continue;
             }
-            if(MethodMatches(definition,methodSymbol)) {
+            if(MethodMatches(compilation,definition,methodSymbol)) {
                 return methodSymbol.OriginalDefinition.ToDisplayString(TemplateMethodSignatureFormat);
             }
         }
@@ -178,7 +178,7 @@ public partial class Template {
         throw new InvalidOperationException($"Could not map method '{definition}' to a Roslyn symbol.");
     }
 
-    private static bool MethodMatches(MethodInfo reflectionMethod,IMethodSymbol symbol) {
+    private static bool MethodMatches(Compilation compilation,MethodInfo reflectionMethod,IMethodSymbol symbol) {
         if(symbol.Arity!=reflectionMethod.GetGenericArguments().Length) {
             return false;
         }
@@ -189,15 +189,15 @@ public partial class Template {
         }
 
         for(var index = 0; index<reflectionParameters.Length; index++) {
-            if(!TypeMatches(reflectionParameters[index].ParameterType,symbol.Parameters[index].Type,symbol)) {
+            if(!TypeMatches(compilation,reflectionParameters[index].ParameterType,symbol.Parameters[index].Type)) {
                 return false;
             }
         }
 
-        return TypeMatches(reflectionMethod.ReturnType,symbol.ReturnType,symbol);
+        return TypeMatches(compilation,reflectionMethod.ReturnType,symbol.ReturnType);
     }
 
-    private static bool TypeMatches(Type reflectionType,ITypeSymbol symbolType,IMethodSymbol methodSymbol) {
+    private static bool TypeMatches(Compilation compilation,Type reflectionType,ITypeSymbol symbolType) {
         if(reflectionType.IsByRef) {
             reflectionType=reflectionType.GetElementType()
                 ?? throw new InvalidOperationException("ByRef type did not expose its element type.");
@@ -206,14 +206,17 @@ public partial class Template {
         if(reflectionType.IsGenericParameter) {
             return symbolType is ITypeParameterSymbol typeParameter
                 &&typeParameter.TypeParameterKind==TypeParameterKind.Method
-                &&typeParameter.Ordinal==reflectionType.GenericParameterPosition
-                &&SymbolEqualityComparer.Default.Equals(typeParameter.ContainingSymbol,methodSymbol);
+                &&typeParameter.Ordinal==reflectionType.GenericParameterPosition;
         }
 
         if(reflectionType.IsArray) {
             return symbolType is IArrayTypeSymbol arrayType
                 &&arrayType.Rank==reflectionType.GetArrayRank()
-                &&TypeMatches(reflectionType.GetElementType()!,arrayType.ElementType,methodSymbol);
+                &&TypeMatches(compilation,reflectionType.GetElementType()!,arrayType.ElementType);
+        }
+
+        if(symbolType is ITypeParameterSymbol) {
+            return false;
         }
 
         if(reflectionType.IsGenericType) {
@@ -221,9 +224,7 @@ public partial class Template {
                 return false;
             }
 
-            var reflectionDefinition = reflectionType.GetGenericTypeDefinition();
-            var symbolDefinitionText = namedType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            if(!string.Equals(symbolDefinitionText,MetadataTypeName(reflectionDefinition),StringComparison.Ordinal)) {
+            if(!TypeDefinitionMatches(reflectionType.GetGenericTypeDefinition(),namedType)) {
                 return false;
             }
 
@@ -233,7 +234,7 @@ public partial class Template {
             }
 
             for(var index = 0; index<reflectionArguments.Length; index++) {
-                if(!TypeMatches(reflectionArguments[index],namedType.TypeArguments[index],methodSymbol)) {
+                if(!TypeMatches(compilation,reflectionArguments[index],namedType.TypeArguments[index])) {
                     return false;
                 }
             }
@@ -241,10 +242,32 @@ public partial class Template {
             return true;
         }
 
-        return string.Equals(
-            symbolType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-            MetadataTypeName(reflectionType),
-            StringComparison.Ordinal);
+        if(symbolType is not INamedTypeSymbol nonGenericNamedType||reflectionType.FullName is null) {
+            return false;
+        }
+
+        return TypeDefinitionMatches(reflectionType,nonGenericNamedType);
+    }
+
+    private static bool TypeDefinitionMatches(Type reflectionType,INamedTypeSymbol symbolType) {
+        if(!string.Equals(symbolType.MetadataName,reflectionType.Name,StringComparison.Ordinal)) {
+            return false;
+        }
+
+        var reflectionDeclaringType = reflectionType.DeclaringType;
+        if(reflectionDeclaringType is null) {
+            if(symbolType.ContainingType is not null) {
+                return false;
+            }
+
+            return string.Equals(
+                symbolType.ContainingNamespace.ToDisplayString(),
+                reflectionType.Namespace ?? string.Empty,
+                StringComparison.Ordinal);
+        }
+
+        return symbolType.ContainingType is not null
+            &&TypeDefinitionMatches(reflectionDeclaringType,symbolType.ContainingType);
     }
 
     private static string MetadataTypeName(Type type) {
@@ -399,7 +422,7 @@ public partial class Template {
 
     private void InitializeFragments() {
         this.Add(
-            () => Enumerable.Aggregate(Array.Empty<int>(),(left,right) => left+right),
+            () => Array.Empty<int>().Aggregate((left,right) => left+right),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var func = (FuncFragment)arguments[1];
@@ -448,7 +471,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Aggregate<int,long>(Array.Empty<int>(),0L,(accumulator,value) => accumulator+value),
+            () => Array.Empty<int>().Aggregate<int,long>(0L,(accumulator,value) => accumulator+value),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var seed = (string)arguments[1];
@@ -475,7 +498,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Aggregate<int,long,string>(Array.Empty<int>(),0L,(accumulator,value) => accumulator+value,accumulator => accumulator.ToString()),
+            () => Array.Empty<int>().Aggregate<int,long,string>(0L,(accumulator,value) => accumulator+value,accumulator => accumulator.ToString()),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var seed = (string)arguments[1];
@@ -508,7 +531,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.AggregateBy(Array.Empty<int>(),value => value,0L,(accumulator,value) => accumulator+value,(IEqualityComparer<int>?)null),
+            () => Array.Empty<int>().AggregateBy(value => value,0L,(accumulator,value) => accumulator+value,(IEqualityComparer<int>?)null),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var keySelector = (FuncFragment)arguments[1];
@@ -570,7 +593,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.AggregateBy(Array.Empty<int>(),value => value,key => (long)key,(accumulator,value) => accumulator+value,(IEqualityComparer<int>?)null),
+            () => Array.Empty<int>().AggregateBy(value => value,key => (long)key,(accumulator,value) => accumulator+value,(IEqualityComparer<int>?)null),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var keySelector = (FuncFragment)arguments[1];
@@ -632,7 +655,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.All(Array.Empty<int>(),value => value>0),
+            () => Array.Empty<int>().All(value => value>0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var predicate = (FuncFragment)arguments[1];
@@ -668,7 +691,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Any(Array.Empty<int>()),
+            () => Array.Empty<int>().Any(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var End = $"End{番号}";
@@ -697,7 +720,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Any(Array.Empty<int>(),value => value>0),
+            () => Array.Empty<int>().Any(value => value>0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var predicate = (FuncFragment)arguments[1];
@@ -733,7 +756,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Append(Array.Empty<int>(),0),
+            () => Array.Empty<int>().Append(0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var result = $"result{番号}";
@@ -761,7 +784,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.AsEnumerable(Array.Empty<int>()),
+            () => Array.Empty<int>().AsEnumerable(),
             (_,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 return new EnumerableFragment(
@@ -782,7 +805,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<double>()),
+            () => Array.Empty<double>().Average(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 return AverageFragment(
@@ -801,7 +824,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<int>()),
+            () => Array.Empty<int>().Average(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 return AverageFragment(
@@ -820,7 +843,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<long>()),
+            () => Array.Empty<long>().Average(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 return AverageFragment(
@@ -839,7 +862,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<decimal>()),
+            () => Array.Empty<decimal>().Average(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 return AverageFragment(
@@ -858,7 +881,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<decimal?>()),
+            () => Array.Empty<decimal?>().Average(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var Continue = $"Continue{番号}";
@@ -880,7 +903,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<double?>()),
+            () => Array.Empty<double?>().Average(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var Continue = $"Continue{番号}";
@@ -902,7 +925,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<int?>()),
+            () => Array.Empty<int?>().Average(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var Continue = $"Continue{番号}";
@@ -924,7 +947,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<long?>()),
+            () => Array.Empty<long?>().Average(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var Continue = $"Continue{番号}";
@@ -946,7 +969,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<float?>()),
+            () => Array.Empty<float?>().Average(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var Continue = $"Continue{番号}";
@@ -968,7 +991,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<float>()),
+            () => Array.Empty<float>().Average(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 return AverageFragment(
@@ -987,7 +1010,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<int>(),value => (decimal)value),
+            () => Array.Empty<int>().Average(value => (decimal)value),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (FuncFragment)arguments[1];
@@ -1008,7 +1031,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<int>(),value => (double)value),
+            () => Array.Empty<int>().Average(value => (double)value),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (FuncFragment)arguments[1];
@@ -1029,7 +1052,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<int>(),value => value),
+            () => Array.Empty<int>().Average(value => value),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (FuncFragment)arguments[1];
@@ -1050,7 +1073,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<int>(),value => (long)value),
+            () => Array.Empty<int>().Average(value => (long)value),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (FuncFragment)arguments[1];
@@ -1071,7 +1094,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<int>(),value => (decimal?)value),
+            () => Array.Empty<int>().Average(value => (decimal?)value),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (FuncFragment)arguments[1];
@@ -1097,7 +1120,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<int>(),value => (double?)value),
+            () => Array.Empty<int>().Average(value => (double?)value),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (FuncFragment)arguments[1];
@@ -1123,7 +1146,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<int>(),value => (int?)value),
+            () => Array.Empty<int>().Average(value => (int?)value),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (FuncFragment)arguments[1];
@@ -1149,7 +1172,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<int>(),value => (long?)value),
+            () => Array.Empty<int>().Average(value => (long?)value),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (FuncFragment)arguments[1];
@@ -1175,7 +1198,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<int>(),value => (float?)value),
+            () => Array.Empty<int>().Average(value => (float?)value),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (FuncFragment)arguments[1];
@@ -1201,7 +1224,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Average(Array.Empty<int>(),value => (float)value),
+            () => Array.Empty<int>().Average(value => (float)value),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (FuncFragment)arguments[1];
@@ -1222,7 +1245,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Chunk(Array.Empty<int>(),1),
+            () => Array.Empty<int>().Chunk(1),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var size = (string)arguments[1];
@@ -1274,7 +1297,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Concat(Array.Empty<int>(),Array.Empty<int>()),
+            () => Array.Empty<int>().Concat(Array.Empty<int>()),
             (番号,arguments) => {
                 var first = (EnumerableFragment)arguments[0];
                 var second = (EnumerableFragment)arguments[1];
@@ -1398,7 +1421,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Count(Array.Empty<int>()),
+            () => Array.Empty<int>().Count(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var count = $"count{番号}";
@@ -1424,7 +1447,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Count(Array.Empty<int>(),value => value>0),
+            () => Array.Empty<int>().Count(value => value>0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var predicate = (FuncFragment)arguments[1];
@@ -1454,7 +1477,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.CountBy(Array.Empty<int>(),value => value,(IEqualityComparer<int>?)null),
+            () => Array.Empty<int>().CountBy(value => value,(IEqualityComparer<int>?)null),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var keySelector = (FuncFragment)arguments[1];
@@ -1513,7 +1536,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.DefaultIfEmpty(Array.Empty<int>()),
+            () => Array.Empty<int>().DefaultIfEmpty(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var result = $"result{番号}";
@@ -1554,7 +1577,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.DefaultIfEmpty(Array.Empty<int>(),0),
+            () => Array.Empty<int>().DefaultIfEmpty(0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var defaultValue = (string)arguments[1];
@@ -1595,7 +1618,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.DistinctBy(Array.Empty<int>(),value => value),
+            () => Array.Empty<int>().DistinctBy(value => value),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var keySelector = (FuncFragment)arguments[1];
@@ -1645,15 +1668,15 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.DistinctBy(Array.Empty<int>(),value => value,(IEqualityComparer<int>?)null),
+            () => Array.Empty<int>().DistinctBy(value => value,(IEqualityComparer<int>?)null),
             (番号,arguments) => {
                 var forwardedArguments = new object[3];
                 Array.Copy(arguments,forwardedArguments,Math.Min(arguments.Length,3));
-                return this.dictionaryFragment[this.L(() => Enumerable.DistinctBy(Array.Empty<int>(),value => value))](番号,forwardedArguments);
+                return this.dictionaryFragment[this.L(() => Array.Empty<int>().DistinctBy(value => value))](番号,forwardedArguments);
             });
 
         this.Add(
-            () => Enumerable.Distinct(Array.Empty<int>()),
+            () => Array.Empty<int>().Distinct(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var comparer = arguments.Length>1 ? arguments[1] as string ?? "null" : "null";
@@ -1696,15 +1719,15 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Distinct(Array.Empty<int>(),(IEqualityComparer<int>?)null),
+            () => Array.Empty<int>().Distinct((IEqualityComparer<int>?)null),
             (番号,arguments) => {
                 var forwardedArguments = new object[2];
                 Array.Copy(arguments,forwardedArguments,Math.Min(arguments.Length,2));
-                return this.dictionaryFragment[this.L(() => Enumerable.Distinct(Array.Empty<int>()))](番号,forwardedArguments);
+                return this.dictionaryFragment[this.L(() => Array.Empty<int>().Distinct())](番号,forwardedArguments);
             });
 
         this.Add(
-            () => Enumerable.ElementAtOrDefault(Array.Empty<int>(),0),
+            () => Array.Empty<int>().ElementAtOrDefault(0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var index = (string)arguments[1];
@@ -1742,7 +1765,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.ElementAt(Array.Empty<int>(),0),
+            () => Array.Empty<int>().ElementAt(0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var index = (string)arguments[1];
@@ -1780,7 +1803,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.ExceptBy(Array.Empty<int>(),Array.Empty<int>(),value => value,(IEqualityComparer<int>?)null),
+            () => Array.Empty<int>().ExceptBy(Array.Empty<int>(),value => value,(IEqualityComparer<int>?)null),
             (番号,arguments) => {
                 var first = (EnumerableFragment)arguments[0];
                 var second = (string)arguments[1];
@@ -1811,7 +1834,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Except(Array.Empty<int>(),Array.Empty<int>(),(IEqualityComparer<int>?)null),
+            () => Array.Empty<int>().Except(Array.Empty<int>(),(IEqualityComparer<int>?)null),
             (番号,arguments) => {
                 var first = (EnumerableFragment)arguments[0];
                 var second = (string)arguments[1];
@@ -1835,7 +1858,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.FirstOrDefault(Array.Empty<int>()),
+            () => Array.Empty<int>().FirstOrDefault(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var result = $"result{番号}";
@@ -1864,7 +1887,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.FirstOrDefault(Array.Empty<int>(),0),
+            () => Array.Empty<int>().FirstOrDefault(0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var defaultValue = (string)arguments[1];
@@ -1894,7 +1917,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.First(Array.Empty<int>()),
+            () => Array.Empty<int>().First(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var result = $"result{番号}";
@@ -1926,7 +1949,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.First(Array.Empty<int>(),value => value>0),
+            () => Array.Empty<int>().First(value => value>0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var predicate = (FuncFragment)arguments[1];
@@ -1967,7 +1990,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Cast<int>(Array.Empty<object>()),
+            () => Array.Empty<object>().Cast<int>(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var result = $"result{番号}";
@@ -2011,7 +2034,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.GroupBy(Array.Empty<int>(),value => value,(IEqualityComparer<int>?)null),
+            () => Array.Empty<int>().GroupBy(value => value,(IEqualityComparer<int>?)null),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var keySelector = (FuncFragment)arguments[1];
@@ -2052,7 +2075,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.GroupBy(Array.Empty<int>(),value => value,value => value.ToString(),(IEqualityComparer<int>?)null),
+            () => Array.Empty<int>().GroupBy(value => value,value => value.ToString(),(IEqualityComparer<int>?)null),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var keySelector = (FuncFragment)arguments[1];
@@ -2096,7 +2119,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.IntersectBy(Array.Empty<int>(),Array.Empty<int>(),value => value,(IEqualityComparer<int>?)null),
+            () => Array.Empty<int>().IntersectBy(Array.Empty<int>(),value => value,(IEqualityComparer<int>?)null),
             (番号,arguments) => {
                 var first = (EnumerableFragment)arguments[0];
                 var second = (string)arguments[1];
@@ -2128,7 +2151,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Intersect(Array.Empty<int>(),Array.Empty<int>(),(IEqualityComparer<int>?)null),
+            () => Array.Empty<int>().Intersect(Array.Empty<int>(),(IEqualityComparer<int>?)null),
             (番号,arguments) => {
                 var first = (EnumerableFragment)arguments[0];
                 var second = (string)arguments[1];
@@ -2153,7 +2176,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.LastOrDefault(Array.Empty<int>()),
+            () => Array.Empty<int>().LastOrDefault(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var result = $"result{番号}";
@@ -2177,7 +2200,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Last(Array.Empty<int>()),
+            () => Array.Empty<int>().Last(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var result = $"result{番号}";
@@ -2204,7 +2227,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.LongCount(Array.Empty<int>()),
+            () => Array.Empty<int>().LongCount(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var result = $"result{番号}";
@@ -2230,7 +2253,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Max(Array.Empty<int>()),
+            () => Array.Empty<int>().Max(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var result = $"result{番号}";
@@ -2263,7 +2286,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Min(Array.Empty<int>()),
+            () => Array.Empty<int>().Min(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var result = $"result{番号}";
@@ -2296,7 +2319,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.OfType<int>(Array.Empty<object>()),
+            () => Array.Empty<object>().OfType<int>(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var temp = $"temp{番号}";
@@ -2327,7 +2350,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.OrderByDescending(Array.Empty<int>(),value => value,(IComparer<int>?)null),
+            () => Array.Empty<int>().OrderByDescending(value => value,(IComparer<int>?)null),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var keySelector = (FuncFragment)arguments[1];
@@ -2364,7 +2387,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.OrderBy(Array.Empty<int>(),value => value,(IComparer<int>?)null),
+            () => Array.Empty<int>().OrderBy(value => value,(IComparer<int>?)null),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var keySelector = (FuncFragment)arguments[1];
@@ -2401,7 +2424,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Prepend(Array.Empty<int>(),0),
+            () => Array.Empty<int>().Prepend(0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var element = (string)arguments[1];
@@ -2466,7 +2489,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Reverse(Array.Empty<int>()),
+            () => Array.Empty<int>().Reverse(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var temp = $"temp{番号}";
@@ -2487,7 +2510,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Select(Array.Empty<int>(),value => value.ToString()),
+            () => Array.Empty<int>().Select(value => value.ToString()),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (FuncFragment)arguments[1];
@@ -2517,7 +2540,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Select(Array.Empty<int>(),(value,index) => value.ToString()),
+            () => Array.Empty<int>().Select((value,index) => value.ToString()),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (FuncFragment)arguments[1];
@@ -2577,7 +2600,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.SkipWhile(Array.Empty<int>(),value => value>0),
+            () => Array.Empty<int>().SkipWhile(value => value>0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var predicate = (FuncFragment)arguments[1];
@@ -2612,7 +2635,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Skip(Array.Empty<int>(),0),
+            () => Array.Empty<int>().Skip(0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var count = (string)arguments[1];
@@ -2652,7 +2675,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Sum(Array.Empty<int>()),
+            () => Array.Empty<int>().Sum(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var result = $"result{番号}";
@@ -2678,7 +2701,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Sum(Array.Empty<int>(),value => value),
+            () => Array.Empty<int>().Sum(value => value),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (FuncFragment)arguments[1];
@@ -2706,7 +2729,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.TakeWhile(Array.Empty<int>(),value => value>0),
+            () => Array.Empty<int>().TakeWhile(value => value>0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var predicate = (FuncFragment)arguments[1];
@@ -2741,7 +2764,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Take(Array.Empty<int>(),0),
+            () => Array.Empty<int>().Take(0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var count = (string)arguments[1];
@@ -2779,7 +2802,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.ThenByDescending(Enumerable.Empty<int>().OrderBy(value => value),value => value,(IComparer<int>?)null),
+            () => Enumerable.Empty<int>().OrderBy(value => value).ThenByDescending(value => value,(IComparer<int>?)null),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var keySelector = (FuncFragment)arguments[1];
@@ -2800,7 +2823,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.ThenBy(Enumerable.Empty<int>().OrderBy(value => value),value => value,(IComparer<int>?)null),
+            () => Enumerable.Empty<int>().OrderBy(value => value).ThenBy(value => value,(IComparer<int>?)null),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var keySelector = (FuncFragment)arguments[1];
@@ -2821,7 +2844,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.ToArray(Array.Empty<int>()),
+            () => Array.Empty<int>().ToArray(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var buffer = $"buffer{番号}";
@@ -2848,7 +2871,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.ToList(Array.Empty<int>()),
+            () => Array.Empty<int>().ToList(),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var result = $"result{番号}";
@@ -2875,7 +2898,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Where(Array.Empty<int>(),value => value>0),
+            () => Array.Empty<int>().Where(value => value>0),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var predicate = (FuncFragment)arguments[1];
@@ -2904,7 +2927,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Where(Array.Empty<int>(),(value,index) => value>index),
+            () => Array.Empty<int>().Where((value,index) => value>index),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var predicate = (FuncFragment)arguments[1];
@@ -2938,7 +2961,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Zip(Array.Empty<int>(),Array.Empty<string>()),
+            () => Array.Empty<int>().Zip(Array.Empty<string>()),
             (番号,arguments) => {
                 var first = (EnumerableFragment)arguments[0];
                 var second = (EnumerableFragment)arguments[1];
@@ -2974,7 +2997,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Zip(Array.Empty<int>(),Array.Empty<string>(),Array.Empty<double>()),
+            () => Array.Empty<int>().Zip(Array.Empty<string>(),Array.Empty<double>()),
             (番号,arguments) => {
                 var first = (EnumerableFragment)arguments[0];
                 var second = (EnumerableFragment)arguments[1];
@@ -3016,7 +3039,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Zip(Array.Empty<int>(),Array.Empty<string>(),(first,second) => first.ToString()+second),
+            () => Array.Empty<int>().Zip(Array.Empty<string>(),(first,second) => first.ToString()+second),
             (番号,arguments) => {
                 var first = (EnumerableFragment)arguments[0];
                 var second = (EnumerableFragment)arguments[1];
@@ -3054,7 +3077,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.SelectMany(Array.Empty<int>(),value => Array.Empty<string>()),
+            () => Array.Empty<int>().SelectMany(value => Array.Empty<string>()),
             (番号,arguments) => {
                 var source = (EnumerableFragment)arguments[0];
                 var selector = (SelectMany_selector)arguments[1];
@@ -3113,7 +3136,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.UnionBy(Array.Empty<int>(),Array.Empty<int>(),value => value,(IEqualityComparer<int>?)null),
+            () => Array.Empty<int>().UnionBy(Array.Empty<int>(),value => value,(IEqualityComparer<int>?)null),
             (番号,arguments) => {
                 var first = (EnumerableFragment)arguments[0];
                 var second = (EnumerableFragment)arguments[1];
@@ -3153,7 +3176,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Union(Array.Empty<int>(),Array.Empty<int>()),
+            () => Array.Empty<int>().Union(Array.Empty<int>()),
             (番号,arguments) => {
                 var first = (EnumerableFragment)arguments[0];
                 var second = (EnumerableFragment)arguments[1];
@@ -3190,7 +3213,7 @@ public partial class Template {
             });
 
         this.Add(
-            () => Enumerable.Union(Array.Empty<int>(),Array.Empty<int>(),(IEqualityComparer<int>?)null),
+            () => Array.Empty<int>().Union(Array.Empty<int>(),(IEqualityComparer<int>?)null),
             (番号,arguments) => {
                 var first = (EnumerableFragment)arguments[0];
                 var second = (EnumerableFragment)arguments[1];
@@ -3251,6 +3274,19 @@ public partial class Template {
         return false;
     }
 
+    internal bool TryResolve(string signature,int 番号,Fragment source,out Fragment fragment,params object[] arguments) {
+        if(this.dictionaryFragment.TryGetValue(signature,out var template)) {
+            var forwardedArguments = new object[arguments.Length+1];
+            forwardedArguments[0]=source;
+            Array.Copy(arguments,0,forwardedArguments,1,arguments.Length);
+            fragment=template(番号,forwardedArguments);
+            return true;
+        }
+
+        fragment=null!;
+        return false;
+    }
+
     internal bool TryResolve(IMethodSymbol method,Fragment source,out Fragment fragment,params object[] arguments) {
         if(method is null) {
             throw new ArgumentNullException(nameof(method));
@@ -3260,54 +3296,27 @@ public partial class Template {
         return this.TryResolve(signature,source,out fragment,arguments);
     }
 
-    internal bool TryResolveAggregateFunc(Fragment source,FuncFragment func,out Fragment fragment) {
-        var signature = this.L(() => Enumerable.Aggregate(Array.Empty<int>(),(left,right) => left+right));
-        return this.TryResolve(signature,source,out fragment,func);
+    internal bool TryResolve(IMethodSymbol method,int 番号,Fragment source,out Fragment fragment,params object[] arguments) {
+        if(method is null) {
+            throw new ArgumentNullException(nameof(method));
+        }
+
+        var signature = method.OriginalDefinition.ToDisplayString(TemplateMethodSignatureFormat);
+        return this.TryResolve(signature,番号,source,out fragment,arguments);
+    }
+
+    internal bool TryResolveAggregateFunc(Fragment source,FuncFragment func,out Fragment fragment,int 番号 = 0) {
+        var signature = this.L(() => Array.Empty<int>().Aggregate((left,right) => left+right));
+        return this.TryResolve(signature,番号,source,out fragment,func);
     }
 
     internal static Fragment ResolveAggregateFunc(EnumerableFragment source,FuncFragment func,int 番号 = 0) {
-        var Struct=$"Struct{番号}";
-        var Head = $"Head{番号}";
-        var Continue = $"Continue{番号}";
-        var Success = $"Success{番号}";
-        var hasValue = $"hasValue{番号}";
-        var result = $"result{番号}";
-        return new Fragment(
-            $$"""
-                private struct {{Struct}}{
-                    {{func.DefineMethod(nameof(func))}}
-                }
-                """,
-            source.BeginGlobal,
-            $$"""
-                {{source.BeginLoopOutside}}
-                var {{result}}=default!;
-                var {{hasValue}}=false;
-                """,
-            source.BeginLoop,
-            $$"""
-                {{source.BeginLoopInside}}
-                if({{hasValue}})goto {{Head}};
-                {{result}}={{source.Element}};
-                {{hasValue}}=true;
-                goto {{Continue}};
-                {{Head}}:
-                {{result}}={{Struct}}.func({{result}},{{source.Element}});
-                """,
-            $$"""
-                {{Continue}}:;
-                {{source.EndLoopInside}}
-                """,
-            source.EndLoop,
-            $$"""
-                if({{hasValue}})goto {{Success}};
-                throw NoElements();
-                {{Success}}:;
-                {{source.EndLoopOutside}}
-                """,
-            source.EndGlobal,
-            result
-        );
+        var template = new Template();
+        if(template.TryResolveAggregateFunc(source,func,out var fragment,番号)) {
+            return fragment;
+        }
+
+        throw new InvalidOperationException("Could not resolve Aggregate fragment template.");
     }
 
     private static Compilation CreateTemplateCompilation() {
