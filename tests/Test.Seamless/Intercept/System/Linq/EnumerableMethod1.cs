@@ -13,6 +13,7 @@ public sealed class EnumerableMethod1 {
         var expected=SystemEnumerable.Aggregate(Source(),(left,right) => left+right+x);
         var actual=Source().Aggregate((left,right) => left+right+x);
         Assert.Equal(expected,actual);
+        AssertInterceptorGenerated();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -21,8 +22,7 @@ public sealed class EnumerableMethod1 {
         var actual=Source().Aggregate(static (left,right) => left+right);
         Assert.Equal(expected,actual);
 
-        var generated = GeneratedInterceptorSource(nameof(Aggregate_func_StaticDelegate));
-        Assert.Contains(nameof(Aggregate_func_StaticDelegate),generated);
+        var generated = AssertInterceptorGenerated();
         Assert.Contains("public static global::System.Int32 func(global::System.Int32 left, global::System.Int32 right) => left+right;",generated);
     }
 
@@ -39,8 +39,7 @@ public sealed class EnumerableMethod1 {
         var actual=Source().Aggregate(10,static (sum,value) => sum+value);
         Assert.Equal(expected,actual);
 
-        var generated = GeneratedInterceptorSource(nameof(Aggregate_seed_func_StaticDelegate));
-        Assert.Contains(nameof(Aggregate_seed_func_StaticDelegate),generated);
+        var generated = AssertInterceptorGenerated();
         Assert.Contains("public static global::System.Int32 func(global::System.Int32 sum, global::System.Int32 value) => sum+value;",generated);
     }
 
@@ -57,8 +56,7 @@ public sealed class EnumerableMethod1 {
         var actual=Source().Aggregate(10,static (sum,value) => sum+value,static sum => sum*2);
         Assert.Equal(expected,actual);
 
-        var generated = GeneratedInterceptorSource(nameof(Aggregate_seed_func_resultSelector_StaticDelegate));
-        Assert.Contains(nameof(Aggregate_seed_func_resultSelector_StaticDelegate),generated);
+        var generated = AssertInterceptorGenerated();
         Assert.Contains("public static global::System.Int32 resultSelector(global::System.Int32 sum) => sum*2;",generated);
     }
 
@@ -321,35 +319,9 @@ public sealed class EnumerableMethod1 {
         );
     }
 
-    private static string GeneratedInterceptorSource(string methodName) {
-        var generatedRoot = GeneratedSourceRoot();
-        Assert.True(Directory.Exists(generatedRoot),$"Generated source directory does not exist: {generatedRoot}");
-
-        var matches = Directory
-            .EnumerateFiles(generatedRoot,"Seamless.SourceGenerator.LinqInterceptors.g.cs",SearchOption.AllDirectories)
-            .Select(File.ReadAllText)
-            .Where(static text => text.Contains("internal static partial class LinqInvocationInterceptors",StringComparison.Ordinal))
-            .Where(text => text.Contains(methodName,StringComparison.Ordinal))
-            .ToArray();
-
-        Assert.Single(matches);
-        return matches[0];
-    }
-
-    private static string GeneratedSourceRoot() {
-        var assemblyDirectory = Path.GetDirectoryName(typeof(EnumerableMethod1).Assembly.Location)
-            ?? throw new InvalidOperationException("Could not resolve test assembly directory.");
-        var targetFrameworkDirectory = new DirectoryInfo(assemblyDirectory);
-        var configurationDirectory = targetFrameworkDirectory.Parent
-            ?? throw new InvalidOperationException("Could not resolve configuration directory.");
-        var projectDirectory = configurationDirectory.Parent?.Parent
-            ?? throw new InvalidOperationException("Could not resolve project directory.");
-
-        return Path.Combine(
-            projectDirectory.FullName,
-            "obj",
-            configurationDirectory.Name,
-            targetFrameworkDirectory.Name,
-            "generated");
+    private static string AssertInterceptorGenerated([global::System.Runtime.CompilerServices.CallerMemberName] string methodName = "") {
+        var generated = GeneratedInterceptorAssert.SourceFor<EnumerableMethod1>(methodName);
+        Assert.Contains(methodName,generated);
+        return generated;
     }
 }

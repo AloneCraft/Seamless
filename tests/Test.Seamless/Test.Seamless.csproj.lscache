@@ -81,10 +81,6 @@ Integrate/
  DictionaryIntegrate.cs
  HashSetIntegrate.cs
 Intercept/Seamless/Linq/
- EnumerableMethod1.cs
- EnumerableMethod2.cs
- EnumerableQuery1.cs
- EnumerableQuery2.cs
  HashSetMethod1.cs
  HashSetMethod2.cs
  HashSetQuery1.cs
@@ -94,6 +90,7 @@ Intercept/System/Linq/
  EnumerableMethod2.cs
  EnumerableQuery1.cs
  EnumerableQuery2.cs
+ GeneratedInterceptorAssert.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
  SelfRegisteredExtensions.cs

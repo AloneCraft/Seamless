@@ -90,7 +90,6 @@ Devices/MemoryOnlyDevice.cs
 GlobalUsings.cs
 Linq/
  Enumerable.cs
- EnumerableSource.cs
  HashSet.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
