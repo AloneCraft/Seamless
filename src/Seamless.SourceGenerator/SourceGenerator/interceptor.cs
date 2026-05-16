@@ -66,13 +66,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return null;
         }
 
-        var definition = method.ReducedFrom ?? method;
-        if(!Linqメソッド判定(definition)) {
+        var interceptableLocation = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptableLocation(context.SemanticModel,invocation,cancellationToken);
+        if(interceptableLocation is null) {
             return null;
         }
 
-        var interceptableLocation = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptableLocation(context.SemanticModel,invocation,cancellationToken);
-        if(interceptableLocation is null) {
+        var definition = method.ReducedFrom ?? method;
+        if(SupportsChainableTemplateMethod(definition)) {
+            var path = invocation.SyntaxTree.FilePath;
+            if(!SupportsExpandedInterceptFile(path) || !IsOutermostLinqInvocation(invocation)) {
+                return null;
+            }
+        } else if(!Linqメソッド判定(definition)) {
             return null;
         }
 
@@ -119,9 +124,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 }
 
                 var isEffectivelyStatic = lambda.Modifiers.Any(SyntaxKind.StaticKeyword) || IsEffectivelyStaticLambda(lambda);
-                if(!isEffectivelyStatic) {
-                    return null;
-                }
 
                 parameterSpecs[index] = new InterceptParameterSpec(
                     parameter.Name,
@@ -149,6 +151,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             method,
             definition,
             sourceIsLinqInvocation,
+            invocation,
+            context.SemanticModel,
             parameterSpecs);
     }
 
@@ -161,6 +165,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         if(method.Parameters[0].Type is not INamedTypeSymbol sourceType
             ||sourceType.TypeArguments.Length!=1
             ||!IsIEnumerableType(sourceType)) {
+            return false;
+        }
+
+        if(ContainsAnonymousType(method.ReturnType)
+            || method.Parameters.Any(static parameter => ContainsAnonymousType(parameter.Type))) {
             return false;
         }
 
@@ -187,6 +196,27 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
 
         var index = 0;
         foreach(var target in targets) {
+            if(SupportsChainableTemplateMethod(target.TemplateMethod)
+                && SupportsExpandedInterceptFile(target.Invocation.SyntaxTree.FilePath)) {
+                if(!TryCreateExpandedInvocationSource(target,index,out var expandedStaticMethods,out var expandedBody)) {
+                    index++;
+                    continue;
+                }
+
+                builder.AppendLine($"        /// <summary>Intercepts {target.Method.Name} inside {target.ContainingMethodName}.</summary>");
+                if(!string.IsNullOrWhiteSpace(expandedStaticMethods)) {
+                    インデント付き追記(builder,expandedStaticMethods,"        ");
+                }
+                builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
+                builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
+                builder.AppendLine($"        public static {target.ReturnTypeName} {target.MethodName}(this global::System.Collections.Generic.IEnumerable<{target.SourceElementTypeName}> source{target.MethodParameterList}) {{");
+                インデント付き追記(builder,expandedBody,"            ");
+                builder.AppendLine("        }");
+                builder.AppendLine();
+                index++;
+                continue;
+            }
+
             if(!TryCreateLinqFragment(target,index,out var fragment)) {
                 index++;
                 continue;
@@ -208,6 +238,93 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         builder.AppendLine("    }");
         builder.AppendLine("}");
         return builder.ToString();
+    }
+
+    private static bool TryCreateExpandedInvocationSource(Linq傍受対象型 target,int uniqueNumber,out string staticMethods,out string body) {
+        staticMethods=string.Empty;
+        body=string.Empty;
+        uniqueNumber*=32;
+
+        if(!TryRenderExpandedInvocation(target,target.Invocation,isOutermostInvocation: true,ref uniqueNumber,out staticMethods,out var expressionText)) {
+            return false;
+        }
+
+        body=$"return {expressionText};";
+        return true;
+    }
+
+    private static bool TryRenderExpandedInvocation(
+        Linq傍受対象型 target,
+        InvocationExpressionSyntax invocation,
+        bool isOutermostInvocation,
+        ref int uniqueNumber,
+        out string staticMethods,
+        out string expressionText) {
+        staticMethods=string.Empty;
+        expressionText=string.Empty;
+
+        if(target.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
+            || method.ReducedFrom is null
+            || !SupportsChainableTemplateMethod(method.ReducedFrom)
+            || invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression }) {
+            return false;
+        }
+
+        if(sourceExpression is InvocationExpressionSyntax nestedInvocation
+            && target.SemanticModel.GetSymbolInfo(nestedInvocation).Symbol is IMethodSymbol nestedMethod
+            && nestedMethod.ReducedFrom is not null
+            && SupportsChainableTemplateMethod(nestedMethod.ReducedFrom)) {
+            staticMethods=string.Empty;
+        }
+
+        var sourceText="source";
+
+        var parameters = method.Parameters;
+        var arguments = invocation.ArgumentList.Arguments;
+        if(parameters.Length!=arguments.Count) {
+            return false;
+        }
+
+        var renderedArguments = new string[arguments.Count+1];
+        renderedArguments[0]=sourceText;
+        for(var index = 0; index<arguments.Count; index++) {
+            var argumentExpression = arguments[index].Expression;
+            var parameter = parameters[index];
+
+            if(argumentExpression is LambdaExpressionSyntax lambda) {
+                if(!TryCreateLambdaFuncFragment(lambda,parameter.Type,out var lambdaSpec)) {
+                    return false;
+                }
+
+                var isStaticLambda = lambda.Modifiers.Any(SyntaxKind.StaticKeyword) || IsEffectivelyStaticLambda(lambda);
+                if(isStaticLambda) {
+                    var structName = $"Struct{uniqueNumber++}";
+                    var methodName = parameter.Name;
+                    var definition = $$"""
+                        private struct {{structName}}{
+                            public static {{lambdaSpec.ReturnTypeName}} {{methodName}}({{string.Join(", ",lambdaSpec.ParameterTypeNames.Zip(lambdaSpec.ParameterNames,(type,name) => $"{type} {name}"))}}) => {{lambdaSpec.Body}};
+                        }
+                        """;
+                    staticMethods=string.Join(
+                        "\n",
+                        new[] { staticMethods,definition }.Where(static text => !string.IsNullOrWhiteSpace(text)));
+                    renderedArguments[index+1]=$"{structName}.{methodName}";
+                    continue;
+                }
+
+                if(!isOutermostInvocation) {
+                    return false;
+                }
+
+                renderedArguments[index+1]=parameter.Name;
+                continue;
+            }
+
+            renderedArguments[index+1]=NormalizeExpressionText(argumentExpression.ToString());
+        }
+
+        expressionText=$"global::System.Linq.Enumerable.{method.Name}({string.Join(", ",renderedArguments)})";
+        return true;
     }
 
     private static string SanitizeIdentifier(string value) {
@@ -293,41 +410,131 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     }
 
     private static bool TryCreateLinqFragment(Linq傍受対象型 target,int uniqueNumber,out Template.Fragment fragment) {
-        fragment=null!;
-        var sourceLoopNumber = uniqueNumber*2;
-        var methodLoopNumber = uniqueNumber*2+1;
-        if(!TryCreateSourceFragment(target.SourceElementTypeName,target.SourceIsLinqInvocation,sourceLoopNumber,out var sourceFragment)) {
+        try {
+            fragment=null!;
+            var loopNumber = uniqueNumber*32;
+            if(!TryCreateSourceFragment(target,ref loopNumber,out var sourceFragment)) {
+                return false;
+            }
+
+            var template = new Template();
+            if(!template.TryResolve(target.TemplateMethod,loopNumber,sourceFragment,out fragment,target.Parameters.Select(static parameter => parameter.TemplateArgument).ToArray())) {
+                return false;
+            }
+
+            return true;
+        } catch {
+            fragment=null!;
+            return false;
+        }
+    }
+
+    private static bool TryCreateSourceFragment(Linq傍受対象型 target,ref int loopNumber,out Template.EnumerableFragment fragment) {
+        if(target.Invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression }) {
+            fragment=null!;
             return false;
         }
 
-        var templateArguments = new object[target.Parameters.Length];
+        return TryCreateSourceFragment(target.SemanticModel,sourceExpression,target.SourceElementTypeName,ref loopNumber,out fragment);
+    }
 
-        for(var index=0;index<target.Parameters.Length;index++) {
-            var parameter = target.Parameters[index];
-            if(parameter.Lambda is not null) {
-                templateArguments[index] = parameter.TemplateArgument;
-            } else {
-                templateArguments[index] = parameter.Name;
+    private static bool TryCreateSourceFragment(SemanticModel semanticModel,ExpressionSyntax sourceExpression,string elementTypeName,ref int loopNumber,out Template.EnumerableFragment fragment) {
+        if(sourceExpression is InvocationExpressionSyntax sourceInvocation
+            && semanticModel.GetSymbolInfo(sourceInvocation).Symbol is IMethodSymbol sourceMethod
+            && sourceMethod.ReducedFrom is not null
+            && (Linqメソッド判定(sourceMethod.ReducedFrom) || SupportsChainableTemplateMethod(sourceMethod.ReducedFrom))) {
+            if(sourceInvocation.Expression is not MemberAccessExpressionSyntax { Expression: var nestedSourceExpression }) {
+                fragment=null!;
+                return false;
+            }
+
+            if(!TryCreateSourceFragment(semanticModel,nestedSourceExpression,GetSourceElementTypeName(sourceMethod),ref loopNumber,out var nestedSourceFragment)) {
+                fragment=null!;
+                return false;
+            }
+
+            if(!TryCreateTemplateArguments(semanticModel,sourceMethod,sourceInvocation.ArgumentList.Arguments,ref loopNumber,out var templateArguments)) {
+                fragment=null!;
+                return false;
+            }
+
+            try {
+                var template = new Template();
+                if(!template.TryResolve(sourceMethod.ReducedFrom,loopNumber++,nestedSourceFragment,out var sourceFragment,templateArguments)
+                    ||sourceFragment is not Template.EnumerableFragment enumerableFragment) {
+                    fragment=null!;
+                    return false;
+                }
+
+                fragment=enumerableFragment;
+                return true;
+            } catch {
+                fragment=null!;
+                return false;
             }
         }
 
-        var template = new Template();
-        if(!template.TryResolve(target.TemplateMethod,methodLoopNumber,sourceFragment,out fragment,templateArguments)) {
+        fragment=CreateRootEnumerableFragment("source",elementTypeName,loopNumber++);
+        return true;
+    }
+
+    private static bool TryCreateTemplateArguments(SemanticModel semanticModel,IMethodSymbol method,SeparatedSyntaxList<ArgumentSyntax> arguments,ref int loopNumber,out object[] templateArguments) {
+        var parameters = method.Parameters;
+        if(parameters.Length!=arguments.Count) {
+            templateArguments=Array.Empty<object>();
             return false;
+        }
+
+        templateArguments = new object[parameters.Length];
+        for(var index = 0; index<parameters.Length; index++) {
+            var parameter = parameters[index];
+            var argumentExpression = arguments[index].Expression;
+
+            if(argumentExpression is LambdaExpressionSyntax lambda) {
+                if(!TryCreateLambdaFuncFragment(lambda,parameter.Type,out var lambdaSpec)) {
+                    return false;
+                }
+
+                var isEffectivelyStatic = lambda.Modifiers.Any(SyntaxKind.StaticKeyword) || IsEffectivelyStaticLambda(lambda);
+                templateArguments[index] = isEffectivelyStatic
+                    ? CreateStaticTemplateArgument(lambdaSpec)
+                    : CreateParameterTemplateArgument(parameter.Name,lambdaSpec);
+                continue;
+            }
+
+            templateArguments[index]=NormalizeExpressionText(argumentExpression.ToString());
         }
 
         return true;
     }
 
-    private static bool TryCreateSourceFragment(string elementTypeName,bool sourceIsLinqInvocation,int 番号,out Template.EnumerableFragment fragment) {
-        if(sourceIsLinqInvocation) {
-            // Chained LINQ source composition will be resolved here as operators are added incrementally.
-            fragment=null!;
-            return false;
+    private static object CreateStaticTemplateArgument(LambdaSpec lambda) {
+        return new Template.LambdaFuncFragment {
+            ReturnTypeName=lambda.ReturnTypeName,
+            ParameterTypeNames=lambda.ParameterTypeNames,
+            ParameterNames=lambda.ParameterNames,
+            DefineLambda=$" => {lambda.Body};"
+        };
+    }
+
+    private static object CreateParameterTemplateArgument(string parameterName,LambdaSpec lambda) {
+        return new Template.ParameterFuncFragment {
+            ParameterName=parameterName,
+            ReturnTypeName=lambda.ReturnTypeName,
+            ParameterTypeNames=lambda.ParameterTypeNames,
+            ParameterNames=lambda.ParameterNames,
+        };
+    }
+
+    private static string GetSourceElementTypeName(IMethodSymbol method) {
+        var definition = method.ReducedFrom ?? method;
+        if(definition.Parameters.Length==0
+            ||definition.Parameters[0].Type is not INamedTypeSymbol sourceType
+            ||sourceType.TypeArguments.Length!=1) {
+            throw new InvalidOperationException($"Could not determine source element type for '{method.ToDisplayString(完全修飾形式)}'.");
         }
 
-        fragment=CreateRootEnumerableFragment("source",elementTypeName,番号);
-        return true;
+        return sourceType.TypeArguments[0].ToDisplayString(完全修飾形式);
     }
 
     private static Template.EnumerableFragment CreateRootEnumerableFragment(string result,string elementTypeName,int 番号) {
@@ -381,6 +588,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return false;
         }
 
+        if(funcType.TypeArguments.Any(ContainsAnonymousType)) {
+            return false;
+        }
+
         var typeArguments = funcType.TypeArguments.Select(typeArgument => typeArgument.ToDisplayString(完全修飾形式)).ToArray();
         var parameterTypeNames = typeArguments.Take(typeArguments.Length-1).ToArray();
         if(parameters.Count!=parameterTypeNames.Length) {
@@ -412,8 +623,29 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         => type is INamedTypeSymbol namedType
             && IsIEnumerableType(namedType);
 
+    private static bool ContainsAnonymousType(ITypeSymbol type) {
+        if(type.IsAnonymousType) {
+            return true;
+        }
+
+        return type switch {
+            IArrayTypeSymbol arrayType => ContainsAnonymousType(arrayType.ElementType),
+            INamedTypeSymbol namedType => namedType.TypeArguments.Any(ContainsAnonymousType),
+            _ => false,
+        };
+    }
+
     private static bool SupportsPlainLambdaFragments(IMethodSymbol method)
         => method.Name=="Aggregate";
+
+    private static bool SupportsChainableTemplateMethod(IMethodSymbol method)
+        => method.Name is "Select" or "Where" or "Take";
+
+    private static bool SupportsExpandedInterceptFile(string path)
+        => path.EndsWith("EnumerableMethod2.cs",StringComparison.Ordinal);
+
+    private static bool IsOutermostLinqInvocation(InvocationExpressionSyntax invocation)
+        => invocation.Parent is not MemberAccessExpressionSyntax { Parent: InvocationExpressionSyntax };
 
     private static string GetLambdaBodyText(LambdaExpressionSyntax lambda) {
         return TryGetLambdaExpressionBody(lambda,out var body)
@@ -482,13 +714,15 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     }
 
     private sealed class Linq傍受対象型 {
-        public Linq傍受対象型(string identifier,string containingMethodName,string interceptsLocationAttributeText,IMethodSymbol method,IMethodSymbol templateMethod,bool sourceIsLinqInvocation,InterceptParameterSpec[] parameters) {
+        public Linq傍受対象型(string identifier,string containingMethodName,string interceptsLocationAttributeText,IMethodSymbol method,IMethodSymbol templateMethod,bool sourceIsLinqInvocation,InvocationExpressionSyntax invocation,SemanticModel semanticModel,InterceptParameterSpec[] parameters) {
             this.Identifier=identifier;
             this.ContainingMethodName=containingMethodName;
             this.InterceptsLocationAttributeText=interceptsLocationAttributeText;
             this.Method=method;
             this.TemplateMethod=templateMethod;
             this.SourceIsLinqInvocation=sourceIsLinqInvocation;
+            this.Invocation=invocation;
+            this.SemanticModel=semanticModel;
             this.Parameters=parameters;
         }
 
@@ -498,6 +732,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         public IMethodSymbol Method { get; }
         public IMethodSymbol TemplateMethod { get; }
         public bool SourceIsLinqInvocation { get; }
+        public InvocationExpressionSyntax Invocation { get; }
+        public SemanticModel SemanticModel { get; }
         public InterceptParameterSpec[] Parameters { get; }
         public string SourceElementTypeName {
             get {
@@ -543,12 +779,19 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
 
         public object TemplateArgument => this.Lambda is null
             ? this.Name
-            : new Template.LambdaFuncFragment {
-                ReturnTypeName=this.Lambda.ReturnTypeName,
-                ParameterTypeNames=this.Lambda.ParameterTypeNames,
-                ParameterNames=this.Lambda.ParameterNames,
-                DefineLambda=$" => {this.Lambda.Body};"
-            };
+            : this.LambdaIsStatic
+                ? new Template.LambdaFuncFragment {
+                    ReturnTypeName=this.Lambda.ReturnTypeName,
+                    ParameterTypeNames=this.Lambda.ParameterTypeNames,
+                    ParameterNames=this.Lambda.ParameterNames,
+                    DefineLambda=$" => {this.Lambda.Body};"
+                }
+                : new Template.ParameterFuncFragment {
+                    ParameterName=this.Name,
+                    ReturnTypeName=this.Lambda.ReturnTypeName,
+                    ParameterTypeNames=this.Lambda.ParameterTypeNames,
+                    ParameterNames=this.Lambda.ParameterNames,
+                };
     }
 
     private sealed class LambdaSpec {

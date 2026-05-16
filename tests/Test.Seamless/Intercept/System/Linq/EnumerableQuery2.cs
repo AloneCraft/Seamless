@@ -5,133 +5,136 @@ namespace Test.Seamless.Intercept.System.Linq;
 
 public sealed class EnumerableQuery2 {
     [Fact, Trait("Category","Unit")]
-    public static void Select_Select_ToArray(){
+    public void Select_Select() {
         var expected=SystemEnumerable.Select(SystemEnumerable.Select(Source(),static value => value+1),static value => value*10);
         var actual=from value in Source() select value+1 into selected select selected*10;
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Select_Select_index_ToArray(){
+    public void Select_Select_index() {
         var expected=SystemEnumerable.Select(SystemEnumerable.Select(Source(),static value => value+1),static (value,index) => value+index);
         var actual=(from value in Source() select value+1).Select(static (value,index) => value+index);
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Select_Where_ToArray(){
+    public void Select_Where() {
         var expected=SystemEnumerable.Where(SystemEnumerable.Select(Source(),static value => value*10),static value => value>20);
         var actual=from value in Source() select value*10 into selected where selected>20 select selected;
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Select_Where_index_ToArray(){
+    public void Select_Where_index() {
         var expected=SystemEnumerable.Where(SystemEnumerable.Select(Source(),static value => value*10),static (value,index) => value>20&&index>0);
         var actual=(from value in Source() select value*10).Where(static (value,index) => value>20&&index>0);
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Select_index_Select_ToArray(){
+    public void Select_index_Select() {
         var expected=SystemEnumerable.Select(SystemEnumerable.Select(Source(),static (value,index) => value+index),static value => value*10);
         var actual=from selected in (from value in Source() select value).Select(static (value,index) => value+index) select selected*10;
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Select_index_Select_index_ToArray(){
+    public void Select_index_Select_index() {
         var expected=SystemEnumerable.Select(SystemEnumerable.Select(Source(),static (value,index) => value+index),static (value,index) => value+index);
         var actual=(from value in Source() select value).Select(static (value,index) => value+index).Select(static (value,index) => value+index);
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Select_index_Where_ToArray(){
+    public void Select_index_Where() {
         var expected=SystemEnumerable.Where(SystemEnumerable.Select(Source(),static (value,index) => value+index),static value => value>4);
         var actual=from selected in (from value in Source() select value).Select(static (value,index) => value+index) where selected>4 select selected;
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Select_index_Where_index_ToArray(){
+    public void Select_index_Where_index() {
         var expected=SystemEnumerable.Where(SystemEnumerable.Select(Source(),static (value,index) => value+index),static (value,index) => value>3&&index>1);
         var actual=(from value in Source() select value).Select(static (value,index) => value+index).Where(static (value,index) => value>3&&index>1);
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Where_Select_ToArray(){
+    public void Where_Select() {
         var expected=SystemEnumerable.Select(SystemEnumerable.Where(Source(),static value => value>1),static value => value*10);
         var actual=from value in Source() where value>1 select value into selected select selected*10;
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Where_Select_index_ToArray(){
+    public void Where_Select_index() {
         var expected=SystemEnumerable.Select(SystemEnumerable.Where(Source(),static value => value>1),static (value,index) => value+index);
         var actual=(from value in Source() where value>1 select value).Select(static (value,index) => value+index);
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Where_Where_ToArray(){
+    public void Where_Where() {
         var expected=SystemEnumerable.Where(SystemEnumerable.Where(Source(),static value => value>1),static value => value<4);
         var actual=from value in Source() where value>1 select value into selected where selected<4 select selected;
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Where_Where_index_ToArray(){
+    public void Where_Where_index() {
         var expected=SystemEnumerable.Where(SystemEnumerable.Where(Source(),static value => value>1),static (value,index) => value<4&&index<2);
         var actual=(from value in Source() where value>1 select value).Where(static (value,index) => value<4&&index<2);
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Where_index_Select_ToArray(){
+    public void Where_index_Select() {
         var expected=SystemEnumerable.Select(SystemEnumerable.Where(Source(),static (value,index) => value>index),static value => value*10);
         var actual=from selected in (from value in Source() select value).Where(static (value,index) => value>index) select selected*10;
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Where_index_Select_index_ToArray(){
+    public void Where_index_Select_index() {
         var expected=SystemEnumerable.Select(SystemEnumerable.Where(Source(),static (value,index) => value>index),static (value,index) => value+index);
         var actual=(from value in Source() select value).Where(static (value,index) => value>index).Select(static (value,index) => value+index);
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Where_index_Where_ToArray(){
+    public void Where_index_Where() {
         var expected=SystemEnumerable.Where(SystemEnumerable.Where(Source(),static (value,index) => value>index),static value => value<4);
         var actual=from selected in (from value in Source() select value).Where(static (value,index) => value>index) where selected<4 select selected;
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Where_index_Where_index_ToArray(){
+    public void Where_index_Where_index() {
         var expected=SystemEnumerable.Where(SystemEnumerable.Where(Source(),static (value,index) => value>index),static (value,index) => value<4&&index<2);
         var actual=(from value in Source() select value).Where(static (value,index) => value>index).Where(static (value,index) => value<4&&index<2);
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Select_Take_Select_ToArray(){
+    public void Select_Take_Select() {
         var expected=SystemEnumerable.Select(SystemEnumerable.Take(SystemEnumerable.Select(Source(),static value => value+1),2),static value => value*10);
         var actual=from selected in (from value in Source() select value+1).Take(2) select selected*10;
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Take_zero_Select_does_not_enumerate_source_ToArray(){
+    public void Take_zero_Select_does_not_enumerate_source() {
         var expected=SystemEnumerable.Select(SystemEnumerable.Take(ThrowingSource(),0),static value => value*10);
         var actual=from selected in (from value in ThrowingSource() select value).Take(0) select selected*10;
-        AssertChain(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
-    private static void AssertChain<T>(IEnumerable<T> expected,IEnumerable<T> actual) {
-        Assert.Equal(expected,actual);
+    private static void AssertSequenceEqual<T>(IEnumerable<T> expected,IEnumerable<T> actual) {
+        Assert.Equal(
+            SystemEnumerable.ToArray(actual),
+            SystemEnumerable.ToArray(expected)
+        );
     }
 
     private static readonly int[] SourceValue=[1,2,3,4];

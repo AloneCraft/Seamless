@@ -135,6 +135,9 @@ public class Template {
     }
     public class LambdaFuncFragment:FuncFragment{
     }
+    public class ParameterFuncFragment:FuncFragment{
+        public string ParameterName=string.Empty;
+    }
 
     public delegate Fragment FragmentTemplate(int 番号,object[] arguments);
 
@@ -291,6 +294,20 @@ public class Template {
             """;
     }
 
+    private static string FuncDefinition(string structName,FuncFragment func,string methodName) {
+        return func is ParameterFuncFragment
+            ? string.Empty
+            : StructDefinition(structName,func,methodName);
+    }
+
+    private static string FuncInvoke(string structName,FuncFragment func,string methodName,params string[] arguments) {
+        var argumentList = string.Join(", ",arguments);
+        return func switch {
+            ParameterFuncFragment parameterFunc => $"{parameterFunc.ParameterName}({argumentList})",
+            _ => $"{structName}.{methodName}({argumentList})",
+        };
+    }
+
     private static string FuncParameterTypeName(FuncFragment func,int index) {
         if(func.ParameterTypeNames.Length>index&&!string.IsNullOrEmpty(func.ParameterTypeNames[index])) {
             return func.ParameterTypeNames[index];
@@ -433,11 +450,7 @@ public class Template {
                 var hasValue = $"hasValue{番号}";
                 var result = $"result{番号}";
                 return new Fragment(
-                    $$"""
-                        private struct {{Struct}}{
-                            {{func.DefineMethod(nameof(func))}}
-                        }
-                        """,
+                    FuncDefinition(Struct,func,nameof(func)),
                     source.BeginGlobal,
                     $$"""
                         {{source.BeginLoopOutside}}
@@ -452,7 +465,7 @@ public class Template {
                         {{hasValue}}=true;
                         goto {{Continue}};
                         {{Head}}:
-                        {{result}}={{Struct}}.func({{result}},{{source.Element}});
+                        {{result}}={{FuncInvoke(Struct,func,nameof(func),result,source.Element)}};
                         """,
                     $$"""
                         {{Continue}}:;
@@ -479,7 +492,7 @@ public class Template {
                 var Struct = $"Struct{番号}";
                 var result = $"result{番号}";
                 return new Fragment(
-                    StructDefinition(Struct,func,nameof(func)),
+                    FuncDefinition(Struct,func,nameof(func)),
                     source.BeginGlobal,
                     $$"""
                         {{source.BeginLoopOutside}}
@@ -488,7 +501,7 @@ public class Template {
                     source.BeginLoop,
                     $$"""
                         {{source.BeginLoopInside}}
-                        {{result}}={{Struct}}.func({{result}},{{source.Element}});
+                        {{result}}={{FuncInvoke(Struct,func,nameof(func),result,source.Element)}};
                         """,
                     source.EndLoopInside,
                     source.EndLoop,
@@ -504,15 +517,14 @@ public class Template {
                 var seed = (string)arguments[1];
                 var func = (FuncFragment)arguments[2];
                 var resultSelector = (FuncFragment)arguments[3];
-                var Struct = $"Struct{番号}";
+                var FuncStruct = $"Struct{番号}_Func";
+                var ResultStruct = $"Struct{番号}_Result";
                 var result = $"result{番号}";
                 return new Fragment(
-                    $$"""
-                        private struct {{Struct}}{
-                            {{func.DefineMethod(nameof(func))}}
-                            {{resultSelector.DefineMethod(nameof(resultSelector))}}
-                        }
-                        """,
+                    string.Join("\n",new[] {
+                        FuncDefinition(FuncStruct,func,nameof(func)),
+                        FuncDefinition(ResultStruct,resultSelector,nameof(resultSelector)),
+                    }.Where(static text => !string.IsNullOrWhiteSpace(text))),
                     source.BeginGlobal,
                     $$"""
                         {{source.BeginLoopOutside}}
@@ -521,13 +533,13 @@ public class Template {
                     source.BeginLoop,
                     $$"""
                         {{source.BeginLoopInside}}
-                        {{result}}={{Struct}}.func({{result}},{{source.Element}});
+                        {{result}}={{FuncInvoke(FuncStruct,func,nameof(func),result,source.Element)}};
                         """,
                     source.EndLoopInside,
                     source.EndLoop,
                     source.EndLoopOutside,
                     source.EndGlobal,
-                    $"{Struct}.resultSelector({result})");
+                    FuncInvoke(ResultStruct,resultSelector,nameof(resultSelector),result));
             });
 
         this.Add(
