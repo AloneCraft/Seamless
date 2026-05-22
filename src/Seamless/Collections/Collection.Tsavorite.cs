@@ -558,7 +558,7 @@ public abstract class Collection<
     private bool disposed;
     public void Dispose() {
         this.Dispose(true);
-        GC.SuppressFinalize(this);
+        System.GC.SuppressFinalize(this);
     }
     protected virtual void Dispose(bool disposing) {
         if(this.disposed)

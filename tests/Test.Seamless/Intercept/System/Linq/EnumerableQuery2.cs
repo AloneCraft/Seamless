@@ -131,10 +131,7 @@ public sealed class EnumerableQuery2 {
     }
 
     private static void AssertSequenceEqual<T>(IEnumerable<T> expected,IEnumerable<T> actual) {
-        Assert.Equal(
-            SystemEnumerable.ToArray(actual),
-            SystemEnumerable.ToArray(expected)
-        );
+        Assert.Equal(expected,actual);
     }
 
     private static readonly int[] SourceValue=[1,2,3,4];

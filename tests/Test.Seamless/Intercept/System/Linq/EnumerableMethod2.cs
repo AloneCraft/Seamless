@@ -5,10 +5,25 @@ namespace Test.Seamless.Intercept.System.Linq;
 
 public sealed class EnumerableMethod2 {
     [Fact, Trait("Category","Unit")]
-    public void Select_Select() {
+    public void Carrier1Test() {
+        Carrier1TestImpl();
+        AssertInterceptorGenerated();
+    }
+
+    private static void Carrier1TestImpl() {
         var expected=SystemEnumerable.Select(SystemEnumerable.Select(Source(),static value => value+1),static value => value*10);
         var actual=Source().Select(static value => value+1).Select(static value => value*10);
         AssertSequenceEqual(expected,actual);
+    }
+
+    private void Carrier2TestImpl() {
+        var expected=SystemEnumerable.Where(SystemEnumerable.Select(Source(),static value => value*10),static value => value>20);
+        var actual=Source().Select(static value => value*10).Where(static value => value>20);
+        AssertSequenceEqual(expected,actual);
+    }
+    [Fact, Trait("Category","Unit")]
+    public void Carrier2Test() {
+        Carrier2TestImpl();
         AssertInterceptorGenerated();
     }
 
@@ -16,13 +31,6 @@ public sealed class EnumerableMethod2 {
     public void Select_Select_index() {
         var expected=SystemEnumerable.Select(SystemEnumerable.Select(Source(),static value => value+1),static (value,index) => value+index);
         var actual=Source().Select(static value => value+1).Select(static (value,index) => value+index);
-        AssertSequenceEqual(expected,actual);
-    }
-
-    [Fact, Trait("Category","Unit")]
-    public void Select_Where() {
-        var expected=SystemEnumerable.Where(SystemEnumerable.Select(Source(),static value => value*10),static value => value>20);
-        var actual=Source().Select(static value => value*10).Where(static value => value>20);
         AssertSequenceEqual(expected,actual);
     }
 
@@ -132,10 +140,7 @@ public sealed class EnumerableMethod2 {
     }
 
     private static void AssertSequenceEqual<T>(IEnumerable<T> expected,IEnumerable<T> actual) {
-        Assert.Equal(
-            SystemEnumerable.ToArray(actual),
-            SystemEnumerable.ToArray(expected)
-        );
+        Assert.Equal(expected,actual);
     }
 
     private static int[] Source() => [1,2,3,4];

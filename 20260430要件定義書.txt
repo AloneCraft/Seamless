@@ -1,4 +1,4 @@
-﻿================================================================================
+================================================================================
   Seamless 要件定義書
   Document ID : SEAMLESS-REQ-20260430
   Version     : 1.0
@@ -25,8 +25,6 @@
 
 3. 用語
 --------------------------------------------------------------------------------
-- Managed   : 可変長シリアライズ（MemoryPack 等）。参照型を含む任意の型に対応。
-- Unmanaged : 固定長メモリレイアウト（unmanaged 制約）。ゼロコピーで扱える。
 - Store     : Tsavorite の TsavoriteKV インスタンスを内包するファクトリ層。
 - Collection: Store から生成される利用者向けコレクション本体。
 - Session   : Tsavorite のクライアントセッション。操作種別ごとに分離して保持する。
@@ -46,20 +44,7 @@
       - List 系は永続インデックスファイルとデータファイルからなるメモリマップド
         ファイル List を提供する。
 
-4.1.2 Managed × Unmanaged の4組合せ対応
-      Dictionary / HashSet / Set について、TKey と TValue の Managed/Unmanaged
-      組合せを以下の4種でサポートする。
-        a) Managed Key   × Managed Value
-        b) Managed Key   × Unmanaged Value
-        c) Unmanaged Key × Managed Value
-        d) Unmanaged Key × Unmanaged Value
-      組合せの選択は静的ストラテジー（型パラメータ + Tag 構造体によるオーバー
-      ロード解決）で行う。仮想呼び出しは行わない。
 
-4.1.3 Tsavorite バージョン対応
-      - Seamless1: Microsoft.Garnet 1.* (TSAVORITE1_1_1)
-      - Seamless2: Microsoft.Garnet 2.0.0-beta.3 (TSAVORITE2_0BETA3)
-      共有コードは Seamless.projitems に置き、両プロジェクトから参照する。
 
 4.1.4 永続化／ストレージ
       - メモリ専用モード: MemoryOnlyDevice により Tsavorite のログをメモリ常駐
@@ -120,10 +105,6 @@
       - インデントはスペース。
       - 識別子・記号間のスペースを排除し、波括弧は同一行配置。
       - if-else は片方が空でも { } を省略しない。
-4.3.2 Managed / Unmanaged の対応ファイルは行番号レベルで対応するよう構文配置を
-      揃え、対称性を維持すること。
-4.3.3 1.1.1 / 2.0beta3 の対応ファイルにおいても同様に対称性を維持すること。
-      条件コンパイルによる本体分岐は最小限に留める。
 
 5. ユースケース
 --------------------------------------------------------------------------------

@@ -181,7 +181,7 @@ public abstract partial class CollectionStore<
 
     public void Dispose() {
         this.Dispose(true);
-        GC.SuppressFinalize(this);
+        System.GC.SuppressFinalize(this);
     }
 
     protected virtual void Dispose(bool disposing) {
