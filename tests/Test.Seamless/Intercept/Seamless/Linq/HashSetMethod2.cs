@@ -1,22 +1,84 @@
-using Seamless.Collections;
-using Seamless.Linq;
-using Seamless.Stores;
-using SeamlessEnumerable = Seamless.Linq.Enumerable;
-using SeamlessHashSet = Seamless.Linq.HashSet;
 using SystemEnumerable = System.Linq.Enumerable;
 using Test.Seamless.Collections;
-
+using Seamless.Collections;
+using Seamless.Stores;
+using System.Linq;
+using System.Collections.Generic;
 namespace Test.Seamless.Intercept.Seamless.Linq.HashSetSample;
 
 [Collection("HashSetIntercept")]
 public sealed class HashSetMethod2 {
-    [Fact, Trait("Category","Intercept")]
-    public static void Select_Select_ToArray() {
-        using var source = CreateUnmanagedSource(Source());
-        AssertChain(
-            SystemEnumerable.Select(SystemEnumerable.Select(Source(),static value => value+1),static value => value*10),
-            source.Select(static value => value+1).Select(static value => value*10)
-        );
+    public class Select_Select_ToArray {
+        [Fact,Trait("Category","Intercept")]
+        public static void Test() {
+            using var source=CreateUnmanagedSource(Source());
+            Source().Select(static value => value+1).Select(static value => value*10);
+        }
+
+        public static IEnumerable<int> Selectキャリア0(IEnumerable<int>  source,Func<int,int > selector){
+            return source;
+        }
+
+        struct Struct0{
+            public static int selector(int input) => input+1;
+        }
+        struct Struct1{
+            public static int selector(int input) => input*10;
+        }
+        public static IEnumerable<int> Selectインライン1(IEnumerable<int>  source,Func<int,int > selector) {
+            var result=new global::System.Collections.Generic.List<int>();
+            var e=source.GetEnumerator();
+            goto Start;
+            Head:
+            var item0=Struct0.selector(e.Current);
+            var item1=Struct1.selector(item0);
+            result.Add(item1);
+            Start:
+            if(e.MoveNext()) goto Head;
+            return result;
+        }
+        public static void このようなキャリアと末端インラインの見本() {
+            _=Selectキャリア0(
+                Selectインライン1(
+                    Source(),
+                    input => input+1
+                ),
+                input=>input*10
+            );
+        }
+    }
+    public class SelectStatic_SelectStatic_ToArray {
+        [Fact,Trait("Category","Intercept")]
+        public static void Test() {
+            var x=0;
+            _=Source().Select(value => value+x).Select(value => value*x+10);
+        }
+        public static (IEnumerable<int>source,Func<int,int>selector) Selectキャリア0(IEnumerable<int>  source,Func<int,int > selector){
+            return (source,selector);
+        }
+        public static IEnumerable<int> Selectインライン1(
+            (IEnumerable<int>source,Func<int,int>selector)source,
+            Func<int,int > selector) {
+            var result=new global::System.Collections.Generic.List<int>();
+            using var e=source.source.GetEnumerator();
+            goto Start;
+            Head:
+            var item0=source.selector(e.Current);
+            var item1=selector(item0);
+            result.Add(item1);
+            Start:
+            if(e.MoveNext()) goto Head;
+            return result;
+        }
+        public static void このようなキャリアと末端インラインの見本() {
+            _=Selectインライン1(
+                Selectキャリア0(
+                    Source(),
+                    p => p+1
+                ),
+                p=>p*10
+            );
+        }
     }
 
     [Fact, Trait("Category","Intercept")]

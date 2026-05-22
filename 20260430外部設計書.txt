@@ -1,4 +1,4 @@
-﻿================================================================================
+================================================================================
   Seamless 外部設計書
   Document ID : SEAMLESS-EXT-20260430
   Version     : 1.0
@@ -10,13 +10,8 @@
 1. システム構成
 --------------------------------------------------------------------------------
 1.1 コンポーネント
-    - Seamless1.dll      : Tsavorite 1.* バインディング (DefineConstants
-                           TSAVORITE1_1_1)
-    - Seamless2.dll      : Tsavorite 2.0.0-beta.3 バインディング (DefineConstants
+    - Seamless.dll      : Tsavorite 2.0.0-beta.3 バインディング (DefineConstants
                            TSAVORITE2_0BETA3)
-    - Seamless (shared)  : 両バージョン共通のコレクション／インターフェース
-                           （Seamless.projitems）
-    - Test.Seamless1/2   : 各バージョンに対応する xUnit テスト
     - Benchmark          : BenchmarkDotNet ベースの計測ベンチマーク
 
 1.2 名前空間
@@ -39,10 +34,8 @@
     Create<TKey,TValue>(ManagedTag/UnmanagedTag タグ引数の組合せ) により
     以下の Store を返す。
 
-        - ManagedDictionaryStore<TKey,TValue>
-            Managed×Managed / Managed×Unmanaged / Unmanaged×Managed
-        - UnmanagedDictionaryStore<TKey,TValue>
-            Unmanaged×Unmanaged
+        - DictionaryStore<TKey,TValue>
+        - DictionaryStore<TKey,TValue>
     ストレージ併用版は IDevice LogDevice / IDevice ObjectLogDevice を追加で
     受け取る。
 
@@ -162,10 +155,3 @@
 7.2 LogFull 判定は OverflowMutableStrategy（Memory / Storage）で事前に行い、
     必要時のみ書き込みを試みる。
 7.3 Dispose 後に呼ばれた API は ObjectDisposedException 相当の挙動を取る。
-
-8. 互換性
---------------------------------------------------------------------------------
-8.1 Tsavorite 1.1.1 と 2.0beta3 の差分は SessionFunctions 層に閉じ込め、
-    上位コレクション API は両者で同じシグネチャを保つ。
-8.2 既存利用コードは HashStore.Create / Store.Create / Collection 経由のみで
-    動作するため、内部実装の更新は再コンパイルのみで吸収可能とする。

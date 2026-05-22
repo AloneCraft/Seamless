@@ -404,7 +404,7 @@ Unit/
  xunit.v3.extensibility.core/3.2.2/lib/netstandard2.0/xunit.v3.core.dll
  xunit.v3.runner.common/3.2.2/lib/netstandard2.0/xunit.v3.runner.common.dll
  xunit.v3.runner.inproc.console/3.2.2/lib/net8.0/xunit.v3.runner.inproc.console.dll
- zlinq/1.5.6/lib/net10.0/ZLinq.dll
+ zlinq/1.5.6/lib/net10.0/Seamless.SourceGenerator.Linq.Carrier.dll
 
 [analyzerReferences]
 ../../src/Seamless.SourceGenerator/bin/Debug/net10.0/Seamless.SourceGenerator.dll

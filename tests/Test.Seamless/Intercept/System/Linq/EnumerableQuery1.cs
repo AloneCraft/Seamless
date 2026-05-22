@@ -288,24 +288,38 @@ public sealed class EnumerableQuery1 {
     public sealed record Row(int Key,int Value,string Name);
 
     private static void AssertSequenceEqual<T>(IEnumerable<T> expected,IEnumerable<T> actual) {
-        Assert.Equal(
-            SystemEnumerable.ToArray(actual),
-            SystemEnumerable.ToArray(expected)
-        );
+        Assert.Equal(expected,actual);
     }
 
     private static void AssertNestedSequenceEqual<T>(IEnumerable<IEnumerable<T>> expected,IEnumerable<IEnumerable<T>> actual) {
-        Assert.Equal(
-            SystemEnumerable.Select(actual,static source => SystemEnumerable.ToArray(source)),
-            SystemEnumerable.Select(expected,static source => SystemEnumerable.ToArray(source))
-        );
+        using var expectedEnumerator = expected.GetEnumerator();
+        using var actualEnumerator = actual.GetEnumerator();
+        while(true) {
+            var hasExpected = expectedEnumerator.MoveNext();
+            var hasActual = actualEnumerator.MoveNext();
+            Assert.Equal(hasExpected,hasActual);
+            if(!hasExpected) {
+                return;
+            }
+
+            Assert.Equal(expectedEnumerator.Current,actualEnumerator.Current);
+        }
     }
 
     private static void AssertGroupSequenceEqual<TKey,TElement>(IEnumerable<IGrouping<TKey,TElement>> expected,IEnumerable<IGrouping<TKey,TElement>> actual) {
-        Assert.Equal(
-            SystemEnumerable.Select(actual,static group => (group.Key,Values:SystemEnumerable.ToArray(group))),
-            SystemEnumerable.Select(expected,static group => (group.Key,Values:SystemEnumerable.ToArray(group)))
-        );
+        using var expectedEnumerator = expected.GetEnumerator();
+        using var actualEnumerator = actual.GetEnumerator();
+        while(true) {
+            var hasExpected = expectedEnumerator.MoveNext();
+            var hasActual = actualEnumerator.MoveNext();
+            Assert.Equal(hasExpected,hasActual);
+            if(!hasExpected) {
+                return;
+            }
+
+            Assert.Equal(expectedEnumerator.Current.Key,actualEnumerator.Current.Key);
+            Assert.Equal(expectedEnumerator.Current,actualEnumerator.Current);
+        }
     }
 
 }
