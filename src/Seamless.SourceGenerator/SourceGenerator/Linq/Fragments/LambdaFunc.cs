@@ -1,10 +1,12 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
 public class LambdaFunc : FuncFragment {
+    // ラムダ本体を代入文として埋め込む。
     public override string RenderInlineAssign(string destination,int number,params string[] arguments) {
         return this.RenderInlineAssignCore(destination,number,arguments);
     }
 
+    // ラムダ本体を式位置へ直接埋め込む。
     public override string RenderInlineExpression(params string[] arguments) {
         // Where の条件式や Select の Add 引数のように、
         // 「値を返すだけの static ラムダ」は式としてその場へ埋め込みたい。
