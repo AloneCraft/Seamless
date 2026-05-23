@@ -1,15 +1,22 @@
 ﻿using System;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Seamless.SourceGenerator.Linq.Fragments;
 public abstract class FuncFragment {
+    // helper method 定義の `=> ...;` 末尾部分。
     public string DefineLambda=string.Empty;
+    // delegate 戻り値型名。
     public string ReturnTypeName="void";
+    // delegate 引数型名一覧。
     public string[] ParameterTypeNames=Array.Empty<string>();
+    // delegate 引数名一覧。
     public string[] ParameterNames=Array.Empty<string>();
+    // 対応する Func<...> の型。
     public Type Type;
+    // helper struct 内へ static method を生成できるかどうか。
     public bool CanGenerateMethod=true;
     // 代入文として展開できるかどうか。
     // ループ本体で `current = selector(item);` のような形を作るとき、
@@ -19,10 +26,12 @@ public abstract class FuncFragment {
     // これをそのまま使うのではなく、実引数へ置換して
     // `result0.Add(p + 1)` や `if ((p * 10) > 20)` のような式へ落とす。
     public string InlineBody=string.Empty;
+    // reflection 用 Type から global:: fully-qualified name を作る。
     public static string MetadataTypeName(Type type) {
         var fullName = type.FullName ?? type.Name;
         return "global::"+fullName.Replace("+",".");
     }
+    // helper struct に置く `public static TResult selector(T arg)` 本体を組み立てる。
     public string DefineMethod(string methodName) {
         var invoke = this.Type.GetMethod("Invoke");
         var parameters = invoke?.GetParameters() ?? Array.Empty<ParameterInfo>();
@@ -47,14 +56,26 @@ public abstract class FuncFragment {
         return $"public static {returnType} {methodName}({parametersList}){this.DefineLambda}";
     }
 
+    // helper struct を作れないラムダでも、生成メソッド本文の中なら delegate 式としてそのまま書ける。
+    public string RenderDelegateExpression() {
+        var parameterList = string.Join(
+            ", ",
+            global::System.Linq.Enumerable.Range(0,this.ParameterNames.Length).Select(index => $"{this.ParameterTypeNames[index]} {this.ParameterNames[index]}"));
+        var lambdaSuffix = this.DefineLambda.TrimEnd().TrimEnd(';');
+        return $"({parameterList}){lambdaSuffix}";
+    }
+
+    // 代入文として inline 展開する具体実装を派生型に任せる。
     public virtual string RenderInlineAssign(string destination,int number,params string[] arguments) {
         throw new InvalidOperationException("Inline assign is not supported.");
     }
 
+    // 条件式や Add 引数など、式位置へ inline 展開する具体実装を派生型に任せる。
     public virtual string RenderInlineExpression(params string[] arguments) {
         throw new InvalidOperationException("Inline expression is not supported.");
     }
 
+    // 代入文向け inline 展開の共通処理。
     protected string RenderInlineAssignCore(string destination,int number,params string[] arguments) {
         var builder = new StringBuilder();
         var rewrittenBody=this.InlineBody;
@@ -76,6 +97,7 @@ public abstract class FuncFragment {
         return builder.ToString();
     }
 
+    // 式位置向け inline 展開の共通処理。
     protected string RenderInlineExpressionCore(params string[] arguments) {
         var rewrittenBody=this.InlineBody;
         for(var index = 0; index<arguments.Length; index++) {

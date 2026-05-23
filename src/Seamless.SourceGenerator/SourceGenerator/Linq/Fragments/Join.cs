@@ -1,11 +1,9 @@
 ﻿namespace Seamless.SourceGenerator.Linq.Fragments;
 public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer):Enumerable(番号) {
-    // Join with comparer version
-
     public override string StructMethod => $$"""
-                                             {{this.DefineStruct(outerKeySelector,nameof(outerKeySelector))}};
-                                             {{this.DefineStruct(innerKeySelector,nameof(innerKeySelector))}};
-                                             {{this.DefineStruct(resultSelector,nameof(resultSelector))}};
+                                             {{this.DefineStruct(outerKeySelector,nameof(outerKeySelector))}}
+                                             {{this.DefineStruct(innerKeySelector,nameof(innerKeySelector))}}
+                                             {{this.DefineStruct(resultSelector,nameof(resultSelector))}}
                                              """;
     public override string GetEnumeratorStruct => $$"""
         {{outer.GetEnumeratorStruct}}
@@ -18,7 +16,7 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
         private readonly global::System.Func<{{inner.ElementType}}, {{FuncReturnTypeName(innerKeySelector)}}> {{nameof(innerKeySelector)}};
         private readonly global::System.Func<{{outer.ElementType}}, {{inner.ElementType}}, {{this.ElementType}}> {{nameof(resultSelector)}};
         private readonly global::Seamless.Linq.Enumerable.LookupImpl<{{FuncReturnTypeName(innerKeySelector)}}, {{inner.ElementType}}> {{this.lookup}};
-        private global::System.Collections.Generic.IEnumerator<{{outer.ElementType}}> {{this.e}};
+        private readonly global::System.Collections.Generic.IEnumerator<{{outer.ElementType}}> {{this.e}};
         private global::System.Collections.Generic.List<{{inner.ElementType}}>? {{this.group}};
         private int {{this.groupIndex}};
         private int {{this.state}};
@@ -72,50 +70,5 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
         """;
     public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
-    public override string GetBeginGlobal => $$"""
-        {{outer.GetBeginGlobal}}
-        {{inner.GetBeginGlobal}}
-        {{var_List(this.result,this.ElementType)}}
-        var {{this.lookup}}=new global::Seamless.Linq.Enumerable.LookupImpl<{{FuncReturnTypeName(innerKeySelector)}},{{inner.ElementType}}>({{comparer}} ?? global::System.Collections.Generic.EqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>.Default);
-        """;
-    public override string GetBeginLoopOutside => $$"""
-        {{this.result}}.Clear();
-        {{inner.GetBeginLoopOutside}}
-        {{inner.GetBeginLoop}}
-            {{inner.GetBeginLoopInside}}
-            {{this.lookup}}.Add({{this.FuncInvoke(innerKeySelector,nameof(innerKeySelector),inner.GetElement)}},{{inner.GetElement}});
-            {{inner.GetEndLoopInside}}
-        {{inner.GetEndLoop}}
-        {{inner.GetEndLoopOutside}}
-        {{outer.GetBeginLoopOutside}}
-        """;
-    public override string GetBeginLoop => $$"""
-        {{outer.GetBeginLoop}}
-    """;
-    public override string GetBeginLoopInside=>$$"""
-            {{outer.GetBeginLoopInside}}
-            foreach(var {{item}} in {{this.lookup}}[{{this.FuncInvoke(outerKeySelector,nameof(outerKeySelector),outer.GetElement)}}])
-    """;
-
-    public override string GetEndLoopInside=>$$"""
-            {{outer.GetEndLoopInside}}
-    """;
-
-    public override string GetEndLoop=>outer.GetEndLoop;
-    public override string GetEndLoopOutside =>outer.GetEndLoopOutside;
-    public override string GetEndGlobal=> $$"""
-        {{outer.GetEndGlobal}}
-        {{inner.GetEndGlobal}}
-        """;
-    public override string GetAdd => $$"""
-        {{this.result}}.Add({{this.GetElement}});
-        """;
-
-    public override string GetElement=> $$"""
-        {{this.FuncInvoke(resultSelector,nameof(resultSelector),outer.GetElement,item)}}
-        """;
-
-    public override string MoveNext => outer.MoveNext;
     public override string ElementType => FuncReturnTypeName(resultSelector);
-    public override string Result => this.result;
 }
