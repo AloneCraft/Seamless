@@ -26,6 +26,9 @@ public abstract class FuncFragment {
     // これをそのまま使うのではなく、実引数へ置換して
     // `result0.Add(p + 1)` や `if ((p * 10) > 20)` のような式へ落とす。
     public string InlineBody=string.Empty;
+    // ラムダがキャプチャしているローカル変数・外側パラメータ一覧（ラムダ引数は除く）。
+    // struct closure 時に primary ctor へそのまま渡して backing field 化する。
+    public (string Name, string TypeName)[] CapturedLocals = Array.Empty<(string Name, string TypeName)>();
     // reflection 用 Type から global:: fully-qualified name を作る。
     public static string MetadataTypeName(Type type) {
         var fullName = type.FullName ?? type.Name;

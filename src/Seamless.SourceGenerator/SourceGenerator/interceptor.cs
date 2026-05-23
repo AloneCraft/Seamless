@@ -1,7 +1,8 @@
 /*
 2026/05/23
-    innkeyKeySelector,resultKeySelector,outerKeySelectorもインライン化して
-        Join.GetEnumeratorConstructorの中にデリゲートのまま使っているがインライン展開できる時はそうして。他のメソッドでもやっていればインライン化して
+    Fragments
+        innkeyKeySelector,resultKeySelector,outerKeySelectorもインライン化して
+            Join.GetEnumeratorConstructorの中にデリゲートのまま使っているがインライン展開できる時はそうして。他のメソッドでもやっていればインライン化して
     Fragmentsフォルダ以下のクラスの全メンバーの意味をコメントに書いて
     FirstOrDefault.csには3つのクラスがある。LastOrDefault.csには1つのクラスしかない。System.Linq.Enumerableメソッドは対照的なメソッドがあるはずなので3つ定義するようにして
         コードを別のファイルに分離するのは違うメソッド名のフラグメントである
@@ -88,6 +89,7 @@
 		LINQメソッドごとに専用Fragmentを作り、enumeratorの状態遷移として意味を表現する。
         /// <summary>コメントタグで <see cref="MyNamespace.AdvancedProcessor"/> を参照してください。または、特定のメソッド <see cref="ProcessData(int)"/> へジャンプします。</summary>というインターセプト元へのリンクを書いて
 */
+// #define SEAMLESS_ENUMERATOR_MODE  // コメントを外すと常に Enumerator struct 方式になる（フラットループ無効化）
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -506,6 +508,13 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return false;
         }
 
+        // 非 static メソッドでは @this が利用可能なので、struct closure を有効化する。
+        // ContainingTypeName を全フラグメント連鎖に伝播することで、非 static ラムダを
+        // Enumerator struct の primary constructor パラメータ (@this) 経由でインライン展開できる。
+        if(!対象.Method.IsStatic) {
+            フラグメント.PropagateContainingTypeName(対象.EnclosingType.ToDisplayString(完全修飾形式));
+        }
+
         // ローカルメソッド再構成は Enumerator 断片だけを使う。
         // actual が sequence/scalar のどちらでも、必ず enumerator struct から直接評価する。
         静的メソッド群=静的メソッド連結14(静的メソッド群,フラグメント.GetEnumeratorStruct);
@@ -536,6 +545,14 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .Replace("throw NoElements();","throw global::Seamless.Linq.Enumerable.NoElements();",StringComparison.Ordinal);
 
         静的メソッド群と本体を補助クラスへ退避21(対象.MethodName,ref 静的メソッド群,ref 本体);
+
+        // フラグメントツリーから UnsafeAccessor 宣言を収集し、補助クラスの外（クラス直下）に追記する。
+        // これにより、インターセプタメソッド本体から短い名前で直接参照できる。
+        var unsafeAccessorCodes = フラグメント.CollectAllUnsafeAccessorCodes().Distinct().ToList();
+        if(unsafeAccessorCodes.Count > 0) {
+            静的メソッド群 = 静的メソッド群 + "\n" + string.Join("\n",unsafeAccessorCodes);
+        }
+
         return true;
     }
 
@@ -1021,10 +1038,23 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             && TryCreateLambdaFuncFragment(lambda,delegateType,out var lambdaSpec)) {
             var canGenerateMethod = lambda.Modifiers.Any(SyntaxKind.StaticKeyword) || IsEffectivelyStaticLambda(lambda);
             var body = lambdaSpec.Body;
-            if(semanticModel is not null
-                && containingType is not null
-                && TryGetLambdaExpressionBody(lambda,out var lambdaBody)) {
-                body=RenderExpressionForGeneratedMethod(lambdaBody,semanticModel,containingType);
+            var capturedLocals = Array.Empty<(string Name, string TypeName)>();
+            if(semanticModel is not null && TryGetLambdaExpressionBody(lambda,out var lambdaBodyExpr)) {
+                if(containingType is not null) {
+                    body=RenderExpressionForGeneratedMethod(lambdaBodyExpr,semanticModel,containingType);
+                }
+                // ラムダがキャプチャしているローカル変数・外側パラメータを検出する。
+                // lambda 自身のパラメータと暗黙の this は除外する。
+                var dataFlow = semanticModel.AnalyzeDataFlow(lambdaBodyExpr);
+                if(dataFlow?.Succeeded == true) {
+                    var paramSet = new HashSet<string>(lambdaSpec.ParameterNames,StringComparer.Ordinal);
+                    capturedLocals = dataFlow.DataFlowsIn
+                        .Where(sym => (sym is ILocalSymbol || sym is IParameterSymbol) && !paramSet.Contains(sym.Name) && sym.Name != "this")
+                        .Select(sym => (sym.Name, sym is ILocalSymbol loc
+                            ? loc.Type.ToDisplayString(完全修飾形式)
+                            : ((IParameterSymbol)sym).Type.ToDisplayString(完全修飾形式)))
+                        .ToArray();
+                }
             }
             fragment = new LambdaFunc {
                 Type = Func型解決13(lambdaSpec.ParameterTypeNames.Length),
@@ -1034,7 +1064,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 DefineLambda = $" => {body};",
                 CanGenerateMethod = canGenerateMethod,
                 CanInlineAssign = true,
-                InlineBody = body
+                InlineBody = body,
+                CapturedLocals = capturedLocals,
             };
             return true;
         }
@@ -1075,6 +1106,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
 
         var typeArguments = funcType.TypeArguments.Select(typeArgument => typeArgument.ToDisplayString(完全修飾形式)).ToArray();
         var parameterTypeNames = typeArguments.Take(typeArguments.Length-1).ToArray();
+
+        // 非 public インスタンスメソッドグループの場合は UnsafeAccessor による直接呼び出しを設定する。
+        string? unsafeAccessorMethodName = null;
+        var unsafeAccessorCode = string.Empty;
+        if(expression is MemberAccessExpressionSyntax methodGroupAccess
+            && semanticModel.GetSymbolInfo(methodGroupAccess).Symbol is IMethodSymbol methodGroupSymbol
+            && !methodGroupSymbol.IsStatic
+            && methodGroupSymbol.DeclaredAccessibility!=Accessibility.Public) {
+            unsafeAccessorMethodName = GetDelegateAccessorMethodName(methodGroupSymbol);
+            unsafeAccessorCode = RenderDelegateUnsafeAccessorCode(methodGroupSymbol);
+        }
+
         fragment = new ParameterFunc {
             ParameterName=RenderExpressionForGeneratedMethod(expression,semanticModel,containingType),
             Type=Func型解決13(parameterTypeNames.Length),
@@ -1083,6 +1126,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             ParameterNames=Array.Empty<string>(),
             CanGenerateMethod=false,
             CanInlineAssign=false,
+            UnsafeAccessorMethodName=unsafeAccessorMethodName,
+            UnsafeAccessorCode=unsafeAccessorCode,
         };
         return true;
     }
@@ -1092,29 +1137,43 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     }
 
     // ローカルメソッド再構成の主経路。
-    // Fragment が自分の enumerator 構築式を返せるなら、それをそのまま using/while で実行する。
+    // Enumerable フラグメントがフラットループをサポートする場合は末尾メソッド内にループを展開し、
+    // @this スコープで全ラムダをインライン化する。それ以外は enumerator struct + while で消費する。
     private static bool フラグメントEnumerator実行文追加37(StringBuilder builder,Fragment fragment,string actualVariableName,string actualTypeName) {
-        string enumeratorExpression;
-        try {
-            enumeratorExpression=fragment.GetEnumeratorExpression;
-        } catch(NotSupportedException) {
-            return false;
-        }
-
         const string enumeratorName = "__generatedActualEnumerator0";
         const string currentName = "__generatedActualCurrent0";
 
         if(fragment is Enumerable enumerableFragment) {
             builder.AppendLine($"var {actualVariableName}=new global::System.Collections.Generic.List<{enumerableFragment.ElementType}>();");
-            builder.AppendLine($"using var {enumeratorName}={enumeratorExpression};");
-            builder.AppendLine($"while({enumeratorName}.TryGetNext(out var {currentName})) {{");
-            builder.AppendLine($"    {actualVariableName}.Add({currentName});");
-            builder.AppendLine("}");
+#if !SEAMLESS_ENUMERATOR_MODE
+            if(enumerableFragment.SupportsFlatLoop) {
+                // フラットループ: @this が静的メソッドスコープで有効なので全ラムダをインライン化できる。
+                builder.AppendLine(enumerableFragment.GetFlatLoopCode(currentName,$"{actualVariableName}.Add({currentName});"));
+            } else
+#endif
+            {
+                string enumeratorExpression;
+                try {
+                    enumeratorExpression=fragment.GetEnumeratorExpression;
+                } catch(NotSupportedException) {
+                    return false;
+                }
+                builder.AppendLine($"using var {enumeratorName}={enumeratorExpression};");
+                builder.AppendLine($"while({enumeratorName}.TryGetNext(out var {currentName})) {{");
+                builder.AppendLine($"    {actualVariableName}.Add({currentName});");
+                builder.AppendLine("}");
+            }
             return true;
         }
 
+        string scalarEnumeratorExpression;
+        try {
+            scalarEnumeratorExpression=fragment.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return false;
+        }
         builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
-        builder.AppendLine($"using var {enumeratorName}={enumeratorExpression};");
+        builder.AppendLine($"using var {enumeratorName}={scalarEnumeratorExpression};");
         builder.AppendLine($"{enumeratorName}.TryGetNext(out {actualVariableName});");
         return true;
     }
@@ -1923,19 +1982,52 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return $"(({field.Type.ToDisplayString(完全修飾形式)}){fieldSelector}!.GetValue({receiver})!)";
     }
 
+    // メソッドグループ用の UnsafeAccessor 静的 extern メソッド名を返す。
+    private static string GetDelegateAccessorMethodName(IMethodSymbol method) {
+        var typeName = SanitizeIdentifier(method.ContainingType.Name);
+        var methodName = SanitizeIdentifier(method.Name);
+        return $"__DelegateAccess_{typeName}_{methodName}";
+    }
+
+    // メソッドグループ用の [UnsafeAccessor] extern static 宣言コードを返す。
+    private static string RenderDelegateUnsafeAccessorCode(IMethodSymbol method) {
+        var accessorName = GetDelegateAccessorMethodName(method);
+        var targetTypeName = method.ContainingType.ToDisplayString(完全修飾形式);
+        var returnTypeName = method.ReturnType.ToDisplayString(完全修飾形式);
+        var parameters = new System.Collections.Generic.List<string> { $"{targetTypeName} @this" };
+        foreach(var param in method.Parameters) {
+            parameters.Add($"{param.Type.ToDisplayString(完全修飾形式)} {param.Name}");
+        }
+        var paramList = string.Join(", ",parameters);
+        return $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"{method.Name}\")]\nprivate static extern {returnTypeName} {accessorName}({paramList});";
+    }
+
     private static string RenderDelegateCreateExpression(IMethodSymbol method,INamedTypeSymbol delegateType,string? receiver) {
         var delegateTypeName = delegateType.ToDisplayString(完全修飾形式);
         var declaringType = method.ContainingType.ToDisplayString(完全修飾形式);
-        var bindingFlags = method.IsStatic
-            ? "global::System.Reflection.BindingFlags.Static | global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.NonPublic"
-            : "global::System.Reflection.BindingFlags.Instance | global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.NonPublic";
+        // public インスタンスメソッド: @this.Method として直接バインド（リフレクション不要）
+        if(!method.IsStatic && method.DeclaredAccessibility==Accessibility.Public) {
+            return $"(({delegateTypeName}){receiver}.{method.Name})";
+        }
+        // 非 public インスタンスメソッド: UnsafeAccessor 経由のラムダでデリゲート生成（リフレクション不要）
+        if(!method.IsStatic) {
+            var accessorName = GetDelegateAccessorMethodName(method);
+            var paramNames = method.Parameters.Select(static (_, i) => $"__a{i}").ToArray();
+            var paramList = string.Join(", ",paramNames);
+            var argList = string.Join(", ",new[] { receiver }.Concat(paramNames));
+            return $"(({delegateTypeName})(({paramList}) => {accessorName}({argList})))";
+        }
+        // public static メソッド: 完全修飾名で直接参照（リフレクション不要）
+        if(method.DeclaredAccessibility==Accessibility.Public) {
+            return $"(({delegateTypeName}){declaringType}.{method.Name})";
+        }
+        // 非 public static メソッド: フォールバックとしてリフレクション
+        var bindingFlags = "global::System.Reflection.BindingFlags.Static | global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.NonPublic";
         var parameterTypes = method.Parameters.Length==0
             ? "global::System.Type.EmptyTypes"
             : $"new global::System.Type[] {{ {string.Join(", ",method.Parameters.Select(static parameter => $"typeof({parameter.Type.ToDisplayString(完全修飾形式)})"))} }}";
         var methodInfo = $"typeof({declaringType}).GetMethod(\"{method.Name}\", {bindingFlags}, null, {parameterTypes}, null)!";
-        return method.IsStatic
-            ? $"({delegateTypeName})global::System.Delegate.CreateDelegate(typeof({delegateTypeName}), {methodInfo})"
-            : $"({delegateTypeName})global::System.Delegate.CreateDelegate(typeof({delegateTypeName}), {receiver}, {methodInfo})";
+        return $"({delegateTypeName})global::System.Delegate.CreateDelegate(typeof({delegateTypeName}), {methodInfo})";
     }
 
     private static bool TryRenderSimpleLocalMethodBody(Linq傍受対象型 target,out string body) {

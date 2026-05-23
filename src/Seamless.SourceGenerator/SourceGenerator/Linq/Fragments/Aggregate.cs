@@ -1,12 +1,22 @@
-﻿namespace Seamless.SourceGenerator.Linq.Fragments;
+namespace Seamless.SourceGenerator.Linq.Fragments;
 public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : Scalar(番号) {
-    public override string StructMethod => this.DefineStruct(func,nameof(func));
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(func,nameof(func))})";
+    public override string StructMethod => NeedsStructClosure(func) ? string.Empty : this.DefineStruct(func,nameof(func));
+    public override string GetEnumeratorExpression =>
+        NeedsStructClosure(func)
+            ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.ClosureArgsSuffix(func)})"
+            : func.CanInlineAssign && func.CanGenerateMethod
+                ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression})"
+                : $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(func,nameof(func))})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{this.DefineScalarEnumeratorStruct(source.ElementType)}}
         """;
-    public override string GetEnumeratorPrimaryConstructorParameters => $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, global::System.Func<{source.ElementType}, {source.ElementType}, {source.ElementType}> func";
+    public override string GetEnumeratorPrimaryConstructorParameters =>
+        NeedsStructClosure(func)
+            ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, {this.ClosurePrimaryCtorSuffix(func)}"
+            : func.CanInlineAssign && func.CanGenerateMethod
+                ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source"
+                : $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, global::System.Func<{source.ElementType}, {source.ElementType}, {source.ElementType}> func";
     public override string GetEnumeratorFields => $$"""
         private readonly global::System.Collections.Generic.IEnumerator<{{source.ElementType}}> {{this.e}} = source.GetEnumerator();
         private {{source.ElementType}} {{this.currentValue}} = default!;
@@ -23,7 +33,7 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
         }
         var {{this.result}} = {{this.e}}.Current;
         while({{this.e}}.MoveNext()) {
-            {{this.result}} = {{nameof(func)}}({{this.result}}, {{this.e}}.Current);
+            {{this.result}} = {{this.FuncInvokeField(func,nameof(func),this.result,$"{this.e}.Current")}};
         }
         {{this.currentValue}} = {{this.result}};
         current = {{this.currentValue}};
@@ -34,13 +44,23 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
 }
 
 public class Aggregate_seed_func(int 番号, Enumerable source,string seed, FuncFragment func) : Scalar(番号) {
-    public override string StructMethod => this.DefineStruct(func,nameof(func));
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(func,nameof(func))})";
+    public override string StructMethod => NeedsStructClosure(func) ? string.Empty : this.DefineStruct(func,nameof(func));
+    public override string GetEnumeratorExpression =>
+        NeedsStructClosure(func)
+            ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.ClosureArgsSuffix(func)})"
+            : func.CanInlineAssign && func.CanGenerateMethod
+                ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression})"
+                : $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(func,nameof(func))})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{this.DefineScalarEnumeratorStruct(FuncParameterTypeName(func,0))}}
         """;
-    public override string GetEnumeratorPrimaryConstructorParameters => $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, global::System.Func<{FuncParameterTypeName(func,0)}, {source.ElementType}, {FuncReturnTypeName(func)}> func";
+    public override string GetEnumeratorPrimaryConstructorParameters =>
+        NeedsStructClosure(func)
+            ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, {this.ClosurePrimaryCtorSuffix(func)}"
+            : func.CanInlineAssign && func.CanGenerateMethod
+                ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source"
+                : $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, global::System.Func<{FuncParameterTypeName(func,0)}, {source.ElementType}, {FuncReturnTypeName(func)}> func";
     public override string GetEnumeratorFields => $$"""
         private readonly global::System.Collections.Generic.IEnumerator<{{source.ElementType}}> {{this.e}} = source.GetEnumerator();
         private {{FuncParameterTypeName(func,0)}} {{this.currentValue}} = default!;
@@ -54,7 +74,7 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
         {{this.yielded}} = true;
         var {{this.result}} = {{seed}};
         while({{this.e}}.MoveNext()) {
-            {{this.result}} = {{nameof(func)}}({{this.result}}, {{this.e}}.Current);
+            {{this.result}} = {{this.FuncInvokeField(func,nameof(func),this.result,$"{this.e}.Current")}};
         }
         {{this.currentValue}} = {{this.result}};
         current = {{this.currentValue}};
@@ -66,8 +86,8 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
 
 public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,string seed, FuncFragment func,FuncFragment resultSelector) : Scalar(番号) {
     public override string StructMethod => $$"""
-        {{this.DefineStruct(func,nameof(func))}}
-        {{this.DefineStruct(resultSelector,nameof(resultSelector))}}
+        {{(NeedsStructClosure(func) ? string.Empty : this.DefineStruct(func,nameof(func)))}}
+        {{(NeedsStructClosure(resultSelector) ? string.Empty : this.DefineStruct(resultSelector,nameof(resultSelector)))}}
         """;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(func,nameof(func))}, {this.FuncDelegate(resultSelector,nameof(resultSelector))})";
     public override string GetEnumeratorStruct => $$"""

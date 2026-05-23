@@ -45,6 +45,67 @@ public abstract class Fragment(
     private protected string groupIndex => $"groupIndex{番号}";
     // Join/Zip 系で外側要素を保持する変数名。
     private protected string outerValue => $"outerValue{番号}";
+    // struct closure: 含有クラスの完全修飾型名。null なら @this 不使用。
+    public string? ContainingTypeName { get; set; }
+
+    // struct closure が必要かどうか判定。
+    // @this（ContainingTypeName）またはキャプチャローカル（CapturedLocals）を primary ctor に渡してインライン展開する場合に true。
+    private protected bool NeedsStructClosure(FuncFragment func) =>
+        func.CanInlineAssign && !func.CanGenerateMethod &&
+        (ContainingTypeName is not null || func.CapturedLocals.Length > 0);
+
+    // struct primary ctor の closure パラメータ部分（@this と captured locals）を生成する。
+    private protected string ClosurePrimaryCtorSuffix(FuncFragment func) {
+        var parts = new List<string>();
+        if(ContainingTypeName is not null) {
+            parts.Add($"{ContainingTypeName} @this");
+        }
+        foreach(var (name,typeName) in func.CapturedLocals) {
+            parts.Add($"{typeName} {name}");
+        }
+        return string.Join(", ",parts);
+    }
+
+    // new Struct(...) の closure 引数部分（@this と captured locals）を生成する。
+    private protected string ClosureArgsSuffix(FuncFragment func) {
+        var parts = new List<string>();
+        if(ContainingTypeName is not null) {
+            parts.Add("@this");
+        }
+        foreach(var (name,_) in func.CapturedLocals) {
+            parts.Add(name);
+        }
+        return string.Join(", ",parts);
+    }
+
+    // ContainingTypeName をこの断片と全子断片に再帰的に伝播する。
+    // リフレクションで Fragment 型フィールドを走査するため、個別の override は不要。
+    public virtual void PropagateContainingTypeName(string? name) {
+        ContainingTypeName = name;
+        foreach(var field in GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)) {
+            if(typeof(Fragment).IsAssignableFrom(field.FieldType) && field.GetValue(this) is Fragment child) {
+                child.PropagateContainingTypeName(name);
+            }
+        }
+    }
+
+    // UnsafeAccessor コードを断片ツリー全体から収集する。
+    // リフレクションで FuncFragment / Fragment 型フィールドを再帰的に走査する。
+    public IEnumerable<string> CollectAllUnsafeAccessorCodes() {
+        foreach(var field in GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)) {
+            if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
+                && field.GetValue(this) is ParameterFunc paramFunc
+                && !string.IsNullOrEmpty(paramFunc.UnsafeAccessorCode)) {
+                yield return paramFunc.UnsafeAccessorCode;
+            }
+            if(typeof(Fragment).IsAssignableFrom(field.FieldType)
+                && field.GetValue(this) is Fragment child) {
+                foreach(var code in child.CollectAllUnsafeAccessorCodes())
+                    yield return code;
+            }
+        }
+    }
+
     // 補助 struct 群の宣言本体。不要なら空文字列を返す。
     public abstract string StructMethod { get; }
     // ValueEnumerable/IValueEnumerator 用の struct 定義本体。
@@ -109,15 +170,16 @@ public abstract class Fragment(
             return $"{methodName}({argumentList})";
         }
         if(func.CanInlineAssign) {
-            // static ラムダはローカルメソッド本文の展開では helper 呼び出しにしない。
-            // 以前は `Struct1_selector.selector(ite2)` のような形を生成していたが、
-            // それだと「最終的に何を計算しているか」が生成コードから読み取りづらい。
-            // ここでラムダ本体の式へ直接落とすことで、
-            // `result0.Add(((ite2) * 10));` のような形にできる。
-            //
-            // なお ParameterFunc は実行時 delegate なのでインライン化できず、
-            // その場合だけ従来どおり delegate 呼び出しを残す。
+            // 非 static ラムダかつ struct closure なし: primary ctor にデリゲートとして渡すので名前で呼び出す。
+            if(!func.CanGenerateMethod && ContainingTypeName is null && func.CapturedLocals.Length == 0) {
+                return $"{methodName}({argumentList})";
+            }
+            // static ラムダ、@this struct closure、またはキャプチャローカル struct closure:
+            // ラムダ本体を直接展開する（captured locals は primary ctor backing field として参照できる）。
             return func.RenderInlineExpression(arguments);
+        }
+        if(!func.CanGenerateMethod) {
+            return $"{methodName}({argumentList})";
         }
         return $"{this.FuncStructName(methodName)}.{methodName}({argumentList})";
     }
@@ -125,9 +187,10 @@ public abstract class Fragment(
     // 代入文が必要なときの共通ヘルパー。
     private protected string FuncAssign(FuncFragment func,string methodName,string destination,params string[] arguments) {
         if(func.CanInlineAssign) {
-            // 代入文を作る側も同じ理由で helper メソッド化しない。
-            // `destination = selector(item);` をそのまま関数呼び出しへせず、
-            // ラムダ本体を埋め込んだ代入文へ変換する。
+            // 非 static ラムダかつ struct closure なし: デリゲートフォールバック。
+            if(!func.CanGenerateMethod && ContainingTypeName is null && func.CapturedLocals.Length == 0) {
+                return $"{destination}={this.FuncInvoke(func,methodName,arguments)};";
+            }
             return func.RenderInlineAssign(destination,番号,arguments);
         }
 
@@ -171,6 +234,40 @@ public abstract class Fragment(
             ? $"private struct {Struct}{typeParameters} : {interfaceType} {{"
             : $"private struct {Struct}{typeParameters}({this.GetEnumeratorPrimaryConstructorParameters}) : {interfaceType} {{";
     }
+
+    // struct の TryGetNext 内で使う。static ラムダまたは struct closure ならインライン展開、それ以外はデリゲートフィールド呼び出し。
+    private protected string FuncInvokeField(FuncFragment func,string methodName,params string[] arguments) {
+        var argumentList = string.Join(", ",arguments);
+        if(func.CanGenerateMethod || NeedsStructClosure(func)) {
+            // captured locals は primary ctor backing field として struct 内で直接参照できるのでインライン展開可能。
+            return func.RenderInlineExpression(arguments);
+        }
+        // ParameterFunc または非 static ラムダ（closure なし）: フィールドとして保持しているのでフィールド名で呼び出す。
+        return $"{methodName}({argumentList})";
+    }
+
+    // フラットループ内で使う。全ラムダをインライン展開（@this が静的メソッドスコープで有効）。
+    // ParameterFunc かつ UnsafeAccessorMethodName が設定されている場合はデリゲート生成なしで直接呼び出す。
+    // それ以外の ParameterFunc は ParameterName をキャスト式として括弧で囲んで呼び出す。
+    private protected string FuncInvokeFlat(FuncFragment func,string methodName,params string[] arguments) {
+        var argumentList = string.Join(", ",arguments);
+        if(func is ParameterFunc parameterFunc) {
+            if(parameterFunc.UnsafeAccessorMethodName is string accessorName) {
+                // UnsafeAccessor 経由で直接呼び出し（デリゲート生成なし）
+                return $"{accessorName}(@this, {argumentList})";
+            }
+            return $"({parameterFunc.ParameterName})({argumentList})";
+        }
+        return func.RenderInlineExpression(arguments);
+    }
+
+    // terminal チェーンでフラットループ生成をサポートするかどうか。
+    public virtual bool SupportsFlatLoop => false;
+
+    // フラットループ生成。elementVariable に各要素を束縛し bodyCode を実行するコードを返す。
+    // 末尾メソッドのスコープに展開されるため @this が使用可能。
+    public virtual string GetFlatLoopCode(string elementVariable,string bodyCode) =>
+        throw new System.NotSupportedException($"{this.GetType().Name} does not support flat loop code generation.");
 
     // Carrier 側で Func delegate をそのまま渡すための式。
     private protected string FuncDelegate(FuncFragment func,string methodName) {

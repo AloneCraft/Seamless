@@ -8,6 +8,16 @@ public sealed class EnumerableQuery1 {
     private readonly int instanceOffset = 1;
 
     [Fact, Trait("Category","Unit")]
+    public void Aggregate_func_InstanceDelegate1() {
+        Aggregate_func_InstanceDelegate1Impl();
+    }
+    public void Aggregate_func_InstanceDelegate1Impl() {
+        var x = 1;
+        var expected=SystemEnumerable.Aggregate(Source(),(left,right) => left+right+x);
+        var actual=Source().Aggregate((left,right) => left+right+x);
+        Assert.Equal(expected,actual);
+    }
+    [Fact, Trait("Category","Unit")]
     public void Aggregate_func_InstanceDelegate() {
         var x = 1;
         var expected=SystemEnumerable.Aggregate(Source(),(left,right) => left+right+x);
