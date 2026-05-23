@@ -6,12 +6,18 @@ public class Select_index(int 番号, Enumerable source, FuncFragment selector) 
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => selector.CanInlineAssign
-        ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression})"
-        : $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(selector,nameof(selector))})";
-    public override string GetEnumeratorPrimaryConstructorParameters => selector.CanInlineAssign
-        ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source"
-        : $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, global::System.Func<{source.ElementType}, int, {this.ElementType}> selector";
+    public override string GetEnumeratorExpression =>
+        NeedsStructClosure(selector)
+            ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.ClosureArgsSuffix(selector)})"
+            : selector.CanInlineAssign && selector.CanGenerateMethod
+                ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression})"
+                : $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(selector,nameof(selector))})";
+    public override string GetEnumeratorPrimaryConstructorParameters =>
+        NeedsStructClosure(selector)
+            ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, {this.ClosurePrimaryCtorSuffix(selector)}"
+            : selector.CanInlineAssign && selector.CanGenerateMethod
+                ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source"
+                : $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, global::System.Func<{source.ElementType}, int, {this.ElementType}> selector";
     public override string GetEnumeratorFields => $$"""
         private readonly global::System.Collections.Generic.IEnumerator<{{source.ElementType}}> {{this.e}} = source.GetEnumerator();
         private {{this.ElementType}} {{this.currentValue}} = default!;
