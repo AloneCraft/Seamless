@@ -318,6 +318,34 @@ public abstract class Fragment(
         throw new InvalidOperationException($"Could not determine sequence element type from '{sequenceTypeName}'.");
     }
 
+    // static Compute(TEnum source, ...) の追加引数部分（field initializer の呼び出し側）
+    private protected string ComputeExtraArgs(FuncFragment func,string funcName) =>
+        NeedsStructClosure(func) ? $", {ClosureArgsSuffix(func)}" :
+        !func.CanInlineAssign ? $", {funcName}" : "";
+
+    // static Compute(TEnum source, ...) のシグネチャ追加パラメータ部分
+    private protected string ComputeExtraParams(FuncFragment func,string funcTypeName,string funcName) =>
+        NeedsStructClosure(func) ? $", {ClosurePrimaryCtorSuffix(func)}" :
+        !func.CanInlineAssign ? $", {funcTypeName} {funcName}" : "";
+
+    // static Compute ボディ内での関数呼び出し（外部スコープに依存しない形式）
+    private protected string StaticComputeFuncInvoke(FuncFragment func,string funcName,params string[] arguments) {
+        var argList = string.Join(", ",arguments);
+        return func.CanInlineAssign
+            ? func.RenderInlineExpression(arguments)
+            : $"{funcName}({argList})";
+    }
+
+    // primary ctor に追加すべきパラメータ（クロージャまたはデリゲート）
+    private protected string FuncPrimaryCtorExtra(FuncFragment func,string funcTypeName,string funcName) =>
+        NeedsStructClosure(func) ? $", {ClosurePrimaryCtorSuffix(func)}" :
+        !func.CanInlineAssign ? $", {funcTypeName} {funcName}" : "";
+
+    // new Struct(...) に追加すべき引数（クロージャまたはデリゲート）
+    private protected string FuncEnumeratorArgExtra(FuncFragment func,string funcName) =>
+        NeedsStructClosure(func) ? $", {ClosureArgsSuffix(func)}" :
+        !func.CanInlineAssign ? $", {FuncDelegate(func,funcName)}" : "";
+
     // FuncFragment から index 番目の引数型名を取り出す。
     private protected static string FuncParameterTypeName(FuncFragment func,int index) {
         if(func.ParameterTypeNames.Length>index&&!string.IsNullOrEmpty(func.ParameterTypeNames[index])) {
