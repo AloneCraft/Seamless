@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>preview</LangVersion>
     <Features>InterceptorsPreview</Features>
-    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Seamless.SourceGenerator.Generated</InterceptorsPreviewNamespaces>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <RootNamespace>Test.Seamless</RootNamespace>
@@ -64,5 +64,4 @@
     <ProjectReference Include="..\..\src\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>
-
 

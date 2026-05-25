@@ -278,11 +278,12 @@ namespace Test.Seamless.Database.Database0 {
         }
 
         private static void AssertConcreteInterceptor(string containingMethodName,string linqMethodName) {
-            var interceptorType = typeof(SourceGeneratorExample).Assembly.GetType("Seamless.SourceGenerator.Generated.LinqInvocationInterceptors");
-            Assert.NotNull(interceptorType);
-
-            var interceptors = interceptorType!
-                .GetMethods(BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic)
+            var interceptors = typeof(SourceGeneratorExample).Assembly
+                .GetTypes()
+                .Where(type => type.Namespace?.StartsWith("Intercept.",StringComparison.Ordinal)==true
+                    || type.Namespace=="Intercept")
+                .SelectMany(type => type.GetMethods(BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic))
+                .Where(method => method.Name.StartsWith("OptimizedLinq_",StringComparison.Ordinal))
                 .Where(method => !method.IsGenericMethodDefinition)
                 .ToArray();
 

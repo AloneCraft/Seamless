@@ -69,7 +69,8 @@ public sealed class LambdaStrategySourceTests {
         var matches = Directory
             .EnumerateFiles(generatedRoot,"*.g.cs",SearchOption.AllDirectories)
             .Select(File.ReadAllText)
-            .Where(static text => text.Contains("internal static partial class LinqInvocationInterceptors",StringComparison.Ordinal))
+            .Where(static text => text.Contains("namespace Intercept.",StringComparison.Ordinal)
+                || text.Contains("namespace Intercept {",StringComparison.Ordinal))
             .Where(static text => text.Contains(nameof(ExplicitStaticDelegateProbe),StringComparison.Ordinal))
             .ToArray();
 
