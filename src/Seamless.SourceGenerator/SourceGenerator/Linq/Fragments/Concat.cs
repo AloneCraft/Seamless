@@ -17,7 +17,7 @@ public class Concat(int 番号, Enumerable source, Enumerable second) : Buffered
         private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum1 source, TEnum2 second) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             while(source.MoveNext()) result.Add(source.Current);
-            while(second.MoveNext()) result.Add(({{source.ElementType}})(object)second.Current!);
+            while(second.MoveNext()) result.Add(second.Current);
             return result;
         }
         """;

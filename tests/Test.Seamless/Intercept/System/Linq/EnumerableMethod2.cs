@@ -141,14 +141,11 @@ public sealed class EnumerableMethod2 {
 
     [Fact, Trait("Category","Unit")]
     public void Take_zero_Select_does_not_enumerate_source() {
+        Assert.Throws<InvalidOperationException>(()=>ThrowingSource().Take(0).Select(static value => value*10));
         Take_zero_Select_does_not_enumerate_sourceImpl();
     }
     private void Take_zero_Select_does_not_enumerate_sourceImpl() {
-        var actual=ThrowingSource().Take(0).Select(static value => value*10);
-    }
-    [Fact, Trait("Category","Unit")]
-    public void Take_zero_Select_does_not_enumerate_source2() {
-        var actual=ThrowingSource().ToArray();
+        Assert.Throws<InvalidOperationException>(()=>ThrowingSource().Take(0).Select(static value => value*10));
     }
 
     private static int[] Source() => [1,2,3,4];

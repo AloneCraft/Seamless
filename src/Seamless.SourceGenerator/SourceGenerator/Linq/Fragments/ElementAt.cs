@@ -12,7 +12,7 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
             if(index < 0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
             var currentIndex = 0;
             while(source.MoveNext()) {
-                if(currentIndex == index) return ({{resultType}})(object)source.Current!;
+                if(currentIndex == index) return source.Current;
                 currentIndex++;
             }
             throw new global::System.ArgumentOutOfRangeException(nameof(index));

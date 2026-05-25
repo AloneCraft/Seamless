@@ -12,7 +12,7 @@ public class Cast(int 番号, Enumerable source, string resultElementType) : Enu
     public override string GetEnumeratorFields => $"private {resultElementType} {this.currentValue} = default!;";
     public override string GetTryGetNextBody => $$"""
         if({{this.e}}.MoveNext()) {
-            {{this.currentValue}} = ({{resultElementType}})(object){{this.e}}.Current!;
+            {{this.currentValue}} = ({{resultElementType}}){{this.e}}.Current!;
             current = {{this.currentValue}};
             return true;
         }

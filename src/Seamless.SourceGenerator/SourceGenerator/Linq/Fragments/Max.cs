@@ -13,10 +13,10 @@ public abstract class MinMaxBase(int 番号, Enumerable source, string resultTyp
     protected override string ComputeMembers => $$"""
         private static {{resultType}} Compute(TEnum source) {
             if(!source.MoveNext()) throw global::Seamless.Linq.Enumerable.NoElements();
-            {{resultType}} result = ({{resultType}})(object)source.Current!;
+            {{resultType}} result = source.Current;
             var comparer = global::System.Collections.Generic.Comparer<{{resultType}}>.Default;
             while(source.MoveNext()) {
-                var value = ({{resultType}})(object)source.Current!;
+                var value = source.Current;
                 if({{(direction=="greater" ? "comparer.Compare(value, result) > 0" : "comparer.Compare(value, result) < 0")}}) result = value;
             }
             return result;
@@ -40,11 +40,11 @@ public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFrag
         private static {{resultType}} Compute(TEnum source) {
             if(!source.MoveNext()) throw global::Seamless.Linq.Enumerable.NoElements();
             var {{this.item}} = source.Current;
-            {{resultType}} result = ({{resultType}})(object){{this.FuncInvoke(selector,nameof(selector),this.item)}}!;
+            {{resultType}} result = {{this.FuncInvoke(selector,nameof(selector),this.item)}};
             var comparer = global::System.Collections.Generic.Comparer<{{resultType}}>.Default;
             while(source.MoveNext()) {
                 {{this.item}} = source.Current;
-                var value = ({{resultType}})(object){{this.FuncInvoke(selector,nameof(selector),this.item)}}!;
+                var value = {{this.FuncInvoke(selector,nameof(selector),this.item)}};
                 if({{(direction=="greater" ? "comparer.Compare(value, result) > 0" : "comparer.Compare(value, result) < 0")}}) result = value;
             }
             return result;

@@ -9,9 +9,9 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
     protected override string ComputeExpression => $"Compute({this.e})";
     protected override string ComputeMembers => $$"""
         private static {{resultType}} Compute(TEnum source) {
-            dynamic sum = default({{resultType}})!;
-            while(source.MoveNext()) sum += (dynamic)source.Current!;
-            return ({{resultType}})sum;
+            {{resultType}} sum = default!;
+            while(source.MoveNext()) sum += source.Current;
+            return sum;
         }
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
@@ -30,12 +30,12 @@ public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, 
     protected override string ComputeExpression => $"Compute({this.e})";
     protected override string ComputeMembers => $$"""
         private static {{resultType}} Compute(TEnum source) {
-            dynamic sum = default({{resultType}})!;
+            {{resultType}} sum = default!;
             while(source.MoveNext()) {
                 var {{this.item}} = source.Current;
-                sum += (dynamic){{this.FuncInvoke(selector,nameof(selector),this.item)}}!;
+                sum += {{this.FuncInvoke(selector,nameof(selector),this.item)}};
             }
-            return ({{resultType}})sum;
+            return sum;
         }
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";

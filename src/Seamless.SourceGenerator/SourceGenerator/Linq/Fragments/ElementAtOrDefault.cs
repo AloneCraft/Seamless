@@ -11,7 +11,7 @@ public class ElementAtOrDefault(int 番号, Enumerable source, string index, str
             if(index < 0) return default!;
             var currentIndex = 0;
             while(source.MoveNext()) {
-                if(currentIndex == index) return ({{resultType}})(object)source.Current!;
+                if(currentIndex == index) return source.Current;
                 currentIndex++;
             }
             return default!;

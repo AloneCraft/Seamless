@@ -11,7 +11,7 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
         private static {{resultType}} Compute(TEnum source) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             while(source.MoveNext()) result.Add(source.Current);
-            return ({{resultType}})(object)result;
+            return result;
         }
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";

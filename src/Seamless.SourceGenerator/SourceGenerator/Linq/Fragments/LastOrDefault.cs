@@ -9,7 +9,7 @@ public class LastOrDefault(int 番号, Enumerable source, string resultType) : B
     protected override string ComputeMembers => $$"""
         private static {{resultType}} Compute(TEnum source) {
             {{resultType}} result = default!;
-            while(source.MoveNext()) result = ({{resultType}})(object)source.Current!;
+            while(source.MoveNext()) result = source.Current;
             return result;
         }
         """;

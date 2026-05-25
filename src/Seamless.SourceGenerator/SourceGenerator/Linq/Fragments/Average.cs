@@ -16,7 +16,7 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
                 count++;
             }
             if(count == 0) throw global::Seamless.Linq.Enumerable.NoElements();
-            return ({{resultType}})(object)(sum / count);
+            return ({{resultType}})(sum / count);
         }
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
@@ -43,7 +43,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                 count++;
             }
             if(count == 0) throw global::Seamless.Linq.Enumerable.NoElements();
-            return ({{resultType}})(object)(sum / count);
+            return ({{resultType}})(sum / count);
         }
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";

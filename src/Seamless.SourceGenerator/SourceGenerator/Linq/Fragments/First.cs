@@ -9,7 +9,7 @@ public class First(int 番号, Enumerable source, string resultType) : BufferedS
     protected override string ComputeExpression => $"Compute({this.e})";
     protected override string ComputeMembers => $$"""
         private static {{resultType}} Compute(TEnum source) {
-            if(source.MoveNext()) return ({{resultType}})(object)source.Current!;
+            if(source.MoveNext()) return source.Current;
             throw global::Seamless.Linq.Enumerable.NoElements();
         }
         """;
@@ -31,7 +31,7 @@ public class First_predicate(int 番号, Enumerable source, FuncFragment predica
         private static {{resultType}} Compute(TEnum source) {
             while(source.MoveNext()) {
                 var {{this.item}} = source.Current;
-                if({{this.FuncInvoke(predicate,nameof(predicate),this.item)}}) return ({{resultType}})(object){{this.item}}!;
+                if({{this.FuncInvoke(predicate,nameof(predicate),this.item)}}) return {{this.item}};
             }
             throw global::Seamless.Linq.Enumerable.NoElements();
         }
