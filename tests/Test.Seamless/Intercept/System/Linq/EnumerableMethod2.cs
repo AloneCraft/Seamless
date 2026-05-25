@@ -4,8 +4,55 @@ using SystemEnumerable = System.Linq.Enumerable;
 namespace Test.Seamless.Intercept.System.Linq;
 
 public sealed class EnumerableMethod2 {
-    [Fact, Trait("Category","Unit")]
-    public void Join_Where() {
+    [Fact, Trait("Category","Unit")]public static void SelctMany() {
+        SelctManyImpl();
+        SelctMany内部Where外出し不可Impl();
+        SelctMany内部WhereImpl();
+        SelctMany内部WhereをDictionaryにして外出しImpl();
+    }
+    private static void SelctManyImpl() {
+        var actual=Source().SelectMany(
+            p=>Source()
+        );
+    }
+    private static void SelctMany内部Where外出し不可Impl() {
+        var actual=Source().SelectMany(
+            p=>Source().Where(q=>q!=p)
+        );
+    }
+    private static void SelctMany内部WhereImpl() {
+        var actual=Source().SelectMany(
+            p=>Source().Where(q=>q==1)
+        );
+    }
+    private static void SelctMany内部WhereをDictionaryにして外出しImpl() {
+        /*
+        var actual=Source().SelectMany(
+            p=>Source().CreateDictionary(q=>q/2).Equal(p)
+        );
+        ↓
+        var Dictionary=Source().CreateDictionary(q=>q/2);
+        var actual=Source().SelectMany(
+            p=>Dictionary.Equal(p)
+        );
+        ↓CreateDictionaryをインライン展開
+        var Dictionary=new Dictionary<TKey,List<T>>();
+        foreach(var a in Source()){
+            if(Dictionary.TryGetValue(a/2,out var List)){
+                List.Add(a);
+            }else{
+                Dictionary.Add(new List<T>{a});
+            }
+        }
+        var actual=Source().SelectMany(
+            p=>Dictionary.Equal(p)
+        );
+         */
+        var actual=Source().SelectMany(
+            p=>Source().Where(q=>q==p)
+        );
+    }
+    [Fact, Trait("Category","Unit")]public void Join_Where() {
         Join_WhereImpl();
     }
     private void Join_WhereImpl() {

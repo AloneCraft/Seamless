@@ -122,6 +122,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandNullable
             | SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
             | SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
+    private static readonly SymbolDisplayFormat cref形式 = new(
+        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
     // Fragments.Fragment を継承した具体型を列挙し、ローカルメソッド再生成にもそのまま使う。
     // これで Aggregate の overload 個別対応を増やすたびに辞書を手で更新しなくてよい。
     private static readonly IReadOnlyDictionary<string,ImmutableArray<フラグメント候補>> フラグメント候補一覧 = フラグメント候補一覧構築23();
@@ -353,6 +358,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     private static string インターセプターソース構築(ImmutableArray<Linq傍受対象型> targets) {
         var builder = new StringBuilder();
         builder.AppendLine("#nullable enable");
+        builder.AppendLine("using System.Linq;");
         builder.AppendLine("namespace System.Runtime.CompilerServices {");
         builder.AppendLine("    [global::System.AttributeUsage(global::System.AttributeTargets.Method,AllowMultiple=true)]");
         builder.AppendLine("    file sealed class InterceptsLocationAttribute : global::System.Attribute {");
@@ -382,10 +388,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                     var ローカル静的メソッド群 = string.Empty;
                     var ローカル本体 = string.Empty;
                     if(生成ローカルメソッド本体構築0(target,out ローカル静的メソッド群,out ローカル本体,emittedUnsafeAccessors)) {
-                        builder.AppendLine($"        /// <summary>Intercepts {target.Method.Name} inside {target.ContainingMethodName}.</summary>");
                         if(!string.IsNullOrWhiteSpace(ローカル静的メソッド群)) {
                             インデント付き追記(builder,ローカル静的メソッド群,"        ");
                         }
+                        インターセプターXmlコメント追加(builder,target);
                         builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
                         builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
                         builder.AppendLine($"        public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
@@ -396,6 +402,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                         continue;
                     }
 
+                    インターセプターXmlコメント追加(builder,target);
                     builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
                     builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
                     builder.AppendLine($"        public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
@@ -456,7 +463,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 }
 
                 emittedMethodNames.Add(target.MethodName);
-                builder.AppendLine($"        /// <summary>Intercepts {target.Method.Name} inside {target.ContainingMethodName}.</summary>");
+                インターセプターXmlコメント追加(builder,target);
                 builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
                 builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
                 builder.AppendLine($"        public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
@@ -474,6 +481,31 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         builder.AppendLine("}");
         return 生成ソース整形(builder.ToString());
     }
+
+    private static void インターセプターXmlコメント追加(StringBuilder builder,Linq傍受対象型 target) {
+        var cref = Xml属性値エスケープ(メソッドCref構築(target.Method));
+        var originalName = Xmlテキストエスケープ(target.Method.Name);
+        builder.AppendLine($"        /// <summary>Intercepts <see cref=\"{cref}\" /> ({originalName}).</summary>");
+    }
+
+    private static string メソッドCref構築(IMethodSymbol method) {
+        var containingType = method.ContainingType.ToDisplayString(cref形式);
+        var parameters = string.Join(",",method.Parameters.Select(static parameter => parameter.Type.ToDisplayString(cref形式)));
+        return $"{containingType}.{method.Name}({parameters})";
+    }
+
+    private static string Xml属性値エスケープ(string text) =>
+        text
+            .Replace("&","&amp;",StringComparison.Ordinal)
+            .Replace("\"","&quot;",StringComparison.Ordinal)
+            .Replace("<","&lt;",StringComparison.Ordinal)
+            .Replace(">","&gt;",StringComparison.Ordinal);
+
+    private static string Xmlテキストエスケープ(string text) =>
+        text
+            .Replace("&","&amp;",StringComparison.Ordinal)
+            .Replace("<","&lt;",StringComparison.Ordinal)
+            .Replace(">","&gt;",StringComparison.Ordinal);
 
     // ローカルメソッドを丸ごと再構成し、actual 代入文だけをフラグメント実行へ差し替える。
     private static bool 生成ローカルメソッド本体構築0(Linq傍受対象型 対象,out string 静的メソッド群,out string 本体,HashSet<string>? emittedUnsafeAccessors = null) {
@@ -1250,7 +1282,17 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             }
             return $"{variable.Identifier.ValueText}={RenderExpressionForGeneratedMethod(variable.Initializer.Value,semanticModel,containingType)}";
         });
-        return $"{statement.Declaration.Type} {string.Join(", ",variables)};";
+        var declType=statement.Declaration.Type;
+        string typeName;
+        if(declType is IdentifierNameSyntax { IsVar: true }) {
+            typeName="var";
+        } else {
+            var typeSymbol=semanticModel.GetTypeInfo(declType).Type;
+            typeName=typeSymbol is not null
+                ? typeSymbol.ToDisplayString(完全修飾形式)
+                : NormalizeExpressionText(declType.ToString());
+        }
+        return $"{typeName} {string.Join(", ",variables)};";
     }
 
     private static int フラグメント番号初期値取得18() => 0;
@@ -1410,16 +1452,17 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return;
         }
 
-        var 補助クラス名 = $"{SanitizeIdentifier(methodName)}_補助0";
-        staticMethods = $$"""
-            private static class {{補助クラス名}}{
-            {{staticMethods.Replace("private struct ","public struct ",StringComparison.Ordinal)}}
-            }
-            """;
+        var prefix = $"{SanitizeIdentifier(methodName)}_補助0_";
+        const string pattern = @"\bStruct(?<番号>\d+)(?<接尾辞>_[A-Za-z_][A-Za-z0-9_]*)?\b";
+        staticMethods = System.Text.RegularExpressions.Regex.Replace(
+            staticMethods,
+            pattern,
+            $"{prefix}Struct${{番号}}${{接尾辞}}",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         body = System.Text.RegularExpressions.Regex.Replace(
             body,
-            @"\bStruct(?<番号>\d+)(?<接尾辞>_[A-Za-z_][A-Za-z0-9_]*)?\b",
-            $"{補助クラス名}.Struct${{番号}}${{接尾辞}}",
+            pattern,
+            $"{prefix}Struct${{番号}}${{接尾辞}}",
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
     }
 
@@ -1924,6 +1967,20 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 StringComparison.Ordinal);
         }
 
+        foreach(var param in expression.DescendantNodesAndSelf().OfType<ParameterSyntax>()) {
+            if(param.Type is null) continue;
+            var typeSymbol=semanticModel.GetTypeInfo(param.Type).Type;
+            if(typeSymbol is null) continue;
+            var qualifiedName=typeSymbol.ToDisplayString(完全修飾形式);
+            var originalName=NormalizeExpressionText(param.Type.ToString());
+            if(originalName==qualifiedName||originalName.StartsWith("global::",StringComparison.Ordinal)) continue;
+            text=System.Text.RegularExpressions.Regex.Replace(
+                text,
+                $@"\b{System.Text.RegularExpressions.Regex.Escape(originalName)}\b",
+                qualifiedName,
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        }
+
         return text;
     }
 
@@ -1945,6 +2002,9 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         if(methodSyntax.ExpressionBody is { Expression: var expressionBody }
             && IsSimpleInlineableLocalMethodExpression(expressionBody)) {
             expressionText=RenderExpressionForGeneratedMethod(expressionBody,semanticModel,containingType,unsafeAccessorCollector);
+            if(expressionBody is CollectionExpressionSyntax or ImplicitArrayCreationExpressionSyntax) {
+                expressionText=$"(({method.ReturnType.ToDisplayString(完全修飾形式)}){expressionText})";
+            }
             return true;
         }
 
@@ -1954,6 +2014,9 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             ]
         } && IsSimpleInlineableLocalMethodExpression(returnExpression)) {
             expressionText=RenderExpressionForGeneratedMethod(returnExpression,semanticModel,containingType,unsafeAccessorCollector);
+            if(returnExpression is CollectionExpressionSyntax or ImplicitArrayCreationExpressionSyntax) {
+                expressionText=$"(({method.ReturnType.ToDisplayString(完全修飾形式)}){expressionText})";
+            }
             return true;
         }
 

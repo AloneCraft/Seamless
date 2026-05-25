@@ -5,614 +5,949 @@ using SystemEnumerable = System.Linq.Enumerable;
 namespace Test.Seamless.Intercept.System.Linq;
 
 public sealed class EnumerableMethod1 {
-    private readonly int instanceOffset = 1;
-
-    // インターセプトされるメソッド: なし
-    // 理由: インスタンスデリゲート（this.InstanceSelector等）はラムダ式ではないため、
-    //       Linq傍受対象生成のIsInlineDelegateTypeチェック(143行目)でnullを返す
     [Fact, Trait("Category","Unit")]
-    public void Aggregate_func_InstanceDelegate() {
-        Aggregate_func_InstanceDelegate_Impl();
+    public void Aggregate() {
+        Aggregate_func_Static();
+        Aggregate_func_Lambda();
+        Aggregate_func_Captured();
+        Aggregate_func_DelegateSyntax();
+        Aggregate_func_Variable();
+        Aggregate_seed_func_Static();
+        Aggregate_seed_func_Lambda();
+        Aggregate_seed_func_Captured();
+        Aggregate_seed_func_DelegateSyntax();
+        Aggregate_seed_func_Variable();
+        Aggregate_seed_func_resultSelector_Static();
+        Aggregate_seed_func_resultSelector_Lambda();
+        Aggregate_seed_func_resultSelector_Captured();
+        Aggregate_seed_func_resultSelector_DelegateSyntax();
+        Aggregate_seed_func_resultSelector_Variable();
     }
-    private void Aggregate_func_InstanceDelegate_Impl() {
-        var x = 1;
-        var expected=SystemEnumerable.Aggregate(Source(),(left,right) => left+right+x);
-        var actual=Source().Aggregate((left,right) => left+right+x);
+    private static void Aggregate_func_Static() {
+        var expected=SystemEnumerable.Aggregate(Source(),static (l,r) => l+r);
+        var actual=Source().Aggregate(static (l,r) => l+r);
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_func_Lambda() {
+        var expected=SystemEnumerable.Aggregate(Source(),(l,r) => l+r);
+        var actual=Source().Aggregate((l,r) => l+r);
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_func_Captured() {
+        var offset=0;
+        var expected=SystemEnumerable.Aggregate(Source(),(l,r) => l+r+offset);
+        var actual=Source().Aggregate((l,r) => l+r+offset);
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_func_DelegateSyntax() {
+        var expected=SystemEnumerable.Aggregate(Source(),delegate(int l,int r) { return l+r; });
+        var actual=Source().Aggregate(delegate(int l,int r) { return l+r; });
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_func_Variable() {
+        Func<int,int,int> func=(l,r) => l+r;
+        var expected=SystemEnumerable.Aggregate(Source(),func);
+        var actual=Source().Aggregate(func);
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_seed_func_Static() {
+        var expected=SystemEnumerable.Aggregate(Source(),0,static (sum,v) => sum+v);
+        var actual=Source().Aggregate(0,static (sum,v) => sum+v);
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_seed_func_Lambda() {
+        var expected=SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v);
+        var actual=Source().Aggregate(0,(sum,v) => sum+v);
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_seed_func_Captured() {
+        var offset=0;
+        var expected=SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v+offset);
+        var actual=Source().Aggregate(0,(sum,v) => sum+v+offset);
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_seed_func_DelegateSyntax() {
+        var expected=SystemEnumerable.Aggregate(Source(),0,delegate(int sum,int v) { return sum+v; });
+        var actual=Source().Aggregate(0,delegate(int sum,int v) { return sum+v; });
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_seed_func_Variable() {
+        Func<int,int,int> func=(sum,v) => sum+v;
+        var expected=SystemEnumerable.Aggregate(Source(),0,func);
+        var actual=Source().Aggregate(0,func);
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_seed_func_resultSelector_Static() {
+        var expected=SystemEnumerable.Aggregate(Source(),0,static (sum,v) => sum+v,static sum => sum*2);
+        var actual=Source().Aggregate(0,static (sum,v) => sum+v,static sum => sum*2);
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_seed_func_resultSelector_Lambda() {
+        var expected=SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v,sum => sum*2);
+        var actual=Source().Aggregate(0,(sum,v) => sum+v,sum => sum*2);
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_seed_func_resultSelector_Captured() {
+        var offset=0;
+        var expected=SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v+offset,sum => sum*2+offset);
+        var actual=Source().Aggregate(0,(sum,v) => sum+v+offset,sum => sum*2+offset);
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_seed_func_resultSelector_DelegateSyntax() {
+        var expected=SystemEnumerable.Aggregate(Source(),0,delegate(int sum,int v) { return sum+v; },delegate(int sum) { return sum*2; });
+        var actual=Source().Aggregate(0,delegate(int sum,int v) { return sum+v; },delegate(int sum) { return sum*2; });
+        Assert.Equal(expected,actual);
+    }
+    private static void Aggregate_seed_func_resultSelector_Variable() {
+        Func<int,int,int> func=(sum,v) => sum+v;
+        Func<int,int> resultSelector=sum => sum*2;
+        var expected=SystemEnumerable.Aggregate(Source(),0,func,resultSelector);
+        var actual=Source().Aggregate(0,func,resultSelector);
         Assert.Equal(expected,actual);
     }
 
-    // インターセプトされるメソッド: Aggregate_func_StaticDelegate_Impl()
-    // 理由: Linq呼び出しを含むローカルメソッド呼び出し自体をインターセプトし、
-    //       生成インターセプターから元メソッドへフォワードするため
     [Fact, Trait("Category","Unit")]
-    public void Aggregate_func_StaticDelegate() {
-        Aggregate_func_StaticDelegate_Impl();
+    public void AggregateBy() {
+        AggregateBy_Static();
+        AggregateBy_Lambda();
+        AggregateBy_Captured();
+        AggregateBy_DelegateSyntax();
+        AggregateBy_Variable();
     }
-    private static void Aggregate_func_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.Aggregate(Source(),static (left,right) => left+right);
-        var actual=Source().Aggregate(static (left,right) => left+right);
+    private static void AggregateBy_Static() {
+        SystemEnumerable.AggregateBy(Source(),static v => v%2,0,static (sum,v) => sum+v);
+        Source().AggregateBy(static v => v%2,0,static (sum,v) => sum+v);
+    }
+    private static void AggregateBy_Lambda() {
+        SystemEnumerable.AggregateBy(Source(),v => v%2,0,(sum,v) => sum+v);
+        Source().AggregateBy(v => v%2,0,(sum,v) => sum+v);
+    }
+    private static void AggregateBy_Captured() {
+        var mod=2;
+        SystemEnumerable.AggregateBy(Source(),v => v%mod,0,(sum,v) => sum+v);
+        Source().AggregateBy(v => v%mod,0,(sum,v) => sum+v);
+    }
+    private static void AggregateBy_DelegateSyntax() {
+        SystemEnumerable.AggregateBy(Source(),delegate(int v) { return v%2; },0,delegate(int sum,int v) { return sum+v; });
+        Source().AggregateBy(delegate(int v) { return v%2; },0,delegate(int sum,int v) { return sum+v; });
+    }
+    private static void AggregateBy_Variable() {
+        Func<int,int> keySelector=v => v%2;
+        Func<int,int,int> func=(sum,v) => sum+v;
+        SystemEnumerable.AggregateBy(Source(),keySelector,0,func);
+        Source().AggregateBy(keySelector,0,func);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void All() {
+        All_Static();
+        All_Lambda();
+        All_Captured();
+        All_DelegateSyntax();
+        All_Variable();
+    }
+    private static void All_Static() {
+        var expected=SystemEnumerable.All(Source(),static v => v>0);
+        var actual=Source().All(static v => v>0);
+        Assert.Equal(expected,actual);
+    }
+    private static void All_Lambda() {
+        var expected=SystemEnumerable.All(Source(),v => v>0);
+        var actual=Source().All(v => v>0);
+        Assert.Equal(expected,actual);
+    }
+    private static void All_Captured() {
+        var threshold=0;
+        var expected=SystemEnumerable.All(Source(),v => v>threshold);
+        var actual=Source().All(v => v>threshold);
+        Assert.Equal(expected,actual);
+    }
+    private static void All_DelegateSyntax() {
+        var expected=SystemEnumerable.All(Source(),delegate(int v) { return v>0; });
+        var actual=Source().All(delegate(int v) { return v>0; });
+        Assert.Equal(expected,actual);
+    }
+    private static void All_Variable() {
+        Func<int,bool> predicate=v => v>0;
+        var expected=SystemEnumerable.All(Source(),predicate);
+        var actual=Source().All(predicate);
         Assert.Equal(expected,actual);
     }
 
-    // インターセプトされるメソッド: なし
-    // 理由: インスタンスデリゲートはラムダ式ではないためIsInlineDelegateTypeに該当しnullを返す
     [Fact, Trait("Category","Unit")]
-    public void Aggregate_seed_func_InstanceDelegate() {
-        Aggregate_seed_func_InstanceDelegate_Impl();
+    public void Any() {
+        Any_NoDelegate();
+        Any_predicate_Static();
+        Any_predicate_Lambda();
+        Any_predicate_Captured();
+        Any_predicate_DelegateSyntax();
+        Any_predicate_Variable();
     }
-
-    private void Aggregate_seed_func_InstanceDelegate_Impl() {
-        var expected=SystemEnumerable.Aggregate(Source(),10,(sum,value) => sum+value+this.instanceOffset-1);
-        var actual=Source().Aggregate(10,(sum,value) => sum+value+this.instanceOffset-1);
-        Assert.Equal(expected,actual);
-    }
-
-    // インターセプトされるメソッド: Aggregate_seed_func_StaticDelegate_Impl()
-    // 理由: Fragment 実装から overload を自動解決するようになり、
-    //       seed 付き Aggregate もローカルメソッド再生成でインライン展開できるため
-    [Fact, Trait("Category","Unit")]
-    public void Aggregate_seed_func_StaticDelegate() {
-        Aggregate_seed_func_StaticDelegate_Impl();
-    }
-
-    private static void Aggregate_seed_func_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.Aggregate(Source(),10,static (sum,value) => sum+value);
-        var actual=Source().Aggregate(10,static (sum,value) => sum+value);
-        Assert.Equal(expected,actual);
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: インスタンスデリゲートはラムダ式ではないためIsInlineDelegateTypeに該当しnullを返す
-    [Fact, Trait("Category","Unit")]
-    public void Aggregate_seed_func_resultSelector_InstanceDelegate() {
-        Aggregate_seed_func_resultSelector_InstanceDelegate_Impl();
-    }
-
-    private void Aggregate_seed_func_resultSelector_InstanceDelegate_Impl() {
-        var expected=SystemEnumerable.Aggregate(Source(),10,(sum,value) => sum+value+this.instanceOffset-1,sum => sum*2+this.instanceOffset-1);
-        var actual=Source().Aggregate(10,(sum,value) => sum+value+this.instanceOffset-1,sum => sum*2+this.instanceOffset-1);
-        Assert.Equal(expected,actual);
-    }
-
-    // インターセプトされるメソッド: Aggregate_seed_func_resultSelector_StaticDelegate_Impl()
-    // 理由: Fragment 実装から overload を自動解決するようになり、
-    //       resultSelector 付き Aggregate もローカルメソッド再生成でインライン展開できるため
-    [Fact, Trait("Category","Unit")]
-    public void Aggregate_seed_func_resultSelector_StaticDelegate() {
-        Aggregate_seed_func_resultSelector_StaticDelegate_Impl();
-    }
-
-    private static void Aggregate_seed_func_resultSelector_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.Aggregate(Source(),10,static (sum,value) => sum+value,static sum => sum*2);
-        var actual=Source().Aggregate(10,static (sum,value) => sum+value,static sum => sum*2);
-        Assert.Equal(expected,actual);
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: AggregateByの戻り値IEnumerable<TSource>?は型パラメータを含むため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
-    [Fact, Trait("Category","Unit")]
-    public void AggregateBy_keySelector_seed_func_StaticDelegate() {
-        AggregateBy_keySelector_seed_func_StaticDelegate_Impl();
-    }
-
-    private static void AggregateBy_keySelector_seed_func_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.AggregateBy(Source(),static value => value%2,0,static (sum,value) => sum+value);
-        var actual=Source().AggregateBy(static value => value%2,0,static (sum,value) => sum+value);
-    }
-
-    // インターセプトされるメソッド: All_predicate_StaticDelegate_Impl()
-    // 理由: All Fragment を使ってローカルメソッド再生成できるため
-    [Fact, Trait("Category","Unit")]
-    public void All_predicate_StaticDelegate() {
-        All_predicate_StaticDelegate_Impl();
-    }
-
-    private static void All_predicate_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.All(Source(),static value => value>0);
-        var actual=Source().All(static value => value>0);
-        Assert.Equal(expected,actual);
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: Anyの戻り値boolは型パラメータを含まないが、GetInterceptableLocation(83行目)がnullを返す
-    [Fact, Trait("Category","Unit")]
-    public void Any_NoDelegate() {
-        Any_NoDelegate_Impl();
-    }
-
-    private static void Any_NoDelegate_Impl() {
+    private static void Any_NoDelegate() {
         var expected=SystemEnumerable.Any(Source());
         var actual=Source().Any();
         Assert.Equal(expected,actual);
     }
-
-    // インターセプトされるメソッド: なし
-    // 理由: Anyの戻り値boolは型パラメータを含まないが、GetInterceptableLocation(83行目)がnullを返す
-    [Fact, Trait("Category","Unit")]
-    public void Any_predicate_StaticDelegate() {
-        Any_predicate_StaticDelegate_Impl();
+    private static void Any_predicate_Static() {
+        var expected=SystemEnumerable.Any(Source(),static v => v>3);
+        var actual=Source().Any(static v => v>3);
+        Assert.Equal(expected,actual);
     }
-
-    private static void Any_predicate_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.Any(Source(),static value => value>3);
-        var actual=Source().Any(static value => value>3);
+    private static void Any_predicate_Lambda() {
+        var expected=SystemEnumerable.Any(Source(),v => v>3);
+        var actual=Source().Any(v => v>3);
+        Assert.Equal(expected,actual);
+    }
+    private static void Any_predicate_Captured() {
+        var threshold=3;
+        var expected=SystemEnumerable.Any(Source(),v => v>threshold);
+        var actual=Source().Any(v => v>threshold);
+        Assert.Equal(expected,actual);
+    }
+    private static void Any_predicate_DelegateSyntax() {
+        var expected=SystemEnumerable.Any(Source(),delegate(int v) { return v>3; });
+        var actual=Source().Any(delegate(int v) { return v>3; });
+        Assert.Equal(expected,actual);
+    }
+    private static void Any_predicate_Variable() {
+        Func<int,bool> predicate=v => v>3;
+        var expected=SystemEnumerable.Any(Source(),predicate);
+        var actual=Source().Any(predicate);
         Assert.Equal(expected,actual);
     }
 
-    // インターセプトされるメソッド: Select_Any_StaticDelegate_Impl()
-    // 理由: ローカルメソッド再生成が Aggregate 専用ではなくなり、
-    //       Select -> Any のような別フラグメント連結も再構成できるようになったため
     [Fact, Trait("Category","Unit")]
-    public void Select_Any_StaticDelegate() {
-        Select_Any_StaticDelegate_Impl();
+    public void Append() {
+        Append_NoDelegate();
+    }
+    private static void Append_NoDelegate() {
+        SystemEnumerable.Append(Source(),5);
+        Source().Append(5);
     }
 
-    private static void Select_Any_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.Any(SystemEnumerable.Select(Source(),static value => value*2));
-        var actual=Source().Select(static value => value*2).Any();
-        Assert.Equal(expected,actual);
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: Appendの戻り値IEnumerable<TSource>は型パラメータを含むため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
     [Fact, Trait("Category","Unit")]
-    public void Append_element_NoDelegate() {
-        Append_element_NoDelegate_Impl();
+    public void AsEnumerable() {
+        AsEnumerable_NoDelegate();
+    }
+    private static void AsEnumerable_NoDelegate() {
+        SystemEnumerable.AsEnumerable(Source());
+        Source().AsEnumerable();
     }
 
-    private static void Append_element_NoDelegate_Impl() {
-        var expected=SystemEnumerable.Append(Source(),5);
-        var actual=Source().Append(5);
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: AsEnumerableの戻り値IEnumerable<TSource>は型パラメータを含むため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
     [Fact, Trait("Category","Unit")]
-    public void AsEnumerable_NoDelegate() {
-        AsEnumerable_NoDelegate_Impl();
+    public void Average() {
+        Average_int_NoDelegate();
+        Average_selector_Static();
+        Average_selector_Lambda();
+        Average_selector_Captured();
+        Average_selector_DelegateSyntax();
+        Average_selector_Variable();
     }
-
-    private static void AsEnumerable_NoDelegate_Impl() {
-        var expected=SystemEnumerable.AsEnumerable(Source());
-        var actual=Source().AsEnumerable();
-    }
-
-    // インターセプトされるメソッド: Source().Average()
-    // 理由: Average(this IEnumerable<int>)の戻り値doubleは型パラメータを含まず、
-    //       パラメータなしのためGetInterceptableLocationが有効な位置を返す
-    [Fact, Trait("Category","Unit")]
-    public void Average_int_NoDelegate() {
-        Average_int_NoDelegate_Impl();
-    }
-
-    private static void Average_int_NoDelegate_Impl() {
+    private static void Average_int_NoDelegate() {
         var expected=SystemEnumerable.Average(Source());
         var actual=Source().Average();
         Assert.Equal(expected,actual);
     }
-
-    // インターセプトされるメソッド: なし
-    // 理由: Average(selector)の戻り値double?は型パラメータを含まないが、
-    //       GetInterceptableLocation(83行目)がnullを返す
-    [Fact, Trait("Category","Unit")]
-    public void Average_selector_StaticDelegate() {
-        Average_selector_StaticDelegate_Impl();
-    }
-
-    private static void Average_selector_StaticDelegate_Impl() {
+    private static void Average_selector_Static() {
         var expected=SystemEnumerable.Average(Rows(),static row => row.Value);
         var actual=Rows().Average(static row => row.Value);
         Assert.Equal(expected,actual);
     }
-
-    // インターセプトされるメソッド: Cast_NoDelegate_Impl()
-    // 理由: System.Linq.Enumerable を含むメソッドはすべて intercept 対象にする方針へ変更したため。
-    //       ただし現在の Fragment 実装では、非ジェネリック IEnumerable を起点にした Cast は
-    //       まだ再構成しきれないので、生成 interceptor は黙って元実装へ戻らず例外を投げる。
-    [Fact, Trait("Category","Unit")]
-    public void Cast_NoDelegate() {
-        Cast_NoDelegate_Impl();
+    private static void Average_selector_Lambda() {
+        var expected=SystemEnumerable.Average(Rows(),row => row.Value);
+        var actual=Rows().Average(row => row.Value);
+        Assert.Equal(expected,actual);
     }
-
-    private static void Cast_NoDelegate_Impl() {
-        var expected=SystemEnumerable.Cast<int>(CastObjects());
-        var actual=CastObjects().Cast<int>();
+    private static void Average_selector_Captured() {
+        var offset=0;
+        var expected=SystemEnumerable.Average(Rows(),row => row.Value+offset);
+        var actual=Rows().Average(row => row.Value+offset);
+        Assert.Equal(expected,actual);
     }
-
-    [Fact, Trait("Category","Unit")]
-    public void OfType_NoDelegate() {
-        OfType_NoDelegate_Impl();
+    private static void Average_selector_DelegateSyntax() {
+        var expected=SystemEnumerable.Average(Rows(),delegate(Row row) { return row.Value; });
+        var actual=Rows().Average(delegate(Row row) { return row.Value; });
+        Assert.Equal(expected,actual);
     }
-
-    private static void OfType_NoDelegate_Impl() {
-        var expected=SystemEnumerable.OfType<int>(CastObjects());
-        var actual=CastObjects().OfType<int>();
+    private static void Average_selector_Variable() {
+        Func<Row,int> selector=row => row.Value;
+        var expected=SystemEnumerable.Average(Rows(),selector);
+        var actual=Rows().Average(selector);
         Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public void OfType_mixedTypes_NoDelegate() {
-        OfType_mixedTypes_NoDelegate_Impl();
+    public void Cast() {
+        Cast_NoDelegate();
+    }
+    private static void Cast_NoDelegate() {
+        SystemEnumerable.Cast<int>(CastObjects());
+        CastObjects().Cast<int>();
     }
 
-    private static void OfType_mixedTypes_NoDelegate_Impl() {
-        var mixed = new object[] { 1, "hello", 2, null!, 3.0, 4 };
-        var expected=SystemEnumerable.OfType<int>(mixed);
-        var actual=((global::System.Collections.IEnumerable)mixed).OfType<int>();
-        Assert.Equal(expected,actual);
-    }
-
-    // インターセプトされるメソッド: Chunk_size_NoDelegate_Impl()
-    // 理由: Chunk Fragment が実装され、ローカルメソッド再生成でも評価できるため
     [Fact, Trait("Category","Unit")]
-    public void Chunk_size_NoDelegate() {
-        Chunk_size_NoDelegate_Impl();
+    public void Chunk() {
+        Chunk_NoDelegate();
+    }
+    private static void Chunk_NoDelegate() {
+        SystemEnumerable.Chunk(Source(),2);
+        Source().Chunk(2);
     }
 
-    private static void Chunk_size_NoDelegate_Impl() {
-        var expected=SystemEnumerable.Chunk(Source(),2);
-        var actual=Source().Chunk(2);
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: Concatの戻り値IEnumerable<TSource>は型パラメータを含むため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
     [Fact, Trait("Category","Unit")]
-    public void Concat_second_NoDelegate() {
-        Concat_second_NoDelegate_Impl();
+    public void Concat() {
+        Concat_NoDelegate();
+    }
+    private static void Concat_NoDelegate() {
+        SystemEnumerable.Concat(Source(),Second());
+        Source().Concat(Second());
     }
 
-    private static void Concat_second_NoDelegate_Impl() {
-        var expected=SystemEnumerable.Concat(Source(),Second());
-        var actual=Source().Concat(Second());
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: Containsの戻り値boolは型パラメータを含まないが、GetInterceptableLocation(83行目)がnullを返す
     [Fact, Trait("Category","Unit")]
-    public void Contains_value_NoDelegate() {
-        Contains_value_NoDelegate_Impl();
+    public void Contains() {
+        Contains_NoDelegate();
     }
-
-    private static void Contains_value_NoDelegate_Impl() {
+    private static void Contains_NoDelegate() {
         var expected=SystemEnumerable.Contains(Source(),3);
         var actual=Source().Contains(3);
         Assert.Equal(expected,actual);
     }
 
-    // インターセプトされるメソッド: なし
-    // 理由: Countの戻り値intは型パラメータを含まないが、GetInterceptableLocation(83行目)がnullを返す
     [Fact, Trait("Category","Unit")]
-    public void Count_predicate_StaticDelegate() {
-        Count_predicate_StaticDelegate_Impl();
+    public void Count() {
+        Count_NoDelegate();
+        Count_predicate_Static();
+        Count_predicate_Lambda();
+        Count_predicate_Captured();
+        Count_predicate_DelegateSyntax();
+        Count_predicate_Variable();
     }
-
-    private static void Count_predicate_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.Count(Source(),static value => value>2);
-        var actual=Source().Count(static value => value>2);
+    private static void Count_NoDelegate() {
+        var expected=SystemEnumerable.Count(Source());
+        var actual=Source().Count();
+        Assert.Equal(expected,actual);
+    }
+    private static void Count_predicate_Static() {
+        var expected=SystemEnumerable.Count(Source(),static v => v>2);
+        var actual=Source().Count(static v => v>2);
+        Assert.Equal(expected,actual);
+    }
+    private static void Count_predicate_Lambda() {
+        var expected=SystemEnumerable.Count(Source(),v => v>2);
+        var actual=Source().Count(v => v>2);
+        Assert.Equal(expected,actual);
+    }
+    private static void Count_predicate_Captured() {
+        var threshold=2;
+        var expected=SystemEnumerable.Count(Source(),v => v>threshold);
+        var actual=Source().Count(v => v>threshold);
+        Assert.Equal(expected,actual);
+    }
+    private static void Count_predicate_DelegateSyntax() {
+        var expected=SystemEnumerable.Count(Source(),delegate(int v) { return v>2; });
+        var actual=Source().Count(delegate(int v) { return v>2; });
+        Assert.Equal(expected,actual);
+    }
+    private static void Count_predicate_Variable() {
+        Func<int,bool> predicate=v => v>2;
+        var expected=SystemEnumerable.Count(Source(),predicate);
+        var actual=Source().Count(predicate);
         Assert.Equal(expected,actual);
     }
 
-    // インターセプトされるメソッド: なし
-    // 理由: Distinctの戻り値IEnumerable<TSource>は型パラメータを含むため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
     [Fact, Trait("Category","Unit")]
-    public void Distinct_NoDelegate() {
-        Distinct_NoDelegate_Impl();
+    public void Distinct() {
+        Distinct_NoDelegate();
+    }
+    private static void Distinct_NoDelegate() {
+        SystemEnumerable.Distinct(Duplicates());
+        Duplicates().Distinct();
     }
 
-    private static void Distinct_NoDelegate_Impl() {
-        var expected=SystemEnumerable.Distinct(Duplicates());
-        var actual=Duplicates().Distinct();
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: DistinctByの戻り値IEnumerable<TSource>は型パラメータを含むため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
     [Fact, Trait("Category","Unit")]
-    public void DistinctBy_keySelector_StaticDelegate() {
-        DistinctBy_keySelector_StaticDelegate_Impl();
+    public void DistinctBy() {
+        DistinctBy_Static();
+        DistinctBy_Lambda();
+        DistinctBy_Captured();
+        DistinctBy_DelegateSyntax();
+        DistinctBy_Variable();
+    }
+    private static void DistinctBy_Static() {
+        SystemEnumerable.DistinctBy(Rows(),static row => row.Key);
+        Rows().DistinctBy(static row => row.Key);
+    }
+    private static void DistinctBy_Lambda() {
+        SystemEnumerable.DistinctBy(Rows(),row => row.Key);
+        Rows().DistinctBy(row => row.Key);
+    }
+    private static void DistinctBy_Captured() {
+        var offset=0;
+        SystemEnumerable.DistinctBy(Rows(),row => row.Key+offset);
+        Rows().DistinctBy(row => row.Key+offset);
+    }
+    private static void DistinctBy_DelegateSyntax() {
+        SystemEnumerable.DistinctBy(Rows(),delegate(Row row) { return row.Key; });
+        Rows().DistinctBy(delegate(Row row) { return row.Key; });
+    }
+    private static void DistinctBy_Variable() {
+        Func<Row,int> keySelector=row => row.Key;
+        SystemEnumerable.DistinctBy(Rows(),keySelector);
+        Rows().DistinctBy(keySelector);
     }
 
-    private static void DistinctBy_keySelector_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.DistinctBy(Rows(),static row => row.Key);
-        var actual=Rows().DistinctBy(static row => row.Key);
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: Firstの戻り値TSourceは型パラメータのため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
     [Fact, Trait("Category","Unit")]
-    public void First_predicate_StaticDelegate() {
-        First_predicate_StaticDelegate_Impl();
+    public void First() {
+        First_NoDelegate();
+        First_predicate_Static();
+        First_predicate_Lambda();
+        First_predicate_Captured();
+        First_predicate_DelegateSyntax();
+        First_predicate_Variable();
+    }
+    private static void First_NoDelegate() {
+        SystemEnumerable.First(Source());
+        Source().First();
+    }
+    private static void First_predicate_Static() {
+        SystemEnumerable.First(Source(),static v => v>2);
+        Source().First(static v => v>2);
+    }
+    private static void First_predicate_Lambda() {
+        SystemEnumerable.First(Source(),v => v>2);
+        Source().First(v => v>2);
+    }
+    private static void First_predicate_Captured() {
+        var threshold=2;
+        SystemEnumerable.First(Source(),v => v>threshold);
+        Source().First(v => v>threshold);
+    }
+    private static void First_predicate_DelegateSyntax() {
+        SystemEnumerable.First(Source(),delegate(int v) { return v>2; });
+        Source().First(delegate(int v) { return v>2; });
+    }
+    private static void First_predicate_Variable() {
+        Func<int,bool> predicate=v => v>2;
+        SystemEnumerable.First(Source(),predicate);
+        Source().First(predicate);
     }
 
-    private static void First_predicate_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.First(Source(),static value => value>2);
-        var actual=Source().First(static value => value>2);
-        Assert.Equal(expected,actual);
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: GroupByの戻り値IEnumerable<IGrouping<TKey,TElement>>は型パラメータを含むため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
     [Fact, Trait("Category","Unit")]
-    public void GroupBy_keySelector_StaticDelegate() {
-        GroupBy_keySelector_StaticDelegate_Impl();
+    public void GroupBy() {
+        GroupBy_Static();
+        GroupBy_Lambda();
+        GroupBy_Captured();
+        GroupBy_DelegateSyntax();
+        GroupBy_Variable();
+    }
+    private static void GroupBy_Static() {
+        SystemEnumerable.GroupBy(Rows(),static row => row.Key);
+        Rows().GroupBy(static row => row.Key);
+    }
+    private static void GroupBy_Lambda() {
+        SystemEnumerable.GroupBy(Rows(),row => row.Key);
+        Rows().GroupBy(row => row.Key);
+    }
+    private static void GroupBy_Captured() {
+        var offset=0;
+        SystemEnumerable.GroupBy(Rows(),row => row.Key+offset);
+        Rows().GroupBy(row => row.Key+offset);
+    }
+    private static void GroupBy_DelegateSyntax() {
+        SystemEnumerable.GroupBy(Rows(),delegate(Row row) { return row.Key; });
+        Rows().GroupBy(delegate(Row row) { return row.Key; });
+    }
+    private static void GroupBy_Variable() {
+        Func<Row,int> keySelector=row => row.Key;
+        SystemEnumerable.GroupBy(Rows(),keySelector);
+        Rows().GroupBy(keySelector);
     }
 
-    private static void GroupBy_keySelector_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.GroupBy(Rows(),static row => row.Key);
-        var actual=Rows().GroupBy(static row => row.Key);
-    }
-
-    // インターセプトされるメソッド: Join_keySelectors_resultSelector_StaticDelegate_Impl()
-    // 理由: Join Fragment がローカルメソッド再生成の対象に含まれるため
     [Fact, Trait("Category","Unit")]
-    public void Join_keySelectors_resultSelector_StaticDelegate() {
-        Join_keySelectors_resultSelector_StaticDelegate_Impl();
+    public void Join() {
+        Join_Static();
+        Join_Lambda();
+        Join_Captured();
+        Join_DelegateSyntax();
+        Join_Variable();
+    }
+    private static void Join_Static() {
+        SystemEnumerable.Join(Source(),Second(),static o => o,static i => i,static (o,i) => o+i);
+        Source().Join(Second(),static o => o,static i => i,static (o,i) => o+i);
+    }
+    private static void Join_Lambda() {
+        SystemEnumerable.Join(Source(),Second(),o => o,i => i,(o,i) => o+i);
+        Source().Join(Second(),o => o,i => i,(o,i) => o+i);
+    }
+    private static void Join_Captured() {
+        var offset=0;
+        SystemEnumerable.Join(Source(),Second(),o => o+offset,i => i+offset,(o,i) => o+i+offset);
+        Source().Join(Second(),o => o+offset,i => i+offset,(o,i) => o+i+offset);
+    }
+    private static void Join_DelegateSyntax() {
+        SystemEnumerable.Join(Source(),Second(),delegate(int o) { return o; },delegate(int i) { return i; },delegate(int o,int i) { return o+i; });
+        Source().Join(Second(),delegate(int o) { return o; },delegate(int i) { return i; },delegate(int o,int i) { return o+i; });
+    }
+    private static void Join_Variable() {
+        Func<int,int> outerKeySelector=o => o;
+        Func<int,int> innerKeySelector=i => i;
+        Func<int,int,int> resultSelector=(o,i) => o+i;
+        SystemEnumerable.Join(Source(),Second(),outerKeySelector,innerKeySelector,resultSelector);
+        Source().Join(Second(),outerKeySelector,innerKeySelector,resultSelector);
     }
 
-    private static void Join_keySelectors_resultSelector_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.Join(Source(),Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue);
-        var actual=Source().Join(Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue);
-    }
     [Fact, Trait("Category","Unit")]
-    public void Join_keySelectors_resultSelector_InstanceDelegate() {
-        Join_keySelectors_resultSelector_InstanceDelegate_Impl();
+    public void Max() {
+        Max_selector_Static();
+        Max_selector_Lambda();
+        Max_selector_Captured();
+        Max_selector_DelegateSyntax();
+        Max_selector_Variable();
     }
-
-    private void Join_keySelectors_resultSelector_InstanceDelegate_Impl() {
-        var expected=SystemEnumerable.Join(Source(),Second(),this.InstanceKeySelector,this.InstanceKeySelector,this.InstanceResultSelector);
-        var actual=Source().Join(Second(),this.InstanceKeySelector,this.InstanceKeySelector,this.InstanceResultSelector);
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: Maxの戻り値TSource?は型パラメータを含むため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
-    [Fact, Trait("Category","Unit")]
-    public void Max_selector_StaticDelegate() {
-        Max_selector_StaticDelegate_Impl();
-    }
-
-    private static void Max_selector_StaticDelegate_Impl() {
+    private static void Max_selector_Static() {
         var expected=SystemEnumerable.Max(Rows(),static row => row.Value);
         var actual=Rows().Max(static row => row.Value);
         Assert.Equal(expected,actual);
     }
-
-    // インターセプトされるメソッド: なし
-    // 理由: OrderByの戻り値IOrderedEnumerable<TElement>は型パラメータを含むため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
-    [Fact, Trait("Category","Unit")]
-    public void OrderBy_keySelector_StaticDelegate() {
-        OrderBy_keySelector_StaticDelegate_Impl();
+    private static void Max_selector_Lambda() {
+        var expected=SystemEnumerable.Max(Rows(),row => row.Value);
+        var actual=Rows().Max(row => row.Value);
+        Assert.Equal(expected,actual);
     }
-
-    private static void OrderBy_keySelector_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.OrderBy(Rows(),static row => row.Key);
-        var actual=Rows().OrderBy(static row => row.Key);
+    private static void Max_selector_Captured() {
+        var offset=0;
+        var expected=SystemEnumerable.Max(Rows(),row => row.Value+offset);
+        var actual=Rows().Max(row => row.Value+offset);
+        Assert.Equal(expected,actual);
     }
-
-    // インターセプトされるメソッド: Select_selector_StaticDelegate_Impl()
-    // 理由: Select Fragment と private アサート呼び出しの反射フォワードにより、
-    //       ローカルメソッド本体を再生成できるため
-    [Fact, Trait("Category","Unit")]
-    public void Select_selector_StaticDelegate() {
-        Select_selector_StaticDelegate_Impl();
+    private static void Max_selector_DelegateSyntax() {
+        var expected=SystemEnumerable.Max(Rows(),delegate(Row row) { return row.Value; });
+        var actual=Rows().Max(delegate(Row row) { return row.Value; });
+        Assert.Equal(expected,actual);
     }
-
-    private static void Select_selector_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.Select(Source(),static value => value*2);
-        var actual=Source().Select(static value => value*2);
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: インスタンスデリゲートはラムダ式ではないためIsInlineDelegateTypeに該当しnullを返す
-    [Fact, Trait("Category","Unit")]
-    public void Select_selector_InstanceDelegate() {
-        Select_selector_InstanceDelegate_Impl();
-    }
-
-    private void Select_selector_InstanceDelegate_Impl() {
-        var expected=SystemEnumerable.Select(Source(),this.InstanceSelector);
-        var actual=Source().Select(this.InstanceSelector);
+    private static void Max_selector_Variable() {
+        Func<Row,int> selector=row => row.Value;
+        var expected=SystemEnumerable.Max(Rows(),selector);
+        var actual=Rows().Max(selector);
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public void SelectMany_selector_StaticDelegate() {
-        SelectMany_selector_StaticDelegate_Impl();
+    public void OfType() {
+        OfType_NoDelegate();
+        OfType_mixedTypes_NoDelegate();
     }
-    private static void SelectMany_selector_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.SelectMany(Source(),static value => new[] { value,value+10 });
-        var actual=Source().SelectMany(static value => new[] { value,value+10 });
+    private static void OfType_NoDelegate() {
+        var expected=SystemEnumerable.OfType<int>(CastObjects());
+        var actual=CastObjects().OfType<int>();
+        Assert.Equal(expected,actual);
     }
-    [Fact, Trait("Category","Unit")]
-    public void SelectMany_collectionSelector_resultSelector_StaticDelegate() {
-        SelectMany_collectionSelector_resultSelector_StaticDelegate_Impl();
-    }
-    private static void SelectMany_collectionSelector_resultSelector_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.SelectMany(Source(),static value => new[] { value, value + 10 },static (value, subValue) => subValue);
-        var actual = Source().SelectMany(static value => new[] { value, value + 10 },static (value, subValue) => subValue);
-    }
-    [Fact, Trait("Category","Unit")]
-    public void SelectMany_collectionSelector_index_resultSelector_StaticDelegate() {
-        SelectMany_collectionSelector_index_resultSelector_StaticDelegate_Impl();
-    }
-    private static void SelectMany_collectionSelector_index_resultSelector_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.SelectMany(Source(),static(value,index) => new[] { value, value + 10 },static (value, subValue) => subValue);
-        var actual = Source().SelectMany(static(value,index) => new[] { value, value + 10 },static (value, subValue) => subValue);
-    }
-    [Fact, Trait("Category","Unit")]
-    public void SelectMany_selector_index_StaticDelegate() {
-        SelectMany_selector_index_StaticDelegate_Impl();
-    }
-    private static void SelectMany_selector_index_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.SelectMany(Source(),static(value,index) => new[] { value,value+10 });
-        var actual=Source().SelectMany(static(value,index) => new[] { value,value+10 });
+    private static void OfType_mixedTypes_NoDelegate() {
+        var mixed=new object[] { 1,"hello",2,null!,3.0,4 };
+        var expected=SystemEnumerable.OfType<int>(mixed);
+        var actual=((global::System.Collections.IEnumerable)mixed).OfType<int>();
+        Assert.Equal(expected,actual);
     }
 
-    // インターセプトされるメソッド: なし
-    // 理由: SkipWhileの戻り値IEnumerable<TSource>は型パラメータを含むため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
     [Fact, Trait("Category","Unit")]
-    public void SkipWhile_predicate_StaticDelegate() {
-        SkipWhile_predicate_StaticDelegate_Impl();
+    public void OrderBy() {
+        OrderBy_Static();
+        OrderBy_Lambda();
+        OrderBy_Captured();
+        OrderBy_DelegateSyntax();
+        OrderBy_Variable();
+    }
+    private static void OrderBy_Static() {
+        SystemEnumerable.OrderBy(Rows(),static row => row.Key);
+        Rows().OrderBy(static row => row.Key);
+    }
+    private static void OrderBy_Lambda() {
+        SystemEnumerable.OrderBy(Rows(),row => row.Key);
+        Rows().OrderBy(row => row.Key);
+    }
+    private static void OrderBy_Captured() {
+        var offset=0;
+        SystemEnumerable.OrderBy(Rows(),row => row.Key+offset);
+        Rows().OrderBy(row => row.Key+offset);
+    }
+    private static void OrderBy_DelegateSyntax() {
+        SystemEnumerable.OrderBy(Rows(),delegate(Row row) { return row.Key; });
+        Rows().OrderBy(delegate(Row row) { return row.Key; });
+    }
+    private static void OrderBy_Variable() {
+        Func<Row,int> keySelector=row => row.Key;
+        SystemEnumerable.OrderBy(Rows(),keySelector);
+        Rows().OrderBy(keySelector);
     }
 
-    private static void SkipWhile_predicate_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.SkipWhile(Source(),static value => value<3);
-        var actual=Source().SkipWhile(static value => value<3);
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: Sumの戻り値int?は型パラメータを含まないが、GetInterceptableLocation(83行目)がnullを返す
     [Fact, Trait("Category","Unit")]
-    public void Sum_selector_StaticDelegate() {
-        Sum_selector_StaticDelegate_Impl();
+    public void Select() {
+        Select_selector_Static();
+        Select_selector_Lambda();
+        Select_selector_Captured();
+        Select_selector_DelegateSyntax();
+        Select_selector_Variable();
+        Select_selector_index_Static();
+        Select_selector_index_Lambda();
+        Select_selector_index_Captured();
+        Select_selector_index_DelegateSyntax();
+        Select_selector_index_Variable();
+    }
+    private static void Select_selector_Static() {
+        SystemEnumerable.Select(Source(),static v => v*2);
+        Source().Select(static v => v*2);
+    }
+    private static void Select_selector_Lambda() {
+        SystemEnumerable.Select(Source(),v => v*2);
+        Source().Select(v => v*2);
+    }
+    private static void Select_selector_Captured() {
+        var multiplier=2;
+        SystemEnumerable.Select(Source(),v => v*multiplier);
+        Source().Select(v => v*multiplier);
+    }
+    private static void Select_selector_DelegateSyntax() {
+        SystemEnumerable.Select(Source(),delegate(int v) { return v*2; });
+        Source().Select(delegate(int v) { return v*2; });
+    }
+    private static void Select_selector_Variable() {
+        Func<int,int> selector=v => v*2;
+        SystemEnumerable.Select(Source(),selector);
+        Source().Select(selector);
+    }
+    private static void Select_selector_index_Static() {
+        SystemEnumerable.Select(Source(),static (v,i) => v+i);
+        Source().Select(static (v,i) => v+i);
+    }
+    private static void Select_selector_index_Lambda() {
+        SystemEnumerable.Select(Source(),(v,i) => v+i);
+        Source().Select((v,i) => v+i);
+    }
+    private static void Select_selector_index_Captured() {
+        var offset=0;
+        SystemEnumerable.Select(Source(),(v,i) => v+i+offset);
+        Source().Select((v,i) => v+i+offset);
+    }
+    private static void Select_selector_index_DelegateSyntax() {
+        SystemEnumerable.Select(Source(),delegate(int v,int i) { return v+i; });
+        Source().Select(delegate(int v,int i) { return v+i; });
+    }
+    private static void Select_selector_index_Variable() {
+        Func<int,int,int> selector=(v,i) => v+i;
+        SystemEnumerable.Select(Source(),selector);
+        Source().Select(selector);
     }
 
-    private static void Sum_selector_StaticDelegate_Impl() {
+    [Fact, Trait("Category","Unit")]
+    public void SelectMany() {
+        SelectMany_selector_Static();
+        SelectMany_selector_Lambda();
+        SelectMany_selector_Captured();
+        SelectMany_selector_DelegateSyntax();
+        SelectMany_selector_Variable();
+        SelectMany_selector_index_Static();
+        SelectMany_selector_index_Lambda();
+        SelectMany_selector_index_Captured();
+        SelectMany_selector_index_DelegateSyntax();
+        SelectMany_selector_index_Variable();
+        SelectMany_collectionSelector_resultSelector_Static();
+        SelectMany_collectionSelector_resultSelector_Lambda();
+        SelectMany_collectionSelector_resultSelector_Captured();
+        SelectMany_collectionSelector_resultSelector_DelegateSyntax();
+        SelectMany_collectionSelector_resultSelector_Variable();
+        SelectMany_collectionSelector_index_resultSelector_Static();
+        SelectMany_collectionSelector_index_resultSelector_Lambda();
+        SelectMany_collectionSelector_index_resultSelector_Captured();
+        SelectMany_collectionSelector_index_resultSelector_DelegateSyntax();
+        SelectMany_collectionSelector_index_resultSelector_Variable();
+    }
+    private static void SelectMany_selector_Static() {
+        SystemEnumerable.SelectMany(Source(),static v => new[] { v,v+10 });
+        Source().SelectMany(static v => new[] { v,v+10 });
+    }
+    private static void SelectMany_selector_Lambda() {
+        SystemEnumerable.SelectMany(Source(),v => new[] { v,v+10 });
+        Source().SelectMany(v => new[] { v,v+10 });
+    }
+    private static void SelectMany_selector_Captured() {
+        var offset=10;
+        SystemEnumerable.SelectMany(Source(),v => new[] { v,v+offset });
+        Source().SelectMany(v => new[] { v,v+offset });
+    }
+    private static void SelectMany_selector_DelegateSyntax() {
+        SystemEnumerable.SelectMany(Source(),delegate(int v) { return new[] { v,v+10 }; });
+        Source().SelectMany(delegate(int v) { return new[] { v,v+10 }; });
+    }
+    private static void SelectMany_selector_Variable() {
+        Func<int,int[]> selector=v => new[] { v,v+10 };
+        SystemEnumerable.SelectMany(Source(),selector);
+        Source().SelectMany(selector);
+    }
+    private static void SelectMany_selector_index_Static() {
+        SystemEnumerable.SelectMany(Source(),static (v,i) => new[] { v,v+10 });
+        Source().SelectMany(static (v,i) => new[] { v,v+10 });
+    }
+    private static void SelectMany_selector_index_Lambda() {
+        SystemEnumerable.SelectMany(Source(),(v,i) => new[] { v,v+10 });
+        Source().SelectMany((v,i) => new[] { v,v+10 });
+    }
+    private static void SelectMany_selector_index_Captured() {
+        var offset=10;
+        SystemEnumerable.SelectMany(Source(),(v,i) => new[] { v,v+offset });
+        Source().SelectMany((v,i) => new[] { v,v+offset });
+    }
+    private static void SelectMany_selector_index_DelegateSyntax() {
+        SystemEnumerable.SelectMany(Source(),delegate(int v,int i) { return new[] { v,v+10 }; });
+        Source().SelectMany(delegate(int v,int i) { return new[] { v,v+10 }; });
+    }
+    private static void SelectMany_selector_index_Variable() {
+        Func<int,int,int[]> selector=(v,i) => new[] { v,v+10 };
+        SystemEnumerable.SelectMany(Source(),selector);
+        Source().SelectMany(selector);
+    }
+    private static void SelectMany_collectionSelector_resultSelector_Static() {
+        SystemEnumerable.SelectMany(Source(),static v => new[] { v,v+10 },static (v,sub) => sub);
+        Source().SelectMany(static v => new[] { v,v+10 },static (v,sub) => sub);
+    }
+    private static void SelectMany_collectionSelector_resultSelector_Lambda() {
+        SystemEnumerable.SelectMany(Source(),v => new[] { v,v+10 },(v,sub) => sub);
+        Source().SelectMany(v => new[] { v,v+10 },(v,sub) => sub);
+    }
+    private static void SelectMany_collectionSelector_resultSelector_Captured() {
+        var offset=10;
+        SystemEnumerable.SelectMany(Source(),v => new[] { v,v+offset },(v,sub) => sub+offset);
+        Source().SelectMany(v => new[] { v,v+offset },(v,sub) => sub+offset);
+    }
+    private static void SelectMany_collectionSelector_resultSelector_DelegateSyntax() {
+        SystemEnumerable.SelectMany(Source(),delegate(int v) { return new[] { v,v+10 }; },delegate(int v,int sub) { return sub; });
+        Source().SelectMany(delegate(int v) { return new[] { v,v+10 }; },delegate(int v,int sub) { return sub; });
+    }
+    private static void SelectMany_collectionSelector_resultSelector_Variable() {
+        Func<int,int[]> collectionSelector=v => new[] { v,v+10 };
+        Func<int,int,int> resultSelector=(v,sub) => sub;
+        SystemEnumerable.SelectMany(Source(),collectionSelector,resultSelector);
+        Source().SelectMany(collectionSelector,resultSelector);
+    }
+    private static void SelectMany_collectionSelector_index_resultSelector_Static() {
+        SystemEnumerable.SelectMany(Source(),static (v,i) => new[] { v,v+10 },static (v,sub) => sub);
+        Source().SelectMany(static (v,i) => new[] { v,v+10 },static (v,sub) => sub);
+    }
+    private static void SelectMany_collectionSelector_index_resultSelector_Lambda() {
+        SystemEnumerable.SelectMany(Source(),(v,i) => new[] { v,v+10 },(v,sub) => sub);
+        Source().SelectMany((v,i) => new[] { v,v+10 },(v,sub) => sub);
+    }
+    private static void SelectMany_collectionSelector_index_resultSelector_Captured() {
+        var offset=10;
+        SystemEnumerable.SelectMany(Source(),(v,i) => new[] { v,v+offset },(v,sub) => sub+offset);
+        Source().SelectMany((v,i) => new[] { v,v+offset },(v,sub) => sub+offset);
+    }
+    private static void SelectMany_collectionSelector_index_resultSelector_DelegateSyntax() {
+        SystemEnumerable.SelectMany(Source(),delegate(int v,int i) { return new[] { v,v+10 }; },delegate(int v,int sub) { return sub; });
+        Source().SelectMany(delegate(int v,int i) { return new[] { v,v+10 }; },delegate(int v,int sub) { return sub; });
+    }
+    private static void SelectMany_collectionSelector_index_resultSelector_Variable() {
+        Func<int,int,int[]> collectionSelector=(v,i) => new[] { v,v+10 };
+        Func<int,int,int> resultSelector=(v,sub) => sub;
+        SystemEnumerable.SelectMany(Source(),collectionSelector,resultSelector);
+        Source().SelectMany(collectionSelector,resultSelector);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void SkipWhile() {
+        SkipWhile_Static();
+        SkipWhile_Lambda();
+        SkipWhile_Captured();
+        SkipWhile_DelegateSyntax();
+        SkipWhile_Variable();
+    }
+    private static void SkipWhile_Static() {
+        SystemEnumerable.SkipWhile(Source(),static v => v<3);
+        Source().SkipWhile(static v => v<3);
+    }
+    private static void SkipWhile_Lambda() {
+        SystemEnumerable.SkipWhile(Source(),v => v<3);
+        Source().SkipWhile(v => v<3);
+    }
+    private static void SkipWhile_Captured() {
+        var threshold=3;
+        SystemEnumerable.SkipWhile(Source(),v => v<threshold);
+        Source().SkipWhile(v => v<threshold);
+    }
+    private static void SkipWhile_DelegateSyntax() {
+        SystemEnumerable.SkipWhile(Source(),delegate(int v) { return v<3; });
+        Source().SkipWhile(delegate(int v) { return v<3; });
+    }
+    private static void SkipWhile_Variable() {
+        Func<int,bool> predicate=v => v<3;
+        SystemEnumerable.SkipWhile(Source(),predicate);
+        Source().SkipWhile(predicate);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void Sum() {
+        Sum_selector_Static();
+        Sum_selector_Lambda();
+        Sum_selector_Captured();
+        Sum_selector_DelegateSyntax();
+        Sum_selector_Variable();
+    }
+    private static void Sum_selector_Static() {
         var expected=SystemEnumerable.Sum(Rows(),static row => row.Value);
         var actual=Rows().Sum(static row => row.Value);
         Assert.Equal(expected,actual);
     }
-
-    // インターセプトされるメソッド: なし
-    // 理由: Takeの戻り値IEnumerable<TSource>は型パラメータを含むため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
-    [Fact, Trait("Category","Unit")]
-    public void Take_count_NoDelegate() {
-        Take_count_NoDelegate_Impl();
+    private static void Sum_selector_Lambda() {
+        var expected=SystemEnumerable.Sum(Rows(),row => row.Value);
+        var actual=Rows().Sum(row => row.Value);
+        Assert.Equal(expected,actual);
     }
-
-    private static void Take_count_NoDelegate_Impl() {
-        var expected=SystemEnumerable.Take(Source(),3);
-        var actual=Source().Take(3);
+    private static void Sum_selector_Captured() {
+        var offset=0;
+        var expected=SystemEnumerable.Sum(Rows(),row => row.Value+offset);
+        var actual=Rows().Sum(row => row.Value+offset);
+        Assert.Equal(expected,actual);
     }
-
-    // インターセプトされるメソッド: なし
-    // 理由: ToArrayの戻り値TSource[]は型パラメータを含むため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
-    [Fact, Trait("Category","Unit")]
-    public void ToArray_NoDelegate() {
-        ToArray_NoDelegate_Impl();
+    private static void Sum_selector_DelegateSyntax() {
+        var expected=SystemEnumerable.Sum(Rows(),delegate(Row row) { return row.Value; });
+        var actual=Rows().Sum(delegate(Row row) { return row.Value; });
+        Assert.Equal(expected,actual);
     }
-
-    private static void ToArray_NoDelegate_Impl() {
-        var expected=SystemEnumerable.ToArray(Source());
-        var actual=Source().ToArray();
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: ToListの戻り値List<TSource>は型パラメータを含むため、
-    //       ContainsTypeParameterチェック(107行目)でnullを返す
-    [Fact, Trait("Category","Unit")]
-    public void ToList_NoDelegate() {
-        ToList_NoDelegate_Impl();
-    }
-
-    private static void ToList_NoDelegate_Impl() {
-        var expected=SystemEnumerable.ToList(Source());
-        var actual=Source().ToList();
+    private static void Sum_selector_Variable() {
+        Func<Row,int> selector=row => row.Value;
+        var expected=SystemEnumerable.Sum(Rows(),selector);
+        var actual=Rows().Sum(selector);
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    // インターセプトされるメソッド: Where_predicate_StaticDelegate_Impl()
-    // 理由: Where Fragment と private アサート呼び出しの反射フォワードにより、
-    //       ローカルメソッド本体を再生成できるため
-    public void Where_predicate_StaticDelegate() {
-        Where_predicate_StaticDelegate_Impl();
+    public void Take() {
+        Take_NoDelegate();
+    }
+    private static void Take_NoDelegate() {
+        SystemEnumerable.Take(Source(),3);
+        Source().Take(3);
     }
 
-    private static void Where_predicate_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.Where(Source(),static value => value>2);
-        var actual=Source().Where(static value => value>2);
-    }
-
-    // インターセプトされるメソッド: なし
-    // 理由: インスタンスデリゲートはラムダ式ではないためIsInlineDelegateTypeに該当しnullを返す
     [Fact, Trait("Category","Unit")]
-    public void Where_predicate_InstanceDelegate() {
-        Where_predicate_InstanceDelegate_Impl();
+    public void ToArray() {
+        ToArray_NoDelegate();
+    }
+    private static void ToArray_NoDelegate() {
+        SystemEnumerable.ToArray(Source());
+        Source().ToArray();
     }
 
-    private void Where_predicate_InstanceDelegate_Impl() {
-        var expected=SystemEnumerable.Where(Source(),this.InstancePredicate);
-        var actual=Source().Where(this.InstancePredicate);
-    }
     [Fact, Trait("Category","Unit")]
-    public void Zip_second_resultSelector_StaticDelegate() {
-        Zip_second_resultSelector_StaticDelegate_Impl();
+    public void ToList() {
+        ToList_NoDelegate();
+    }
+    private static void ToList_NoDelegate() {
+        SystemEnumerable.ToList(Source());
+        Source().ToList();
     }
 
-    private static void Zip_second_resultSelector_StaticDelegate_Impl() {
-        var expected=SystemEnumerable.Zip(Source(),Second(),static (first,second) => first+second);
-        var actual=Source().Zip(Second(),static (first,second) => first+second);
+    [Fact, Trait("Category","Unit")]
+    public void Union() {
+        Union_NoDelegate();
     }
-    [Fact, Trait("Category","Unit")]public void Union() {
-        UnionImpl();
-    }
-    private static void UnionImpl(){
+    private static void Union_NoDelegate() {
         Source().Union(Second());
         Source().Union(Second(),EqualityComparer<int>.Default);
     }
 
-    private bool InstancePredicate(int value) => value>this.instanceOffset;
-    private int InstanceSelector(int value) => value*this.instanceOffset;
-    private int InstanceKeySelector(int value) => value;
-    private int InstanceResultSelector(int outerValue,int innerValue) => outerValue+innerValue+this.instanceOffset-1;
+    [Fact, Trait("Category","Unit")]
+    public void Where() {
+        Where_predicate_Static();
+        Where_predicate_Lambda();
+        Where_predicate_Captured();
+        Where_predicate_DelegateSyntax();
+        Where_predicate_Variable();
+        Where_predicate_index_Static();
+        Where_predicate_index_Lambda();
+        Where_predicate_index_Captured();
+        Where_predicate_index_DelegateSyntax();
+        Where_predicate_index_Variable();
+    }
+    private static void Where_predicate_Static() {
+        SystemEnumerable.Where(Source(),static v => v>2);
+        Source().Where(static v => v>2);
+    }
+    private static void Where_predicate_Lambda() {
+        SystemEnumerable.Where(Source(),v => v>2);
+        Source().Where(v => v>2);
+    }
+    private static void Where_predicate_Captured() {
+        var threshold=2;
+        SystemEnumerable.Where(Source(),v => v>threshold);
+        Source().Where(v => v>threshold);
+    }
+    private static void Where_predicate_DelegateSyntax() {
+        SystemEnumerable.Where(Source(),delegate(int v) { return v>2; });
+        Source().Where(delegate(int v) { return v>2; });
+    }
+    private static void Where_predicate_Variable() {
+        Func<int,bool> predicate=v => v>2;
+        SystemEnumerable.Where(Source(),predicate);
+        Source().Where(predicate);
+    }
+    private static void Where_predicate_index_Static() {
+        SystemEnumerable.Where(Source(),static (v,i) => v>2&&i>0);
+        Source().Where(static (v,i) => v>2&&i>0);
+    }
+    private static void Where_predicate_index_Lambda() {
+        SystemEnumerable.Where(Source(),(v,i) => v>2&&i>0);
+        Source().Where((v,i) => v>2&&i>0);
+    }
+    private static void Where_predicate_index_Captured() {
+        var threshold=2;
+        SystemEnumerable.Where(Source(),(v,i) => v>threshold&&i>0);
+        Source().Where((v,i) => v>threshold&&i>0);
+    }
+    private static void Where_predicate_index_DelegateSyntax() {
+        SystemEnumerable.Where(Source(),delegate(int v,int i) { return v>2&&i>0; });
+        Source().Where(delegate(int v,int i) { return v>2&&i>0; });
+    }
+    private static void Where_predicate_index_Variable() {
+        Func<int,int,bool> predicate=(v,i) => v>2&&i>0;
+        SystemEnumerable.Where(Source(),predicate);
+        Source().Where(predicate);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void Zip() {
+        Zip_resultSelector_Static();
+        Zip_resultSelector_Lambda();
+        Zip_resultSelector_Captured();
+        Zip_resultSelector_DelegateSyntax();
+        Zip_resultSelector_Variable();
+    }
+    private static void Zip_resultSelector_Static() {
+        SystemEnumerable.Zip(Source(),Second(),static (a,b) => a+b);
+        Source().Zip(Second(),static (a,b) => a+b);
+    }
+    private static void Zip_resultSelector_Lambda() {
+        SystemEnumerable.Zip(Source(),Second(),(a,b) => a+b);
+        Source().Zip(Second(),(a,b) => a+b);
+    }
+    private static void Zip_resultSelector_Captured() {
+        var offset=0;
+        SystemEnumerable.Zip(Source(),Second(),(a,b) => a+b+offset);
+        Source().Zip(Second(),(a,b) => a+b+offset);
+    }
+    private static void Zip_resultSelector_DelegateSyntax() {
+        SystemEnumerable.Zip(Source(),Second(),delegate(int a,int b) { return a+b; });
+        Source().Zip(Second(),delegate(int a,int b) { return a+b; });
+    }
+    private static void Zip_resultSelector_Variable() {
+        Func<int,int,int> resultSelector=(a,b) => a+b;
+        SystemEnumerable.Zip(Source(),Second(),resultSelector);
+        Source().Zip(Second(),resultSelector);
+    }
 
     public static int[] Source() => [1,2,3,4];
     public static int[] Second() => [3,4,5];
-    public static int[] Third() => [10,20,30];
     public static int[] Duplicates() => [1,2,2,3,3,4];
     public static NonGenericEnumerable CastObjects() => new object[] { 1,2,3 };
     public static Row[] Rows() => [new(1,10,"beta"),new(2,20,"alpha"),new(3,30,"gamma")];
 
     public sealed record Row(int Key,int Value,string Name);
-
-    // private static void AssertSequenceEqual<T>(IEnumerable<T> expected,IEnumerable<T> actual) {
-    //     Assert.Equal(expected,actual);
-    // }
-
-    // private static void AssertNestedSequenceEqual<T>(IEnumerable<IEnumerable<T>> expected,IEnumerable<IEnumerable<T>> actual) {
-    //     using var expectedEnumerator = expected.GetEnumerator();
-    //     using var actualEnumerator = actual.GetEnumerator();
-    //     while(true) {
-    //         var hasExpected = expectedEnumerator.MoveNext();
-    //         var hasActual = actualEnumerator.MoveNext();
-    //         Assert.Equal(hasExpected,hasActual);
-    //         if(!hasExpected) {
-    //             return;
-    //         }
-
-    //         Assert.Equal(expectedEnumerator.Current,actualEnumerator.Current);
-    //     }
-    // }
-
-    // private static void AssertGroupSequenceEqual<TKey,TElement>(IEnumerable<IGrouping<TKey,TElement>> expected,IEnumerable<IGrouping<TKey,TElement>> actual) {
-    //     using var expectedEnumerator = expected.GetEnumerator();
-    //     using var actualEnumerator = actual.GetEnumerator();
-    //     while(true) {
-    //         var hasExpected = expectedEnumerator.MoveNext();
-    //         var hasActual = actualEnumerator.MoveNext();
-    //         Assert.Equal(hasExpected,hasActual);
-    //         if(!hasExpected) {
-    //             return;
-    //         }
-
-    //         Assert.Equal(expectedEnumerator.Current.Key,actualEnumerator.Current.Key);
-    //         Assert.Equal(expectedEnumerator.Current,actualEnumerator.Current);
-    //     }
-    // }
-
-    // private static string AssertInterceptorGenerated([global::System.Runtime.CompilerServices.CallerMemberName] string methodName = "") {
-    //     var generated = GeneratedInterceptorAssert.SourceFor<EnumerableMethod1>(methodName);
-    //     Assert.Contains(methodName,generated);
-    //     return generated;
-    // }
 }
