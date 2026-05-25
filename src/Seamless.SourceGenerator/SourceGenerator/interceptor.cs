@@ -1314,28 +1314,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
-    private static bool 直接呼び出しソース生成19(Linq傍受対象型 target,out string staticMethods,out string body) {
-        staticMethods=string.Empty;
-        body=string.Empty;
-        var uniqueNumber=フラグメント番号初期値取得18();
-
-        if(直接呼び出しEnumerator生成33(target,ref uniqueNumber,out staticMethods,out body)) {
-            静的メソッド群と本体を補助クラスへ退避21(target.MethodName,ref staticMethods,ref body);
-            return true;
-        }
-
-        if(TryRenderCarrierDirectMethodBody(target,out body)) {
-            静的メソッド群と本体を補助クラスへ退避21(target.MethodName,ref staticMethods,ref body);
-            return true;
-        }
-
-        // Fragment/Carrier として最適化できなかった LINQ 呼び出しを
-        // System.Linq.Enumerable へ戻すフォールバックは生成しない。
-        // フォールバックを出すと「インターセプトされたが最適化されていない」状態が
-        // テストや生成コード上で見えなくなるため、呼び出し側で例外 body を生成させる。
-        return false;
-    }
-
     private static bool 直接呼び出しEnumerator生成33(
         Linq傍受対象型 target,
         ref int uniqueNumber,
@@ -1656,7 +1634,13 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return true;
         }
 
-        return linqInvocations.All(static invocation => invocation.Parent is ExpressionStatementSyntax);
+        return linqInvocations.All(static invocation => {
+            SyntaxNode node = invocation;
+            while(node.Parent is InvocationExpressionSyntax or MemberAccessExpressionSyntax) {
+                node = node.Parent;
+            }
+            return node.Parent is ExpressionStatementSyntax;
+        });
     }
 
     private static object CreateStaticTemplateArgument(LambdaSpec lambda) {
@@ -1693,46 +1677,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
 
         return sourceType.TypeArguments[0].ToDisplayString(完全修飾形式);
-    }
-
-    private static bool TryGetInvocationSourceElementTypeName(SemanticModel semanticModel,InvocationExpressionSyntax invocation,IMethodSymbol method,out string sourceElementTypeName) {
-        sourceElementTypeName=string.Empty;
-        var definition = method.ReducedFrom ?? method;
-        if(definition.Parameters.Length>0
-            && definition.Parameters[0].Type is INamedTypeSymbol parameterSourceType
-            && IsIEnumerableType(parameterSourceType)
-            && parameterSourceType.TypeArguments.Length==1
-            && !ContainsTypeParameter(parameterSourceType.TypeArguments[0])) {
-            sourceElementTypeName=parameterSourceType.TypeArguments[0].ToDisplayString(完全修飾形式);
-            return true;
-        }
-
-        if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess) {
-            return false;
-        }
-
-        if(!列挙要素型取得11(semanticModel.GetTypeInfo(memberAccess.Expression).Type,out var elementType,out _)) {
-            return false;
-        }
-
-        sourceElementTypeName=elementType.ToDisplayString(完全修飾形式);
-        return true;
-    }
-
-    private static string[] GetReferencedTypeParameterNames(SemanticModel semanticModel,InvocationExpressionSyntax invocation,IMethodSymbol method,System.Threading.CancellationToken cancellationToken) {
-        var names = new List<string>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-
-        if(invocation.Expression is MemberAccessExpressionSyntax memberAccess) {
-            CollectTypeParameterNames(semanticModel.GetTypeInfo(memberAccess.Expression,cancellationToken).Type,names,seen);
-        }
-
-        CollectTypeParameterNames(method.ReturnType,names,seen);
-        foreach(var parameter in method.Parameters) {
-            CollectTypeParameterNames(parameter.Type,names,seen);
-        }
-
-        return names.ToArray();
     }
 
     private static void CollectTypeParameterNames(ITypeSymbol? type,List<string> names,HashSet<string> seen) {
@@ -1797,10 +1741,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
-    private static bool IsInlineDelegateType(ITypeSymbol type)
-        => type is INamedTypeSymbol namedType
-            && IsInlineDelegateType(namedType);
-
     private static bool IsInlineDelegateType(INamedTypeSymbol namedType) {
         // SelectMany では selector が IEnumerable<T> を返すため、
         // 戻り値がシーケンスでも FuncFragment 化できるようにしておく。
@@ -1821,10 +1761,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     private static bool IsNonGenericIEnumerableType(INamedTypeSymbol namedType)
         => namedType.ContainingNamespace.ToDisplayString()=="System.Collections"
             && namedType.MetadataName=="IEnumerable";
-
-    private static bool IsSecondarySequenceType(ITypeSymbol type)
-        => type is INamedTypeSymbol namedType
-            && IsIEnumerableType(namedType);
 
     private static bool ContainsAnonymousType(ITypeSymbol type) {
         if(type.IsAnonymousType) {
@@ -1870,12 +1806,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
 
         return namedType.ContainingType is not null && NamedTypeAccessibilityRisk(namedType.ContainingType);
-    }
-
-    private static string GetLambdaBodyText(LambdaExpressionSyntax lambda) {
-        return TryGetLambdaExpressionBody(lambda,out var body)
-            ? NormalizeExpressionText(body.ToString())
-            : string.Empty;
     }
 
     private static bool TryGetLambdaExpressionBody(LambdaExpressionSyntax lambda,out ExpressionSyntax body) {
@@ -2355,80 +2285,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .Replace("\\","\\\\",StringComparison.Ordinal)
             .Replace("\"","\\\"",StringComparison.Ordinal);
         return $"throw new global::System.InvalidOperationException(\"{message}\");";
-    }
-
-    private static string RenderCarrierHelperTypes() => """
-        private sealed class __SelectCarrier<T> : global::System.Collections.Generic.IEnumerable<T> {
-            public __SelectCarrier(global::System.Collections.IEnumerable rawSource, global::System.Func<object?, global::System.Int32, T> select) { this.RawSource=rawSource; this.Select=select; }
-            public global::System.Collections.IEnumerable RawSource { get; }
-            public global::System.Func<object?, global::System.Int32, T> Select { get; }
-            public global::System.Collections.Generic.IEnumerator<T> GetEnumerator() { var rawIndex=0; foreach(var raw in this.RawSource) yield return this.Select(raw,rawIndex++); }
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
-        }
-        private sealed class __WhereCarrier<T> : global::System.Collections.Generic.IEnumerable<T> {
-            public __WhereCarrier(global::System.Collections.IEnumerable rawSource, global::System.Func<object?, global::System.Int32, global::System.Boolean> predicate, global::System.Func<object?, global::System.Int32, T> select) { this.RawSource=rawSource; this.Predicate=predicate; this.Select=select; }
-            public global::System.Collections.IEnumerable RawSource { get; }
-            public global::System.Func<object?, global::System.Int32, global::System.Boolean> Predicate { get; }
-            public global::System.Func<object?, global::System.Int32, T> Select { get; }
-            public global::System.Collections.Generic.IEnumerator<T> GetEnumerator() { var rawIndex=0; foreach(var raw in this.RawSource) { if(this.Predicate(raw,rawIndex)) yield return this.Select(raw,rawIndex); rawIndex++; } }
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
-        }
-        private sealed class __TakeCarrier<T> : global::System.Collections.Generic.IEnumerable<T> {
-            public __TakeCarrier(global::System.Collections.Generic.IEnumerable<T> source, global::System.Int32 count) { this.Source=source; this.Count=count; }
-            public global::System.Collections.Generic.IEnumerable<T> Source { get; }
-            public global::System.Int32 Count { get; }
-            public global::System.Collections.Generic.IEnumerator<T> GetEnumerator() { if(this.Count<=0) yield break; var taken=0; foreach(var item in this.Source) { yield return item; if(++taken>=this.Count) yield break; } }
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
-        }
-        private sealed class __SelectTakeCarrier<T> : global::System.Collections.Generic.IEnumerable<T> {
-            public __SelectTakeCarrier(global::System.Collections.IEnumerable rawSource, global::System.Func<object?, global::System.Int32, T> select, global::System.Int32 count) { this.RawSource=rawSource; this.Select=select; this.Count=count; }
-            public global::System.Collections.IEnumerable RawSource { get; }
-            public global::System.Func<object?, global::System.Int32, T> Select { get; }
-            public global::System.Int32 Count { get; }
-            public global::System.Collections.Generic.IEnumerator<T> GetEnumerator() { if(this.Count<=0) yield break; var rawIndex=0; var taken=0; foreach(var raw in this.RawSource) { yield return this.Select(raw,rawIndex++); if(++taken>=this.Count) yield break; } }
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
-        }
-        private sealed class __WhereSelectIndexCarrier<TSource, TResult> : global::System.Collections.Generic.IEnumerable<TResult> {
-            public __WhereSelectIndexCarrier(__WhereCarrier<TSource> source, global::System.Func<TSource, global::System.Int32, TResult> selector) { this.Source=source; this.Selector=selector; }
-            public __WhereCarrier<TSource> Source { get; }
-            public global::System.Func<TSource, global::System.Int32, TResult> Selector { get; }
-            public global::System.Collections.Generic.IEnumerator<TResult> GetEnumerator() { var filteredIndex=0; var rawIndex=0; foreach(var raw in this.Source.RawSource) { if(!this.Source.Predicate(raw,rawIndex)) { rawIndex++; continue; } yield return this.Selector(this.Source.Select(raw,rawIndex),filteredIndex++); rawIndex++; } }
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
-        }
-        private sealed class __WhereWhereIndexCarrier<T> : global::System.Collections.Generic.IEnumerable<T> {
-            public __WhereWhereIndexCarrier(__WhereCarrier<T> source, global::System.Func<T, global::System.Int32, global::System.Boolean> predicate) { this.Source=source; this.Predicate=predicate; }
-            public __WhereCarrier<T> Source { get; }
-            public global::System.Func<T, global::System.Int32, global::System.Boolean> Predicate { get; }
-            public global::System.Collections.Generic.IEnumerator<T> GetEnumerator() { var filteredIndex=0; var rawIndex=0; foreach(var raw in this.Source.RawSource) { if(!this.Source.Predicate(raw,rawIndex)) { rawIndex++; continue; } var value=this.Source.Select(raw,rawIndex); if(this.Predicate(value,filteredIndex++)) yield return value; rawIndex++; } }
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
-        }
-        private sealed class __TakeSelectCarrier<TSource, TResult> : global::System.Collections.Generic.IEnumerable<TResult> {
-            public __TakeSelectCarrier(global::System.Collections.Generic.IEnumerable<TSource> source, global::System.Int32 count, global::System.Func<TSource, TResult> selector) { this.Source=source; this.Count=count; this.Selector=selector; }
-            public global::System.Collections.Generic.IEnumerable<TSource> Source { get; }
-            public global::System.Int32 Count { get; }
-            public global::System.Func<TSource, TResult> Selector { get; }
-            public global::System.Collections.Generic.IEnumerator<TResult> GetEnumerator() { if(this.Count<=0) yield break; var taken=0; foreach(var item in this.Source) { yield return this.Selector(item); if(++taken>=this.Count) yield break; } }
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
-        }
-        private sealed class __SelectTakeSelectCarrier<TSource, TResult> : global::System.Collections.Generic.IEnumerable<TResult> {
-            public __SelectTakeSelectCarrier(global::System.Collections.IEnumerable rawSource, global::System.Func<object?, global::System.Int32, TSource> first, global::System.Int32 count, global::System.Func<TSource, TResult> second) { this.RawSource=rawSource; this.First=first; this.Count=count; this.Second=second; }
-            public global::System.Collections.IEnumerable RawSource { get; }
-            public global::System.Func<object?, global::System.Int32, TSource> First { get; }
-            public global::System.Int32 Count { get; }
-            public global::System.Func<TSource, TResult> Second { get; }
-            public global::System.Collections.Generic.IEnumerator<TResult> GetEnumerator() { if(this.Count<=0) yield break; var rawIndex=0; var taken=0; foreach(var raw in this.RawSource) { yield return this.Second(this.First(raw,rawIndex++)); if(++taken>=this.Count) yield break; } }
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
-        }
-        """;
-
-    private static void AppendBlock(StringBuilder builder,string value) {
-        if(string.IsNullOrWhiteSpace(value)) {
-            return;
-        }
-        if(builder.Length>0 && builder[^1]!='\n') {
-            builder.AppendLine();
-        }
-        builder.AppendLine(value.Trim());
     }
 
     private sealed class Linq傍受対象型 {
