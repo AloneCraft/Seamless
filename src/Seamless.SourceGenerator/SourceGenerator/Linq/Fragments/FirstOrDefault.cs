@@ -8,7 +8,7 @@ public class FirstOrDefault(int 番号, Enumerable source, string resultType) : 
     protected override string ComputeExpression => $"Compute({this.e})";
     protected override string ComputeMembers => $$"""
         private static {{resultType}} Compute(TEnum source) {
-            return source.MoveNext() ? ({{resultType}})(object)source.Current! : default!;
+            return source.MoveNext() ? source.Current : default!;
         }
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
@@ -23,7 +23,7 @@ public class FirstOrDefault_defaultValue(int 番号, Enumerable source, string d
     protected override string ComputeExpression => $"Compute({this.e}, defaultValue)";
     protected override string ComputeMembers => $$"""
         private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue) {
-            return source.MoveNext() ? ({{resultType}})(object)source.Current! : defaultValue;
+            return source.MoveNext() ? source.Current : defaultValue;
         }
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
@@ -44,7 +44,7 @@ public class FirstOrDefault_predicate(int 番号, Enumerable source, FuncFragmen
         private static {{resultType}} Compute(TEnum source) {
             while(source.MoveNext()) {
                 var {{this.item}} = source.Current;
-                if({{this.FuncInvoke(predicate,nameof(predicate),this.item)}}) return ({{resultType}})(object){{this.item}}!;
+                if({{this.FuncInvoke(predicate,nameof(predicate),this.item)}}) return {{this.item}};
             }
             return default!;
         }

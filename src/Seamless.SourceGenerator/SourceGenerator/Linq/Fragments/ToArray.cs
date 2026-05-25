@@ -11,7 +11,7 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
         private static {{resultType}} Compute(TEnum source) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             while(source.MoveNext()) result.Add(source.Current);
-            return ({{resultType}})(object)result.ToArray();
+            return result.ToArray();
         }
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";

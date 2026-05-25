@@ -12,7 +12,7 @@ public class Last(int 番号, Enumerable source, string resultType) : BufferedSc
             {{resultType}} result = default!;
             while(source.MoveNext()) {
                 found = true;
-                result = ({{resultType}})(object)source.Current!;
+                result = source.Current;
             }
             if(!found) throw global::Seamless.Linq.Enumerable.NoElements();
             return result;
@@ -40,7 +40,7 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
                 var {{this.item}} = source.Current;
                 if({{this.FuncInvoke(predicate,nameof(predicate),this.item)}}) {
                     found = true;
-                    result = ({{resultType}})(object){{this.item}}!;
+                    result = {{this.item}};
                 }
             }
             if(!found) throw global::Seamless.Linq.Enumerable.NoElements();
