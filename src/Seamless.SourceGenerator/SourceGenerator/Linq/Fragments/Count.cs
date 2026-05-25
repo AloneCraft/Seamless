@@ -1,44 +1,43 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
 public class Count(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
+    protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source";
-    protected override string ComputeExpression => "Compute(source)";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    protected override string ComputeExpression => $"Compute({this.e})";
     protected override string ComputeMembers => $$"""
-        private static {{resultType}} Compute(global::System.Collections.Generic.IEnumerable<{{source.ElementType}}> source) {
+        private static {{resultType}} Compute(TEnum source) {
             {{resultType}} count = 0;
-            using var e = source.GetEnumerator();
-            while(e.MoveNext()) count++;
+            while(source.MoveNext()) count++;
             return count;
         }
         """;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class LongCount(int 番号,Enumerable source,string resultType):Count(番号,source,resultType);
-
 public class Count_predicate(int 番号, Enumerable source, FuncFragment predicate, string resultType) : BufferedScalar(番号, resultType) {
+    protected override Enumerable PrimarySource => source;
     public override string StructMethod => predicate.CanInlineAssign ? string.Empty : this.DefineStruct(predicate, nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => predicate.CanInlineAssign
-        ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression})"
-        : $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(predicate,nameof(predicate))})";
+        ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})"
+        : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(predicate,nameof(predicate))})";
     public override string GetEnumeratorPrimaryConstructorParameters => predicate.CanInlineAssign
-        ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source"
-        : $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, global::System.Func<{source.ElementType}, bool> predicate";
-    protected override string ComputeExpression => "Compute(source)";
+        ? $"TEnum {this.e}"
+        : $"TEnum {this.e}, global::System.Func<{source.ElementType}, bool> predicate";
+    protected override string ComputeExpression => $"Compute({this.e})";
     protected override string ComputeMembers => $$"""
-        private static {{resultType}} Compute(global::System.Collections.Generic.IEnumerable<{{source.ElementType}}> source) {
+        private static {{resultType}} Compute(TEnum source) {
             {{resultType}} count = 0;
-            using var e = source.GetEnumerator();
-            while(e.MoveNext()) {
-                var {{this.item}} = e.Current;
+            while(source.MoveNext()) {
+                var {{this.item}} = source.Current;
                 if({{this.FuncInvoke(predicate,nameof(predicate),this.item)}}) count++;
             }
             return count;
         }
         """;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class LongCount_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):Count_predicate(番号,source,predicate,resultType);

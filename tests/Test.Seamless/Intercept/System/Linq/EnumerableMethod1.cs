@@ -222,6 +222,29 @@ public sealed class EnumerableMethod1 {
         var actual=CastObjects().Cast<int>();
     }
 
+    [Fact, Trait("Category","Unit")]
+    public void OfType_NoDelegate() {
+        OfType_NoDelegate_Impl();
+    }
+
+    private static void OfType_NoDelegate_Impl() {
+        var expected=SystemEnumerable.OfType<int>(CastObjects());
+        var actual=CastObjects().OfType<int>();
+        Assert.Equal(expected,actual);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void OfType_mixedTypes_NoDelegate() {
+        OfType_mixedTypes_NoDelegate_Impl();
+    }
+
+    private static void OfType_mixedTypes_NoDelegate_Impl() {
+        var mixed = new object[] { 1, "hello", 2, null!, 3.0, 4 };
+        var expected=SystemEnumerable.OfType<int>(mixed);
+        var actual=((global::System.Collections.IEnumerable)mixed).OfType<int>();
+        Assert.Equal(expected,actual);
+    }
+
     // インターセプトされるメソッド: Chunk_size_NoDelegate_Impl()
     // 理由: Chunk Fragment が実装され、ローカルメソッド再生成でも評価できるため
     [Fact, Trait("Category","Unit")]

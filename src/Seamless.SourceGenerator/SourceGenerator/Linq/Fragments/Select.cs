@@ -1,5 +1,6 @@
 ﻿namespace Seamless.SourceGenerator.Linq.Fragments;
 public class Select(int 番号,Enumerable source,FuncFragment selector):Enumerable(番号){
+    protected override Enumerable PrimarySource => source;
     // static ラムダなら selector helper を struct として定義する。
     public override string StructMethod => selector.CanInlineAssign ? string.Empty : this.DefineStruct(selector,nameof(selector));
     // source 側 enumerator と Select 自身の enumerator をまとめて出す。
@@ -13,21 +14,18 @@ public class Select(int 番号,Enumerable source,FuncFragment selector):Enumerab
     // それ以外 (ParameterFunc または非 static ラムダで closure なし): デリゲートを ctor に渡す。
     public override string GetEnumeratorExpression =>
         NeedsStructClosure(selector)
-            ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.ClosureArgsSuffix(selector)})"
+            ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.ClosureArgsSuffix(selector)})"
             : selector.CanInlineAssign && selector.CanGenerateMethod
-                ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression})"
-                : $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(selector,nameof(selector))})";
+                ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})"
+                : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(selector,nameof(selector))})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         NeedsStructClosure(selector)
-            ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, {this.ClosurePrimaryCtorSuffix(selector)}"
+            ? $"TEnum {this.e}, {this.ClosurePrimaryCtorSuffix(selector)}"
             : selector.CanInlineAssign && selector.CanGenerateMethod
-                ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source"
-                : $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, global::System.Func<{source.ElementType}, {this.ElementType}> selector";
-    // selector と source enumerator、現在値を保持する。
-    public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.Generic.IEnumerator<{{source.ElementType}}> {{this.e}} = source.GetEnumerator();
-        private {{this.ElementType}} {{this.currentValue}} = default!;
-        """;
+                ? $"TEnum {this.e}"
+                : $"TEnum {this.e}, global::System.Func<{source.ElementType}, {this.ElementType}> selector";
+    // selector と現在値を保持する。source enumerator は primary ctor backing field。
+    public override string GetEnumeratorFields => $"private {this.ElementType} {this.currentValue} = default!;";
     // 1 要素読むごとに selector を適用して TResult を流す。
     public override string GetTryGetNextBody => $$"""
         if({{this.e}}.MoveNext()) {

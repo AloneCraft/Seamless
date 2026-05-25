@@ -8,4 +8,5 @@ public abstract class Enumerable(int 番号):Fragment(番号){
     protected virtual string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
     // enumerable 系は要素型を Current とする enumerator struct を共通生成する。
     public override string GetEnumeratorStruct => this.DefineEnumeratorStructCore(this.ElementType,this.GetEnumeratorDisposeBody);
+
 }
