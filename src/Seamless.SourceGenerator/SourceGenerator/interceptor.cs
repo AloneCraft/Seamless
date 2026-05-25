@@ -107,6 +107,21 @@ namespace Seamless.SourceGenerator;
 
 [Generator]
 public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator {
+    private const string InterceptsLocationAttributeSource = """
+        #nullable enable
+        namespace System.Runtime.CompilerServices {
+            [global::System.AttributeUsage(global::System.AttributeTargets.Method,AllowMultiple=true)]
+            internal sealed class InterceptsLocationAttribute : global::System.Attribute {
+                public InterceptsLocationAttribute(int version,string data) {
+                    this.Version=version;
+                    this.Data=data;
+                }
+                public int Version { get; }
+                public string Data { get; }
+            }
+        }
+        """;
+
     private sealed class フラグメント候補 {
         public required Type FragmentType { get; init; }
         public required ConstructorInfo Constructor { get; init; }
@@ -146,10 +161,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .Where(static target => target is not null)
             .Select(static (target,_) => target!);
 
-        var combined = interceptTargets.Collect().Combine(typeTargets.Collect());
-        context.RegisterSourceOutput(combined,static (productionContext,pair) => {
-            var interceptTargets = pair.Left;
-            var typeTargets = pair.Right;
+        context.RegisterPostInitializationOutput(static productionContext => {
+            productionContext.AddSource("InterceptsLocationAttribute.g.cs",SourceText.From(InterceptsLocationAttributeSource,Encoding.UTF8));
+        });
+
+        context.RegisterSourceOutput(typeTargets.Collect(),static (productionContext,typeTargets) => {
 
             if(!typeTargets.IsDefaultOrEmpty) {
                 var databaseSource = データベースソース構築(typeTargets);
@@ -158,13 +174,24 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 }
             }
 
+        });
+
+        context.RegisterSourceOutput(interceptTargets.Collect(),static (productionContext,interceptTargets) => {
             if(interceptTargets.IsDefaultOrEmpty) {
                 return;
             }
 
-            var source = インターセプターソース構築(interceptTargets.Distinct(LinqInterceptTargetComparer.Instance).ToImmutableArray());
-            if(source.Length>0) {
-                productionContext.AddSource("Seamless.SourceGenerator.LinqInterceptors.g.cs",SourceText.From(source,Encoding.UTF8));
+            var sourceGroups = interceptTargets
+                .Distinct(LinqInterceptTargetComparer.Instance)
+                .GroupBy(static target => target.SourcePath,StringComparer.Ordinal)
+                .ToArray();
+            foreach(var sourceGroup in sourceGroups) {
+                var source = インターセプターソース構築(sourceGroup.ToImmutableArray());
+                if(source.Length==0) {
+                    continue;
+                }
+
+                productionContext.AddSource(インターセプターHintName取得(sourceGroup.Key),SourceText.From(source,Encoding.UTF8));
             }
         });
     }
@@ -359,26 +386,31 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         var builder = new StringBuilder();
         builder.AppendLine("#nullable enable");
         builder.AppendLine("using System.Linq;");
-        builder.AppendLine("namespace System.Runtime.CompilerServices {");
-        builder.AppendLine("    [global::System.AttributeUsage(global::System.AttributeTargets.Method,AllowMultiple=true)]");
-        builder.AppendLine("    file sealed class InterceptsLocationAttribute : global::System.Attribute {");
-        builder.AppendLine("        public InterceptsLocationAttribute(int version,string data) {");
-        builder.AppendLine("            this.Version=version;");
-        builder.AppendLine("            this.Data=data;");
-        builder.AppendLine("        }");
-        builder.AppendLine("        public int Version { get; }");
-        builder.AppendLine("        public string Data { get; }");
-        builder.AppendLine("    }");
-        builder.AppendLine("}");
-        builder.AppendLine();
-        builder.AppendLine("namespace Seamless.SourceGenerator.Generated {");
-        builder.AppendLine("    internal static partial class LinqInvocationInterceptors {");
         // 以前の「LINQ 呼び出し位置を直接 intercept する」方式で使っていた Carrier helper 群。
         // 現在は「LINQ を含むローカルメソッド全体を再構成する」方式へ寄せたため未使用。
         // 削除は怖いので残すが、生成ソースへは出さない。
         // インデント付き追記(builder,RenderCarrierHelperTypes(),"        ");
 
-        var index = 0;
+        foreach(var namespaceGroup in targets.GroupBy(static target => インターセプト名前空間取得(target.EnclosingType),StringComparer.Ordinal)) {
+            builder.AppendLine();
+            builder.AppendLine($"namespace {namespaceGroup.Key} {{");
+            foreach(var typeGroup in namespaceGroup.GroupBy(static target => target.EnclosingType.ToDisplayString(完全修飾形式),StringComparer.Ordinal)) {
+                var typeTargets = typeGroup.ToImmutableArray();
+                var typeSource = インターセプター型ソース構築(typeTargets);
+                インデント付き追記(builder,typeSource,"    ");
+            }
+            builder.AppendLine("}");
+        }
+        return 生成ソース整形(builder.ToString());
+    }
+
+    private static string インターセプター型ソース構築(ImmutableArray<Linq傍受対象型> targets) {
+        var builder = new StringBuilder();
+        var typeStack = 型スタック取得(targets[0].EnclosingType);
+        for(var i = 0; i<typeStack.Count; i++) {
+            builder.AppendLine($"internal static class {SanitizeIdentifier(typeStack[i].Name)} {{");
+        }
+
         var emittedMethodNames = new HashSet<string>(StringComparer.Ordinal);
         var emittedUnsafeAccessors = new HashSet<string>(StringComparer.Ordinal);
         var pendingClassLevelDeclarations = new List<string>();
@@ -389,97 +421,90 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                     var ローカル本体 = string.Empty;
                     if(生成ローカルメソッド本体構築0(target,out ローカル静的メソッド群,out ローカル本体,emittedUnsafeAccessors)) {
                         if(!string.IsNullOrWhiteSpace(ローカル静的メソッド群)) {
-                            インデント付き追記(builder,ローカル静的メソッド群,"        ");
+                            インデント付き追記(builder,ローカル静的メソッド群,"    ");
                         }
                         インターセプターXmlコメント追加(builder,target);
-                        builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
-                        builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
-                        builder.AppendLine($"        public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
-                        インデント付き追記(builder,ローカル本体,"            ");
-                        builder.AppendLine("        }");
+                        builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
+                        builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
+                        builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
+                        インデント付き追記(builder,ローカル本体,"        ");
+                        builder.AppendLine("    }");
                         builder.AppendLine();
-                        index++;
                         continue;
                     }
 
                     インターセプターXmlコメント追加(builder,target);
-                    builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
-                    builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
-                    builder.AppendLine($"        public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
+                    builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
+                    builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
+                    builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
                     if(ローカルメソッド未対応Enumerable取得31(target) is { Count: > 0 } unsupportedMethods) {
-                        インデント付き追記(builder,RenderUnsupportedLocalMethodBody(unsupportedMethods),"            ");
+                        インデント付き追記(builder,RenderUnsupportedLocalMethodBody(unsupportedMethods),"        ");
                     } else if(ローカルメソッドEnumerable呼び出し含む34(target) && !すべてのLINQ呼び出しが式文直下(target)) {
-                        // LINQ を含むローカルメソッドをインライン展開できない場合、元メソッドへ
-                        // reflection forward すると最適化失敗を隠してしまうため、明示的に例外を生成する。
-                        // ただし、全 LINQ 呼び出しが式文直下（結果を捨てる）なら UnsafeAccessor fallback で対処可能。
-                        インデント付き追記(builder,RenderUninlineableLocalMethodBody(target),"            ");
+                        インデント付き追記(builder,RenderUninlineableLocalMethodBody(target),"        ");
                     } else {
                         if(TryRenderSimpleLocalMethodBody(target,out var simpleLocalMethodBody)) {
-                            インデント付き追記(builder,simpleLocalMethodBody,"            ");
+                            インデント付き追記(builder,simpleLocalMethodBody,"        ");
                         } else {
                             var fallbackBody = RenderLocalMethodForwardBody(target,out var fallbackAccessorDeclaration);
                             if(!string.IsNullOrEmpty(fallbackAccessorDeclaration) && emittedUnsafeAccessors.Add(fallbackAccessorDeclaration)) {
                                 pendingClassLevelDeclarations.Add(fallbackAccessorDeclaration);
                             }
-                            インデント付き追記(builder,fallbackBody,"            ");
+                            インデント付き追記(builder,fallbackBody,"        ");
                         }
                     }
-                    builder.AppendLine("        }");
+                    builder.AppendLine("    }");
                     builder.AppendLine();
-                    index++;
                     continue;
                 }
-
-                // 以前はここで LINQ 呼び出し位置そのものを直接 intercept する分岐があった。
-                // いまの方針では Linq傍受対象生成(...) がローカルメソッド再構成 target しか返さないため、
-                // この経路は実行されない。実装は検討材料として残し、呼び出しだけ止めている。
-                /*
-                var 直接静的メソッド群 = string.Empty;
-                var 直接本体 = string.Empty;
-                if(!直接呼び出しソース生成19(target,out 直接静的メソッド群,out 直接本体)) {
-                    直接本体=RenderUnsupportedDirectMethodBody(target);
-                }
-
-                if(!emittedMethodNames.Add(target.MethodName)) {
-                    index++;
-                    continue;
-                }
-
-                builder.AppendLine($"        /// <summary>Intercepts {target.Method.Name} inside {target.ContainingMethodName}.</summary>");
-                if(!string.IsNullOrWhiteSpace(直接静的メソッド群)) {
-                    インデント付き追記(builder,直接静的メソッド群,"        ");
-                }
-                builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
-                builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
-                builder.AppendLine($"        public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
-                インデント付き追記(builder,直接本体,"            ");
-                builder.AppendLine("        }");
-                builder.AppendLine();
-                */
             } catch(Exception ex) {
                 if(emittedMethodNames.Contains(target.MethodName)) {
-                    index++;
                     continue;
                 }
 
                 emittedMethodNames.Add(target.MethodName);
                 インターセプターXmlコメント追加(builder,target);
-                builder.AppendLine("        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
-                builder.AppendLine($"        {target.InterceptsLocationAttributeText}");
-                builder.AppendLine($"        public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
-                インデント付き追記(builder,RenderUnsupportedDirectMethodBody(target,ex.Message),"            ");
-                builder.AppendLine("        }");
+                builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
+                builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
+                builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
+                インデント付き追記(builder,RenderUnsupportedDirectMethodBody(target,ex.Message),"        ");
+                builder.AppendLine("    }");
                 builder.AppendLine();
             }
-            index++;
         }
 
         foreach(var decl in pendingClassLevelDeclarations) {
-            インデント付き追記(builder,decl,"        ");
+            インデント付き追記(builder,decl,"    ");
         }
-        builder.AppendLine("    }");
-        builder.AppendLine("}");
-        return 生成ソース整形(builder.ToString());
+
+        for(var i = typeStack.Count-1; i>=0; i--) {
+            builder.AppendLine("}");
+        }
+        return builder.ToString();
+    }
+
+    private static List<INamedTypeSymbol> 型スタック取得(INamedTypeSymbol type) {
+        var stack = new List<INamedTypeSymbol>();
+        for(INamedTypeSymbol? current = type; current is not null; current = current.ContainingType) {
+            stack.Add(current);
+        }
+        stack.Reverse();
+        return stack;
+    }
+
+    private static string インターセプト名前空間取得(INamedTypeSymbol type) {
+        var originalNamespace = type.ContainingNamespace is { IsGlobalNamespace: false } ns
+            ? ns.ToDisplayString()
+            : string.Empty;
+        return string.IsNullOrWhiteSpace(originalNamespace)
+            ? "Intercept"
+            : $"Intercept.{originalNamespace}";
+    }
+
+    private static string インターセプターHintName取得(string sourcePath) {
+        var fileName = System.IO.Path.GetFileNameWithoutExtension(sourcePath);
+        return string.IsNullOrWhiteSpace(fileName)
+            ? "Unknown.g.cs"
+            : $"{SanitizeIdentifier(fileName)}.g.cs";
     }
 
     private static void インターセプターXmlコメント追加(StringBuilder builder,Linq傍受対象型 target) {
@@ -2205,7 +2230,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             var methodDisplay = target.Method.ToDisplayString(完全修飾形式)
                 .Replace("\\","\\\\",StringComparison.Ordinal)
                 .Replace("\"","\\\"",StringComparison.Ordinal);
-            return $"throw new global::System.InvalidOperationException(\"Local method interception fallback is not supported for generic method '{methodDisplay}'.\");";
+            return $"throw global::Seamless.GeneratedCodeHelpers.LinqInterceptorFailure(\"Local method interception fallback is not supported for generic method '{methodDisplay}'.\");";
         }
 
         // 非ジェネリックメソッド: UnsafeAccessor 経由で直接呼び出す。
@@ -2245,7 +2270,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         // Fragment クラスが存在しない Enumerable メソッドは、元実装へ黙って戻さず例外にする。
         // これにより「intercept 対象だったが未対応だった」ことを生成コードと実行時の両方で確認できる。
         var methodList = string.Join(", ",unsupportedMethods);
-        return $"throw new global::System.InvalidOperationException(\"Local method interception does not support System.Linq.Enumerable methods without Fragment implementations: {methodList}.\");";
+        return $"throw global::Seamless.GeneratedCodeHelpers.LinqInterceptorFailure(\"Local method interception does not support System.Linq.Enumerable methods without Fragment implementations: {methodList}.\");";
     }
 
     private static string RenderUninlineableLocalMethodBody(Linq傍受対象型 target) {
@@ -2254,7 +2279,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         var methodName = target.Method.ToDisplayString(完全修飾形式)
             .Replace("\\","\\\\",StringComparison.Ordinal)
             .Replace("\"","\\\"",StringComparison.Ordinal);
-        return $"throw new global::System.InvalidOperationException(\"Local method interception could not inline '{methodName}'. Fallback forwarding is disabled for methods that contain System.Linq.Enumerable calls.\");";
+        return $"throw global::Seamless.GeneratedCodeHelpers.LinqInterceptorFailure(\"Local method interception could not inline '{methodName}'. Fallback forwarding is disabled for methods that contain System.Linq.Enumerable calls.\");";
     }
 
     private static bool TryRenderCarrierDirectMethodBody(Linq傍受対象型 target,out string body) {
@@ -2347,7 +2372,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         message=message
             .Replace("\\","\\\\",StringComparison.Ordinal)
             .Replace("\"","\\\"",StringComparison.Ordinal);
-        return $"throw new global::System.InvalidOperationException(\"{message}\");";
+        return $"throw global::Seamless.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\");";
     }
 
     private sealed class Linq傍受対象型 {
@@ -2372,6 +2397,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         public IMethodSymbol Method { get; }
         public IMethodSymbol TemplateMethod { get; }
         public InvocationExpressionSyntax Invocation { get; }
+        public string SourcePath => this.Invocation.SyntaxTree.FilePath;
         public INamedTypeSymbol EnclosingType { get; }
         public SemanticModel SemanticModel { get; }
         public InterceptParameterSpec[] Parameters { get; }

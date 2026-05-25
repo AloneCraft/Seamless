@@ -8,9 +8,10 @@ internal static class GeneratedInterceptorAssert {
         Assert.True(Directory.Exists(generatedRoot),$"Generated source directory does not exist: {generatedRoot}");
 
         var matches = new List<string>();
-        foreach(var file in Directory.EnumerateFiles(generatedRoot,"Seamless.SourceGenerator.LinqInterceptors.g.cs",SearchOption.AllDirectories)) {
+        foreach(var file in Directory.EnumerateFiles(generatedRoot,"*.g.cs",SearchOption.AllDirectories)) {
             var text = File.ReadAllText(file);
-            if(!text.Contains("internal static partial class LinqInvocationInterceptors",StringComparison.Ordinal)) {
+            if(!text.Contains("namespace Intercept.",StringComparison.Ordinal)
+                && !text.Contains("namespace Intercept {",StringComparison.Ordinal)) {
                 continue;
             }
             if(!text.Contains(methodName,StringComparison.Ordinal)) {
