@@ -1,14 +1,14 @@
 ﻿namespace Seamless.SourceGenerator.Linq.Fragments;
 public class All(int 番号, Enumerable source, FuncFragment predicate) : Scalar(番号) {
+    protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.DefineStruct(predicate,nameof(predicate));
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(predicate,nameof(predicate))})";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(predicate,nameof(predicate))})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{this.DefineScalarEnumeratorStruct("bool")}}
         """;
-    public override string GetEnumeratorPrimaryConstructorParameters => $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, global::System.Func<{source.ElementType}, bool> predicate";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, global::System.Func<{source.ElementType}, bool> predicate";
     public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.Generic.IEnumerator<{{source.ElementType}}> {{this.e}} = source.GetEnumerator();
         private bool {{this.currentValue}} = true;
         private bool {{this.yielded}} = false;
         """;

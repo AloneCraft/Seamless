@@ -9,7 +9,7 @@ public abstract class BufferedSequence(int 番号,string elementType) : Enumerab
         """;
     protected virtual string StructSources => string.Empty;
     public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.Generic.IEnumerator<{{this.ElementType}}> {{this.e}} = {{this.BuildExpression}}.GetEnumerator();
+        private global::System.Collections.Generic.List<{{this.ElementType}}>.Enumerator {{this.e}} = {{this.BuildExpression}}.GetEnumerator();
         private {{this.ElementType}} {{this.currentValue}} = default!;
         {{this.BuildMembers}}
         """;

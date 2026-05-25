@@ -94,9 +94,15 @@ public abstract class Fragment(
     public IEnumerable<string> CollectAllUnsafeAccessorCodes() {
         foreach(var field in GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)) {
             if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
-                && field.GetValue(this) is ParameterFunc paramFunc
-                && !string.IsNullOrEmpty(paramFunc.UnsafeAccessorCode)) {
-                yield return paramFunc.UnsafeAccessorCode;
+                && field.GetValue(this) is FuncFragment funcFrag) {
+                // ParameterFunc のメソッドグループ用 UnsafeAccessor
+                if(funcFrag is ParameterFunc paramFunc && !string.IsNullOrEmpty(paramFunc.UnsafeAccessorCode)) {
+                    yield return paramFunc.UnsafeAccessorCode;
+                }
+                // ラムダ本体内のフィールド/static メソッドアクセス用 UnsafeAccessor
+                foreach(var code in funcFrag.BodyUnsafeAccessorCodes) {
+                    yield return code;
+                }
             }
             if(typeof(Fragment).IsAssignableFrom(field.FieldType)
                 && field.GetValue(this) is Fragment child) {
@@ -114,8 +120,9 @@ public abstract class Fragment(
     public abstract string GetTryGetNextBody { get; }
     // Current プロパティが返す式。
     public abstract string GetCurrentExpression { get; }
-    // 生成した enumerator struct の型名。
-    public string EnumeratorTypeName => Struct;
+    // 生成した enumerator struct の型名。PrimarySource が設定されると自動でジェネリック型名を返す。
+    public virtual string EnumeratorTypeName =>
+        PrimarySource is { } src ? $"{Struct}<{src.EnumeratorTypeName}>" : Struct;
     // Enumerable を直接返す interceptor 用の new Enumerator(...) 式。
     public virtual string GetEnumeratorExpression => throw new NotSupportedException($"{this.GetType().Name} does not support Enumerator mode expression generation.");
     // primary constructor を使う enumerator struct の引数一覧。空なら通常 struct 宣言。
@@ -200,10 +207,13 @@ public abstract class Fragment(
     // 各断片が持つ Current/TryGetNext/Dispose を IValueEnumerator struct にまとめる。
     private protected string DefineEnumeratorStructCore(string currentType,string disposeBody) {
         return $$"""
-            {{this.GetEnumeratorStructDeclaration($"global::Seamless.Linq.Carrier.IValueEnumerator<{currentType}>")}}
+            {{this.GetEnumeratorStructDeclaration($"global::Seamless.Linq.Carrier.IValueEnumerator<{currentType}>, global::System.Collections.Generic.IEnumerator<{currentType}>")}}
                 {{this.GetEnumeratorFields}}
                 {{this.GetEnumeratorConstructor}}
                 public {{currentType}} Current => {{this.GetCurrentExpression}};
+                object? global::System.Collections.IEnumerator.Current => Current;
+                void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
+                public bool MoveNext() => TryGetNext(out _);
                 public bool TryGetNonEnumeratedCount(out int count) {
                     count = 0;
                     return false;
@@ -223,16 +233,31 @@ public abstract class Fragment(
             """;
     }
 
+    // 単一上流源を持つ断片はこれをオーバーライドする。
+    // 設定すると StructTypeParameters/StructTypeConstraints/EnumeratorTypeName が自動導出される。
+    protected virtual Enumerable? PrimarySource => null;
+
+    // 生成 struct に付ける型パラメータ（"<TEnum>" 等）。PrimarySource が設定されると "<TEnum>" になる。
+    protected virtual string StructTypeParameters => PrimarySource is not null ? "<TEnum>" : string.Empty;
+    // 生成 struct に付ける where 制約。PrimarySource が設定されると struct 制約付きの where 句になる。
+    protected virtual string StructTypeConstraints =>
+        PrimarySource is { } src
+            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{src.ElementType}>"
+            : string.Empty;
+
     private protected string GetEnumeratorStructDeclaration(string interfaceType) {
+        var tp = StructTypeParameters;
+        var tc = string.IsNullOrEmpty(StructTypeConstraints) ? "" : $"\n    {StructTypeConstraints}";
         return string.IsNullOrWhiteSpace(this.GetEnumeratorPrimaryConstructorParameters)
-            ? $"private struct {Struct} : {interfaceType} {{"
-            : $"private struct {Struct}({this.GetEnumeratorPrimaryConstructorParameters}) : {interfaceType} {{";
+            ? $"private struct {Struct}{tp} : {interfaceType}{tc} {{"
+            : $"private struct {Struct}{tp}({this.GetEnumeratorPrimaryConstructorParameters}) : {interfaceType}{tc} {{";
     }
 
     private protected string GetGenericEnumeratorStructDeclaration(string typeParameters,string interfaceType) {
+        var tc = string.IsNullOrEmpty(StructTypeConstraints) ? "" : $"\n    {StructTypeConstraints}";
         return string.IsNullOrWhiteSpace(this.GetEnumeratorPrimaryConstructorParameters)
-            ? $"private struct {Struct}{typeParameters} : {interfaceType} {{"
-            : $"private struct {Struct}{typeParameters}({this.GetEnumeratorPrimaryConstructorParameters}) : {interfaceType} {{";
+            ? $"private struct {Struct}{typeParameters} : {interfaceType}{tc} {{"
+            : $"private struct {Struct}{typeParameters}({this.GetEnumeratorPrimaryConstructorParameters}) : {interfaceType}{tc} {{";
     }
 
     // struct の TryGetNext 内で使う。static ラムダまたは struct closure ならインライン展開、それ以外はデリゲートフィールド呼び出し。

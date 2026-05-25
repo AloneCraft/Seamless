@@ -4,6 +4,7 @@
 */
 
 public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable(番号) {
+    protected override Enumerable PrimarySource => source;
     protected abstract string CollectionElementType { get; }
     protected abstract string CollectionSelectorPrimaryConstructorParameter { get; }
     protected abstract string CreateInnerEnumeratorExpression { get; }
@@ -15,9 +16,8 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorPrimaryConstructorParameters => $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, {this.CollectionSelectorPrimaryConstructorParameter}";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {this.CollectionSelectorPrimaryConstructorParameter}";
     public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.Generic.IEnumerator<{{source.ElementType}}> {{this.e}} = source.GetEnumerator();
         private global::System.Collections.Generic.IEnumerator<{{this.CollectionElementType}}>? innerEnumerator = null;
         private {{source.ElementType}} {{this.outerValue}} = default!;
         private {{this.ElementType}} {{this.currentValue}} = default!;
@@ -54,7 +54,7 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
 
 public class SelectMany(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
     public override string StructMethod => this.DefineStruct(selector, nameof(selector));
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(selector, nameof(selector))})";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(selector, nameof(selector))})";
     protected override string CollectionSelectorPrimaryConstructorParameter => $"global::System.Func<{source.ElementType}, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>> selector";
     protected override string CreateInnerEnumeratorExpression => $"{nameof(selector)}({this.outerValue}).GetEnumerator()";
     protected override string CurrentValueAssignmentFromInner => $"{this.currentValue} = {this.item};";
@@ -64,7 +64,7 @@ public class SelectMany(int 番号, Enumerable source, FuncFragment selector) : 
 
 public class SelectMany_index(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
     public override string StructMethod => this.DefineStruct(selector, nameof(selector));
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(selector, nameof(selector))})";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(selector, nameof(selector))})";
     protected override string CollectionSelectorPrimaryConstructorParameter => $"global::System.Func<{source.ElementType}, int, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>> selector";
     public override string GetEnumeratorFields => $$"""
         {{base.GetEnumeratorFields}}
@@ -82,8 +82,8 @@ public class SelectMany_resultSelector(int 番号, Enumerable source, FuncFragme
         {{this.DefineStruct(collectionSelector, nameof(collectionSelector))}}
         {{this.DefineStruct(resultSelector, nameof(resultSelector))}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(collectionSelector, nameof(collectionSelector))}, {this.FuncDelegate(resultSelector, nameof(resultSelector))})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $$"""global::System.Collections.Generic.IEnumerable<{{source.ElementType}}> source, global::System.Func<{{source.ElementType}}, global::System.Collections.Generic.IEnumerable<{{this.CollectionElementType}}>> collectionSelector, global::System.Func<{{source.ElementType}}, {{this.CollectionElementType}}, {{this.ElementType}}> resultSelector""";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(collectionSelector, nameof(collectionSelector))}, {this.FuncDelegate(resultSelector, nameof(resultSelector))})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $$"""TEnum {{this.e}}, global::System.Func<{{source.ElementType}}, global::System.Collections.Generic.IEnumerable<{{this.CollectionElementType}}>> collectionSelector, global::System.Func<{{source.ElementType}}, {{this.CollectionElementType}}, {{this.ElementType}}> resultSelector""";
     public override string GetEnumeratorFields => $$"""
         {{base.GetEnumeratorFields}}
         """;
@@ -99,8 +99,8 @@ public class SelectMany_index_resultSelector(int 番号, Enumerable source, Func
         {{this.DefineStruct(collectionSelector, nameof(collectionSelector))}}
         {{this.DefineStruct(resultSelector, nameof(resultSelector))}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(collectionSelector, nameof(collectionSelector))}, {this.FuncDelegate(resultSelector, nameof(resultSelector))})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $$"""global::System.Collections.Generic.IEnumerable<{{source.ElementType}}> source, global::System.Func<{{source.ElementType}}, int, global::System.Collections.Generic.IEnumerable<{{this.CollectionElementType}}>> collectionSelector, global::System.Func<{{source.ElementType}}, {{this.CollectionElementType}}, {{this.ElementType}}> resultSelector""";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(collectionSelector, nameof(collectionSelector))}, {this.FuncDelegate(resultSelector, nameof(resultSelector))})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $$"""TEnum {{this.e}}, global::System.Func<{{source.ElementType}}, int, global::System.Collections.Generic.IEnumerable<{{this.CollectionElementType}}>> collectionSelector, global::System.Func<{{source.ElementType}}, {{this.CollectionElementType}}, {{this.ElementType}}> resultSelector""";
     public override string GetEnumeratorFields => $$"""
         {{base.GetEnumeratorFields}}
         private int {{this.index}} = -1;

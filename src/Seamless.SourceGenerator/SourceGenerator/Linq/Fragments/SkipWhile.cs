@@ -1,5 +1,6 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 public class SkipWhile(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
+    protected override Enumerable PrimarySource => source;
     public override string StructMethod => predicate.CanInlineAssign ? string.Empty : this.DefineStruct(predicate, nameof(predicate));
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
@@ -7,18 +8,17 @@ public class SkipWhile(int 番号, Enumerable source, FuncFragment predicate) : 
         """;
     public override string GetEnumeratorExpression =>
         NeedsStructClosure(predicate)
-            ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.ClosureArgsSuffix(predicate)})"
+            ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.ClosureArgsSuffix(predicate)})"
             : predicate.CanInlineAssign && predicate.CanGenerateMethod
-                ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression})"
-                : $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(predicate,nameof(predicate))})";
+                ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})"
+                : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(predicate,nameof(predicate))})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         NeedsStructClosure(predicate)
-            ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, {this.ClosurePrimaryCtorSuffix(predicate)}"
+            ? $"TEnum {this.e}, {this.ClosurePrimaryCtorSuffix(predicate)}"
             : predicate.CanInlineAssign && predicate.CanGenerateMethod
-                ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source"
-                : $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, global::System.Func<{source.ElementType}, bool> predicate";
+                ? $"TEnum {this.e}"
+                : $"TEnum {this.e}, global::System.Func<{source.ElementType}, bool> predicate";
     public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.Generic.IEnumerator<{{source.ElementType}}> {{this.e}} = source.GetEnumerator();
         private {{source.ElementType}} {{this.currentValue}} = default!;
         private bool skipping = true;
         """;
@@ -43,18 +43,17 @@ public class SkipWhile(int 番号, Enumerable source, FuncFragment predicate) : 
 public class SkipWhile_index(int 番号, Enumerable source, FuncFragment predicate) : SkipWhile(番号, source, predicate) {
     public override string GetEnumeratorExpression =>
         NeedsStructClosure(predicate)
-            ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, @this)"
+            ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, @this)"
             : predicate.CanInlineAssign && predicate.CanGenerateMethod
-                ? $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression})"
-                : $"new {this.EnumeratorTypeName}({source.GetEnumerableExpression}, {this.FuncDelegate(predicate,nameof(predicate))})";
+                ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})"
+                : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(predicate,nameof(predicate))})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         NeedsStructClosure(predicate)
-            ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, {ContainingTypeName} @this"
+            ? $"TEnum {this.e}, {ContainingTypeName} @this"
             : predicate.CanInlineAssign && predicate.CanGenerateMethod
-                ? $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source"
-                : $"global::System.Collections.Generic.IEnumerable<{source.ElementType}> source, global::System.Func<{source.ElementType}, int, bool> predicate";
+                ? $"TEnum {this.e}"
+                : $"TEnum {this.e}, global::System.Func<{source.ElementType}, int, bool> predicate";
     public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.Generic.IEnumerator<{{source.ElementType}}> {{this.e}} = source.GetEnumerator();
         private {{source.ElementType}} {{this.currentValue}} = default!;
         private bool skipping = true;
         private int {{this.index}} = -1;
