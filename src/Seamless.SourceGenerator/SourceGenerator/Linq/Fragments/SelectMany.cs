@@ -106,6 +106,83 @@ public class SelectMany_resultSelector(int 番号, Enumerable source, FuncFragme
     public override string ElementType => FuncReturnTypeName(resultSelector);
 }
 
+/// <summary>
+/// selector の本体 LINQ チェーンを struct のまま展開する SelectMany。
+/// <br/>IEnumerator&lt;T&gt;? ではなく具象 struct 型フィールドを使うことで、
+/// インターフェースディスパッチを排除し、毎外要素でのデリゲート呼び出しもなくす。
+/// </summary>
+public class SelectMany_WithInlinedInner(int 番号, Enumerable source, Enumerable innerFragment, string outerParamName)
+    : SelectManyBase(番号, source) {
+
+    private string InnerEnumeratorTypeName => innerFragment.EnumeratorTypeName;
+
+    public override string StructMethod => string.Empty;
+
+    // outer source structs + inner chain structs + outer SelectMany struct
+    public override string GetEnumeratorStruct => $$"""
+        {{source.GetEnumeratorStruct}}
+        {{innerFragment.GetEnumeratorStruct}}
+        {{this.DefineEnumeratorStructCore(this.ElementType, this.GetEnumeratorDisposeBody)}}
+        """;
+
+    // No selector parameter — outer struct only needs the outer source enumerator
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+
+    // Use concrete struct type + bool flag instead of IEnumerator<T>?
+    public override string GetEnumeratorFields => $$"""
+        private {{InnerEnumeratorTypeName}} innerEnumerator = default!;
+        private bool {{hasValue}} = false;
+        private {{source.ElementType}} {{this.outerValue}} = default!;
+        private {{this.ElementType}} {{this.currentValue}} = default!;
+        """;
+
+    // bool flag replaces the null check
+    public override string GetTryGetNextBody => $$"""
+        {{Start}}:
+        if({{hasValue}}) {
+            if(innerEnumerator.TryGetNext(out var {{this.item}})) {
+                {{this.CurrentValueAssignmentFromInner}}
+                current = {{this.currentValue}};
+                return true;
+            }
+            innerEnumerator.Dispose();
+            {{hasValue}} = false;
+        }
+        if(!{{this.e}}.MoveNext()) {
+            current = default!;
+            return false;
+        }
+        {{this.outerValue}} = {{this.e}}.Current;
+        innerEnumerator = {{this.CreateInnerEnumeratorExpression}};
+        {{hasValue}} = true;
+        goto {{Start}};
+        """;
+
+    protected override string GetEnumeratorDisposeBody => $$"""
+        if({{hasValue}}) {
+            innerEnumerator.Dispose();
+        }
+        {{this.e}}.Dispose();
+        """;
+
+    // Instantiate the inner struct, substituting outer param name with the outerValue field.
+    protected override string CreateInnerEnumeratorExpression =>
+        System.Text.RegularExpressions.Regex.Replace(
+            innerFragment.GetEnumeratorExpression,
+            $@"(?<![a-zA-Z0-9_]){System.Text.RegularExpressions.Regex.Escape(outerParamName)}(?![a-zA-Z0-9_])",
+            outerValue);
+
+    // Required by SelectManyBase but not used (GetEnumeratorPrimaryConstructorParameters is overridden)
+    protected override string CollectionSelectorPrimaryConstructorParameter => string.Empty;
+    protected override string CurrentValueAssignmentFromInner => $"{this.currentValue} = {this.item};";
+    protected override string CollectionElementType => innerFragment.ElementType;
+    public override string ElementType => innerFragment.ElementType;
+
+    // GetEnumeratorExpression: outer struct takes only the outer source enumerator
+    public override string GetEnumeratorExpression =>
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+}
+
 public class SelectMany_index_resultSelector(int 番号, Enumerable source, FuncFragment collectionSelector, FuncFragment resultSelector) : SelectManyBase(番号, source) {
     public override string StructMethod => $$"""
         {{this.DefineStruct(collectionSelector, nameof(collectionSelector))}}

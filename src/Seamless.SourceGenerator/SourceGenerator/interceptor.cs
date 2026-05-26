@@ -620,6 +620,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return Anyフラグメント生成3(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
         }
 
+        // SelectMany selector の内部チェーンを struct にインライン化できる場合は専用パスへ。
+        if(methodName=="SelectMany"
+            && SelectManyインライン化試行50(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector)) {
+            return true;
+        }
+
         return 登録済みフラグメント生成24(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
     }
     /// <summary>
@@ -801,6 +807,68 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// source.SelectMany(p =&gt; innerChain) の内部チェーンを struct にインライン化する。
+    /// <br/>selector が単一引数ラムダで本体が LINQ チェーンにパース可能な場合のみ成功する。
+    /// 外側パラメータ名（例: p）を内側 Fragment の GetEnumeratorExpression 内で
+    /// outerValue フィールド名に置換し、SelectMany_WithInlinedInner を生成する。
+    /// </summary>
+    private static bool SelectManyインライン化試行50(
+        SemanticModel semanticModel,
+        InvocationExpressionSyntax invocation,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        out Fragment fragment,
+        out string staticMethods,
+        List<string>? unsafeAccessorCollector = null) {
+        fragment=null!;
+        staticMethods=string.Empty;
+
+        // Resolve method and check it is System.Linq.Enumerable.SelectMany
+        if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) return false;
+        var definition = method.ReducedFrom ?? method;
+        if(definition.Name!="SelectMany"
+            || definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable") {
+            return false;
+        }
+
+        // Only the plain overload: SelectMany(source, Func<T, IEnumerable<U>>) — 1 argument
+        if(invocation.ArgumentList.Arguments.Count!=1
+            || invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression }) {
+            return false;
+        }
+
+        // The single argument must be a simple (non-index) lambda  p => ...
+        var selectorArg = invocation.ArgumentList.Arguments[0].Expression;
+        if(selectorArg is not LambdaExpressionSyntax lambda) return false;
+        if(!TryGetLambdaExpressionBody(lambda,out var lambdaBody)) return false;
+        var outerParams = GetLambdaParameters(lambda);
+        if(outerParams.Count!=1) return false; // index overload has 2 params
+        var outerParamName = outerParams[0];
+
+        var snapshot = uniqueNumber;
+
+        // Allocate number for the outer SelectMany struct itself
+        var smNumber = snapshot++;
+
+        // Build outer source fragment
+        if(!列挙フラグメント生成9(semanticModel,sourceExpression,containingType,ref snapshot,out var outerSource,out var outerSourceStaticMethods,unsafeAccessorCollector)) {
+            return false;
+        }
+
+        // Try to build the inner fragment chain from the lambda body
+        if(!列挙フラグメント生成9(semanticModel,lambdaBody,containingType,ref snapshot,out var innerFrag,out var innerStaticMethods,unsafeAccessorCollector)) {
+            return false;
+        }
+
+        var smFrag = new SelectMany_WithInlinedInner(smNumber,outerSource,innerFrag,outerParamName);
+        fragment=smFrag;
+        uniqueNumber=snapshot;
+        staticMethods=静的メソッド連結14(outerSourceStaticMethods,innerStaticMethods);
+        staticMethods=静的メソッド連結14(staticMethods,smFrag.StructMethod); // = ""
+        return true;
     }
 
     private static bool フラグメント候補選択25(string methodName,string variantName,out フラグメント候補 candidate) {
