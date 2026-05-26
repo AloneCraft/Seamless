@@ -53,10 +53,22 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
 }
 
 public class SelectMany(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
-    public override string StructMethod => this.DefineStruct(selector, nameof(selector));
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(selector, nameof(selector))})";
-    protected override string CollectionSelectorPrimaryConstructorParameter => $"global::System.Func<{source.ElementType}, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>> selector";
-    protected override string CreateInnerEnumeratorExpression => $"{nameof(selector)}({this.outerValue}).GetEnumerator()";
+    private bool IsHoistable =>
+        selector.CanInlineAssign &&
+        !NeedsStructClosure(selector) &&
+        !selector.RenderInlineExpression("__SeamlessHoistProbe__").Contains("__SeamlessHoistProbe__");
+    public override string StructMethod =>
+        IsHoistable ? string.Empty : this.DefineStruct(selector, nameof(selector));
+    public override string GetEnumeratorExpression =>
+        IsHoistable
+            ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {selector.RenderInlineExpression("__unused__")})"
+            : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(selector, nameof(selector))})";
+    protected override string CollectionSelectorPrimaryConstructorParameter =>
+        IsHoistable
+            ? $"global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}> innerEnumerable0"
+            : $"global::System.Func<{source.ElementType}, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>> selector";
+    protected override string CreateInnerEnumeratorExpression =>
+        IsHoistable ? "innerEnumerable0.GetEnumerator()" : $"{nameof(selector)}({this.outerValue}).GetEnumerator()";
     protected override string CurrentValueAssignmentFromInner => $"{this.currentValue} = {this.item};";
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(selector));
     public override string ElementType => this.CollectionElementType;

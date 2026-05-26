@@ -386,14 +386,17 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         var builder = new StringBuilder();
         builder.AppendLine("#nullable enable");
         builder.AppendLine("using System.Linq;");
-        // 以前の「LINQ 呼び出し位置を直接 intercept する」方式で使っていた Carrier helper 群。
-        // 現在は「LINQ を含むローカルメソッド全体を再構成する」方式へ寄せたため未使用。
-        // 削除は怖いので残すが、生成ソースへは出さない。
-        // インデント付き追記(builder,RenderCarrierHelperTypes(),"        ");
 
         foreach(var namespaceGroup in targets.GroupBy(static target => インターセプト名前空間取得(target.EnclosingType),StringComparer.Ordinal)) {
             builder.AppendLine();
             builder.AppendLine($"namespace {namespaceGroup.Key} {{");
+            var originalNamespace = namespaceGroup.Key.StartsWith("Intercept.",StringComparison.Ordinal)
+                ? namespaceGroup.Key["Intercept.".Length..]
+                : string.Empty;
+            if(!string.IsNullOrWhiteSpace(originalNamespace)) {
+                builder.AppendLine($"    using {originalNamespace};");
+                builder.AppendLine();
+            }
             foreach(var typeGroup in namespaceGroup.GroupBy(static target => target.EnclosingType.ToDisplayString(完全修飾形式),StringComparer.Ordinal)) {
                 var typeTargets = typeGroup.ToImmutableArray();
                 var typeSource = インターセプター型ソース構築(typeTargets);
@@ -532,7 +535,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .Replace("<","&lt;",StringComparison.Ordinal)
             .Replace(">","&gt;",StringComparison.Ordinal);
 
-    // ローカルメソッドを丸ごと再構成し、actual 代入文だけをフラグメント実行へ差し替える。
+    // ローカルメソッドを丸ごと再構成し、文中の LINQ 呼び出しをフラグメント実行へ差し替える。
     private static bool 生成ローカルメソッド本体構築0(Linq傍受対象型 対象,out string 静的メソッド群,out string 本体,HashSet<string>? emittedUnsafeAccessors = null) {
         静的メソッド群=string.Empty;
         本体=string.Empty;
@@ -544,63 +547,19 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return false;
         }
 
-        var actual文位置 = -1;
-        VariableDeclaratorSyntax? actual変数 = null;
-        InvocationExpressionSyntax? actual呼び出し = null;
-        for(var 文番号 = 0; 文番号<メソッド本体.Statements.Count; 文番号++) {
-            if(メソッド本体.Statements[文番号] is not LocalDeclarationStatementSyntax ローカル宣言) {
-                continue;
-            }
-
-            var 候補変数 = ローカル宣言.Declaration.Variables.FirstOrDefault(static 変数 => 変数.Identifier.ValueText=="actual");
-            if(候補変数?.Initializer?.Value is InvocationExpressionSyntax 呼び出し式) {
-                actual文位置=文番号;
-                actual変数=候補変数;
-                actual呼び出し=呼び出し式;
-                break;
-            }
-        }
-
-        if(actual文位置<0 || actual変数 is null || actual呼び出し is null) {
-            return false;
-        }
-
         var セマンティックモデル = 対象.SemanticModel.Compilation.GetSemanticModel(メソッド構文.SyntaxTree);
         var sourceUnsafeAccessorCollector = new List<string>();
-        if(!呼び出し式フラグメント生成1(セマンティックモデル,actual呼び出し,対象.EnclosingType,ref フラグメント番号,out var フラグメント,out 静的メソッド群,sourceUnsafeAccessorCollector)) {
-            return false;
-        }
-
-        // 非 static メソッドでは @this が利用可能なので、struct closure を有効化する。
-        // ContainingTypeName を全フラグメント連鎖に伝播することで、非 static ラムダを
-        // Enumerator struct の primary constructor パラメータ (@this) 経由でインライン展開できる。
-        if(!対象.Method.IsStatic) {
-            フラグメント.PropagateContainingTypeName(対象.EnclosingType.ToDisplayString(完全修飾形式));
-        }
-
-        // ローカルメソッド再構成は Enumerator 断片だけを使う。
-        // actual が sequence/scalar のどちらでも、必ず enumerator struct から直接評価する。
-        静的メソッド群=静的メソッド連結14(静的メソッド群,フラグメント.GetEnumeratorStruct);
-
+        var generatedFragments = new List<Fragment>();
         var 本体ビルダー = new StringBuilder();
-        var actualTypeName = セマンティックモデル.GetTypeInfo(actual呼び出し).ConvertedType?.ToDisplayString(完全修飾形式)
-            ?? セマンティックモデル.GetTypeInfo(actual呼び出し).Type?.ToDisplayString(完全修飾形式)
-            ?? "object";
-        for(var 文番号 = 0; 文番号<メソッド本体.Statements.Count; 文番号++) {
-            var 文 = メソッド本体.Statements[文番号];
-            if(文番号==actual文位置) {
-                // `actual` だけは LINQ 呼び出しのまま残さず、Enumerator 断片から直接評価する。
-                if(!フラグメントEnumerator実行文追加37(本体ビルダー,フラグメント,actual変数.Identifier.ValueText,actualTypeName)) {
-                    return false;
-                }
-                continue;
-            }
-
-            // それ以外の文は this 参照やラムダ呼び出しだけ正規化して、元の制御フローを保つ。
-            if(!文生成16(文,セマンティックモデル,対象.EnclosingType,out var 生成文)) {
+        var linq呼び出し数 = 0;
+        foreach(var 文 in メソッド本体.Statements) {
+            if(!文生成16(文,セマンティックモデル,対象.EnclosingType,ref フラグメント番号,対象.Method.IsStatic,ref 静的メソッド群,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref linq呼び出し数)) {
                 return false;
             }
-            本体ビルダー.AppendLine(生成文);
+        }
+
+        if(linq呼び出し数==0) {
+            return false;
         }
 
         本体=本体ビルダー
@@ -612,7 +571,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         // フラグメントツリーおよびソース式から UnsafeAccessor 宣言を収集し、補助クラスの外（クラス直下）に追記する。
         // これにより、インターセプタメソッド本体から短い名前で直接参照できる。
         // emittedUnsafeAccessors が渡された場合はクラスレベルで重複しないようフィルタする。
-        var unsafeAccessorCodes = フラグメント.CollectAllUnsafeAccessorCodes()
+        var unsafeAccessorCodes = generatedFragments
+            .SelectMany(static fragment => fragment.CollectAllUnsafeAccessorCodes())
             .Concat(sourceUnsafeAccessorCollector)
             .Where(code => emittedUnsafeAccessors?.Add(code) ?? true)
             .ToList();
@@ -1060,14 +1020,17 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         // 具象型エニュメレータ名を取得する。具象 GetEnumerator() が値型を返す場合はその型名を使い、
         // インターフェース経由の場合は IEnumerator<T> にフォールバックする。
         var elementTypeName = elementType.ToDisplayString(完全修飾形式);
-        var enumeratorTypeName = 具象エニュメレータ型名取得(expressionType,elementType,useEnumerableInterface)
+        var concreteEnumeratorTypeName = 具象エニュメレータ型名取得(expressionType,elementType,useEnumerableInterface);
+        var enumeratorTypeName = concreteEnumeratorTypeName
             ?? $"global::System.Collections.Generic.IEnumerator<{elementTypeName}>";
+        // 具象型が取れなかった場合はインターフェース IEnumerator<T> になるため struct 制約なし扱いにする。
+        var effectiveUseEnumerableInterface = useEnumerableInterface || concreteEnumeratorTypeName is null;
 
         var _srcExpr=RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,unsafeAccessorCollector);
         var _num=uniqueNumber++;
         fragment = expressionType is IArrayTypeSymbol
             ? new ArrayRoot(_num, _srcExpr, elementTypeName)
-            : CreateRootEnumerableFragment(_srcExpr, elementTypeName, enumeratorTypeName, useEnumerableInterface, _num);
+            : CreateRootEnumerableFragment(_srcExpr, elementTypeName, enumeratorTypeName, effectiveUseEnumerableInterface, _num);
         return true;
     }
 
@@ -1138,10 +1101,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         fragment=null!;
         if(expression is LambdaExpressionSyntax lambda
             && TryCreateLambdaFuncFragment(lambda,delegateType,out var lambdaSpec)) {
-            var canGenerateMethod = lambda.Modifiers.Any(SyntaxKind.StaticKeyword) || IsEffectivelyStaticLambda(lambda);
             var body = lambdaSpec.Body;
             var capturedLocals = Array.Empty<(string Name, string TypeName)>();
             var bodyAccessorCodes = Array.Empty<string>();
+            var capturesThis = false;
             if(semanticModel is not null && TryGetLambdaExpressionBody(lambda,out var lambdaBodyExpr)) {
                 if(containingType is not null) {
                     var bodyCollector = new List<string>();
@@ -1153,6 +1116,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 var dataFlow = semanticModel.AnalyzeDataFlow(lambdaBodyExpr);
                 if(dataFlow?.Succeeded == true) {
                     var paramSet = new HashSet<string>(lambdaSpec.ParameterNames,StringComparer.Ordinal);
+                    capturesThis = dataFlow.DataFlowsIn.Any(sym => sym.Name == "this");
                     capturedLocals = dataFlow.DataFlowsIn
                         .Where(sym => (sym is ILocalSymbol || sym is IParameterSymbol) && !paramSet.Contains(sym.Name) && sym.Name != "this")
                         .Select(sym => (sym.Name, sym is ILocalSymbol loc
@@ -1161,6 +1125,9 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                         .ToArray();
                 }
             }
+            // キャプチャなし（this 含む）なら実質 static → struct ゼロコピーでメソッド生成可能。
+            var canGenerateMethod = lambda.Modifiers.Any(SyntaxKind.StaticKeyword)
+                || (!capturesThis && capturedLocals.Length == 0);
             fragment = new LambdaFunc {
                 Type = Func型解決13(lambdaSpec.ParameterTypeNames.Length),
                 ReturnTypeName = lambdaSpec.ReturnTypeName,
@@ -1246,8 +1213,9 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     // Enumerable フラグメントがフラットループをサポートする場合は末尾メソッド内にループを展開し、
     // @this スコープで全ラムダをインライン化する。それ以外は enumerator struct + while で消費する。
     private static bool フラグメントEnumerator実行文追加37(StringBuilder builder,Fragment fragment,string actualVariableName,string actualTypeName) {
-        const string enumeratorName = "e";
-        const string currentName = "c";
+        var suffix = SanitizeIdentifier(actualVariableName);
+        var enumeratorName = $"e_{suffix}";
+        var currentName = $"c_{suffix}";
 
         if(fragment is Enumerable enumerableFragment) {
             builder.AppendLine($"var {actualVariableName}=new global::System.Collections.Generic.List<{enumerableFragment.ElementType}>();");
@@ -1284,28 +1252,297 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
-    private static bool 文生成16(StatementSyntax statement,SemanticModel semanticModel,INamedTypeSymbol containingType,out string generatedStatement) {
+    private static bool 文生成16(
+        StatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount) {
         switch(statement) {
+            case BlockSyntax block:
+                builder.AppendLine("{");
+                foreach(var childStatement in block.Statements) {
+                    if(!文生成16(childStatement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount)) {
+                        return false;
+                    }
+                }
+                builder.AppendLine("}");
+                return true;
+            case TryStatementSyntax tryStatement:
+                return Try文生成39(tryStatement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
+            case UsingStatementSyntax usingStatement:
+                return Using文生成40(usingStatement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
             case LocalDeclarationStatementSyntax localDeclaration:
-                generatedStatement=ローカル宣言生成17(localDeclaration,semanticModel,containingType);
-                return true;
-            case ExpressionStatementSyntax expressionStatement when 式文生成29(expressionStatement,semanticModel,containingType,out generatedStatement):
-                return true;
+                return LINQ呼び出し差し替え文生成38(localDeclaration,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
             case ExpressionStatementSyntax expressionStatement:
-                generatedStatement=$"{RenderExpressionForGeneratedMethod(expressionStatement.Expression,semanticModel,containingType)};";
-                return true;
+                return LINQ呼び出し差し替え文生成38(expressionStatement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
+            case ForStatementSyntax forStatement:
+                return For文生成44(forStatement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
+            case ForEachStatementSyntax foreachStatement:
+                return ForEach文生成45(foreachStatement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
+            case WhileStatementSyntax whileStatement:
+                return While文生成46(whileStatement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
+            case DoStatementSyntax doStatement:
+                return Do文生成47(doStatement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
+            case IfStatementSyntax ifStatement:
+                return If文生成48(ifStatement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
+            case SwitchStatementSyntax switchStatement:
+                return Switch文生成49(switchStatement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
             default:
-                generatedStatement=statement.ToString();
-                return true;
+                return LINQ呼び出し差し替え文生成38(statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
         }
     }
 
-    private static string ローカル宣言生成17(LocalDeclarationStatementSyntax statement,SemanticModel semanticModel,INamedTypeSymbol containingType) {
+    private static bool Try文生成39(
+        TryStatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount) {
+        builder.AppendLine("try");
+        if(!文生成16(statement.Block,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount)) {
+            return false;
+        }
+
+        foreach(var catchClause in statement.Catches) {
+            builder.Append("catch");
+            if(catchClause.Declaration is not null) {
+                builder.Append(catchClause.Declaration.ToString());
+            }
+            if(catchClause.Filter is not null) {
+                builder.Append(catchClause.Filter.ToString());
+            }
+            builder.AppendLine();
+            if(!文生成16(catchClause.Block,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount)) {
+                return false;
+            }
+        }
+
+        if(statement.Finally is not null) {
+            builder.AppendLine("finally");
+            if(!文生成16(statement.Finally.Block,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static bool Using文生成40(
+        UsingStatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount) {
+        if(statement.Declaration is not null) {
+            builder.AppendLine($"using({変数宣言生成43(statement.Declaration,semanticModel,containingType,unsafeAccessorCollector)})");
+        } else if(statement.Expression is not null) {
+            builder.AppendLine($"using({RenderExpressionForGeneratedMethod(statement.Expression,semanticModel,containingType,unsafeAccessorCollector)})");
+        } else {
+            return false;
+        }
+        return 文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
+    }
+
+    private static bool For文生成44(
+        ForStatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount) {
+        var init = statement.Declaration is not null
+            ? 変数宣言生成43(statement.Declaration,semanticModel,containingType,unsafeAccessorCollector)
+            : string.Join(", ",statement.Initializers.Select(e => RenderExpressionForGeneratedMethod(e,semanticModel,containingType,unsafeAccessorCollector)));
+        var cond = statement.Condition is not null
+            ? RenderExpressionForGeneratedMethod(statement.Condition,semanticModel,containingType,unsafeAccessorCollector)
+            : string.Empty;
+        var incr = string.Join(", ",statement.Incrementors.Select(e => RenderExpressionForGeneratedMethod(e,semanticModel,containingType,unsafeAccessorCollector)));
+        builder.AppendLine($"for({init}; {cond}; {incr})");
+        return 文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
+    }
+
+    private static bool ForEach文生成45(
+        ForEachStatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount) {
+        var typeSymbol = semanticModel.GetTypeInfo(statement.Type).Type;
+        var typeName = typeSymbol is not null
+            ? typeSymbol.ToDisplayString(完全修飾形式)
+            : (statement.Type is IdentifierNameSyntax { IsVar: true } ? "var" : NormalizeExpressionText(statement.Type.ToString()));
+        var exprText = RenderExpressionForGeneratedMethod(statement.Expression,semanticModel,containingType,unsafeAccessorCollector);
+        builder.AppendLine($"foreach({typeName} {statement.Identifier} in {exprText})");
+        return 文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
+    }
+
+    private static bool While文生成46(
+        WhileStatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount) {
+        var condText = RenderExpressionForGeneratedMethod(statement.Condition,semanticModel,containingType,unsafeAccessorCollector);
+        builder.AppendLine($"while({condText})");
+        return 文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount);
+    }
+
+    private static bool Do文生成47(
+        DoStatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount) {
+        builder.AppendLine("do");
+        if(!文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount)) return false;
+        var condText = RenderExpressionForGeneratedMethod(statement.Condition,semanticModel,containingType,unsafeAccessorCollector);
+        builder.AppendLine($"while({condText});");
+        return true;
+    }
+
+    private static bool If文生成48(
+        IfStatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount) {
+        var condText = RenderExpressionForGeneratedMethod(statement.Condition,semanticModel,containingType,unsafeAccessorCollector);
+        builder.AppendLine($"if({condText})");
+        if(!文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount)) return false;
+        if(statement.Else is not null) {
+            builder.AppendLine("else");
+            if(!文生成16(statement.Else.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount)) return false;
+        }
+        return true;
+    }
+
+    private static bool Switch文生成49(
+        SwitchStatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount) {
+        var exprText = RenderExpressionForGeneratedMethod(statement.Expression,semanticModel,containingType,unsafeAccessorCollector);
+        builder.AppendLine($"switch({exprText})");
+        builder.AppendLine("{");
+        foreach(var section in statement.Sections) {
+            foreach(var label in section.Labels) {
+                builder.AppendLine(label.ToString());
+            }
+            foreach(var sectionStatement in section.Statements) {
+                if(!文生成16(sectionStatement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount)) return false;
+            }
+        }
+        builder.AppendLine("}");
+        return true;
+    }
+
+    private static bool LINQ呼び出し差し替え文生成38(
+        StatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount) {
+        // 式文の全体が単一 LINQ 呼び出しで結果が破棄される場合（e.g. Take(0).Select(...)）、
+        // GetEnumerator() を呼ばないよう文ごとスキップする（元 LINQ の遅延評価と整合させる）。
+        var outerLinqInvocations = 外側LINQ呼び出し取得41(statement,semanticModel);
+        if(statement is ExpressionStatementSyntax discardedExprStatement
+            && outerLinqInvocations.Count==1
+            && NormalizeExpressionText(discardedExprStatement.Expression.ToString())==NormalizeExpressionText(outerLinqInvocations[0].ToString())) {
+            return true;
+        }
+
+        var replacementMap = new Dictionary<string,string>(StringComparer.Ordinal);
+        foreach(var invocation in outerLinqInvocations) {
+            var tempName = $"__linq{linqInvocationCount++}";
+            if(!呼び出し式フラグメント生成1(semanticModel,invocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector)) {
+                return false;
+            }
+            if(!methodIsStatic) {
+                fragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式));
+            }
+            generatedFragments.Add(fragment);
+
+            staticMethods=静的メソッド連結14(staticMethods,invocationStaticMethods);
+            staticMethods=静的メソッド連結14(staticMethods,fragment.GetEnumeratorStruct);
+            var resultTypeName = semanticModel.GetTypeInfo(invocation).ConvertedType?.ToDisplayString(完全修飾形式)
+                ?? semanticModel.GetTypeInfo(invocation).Type?.ToDisplayString(完全修飾形式)
+                ?? "object";
+            if(!フラグメントEnumerator実行文追加37(builder,fragment,tempName,resultTypeName)) {
+                return false;
+            }
+            replacementMap[NormalizeExpressionText(invocation.ToString())]=tempName;
+        }
+
+        var generatedStatement = statement switch {
+            LocalDeclarationStatementSyntax localDeclaration => ローカル宣言生成17(localDeclaration,semanticModel,containingType,replacementMap,unsafeAccessorCollector),
+            ExpressionStatementSyntax expressionStatement2 => $"{RenderExpressionForGeneratedMethod(expressionStatement2.Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap)};",
+            _ => RenderStatementForGeneratedMethod(statement,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
+        };
+        builder.AppendLine(generatedStatement);
+        return true;
+    }
+
+    private static string ローカル宣言生成17(
+        LocalDeclarationStatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        IReadOnlyDictionary<string,string>? replacementMap = null,
+        List<string>? unsafeAccessorCollector = null) {
         var variables = statement.Declaration.Variables.Select(variable => {
             if(variable.Initializer?.Value is null) {
                 return variable.ToString();
             }
-            return $"{variable.Identifier.ValueText}={RenderExpressionForGeneratedMethod(variable.Initializer.Value,semanticModel,containingType)}";
+            return $"{variable.Identifier.ValueText}={RenderExpressionForGeneratedMethod(variable.Initializer.Value,semanticModel,containingType,unsafeAccessorCollector,replacementMap)}";
         });
         var declType=statement.Declaration.Type;
         string typeName;
@@ -1318,6 +1555,67 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 : NormalizeExpressionText(declType.ToString());
         }
         return $"{typeName} {string.Join(", ",variables)};";
+    }
+
+    private static string 変数宣言生成43(
+        VariableDeclarationSyntax declaration,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        List<string>? unsafeAccessorCollector = null,
+        IReadOnlyDictionary<string,string>? replacementMap = null) {
+        var variables = declaration.Variables.Select(variable => {
+            if(variable.Initializer?.Value is null) {
+                return variable.ToString();
+            }
+            return $"{variable.Identifier.ValueText}={RenderExpressionForGeneratedMethod(variable.Initializer.Value,semanticModel,containingType,unsafeAccessorCollector,replacementMap)}";
+        });
+
+        string typeName;
+        if(declaration.Type is IdentifierNameSyntax { IsVar: true }) {
+            typeName="var";
+        } else {
+            var typeSymbol=semanticModel.GetTypeInfo(declaration.Type).Type;
+            typeName=typeSymbol is not null
+                ? typeSymbol.ToDisplayString(完全修飾形式)
+                : NormalizeExpressionText(declaration.Type.ToString());
+        }
+        return $"{typeName} {string.Join(", ",variables)}";
+    }
+
+    private static string RenderStatementForGeneratedMethod(
+        StatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        List<string>? unsafeAccessorCollector,
+        IReadOnlyDictionary<string,string>? replacementMap) {
+        var text = statement.ToString();
+        if(replacementMap is not null) {
+            foreach(var pair in replacementMap.OrderByDescending(static pair => pair.Key.Length)) {
+                text=text.Replace(pair.Key,pair.Value,StringComparison.Ordinal);
+            }
+        }
+        return text
+            .Replace("SystemEnumerable.","global::System.Linq.Enumerable.",StringComparison.Ordinal)
+            .Replace("this.","@this.",StringComparison.Ordinal);
+    }
+
+    private static List<InvocationExpressionSyntax> 外側LINQ呼び出し取得41(StatementSyntax statement,SemanticModel semanticModel) {
+        return statement.DescendantNodes()
+            .OfType<InvocationExpressionSyntax>()
+            .Where(invocation => SystemLinqEnumerable呼び出し判定42(invocation,semanticModel))
+            .Where(invocation => !invocation.Ancestors()
+                .TakeWhile(ancestor => ancestor!=statement)
+                .OfType<InvocationExpressionSyntax>()
+                .Any(ancestorInvocation => SystemLinqEnumerable呼び出し判定42(ancestorInvocation,semanticModel)))
+            .OrderBy(static invocation => invocation.SpanStart)
+            .ToList();
+    }
+
+    private static bool SystemLinqEnumerable呼び出し判定42(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+        if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) {
+            return false;
+        }
+        return (method.ReducedFrom ?? method).ContainingType.ToDisplayString()=="System.Linq.Enumerable";
     }
 
     private static int フラグメント番号初期値取得18() => 0;
@@ -1912,6 +2210,28 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return $"{prefix}{RenderExpressionForGeneratedMethod(argument.Expression,semanticModel,containingType)}";
     }
 
+    private static string RenderTypeArgumentList(IMethodSymbol method) {
+        if(method.TypeArguments.Length==0) {
+            return string.Empty;
+        }
+
+        return $"<{string.Join(", ",method.TypeArguments.Select(static type => type.ToDisplayString(完全修飾形式)))}>";
+    }
+
+    private static string RenderConstantValue(object? value) => value switch {
+        null => "null",
+        string text => "@\"" + text.Replace("\"","\"\"",StringComparison.Ordinal) + "\"",
+        char ch => "'" + ch.ToString().Replace("\\","\\\\",StringComparison.Ordinal).Replace("'","\\'",StringComparison.Ordinal) + "'",
+        bool boolean => boolean ? "true" : "false",
+        float single => single.ToString("R",global::System.Globalization.CultureInfo.InvariantCulture) + "f",
+        double number => number.ToString("R",global::System.Globalization.CultureInfo.InvariantCulture) + "d",
+        decimal number => number.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + "m",
+        long number => number.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + "L",
+        ulong number => number.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + "UL",
+        uint number => number.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + "U",
+        _ => Convert.ToString(value,global::System.Globalization.CultureInfo.InvariantCulture) ?? "default!",
+    };
+
     private static string RefKind接頭辞取得35(RefKind refKind) => refKind switch {
         RefKind.Ref => "ref ",
         RefKind.Out => "out ",
@@ -1926,36 +2246,100 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         _ => string.Empty,
     };
 
-    private static string RenderExpressionForGeneratedMethod(ExpressionSyntax expression,SemanticModel semanticModel,INamedTypeSymbol containingType,List<string>? unsafeAccessorCollector = null) {
+    private static string RenderExpressionForGeneratedMethod(
+        ExpressionSyntax expression,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        List<string>? unsafeAccessorCollector = null,
+        IReadOnlyDictionary<string,string>? replacementMap = null) {
         var text = NormalizeExpressionText(expression.ToString())
             .Replace("SystemEnumerable.","global::System.Linq.Enumerable.",StringComparison.Ordinal)
             .Replace("this.","@this.",StringComparison.Ordinal);
 
+        if(replacementMap is not null) {
+            foreach(var pair in replacementMap.OrderByDescending(static pair => pair.Key.Length)) {
+                text=text.Replace(pair.Key,pair.Value,StringComparison.Ordinal);
+            }
+        }
+
+        var processedInvocations = new HashSet<InvocationExpressionSyntax>(ReferenceEqualityComparer.Instance);
         foreach(var invocation in expression.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>()) {
+            if(processedInvocations.Contains(invocation)) continue;
+
+            // nameof() は生成 namespace ではスコープ外になる識別子を参照しうるため、文字列リテラルへ評価する。
+            if(invocation.Expression is IdentifierNameSyntax { Identifier.Text: "nameof" }
+                && invocation.ArgumentList.Arguments.Count==1) {
+                var nameofArg = invocation.ArgumentList.Arguments[0].Expression;
+                var nameofSymbol = semanticModel.GetSymbolInfo(nameofArg).Symbol;
+                var nameString = nameofSymbol?.Name
+                    ?? (nameofArg is MemberAccessExpressionSyntax maMember ? maMember.Name.Identifier.Text : nameofArg.ToString());
+                var nameofText = NormalizeExpressionText(invocation.ToString())
+                    .Replace("this.","@this.",StringComparison.Ordinal);
+                text=text.Replace(nameofText,$"\"{nameString}\"",StringComparison.Ordinal);
+                continue;
+            }
+
             if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
-                || !method.IsStatic
-                || !SymbolEqualityComparer.Default.Equals(method.ContainingType,containingType)) {
+                || !method.IsStatic) {
                 continue;
             }
 
-            var invocationText = NormalizeExpressionText(invocation.ToString());
-            if(TryRenderSimpleLocalMethodInvocationExpression(method,semanticModel,containingType,out var inlineInvocationText,unsafeAccessorCollector)) {
-                // private static 引数なし helper で本文が単純式なら、そのまま式へ畳み込む。
+            // text は先頭で this. → @this. 変換済みなので invocationText も同様に変換する。
+            var invocationText = NormalizeExpressionText(invocation.ToString())
+                .Replace("this.","@this.",StringComparison.Ordinal);
+            if(SymbolEqualityComparer.Default.Equals(method.ContainingType,containingType)
+                && TryRenderSimpleLocalMethodInvocationExpression(method,semanticModel,containingType,out var inlineInvocationText,unsafeAccessorCollector)) {
+                // static 引数なし helper で本文が単純式なら、そのまま式へ畳み込む。
                 text=text.Replace(invocationText,inlineInvocationText,StringComparison.Ordinal);
+                foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
                 continue;
             }
 
-            if(method.DeclaredAccessibility!=Accessibility.Public
+            if(SymbolEqualityComparer.Default.Equals(method.ContainingType,containingType)
+                && method.DeclaredAccessibility!=Accessibility.Public
                 && !method.IsGenericMethod) {
                 // private helper で単純式でないかつ非ジェネリック → UnsafeAccessor で直接呼び出す。
                 text=text.Replace(invocationText,RenderStaticLocalMethodForwardExpression(method,invocation,semanticModel,containingType,unsafeAccessorCollector),StringComparison.Ordinal);
+                foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
                 continue;
             }
 
-            // public static helper は完全修飾名へ直して、生成メソッドから確実に解決できるようにする。
-            var qualifiedInvocationText = $"{method.ContainingType.ToDisplayString(完全修飾形式)}.{method.Name}({string.Join(", ",invocation.ArgumentList.Arguments.Select(static argument => NormalizeExpressionText(argument.ToString())))} )";
-            qualifiedInvocationText=qualifiedInvocationText.Replace(" )",")",StringComparison.Ordinal);
-            text=text.Replace(invocationText,qualifiedInvocationText,StringComparison.Ordinal);
+            if(!method.IsExtensionMethod && invocation.Expression is MemberAccessExpressionSyntax) {
+                // 生成 namespace は元 namespace と異なるため、静的メソッド呼び出しは型名を完全修飾する。
+                var qualifiedInvocationText = $"{method.ContainingType.ToDisplayString(完全修飾形式)}.{method.Name}{RenderTypeArgumentList(method)}({string.Join(", ",invocation.ArgumentList.Arguments.Select(argument => RenderArgumentForGeneratedMethod(argument,semanticModel,containingType)))})";
+                text=text.Replace(invocationText,qualifiedInvocationText,StringComparison.Ordinal);
+                foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
+            }
+        }
+
+        foreach(var identifier in expression.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>()) {
+            if(semanticModel.GetSymbolInfo(identifier).Symbol is not IFieldSymbol field
+                || !field.IsStatic
+                || !SymbolEqualityComparer.Default.Equals(field.ContainingType,containingType)
+                || field.DeclaredAccessibility==Accessibility.Public) {
+                continue;
+            }
+
+            var identifierText = NormalizeExpressionText(identifier.ToString());
+            if(field.HasConstantValue) {
+                text=System.Text.RegularExpressions.Regex.Replace(
+                    text,
+                    $@"\b{System.Text.RegularExpressions.Regex.Escape(identifierText)}\b",
+                    RenderConstantValue(field.ConstantValue),
+                    System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+                continue;
+            }
+
+            var memberAccess = SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                SyntaxFactory.ParseExpression(field.ContainingType.ToDisplayString(完全修飾形式)),
+                SyntaxFactory.IdentifierName(field.Name));
+            var fieldExpression = RenderFieldForwardExpression(field,memberAccess,semanticModel,unsafeAccessorCollector);
+            text=System.Text.RegularExpressions.Regex.Replace(
+                text,
+                $@"\b{System.Text.RegularExpressions.Regex.Escape(identifierText)}\b",
+                fieldExpression,
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         }
 
         foreach(var memberAccess in expression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>()) {
@@ -1978,6 +2362,25 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 StringComparison.Ordinal);
         }
 
+        foreach(var objectCreation in expression.DescendantNodesAndSelf().OfType<ObjectCreationExpressionSyntax>()) {
+            var typeSymbol = semanticModel.GetTypeInfo(objectCreation.Type).Type;
+            if(typeSymbol is null) {
+                continue;
+            }
+
+            var originalTypeText = NormalizeExpressionText(objectCreation.Type.ToString());
+            var qualifiedTypeText = typeSymbol.ToDisplayString(完全修飾形式);
+            if(originalTypeText==qualifiedTypeText || originalTypeText.StartsWith("global::",StringComparison.Ordinal)) {
+                continue;
+            }
+
+            text=System.Text.RegularExpressions.Regex.Replace(
+                text,
+                $@"\b{System.Text.RegularExpressions.Regex.Escape(originalTypeText)}\b",
+                qualifiedTypeText,
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        }
+
         foreach(var memberAccess in expression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>()) {
             if(semanticModel.GetSymbolInfo(memberAccess).Symbol is not IFieldSymbol field
                 || field.DeclaredAccessibility==Accessibility.Public) {
@@ -1990,6 +2393,27 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 memberText,
                 RenderFieldForwardExpression(field,memberAccess,semanticModel,unsafeAccessorCollector),
                 StringComparison.Ordinal);
+        }
+
+        // private インスタンスプロパティへのアクセスを UnsafeAccessor (Method "get_X") 経由に変換する。
+        foreach(var memberAccess in expression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>()) {
+            if(semanticModel.GetSymbolInfo(memberAccess).Symbol is not IPropertySymbol property
+                || property.IsStatic
+                || property.DeclaredAccessibility==Accessibility.Public
+                || !SymbolEqualityComparer.Default.Equals(property.ContainingType,containingType)
+                || property.GetMethod is null) {
+                continue;
+            }
+            var memberText = NormalizeExpressionText(memberAccess.ToString())
+                .Replace("this.","@this.",StringComparison.Ordinal);
+            var accessorName = $"__Property_{SanitizeIdentifier(property.ContainingType.Name)}_{SanitizeIdentifier(property.Name)}";
+            var targetTypeName = property.ContainingType.ToDisplayString(完全修飾形式);
+            var propTypeName = property.Type.ToDisplayString(完全修飾形式);
+            var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"get_{property.Name}\")]\nprivate static extern {propTypeName} {accessorName}({targetTypeName} @this);";
+            unsafeAccessorCollector?.Add(accessorCode);
+            var receiverText = NormalizeExpressionText(memberAccess.Expression.ToString())
+                .Replace("this","@this",StringComparison.Ordinal);
+            text=text.Replace(memberText,$"{accessorName}({receiverText})",StringComparison.Ordinal);
         }
 
         foreach(var param in expression.DescendantNodesAndSelf().OfType<ParameterSyntax>()) {
@@ -2016,8 +2440,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             // instance helper は this の意味論を壊しやすいのでここでは扱わない。
             || method.Parameters.Length!=0
             // 引数あり helper は多重評価や ref/out を考慮する必要があるので別扱い。
-            || method.DeclaredAccessibility!=Accessibility.Private
-            // private helper だけを「同一型の実装詳細」とみなして安全に畳み込む。
             || !SymbolEqualityComparer.Default.Equals(method.ContainingType,containingType)
             // 他型の helper を展開するとアクセス制御や this 置換が崩れる。
             || method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax) {
@@ -2280,86 +2702,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .Replace("\\","\\\\",StringComparison.Ordinal)
             .Replace("\"","\\\"",StringComparison.Ordinal);
         return $"throw global::Seamless.GeneratedCodeHelpers.LinqInterceptorFailure(\"Local method interception could not inline '{methodName}'. Fallback forwarding is disabled for methods that contain System.Linq.Enumerable calls.\");";
-    }
-
-    private static bool TryRenderCarrierDirectMethodBody(Linq傍受対象型 target,out string body) {
-        body=string.Empty;
-        if(target.Method.ReducedFrom is null) {
-            return false;
-        }
-
-        return target.Method.ReducedFrom.Name switch {
-            "Select" => TryRenderSelectCarrierBody(target,out body),
-            "Where" => TryRenderWhereCarrierBody(target,out body),
-            "Take" => TryRenderTakeCarrierBody(target,out body),
-            _ => false,
-        };
-    }
-
-    private static bool TryRenderSelectCarrierBody(Linq傍受対象型 target,out string body) {
-        body=string.Empty;
-        if(!列挙要素型取得11(target.Method.ReturnType,out var returnElementType,out var _)) {
-            return false;
-        }
-
-        var sourceType = target.SourceElementTypeName;
-        var resultType = returnElementType.ToDisplayString(完全修飾形式);
-        var selectorIsIndex = target.Method.Parameters.Length>0
-            && target.Method.Parameters[0].Type is INamedTypeSymbol funcType
-            && funcType.TypeArguments.Length==3;
-
-        var builder = new StringBuilder();
-        if(selectorIsIndex) {
-            builder.AppendLine($"if(source is __SelectCarrier<{sourceType}> __selectCarrier0) return new __SelectCarrier<{resultType}>(__selectCarrier0.RawSource, (raw, rawIndex) => selector(__selectCarrier0.Select(raw, rawIndex), rawIndex));");
-            builder.AppendLine($"if(source is __WhereCarrier<{sourceType}> __whereCarrier0) return new __WhereSelectIndexCarrier<{sourceType}, {resultType}>(__whereCarrier0, selector);");
-            builder.AppendLine($"return new __SelectCarrier<{resultType}>(source, (raw, rawIndex) => selector(({sourceType})raw!, rawIndex));");
-        } else {
-            builder.AppendLine($"if(source is __SelectCarrier<{sourceType}> __selectCarrier0) return new __SelectCarrier<{resultType}>(__selectCarrier0.RawSource, (raw, rawIndex) => selector(__selectCarrier0.Select(raw, rawIndex)));");
-            builder.AppendLine($"if(source is __WhereCarrier<{sourceType}> __whereCarrier0) return new __WhereCarrier<{resultType}>(__whereCarrier0.RawSource, __whereCarrier0.Predicate, (raw, rawIndex) => selector(__whereCarrier0.Select(raw, rawIndex)));");
-            builder.AppendLine($"if(source is __TakeCarrier<{sourceType}> __takeCarrier0) return new __TakeSelectCarrier<{sourceType}, {resultType}>(__takeCarrier0.Source, __takeCarrier0.Count, selector);");
-            builder.AppendLine($"if(source is __SelectTakeCarrier<{sourceType}> __selectTakeCarrier0) return new __SelectTakeSelectCarrier<{sourceType}, {resultType}>(__selectTakeCarrier0.RawSource, __selectTakeCarrier0.Select, __selectTakeCarrier0.Count, selector);");
-            builder.AppendLine($"return new __SelectCarrier<{resultType}>(source, (raw, _) => selector(({sourceType})raw!));");
-        }
-
-        body=builder.ToString().TrimEnd();
-        return true;
-    }
-
-    private static bool TryRenderWhereCarrierBody(Linq傍受対象型 target,out string body) {
-        body=string.Empty;
-        var sourceType = target.SourceElementTypeName;
-        var predicateIsIndex = target.Method.Parameters.Length>0
-            && target.Method.Parameters[0].Type is INamedTypeSymbol funcType
-            && funcType.TypeArguments.Length==3;
-
-        var builder = new StringBuilder();
-        if(predicateIsIndex) {
-            builder.AppendLine($"if(source is __SelectCarrier<{sourceType}> __selectCarrier0) return new __WhereCarrier<{sourceType}>(__selectCarrier0.RawSource, (raw, rawIndex) => predicate(__selectCarrier0.Select(raw, rawIndex), rawIndex), (raw, rawIndex) => __selectCarrier0.Select(raw, rawIndex));");
-            builder.AppendLine($"if(source is __WhereCarrier<{sourceType}> __whereCarrier0) return new __WhereWhereIndexCarrier<{sourceType}>(__whereCarrier0, predicate);");
-            builder.AppendLine($"return new __WhereCarrier<{sourceType}>(source, (raw, rawIndex) => predicate(({sourceType})raw!, rawIndex), (raw, _) => ({sourceType})raw!);");
-        } else {
-            builder.AppendLine($"if(source is __SelectCarrier<{sourceType}> __selectCarrier0) return new __WhereCarrier<{sourceType}>(__selectCarrier0.RawSource, (raw, rawIndex) => predicate(__selectCarrier0.Select(raw, rawIndex)), (raw, rawIndex) => __selectCarrier0.Select(raw, rawIndex));");
-            builder.AppendLine($"if(source is __WhereCarrier<{sourceType}> __whereCarrier0) return new __WhereCarrier<{sourceType}>(__whereCarrier0.RawSource, (raw, rawIndex) => __whereCarrier0.Predicate(raw, rawIndex) && predicate(__whereCarrier0.Select(raw, rawIndex)), (raw, rawIndex) => __whereCarrier0.Select(raw, rawIndex));");
-            builder.AppendLine($"return new __WhereCarrier<{sourceType}>(source, (raw, _) => predicate(({sourceType})raw!), (raw, _) => ({sourceType})raw!);");
-        }
-
-        body=builder.ToString().TrimEnd();
-        return true;
-    }
-
-    private static bool TryRenderTakeCarrierBody(Linq傍受対象型 target,out string body) {
-        body=string.Empty;
-        if(target.Method.Parameters.Length!=1
-            || target.Method.Parameters[0].Type.SpecialType!=SpecialType.System_Int32) {
-            return false;
-        }
-
-        var sourceType = target.SourceElementTypeName;
-        body=$"""
-            if(source is __SelectCarrier<{sourceType}> __selectCarrier0) return new __SelectTakeCarrier<{sourceType}>(__selectCarrier0.RawSource, __selectCarrier0.Select, count);
-            return new __TakeCarrier<{sourceType}>(source, count);
-            """;
-        return true;
     }
 
     private static string RenderUnsupportedDirectMethodBody(Linq傍受対象型 target,string? detail = null) {
