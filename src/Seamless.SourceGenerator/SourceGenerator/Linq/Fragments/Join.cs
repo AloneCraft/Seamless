@@ -8,9 +8,9 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
     // ParameterFunc(CanInlineAssign=false) は CanGenerateMethod=false のため DefineStruct は空を返す。
     // 結果として StructMethod は常に空だが、他のフラグメントとの一貫性のため条件式を維持する。
     public override string StructMethod => $$"""
-                                             {{(outerKeySelector.CanInlineAssign ? string.Empty : this.DefineStruct(outerKeySelector,nameof(outerKeySelector)))}}
-                                             {{(innerKeySelector.CanInlineAssign ? string.Empty : this.DefineStruct(innerKeySelector,nameof(innerKeySelector)))}}
-                                             {{(resultSelector.CanInlineAssign ? string.Empty : this.DefineStruct(resultSelector,nameof(resultSelector)))}}
+                                             {{this.FuncSupport(outerKeySelector,nameof(outerKeySelector))}}
+                                             {{this.FuncSupport(innerKeySelector,nameof(innerKeySelector))}}
+                                             {{this.FuncSupport(resultSelector,nameof(resultSelector))}}
                                              """;
     public override string GetEnumeratorStruct => $$"""
         {{outer.GetEnumeratorStruct}}
@@ -20,14 +20,14 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
     // --- Enumerator struct パス (ストリーミング用) ---
     public override string GetEnumeratorExpression =>
         $"new {this.EnumeratorTypeName}({outer.GetEnumeratorExpression}, {inner.GetEnumeratorExpression}" +
-        (!outerKeySelector.CanGenerateMethod ? $", {this.FuncDelegate(outerKeySelector,nameof(outerKeySelector))}" : "") +
-        (!innerKeySelector.CanGenerateMethod ? $", {this.FuncDelegate(innerKeySelector,nameof(innerKeySelector))}" : "") +
-        (!resultSelector.CanGenerateMethod ? $", {this.FuncDelegate(resultSelector,nameof(resultSelector))}" : "") +
+        (!outerKeySelector.CanGenerateMethod && !outerKeySelector.RequiresStatementInlining ? $", {this.FuncDelegate(outerKeySelector,nameof(outerKeySelector))}" : "") +
+        (!innerKeySelector.CanGenerateMethod && !innerKeySelector.RequiresStatementInlining ? $", {this.FuncDelegate(innerKeySelector,nameof(innerKeySelector))}" : "") +
+        (!resultSelector.CanGenerateMethod && !resultSelector.RequiresStatementInlining ? $", {this.FuncDelegate(resultSelector,nameof(resultSelector))}" : "") +
         $", {comparer})";
     public override string GetEnumeratorFields => $$"""
-        {{(!outerKeySelector.CanGenerateMethod ? $"private readonly global::System.Func<{outer.ElementType}, {FuncReturnTypeName(outerKeySelector)}> {nameof(outerKeySelector)};" : "")}}
-        {{(!innerKeySelector.CanGenerateMethod ? $"private readonly global::System.Func<{inner.ElementType}, {FuncReturnTypeName(innerKeySelector)}> {nameof(innerKeySelector)};" : "")}}
-        {{(!resultSelector.CanGenerateMethod ? $"private readonly global::System.Func<{outer.ElementType}, {inner.ElementType}, {this.ElementType}> {nameof(resultSelector)};" : "")}}
+        {{(!outerKeySelector.CanGenerateMethod && !outerKeySelector.RequiresStatementInlining ? $"private readonly global::System.Func<{outer.ElementType}, {FuncReturnTypeName(outerKeySelector)}> {nameof(outerKeySelector)};" : "")}}
+        {{(!innerKeySelector.CanGenerateMethod && !innerKeySelector.RequiresStatementInlining ? $"private readonly global::System.Func<{inner.ElementType}, {FuncReturnTypeName(innerKeySelector)}> {nameof(innerKeySelector)};" : "")}}
+        {{(!resultSelector.CanGenerateMethod && !resultSelector.RequiresStatementInlining ? $"private readonly global::System.Func<{outer.ElementType}, {inner.ElementType}, {this.ElementType}> {nameof(resultSelector)};" : "")}}
         private readonly global::Seamless.Linq.Enumerable.LookupImpl<{{FuncReturnTypeName(innerKeySelector)}}, {{inner.ElementType}}> {{this.lookup}};
         private TOuterEnum {{this.e}};
         private global::System.Collections.Generic.List<{{inner.ElementType}}>? {{this.group}};
@@ -36,26 +36,28 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
         private {{outer.ElementType}} {{this.outerValue}};
         private {{this.ElementType}} {{this.currentValue}};
         """;
-    private string OKSConstructorParam => outerKeySelector.CanGenerateMethod ? ""
+    private string OKSConstructorParam => outerKeySelector.CanGenerateMethod || outerKeySelector.RequiresStatementInlining ? ""
         : $",\n            global::System.Func<{outer.ElementType}, {FuncReturnTypeName(outerKeySelector)}> {nameof(outerKeySelector)}";
-    private string IKSConstructorParam => innerKeySelector.CanGenerateMethod ? ""
+    private string IKSConstructorParam => innerKeySelector.CanGenerateMethod || innerKeySelector.RequiresStatementInlining ? ""
         : $",\n            global::System.Func<{inner.ElementType}, {FuncReturnTypeName(innerKeySelector)}> {nameof(innerKeySelector)}";
-    private string RSConstructorParam => resultSelector.CanGenerateMethod ? ""
+    private string RSConstructorParam => resultSelector.CanGenerateMethod || resultSelector.RequiresStatementInlining ? ""
         : $",\n            global::System.Func<{outer.ElementType}, {inner.ElementType}, {this.ElementType}> {nameof(resultSelector)}";
     public override string GetEnumeratorConstructor => $$"""
         public {{Struct}}(
             TOuterEnum outer,
             TInnerEnum inner{{OKSConstructorParam}}{{IKSConstructorParam}}{{RSConstructorParam}},
             global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>? comparer) {
-            {{(!outerKeySelector.CanGenerateMethod ? $"this.{nameof(outerKeySelector)} = {nameof(outerKeySelector)};" : "")}}
-            {{(!innerKeySelector.CanGenerateMethod ? $"this.{nameof(innerKeySelector)} = {nameof(innerKeySelector)};" : "")}}
-            {{(!resultSelector.CanGenerateMethod ? $"this.{nameof(resultSelector)} = {nameof(resultSelector)};" : "")}}
+            {{(!outerKeySelector.CanGenerateMethod && !outerKeySelector.RequiresStatementInlining ? $"this.{nameof(outerKeySelector)} = {nameof(outerKeySelector)};" : "")}}
+            {{(!innerKeySelector.CanGenerateMethod && !innerKeySelector.RequiresStatementInlining ? $"this.{nameof(innerKeySelector)} = {nameof(innerKeySelector)};" : "")}}
+            {{(!resultSelector.CanGenerateMethod && !resultSelector.RequiresStatementInlining ? $"this.{nameof(resultSelector)} = {nameof(resultSelector)};" : "")}}
             {{this.lookup}} = new global::Seamless.Linq.Enumerable.LookupImpl<{{FuncReturnTypeName(innerKeySelector)}}, {{inner.ElementType}}>(comparer ?? global::System.Collections.Generic.EqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>.Default);
-            while(inner.MoveNext()) {
-                var {{this.item}} = inner.Current;
-                {{this.lookup}}.Add({{this.FuncInvokeField(innerKeySelector,nameof(innerKeySelector),this.item)}}, {{this.item}});
+            using var innerEnumerator = inner;
+            while(innerEnumerator.MoveNext()) {
+                var {{this.item}} = innerEnumerator.Current;
+                {{FuncReturnTypeName(innerKeySelector)}} {{this.key}} = default!;
+                {{this.FuncAssign(innerKeySelector,nameof(innerKeySelector),this.key,this.item)}}
+                {{this.lookup}}.Add({{this.key}}, {{this.item}});
             }
-            inner.Dispose();
             {{this.e}} = outer;
             {{this.group}} = null;
             {{this.groupIndex}} = 0;
@@ -70,7 +72,7 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
         if({{this.state}}==1 && {{this.group}} is not null) {
             if({{this.groupIndex}}<{{this.group}}.Count) {
                 var {{this.item}} = {{this.group}}[{{this.groupIndex}}++];
-                {{this.currentValue}} = {{this.FuncInvokeField(resultSelector,nameof(resultSelector),this.outerValue,this.item)}};
+                {{this.FuncAssign(resultSelector,nameof(resultSelector),this.currentValue,this.outerValue,this.item)}}
                 current = {{this.currentValue}};
                 return true;
             }
@@ -82,7 +84,9 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
             return false;
         }
         {{this.outerValue}} = {{this.e}}.Current;
-        {{this.group}} = new global::System.Collections.Generic.List<{{inner.ElementType}}>({{this.lookup}}[{{this.FuncInvokeField(outerKeySelector,nameof(outerKeySelector),this.outerValue)}}]);
+        {{FuncReturnTypeName(outerKeySelector)}} {{this.key}} = default!;
+        {{this.FuncAssign(outerKeySelector,nameof(outerKeySelector),this.key,this.outerValue)}}
+        {{this.group}} = new global::System.Collections.Generic.List<{{inner.ElementType}}>({{this.lookup}}[{{this.key}}]);
         {{this.groupIndex}} = 0;
         {{this.state}} = 1;
         goto {{Start}};
@@ -97,24 +101,27 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
     public override string GetFlatLoopCode(string elementVariable,string bodyCode) => $$"""
         var {{this.lookup}} = new global::Seamless.Linq.Enumerable.LookupImpl<{{FuncReturnTypeName(innerKeySelector)}}, {{inner.ElementType}}>({{comparer}} ?? global::System.Collections.Generic.EqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>.Default);
         {
-            var {{this.e}} = {{inner.GetEnumeratorExpression}};
+            using var {{this.e}} = {{inner.GetEnumeratorExpression}};
             while({{this.e}}.MoveNext()) {
                 var {{this.item}} = {{this.e}}.Current;
-                {{this.lookup}}.Add({{this.FuncInvokeFlat(innerKeySelector,nameof(innerKeySelector),this.item)}}, {{this.item}});
+                {{FuncReturnTypeName(innerKeySelector)}} {{this.key}} = default!;
+                {{this.FuncAssignFlat(innerKeySelector,nameof(innerKeySelector),this.key,this.item)}}
+                {{this.lookup}}.Add({{this.key}}, {{this.item}});
             }
-            {{this.e}}.Dispose();
         }
         {
-            var {{this.temp}} = {{outer.GetEnumeratorExpression}};
+            using var {{this.temp}} = {{outer.GetEnumeratorExpression}};
             while({{this.temp}}.MoveNext()) {
                 var {{this.outerValue}} = {{this.temp}}.Current;
-                var {{this.group}} = new global::System.Collections.Generic.List<{{inner.ElementType}}>({{this.lookup}}[{{this.FuncInvokeFlat(outerKeySelector,nameof(outerKeySelector),this.outerValue)}}]);
+                {{FuncReturnTypeName(outerKeySelector)}} {{this.key}} = default!;
+                {{this.FuncAssignFlat(outerKeySelector,nameof(outerKeySelector),this.key,this.outerValue)}}
+                var {{this.group}} = new global::System.Collections.Generic.List<{{inner.ElementType}}>({{this.lookup}}[{{this.key}}]);
                 for(var {{this.groupIndex}} = 0; {{this.groupIndex}} < {{this.group}}.Count; {{this.groupIndex}}++) {
-                    var {{elementVariable}} = {{this.FuncInvokeFlat(resultSelector,nameof(resultSelector),this.outerValue,$"{this.group}[{this.groupIndex}]")}};
+                    {{this.ElementType}} {{elementVariable}} = default!;
+                    {{this.FuncAssignFlat(resultSelector,nameof(resultSelector),elementVariable,this.outerValue,$"{this.group}[{this.groupIndex}]")}}
                     {{bodyCode}}
                 }
             }
-            {{this.temp}}.Dispose();
         }
         """;
 }

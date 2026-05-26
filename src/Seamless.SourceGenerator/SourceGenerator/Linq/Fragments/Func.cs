@@ -32,6 +32,12 @@ public abstract class FuncFragment {
     // ラムダ本体内のフィールド・static メソッドアクセス用に生成した UnsafeAccessor extern 宣言コード。
     // Fragment.CollectAllUnsafeAccessorCodes() で収集して補助クラスに出力される。
     public string[] BodyUnsafeAccessorCodes = Array.Empty<string>();
+    // ラムダ本体を展開するために必要な補助 struct 群。
+    // 例: keySelector 内の Count()/Any() を scalar Fragment として展開する場合。
+    public string SupportingMemberSources = string.Empty;
+    // 式位置ではなく文として展開する必要があるラムダかどうか。
+    // LINQ scalar を内包するラムダは enumerator 生成・TryGetNext 呼び出しが必要になる。
+    public bool RequiresStatementInlining;
     // reflection 用 Type から global:: fully-qualified name を作る。
     public static string MetadataTypeName(Type type) {
         var fullName = type.FullName ?? type.Name;
@@ -86,7 +92,7 @@ public abstract class FuncFragment {
         var builder = new StringBuilder();
         var rewrittenBody=this.InlineBody;
         for(var index = 0; index<arguments.Length; index++) {
-            var tempName=$"__arg{number}_{index}";
+            var tempName=$"__arg{number}_{SanitizeLocalName(destination)}_{index}";
             // 代入文に展開するときは、引数式の多重評価を避けるために一度ローカルへ退避する。
             // 例えば selector(GetValue()) をそのまま展開すると GetValue() が複数回評価されうる。
             builder.AppendLine($"var {tempName}={arguments[index]};");
@@ -122,5 +128,31 @@ public abstract class FuncFragment {
         }
 
         return $"({rewrittenBody})";
+    }
+
+    protected static string ReplaceParameterReferences(string text,string[] parameterNames,string[] arguments) {
+        var rewritten = text;
+        for(var index = 0; index<parameterNames.Length && index<arguments.Length; index++) {
+            if(string.IsNullOrWhiteSpace(parameterNames[index])) {
+                continue;
+            }
+
+            rewritten = Regex.Replace(
+                rewritten,
+                $@"\b{Regex.Escape(parameterNames[index])}\b",
+                $"({arguments[index]})",
+                RegexOptions.CultureInvariant);
+        }
+
+        return rewritten;
+    }
+
+    protected static string SanitizeLocalName(string value) {
+        var builder = new StringBuilder(value.Length);
+        foreach(var c in value) {
+            builder.Append(char.IsLetterOrDigit(c) ? c : '_');
+        }
+
+        return builder.Length==0 ? "value" : builder.ToString();
     }
 }

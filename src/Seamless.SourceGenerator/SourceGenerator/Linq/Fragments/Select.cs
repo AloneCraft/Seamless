@@ -5,7 +5,7 @@ public class Select(int 番号,Enumerable source,FuncFragment selector):Enumerab
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
     // static ラムダなら selector helper を struct として定義する。
-    public override string StructMethod => selector.CanInlineAssign ? string.Empty : this.DefineStruct(selector,nameof(selector));
+    public override string StructMethod => this.FuncSupport(selector,nameof(selector));
     // source 側 enumerator と Select 自身の enumerator をまとめて出す。
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
@@ -18,13 +18,13 @@ public class Select(int 番号,Enumerable source,FuncFragment selector):Enumerab
     public override string GetEnumeratorExpression =>
         NeedsStructClosure(selector)
             ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.ClosureArgsSuffix(selector)})"
-            : selector.CanInlineAssign && selector.CanGenerateMethod
+            : selector.CanInlineAssign && (selector.CanGenerateMethod || selector.RequiresStatementInlining)
                 ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})"
                 : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(selector,nameof(selector))})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         NeedsStructClosure(selector)
             ? $"TEnum {this.e}, {this.ClosurePrimaryCtorSuffix(selector)}"
-            : selector.CanInlineAssign && selector.CanGenerateMethod
+            : selector.CanInlineAssign && (selector.CanGenerateMethod || selector.RequiresStatementInlining)
                 ? $"TEnum {this.e}"
                 : $"TEnum {this.e}, global::System.Func<{source.ElementType}, {this.ElementType}> selector";
     // selector と現在値を保持する。source enumerator は primary ctor backing field。

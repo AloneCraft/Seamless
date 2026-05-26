@@ -22,7 +22,7 @@ public class Zip(int 番号, Enumerable source, Enumerable second) : BufferedSeq
 }
 
 public class Zip_resultSelector(int 番号, Enumerable source, Enumerable second, FuncFragment resultSelector) : BufferedSequence(番号, FuncReturnTypeName(resultSelector)) {
-    public override string StructMethod => resultSelector.CanInlineAssign ? string.Empty : this.DefineStruct(resultSelector, nameof(resultSelector));
+    public override string StructMethod => this.FuncSupport(resultSelector,nameof(resultSelector));
     protected override string StructTypeParameters => "<TEnum1, TEnum2>";
     protected override string StructTypeConstraints =>
         $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>";

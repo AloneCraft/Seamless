@@ -147,6 +147,32 @@ public sealed class EnumerableMethod2 {
     private void Join_WhereImpl() {
         var actual=Source().Join(Source(),o=>o+1,i=>i/1,(o,i) => o+i).Where(p => p%2==0);
     }
+    [Fact, Trait("Category","Unit")]public static void Join_keySelector内部Linqインライン() {
+        Join_keySelector内部LinqインラインImpl();
+    }
+    private static void Join_keySelector内部LinqインラインImpl() {
+        var actual=Source()
+            .Join(
+                Source(),
+                outerValue=>Source().Where(value=>value<outerValue).Count(),
+                innerValue=>Source().Where(value=>value<=innerValue).Count()-1,
+                (outerValue,innerValue)=>outerValue*10+innerValue)
+            .ToArray();
+        Assert.Equal([11,22,33,44],actual);
+    }
+    [Fact, Trait("Category","Unit")]public static void GroupJoin_keySelector内部Linqインライン() {
+        GroupJoin_keySelector内部LinqインラインImpl();
+    }
+    private static void GroupJoin_keySelector内部LinqインラインImpl() {
+        var actual=Source()
+            .GroupJoin(
+                Source(),
+                outerValue=>Source().Where(value=>value<outerValue).Count(),
+                innerValue=>Source().Where(value=>value<=innerValue).Count()-1,
+                (outerValue,group)=>group.Sum())
+            .ToArray();
+        Assert.Equal([1,2,3,4],actual);
+    }
     [Fact, Trait("Category","Unit")]
     public void Select_Select() {
         Select_SelectImpl();

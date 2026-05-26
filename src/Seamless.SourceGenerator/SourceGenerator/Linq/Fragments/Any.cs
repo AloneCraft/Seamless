@@ -20,7 +20,7 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
         if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method)
             return false;
         if(invocation.ArgumentList.Arguments.Count == 1) {
-            if(!buildFunc(invocation.ArgumentList.Arguments[0].Expression, method.Parameters[0].Type, out var predicate, semanticModel, containingType))
+            if(!buildFunc(invocation.ArgumentList.Arguments[0].Expression, method.Parameters[0].Type, ref uniqueNumber, out var predicate, semanticModel, containingType))
                 return false;
             var whereVariantName = predicate.ParameterTypeNames.Length > 1 ? "index" : string.Empty;
             var whereFragment = createFragment("Where", whereVariantName, uniqueNumber++, [sourceFragment, predicate]);

@@ -20,7 +20,7 @@ public class Count(int 番号, Enumerable source, string resultType) : BufferedS
 public class Count_predicate(int 番号, Enumerable source, FuncFragment predicate, string resultType) : BufferedScalar(番号, resultType) {
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => string.Empty;
+    public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
         $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.FuncEnumeratorArgExtra(predicate,nameof(predicate))})";
@@ -33,11 +33,12 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
             {{resultType}} count = 0;
             while(source.MoveNext()) {
                 var {{this.item}} = source.Current;
-                if({{this.StaticComputeFuncInvoke(predicate,nameof(predicate),this.item)}}) count++;
+                bool {{this.temp}} = default!;
+                {{this.StaticComputeFuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
+                if({{this.temp}}) count++;
             }
             return count;
         }
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
-
