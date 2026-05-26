@@ -5,7 +5,7 @@ public class Select_index(int 番号, Enumerable source, FuncFragment selector) 
         method.Parameters.Length > 0 &&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => selector.CanInlineAssign ? string.Empty : this.DefineStruct(selector, nameof(selector));
+    public override string StructMethod => this.FuncSupport(selector,nameof(selector));
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -13,13 +13,13 @@ public class Select_index(int 番号, Enumerable source, FuncFragment selector) 
     public override string GetEnumeratorExpression =>
         NeedsStructClosure(selector)
             ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.ClosureArgsSuffix(selector)})"
-            : selector.CanInlineAssign && selector.CanGenerateMethod
+            : selector.CanInlineAssign && (selector.CanGenerateMethod || selector.RequiresStatementInlining)
                 ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})"
                 : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(selector,nameof(selector))})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         NeedsStructClosure(selector)
             ? $"TEnum {this.e}, {this.ClosurePrimaryCtorSuffix(selector)}"
-            : selector.CanInlineAssign && selector.CanGenerateMethod
+            : selector.CanInlineAssign && (selector.CanGenerateMethod || selector.RequiresStatementInlining)
                 ? $"TEnum {this.e}"
                 : $"TEnum {this.e}, global::System.Func<{source.ElementType}, int, {this.ElementType}> selector";
     public override string GetEnumeratorFields => $$"""

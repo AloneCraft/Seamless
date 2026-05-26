@@ -1,7 +1,7 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : Scalar(番号) {
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => NeedsStructClosure(func) ? string.Empty : this.DefineStruct(func,nameof(func));
+    public override string StructMethod => NeedsStructClosure(func) ? func.SupportingMemberSources : this.FuncSupport(func,nameof(func));
     public override string GetEnumeratorExpression =>
         NeedsStructClosure(func)
             ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.ClosureArgsSuffix(func)})"
@@ -45,7 +45,7 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
 
 public class Aggregate_seed_func(int 番号, Enumerable source,string seed, FuncFragment func) : Scalar(番号) {
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => NeedsStructClosure(func) ? string.Empty : this.DefineStruct(func,nameof(func));
+    public override string StructMethod => NeedsStructClosure(func) ? func.SupportingMemberSources : this.FuncSupport(func,nameof(func));
     public override string GetEnumeratorExpression =>
         NeedsStructClosure(func)
             ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.ClosureArgsSuffix(func)})"
@@ -87,8 +87,8 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
 public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,string seed, FuncFragment func,FuncFragment resultSelector) : Scalar(番号) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => $$"""
-        {{(NeedsStructClosure(func) ? string.Empty : this.DefineStruct(func,nameof(func)))}}
-        {{(NeedsStructClosure(resultSelector) ? string.Empty : this.DefineStruct(resultSelector,nameof(resultSelector)))}}
+        {{(NeedsStructClosure(func) ? func.SupportingMemberSources : this.FuncSupport(func,nameof(func)))}}
+        {{(NeedsStructClosure(resultSelector) ? resultSelector.SupportingMemberSources : this.FuncSupport(resultSelector,nameof(resultSelector)))}}
         """;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(func,nameof(func))}, {this.FuncDelegate(resultSelector,nameof(resultSelector))})";
     public override string GetEnumeratorStruct => $$"""

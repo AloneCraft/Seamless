@@ -7,16 +7,16 @@ public class OrderBy_comparer(int 番号, Enumerable source, FuncFragment keySel
 public class OrderByDescending_comparer(int 番号, Enumerable source, FuncFragment keySelector, string comparer) : OrderingBase(番号, source, keySelector, comparer, descending: true) { }
 
 public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment keySelector, string comparer, bool descending) : BufferedSequence(番号, source.ElementType) {
+    private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => keySelector.CanInlineAssign ? string.Empty : this.DefineStruct(keySelector, nameof(keySelector));
+    public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => keySelector.CanInlineAssign
-        ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer})"
-        : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(keySelector,nameof(keySelector))}, {comparer})";
-    public override string GetEnumeratorPrimaryConstructorParameters => keySelector.CanInlineAssign
-        ? $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer"
-        : $"TEnum source, global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}> keySelector, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer";
-    protected override string BuildExpression => "Build(source, comparer)";
+    public override string GetEnumeratorExpression =>
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.FuncEnumeratorArgExtra(keySelector,nameof(keySelector))}, {comparer})";
+    public override string GetEnumeratorPrimaryConstructorParameters =>
+        $"TEnum source{this.FuncPrimaryCtorExtra(keySelector,KeySelectorFuncType,nameof(keySelector))}, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer";
+    protected override string BuildExpression =>
+        $"Build(source{this.ComputeExtraArgs(keySelector,nameof(keySelector))}, comparer)";
     protected override string BuildMembers => $$"""
         private readonly struct SortItem {
             public SortItem({{source.ElementType}} value, {{FuncReturnTypeName(keySelector)}} key, int index) {
@@ -28,13 +28,15 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             public {{FuncReturnTypeName(keySelector)}} Key { get; }
             public int Index { get; }
         }
-        private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer) {
+        private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source{{this.ComputeExtraParams(keySelector,KeySelectorFuncType,nameof(keySelector))}}, global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer) {
             comparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
             var items = new global::System.Collections.Generic.List<SortItem>();
             var index = 0;
             while(source.MoveNext()) {
                 var {{this.item}} = source.Current;
-                items.Add(new SortItem({{this.item}}, {{this.FuncInvoke(keySelector,nameof(keySelector),this.item)}}, index++));
+                {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
+                {{this.StaticComputeFuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                items.Add(new SortItem({{this.item}}, {{this.key}}, index++));
             }
             items.Sort((left, right) => {
                 var compare = comparer.Compare(left.Key, right.Key);

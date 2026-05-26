@@ -28,7 +28,7 @@ public abstract class MinMaxBase(int 番号, Enumerable source, string resultTyp
 public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFragment selector, string resultType, string direction) : BufferedScalar(番号, resultType) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(selector)}>";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => string.Empty;
+    public override string StructMethod => this.FuncSupport(selector,nameof(selector));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
         $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.FuncEnumeratorArgExtra(selector,nameof(selector))})";
@@ -40,11 +40,13 @@ public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFrag
         private static {{resultType}} Compute(TEnum source{{this.ComputeExtraParams(selector,SelectorFuncType,nameof(selector))}}) {
             if(!source.MoveNext()) throw global::Seamless.Linq.Enumerable.NoElements();
             var {{this.item}} = source.Current;
-            {{resultType}} result = {{this.StaticComputeFuncInvoke(selector,nameof(selector),this.item)}};
+            {{resultType}} result = default!;
+            {{this.StaticComputeFuncAssign(selector,nameof(selector),"result",this.item)}}
             var comparer = global::System.Collections.Generic.Comparer<{{resultType}}>.Default;
             while(source.MoveNext()) {
                 {{this.item}} = source.Current;
-                var value = {{this.StaticComputeFuncInvoke(selector,nameof(selector),this.item)}};
+                {{resultType}} value = default!;
+                {{this.StaticComputeFuncAssign(selector,nameof(selector),"value",this.item)}}
                 if({{(direction=="greater" ? "comparer.Compare(value, result) > 0" : "comparer.Compare(value, result) < 0")}}) result = value;
             }
             return result;

@@ -22,7 +22,7 @@ public class First_predicate(int 番号, Enumerable source, FuncFragment predica
         method.Parameters.Length > 0 && method.Parameters[0].Type.TypeKind == TypeKind.Delegate;
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => string.Empty;
+    public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
         $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.FuncEnumeratorArgExtra(predicate,nameof(predicate))})";
@@ -34,7 +34,9 @@ public class First_predicate(int 番号, Enumerable source, FuncFragment predica
         private static {{resultType}} Compute(TEnum source{{this.ComputeExtraParams(predicate,PredicateFuncType,nameof(predicate))}}) {
             while(source.MoveNext()) {
                 var {{this.item}} = source.Current;
-                if({{this.StaticComputeFuncInvoke(predicate,nameof(predicate),this.item)}}) return {{this.item}};
+                bool {{this.temp}} = default!;
+                {{this.StaticComputeFuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
+                if({{this.temp}}) return {{this.item}};
             }
             throw global::Seamless.Linq.Enumerable.NoElements();
         }

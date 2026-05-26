@@ -10,9 +10,10 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
     protected override string ComputeMembers => $$"""
         private static {{resultType}} Compute(TEnum source) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
-            while(source.MoveNext()) result.Add(source.Current);
+            using var enumerator = source;
+            while(enumerator.MoveNext()) result.Add(enumerator.Current);
             return result;
         }
         """;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => string.Empty;
 }

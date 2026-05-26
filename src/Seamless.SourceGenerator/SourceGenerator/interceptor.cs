@@ -707,24 +707,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return true;
         }
 
-        // Select/Where のラムダ本体がスカラー LINQ 式なら struct インライン化。
-        if(methodName=="Select"
-            && Select_WithInlinedScalar.TryBuild(
-                semanticModel,invocation,containingType,ref uniqueNumber,
-                out fragment,out staticMethods,unsafeAccessorCollector,
-                列挙フラグメント生成9,呼び出し式フラグメント生成1,
-                TryGetLambdaExpressionBody,GetLambdaParameters)) {
-            return true;
-        }
-        if(methodName=="Where"
-            && Where_WithInlinedScalarPredicate.TryBuild(
-                semanticModel,invocation,containingType,ref uniqueNumber,
-                out fragment,out staticMethods,unsafeAccessorCollector,
-                列挙フラグメント生成9,呼び出し式フラグメント生成1,
-                TryGetLambdaExpressionBody,GetLambdaParameters)) {
-            return true;
-        }
-
         return 登録済みフラグメント生成24(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
     }
     /// <summary>
@@ -974,7 +956,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             }
 
             if(typeof(FuncFragment).IsAssignableFrom(parameter.ParameterType)) {
-                if(!関数フラグメント生成12(argumentExpression,method.Parameters[argumentIndex].Type,out var funcFragment,semanticModel,containingType)
+                if(!関数フラグメント生成12(argumentExpression,method.Parameters[argumentIndex].Type,ref uniqueNumber,out var funcFragment,semanticModel,containingType)
                     || !関数フラグメント利用可能28(funcFragment,candidate.FragmentType)) {
                     return false;
                 }
@@ -1166,17 +1148,22 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     private static bool 関数フラグメント生成12(
         ExpressionSyntax expression,
         ITypeSymbol delegateType,
+        ref int uniqueNumber,
         out FuncFragment fragment,
         SemanticModel? semanticModel = null,
         INamedTypeSymbol? containingType = null) {
         fragment=null!;
-        if(expression is LambdaExpressionSyntax lambda
-            && TryCreateLambdaFuncFragment(lambda,delegateType,out var lambdaSpec)) {
+        if(expression is LambdaExpressionSyntax lambda) {
+            if(!TryCreateLambdaFuncFragment(lambda,delegateType,out var lambdaSpec)) {
+                throw LambdaInlineException(lambda,semanticModel,"ラムダ本体が式または単一 return 文ではないか、delegate 型を解決できませんでした。");
+            }
+
             var body = lambdaSpec.Body;
             var capturedLocals = Array.Empty<(string Name, string TypeName)>();
             var bodyAccessorCodes = Array.Empty<string>();
             var capturesThis = false;
-            if(semanticModel is not null && TryGetLambdaExpressionBody(lambda,out var lambdaBodyExpr)) {
+            ExpressionSyntax? lambdaBodyExpr = null;
+            if(semanticModel is not null && TryGetLambdaExpressionBody(lambda,out lambdaBodyExpr)) {
                 if(containingType is not null) {
                     var bodyCollector = new List<string>();
                     body=RenderExpressionForGeneratedMethod(lambdaBodyExpr,semanticModel,containingType,bodyCollector);
@@ -1196,6 +1183,49 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                         .ToArray();
                 }
             }
+
+            if(semanticModel is not null
+                && containingType is not null
+                && lambdaBodyExpr is not null
+                && TryFindSystemLinqInvocation(lambdaBodyExpr,semanticModel,out var scalarInvocation,out var scalarMethod)) {
+                var snapshot = uniqueNumber;
+                if(呼び出し式フラグメント生成1(
+                        semanticModel,
+                        scalarInvocation,
+                        containingType,
+                        ref snapshot,
+                        out var scalarFragment,
+                        out var scalarStaticMethods,
+                        null)
+                    && scalarFragment is Scalar) {
+                    uniqueNumber = snapshot;
+                    var supportingMembers = Fragment.JoinStaticMethods(scalarStaticMethods,scalarFragment.GetEnumeratorStruct);
+                    fragment = new InlinedScalarFunc(scalarFragment) {
+                        Type = Func型解決13(lambdaSpec.ParameterTypeNames.Length),
+                        ReturnTypeName = lambdaSpec.ReturnTypeName,
+                        ParameterTypeNames = lambdaSpec.ParameterTypeNames,
+                        ParameterNames = lambdaSpec.ParameterNames,
+                        DefineLambda = string.Empty,
+                        CanGenerateMethod = false,
+                        CanInlineAssign = true,
+                        RequiresStatementInlining = true,
+                        InlineBody = string.Empty,
+                        BodyExpression = RenderExpressionForGeneratedMethod(lambdaBodyExpr,semanticModel,containingType),
+                        ScalarExpression = RenderExpressionForGeneratedMethod(scalarInvocation,semanticModel,containingType),
+                        ScalarReturnTypeName = semanticModel.GetTypeInfo(scalarInvocation).Type?.ToDisplayString(完全修飾形式) ?? scalarFragment.GetType().Name,
+                        CapturedLocals = capturedLocals,
+                        BodyUnsafeAccessorCodes = bodyAccessorCodes
+                            .Concat(scalarFragment.CollectAllUnsafeAccessorCodes())
+                            .ToArray(),
+                        SupportingMemberSources = supportingMembers,
+                        OuterParameterNames = lambdaSpec.ParameterNames,
+                    };
+                    return true;
+                }
+
+                throw LambdaInlineException(lambda,semanticModel,"ラムダ内 LINQ を Fragment として構築できませんでした。",scalarInvocation);
+            }
+
             // キャプチャなし（this 含む）なら実質 static → struct ゼロコピーでメソッド生成可能。
             var canGenerateMethod = lambda.Modifiers.Any(SyntaxKind.StaticKeyword)
                 || (!capturesThis && capturedLocals.Length == 0);
@@ -1220,6 +1250,38 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return true;
         }
 
+        return false;
+    }
+
+    private static InvalidOperationException LambdaInlineException(
+        LambdaExpressionSyntax lambda,
+        SemanticModel? semanticModel,
+        string reason,
+        InvocationExpressionSyntax? linqInvocation = null) {
+        var linqText = linqInvocation is not null
+            ? NormalizeExpressionText(linqInvocation.ToString())
+            : semanticModel is not null && TryFindSystemLinqInvocation(lambda,semanticModel,out var foundInvocation,out _)
+                ? NormalizeExpressionText(foundInvocation.ToString())
+                : NormalizeExpressionText(lambda.ToString());
+        return new InvalidOperationException($"ラムダ式をインライン展開できませんでした。LINQ: '{linqText}'。理由: {reason}");
+    }
+
+    private static bool TryFindSystemLinqInvocation(
+        SyntaxNode node,
+        SemanticModel semanticModel,
+        out InvocationExpressionSyntax invocation,
+        out IMethodSymbol method) {
+        foreach(var candidate in node.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>()) {
+            if(semanticModel.GetSymbolInfo(candidate).Symbol is IMethodSymbol candidateMethod
+                && SystemLinqEnumerableメソッド判定38(candidateMethod)) {
+                invocation=candidate;
+                method=candidateMethod;
+                return true;
+            }
+        }
+
+        invocation=null!;
+        method=null!;
         return false;
     }
 
@@ -1250,6 +1312,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
 
         var typeArguments = funcType.TypeArguments.Select(typeArgument => typeArgument.ToDisplayString(完全修飾形式)).ToArray();
         var parameterTypeNames = typeArguments.Take(typeArguments.Length-1).ToArray();
+        var renderedExpression = RenderExpressionForGeneratedMethod(expression,semanticModel,containingType);
+        var needsHoist = !DelegateExpressionIsVariable(expression);
 
         // 非 public インスタンスメソッドグループの場合は UnsafeAccessor による直接呼び出しを設定する。
         string? unsafeAccessorMethodName = null;
@@ -1263,18 +1327,27 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
 
         fragment = new ParameterFunc {
-            ParameterName=RenderExpressionForGeneratedMethod(expression,semanticModel,containingType),
+            ParameterName=renderedExpression,
             Type=Func型解決13(parameterTypeNames.Length),
             ReturnTypeName=typeArguments[^1],
             ParameterTypeNames=parameterTypeNames,
             ParameterNames=Array.Empty<string>(),
             CanGenerateMethod=false,
             CanInlineAssign=false,
+            HoistedLocalName=needsHoist ? $"__delegate{expression.SpanStart}" : null,
+            HoistedLocalTypeName=convertedFuncType.ToDisplayString(完全修飾形式),
             UnsafeAccessorMethodName=unsafeAccessorMethodName,
             UnsafeAccessorCode=unsafeAccessorCode,
         };
         return true;
     }
+
+    private static bool DelegateExpressionIsVariable(ExpressionSyntax expression) =>
+        expression switch {
+            IdentifierNameSyntax => true,
+            ParenthesizedExpressionSyntax parenthesized => DelegateExpressionIsVariable(parenthesized.Expression),
+            _ => false,
+        };
 
     private static string 静的メソッド連結14(string left,string right) {
         return string.Join("\n",new[] { left,right }.Where(static text => !string.IsNullOrWhiteSpace(text)));
@@ -1287,6 +1360,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         var suffix = SanitizeIdentifier(actualVariableName);
         var enumeratorName = $"e_{suffix}";
         var currentName = $"c_{suffix}";
+
+        foreach(var declaration in fragment.CollectDelegateHoistDeclarations().Distinct(StringComparer.Ordinal)) {
+            builder.AppendLine(declaration);
+        }
 
         if(fragment is Enumerable enumerableFragment) {
             builder.AppendLine($"var {actualVariableName}=new global::System.Collections.Generic.List<{enumerableFragment.ElementType}>();");

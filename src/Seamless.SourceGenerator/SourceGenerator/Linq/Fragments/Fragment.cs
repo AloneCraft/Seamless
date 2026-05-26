@@ -86,6 +86,10 @@ public abstract class Fragment(
             if(typeof(Fragment).IsAssignableFrom(field.FieldType) && field.GetValue(this) is Fragment child) {
                 child.PropagateContainingTypeName(name);
             }
+            if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
+                && field.GetValue(this) is InlinedScalarFunc inlinedScalarFunc) {
+                inlinedScalarFunc.ScalarFragment.PropagateContainingTypeName(name);
+            }
         }
     }
 
@@ -103,11 +107,39 @@ public abstract class Fragment(
                 foreach(var code in funcFrag.BodyUnsafeAccessorCodes) {
                     yield return code;
                 }
+                if(funcFrag is InlinedScalarFunc inlinedScalarFunc) {
+                    foreach(var code in inlinedScalarFunc.ScalarFragment.CollectAllUnsafeAccessorCodes()) {
+                        yield return code;
+                    }
+                }
             }
             if(typeof(Fragment).IsAssignableFrom(field.FieldType)
                 && field.GetValue(this) is Fragment child) {
                 foreach(var code in child.CollectAllUnsafeAccessorCodes())
                     yield return code;
+            }
+        }
+    }
+
+    public IEnumerable<string> CollectDelegateHoistDeclarations() {
+        foreach(var field in GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)) {
+            if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
+                && field.GetValue(this) is FuncFragment funcFrag) {
+                if(funcFrag is ParameterFunc parameterFunc
+                    && !string.IsNullOrWhiteSpace(parameterFunc.HoistDeclaration)) {
+                    yield return parameterFunc.HoistDeclaration;
+                }
+                if(funcFrag is InlinedScalarFunc inlinedScalarFunc) {
+                    foreach(var declaration in inlinedScalarFunc.ScalarFragment.CollectDelegateHoistDeclarations()) {
+                        yield return declaration;
+                    }
+                }
+            }
+            if(typeof(Fragment).IsAssignableFrom(field.FieldType)
+                && field.GetValue(this) is Fragment child) {
+                foreach(var declaration in child.CollectDelegateHoistDeclarations()) {
+                    yield return declaration;
+                }
             }
         }
     }
@@ -140,28 +172,33 @@ public abstract class Fragment(
     private protected string DefineStruct(FuncFragment func,string methodName) {
         var structName = this.FuncStructName(methodName);
         if(!func.CanGenerateMethod) {
-            return string.Empty;
+            return func.SupportingMemberSources;
         }
 
-        return $$"""
+        return JoinStaticMethods(func.SupportingMemberSources,$$"""
             private struct {{structName}}{
                 {{func.DefineMethod(methodName)}}
             }
-            """;
+            """);
     }
 
     // 既に struct 名が決まっているケース向けの共通版。
     private protected static string DefineStruct(string structName, FuncFragment func, string methodName) {
         if(!func.CanGenerateMethod) {
-            return string.Empty;
+            return func.SupportingMemberSources;
         }
 
-        return $$"""
+        return JoinStaticMethods(func.SupportingMemberSources,$$"""
             private struct {{structName}}{
                 {{func.DefineMethod(methodName)}}
             }
-            """;
+            """);
     }
+
+    private protected string FuncSupport(FuncFragment func,string methodName) =>
+        func.CanGenerateMethod
+            ? this.DefineStruct(func,methodName)
+            : func.SupportingMemberSources;
 
     // ParameterFunc は既存 delegate を使うので struct 生成は不要。
     private protected static string FuncDefinition(string structName,FuncFragment func,string methodName) {
@@ -193,6 +230,10 @@ public abstract class Fragment(
 
     // 代入文が必要なときの共通ヘルパー。
     private protected string FuncAssign(FuncFragment func,string methodName,string destination,params string[] arguments) {
+        if(func.RequiresStatementInlining) {
+            return func.RenderInlineAssign(destination,番号,arguments);
+        }
+
         if(func.CanInlineAssign) {
             // 非 static ラムダかつ struct closure なし: デリゲートフォールバック。
             if(!func.CanGenerateMethod && ContainingTypeName is null && func.CapturedLocals.Length == 0) {
@@ -202,6 +243,15 @@ public abstract class Fragment(
         }
 
         return $"{destination}={this.FuncInvoke(func,methodName,arguments)};";
+    }
+
+    // フラットループ内ではデリゲート引数フィールドがないため、ParameterFunc も直接式へ戻して呼び出す。
+    private protected string FuncAssignFlat(FuncFragment func,string methodName,string destination,params string[] arguments) {
+        if(func.RequiresStatementInlining) {
+            return func.RenderInlineAssign(destination,番号,arguments);
+        }
+
+        return $"{destination}={this.FuncInvokeFlat(func,methodName,arguments)};";
     }
 
     // 各断片が持つ Current/TryGetNext/Dispose を IValueEnumerator struct にまとめる。
@@ -281,7 +331,7 @@ public abstract class Fragment(
                 // UnsafeAccessor 経由で直接呼び出し（デリゲート生成なし）
                 return $"{accessorName}(@this, {argumentList})";
             }
-            return $"({parameterFunc.ParameterName})({argumentList})";
+            return $"{parameterFunc.InvocationName}({argumentList})";
         }
         return func.RenderInlineExpression(arguments);
     }
@@ -297,7 +347,7 @@ public abstract class Fragment(
     // Carrier 側で Func delegate をそのまま渡すための式。
     private protected string FuncDelegate(FuncFragment func,string methodName) {
         return func is ParameterFunc parameterFunc
-            ? parameterFunc.ParameterName
+            ? parameterFunc.InvocationName
             : func.CanGenerateMethod
                 ? $"{this.FuncStructName(methodName)}.{methodName}"
                 : func.RenderDelegateExpression();
@@ -334,6 +384,15 @@ public abstract class Fragment(
         return func.CanInlineAssign
             ? func.RenderInlineExpression(arguments)
             : $"{funcName}({argList})";
+    }
+
+    // static Compute/Build ボディ内で、式展開だけでは足りないラムダも代入文として扱う。
+    private protected string StaticComputeFuncAssign(FuncFragment func,string funcName,string destination,params string[] arguments) {
+        if(func.RequiresStatementInlining) {
+            return func.RenderInlineAssign(destination,番号,arguments);
+        }
+
+        return $"{destination}={this.StaticComputeFuncInvoke(func,funcName,arguments)};";
     }
 
     // primary ctor に追加すべきパラメータ（クロージャまたはデリゲート）
@@ -377,6 +436,7 @@ internal delegate bool BuildEnumerableFragmentDelegate(
 internal delegate bool BuildFuncFragmentDelegate(
     ExpressionSyntax expression,
     ITypeSymbol delegateType,
+    ref int uniqueNumber,
     out FuncFragment fragment,
     SemanticModel? semanticModel,
     INamedTypeSymbol? containingType);

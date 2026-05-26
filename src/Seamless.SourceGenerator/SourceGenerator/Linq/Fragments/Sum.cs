@@ -20,7 +20,7 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
 public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, string resultType) : BufferedScalar(番号, resultType) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(selector)}>";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => string.Empty;
+    public override string StructMethod => this.FuncSupport(selector,nameof(selector));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
         $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.FuncEnumeratorArgExtra(selector,nameof(selector))})";
@@ -33,7 +33,9 @@ public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, 
             {{resultType}} sum = default!;
             while(source.MoveNext()) {
                 var {{this.item}} = source.Current;
-                sum += {{this.StaticComputeFuncInvoke(selector,nameof(selector),this.item)}};
+                {{FuncReturnTypeName(selector)}} {{this.temp}} = default!;
+                {{this.StaticComputeFuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                sum += {{this.temp}};
             }
             return sum;
         }

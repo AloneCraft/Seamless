@@ -101,7 +101,7 @@ public class SelectMany(int 番号, Enumerable source, FuncFragment selector) : 
         !NeedsStructClosure(selector) &&
         !selector.RenderInlineExpression("__SeamlessHoistProbe__").Contains("__SeamlessHoistProbe__");
     public override string StructMethod =>
-        IsHoistable ? string.Empty : this.DefineStruct(selector, nameof(selector));
+        IsHoistable ? selector.SupportingMemberSources : this.FuncSupport(selector, nameof(selector));
     public override string GetEnumeratorExpression =>
         IsHoistable
             ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {selector.RenderInlineExpression("__unused__")})"
@@ -121,7 +121,7 @@ public class SelectMany_index(int 番号, Enumerable source, FuncFragment select
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 1 &&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
-    public override string StructMethod => this.DefineStruct(selector, nameof(selector));
+    public override string StructMethod => this.FuncSupport(selector,nameof(selector));
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(selector, nameof(selector))})";
     protected override string CollectionSelectorPrimaryConstructorParameter => $"global::System.Func<{source.ElementType}, int, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>> selector";
     public override string GetEnumeratorFields => $$"""
@@ -140,8 +140,8 @@ public class SelectMany_resultSelector(int 番号, Enumerable source, FuncFragme
         method.Parameters.Length == 2 &&
         !(method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     public override string StructMethod => $$"""
-        {{this.DefineStruct(collectionSelector, nameof(collectionSelector))}}
-        {{this.DefineStruct(resultSelector, nameof(resultSelector))}}
+        {{this.FuncSupport(collectionSelector,nameof(collectionSelector))}}
+        {{this.FuncSupport(resultSelector,nameof(resultSelector))}}
         """;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(collectionSelector, nameof(collectionSelector))}, {this.FuncDelegate(resultSelector, nameof(resultSelector))})";
     public override string GetEnumeratorPrimaryConstructorParameters => $$"""TEnum {{this.e}}, global::System.Func<{{source.ElementType}}, global::System.Collections.Generic.IEnumerable<{{this.CollectionElementType}}>> collectionSelector, global::System.Func<{{source.ElementType}}, {{this.CollectionElementType}}, {{this.ElementType}}> resultSelector""";
@@ -238,8 +238,8 @@ public class SelectMany_index_resultSelector(int 番号, Enumerable source, Func
         method.Parameters.Length == 2 &&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string StructMethod => $$"""
-        {{this.DefineStruct(collectionSelector, nameof(collectionSelector))}}
-        {{this.DefineStruct(resultSelector, nameof(resultSelector))}}
+        {{this.FuncSupport(collectionSelector,nameof(collectionSelector))}}
+        {{this.FuncSupport(resultSelector,nameof(resultSelector))}}
         """;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(collectionSelector, nameof(collectionSelector))}, {this.FuncDelegate(resultSelector, nameof(resultSelector))})";
     public override string GetEnumeratorPrimaryConstructorParameters => $$"""TEnum {{this.e}}, global::System.Func<{{source.ElementType}}, int, global::System.Collections.Generic.IEnumerable<{{this.CollectionElementType}}>> collectionSelector, global::System.Func<{{source.ElementType}}, {{this.CollectionElementType}}, {{this.ElementType}}> resultSelector""";
