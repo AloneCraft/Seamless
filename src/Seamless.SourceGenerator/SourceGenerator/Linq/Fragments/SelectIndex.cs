@@ -1,6 +1,9 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
 public class Select_index(int 番号, Enumerable source, FuncFragment selector) : Enumerable(番号) {
+    public static bool IsApplicableOverload(IMethodSymbol method) =>
+        method.Parameters.Length > 0 &&
+        method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => selector.CanInlineAssign ? string.Empty : this.DefineStruct(selector, nameof(selector));
     public override string GetEnumeratorStruct => $$"""
