@@ -1,6 +1,9 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
 public class TakeWhile(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
+    public static bool IsApplicableOverload(IMethodSymbol method) =>
+        !(method.Parameters.Length > 0 &&
+          method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => predicate.CanInlineAssign ? string.Empty : this.DefineStruct(predicate, nameof(predicate));
     public override string GetEnumeratorStruct => $$"""

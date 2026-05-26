@@ -145,6 +145,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     // Fragments.Fragment を継承した具体型を列挙し、ローカルメソッド再生成にもそのまま使う。
     // これで Aggregate の overload 個別対応を増やすたびに辞書を手で更新しなくてよい。
     private static readonly IReadOnlyDictionary<string,ImmutableArray<フラグメント候補>> フラグメント候補一覧 = フラグメント候補一覧構築23();
+    private static readonly IReadOnlySet<string> SystemLinqEnumerableMethodNames = typeof(global::System.Linq.Enumerable)
+        .GetMethods(BindingFlags.Public|BindingFlags.Static)
+        .Select(static method => method.Name)
+        .ToHashSet(StringComparer.Ordinal);
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Compilation,System.Collections.Concurrent.ConcurrentDictionary<IMethodSymbol,ローカルメソッドLinq解析結果>> ローカルメソッドLinq解析キャッシュ = new();
 
     public void Initialize(IncrementalGeneratorInitializationContext context) {
         var interceptTargets = context.SyntaxProvider
@@ -277,7 +282,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return false;
         }
 
-        if(!メソッド内部Linq呼び出し含む36(method,context.SemanticModel.Compilation)) {
+        var linqAnalysis = ローカルメソッドLinq解析取得36(method,context.SemanticModel.Compilation);
+        if(!linqAnalysis.HasEnumerableCall) {
             return false;
         }
 
@@ -309,13 +315,25 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             containingMethod.ContainingType,
             context.SemanticModel,
             parameterSpecs,
+            linqAnalysis,
             isLocalMethodInterception: true);
         return true;
     }
 
-    private static bool メソッド内部Linq呼び出し含む36(IMethodSymbol method,Compilation compilation) {
+    private static ローカルメソッドLinq解析結果 ローカルメソッドLinq解析取得36(IMethodSymbol method,Compilation compilation) {
+        var cache = ローカルメソッドLinq解析キャッシュ.GetValue(
+            compilation,
+            static _ => new System.Collections.Concurrent.ConcurrentDictionary<IMethodSymbol,ローカルメソッドLinq解析結果>(SymbolEqualityComparer.Default));
+        return cache.GetOrAdd(method,static (method,compilation) => ローカルメソッドLinq解析実行37(method,compilation),compilation);
+    }
+
+    private static ローカルメソッドLinq解析結果 ローカルメソッドLinq解析実行37(IMethodSymbol method,Compilation compilation) {
         if(method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax) {
-            return false;
+            return ローカルメソッドLinq解析結果.Empty;
+        }
+
+        if(!メソッド構文Linq候補含む40(methodSyntax)) {
+            return ローカルメソッドLinq解析結果.Empty;
         }
 
         var semanticModel = compilation.GetSemanticModel(methodSyntax.SyntaxTree);
@@ -326,15 +344,77 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 ? methodSyntax.ExpressionBody.Expression.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>()
                 : global::System.Linq.Enumerable.Empty<InvocationExpressionSyntax>();
 
-        return invocationNodes
-            .Select(invocation => semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol)
-            .Where(static invokedMethod => invokedMethod is not null)
-            .Select(static invokedMethod => invokedMethod!.ReducedFrom ?? invokedMethod)
+        var unsupportedMethods = new HashSet<string>(StringComparer.Ordinal);
+        var hasEnumerableCall = false;
+        var hasEnumerableCallInBody = false;
+        var allLinqCallsDirectExpressionStatement = true;
+        foreach(var invocation in invocationNodes) {
+            if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol invokedMethod) {
+                continue;
+            }
+
+            var definition = invokedMethod.ReducedFrom ?? invokedMethod;
             // target 判定では「Fragment 化できる LINQ か」ではなく
             // 「System.Linq.Enumerable を呼んでいるか」だけを見る。
             // これにより Cast/Append など未対応 or 一部未構築のケースも intercept され、
             // 後段で明示的な例外へ落とせる。
-            .Any(SystemLinqEnumerableメソッド判定38);
+            if(!SystemLinqEnumerableメソッド判定38(definition)) {
+                continue;
+            }
+
+            hasEnumerableCall=true;
+            // Body-only フラグ: expression-bodied methods は Body が null なので false のまま。
+            // ローカルメソッドEnumerable呼び出し含む34 と すべてのLINQ呼び出しが式文直下 は
+            // 旧実装と同様に Block Body のみを対象とする。
+            if(methodSyntax.Body is not null) {
+                hasEnumerableCallInBody=true;
+            }
+            if(!Enumerableメソッドフラグメント対応判定32(definition.Name)) {
+                unsupportedMethods.Add(definition.Name);
+            }
+            if(methodSyntax.Body is not null && !Linq呼び出し式文直下判定39(invocation)) {
+                allLinqCallsDirectExpressionStatement=false;
+            }
+        }
+
+        return new ローカルメソッドLinq解析結果(
+            hasEnumerableCall,
+            hasEnumerableCallInBody,
+            unsupportedMethods.OrderBy(static methodName => methodName,StringComparer.Ordinal).ToImmutableArray(),
+            allLinqCallsDirectExpressionStatement);
+    }
+
+    private static bool メソッド構文Linq候補含む40(MethodDeclarationSyntax methodSyntax) {
+        var invocationNodes = methodSyntax.Body is not null
+            ? methodSyntax.Body.DescendantNodes().OfType<InvocationExpressionSyntax>()
+            : methodSyntax.ExpressionBody is not null
+                ? methodSyntax.ExpressionBody.Expression.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>()
+                : global::System.Linq.Enumerable.Empty<InvocationExpressionSyntax>();
+
+        foreach(var invocation in invocationNodes) {
+            if(invocation.Expression is MemberAccessExpressionSyntax { Name: { } memberName }
+                && SystemLinqEnumerableMethodNames.Contains(memberName.Identifier.ValueText)) {
+                return true;
+            }
+            if(invocation.Expression is IdentifierNameSyntax identifierName
+                && SystemLinqEnumerableMethodNames.Contains(identifierName.Identifier.ValueText)) {
+                return true;
+            }
+            if(invocation.Expression is GenericNameSyntax genericName
+                && SystemLinqEnumerableMethodNames.Contains(genericName.Identifier.ValueText)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool Linq呼び出し式文直下判定39(InvocationExpressionSyntax invocation) {
+        SyntaxNode node = invocation;
+        while(node.Parent is InvocationExpressionSyntax or MemberAccessExpressionSyntax) {
+            node = node.Parent;
+        }
+        return node.Parent is ExpressionStatementSyntax;
     }
 
     private static bool Linqメソッド判定(IMethodSymbol method) {
@@ -1004,6 +1084,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 : candidate.VariantName.Length==0;
         }
 
+        // FirstOrDefault/LastOrDefault/SingleOrDefault は predicate 版と defaultValue 版を引数の型で区別する。
+        // 両者は Parameters.Length が同じため、アルファベット順に先に来る defaultValue 版が誤マッチしないよう制御する。
+        if(candidate.MethodName is "FirstOrDefault" or "LastOrDefault" or "SingleOrDefault" or "First" or "Last" or "Single") {
+            if(method.Parameters.Length==0) return candidate.VariantName.Length==0;
+            if(method.Parameters.Length==1) {
+                var isPredicate = method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
+                return isPredicate
+                    ? candidate.VariantName=="predicate"
+                    : candidate.VariantName=="defaultValue";
+            }
+        }
+
         if(candidate.MethodName=="SelectMany") {
             // SelectMany は 4 overload あり、
             // collectionSelector の arity が 1 引数か 2 引数(index 付き)かで
@@ -1566,6 +1658,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         if(statement is ExpressionStatementSyntax discardedExprStatement
             && outerLinqInvocations.Count==1
             && NormalizeExpressionText(discardedExprStatement.Expression.ToString())==NormalizeExpressionText(outerLinqInvocations[0].ToString())) {
+            linqInvocationCount++;
             return true;
         }
 
@@ -1656,7 +1749,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         INamedTypeSymbol containingType,
         List<string>? unsafeAccessorCollector,
         IReadOnlyDictionary<string,string>? replacementMap) {
-        var text = statement.ToString();
+        // replacementMap のキーは NormalizeExpressionText 済みなので text も正規化して照合する。
+        var text = NormalizeExpressionText(statement.ToString());
         if(replacementMap is not null) {
             foreach(var pair in replacementMap.OrderByDescending(static pair => pair.Key.Length)) {
                 text=text.Replace(pair.Key,pair.Value,StringComparison.Ordinal);
@@ -2003,78 +2097,25 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     }
 
     private static List<string> ローカルメソッド未対応Enumerable取得31(Linq傍受対象型 target) {
-        if(target.Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax) {
-            return [];
-        }
-
-        var semanticModel = target.SemanticModel.Compilation.GetSemanticModel(methodSyntax.SyntaxTree);
         // ローカルメソッド全体を再構成する前に、Fragment クラス自体が存在しない Enumerable メソッド名を列挙する。
         // 「System.Linq.Enumerable を含むメソッドは全部 intercept する」が前提なので、
         // 未対応メソッドは target から落とすのではなく、生成 interceptor から例外で見えるようにする。
-        return methodSyntax.Body?
-            .DescendantNodes()
-            .OfType<InvocationExpressionSyntax>()
-            .Select(invocation => semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol)
-            .Where(static method => method is not null)
-            .Select(static method => method!.ReducedFrom ?? method)
-            .Where(static method => method.ContainingType.ToDisplayString()=="System.Linq.Enumerable")
-            .Where(static method => !Enumerableメソッドフラグメント対応判定32(method.Name))
-            .Select(static method => method.Name)
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(static methodName => methodName,StringComparer.Ordinal)
-            .ToList()
-            ?? [];
+        return target.LinqAnalysis.UnsupportedMethods.ToList();
     }
 
     private static bool Enumerableメソッドフラグメント対応判定32(string methodName)
         => methodName=="Any" || フラグメント候補一覧.ContainsKey(methodName);
 
     private static bool ローカルメソッドEnumerable呼び出し含む34(Linq傍受対象型 target) {
-        if(target.Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax) {
-            return false;
-        }
-
-        var semanticModel = target.SemanticModel.Compilation.GetSemanticModel(methodSyntax.SyntaxTree);
         // 未対応メソッド名の列挙とは別に、「そもそも LINQ を含むのに再構成できなかった」ケースを検知する。
-        return methodSyntax.Body?
-            .DescendantNodes()
-            .OfType<InvocationExpressionSyntax>()
-            .Select(invocation => semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol)
-            .Where(static method => method is not null)
-            .Select(static method => method!.ReducedFrom ?? method)
-            .Any(static method => method.ContainingType.ToDisplayString()=="System.Linq.Enumerable")
-            ?? false;
+        return target.LinqAnalysis.HasEnumerableCallInBody;
     }
 
     // LINQ 呼び出しが全て式文の直下（結果を捨てる）かどうかを返す。
     // UnionImpl のように void メソッドで Union 等の結果を捨てているケースは true。
     // AssertEqualByKey のように Assert.Equal(...OrderBy(...), ...) と入れ子になっているケースは false。
     private static bool すべてのLINQ呼び出しが式文直下(Linq傍受対象型 target) {
-        if(target.Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax) {
-            return false;
-        }
-
-        var semanticModel = target.SemanticModel.Compilation.GetSemanticModel(methodSyntax.SyntaxTree);
-        var linqInvocations = methodSyntax.Body?
-            .DescendantNodes()
-            .OfType<InvocationExpressionSyntax>()
-            .Where(invocation => {
-                var symbol = semanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-                return symbol is not null
-                    && (symbol.ReducedFrom ?? symbol).ContainingType.ToDisplayString()=="System.Linq.Enumerable";
-            })
-            .ToList();
-        if(linqInvocations is null || linqInvocations.Count==0) {
-            return true;
-        }
-
-        return linqInvocations.All(static invocation => {
-            SyntaxNode node = invocation;
-            while(node.Parent is InvocationExpressionSyntax or MemberAccessExpressionSyntax) {
-                node = node.Parent;
-            }
-            return node.Parent is ExpressionStatementSyntax;
-        });
+        return target.LinqAnalysis.AllLinqCallsDirectExpressionStatement;
     }
 
     private static object CreateStaticTemplateArgument(LambdaSpec lambda) {
@@ -2348,7 +2389,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             }
 
             if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
-                || !method.IsStatic) {
+                || (!method.IsStatic && !method.IsExtensionMethod)) {
                 continue;
             }
 
@@ -2376,6 +2417,15 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 // 生成 namespace は元 namespace と異なるため、静的メソッド呼び出しは型名を完全修飾する。
                 var qualifiedInvocationText = $"{method.ContainingType.ToDisplayString(完全修飾形式)}.{method.Name}{RenderTypeArgumentList(method)}({string.Join(", ",invocation.ArgumentList.Arguments.Select(argument => RenderArgumentForGeneratedMethod(argument,semanticModel,containingType)))})";
                 text=text.Replace(invocationText,qualifiedInvocationText,StringComparison.Ordinal);
+                foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
+            } else if(method.IsExtensionMethod
+                && (method.ReducedFrom ?? method).ContainingType.ToDisplayString() != "System.Linq.Enumerable"
+                && invocation.Expression is MemberAccessExpressionSyntax extensionMemberAccess) {
+                // 拡張メソッド: receiver.Method<T>(args) → global::ContainingType.Method<T>(receiver, args)
+                var receiverText = RenderExpressionForGeneratedMethod(extensionMemberAccess.Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
+                var allArgs = new[]{receiverText}.Concat(invocation.ArgumentList.Arguments.Select(argument => RenderArgumentForGeneratedMethod(argument,semanticModel,containingType)));
+                var qualifiedExtensionText = $"{method.ContainingType.ToDisplayString(完全修飾形式)}.{method.Name}{RenderTypeArgumentList(method)}({string.Join(", ",allArgs)})";
+                text=text.Replace(invocationText,qualifiedExtensionText,StringComparison.Ordinal);
                 foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
             }
         }
@@ -2785,8 +2835,25 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return $"throw global::Seamless.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\");";
     }
 
+    private sealed class ローカルメソッドLinq解析結果 {
+        public static readonly ローカルメソッドLinq解析結果 Empty = new(false,false,ImmutableArray<string>.Empty,true);
+
+        public ローカルメソッドLinq解析結果(bool hasEnumerableCall,bool hasEnumerableCallInBody,ImmutableArray<string> unsupportedMethods,bool allLinqCallsDirectExpressionStatement) {
+            this.HasEnumerableCall=hasEnumerableCall;
+            this.HasEnumerableCallInBody=hasEnumerableCallInBody;
+            this.UnsupportedMethods=unsupportedMethods;
+            this.AllLinqCallsDirectExpressionStatement=allLinqCallsDirectExpressionStatement;
+        }
+
+        public bool HasEnumerableCall { get; }
+        /// <summary>Block-bodied methods のみ: expression-bodied は常に false。</summary>
+        public bool HasEnumerableCallInBody { get; }
+        public ImmutableArray<string> UnsupportedMethods { get; }
+        public bool AllLinqCallsDirectExpressionStatement { get; }
+    }
+
     private sealed class Linq傍受対象型 {
-        public Linq傍受対象型(string identifier,string containingMethodName,string interceptsLocationAttributeText,IMethodSymbol method,IMethodSymbol templateMethod,InvocationExpressionSyntax invocation,INamedTypeSymbol enclosingType,SemanticModel semanticModel,InterceptParameterSpec[] parameters,string? sourceElementTypeName = null,string[]? methodTypeParameterNames = null,bool isLocalMethodInterception = false) {
+        public Linq傍受対象型(string identifier,string containingMethodName,string interceptsLocationAttributeText,IMethodSymbol method,IMethodSymbol templateMethod,InvocationExpressionSyntax invocation,INamedTypeSymbol enclosingType,SemanticModel semanticModel,InterceptParameterSpec[] parameters,ローカルメソッドLinq解析結果? linqAnalysis = null,string? sourceElementTypeName = null,string[]? methodTypeParameterNames = null,bool isLocalMethodInterception = false) {
             this.Identifier=identifier;
             this.ContainingMethodName=containingMethodName;
             this.InterceptsLocationAttributeText=interceptsLocationAttributeText;
@@ -2796,6 +2863,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             this.EnclosingType=enclosingType;
             this.SemanticModel=semanticModel;
             this.Parameters=parameters;
+            this.LinqAnalysis=linqAnalysis ?? ローカルメソッドLinq解析結果.Empty;
             this.ExplicitSourceElementTypeName=sourceElementTypeName;
             this.MethodTypeParameters=methodTypeParameterNames ?? Array.Empty<string>();
             this.IsLocalMethodInterception=isLocalMethodInterception;
@@ -2811,6 +2879,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         public INamedTypeSymbol EnclosingType { get; }
         public SemanticModel SemanticModel { get; }
         public InterceptParameterSpec[] Parameters { get; }
+        public ローカルメソッドLinq解析結果 LinqAnalysis { get; }
         public string? ExplicitSourceElementTypeName { get; }
         public string[] MethodTypeParameters { get; }
         public bool IsLocalMethodInterception { get; }

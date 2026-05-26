@@ -6,31 +6,37 @@ namespace Test.Seamless.Intercept.System.Linq;
 public sealed class EnumerableMethod2 {
     [Fact, Trait("Category","Unit")]public static void Where内部Where外出し不可() {
         Where内部Where外出し不可Impl();
-        Where内部Where外出し可Impl();
-        Where内部Any外出し不可Impl();
-        Where内部Any外出し可Impl();
     }
     private static void Where内部Where外出し不可Impl() {
         Source().Where(
             p=>Source().Where(q=>q!=p).Any()
         );
     }
+    [Fact, Trait("Category","Unit")]public static void Where内部Where外出し可() {
+        Where内部Where外出し可Impl();
+    }
     private static void Where内部Where外出し可Impl() {
         Source().Where(
             p=>Source().Where(q=>q!=3).Any()
         );
+    }
+    [Fact, Trait("Category","Unit")]public static void Where内部Any外出し不可() {
+        Where内部Any外出し不可Impl();
     }
     private static void Where内部Any外出し不可Impl() {
         Source().Where(
             p=>Source().Any(q=>q!=p)
         );
     }
+    [Fact, Trait("Category","Unit")]public static void Where内部Any外出し可() {
+        Where内部Any外出し可Impl();
+    }
     private static void Where内部Any外出し可Impl() {
         Source().Where(
             p=>Source().Any(q=>q!=3)
         );
     }
-    [Fact, Trait("Category","Unit")]public static void Where内部Select外出し不可() {
+    [Fact, Trait("Category","Unit")]public static void Where内部Selectインライン() {
         Where内部Select外出し不可Impl();
         Where内部Select外出し可Impl();
     }
@@ -50,7 +56,7 @@ public sealed class EnumerableMethod2 {
 
 
 
-    [Fact, Trait("Category","Unit")]public static void Select内部Select外出し不可() {
+    [Fact, Trait("Category","Unit")]public static void Select内部Selectインライン() {
         Select内部Select外出し不可Impl();
         Select内部Select外出し可Impl();
     }
@@ -64,34 +70,34 @@ public sealed class EnumerableMethod2 {
             p=>Source().Select(q=>q!=3).Any()
         );
     }
-    [Fact, Trait("Category","Unit")]public static void SelectMany() {
-        SelctManyImpl();
+    [Fact, Trait("Category","Unit")]public static void SelectManyインライン() {
+        SelectManyImpl();
     }
-    private static void SelctManyImpl() {
+    private static void SelectManyImpl() {
         var actual=Source().SelectMany(
             p=>Source()
         );
     }
-    [Fact, Trait("Category","Unit")]public static void SelctMany内部Where外出し不可() {
-        SelctMany内部Where外出し不可Impl();
+    [Fact, Trait("Category","Unit")]public static void SelectMany内部Where外出し不可() {
+        SelectMany内部Where外出し不可Impl();
     }
-    private static void SelctMany内部Where外出し不可Impl() {
+    private static void SelectMany内部Where外出し不可Impl() {
         var actual=Source().SelectMany(
             p=>Source().Where(q=>q!=p)
         );
     }
-    [Fact, Trait("Category","Unit")]public static void SelctMany内部Where() {
-        SelctMany内部WhereImpl();
+    [Fact, Trait("Category","Unit")]public static void SelectMany内部Where() {
+        SelectMany内部WhereImpl();
     }
-    private static void SelctMany内部WhereImpl() {
+    private static void SelectMany内部WhereImpl() {
         var actual=Source().SelectMany(
             p=>Source().Where(q=>q==1)
         );
     }
-    [Fact, Trait("Category","Unit")]public static void SelctMany内部WhereをDictionaryにして外出し() {
-        SelctMany内部WhereをDictionaryにして外出しImpl();
+    [Fact, Trait("Category","Unit")]public static void SelectMany内部WhereをDictionaryにして外出し() {
+        SelectMany内部WhereをDictionaryにして外出しImpl();
     }
-    private static void SelctMany内部WhereをDictionaryにして外出しImpl() {
+    private static void SelectMany内部WhereをDictionaryにして外出しImpl() {
         /*
         var actual=Source().SelectMany(
             p=>Source().CreateDictionary(q=>q/2).Equal(p)
