@@ -1,5 +1,6 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 public class LastOrDefault(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
+    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length == 0;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;

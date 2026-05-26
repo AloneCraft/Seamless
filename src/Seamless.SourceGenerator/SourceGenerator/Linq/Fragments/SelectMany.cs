@@ -4,6 +4,46 @@
 */
 
 public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable(番号) {
+    internal static bool TryBuildInlined(
+        SemanticModel semanticModel,
+        InvocationExpressionSyntax invocation,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        out Fragment fragment,
+        out string staticMethods,
+        List<string>? unsafeAccessorCollector,
+        BuildEnumerableFragmentDelegate buildEnumerable,
+        TryGetLambdaBodyDelegate tryGetLambdaBody,
+        GetLambdaParametersDelegate getLambdaParameters) {
+        fragment = null!;
+        staticMethods = string.Empty;
+        if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) return false;
+        var definition = method.ReducedFrom ?? method;
+        if(definition.Name != "SelectMany"
+            || definition.ContainingType.ToDisplayString() != "System.Linq.Enumerable")
+            return false;
+        if(invocation.ArgumentList.Arguments.Count != 1
+            || invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression })
+            return false;
+        var selectorArg = invocation.ArgumentList.Arguments[0].Expression;
+        if(selectorArg is not LambdaExpressionSyntax lambda) return false;
+        if(!tryGetLambdaBody(lambda, out var lambdaBody)) return false;
+        var outerParams = getLambdaParameters(lambda);
+        if(outerParams.Count != 1) return false;
+        var outerParamName = outerParams[0];
+        var snapshot = uniqueNumber;
+        var smNumber = snapshot++;
+        if(!buildEnumerable(semanticModel, sourceExpression, containingType, ref snapshot, out var outerSource, out var outerSourceStaticMethods, unsafeAccessorCollector))
+            return false;
+        if(!buildEnumerable(semanticModel, lambdaBody, containingType, ref snapshot, out var innerFrag, out var innerStaticMethods, unsafeAccessorCollector))
+            return false;
+        var smFrag = new SelectMany_WithInlinedInner(smNumber, outerSource, innerFrag, outerParamName);
+        fragment = smFrag;
+        uniqueNumber = snapshot;
+        staticMethods = Fragment.JoinStaticMethods(outerSourceStaticMethods, innerStaticMethods);
+        staticMethods = Fragment.JoinStaticMethods(staticMethods, smFrag.StructMethod);
+        return true;
+    }
     protected override Enumerable PrimarySource => source;
     protected abstract string CollectionElementType { get; }
     protected abstract string CollectionSelectorPrimaryConstructorParameter { get; }
@@ -53,6 +93,9 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
 }
 
 public class SelectMany(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
+    public static bool IsApplicableOverload(IMethodSymbol method) =>
+        method.Parameters.Length == 1 &&
+        !(method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     private bool IsHoistable =>
         selector.CanInlineAssign &&
         !NeedsStructClosure(selector) &&
@@ -75,6 +118,9 @@ public class SelectMany(int 番号, Enumerable source, FuncFragment selector) : 
 }
 
 public class SelectMany_index(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
+    public static bool IsApplicableOverload(IMethodSymbol method) =>
+        method.Parameters.Length == 1 &&
+        method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string StructMethod => this.DefineStruct(selector, nameof(selector));
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(selector, nameof(selector))})";
     protected override string CollectionSelectorPrimaryConstructorParameter => $"global::System.Func<{source.ElementType}, int, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>> selector";
@@ -90,6 +136,9 @@ public class SelectMany_index(int 番号, Enumerable source, FuncFragment select
 }
 
 public class SelectMany_resultSelector(int 番号, Enumerable source, FuncFragment collectionSelector, FuncFragment resultSelector) : SelectManyBase(番号, source) {
+    public static bool IsApplicableOverload(IMethodSymbol method) =>
+        method.Parameters.Length == 2 &&
+        !(method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     public override string StructMethod => $$"""
         {{this.DefineStruct(collectionSelector, nameof(collectionSelector))}}
         {{this.DefineStruct(resultSelector, nameof(resultSelector))}}
@@ -114,6 +163,7 @@ public class SelectMany_resultSelector(int 番号, Enumerable source, FuncFragme
 public class SelectMany_WithInlinedInner(int 番号, Enumerable source, Enumerable innerFragment, string outerParamName)
     : SelectManyBase(番号, source) {
 
+    public static bool IsApplicableOverload(IMethodSymbol method) => false;
     private string InnerEnumeratorTypeName => innerFragment.EnumeratorTypeName;
 
     public override string StructMethod => string.Empty;
@@ -184,6 +234,9 @@ public class SelectMany_WithInlinedInner(int 番号, Enumerable source, Enumerab
 }
 
 public class SelectMany_index_resultSelector(int 番号, Enumerable source, FuncFragment collectionSelector, FuncFragment resultSelector) : SelectManyBase(番号, source) {
+    public static bool IsApplicableOverload(IMethodSymbol method) =>
+        method.Parameters.Length == 2 &&
+        method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string StructMethod => $$"""
         {{this.DefineStruct(collectionSelector, nameof(collectionSelector))}}
         {{this.DefineStruct(resultSelector, nameof(resultSelector))}}

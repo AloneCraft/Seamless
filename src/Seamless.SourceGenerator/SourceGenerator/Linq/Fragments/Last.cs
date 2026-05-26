@@ -1,5 +1,6 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 public class Last(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
+    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length == 0;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -22,6 +23,8 @@ public class Last(int 番号, Enumerable source, string resultType) : BufferedSc
 }
 
 public class Last_predicate(int 番号, Enumerable source, FuncFragment predicate, string resultType) : BufferedScalar(番号, resultType) {
+    public static bool IsApplicableOverload(IMethodSymbol method) =>
+        method.Parameters.Length > 0 && method.Parameters[0].Type.TypeKind == TypeKind.Delegate;
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
