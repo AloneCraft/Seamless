@@ -360,4 +360,45 @@ public abstract class Fragment(
     private protected static string FuncReturnTypeName(FuncFragment func) {
         return func.ReturnTypeName;
     }
+
+    internal static string JoinStaticMethods(string left, string right) =>
+        string.Join("\n", new[] { left, right }.Where(static s => !string.IsNullOrWhiteSpace(s)));
 }
+
+internal delegate bool BuildEnumerableFragmentDelegate(
+    SemanticModel semanticModel,
+    ExpressionSyntax source,
+    INamedTypeSymbol containingType,
+    ref int uniqueNumber,
+    out Enumerable fragment,
+    out string staticMethods,
+    List<string>? collector);
+
+internal delegate bool BuildFuncFragmentDelegate(
+    ExpressionSyntax expression,
+    ITypeSymbol delegateType,
+    out FuncFragment fragment,
+    SemanticModel? semanticModel,
+    INamedTypeSymbol? containingType);
+
+internal delegate Fragment? CreateFragmentDelegate(
+    string methodName,
+    string variantName,
+    int number,
+    object?[] extraArgs);
+
+internal delegate bool TryGetLambdaBodyDelegate(
+    LambdaExpressionSyntax lambda,
+    out ExpressionSyntax body);
+
+internal delegate List<string> GetLambdaParametersDelegate(
+    LambdaExpressionSyntax lambda);
+
+internal delegate bool BuildInvocationFragmentDelegate(
+    SemanticModel semanticModel,
+    InvocationExpressionSyntax invocation,
+    INamedTypeSymbol containingType,
+    ref int uniqueNumber,
+    out Fragment fragment,
+    out string staticMethods,
+    List<string>? unsafeAccessorCollector);

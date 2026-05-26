@@ -4,51 +4,66 @@ using SystemEnumerable = System.Linq.Enumerable;
 namespace Test.Seamless.Intercept.System.Linq;
 
 public sealed class EnumerableMethod2 {
+    [Fact, Trait("Category","Unit")]public static void Select内部Any外出し不可() {
+        Select内部Any外出し不可Impl();
+    }
+    private static void Select内部Any外出し不可Impl() {
+        var actual=Source().Select(
+            p=>Source().Any(q=>q!=p)
+        ).ToArray();
+        Assert.Equal([true,true,true,true],actual);
+    }
     [Fact, Trait("Category","Unit")]public static void Where内部Where外出し不可() {
         Where内部Where外出し不可Impl();
     }
     private static void Where内部Where外出し不可Impl() {
-        Source().Where(
+        var actual=Source().Where(
             p=>Source().Where(q=>q!=p).Any()
-        );
+        ).ToArray();
+        Assert.Equal([1,2,3,4],actual);
     }
     [Fact, Trait("Category","Unit")]public static void Where内部Where外出し可() {
         Where内部Where外出し可Impl();
     }
     private static void Where内部Where外出し可Impl() {
-        Source().Where(
+        var actual=Source().Where(
             p=>Source().Where(q=>q!=3).Any()
-        );
+        ).ToArray();
+        Assert.Equal([1,2,3,4],actual);
     }
     [Fact, Trait("Category","Unit")]public static void Where内部Any外出し不可() {
         Where内部Any外出し不可Impl();
     }
     private static void Where内部Any外出し不可Impl() {
-        Source().Where(
+        var actual=Source().Where(
             p=>Source().Any(q=>q!=p)
-        );
+        ).ToArray();
+        Assert.Equal([1,2,3,4],actual);
     }
     [Fact, Trait("Category","Unit")]public static void Where内部Any外出し可() {
         Where内部Any外出し可Impl();
     }
     private static void Where内部Any外出し可Impl() {
-        Source().Where(
+        var actual=Source().Where(
             p=>Source().Any(q=>q!=3)
-        );
+        ).ToArray();
+        Assert.Equal([1,2,3,4],actual);
     }
     [Fact, Trait("Category","Unit")]public static void Where内部Selectインライン() {
         Where内部Select外出し不可Impl();
         Where内部Select外出し可Impl();
     }
     private static void Where内部Select外出し不可Impl() {
-        Source().Where(
+        var actual=Source().Where(
             p=>Source().Select(q=>q!=p).Any()
-        );
+        ).ToArray();
+        Assert.Equal([1,2,3,4],actual);
     }
     private static void Where内部Select外出し可Impl() {
-        Source().Where(
+        var actual=Source().Where(
             p=>Source().Select(q=>q!=3).Any()
-        );
+        ).ToArray();
+        Assert.Equal([1,2,3,4],actual);
     }
 
 
@@ -61,14 +76,16 @@ public sealed class EnumerableMethod2 {
         Select内部Select外出し可Impl();
     }
     private static void Select内部Select外出し不可Impl() {
-        Source().Select(
+        var actual=Source().Select(
             p=>Source().Select(q=>q!=p).Any()
-        );
+        ).ToArray();
+        Assert.Equal([true,true,true,true],actual);
     }
     private static void Select内部Select外出し可Impl() {
-        Source().Select(
+        var actual=Source().Select(
             p=>Source().Select(q=>q!=3).Any()
-        );
+        ).ToArray();
+        Assert.Equal([true,true,true,true],actual);
     }
     [Fact, Trait("Category","Unit")]public static void SelectManyインライン() {
         SelectManyImpl();

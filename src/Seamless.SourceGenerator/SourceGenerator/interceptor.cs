@@ -128,6 +128,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         public required string MethodName { get; init; }
         public required string VariantName { get; init; }
         public required ParameterInfo[] Parameters { get; init; }
+        public Func<IMethodSymbol, bool>? IsApplicableOverload { get; init; }
     }
 
     private static readonly SymbolDisplayFormat 完全修飾形式 = new(
@@ -706,6 +707,24 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return true;
         }
 
+        // Select/Where のラムダ本体がスカラー LINQ 式なら struct インライン化。
+        if(methodName=="Select"
+            && Select_WithInlinedScalar.TryBuild(
+                semanticModel,invocation,containingType,ref uniqueNumber,
+                out fragment,out staticMethods,unsafeAccessorCollector,
+                列挙フラグメント生成9,呼び出し式フラグメント生成1,
+                TryGetLambdaExpressionBody,GetLambdaParameters)) {
+            return true;
+        }
+        if(methodName=="Where"
+            && Where_WithInlinedScalarPredicate.TryBuild(
+                semanticModel,invocation,containingType,ref uniqueNumber,
+                out fragment,out staticMethods,unsafeAccessorCollector,
+                列挙フラグメント生成9,呼び出し式フラグメント生成1,
+                TryGetLambdaExpressionBody,GetLambdaParameters)) {
+            return true;
+        }
+
         return 登録済みフラグメント生成24(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
     }
     /// <summary>
@@ -713,48 +732,16 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     /// ↓
     /// Where(x => x > 0) → Any()
     /// </summary>
-    private static bool Anyフラグメント生成3(SemanticModel semanticModel,InvocationExpressionSyntax invocation,INamedTypeSymbol containingType,ref int uniqueNumber,out Fragment fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null) {
-        fragment=null!;
-        staticMethods=string.Empty;
-        if(invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression }) {
-            return false;
-        }
-
-        if(!列挙フラグメント生成9(semanticModel,sourceExpression,containingType,ref uniqueNumber,out var sourceFragment,out var sourceStaticMethods,unsafeAccessorCollector)) {
-            return false;
-        }
-
-        if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) {
-            return false;
-        }
-
-        if(invocation.ArgumentList.Arguments.Count==1) {
-            if(!関数フラグメント生成12(invocation.ArgumentList.Arguments[0].Expression,method.Parameters[0].Type,out var predicate,semanticModel,containingType)) {
-                return false;
-            }
-
-            var whereVariantName = predicate.ParameterTypeNames.Length>1 ? "index" : string.Empty;
-            if(!フラグメント候補選択25("Where",whereVariantName,out var whereCandidate)) {
-                return false;
-            }
-
-            var whereFragment = (Fragment?)whereCandidate.Constructor.Invoke(new object?[] { uniqueNumber++,sourceFragment,predicate });
-            if(whereFragment is not Enumerable whereEnumerable) {
-                return false;
-            }
-
-            sourceStaticMethods=静的メソッド連結14(sourceStaticMethods,whereFragment.StructMethod);
-            sourceFragment=whereEnumerable;
-        }
-
-        if(!フラグメント候補選択25("Any",string.Empty,out var anyCandidate)) {
-            return false;
-        }
-
-        fragment=(Fragment)anyCandidate.Constructor.Invoke(new object?[] { uniqueNumber++,sourceFragment });
-        staticMethods=静的メソッド連結14(sourceStaticMethods,fragment.StructMethod);
-        return true;
-    }
+    private static bool Anyフラグメント生成3(SemanticModel semanticModel,InvocationExpressionSyntax invocation,INamedTypeSymbol containingType,ref int uniqueNumber,out Fragment fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null)
+        => Any.TryBuildWithPredicate(
+            semanticModel,invocation,containingType,ref uniqueNumber,
+            out fragment,out staticMethods,unsafeAccessorCollector,
+            列挙フラグメント生成9,
+            関数フラグメント生成12,
+            (name,variant,n,extraArgs) => {
+                if(!フラグメント候補選択25(name,variant,out var c)) return null;
+                return (Fragment?)c.Constructor.Invoke([n,..extraArgs]);
+            });
 
     /// <summary>
     /// アセンブリ内の Fragment 継承クラスをリフレクションで全列挙し、
@@ -821,6 +808,15 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 // 型名を '_' で分割して MethodName と VariantName を抽出
                 // 例: "Aggregate_seed_func" → ["Aggregate", "seed", "func"]
                 var parts = type.Name.Split('_');
+                var isApplicableMethod = type.GetMethod(
+                    "IsApplicableOverload",
+                    BindingFlags.Public | BindingFlags.Static,
+                    binder: null,
+                    new[] { typeof(IMethodSymbol) },
+                    null);
+                Func<IMethodSymbol, bool>? isApplicableDelegate = isApplicableMethod is not null
+                    ? method => (bool)isApplicableMethod.Invoke(null, new object[] { method })!
+                    : null;
                 return new フラグメント候補 {
                     FragmentType=type,
                     Constructor=constructor,
@@ -829,6 +825,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                         ? string.Join("_", parts.Skip(1))
                         : string.Empty,
                     Parameters=parameters[1..],                       // int 識別番号を除いた実パラメータ
+                    IsApplicableOverload=isApplicableDelegate,
                 };
             })
             .Where(static candidate => candidate is not null)
@@ -902,54 +899,13 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         ref int uniqueNumber,
         out Fragment fragment,
         out string staticMethods,
-        List<string>? unsafeAccessorCollector = null) {
-        fragment=null!;
-        staticMethods=string.Empty;
-
-        // Resolve method and check it is System.Linq.Enumerable.SelectMany
-        if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) return false;
-        var definition = method.ReducedFrom ?? method;
-        if(definition.Name!="SelectMany"
-            || definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable") {
-            return false;
-        }
-
-        // Only the plain overload: SelectMany(source, Func<T, IEnumerable<U>>) — 1 argument
-        if(invocation.ArgumentList.Arguments.Count!=1
-            || invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression }) {
-            return false;
-        }
-
-        // The single argument must be a simple (non-index) lambda  p => ...
-        var selectorArg = invocation.ArgumentList.Arguments[0].Expression;
-        if(selectorArg is not LambdaExpressionSyntax lambda) return false;
-        if(!TryGetLambdaExpressionBody(lambda,out var lambdaBody)) return false;
-        var outerParams = GetLambdaParameters(lambda);
-        if(outerParams.Count!=1) return false; // index overload has 2 params
-        var outerParamName = outerParams[0];
-
-        var snapshot = uniqueNumber;
-
-        // Allocate number for the outer SelectMany struct itself
-        var smNumber = snapshot++;
-
-        // Build outer source fragment
-        if(!列挙フラグメント生成9(semanticModel,sourceExpression,containingType,ref snapshot,out var outerSource,out var outerSourceStaticMethods,unsafeAccessorCollector)) {
-            return false;
-        }
-
-        // Try to build the inner fragment chain from the lambda body
-        if(!列挙フラグメント生成9(semanticModel,lambdaBody,containingType,ref snapshot,out var innerFrag,out var innerStaticMethods,unsafeAccessorCollector)) {
-            return false;
-        }
-
-        var smFrag = new SelectMany_WithInlinedInner(smNumber,outerSource,innerFrag,outerParamName);
-        fragment=smFrag;
-        uniqueNumber=snapshot;
-        staticMethods=静的メソッド連結14(outerSourceStaticMethods,innerStaticMethods);
-        staticMethods=静的メソッド連結14(staticMethods,smFrag.StructMethod); // = ""
-        return true;
-    }
+        List<string>? unsafeAccessorCollector = null)
+        => SelectManyBase.TryBuildInlined(
+            semanticModel,invocation,containingType,ref uniqueNumber,
+            out fragment,out staticMethods,unsafeAccessorCollector,
+            列挙フラグメント生成9,
+            TryGetLambdaExpressionBody,
+            GetLambdaParameters);
 
     private static bool フラグメント候補選択25(string methodName,string variantName,out フラグメント候補 candidate) {
         candidate=null!;
@@ -1074,53 +1030,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
-    private static bool 候補使用可能27(フラグメント候補 candidate,IMethodSymbol method) {
-        if(candidate.MethodName is "Where" or "Select" or "SkipWhile" or "TakeWhile") {
-            var isIndexOverload = method.Parameters.Length>0
-                && method.Parameters[0].Type is INamedTypeSymbol predicateType
-                && predicateType.TypeArguments.Length==3;
-            return isIndexOverload
-                ? candidate.VariantName=="index"
-                : candidate.VariantName.Length==0;
-        }
-
-        // FirstOrDefault/LastOrDefault/SingleOrDefault は predicate 版と defaultValue 版を引数の型で区別する。
-        // 両者は Parameters.Length が同じため、アルファベット順に先に来る defaultValue 版が誤マッチしないよう制御する。
-        if(candidate.MethodName is "FirstOrDefault" or "LastOrDefault" or "SingleOrDefault" or "First" or "Last" or "Single") {
-            if(method.Parameters.Length==0) return candidate.VariantName.Length==0;
-            if(method.Parameters.Length==1) {
-                var isPredicate = method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
-                return isPredicate
-                    ? candidate.VariantName=="predicate"
-                    : candidate.VariantName=="defaultValue";
-            }
-        }
-
-        if(candidate.MethodName=="SelectMany") {
-            // SelectMany は 4 overload あり、
-            // collectionSelector の arity が 1 引数か 2 引数(index 付き)かで
-            // SelectMany / SelectMany_selector_index / SelectMany_collectionSelector_resultSelector / SelectMany_collectionSelector_index_resultSelector
-            // を正しく振り分ける必要がある。
-            // ここを見ないと resultSelector 付き overload で index 版の Fragment が選ばれ、
-            // 1 引数メソッドグループを 2 引数 Func として渡してコンパイルエラーになる。
-            var hasResultSelector = method.Parameters.Length==2;
-            var isIndexOverload = method.Parameters.Length>0
-                && method.Parameters[0].Type is INamedTypeSymbol selectorType
-                && selectorType.TypeArguments.Length==3;
-
-            if(hasResultSelector) {
-                return isIndexOverload
-                    ? candidate.VariantName=="index_resultSelector"
-                    : candidate.VariantName=="resultSelector";
-            }
-
-            return isIndexOverload
-                ? candidate.VariantName=="index"
-                : candidate.VariantName.Length==0;
-        }
-
-        return true;
-    }
+    private static bool 候補使用可能27(フラグメント候補 candidate,IMethodSymbol method)
+        => candidate.IsApplicableOverload?.Invoke(method) ?? true;
 
     private static bool 関数フラグメント利用可能28(FuncFragment funcFragment,Type fragmentType) {
         if(funcFragment.CanGenerateMethod) {
