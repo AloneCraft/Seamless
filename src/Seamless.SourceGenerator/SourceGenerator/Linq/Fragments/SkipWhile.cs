@@ -64,14 +64,14 @@ public class SkipWhile_index(int 番号, Enumerable source, FuncFragment predica
     public override string GetEnumeratorFields => $$"""
         private {{source.ElementType}} {{this.currentValue}} = default!;
         private bool skipping = true;
-        private int {{this.index}} = -1;
+        private int {{this.a}} = -1;
         """;
     public override string GetTryGetNextBody => $$"""
         while({{this.e}}.MoveNext()) {
             var {{this.item}} = {{this.e}}.Current;
-            {{this.index}}++;
+            {{this.a}}++;
             bool {{this.temp}} = default!;
-            {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item,this.index)}}
+            {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item,this.a)}}
             if(skipping && {{this.temp}}) {
                 continue;
             }

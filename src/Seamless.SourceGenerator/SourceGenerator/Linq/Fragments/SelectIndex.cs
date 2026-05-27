@@ -24,13 +24,13 @@ public class Select_index(int 番号, Enumerable source, FuncFragment selector) 
                 : $"TEnum {this.e}, global::System.Func<{source.ElementType}, int, {this.ElementType}> selector";
     public override string GetEnumeratorFields => $$"""
         private {{this.ElementType}} {{this.currentValue}} = default!;
-        private int {{this.index}} = -1;
+        private int {{this.a}} = -1;
         """;
     public override string GetTryGetNextBody => $$"""
         if({{this.e}}.MoveNext()) {
             var {{this.item}} = {{this.e}}.Current;
-            {{this.index}}++;
-            {{this.FuncAssign(selector,nameof(selector),this.currentValue,this.item,this.index)}}
+            {{this.a}}++;
+            {{this.FuncAssign(selector,nameof(selector),this.currentValue,this.item,this.a)}}
             current = {{this.currentValue}};
             return true;
         }

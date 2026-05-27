@@ -1,5 +1,4 @@
 using System.Linq;
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Seamless.Intercept.System.Linq;
 

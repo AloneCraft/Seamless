@@ -139,7 +139,7 @@ public class Where_index(int 番号, Enumerable source, FuncFragment predicate) 
                 : $"TEnum {this.e}, global::System.Func<{source.ElementType}, int, bool> predicate";
     public override string GetEnumeratorFields => $$"""
         private {{source.ElementType}} {{this.currentValue}} = default!;
-        private int {{this.index}} = -1;
+        private int {{this.a}} = -1;
         """;
     public override string GetTryGetNextBody => $$"""
         {{Start}}:
@@ -148,9 +148,9 @@ public class Where_index(int 番号, Enumerable source, FuncFragment predicate) 
             return false;
         }
         var {{this.item}} = {{this.e}}.Current;
-        {{this.index}}++;
+        {{this.a}}++;
         bool {{this.temp}} = default!;
-        {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item,this.index)}}
+        {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item,this.a)}}
         if(!{{this.temp}})
             goto {{this.Skip}};
         {{this.currentValue}} = {{this.item}};

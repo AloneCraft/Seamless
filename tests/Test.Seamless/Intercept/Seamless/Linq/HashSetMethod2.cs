@@ -3,7 +3,7 @@ using Test.Seamless.Collections;
 using Seamless.Collections;
 using Seamless.Stores;
 using System.Linq;
-using System.Collections.Generic;
+
 namespace Test.Seamless.Intercept.Seamless.Linq.HashSetSample;
 
 [Collection("HashSetIntercept")]

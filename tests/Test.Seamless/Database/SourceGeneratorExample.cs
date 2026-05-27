@@ -1,9 +1,5 @@
-using System.ComponentModel;
 using System.Reflection;
-using Seamless;
 using Seamless.Linq;
-
-using System.Linq.Expressions;
 
 namespace Test.Seamless.Database.Database0 {
     //置き換え元LINQコードからSourceGeneratorにインターセプトを出力させる見本である。

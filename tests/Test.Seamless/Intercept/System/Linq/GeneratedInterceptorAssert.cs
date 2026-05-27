@@ -1,5 +1,3 @@
-using System.Linq;
-
 namespace Test.Seamless.Intercept.System.Linq;
 
 internal static class GeneratedInterceptorAssert {

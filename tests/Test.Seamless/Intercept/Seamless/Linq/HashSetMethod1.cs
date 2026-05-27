@@ -1,8 +1,6 @@
 using Seamless.Collections;
 using Seamless.Linq;
 using Seamless.Stores;
-
-using SeamlessHashSet = Seamless.Linq.HashSet;
 using SystemEnumerable = System.Linq.Enumerable;
 namespace Test.Seamless.Intercept.Seamless.Linq.HashSetSample;
 

@@ -1,4 +1,3 @@
-using Seamless.Collections;
 using Seamless.Stores;
 namespace Test.Seamless.Unit.ScanIteratorFunctions;
 
