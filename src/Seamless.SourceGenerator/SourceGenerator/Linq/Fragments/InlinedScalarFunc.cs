@@ -2,7 +2,7 @@ namespace Seamless.SourceGenerator.Linq.Fragments;
 
 public sealed class InlinedScalarFunc(Fragment scalarFragment) : LambdaFunc {
     public Fragment ScalarFragment => scalarFragment;
-    public string[] OuterParameterNames { get; init; } = System.Array.Empty<string>();
+    public string[] OuterParameterNames { get; init; } = [];
     public string BodyExpression { get; init; } = string.Empty;
     public string ScalarExpression { get; init; } = string.Empty;
     public string ScalarReturnTypeName { get; init; } = string.Empty;
@@ -40,8 +40,8 @@ public sealed class InlinedScalarFunc(Fragment scalarFragment) : LambdaFunc {
     }
 
     public override string RenderInlineExpression(params string[] arguments) {
-        if(!string.IsNullOrWhiteSpace(this.InlineBody)) {
-            return this.RenderInlineExpressionCore(arguments);
+        if(!string.IsNullOrWhiteSpace(InlineBody)) {
+            return RenderInlineExpressionCore(arguments);
         }
 
         throw new InvalidOperationException("LINQ scalar lambda must be rendered as statements.");

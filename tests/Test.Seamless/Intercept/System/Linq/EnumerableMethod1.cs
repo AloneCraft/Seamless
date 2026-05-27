@@ -5,13 +5,16 @@ using SystemEnumerable = System.Linq.Enumerable;
 namespace Test.Seamless.Intercept.System.Linq;
 
 public sealed class EnumerableMethod1 {
-    [Fact, Trait("Category","Unit")]
-    public void Aggregate() {
+    [Fact,Trait("Category","Unit")]
+    public void Aggregate_func() {
         Aggregate_func_Static();
         Aggregate_func_Lambda();
         Aggregate_func_Captured();
         Aggregate_func_DelegateSyntax();
         Aggregate_func_Variable();
+    }
+    [Fact, Trait("Category","Unit")]
+    public void Aggregate_seed_func(){
         Aggregate_seed_func_Static();
         Aggregate_seed_func_Lambda();
         Aggregate_seed_func_Captured();
@@ -19,6 +22,9 @@ public sealed class EnumerableMethod1 {
         Aggregate_seed_func_Variable();
         Aggregate_seed_func_resultSelector_Static();
         Aggregate_seed_func_resultSelector_Lambda();
+    }
+    [Fact, Trait("Category","Unit")]
+    public void Aggregate_seef_func_resultSelector(){
         Aggregate_seed_func_resultSelector_Captured();
         Aggregate_seed_func_resultSelector_DelegateSyntax();
         Aggregate_seed_func_resultSelector_Variable();

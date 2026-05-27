@@ -1,119 +1,105 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : Scalar(番号) {
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => NeedsStructClosure(func) ? func.SupportingMemberSources : this.FuncSupport(func,nameof(func));
+    public override string StructMethod => FuncSupport(func,nameof(func));
     public override string GetEnumeratorExpression =>
-        NeedsStructClosure(func)
-            ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.ClosureArgsSuffix(func)})"
-            : func.CanInlineAssign && func.CanGenerateMethod
-                ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})"
-                : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(func,nameof(func))})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(func)})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
-        {{this.DefineScalarEnumeratorStruct(source.ElementType)}}
+        {{DefineScalarEnumeratorStruct(source.ElementType)}}
         """;
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        NeedsStructClosure(func)
-            ? $"TEnum {this.e}, {this.ClosurePrimaryCtorSuffix(func)}"
-            : func.CanInlineAssign && func.CanGenerateMethod
-                ? $"TEnum {this.e}"
-                : $"TEnum {this.e}, global::System.Func<{source.ElementType}, {source.ElementType}, {source.ElementType}> func";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(func)}";
     public override string GetEnumeratorFields => $$"""
-        private {{source.ElementType}} {{this.currentValue}} = default!;
-        private bool {{this.yielded}} = false;
+        private {{source.ElementType}} {{currentValue}} = default!;
+        private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{this.yielded}}) {
+        if({{yielded}}) {
             current = default!;
             return false;
         }
-        {{this.yielded}} = true;
-        if(!{{this.e}}.MoveNext()) {
+        {{yielded}} = true;
+        if(!{{e}}.MoveNext()) {
             throw global::Seamless.Linq.Enumerable.NoElements();
         }
-        var {{this.result}} = {{this.e}}.Current;
-        while({{this.e}}.MoveNext()) {
-            {{this.result}} = {{this.FuncInvokeField(func,nameof(func),this.result,$"{this.e}.Current")}};
+        var {{result}} = {{e}}.Current;
+        while({{e}}.MoveNext()) {
+            {{result}} = {{FuncInvokeField(func,nameof(func),result,$"{e}.Current")}};
         }
-        {{this.currentValue}} = {{this.result}};
-        current = {{this.currentValue}};
+        {{currentValue}} = {{result}};
+        current = {{currentValue}};
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    public override string GetCurrentExpression => currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
 public class Aggregate_seed_func(int 番号, Enumerable source,string seed, FuncFragment func) : Scalar(番号) {
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => NeedsStructClosure(func) ? func.SupportingMemberSources : this.FuncSupport(func,nameof(func));
+    public override string StructMethod => FuncSupport(func,nameof(func));
     public override string GetEnumeratorExpression =>
-        NeedsStructClosure(func)
-            ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.ClosureArgsSuffix(func)})"
-            : func.CanInlineAssign && func.CanGenerateMethod
-                ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})"
-                : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(func,nameof(func))})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(func)})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
-        {{this.DefineScalarEnumeratorStruct(FuncParameterTypeName(func,0))}}
+        {{DefineScalarEnumeratorStruct(FuncParameterTypeName(func,0))}}
         """;
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        NeedsStructClosure(func)
-            ? $"TEnum {this.e}, {this.ClosurePrimaryCtorSuffix(func)}"
-            : func.CanInlineAssign && func.CanGenerateMethod
-                ? $"TEnum {this.e}"
-                : $"TEnum {this.e}, global::System.Func<{FuncParameterTypeName(func,0)}, {source.ElementType}, {FuncReturnTypeName(func)}> func";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(func)}";
     public override string GetEnumeratorFields => $$"""
-        private {{FuncParameterTypeName(func,0)}} {{this.currentValue}} = default!;
-        private bool {{this.yielded}} = false;
+        private {{FuncParameterTypeName(func,0)}} {{currentValue}} = default!;
+        private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{this.yielded}}) {
+        if({{yielded}}) {
             current = default!;
             return false;
         }
-        {{this.yielded}} = true;
-        var {{this.result}} = {{seed}};
-        while({{this.e}}.MoveNext()) {
-            {{this.result}} = {{this.FuncInvokeField(func,nameof(func),this.result,$"{this.e}.Current")}};
+        {{yielded}} = true;
+        var {{result}} = {{seed}};
+        while({{e}}.MoveNext()) {
+            {{result}} = {{FuncInvokeField(func,nameof(func),result,$"{e}.Current")}};
         }
-        {{this.currentValue}} = {{this.result}};
-        current = {{this.currentValue}};
+        {{currentValue}} = {{result}};
+        current = {{currentValue}};
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    public override string GetCurrentExpression => currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
 public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,string seed, FuncFragment func,FuncFragment resultSelector) : Scalar(番号) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => $$"""
-        {{(NeedsStructClosure(func) ? func.SupportingMemberSources : this.FuncSupport(func,nameof(func)))}}
-        {{(NeedsStructClosure(resultSelector) ? resultSelector.SupportingMemberSources : this.FuncSupport(resultSelector,nameof(resultSelector)))}}
+        {{FuncSupport(func,nameof(func))}}
+        {{FuncSupport(resultSelector,nameof(resultSelector))}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(func,nameof(func))}, {this.FuncDelegate(resultSelector,nameof(resultSelector))})";
+    public override string GetEnumeratorExpression =>
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(func,resultSelector)})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
-        {{this.DefineScalarEnumeratorStruct(FuncReturnTypeName(resultSelector))}}
+        {{DefineScalarEnumeratorStruct(FuncReturnTypeName(resultSelector))}}
         """;
-    public override string GetEnumeratorPrimaryConstructorParameters => $$"""TEnum {{this.e}}, global::System.Func<{{FuncParameterTypeName(func,0)}}, {{source.ElementType}}, {{FuncReturnTypeName(func)}}> func, global::System.Func<{{FuncParameterTypeName(resultSelector,0)}}, {{FuncReturnTypeName(resultSelector)}}> resultSelector""";
+    public override string GetEnumeratorPrimaryConstructorParameters =>
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(func,resultSelector)}";
     public override string GetEnumeratorFields => $$"""
-        private {{FuncReturnTypeName(resultSelector)}} {{this.currentValue}} = default!;
-        private bool {{this.yielded}} = false;
+        private {{FuncReturnTypeName(resultSelector)}} {{currentValue}} = default!;
+        private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{this.yielded}}) {
+        if({{yielded}}) {
             current = default!;
             return false;
         }
-        {{this.yielded}} = true;
-        var {{this.result}} = {{seed}};
-        while({{this.e}}.MoveNext()) {
-            {{this.result}} = {{nameof(func)}}({{this.result}}, {{this.e}}.Current);
+        {{yielded}} = true;
+        var {{result}} = {{seed}};
+        while({{e}}.MoveNext()) {
+            {{result}} = {{FuncInvokeField(func,nameof(func),result,$"{e}.Current")}};
         }
-        {{this.currentValue}} = {{nameof(resultSelector)}}({{this.result}});
-        current = {{this.currentValue}};
+        {{currentValue}} = {{FuncInvokeField(resultSelector,nameof(resultSelector),result)}};
+        current = {{currentValue}};
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    public override string GetCurrentExpression => currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }

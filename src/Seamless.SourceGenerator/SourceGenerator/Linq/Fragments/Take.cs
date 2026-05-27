@@ -9,27 +9,27 @@ public class Take(int 番号, Enumerable source, string count) : Enumerable(番�
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {count})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int count";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {count})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int count";
     public override string GetEnumeratorFields => $$"""
         private readonly int count = count < 0 ? 0 : count;
-        private {{source.ElementType}} {{this.currentValue}} = default!;
-        private int {{this.a}} = 0;
+        private {{source.ElementType}} {{currentValue}} = default!;
+        private int {{a}} = 0;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{this.a}} >= count) {
+        if({{a}} >= count) {
             current = default!;
             return false;
         }
-        if({{this.e}}.MoveNext()) {
-            {{this.a}}++;
-            {{this.currentValue}} = {{this.e}}.Current;
-            current = {{this.currentValue}};
+        if({{e}}.MoveNext()) {
+            {{a}}++;
+            {{currentValue}} = {{e}}.Current;
+            current = {{currentValue}};
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
+    public override string GetCurrentExpression => currentValue;
     public override string ElementType => source.ElementType;
 }

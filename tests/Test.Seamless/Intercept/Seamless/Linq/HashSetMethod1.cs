@@ -277,10 +277,12 @@ public sealed class HashSetMethod1 {
     );
 
     [Fact, Trait("Category","Intercept")]
-    public static void Union_second() => AssertIntSecondNormalizedSequence(
-        static (first,second) => SystemEnumerable.Union(first,second),
-        static (first,second) => first.Union(second)
-    );
+    public static void Union_second() {
+        AssertIntSecondNormalizedSequence(
+            static (first,second) => SystemEnumerable.Union(first,second),
+            static (first,second) => first.Union(second)
+        );
+    }
 
     [Fact, Trait("Category","Intercept")]
     public static void UnionBy_second_keySelector() => AssertPairPairNormalizedSequence(

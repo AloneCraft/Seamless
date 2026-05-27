@@ -9,14 +9,14 @@ public class OrderByDescending_comparer(int 番号, Enumerable source, FuncFragm
 public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment keySelector, string comparer, bool descending) : BufferedSequence(番号, source.ElementType) {
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
+    public override string StructMethod => FuncSupport(keySelector,nameof(keySelector));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.FuncEnumeratorArgExtra(keySelector,nameof(keySelector))}, {comparer})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{ClosureArgsSuffix(keySelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum source{this.FuncPrimaryCtorExtra(keySelector,KeySelectorFuncType,nameof(keySelector))}, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer";
+        $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer{ClosurePrimaryCtorSuffix(keySelector)}";
     protected override string BuildExpression =>
-        $"Build(source{this.ComputeExtraArgs(keySelector,nameof(keySelector))}, comparer)";
+        $"Build(source, comparer{ClosureArgsSuffix(keySelector)})";
     protected override string BuildMembers => $$"""
         private readonly struct SortItem {
             public SortItem({{source.ElementType}} value, {{FuncReturnTypeName(keySelector)}} key, int index) {
@@ -28,15 +28,15 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             public {{FuncReturnTypeName(keySelector)}} Key { get; }
             public int Index { get; }
         }
-        private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source{{this.ComputeExtraParams(keySelector,KeySelectorFuncType,nameof(keySelector))}}, global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer) {
+        private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{ClosureMethodParameterSuffix(keySelector)}}) {
             comparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
             var items = new global::System.Collections.Generic.List<SortItem>();
             var index = 0;
             while(source.MoveNext()) {
-                var {{this.item}} = source.Current;
-                {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                {{this.StaticComputeFuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
-                items.Add(new SortItem({{this.item}}, {{this.key}}, index++));
+                var {{item}} = source.Current;
+                {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
+                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                items.Add(new SortItem({{item}}, {{key}}, index++));
             }
             items.Sort((left, right) => {
                 var compare = comparer.Compare(left.Key, right.Key);

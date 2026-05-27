@@ -4,7 +4,7 @@ public class Chunk(int 番号, Enumerable source, string size) : BufferedSequenc
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {size})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {size})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source, int size";
     protected override string BuildExpression => "Build(source, size)";
     protected override string BuildMembers => $$"""

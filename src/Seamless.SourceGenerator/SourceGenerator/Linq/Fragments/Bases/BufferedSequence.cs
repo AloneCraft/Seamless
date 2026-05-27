@@ -4,24 +4,24 @@ public abstract class BufferedSequence(int 番号,string elementType) : Enumerab
     protected abstract string BuildExpression { get; }
     protected virtual string BuildMembers => string.Empty;
     public override string GetEnumeratorStruct => $$"""
-        {{this.StructSources}}
+        {{StructSources}}
         {{base.GetEnumeratorStruct}}
         """;
     protected virtual string StructSources => string.Empty;
     public override string GetEnumeratorFields => $$"""
-        private global::System.Collections.Generic.List<{{this.ElementType}}>.Enumerator {{this.e}} = {{this.BuildExpression}}.GetEnumerator();
-        private {{this.ElementType}} {{this.currentValue}} = default!;
-        {{this.BuildMembers}}
+        private global::System.Collections.Generic.List<{{ElementType}}>.Enumerator {{e}} = {{BuildExpression}}.GetEnumerator();
+        private {{ElementType}} {{currentValue}} = default!;
+        {{BuildMembers}}
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.MoveNext()) {
-            {{this.currentValue}} = {{this.e}}.Current;
-            current = {{this.currentValue}};
+        if({{e}}.MoveNext()) {
+            {{currentValue}} = {{e}}.Current;
+            current = {{currentValue}};
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
+    public override string GetCurrentExpression => currentValue;
     public override string ElementType => elementType;
 }

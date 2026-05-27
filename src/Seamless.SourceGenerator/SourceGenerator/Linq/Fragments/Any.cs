@@ -13,51 +13,66 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
         CreateFragmentDelegate createFragment) {
         fragment = null!;
         staticMethods = string.Empty;
-        if(invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression })
-            return false;
-        if(!buildEnumerable(semanticModel, sourceExpression, containingType, ref uniqueNumber, out var sourceFragment, out var sourceStaticMethods, unsafeAccessorCollector))
-            return false;
         if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method)
             return false;
-        if(invocation.ArgumentList.Arguments.Count == 1) {
-            if(!buildFunc(invocation.ArgumentList.Arguments[0].Expression, method.Parameters[0].Type, ref uniqueNumber, out var predicate, semanticModel, containingType))
+        ExpressionSyntax sourceExpression;
+        var argumentStartIndex = 0;
+        if(method.ReducedFrom is not null
+            && invocation.Expression is MemberAccessExpressionSyntax { Expression: var receiverExpression }) {
+            sourceExpression = receiverExpression;
+        } else {
+            var definition = method.ReducedFrom ?? method;
+            if(definition.ContainingType.ToDisplayString() != "System.Linq.Enumerable"
+                || definition.Parameters.Length == 0
+                || invocation.ArgumentList.Arguments.Count == 0) {
+                return false;
+            }
+            sourceExpression = invocation.ArgumentList.Arguments[0].Expression;
+            argumentStartIndex = 1;
+        }
+        if(!buildEnumerable(semanticModel, sourceExpression, containingType, ref uniqueNumber, out var sourceFragment, out var sourceStaticMethods, unsafeAccessorCollector))
+            return false;
+        if(invocation.ArgumentList.Arguments.Count - argumentStartIndex == 1) {
+            if(!buildFunc(invocation.ArgumentList.Arguments[argumentStartIndex].Expression, method.Parameters[argumentStartIndex].Type, ref uniqueNumber, out var predicate, semanticModel, containingType))
                 return false;
             var whereVariantName = predicate.ParameterTypeNames.Length > 1 ? "index" : string.Empty;
             var whereFragment = createFragment("Where", whereVariantName, uniqueNumber++, [sourceFragment, predicate]);
             if(whereFragment is not Enumerable whereEnumerable)
                 return false;
-            sourceStaticMethods = Fragment.JoinStaticMethods(sourceStaticMethods, whereFragment.StructMethod);
+            sourceStaticMethods = JoinStaticMethods(sourceStaticMethods, whereFragment.StructMethod);
             sourceFragment = whereEnumerable;
+        } else if(invocation.ArgumentList.Arguments.Count != argumentStartIndex) {
+            return false;
         }
         var anyFragment = createFragment("Any", string.Empty, uniqueNumber++, [sourceFragment]);
         if(anyFragment is null)
             return false;
         fragment = anyFragment;
-        staticMethods = Fragment.JoinStaticMethods(sourceStaticMethods, fragment.StructMethod);
+        staticMethods = JoinStaticMethods(sourceStaticMethods, fragment.StructMethod);
         return true;
     }
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
-        {{this.DefineScalarEnumeratorStruct("bool")}}
+        {{DefineScalarEnumeratorStruct("bool")}}
         """;
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     public override string GetEnumeratorFields => $$"""
-        private bool {{this.currentValue}} = false;
-        private bool {{this.yielded}} = false;
+        private bool {{currentValue}} = false;
+        private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{this.yielded}}) {
+        if({{yielded}}) {
             current = default;
             return false;
         }
-        {{this.yielded}} = true;
-        {{this.currentValue}} = {{this.e}}.MoveNext();
-        current = {{this.currentValue}};
+        {{yielded}} = true;
+        {{currentValue}} = {{e}}.MoveNext();
+        current = {{currentValue}};
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    public override string GetCurrentExpression => currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }

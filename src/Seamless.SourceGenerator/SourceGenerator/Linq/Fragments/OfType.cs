@@ -7,20 +7,20 @@ public class OfType(int 番号, Enumerable source, string resultElementType) : E
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    public override string GetEnumeratorFields => $"private {resultElementType} {this.currentValue} = default!;";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string GetEnumeratorFields => $"private {resultElementType} {currentValue} = default!;";
     public override string GetTryGetNextBody => $$"""
-        while({{this.e}}.MoveNext()) {
-            if({{this.e}}.Current is {{resultElementType}} {{this.item}}) {
-                {{this.currentValue}} = {{this.item}};
-                current = {{this.item}};
+        while({{e}}.MoveNext()) {
+            if({{e}}.Current is {{resultElementType}} {{item}}) {
+                {{currentValue}} = {{item}};
+                current = {{item}};
                 return true;
             }
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
+    public override string GetCurrentExpression => currentValue;
     public override string ElementType => resultElementType;
 }

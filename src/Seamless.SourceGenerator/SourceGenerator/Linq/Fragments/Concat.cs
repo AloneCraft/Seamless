@@ -10,7 +10,7 @@ public class Concat(int 番号, Enumerable source, Enumerable second) : Buffered
         {{source.GetEnumeratorStruct}}
         {{second.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second";
     protected override string BuildExpression => "Build(source, second)";
     protected override string BuildMembers => $$"""

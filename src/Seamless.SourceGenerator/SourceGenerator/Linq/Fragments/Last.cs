@@ -4,9 +4,9 @@ public class Last(int 番号, Enumerable source, string resultType) : BufferedSc
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    protected override string ComputeExpression => $"Compute({this.e})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    protected override string ComputeExpression => $"Compute({e})";
     protected override string ComputeMembers => $$"""
         private static {{resultType}} Compute(TEnum source) {
             var found = false;
@@ -19,7 +19,7 @@ public class Last(int 番号, Enumerable source, string resultType) : BufferedSc
             return result;
         }
         """;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
 public class Last_predicate(int 番号, Enumerable source, FuncFragment predicate, string resultType) : BufferedScalar(番号, resultType) {
@@ -27,30 +27,30 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
         method.Parameters.Length > 0 && method.Parameters[0].Type.TypeKind == TypeKind.Delegate;
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
+    public override string StructMethod => FuncSupport(predicate,nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.FuncEnumeratorArgExtra(predicate,nameof(predicate))})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {this.e}{this.FuncPrimaryCtorExtra(predicate,PredicateFuncType,nameof(predicate))}";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ComputeExtraArgs(predicate,nameof(predicate))})";
+        $"Compute({e}{ClosureArgsSuffix(predicate)})";
     protected override string ComputeMembers => $$"""
-        private static {{resultType}} Compute(TEnum source{{this.ComputeExtraParams(predicate,PredicateFuncType,nameof(predicate))}}) {
+        private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
             var found = false;
             {{resultType}} result = default!;
             while(source.MoveNext()) {
-                var {{this.item}} = source.Current;
-                bool {{this.temp}} = default!;
-                {{this.StaticComputeFuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
-                if({{this.temp}}) {
+                var {{item}} = source.Current;
+                bool {{temp}} = default!;
+                {{FuncAssign(predicate,nameof(predicate),temp,item)}}
+                if({{temp}}) {
                     found = true;
-                    result = {{this.item}};
+                    result = {{item}};
                 }
             }
             if(!found) throw global::Seamless.Linq.Enumerable.NoElements();
             return result;
         }
         """;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }

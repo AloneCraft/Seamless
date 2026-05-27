@@ -7,18 +7,18 @@ public class AsEnumerable(int 番号, Enumerable source) : Enumerable(番号) {
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    public override string GetEnumeratorFields => $"private {source.ElementType} {this.currentValue} = default!;";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string GetEnumeratorFields => $"private {source.ElementType} {currentValue} = default!;";
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.MoveNext()) {
-            {{this.currentValue}} = {{this.e}}.Current;
-            current = {{this.currentValue}};
+        if({{e}}.MoveNext()) {
+            {{currentValue}} = {{e}}.Current;
+            current = {{currentValue}};
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
+    public override string GetCurrentExpression => currentValue;
     public override string ElementType => source.ElementType;
 }

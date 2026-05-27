@@ -4,9 +4,9 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    protected override string ComputeExpression => $"Compute({this.e})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    protected override string ComputeExpression => $"Compute({e})";
     protected override string ComputeMembers => $$"""
         private static {{resultType}} Compute(TEnum source) {
             long count = 0;
@@ -19,34 +19,34 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
             return ({{resultType}})(sum / count);
         }
         """;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
 public class Average_selector(int 番号, Enumerable source, FuncFragment selector, string resultType) : BufferedScalar(番号, resultType) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(selector)}>";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => this.FuncSupport(selector,nameof(selector));
+    public override string StructMethod => FuncSupport(selector,nameof(selector));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.FuncEnumeratorArgExtra(selector,nameof(selector))})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {this.e}{this.FuncPrimaryCtorExtra(selector,SelectorFuncType,nameof(selector))}";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ComputeExtraArgs(selector,nameof(selector))})";
+        $"Compute({e}{ClosureArgsSuffix(selector)})";
     protected override string ComputeMembers => $$"""
-        private static {{resultType}} Compute(TEnum source{{this.ComputeExtraParams(selector,SelectorFuncType,nameof(selector))}}) {
+        private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
             long count = 0;
             double sum = 0;
             while(source.MoveNext()) {
-                var {{this.item}} = source.Current;
-                {{FuncReturnTypeName(selector)}} {{this.temp}} = default!;
-                {{this.StaticComputeFuncAssign(selector,nameof(selector),this.temp,this.item)}}
-                sum += global::System.Convert.ToDouble({{this.temp}});
+                var {{item}} = source.Current;
+                {{FuncReturnTypeName(selector)}} {{temp}} = default!;
+                {{FuncAssign(selector,nameof(selector),temp,item)}}
+                sum += global::System.Convert.ToDouble({{temp}});
                 count++;
             }
             if(count == 0) throw global::Seamless.Linq.Enumerable.NoElements();
             return ({{resultType}})(sum / count);
         }
         """;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
