@@ -427,7 +427,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             }
             builder.AppendLine("}");
         }
-        return 生成ソース整形(builder.ToString());
+        return builder.ToString();
     }
 
     private static string インターセプター型ソース構築(ImmutableArray<Linq傍受対象型> targets) {
@@ -1932,11 +1932,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return namespaceSymbol.IsGlobalNamespace ? string.Empty : namespaceSymbol.ToDisplayString();
     }
 
-    private static string 生成ソース整形(string source) {
-        var root = CSharpSyntaxTree.ParseText(source).GetCompilationUnitRoot();
-        return root.NormalizeWhitespace(indentation: "    ",eol: "\n").ToFullString();
-    }
-
     private static void インデント付き追記(StringBuilder builder,string value,string indent) {
         foreach(var line in value.Replace("\r\n","\n").Split('\n')) {
             if(line.Length==0) {
@@ -2236,8 +2231,25 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         // - 拡張メソッド呼び出し（ReducedFrom != null, Enumerable以外）は本文を式へインライン化する。
         // - 普通メソッド呼び出し（非拡張）はインライン化しない。生成コードから呼べない非 public は UnsafeAccessor で元呼び出しを維持する。
         // - インライン化対象を元呼び出しへ黙って戻す経路は作らず、未対応は生成コード上の例外式にする。
+        // 最適化: DescendantNodesAndSelf() を 1 回だけ実行し、すべてのノード種別を一括収集する。
+        var allNodes = expression.DescendantNodesAndSelf().ToList();
+        var allInvocations = new List<InvocationExpressionSyntax>(allNodes.Count);
+        var allIdentifiers = new List<IdentifierNameSyntax>(allNodes.Count);
+        var allMemberAccesses = new List<MemberAccessExpressionSyntax>(allNodes.Count);
+        var allObjectCreations = new List<ObjectCreationExpressionSyntax>(allNodes.Count);
+        var allParameters = new List<ParameterSyntax>(allNodes.Count);
+        foreach(var node in allNodes) {
+            switch(node) {
+                case InvocationExpressionSyntax inv: allInvocations.Add(inv); break;
+                case IdentifierNameSyntax id: allIdentifiers.Add(id); break;
+                case MemberAccessExpressionSyntax ma: allMemberAccesses.Add(ma); break;
+                case ObjectCreationExpressionSyntax oc: allObjectCreations.Add(oc); break;
+                case ParameterSyntax param: allParameters.Add(param); break;
+            }
+        }
+
         var processedInvocations = new HashSet<InvocationExpressionSyntax>(ReferenceEqualityComparer.Instance);
-        foreach(var invocation in expression.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>()) {
+        foreach(var invocation in allInvocations) {
             if(processedInvocations.Contains(invocation)) continue;
 
             // nameof() は生成 namespace ではスコープ外になる識別子を参照しうるため、文字列リテラルへ評価する。
@@ -2281,7 +2293,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             }
         }
 
-        foreach(var identifier in expression.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>()) {
+        foreach(var identifier in allIdentifiers) {
             if(semanticModel.GetSymbolInfo(identifier).Symbol is not IFieldSymbol field
                 || !field.IsStatic
                 || !SymbolEqualityComparer.Default.Equals(field.ContainingType,containingType)
@@ -2311,7 +2323,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         }
 
-        foreach(var memberAccess in expression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>()) {
+        foreach(var memberAccess in allMemberAccesses) {
             if(semanticModel.GetSymbolInfo(memberAccess).Symbol is not IMethodSymbol method
                 || method.MethodKind!=MethodKind.Ordinary
                 || method.DeclaredAccessibility==Accessibility.Public
@@ -2331,7 +2343,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 StringComparison.Ordinal);
         }
 
-        foreach(var objectCreation in expression.DescendantNodesAndSelf().OfType<ObjectCreationExpressionSyntax>()) {
+        foreach(var objectCreation in allObjectCreations) {
             var typeSymbol = semanticModel.GetTypeInfo(objectCreation.Type).Type;
             if(typeSymbol is null) {
                 continue;
@@ -2346,7 +2358,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             text=ReplaceTypeNameForGeneratedMethod(text,originalTypeText,qualifiedTypeText);
         }
 
-        foreach(var memberAccess in expression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>()) {
+        foreach(var memberAccess in allMemberAccesses) {
             if(semanticModel.GetSymbolInfo(memberAccess).Symbol is not IFieldSymbol field
                 || field.DeclaredAccessibility==Accessibility.Public) {
                 continue;
@@ -2361,7 +2373,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
 
         // private インスタンスプロパティへのアクセスを UnsafeAccessor (Method "get_X") 経由に変換する。
-        foreach(var memberAccess in expression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>()) {
+        foreach(var memberAccess in allMemberAccesses) {
             if(semanticModel.GetSymbolInfo(memberAccess).Symbol is not IPropertySymbol property
                 || property.IsStatic
                 || property.DeclaredAccessibility==Accessibility.Public
@@ -2381,7 +2393,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             text=text.Replace(memberText,$"{accessorName}({receiverText})",StringComparison.Ordinal);
         }
 
-        foreach(var param in expression.DescendantNodesAndSelf().OfType<ParameterSyntax>()) {
+        foreach(var param in allParameters) {
             if(param.Type is null) continue;
             var typeSymbol=semanticModel.GetTypeInfo(param.Type).Type;
             if(typeSymbol is null) continue;
