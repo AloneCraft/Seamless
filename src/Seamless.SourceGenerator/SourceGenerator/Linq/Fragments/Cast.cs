@@ -7,18 +7,18 @@ public class Cast(int 番号, Enumerable source, string resultElementType) : Enu
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    public override string GetEnumeratorFields => $"private {resultElementType} {this.currentValue} = default!;";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string GetEnumeratorFields => $"private {resultElementType} {currentValue} = default!;";
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.MoveNext()) {
-            {{this.currentValue}} = ({{resultElementType}}){{this.e}}.Current!;
-            current = {{this.currentValue}};
+        if({{e}}.MoveNext()) {
+            {{currentValue}} = ({{resultElementType}}){{e}}.Current!;
+            current = {{currentValue}};
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
+    public override string GetCurrentExpression => currentValue;
     public override string ElementType => resultElementType;
 }

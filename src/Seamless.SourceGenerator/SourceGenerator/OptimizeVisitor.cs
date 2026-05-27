@@ -1,10 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Seamless.SourceGenerator;
 
@@ -124,13 +118,13 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             return null;
         }
 
-        if(referencedParameterNames.Count==0||referencedParameterNames.SetEquals(new[] { resultSelectorParameters[0] })) {
+        if(referencedParameterNames.Count==0||referencedParameterNames.SetEquals([resultSelectorParameters[0]])) {
             var outerPredicate = RecreateLambdaWithParameter(resultSelectorParameters[0],liftedBody);
             var newSource = CreateSequenceCall(selectManyCall.Source,"Where",outerPredicate);
             return RebuildCall(selectManyCall,newSource,selectManyCall.Arguments.Select(static argument => argument.Expression));
         }
 
-        if(!referencedParameterNames.SetEquals(new[] { resultSelectorParameters[1] })) {
+        if(!referencedParameterNames.SetEquals([resultSelectorParameters[1]])) {
             return null;
         }
 
@@ -161,13 +155,13 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             return null;
         }
 
-        if(referencedParameterNames.Count==0||referencedParameterNames.SetEquals(new[] { resultSelectorParameters[0] })) {
+        if(referencedParameterNames.Count==0||referencedParameterNames.SetEquals([resultSelectorParameters[0]])) {
             var outerPredicate = RecreateLambdaWithParameter(resultSelectorParameters[0],liftedBody);
             var newOuter = CreateSequenceCall(call.Source,"Where",outerPredicate);
             return RebuildCall(call,newOuter,call.Arguments.Select(static argument => argument.Expression));
         }
 
-        if(!referencedParameterNames.SetEquals(new[] { resultSelectorParameters[1] })) {
+        if(!referencedParameterNames.SetEquals([resultSelectorParameters[1]])) {
             return null;
         }
 
@@ -271,12 +265,12 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
 
     private static IReadOnlyList<string> GetLambdaParameterNames(LambdaExpressionSyntax lambda) {
         if(lambda is SimpleLambdaExpressionSyntax simpleLambda) {
-            return new[] { simpleLambda.Parameter.Identifier.ValueText };
+            return [simpleLambda.Parameter.Identifier.ValueText];
         }
         if(lambda is ParenthesizedLambdaExpressionSyntax parenthesizedLambda) {
             return parenthesizedLambda.ParameterList.Parameters.Select(static parameter => parameter.Identifier.ValueText).ToArray();
         }
-        return Array.Empty<string>();
+        return [];
     }
 
     private static InvocationExpressionSyntax RebuildCall(SequenceCallInfo call,ExpressionSyntax source,IEnumerable<ExpressionSyntax> argumentExpressions) {
@@ -454,7 +448,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             };
 
             if(type is TupleTypeSyntax tupleType) {
-                aliases=tupleType.Elements.Select(static element => string.IsNullOrWhiteSpace(element.Identifier.ValueText) ? Array.Empty<string>() : new[] { element.Identifier.ValueText }).ToArray();
+                aliases=tupleType.Elements.Select(static element => string.IsNullOrWhiteSpace(element.Identifier.ValueText) ? [] : new[] { element.Identifier.ValueText }).ToArray();
                 return tupleType.Elements.Count==elementCount;
             }
 
@@ -573,7 +567,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
             if(string.Equals(node.Identifier.ValueText,rootParameterName,StringComparison.Ordinal)
                 &&!(node.Parent is MemberAccessExpressionSyntax memberAccess&&memberAccess.Expression==node)
-                &&carrierShape.TryResolve(Array.Empty<string>(),out var replacement)) {
+                &&carrierShape.TryResolve([],out var replacement)) {
                 return ParenthesizeIfNeeded(replacement);
             }
             return base.VisitIdentifierName(node);
@@ -583,7 +577,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             expression=RemoveParentheses(expression);
             if(expression is IdentifierNameSyntax identifierName
                 &&string.Equals(identifierName.Identifier.ValueText,rootParameterName,StringComparison.Ordinal)) {
-                path=Array.Empty<string>();
+                path=[];
                 return true;
             }
 
@@ -595,7 +589,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 return true;
             }
 
-            path=Array.Empty<string>();
+            path=[];
             return false;
         }
     }

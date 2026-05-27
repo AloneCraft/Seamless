@@ -1,5 +1,4 @@
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Order;
 using Seamless.Collections;
 using Seamless.Stores;

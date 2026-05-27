@@ -4,7 +4,7 @@ public class Append(int 番号, Enumerable source, string element) : BufferedSeq
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {element})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {element})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source, {source.ElementType} element";
     protected override string BuildExpression => "Build(source, element)";
     protected override string BuildMembers => $$"""

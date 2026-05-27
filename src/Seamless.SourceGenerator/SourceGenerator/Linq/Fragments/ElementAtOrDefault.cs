@@ -5,9 +5,9 @@ public class ElementAtOrDefault(int 番号, Enumerable source, string index, str
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int index";
-    protected override string ComputeExpression => $"Compute({this.e}, index)";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int index";
+    protected override string ComputeExpression => $"Compute({e}, index)";
     protected override string ComputeMembers => $$"""
         private static {{resultType}} Compute(TEnum source, int index) {
             if(index < 0) return default!;
@@ -19,5 +19,5 @@ public class ElementAtOrDefault(int 番号, Enumerable source, string index, str
             return default!;
         }
         """;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }

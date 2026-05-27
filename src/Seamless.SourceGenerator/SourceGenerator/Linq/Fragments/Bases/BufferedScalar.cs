@@ -4,22 +4,22 @@ public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番�
     protected virtual string ComputeMembers => string.Empty;
     protected virtual string StructSources => string.Empty;
     public override string GetEnumeratorStruct => $$"""
-        {{this.StructSources}}
-        {{this.DefineScalarEnumeratorStruct(resultType)}}
+        {{StructSources}}
+        {{DefineScalarEnumeratorStruct(resultType)}}
         """;
     public override string GetEnumeratorFields => $$"""
-        private readonly {{resultType}} {{this.result}} = {{this.ComputeExpression}};
-        private bool {{this.yielded}} = false;
-        {{this.ComputeMembers}}
+        private readonly {{resultType}} {{result}} = {{ComputeExpression}};
+        private bool {{yielded}} = false;
+        {{ComputeMembers}}
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{this.yielded}}) {
+        if({{yielded}}) {
             current = default!;
             return false;
         }
-        {{this.yielded}} = true;
-        current = {{this.result}};
+        {{yielded}} = true;
+        current = {{result}};
         return true;
         """;
-    public override string GetCurrentExpression => this.result;
+    public override string GetCurrentExpression => result;
 }

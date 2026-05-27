@@ -4,42 +4,34 @@ public class Where(int 番号, Enumerable source, FuncFragment predicate) : Enum
         !(method.Parameters.Length > 0 &&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
+    public override string StructMethod => FuncSupport(predicate,nameof(predicate));
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        NeedsStructClosure(predicate)
-            ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.ClosureArgsSuffix(predicate)})"
-            : predicate.CanInlineAssign && (predicate.CanGenerateMethod || predicate.RequiresStatementInlining)
-                ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})"
-                : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(predicate,nameof(predicate))})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        NeedsStructClosure(predicate)
-            ? $"TEnum {this.e}, {this.ClosurePrimaryCtorSuffix(predicate)}"
-            : predicate.CanInlineAssign && (predicate.CanGenerateMethod || predicate.RequiresStatementInlining)
-                ? $"TEnum {this.e}"
-                : $"TEnum {this.e}, global::System.Func<{source.ElementType}, bool> predicate";
-    public override string GetEnumeratorFields => $"private {source.ElementType} {this.currentValue} = default!;";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
+    public override string GetEnumeratorFields => $"private {source.ElementType} {currentValue} = default!;";
     public override string GetTryGetNextBody => $$"""
         {{Start}}:
-        if(!{{this.e}}.MoveNext()) {
+        if(!{{e}}.MoveNext()) {
             current = default!;
             return false;
         }
-        var {{this.item}} = {{this.e}}.Current;
-        bool {{this.temp}} = default!;
-        {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
-        if(!{{this.temp}})
-            goto {{this.Skip}};
-        {{this.currentValue}} = {{this.item}};
-        current = {{this.currentValue}};
+        var {{item}} = {{e}}.Current;
+        bool {{temp}} = default!;
+        {{FuncAssign(predicate,nameof(predicate),temp,item)}}
+        if(!{{temp}})
+            goto {{Skip}};
+        {{currentValue}} = {{item}};
+        current = {{currentValue}};
         return true;
-        {{this.Skip}}:
+        {{Skip}}:
         goto {{Start}};
         """;
-    public override string GetCurrentExpression => this.currentValue;
+    public override string GetCurrentExpression => currentValue;
     public override string ElementType => source.ElementType;
 }
 
@@ -54,25 +46,25 @@ public class Where_WithInlinedScalarPredicate(int 番号, Enumerable source, Fra
         {{scalarFrag.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    public override string GetEnumeratorFields => $"private {this.ElementType} {this.currentValue} = default!;";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string GetEnumeratorFields => $"private {ElementType} {currentValue} = default!;";
     public override string GetTryGetNextBody => $$"""
-        while({{this.e}}.MoveNext()) {
-            var {{outerParamName}} = {{this.e}}.Current;
-            var {{this.item}} = {{scalarFrag.GetEnumeratorExpression}};
-            {{this.item}}.TryGetNext(out var {{this.temp}});
-            {{this.item}}.Dispose();
-            if(!{{this.temp}}) continue;
-            {{this.currentValue}} = {{outerParamName}};
-            current = {{this.currentValue}};
+        while({{e}}.MoveNext()) {
+            var {{outerParamName}} = {{e}}.Current;
+            var {{item}} = {{scalarFrag.GetEnumeratorExpression}};
+            {{item}}.TryGetNext(out var {{temp}});
+            {{item}}.Dispose();
+            if(!{{temp}}) continue;
+            {{currentValue}} = {{outerParamName}};
+            current = {{currentValue}};
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetCurrentExpression => currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
 
     internal static bool TryBuild(
         SemanticModel semanticModel,
@@ -116,7 +108,7 @@ public class Where_WithInlinedScalarPredicate(int 番号, Enumerable source, Fra
         var whereFrag = new Where_WithInlinedScalarPredicate(whereNumber, outerSource, innerFrag, outerParamName);
         fragment = whereFrag;
         uniqueNumber = snapshot;
-        staticMethods = Fragment.JoinStaticMethods(outerSourceStaticMethods, innerStaticMethods);
+        staticMethods = JoinStaticMethods(outerSourceStaticMethods, innerStaticMethods);
         return true;
     }
 }
@@ -126,37 +118,29 @@ public class Where_index(int 番号, Enumerable source, FuncFragment predicate) 
         method.Parameters.Length > 0 &&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string GetEnumeratorExpression =>
-        NeedsStructClosure(predicate)
-            ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, @this)"
-            : predicate.CanInlineAssign && (predicate.CanGenerateMethod || predicate.RequiresStatementInlining)
-                ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})"
-                : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(predicate,nameof(predicate))})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        NeedsStructClosure(predicate)
-            ? $"TEnum {this.e}, {ContainingTypeName} @this"
-            : predicate.CanInlineAssign && (predicate.CanGenerateMethod || predicate.RequiresStatementInlining)
-                ? $"TEnum {this.e}"
-                : $"TEnum {this.e}, global::System.Func<{source.ElementType}, int, bool> predicate";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => $$"""
-        private {{source.ElementType}} {{this.currentValue}} = default!;
-        private int {{this.a}} = -1;
+        private {{source.ElementType}} {{currentValue}} = default!;
+        private int {{a}} = -1;
         """;
     public override string GetTryGetNextBody => $$"""
         {{Start}}:
-        if(!{{this.e}}.MoveNext()) {
+        if(!{{e}}.MoveNext()) {
             current = default!;
             return false;
         }
-        var {{this.item}} = {{this.e}}.Current;
-        {{this.a}}++;
-        bool {{this.temp}} = default!;
-        {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item,this.a)}}
-        if(!{{this.temp}})
-            goto {{this.Skip}};
-        {{this.currentValue}} = {{this.item}};
-        current = {{this.currentValue}};
+        var {{item}} = {{e}}.Current;
+        {{a}}++;
+        bool {{temp}} = default!;
+        {{FuncAssign(predicate,nameof(predicate),temp,item,a)}}
+        if(!{{temp}})
+            goto {{Skip}};
+        {{currentValue}} = {{item}};
+        current = {{currentValue}};
         return true;
-        {{this.Skip}}:
+        {{Skip}}:
         goto {{Start}};
         """;
 }

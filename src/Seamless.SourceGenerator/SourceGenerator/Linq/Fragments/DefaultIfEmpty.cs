@@ -4,7 +4,7 @@ public class DefaultIfEmpty(int 番号, Enumerable source) : BufferedSequence(�
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source";
     protected override string BuildExpression => "Build(source)";
     protected override string BuildMembers => $$"""
@@ -21,7 +21,7 @@ public class DefaultIfEmpty_defaultValue(int 番号, Enumerable source, string d
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {defaultValue})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {defaultValue})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source, {source.ElementType} defaultValue";
     protected override string BuildExpression => "Build(source, defaultValue)";
     protected override string BuildMembers => $$"""

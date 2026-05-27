@@ -9,9 +9,9 @@ Fragment (abstract)  ........  全LINQ断片の基底。コード生成の部品
 ├── Scalar (abstract)  ......  単一値を返す操作
 │   └── BufferedScalar (abstract)   結果を即時計算→1回yield
 
-FuncFragment (abstract)  ...  ラムダ/デリゲートの表現
-├── LambdaFunc  .............  staticラムダ（インライン展開可能）
-└── ParameterFunc  ..........  インスタンスデリゲート（実行時呼び出し）
+FuncFragment (abstract)  ...  ラムダ式/匿名メソッドの表現
+├── LambdaFunc  .............  式としてインライン展開するラムダ
+└── InlinedScalarFunc  ......  ラムダ内スカラーLINQを文として展開
 ```
 
 ---
@@ -20,7 +20,7 @@ FuncFragment (abstract)  ...  ラムダ/デリゲートの表現
 
 | メンバー                              | 役割                                       |
 |---------------------------------------------|--------------------------------------------|
-| `StructMethod`                              | ラムダを包む補助structの宣言コード          |
+| `StructMethod`                              | 補助メンバーの宣言コード                    |
 | `GetEnumeratorStruct`                       | `IValueEnumerator<T>` struct の定義全体     |
 | `GetTryGetNextBody`                         | `TryGetNext(out T)` の本体コード            |
 | `GetCurrentExpression`                      | `Current` プロパティの式                    |
@@ -74,14 +74,12 @@ FuncFragment (abstract)  ...  ラムダ/デリゲートの表現
 
 | メンバー              | 役割                                              |
 |-----------------------|---------------------------------------------------|
-| `DefineLambda`        | ラムダ本体 `=> expr;`                             |
 | `ReturnTypeName`      | 戻り値型                                          |
 | `ParameterTypeNames`  | 引数型一覧                                        |
 | `ParameterNames`      | 引数名一覧                                        |
-| `CanInlineAssign`     | staticラムダならtrue→コードに直接埋め込み          |
-| `CanGenerateMethod`   | helper struct を生成できるか                      |
+| `CanInlineAssign`     | コードへ直接埋め込めるか                           |
+| `CanGenerateMethod`   | closure なしで展開できるか                         |
 | `InlineBody`          | インライン展開する式本体                           |
-| `DefineMethod(name)`  | `static TResult name(args)` を生成                |
 | `RenderInlineAssign(dest, num, args)` | 代入文として展開                   |
 | `RenderInlineExpression(args)`       | 式として展開                       |
 

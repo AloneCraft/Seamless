@@ -24,17 +24,23 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
             private {{elementType}} {{currentValue}} = default!;
             public {{elementType}} Current => {{currentValue}};
             object? global::System.Collections.IEnumerator.Current => Current;
+            {{AggressiveInliningAttribute}}
             void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
+            {{AggressiveInliningAttribute}}
             public bool MoveNext() => TryGetNext(out _);
+            {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count) {
                 count = 0;
                 return false;
             }
+            {{AggressiveInliningAttribute}}
             public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
                 span = default;
                 return false;
             }
+            {{AggressiveInliningAttribute}}
             public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) => false;
+            {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
                 if({{e}}.MoveNext()) {
                     {{currentValue}} = {{e}}.Current;
@@ -44,6 +50,7 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
                 current = default!;
                 return false;
             }
+            {{AggressiveInliningAttribute}}
             public void Dispose() {
                 {{e}}.Dispose();
             }
@@ -89,22 +96,28 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
             private int {{e}} = -1;
             public {{elementType}} Current => source[{{e}}];
             object? global::System.Collections.IEnumerator.Current => Current;
+            {{AggressiveInliningAttribute}}
             void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
+            {{AggressiveInliningAttribute}}
             public bool MoveNext() => TryGetNext(out _);
+            {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count) {
                 count = source.Length - ({{e}} + 1);
                 return true;
             }
+            {{AggressiveInliningAttribute}}
             public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
                 span = global::System.MemoryExtensions.AsSpan(source, {{e}} + 1);
                 return true;
             }
+            {{AggressiveInliningAttribute}}
             public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) {
                 var remaining = global::System.MemoryExtensions.AsSpan(source, {{e}} + 1);
                 var start = offset.GetOffset(remaining.Length);
                 remaining.Slice(start).CopyTo(destination);
                 return true;
             }
+            {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
                 if(++{{e}} < source.Length) {
                     current = source[{{e}}];
@@ -113,6 +126,7 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
                 current = default!;
                 return false;
             }
+            {{AggressiveInliningAttribute}}
             public void Dispose() { }
         }
         """;

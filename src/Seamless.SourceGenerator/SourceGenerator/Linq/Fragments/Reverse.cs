@@ -4,7 +4,7 @@ public class Reverse(int 番号, Enumerable source) : BufferedSequence(番号, s
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source";
     protected override string BuildExpression => "Build(source)";
     protected override string BuildMembers => $$"""

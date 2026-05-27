@@ -5,44 +5,34 @@ public class Select(int 番号,Enumerable source,FuncFragment selector):Enumerab
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
     // static ラムダなら selector helper を struct として定義する。
-    public override string StructMethod => this.FuncSupport(selector,nameof(selector));
+    public override string StructMethod => FuncSupport(selector,nameof(selector));
     // source 側 enumerator と Select 自身の enumerator をまとめて出す。
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    // Carrier/Enumerator モードでは source enumerable と selector delegate を渡す。
-    // NeedsStructClosure: 非 static ラムダ + ContainingTypeName あり → @this を primary ctor で渡してインライン展開。
-    // CanInlineAssign && CanGenerateMethod: static ラムダ → source のみ。
-    // それ以外 (ParameterFunc または非 static ラムダで closure なし): デリゲートを ctor に渡す。
+    // Carrier/Enumerator モードでも selector は必ずインライン展開する。
+    // closure が必要なラムダだけ primary ctor へ値を渡す。
     public override string GetEnumeratorExpression =>
-        NeedsStructClosure(selector)
-            ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.ClosureArgsSuffix(selector)})"
-            : selector.CanInlineAssign && (selector.CanGenerateMethod || selector.RequiresStatementInlining)
-                ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})"
-                : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(selector,nameof(selector))})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        NeedsStructClosure(selector)
-            ? $"TEnum {this.e}, {this.ClosurePrimaryCtorSuffix(selector)}"
-            : selector.CanInlineAssign && (selector.CanGenerateMethod || selector.RequiresStatementInlining)
-                ? $"TEnum {this.e}"
-                : $"TEnum {this.e}, global::System.Func<{source.ElementType}, {this.ElementType}> selector";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
     // selector と現在値を保持する。source enumerator は primary ctor backing field。
-    public override string GetEnumeratorFields => $"private {this.ElementType} {this.currentValue} = default!;";
+    public override string GetEnumeratorFields => $"private {ElementType} {currentValue} = default!;";
     // 1 要素読むごとに selector を適用して TResult を流す。
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.MoveNext()) {
-            var {{this.item}} = {{this.e}}.Current;
-            {{this.AssignSelectedValue}}
-            current = {{this.currentValue}};
+        if({{e}}.MoveNext()) {
+            var {{item}} = {{e}}.Current;
+            {{AssignSelectedValue}}
+            current = {{currentValue}};
             return true;
         }
         current = default!;
         return false;
         """;
     // Current は selector 適用後の値。
-    public override string GetCurrentExpression => this.currentValue;
-    private string AssignSelectedValue => this.FuncAssign(selector,nameof(selector),this.currentValue,this.item);
+    public override string GetCurrentExpression => currentValue;
+    private string AssignSelectedValue => FuncAssign(selector,nameof(selector),currentValue,item);
     // Select の要素型は selector 戻り値型。
     public override string ElementType => FuncReturnTypeName(selector);
 }
@@ -58,23 +48,23 @@ public class Select_WithInlinedScalar(int 番号, Enumerable source, Fragment sc
         {{scalarFrag.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    public override string GetEnumeratorFields => $"private {this.ElementType} {this.currentValue} = default!;";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string GetEnumeratorFields => $"private {ElementType} {currentValue} = default!;";
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.MoveNext()) {
-            var {{outerParamName}} = {{this.e}}.Current;
-            var {{this.item}} = {{scalarFrag.GetEnumeratorExpression}};
-            {{this.item}}.TryGetNext(out {{this.currentValue}});
-            {{this.item}}.Dispose();
-            current = {{this.currentValue}};
+        if({{e}}.MoveNext()) {
+            var {{outerParamName}} = {{e}}.Current;
+            var {{item}} = {{scalarFrag.GetEnumeratorExpression}};
+            {{item}}.TryGetNext(out {{currentValue}});
+            {{item}}.Dispose();
+            current = {{currentValue}};
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetCurrentExpression => currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
 
     internal static bool TryBuild(
         SemanticModel semanticModel,
@@ -121,7 +111,7 @@ public class Select_WithInlinedScalar(int 番号, Enumerable source, Fragment sc
         var selectFrag = new Select_WithInlinedScalar(selectNumber, outerSource, innerFrag, outerParamName, elementType);
         fragment = selectFrag;
         uniqueNumber = snapshot;
-        staticMethods = Fragment.JoinStaticMethods(outerSourceStaticMethods, innerStaticMethods);
+        staticMethods = JoinStaticMethods(outerSourceStaticMethods, innerStaticMethods);
         return true;
     }
 }
