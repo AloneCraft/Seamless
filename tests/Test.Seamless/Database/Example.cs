@@ -1,10 +1,7 @@
-using System;
 using System.Buffers;
-using System.IO;
 using System.Runtime.CompilerServices;
 using MemoryPack;
 using Test.Seamless.Database.Example.Keys;
-using System.Reflection.PortableExecutable;
 
 #if TSAVORITE1_1_1
 using Tsavorite.core;

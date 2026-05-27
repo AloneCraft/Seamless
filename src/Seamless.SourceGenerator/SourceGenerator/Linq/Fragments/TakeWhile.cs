@@ -66,7 +66,7 @@ public class TakeWhile_index(int 番号, Enumerable source, FuncFragment predica
     public override string GetEnumeratorFields => $$"""
         private {{source.ElementType}} {{this.currentValue}} = default!;
         private bool done = false;
-        private int {{this.index}} = -1;
+        private int {{this.a}} = -1;
         """;
     public override string GetTryGetNextBody => $$"""
         if(done || !{{this.e}}.MoveNext()) {
@@ -74,9 +74,9 @@ public class TakeWhile_index(int 番号, Enumerable source, FuncFragment predica
             return false;
         }
         var {{this.item}} = {{this.e}}.Current;
-        {{this.index}}++;
+        {{this.a}}++;
         bool {{this.temp}} = default!;
-        {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item,this.index)}}
+        {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item,this.a)}}
         if(!{{this.temp}}) {
             done = true;
             current = default!;

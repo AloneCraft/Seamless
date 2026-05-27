@@ -941,9 +941,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                         constructorArguments.Add(syntheticArgument);
                         continue;
                     }
-
-                    constructorArguments.Add("null");
-                    continue;
                 }
                 return false;
             }
@@ -1199,7 +1196,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                         null)
                     && scalarFragment is Scalar) {
                     uniqueNumber = snapshot;
-                    var supportingMembers = Fragment.JoinStaticMethods(scalarStaticMethods,scalarFragment.GetEnumeratorStruct);
                     fragment = new InlinedScalarFunc(scalarFragment) {
                         Type = Func型解決13(lambdaSpec.ParameterTypeNames.Length),
                         ReturnTypeName = lambdaSpec.ReturnTypeName,
@@ -1217,7 +1213,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                         BodyUnsafeAccessorCodes = bodyAccessorCodes
                             .Concat(scalarFragment.CollectAllUnsafeAccessorCodes())
                             .ToArray(),
-                        SupportingMemberSources = supportingMembers,
+                        ScalarStaticMethods = scalarStaticMethods,
                         OuterParameterNames = lambdaSpec.ParameterNames,
                     };
                     return true;
@@ -1652,10 +1648,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
 
         var replacementMap = new Dictionary<string,string>(StringComparer.Ordinal);
         foreach(var invocation in outerLinqInvocations) {
-            var tempName = $"__linq{linqInvocationCount++}";
+            var snapshot = uniqueNumber;
             if(!呼び出し式フラグメント生成1(semanticModel,invocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector)) {
-                return false;
+                uniqueNumber=snapshot;
+                continue;
             }
+            var tempName = $"__linq{linqInvocationCount++}";
             if(!methodIsStatic) {
                 fragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式));
             }
@@ -1755,6 +1753,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .Where(invocation => SystemLinqEnumerable呼び出し判定42(invocation,semanticModel))
             .Where(invocation => !invocation.Ancestors()
                 .TakeWhile(ancestor => ancestor!=statement)
+                .OfType<LambdaExpressionSyntax>()
+                .Any())
+            .Where(invocation => !invocation.Ancestors()
+                .TakeWhile(ancestor => ancestor!=statement)
                 .OfType<InvocationExpressionSyntax>()
                 .Any(ancestorInvocation => SystemLinqEnumerable呼び出し判定42(ancestorInvocation,semanticModel)))
             .OrderBy(static invocation => invocation.SpanStart)
@@ -1765,7 +1767,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) {
             return false;
         }
-        return (method.ReducedFrom ?? method).ContainingType.ToDisplayString()=="System.Linq.Enumerable";
+        var definition = method.ReducedFrom ?? method;
+        var containingType = definition.ContainingType.ToDisplayString();
+        return containingType=="System.Linq.Enumerable"
+            || (definition.Name=="Contains" && containingType=="System.MemoryExtensions");
     }
 
     private static int フラグメント番号初期値取得18() => 0;
@@ -2401,9 +2406,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if(!method.IsExtensionMethod && invocation.Expression is MemberAccessExpressionSyntax) {
+            if(!method.IsExtensionMethod && invocation.Expression is MemberAccessExpressionSyntax staticMemberAccess) {
                 // 生成 namespace は元 namespace と異なるため、静的メソッド呼び出しは型名を完全修飾する。
-                var qualifiedInvocationText = $"{method.ContainingType.ToDisplayString(完全修飾形式)}.{method.Name}{RenderTypeArgumentList(method)}({string.Join(", ",invocation.ArgumentList.Arguments.Select(argument => RenderArgumentForGeneratedMethod(argument,semanticModel,containingType)))})";
+                // 型引数はソースに明示された場合のみ展開する（推論型引数は引数の型変化後に不正になる可能性があるため）
+                var explicitTypeArgs = staticMemberAccess.Name is GenericNameSyntax ? RenderTypeArgumentList(method) : string.Empty;
+                var qualifiedInvocationText = $"{method.ContainingType.ToDisplayString(完全修飾形式)}.{method.Name}{explicitTypeArgs}({string.Join(", ",invocation.ArgumentList.Arguments.Select(argument => RenderArgumentForGeneratedMethod(argument,semanticModel,containingType)))})";
                 text=text.Replace(invocationText,qualifiedInvocationText,StringComparison.Ordinal);
                 foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
             } else if(method.IsExtensionMethod
@@ -2412,7 +2419,9 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 // 拡張メソッド: receiver.Method<T>(args) → global::ContainingType.Method<T>(receiver, args)
                 var receiverText = RenderExpressionForGeneratedMethod(extensionMemberAccess.Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
                 var allArgs = new[]{receiverText}.Concat(invocation.ArgumentList.Arguments.Select(argument => RenderArgumentForGeneratedMethod(argument,semanticModel,containingType)));
-                var qualifiedExtensionText = $"{method.ContainingType.ToDisplayString(完全修飾形式)}.{method.Name}{RenderTypeArgumentList(method)}({string.Join(", ",allArgs)})";
+                var hasExplicitExtensionTypeArgs = extensionMemberAccess.Name is GenericNameSyntax;
+                var extensionTypeArgs = hasExplicitExtensionTypeArgs ? RenderTypeArgumentList(method) : string.Empty;
+                var qualifiedExtensionText = $"{method.ContainingType.ToDisplayString(完全修飾形式)}.{method.Name}{extensionTypeArgs}({string.Join(", ",allArgs)})";
                 text=text.Replace(invocationText,qualifiedExtensionText,StringComparison.Ordinal);
                 foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
             }
@@ -2480,11 +2489,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 continue;
             }
 
-            text=System.Text.RegularExpressions.Regex.Replace(
-                text,
-                $@"\b{System.Text.RegularExpressions.Regex.Escape(originalTypeText)}\b",
-                qualifiedTypeText,
-                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+            text=ReplaceTypeNameForGeneratedMethod(text,originalTypeText,qualifiedTypeText);
         }
 
         foreach(var memberAccess in expression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>()) {
@@ -2529,14 +2534,22 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             var qualifiedName=typeSymbol.ToDisplayString(完全修飾形式);
             var originalName=NormalizeExpressionText(param.Type.ToString());
             if(originalName==qualifiedName||originalName.StartsWith("global::",StringComparison.Ordinal)) continue;
-            text=System.Text.RegularExpressions.Regex.Replace(
-                text,
-                $@"\b{System.Text.RegularExpressions.Regex.Escape(originalName)}\b",
-                qualifiedName,
-                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+            text=ReplaceTypeNameForGeneratedMethod(text,originalName,qualifiedName);
         }
 
         return text;
+    }
+
+    private static string ReplaceTypeNameForGeneratedMethod(string text,string originalName,string qualifiedName) {
+        if(originalName==qualifiedName || originalName.StartsWith("global::",StringComparison.Ordinal)) {
+            return text;
+        }
+
+        return System.Text.RegularExpressions.Regex.Replace(
+            text,
+            $@"(?<![\w\.:]){System.Text.RegularExpressions.Regex.Escape(originalName)}(?![\w])",
+            qualifiedName,
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
     }
 
     private static bool TryRenderSimpleLocalMethodInvocationExpression(IMethodSymbol method,SemanticModel semanticModel,INamedTypeSymbol containingType,out string expressionText,List<string>? unsafeAccessorCollector = null) {

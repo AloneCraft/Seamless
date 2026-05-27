@@ -6,6 +6,12 @@ public sealed class InlinedScalarFunc(Fragment scalarFragment) : LambdaFunc {
     public string BodyExpression { get; init; } = string.Empty;
     public string ScalarExpression { get; init; } = string.Empty;
     public string ScalarReturnTypeName { get; init; } = string.Empty;
+    public string ScalarStaticMethods { get; init; } = string.Empty;
+
+    public override string SupportingMemberSources {
+        get => Fragment.JoinStaticMethods(ScalarStaticMethods, scalarFragment.GetEnumeratorStruct);
+        set { }
+    }
 
     public override string RenderInlineAssign(string destination,int number,params string[] arguments) {
         var enumeratorName = $"__scalar_{number}_{SanitizeLocalName(destination)}";

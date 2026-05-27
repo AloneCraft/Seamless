@@ -1,6 +1,8 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
 public class Skip(int 番号, Enumerable source, string count) : Enumerable(番号) {
+    public static bool IsApplicableOverload(IMethodSymbol method) =>
+        method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_Int32;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""

@@ -99,7 +99,7 @@ FuncFragment (abstract)  ...  ラムダ/デリゲートの表現
 | `Struct`        | `Struct0`     | struct 型名                       |
 | `key`           | `key0`        | GroupBy/Join のキー               |
 | `state`         | `state0`      | 列挙状態                          |
-| `index`         | `index0`      | インデックス                      |
+| `a`             | `a0`          | インデックス                      |
 | `group`         | `group0`      | グループ変数                      |
 | `lookup`        | `lookup0`     | Lookup/Dictionary                 |
 | `outerValue`    | `outerValue0` | Join の外側要素                   |

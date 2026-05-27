@@ -1,5 +1,3 @@
-using Seamless;
-using Seamless.Collections;
 using Seamless.Stores;
 using System.Globalization;
 using System.Linq;

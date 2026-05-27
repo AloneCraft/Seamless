@@ -1,6 +1,8 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
 public class Take(int 番号, Enumerable source, string count) : Enumerable(番号) {
+    public static bool IsApplicableOverload(IMethodSymbol method) =>
+        method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_Int32;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""
@@ -12,15 +14,15 @@ public class Take(int 番号, Enumerable source, string count) : Enumerable(番�
     public override string GetEnumeratorFields => $$"""
         private readonly int count = count < 0 ? 0 : count;
         private {{source.ElementType}} {{this.currentValue}} = default!;
-        private int {{this.index}} = 0;
+        private int {{this.a}} = 0;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{this.index}} >= count) {
+        if({{this.a}} >= count) {
             current = default!;
             return false;
         }
         if({{this.e}}.MoveNext()) {
-            {{this.index}}++;
+            {{this.a}}++;
             {{this.currentValue}} = {{this.e}}.Current;
             current = {{this.currentValue}};
             return true;

@@ -31,6 +31,14 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
         var outerParams = getLambdaParameters(lambda);
         if(outerParams.Count != 1) return false;
         var outerParamName = outerParams[0];
+        var dataFlow = semanticModel.AnalyzeDataFlow(lambdaBody);
+        if(dataFlow?.Succeeded == true
+            && dataFlow.DataFlowsIn.Any(symbol =>
+                (symbol is ILocalSymbol || symbol is IParameterSymbol)
+                && symbol.Name != outerParamName
+                && symbol.Name != "this")) {
+            return false;
+        }
         var snapshot = uniqueNumber;
         var smNumber = snapshot++;
         if(!buildEnumerable(semanticModel, sourceExpression, containingType, ref snapshot, out var outerSource, out var outerSourceStaticMethods, unsafeAccessorCollector))
@@ -93,6 +101,7 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
 }
 
 public class SelectMany(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
+    private string SelectorFuncType => $"global::System.Func<{source.ElementType}, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>>";
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 1 &&
         !(method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
@@ -105,13 +114,21 @@ public class SelectMany(int 番号, Enumerable source, FuncFragment selector) : 
     public override string GetEnumeratorExpression =>
         IsHoistable
             ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {selector.RenderInlineExpression("__unused__")})"
-            : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.FuncDelegate(selector, nameof(selector))})";
+            : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.FuncEnumeratorArgExtra(selector, nameof(selector))})";
+    public override string GetEnumeratorPrimaryConstructorParameters =>
+        IsHoistable
+            ? $"TEnum {this.e}, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}> innerEnumerable0"
+            : $"TEnum {this.e}{this.FuncPrimaryCtorExtra(selector, SelectorFuncType, nameof(selector))}";
     protected override string CollectionSelectorPrimaryConstructorParameter =>
         IsHoistable
             ? $"global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}> innerEnumerable0"
-            : $"global::System.Func<{source.ElementType}, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>> selector";
+            : SelectorFuncType;
     protected override string CreateInnerEnumeratorExpression =>
-        IsHoistable ? "innerEnumerable0.GetEnumerator()" : $"{nameof(selector)}({this.outerValue}).GetEnumerator()";
+        IsHoistable
+            ? "innerEnumerable0.GetEnumerator()"
+            : selector.CanInlineAssign
+                ? $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpression(this.outerValue)}).GetEnumerator()"
+                : $"{nameof(selector)}({this.outerValue}).GetEnumerator()";
     protected override string CurrentValueAssignmentFromInner => $"{this.currentValue} = {this.item};";
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(selector));
     public override string ElementType => this.CollectionElementType;
@@ -126,10 +143,10 @@ public class SelectMany_index(int 番号, Enumerable source, FuncFragment select
     protected override string CollectionSelectorPrimaryConstructorParameter => $"global::System.Func<{source.ElementType}, int, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>> selector";
     public override string GetEnumeratorFields => $$"""
         {{base.GetEnumeratorFields}}
-        private int {{this.index}} = -1;
+        private int {{this.a}} = -1;
         """;
-    protected override string MoveNextOuterPrologue => $"{this.index}++;";
-    protected override string CreateInnerEnumeratorExpression => $"{nameof(selector)}({this.outerValue}, {this.index}).GetEnumerator()";
+    protected override string MoveNextOuterPrologue => $"{this.a}++;";
+    protected override string CreateInnerEnumeratorExpression => $"{nameof(selector)}({this.outerValue}, {this.a}).GetEnumerator()";
     protected override string CurrentValueAssignmentFromInner => $"{this.currentValue} = {this.item};";
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(selector));
     public override string ElementType => this.CollectionElementType;
@@ -245,11 +262,11 @@ public class SelectMany_index_resultSelector(int 番号, Enumerable source, Func
     public override string GetEnumeratorPrimaryConstructorParameters => $$"""TEnum {{this.e}}, global::System.Func<{{source.ElementType}}, int, global::System.Collections.Generic.IEnumerable<{{this.CollectionElementType}}>> collectionSelector, global::System.Func<{{source.ElementType}}, {{this.CollectionElementType}}, {{this.ElementType}}> resultSelector""";
     public override string GetEnumeratorFields => $$"""
         {{base.GetEnumeratorFields}}
-        private int {{this.index}} = -1;
+        private int {{this.a}} = -1;
         """;
     protected override string CollectionSelectorPrimaryConstructorParameter => $"global::System.Func<{source.ElementType}, int, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>> collectionSelector";
-    protected override string MoveNextOuterPrologue => $"{this.index}++;";
-    protected override string CreateInnerEnumeratorExpression => $"{nameof(collectionSelector)}({this.outerValue}, {this.index}).GetEnumerator()";
+    protected override string MoveNextOuterPrologue => $"{this.a}++;";
+    protected override string CreateInnerEnumeratorExpression => $"{nameof(collectionSelector)}({this.outerValue}, {this.a}).GetEnumerator()";
     protected override string CurrentValueAssignmentFromInner => $"{this.currentValue} = {nameof(resultSelector)}({this.outerValue}, {this.item});";
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(collectionSelector));
     public override string ElementType => FuncReturnTypeName(resultSelector);

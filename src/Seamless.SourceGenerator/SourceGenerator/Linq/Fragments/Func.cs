@@ -34,7 +34,7 @@ public abstract class FuncFragment {
     public string[] BodyUnsafeAccessorCodes = Array.Empty<string>();
     // ラムダ本体を展開するために必要な補助 struct 群。
     // 例: keySelector 内の Count()/Any() を scalar Fragment として展開する場合。
-    public string SupportingMemberSources = string.Empty;
+    public virtual string SupportingMemberSources { get; set; } = string.Empty;
     // 式位置ではなく文として展開する必要があるラムダかどうか。
     // LINQ scalar を内包するラムダは enumerator 生成・TryGetNext 呼び出しが必要になる。
     public bool RequiresStatementInlining;

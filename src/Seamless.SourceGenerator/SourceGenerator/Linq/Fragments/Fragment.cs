@@ -25,7 +25,7 @@ public abstract class Fragment(
     // 多重評価を避けるための一時変数名。
     private protected string temp=> $"temp{番号}";
     // index オーバーロード用の添字変数名。
-    private protected string index=> $"index{番号}";
+    private protected string a=> $"a{番号}";
     // GroupBy/Join 系のキー変数名。
     private protected string key=> $"key{番号}";
     // GroupBy 系のグループ変数名。
@@ -82,7 +82,7 @@ public abstract class Fragment(
     // リフレクションで Fragment 型フィールドを走査するため、個別の override は不要。
     public virtual void PropagateContainingTypeName(string? name) {
         ContainingTypeName = name;
-        foreach(var field in GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)) {
+        foreach(var field in EnumerateInstanceFields(GetType())) {
             if(typeof(Fragment).IsAssignableFrom(field.FieldType) && field.GetValue(this) is Fragment child) {
                 child.PropagateContainingTypeName(name);
             }
@@ -96,7 +96,7 @@ public abstract class Fragment(
     // UnsafeAccessor コードを断片ツリー全体から収集する。
     // リフレクションで FuncFragment / Fragment 型フィールドを再帰的に走査する。
     public IEnumerable<string> CollectAllUnsafeAccessorCodes() {
-        foreach(var field in GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)) {
+        foreach(var field in EnumerateInstanceFields(GetType())) {
             if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
                 && field.GetValue(this) is FuncFragment funcFrag) {
                 // ParameterFunc のメソッドグループ用 UnsafeAccessor
@@ -122,7 +122,7 @@ public abstract class Fragment(
     }
 
     public IEnumerable<string> CollectDelegateHoistDeclarations() {
-        foreach(var field in GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)) {
+        foreach(var field in EnumerateInstanceFields(GetType())) {
             if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
                 && field.GetValue(this) is FuncFragment funcFrag) {
                 if(funcFrag is ParameterFunc parameterFunc
@@ -140,6 +140,14 @@ public abstract class Fragment(
                 foreach(var declaration in child.CollectDelegateHoistDeclarations()) {
                     yield return declaration;
                 }
+            }
+        }
+    }
+
+    private static IEnumerable<FieldInfo> EnumerateInstanceFields(Type type) {
+        for(var current = type; current is not null && current != typeof(object); current = current.BaseType) {
+            foreach(var field in current.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.DeclaredOnly)) {
+                yield return field;
             }
         }
     }
@@ -214,15 +222,18 @@ public abstract class Fragment(
             return $"{methodName}({argumentList})";
         }
         if(func.CanInlineAssign) {
-            // 非 static ラムダかつ struct closure なし: primary ctor にデリゲートとして渡すので名前で呼び出す。
+            // ラムダ式は delegate Invoke へ逃がさず、インライン不可なら生成時に例外にする。
             if(!func.CanGenerateMethod && ContainingTypeName is null && func.CapturedLocals.Length == 0) {
-                return $"{methodName}({argumentList})";
+                throw LambdaInlineUnsupported(func,methodName);
             }
             // static ラムダ、@this struct closure、またはキャプチャローカル struct closure:
             // ラムダ本体を直接展開する（captured locals は primary ctor backing field として参照できる）。
             return func.RenderInlineExpression(arguments);
         }
         if(!func.CanGenerateMethod) {
+            if(func is LambdaFunc) {
+                throw LambdaInlineUnsupported(func,methodName);
+            }
             return $"{methodName}({argumentList})";
         }
         return $"{this.FuncStructName(methodName)}.{methodName}({argumentList})";
@@ -235,13 +246,16 @@ public abstract class Fragment(
         }
 
         if(func.CanInlineAssign) {
-            // 非 static ラムダかつ struct closure なし: デリゲートフォールバック。
+            // ラムダ式は delegate Invoke へ逃がさず、インライン不可なら生成時に例外にする。
             if(!func.CanGenerateMethod && ContainingTypeName is null && func.CapturedLocals.Length == 0) {
-                return $"{destination}={this.FuncInvoke(func,methodName,arguments)};";
+                throw LambdaInlineUnsupported(func,methodName);
             }
             return func.RenderInlineAssign(destination,番号,arguments);
         }
 
+        if(func is LambdaFunc) {
+            throw LambdaInlineUnsupported(func,methodName);
+        }
         return $"{destination}={this.FuncInvoke(func,methodName,arguments)};";
     }
 
@@ -310,14 +324,17 @@ public abstract class Fragment(
             : $"private struct {Struct}{typeParameters}({this.GetEnumeratorPrimaryConstructorParameters}) : {interfaceType}{tc} {{";
     }
 
-    // struct の TryGetNext 内で使う。static ラムダまたは struct closure ならインライン展開、それ以外はデリゲートフィールド呼び出し。
+    // struct の TryGetNext 内で使う。static ラムダまたは struct closure ならインライン展開し、ParameterFunc はデリゲートフィールド呼び出し。
     private protected string FuncInvokeField(FuncFragment func,string methodName,params string[] arguments) {
         var argumentList = string.Join(", ",arguments);
         if(func.CanGenerateMethod || NeedsStructClosure(func)) {
             // captured locals は primary ctor backing field として struct 内で直接参照できるのでインライン展開可能。
             return func.RenderInlineExpression(arguments);
         }
-        // ParameterFunc または非 static ラムダ（closure なし）: フィールドとして保持しているのでフィールド名で呼び出す。
+        if(func is LambdaFunc) {
+            throw LambdaInlineUnsupported(func,methodName);
+        }
+        // ParameterFunc: フィールドとして保持しているのでフィールド名で呼び出す。
         return $"{methodName}({argumentList})";
     }
 
@@ -333,6 +350,9 @@ public abstract class Fragment(
             }
             return $"{parameterFunc.InvocationName}({argumentList})";
         }
+        if(!func.CanInlineAssign) {
+            throw LambdaInlineUnsupported(func,methodName);
+        }
         return func.RenderInlineExpression(arguments);
     }
 
@@ -346,11 +366,13 @@ public abstract class Fragment(
 
     // Carrier 側で Func delegate をそのまま渡すための式。
     private protected string FuncDelegate(FuncFragment func,string methodName) {
-        return func is ParameterFunc parameterFunc
-            ? parameterFunc.InvocationName
-            : func.CanGenerateMethod
-                ? $"{this.FuncStructName(methodName)}.{methodName}"
-                : func.RenderDelegateExpression();
+        if(func is ParameterFunc parameterFunc) {
+            return parameterFunc.InvocationName;
+        }
+        if(func.CanGenerateMethod) {
+            return $"{this.FuncStructName(methodName)}.{methodName}";
+        }
+        throw LambdaInlineUnsupported(func,methodName);
     }
 
     // IEnumerable<T> / T[] の文字列型名から要素型名を取り出す。
@@ -381,9 +403,13 @@ public abstract class Fragment(
     // static Compute ボディ内での関数呼び出し（外部スコープに依存しない形式）
     private protected string StaticComputeFuncInvoke(FuncFragment func,string funcName,params string[] arguments) {
         var argList = string.Join(", ",arguments);
-        return func.CanInlineAssign
-            ? func.RenderInlineExpression(arguments)
-            : $"{funcName}({argList})";
+        if(func.CanInlineAssign) {
+            return func.RenderInlineExpression(arguments);
+        }
+        if(func is LambdaFunc) {
+            throw LambdaInlineUnsupported(func,funcName);
+        }
+        return $"{funcName}({argList})";
     }
 
     // static Compute/Build ボディ内で、式展開だけでは足りないラムダも代入文として扱う。
@@ -419,6 +445,9 @@ public abstract class Fragment(
     private protected static string FuncReturnTypeName(FuncFragment func) {
         return func.ReturnTypeName;
     }
+
+    private protected static InvalidOperationException LambdaInlineUnsupported(FuncFragment func,string methodName) =>
+        new($"ラムダ式をインライン展開できませんでした。'{methodName}' をデリゲート Invoke 呼び出しへフォールバックすることは許可されていません。Body: '{func.InlineBody}'");
 
     internal static string JoinStaticMethods(string left, string right) =>
         string.Join("\n", new[] { left, right }.Where(static s => !string.IsNullOrWhiteSpace(s)));
