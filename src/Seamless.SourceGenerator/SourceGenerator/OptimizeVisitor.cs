@@ -6,6 +6,37 @@ namespace Seamless.SourceGenerator;
 // 主目的は Where をできるだけ source 側へ押し下げ、後段の generated code を素直な chain にすること。
 // 解析できないケースでは式を変えずに返すので、安全側に倒す設計になっている。
 internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
+    // 匿名型 new { p } → p, new { p, q } → (p, q) に書き換える rewriter
+    private sealed class AnonymousTypeRewriter : CSharpSyntaxRewriter {
+        public override SyntaxNode? VisitAnonymousObjectCreationExpression(AnonymousObjectCreationExpressionSyntax node) {
+            var initializers = node.Initializers;
+            if (initializers.Count == 1) {
+                // new { p } → p  （1要素はunwrap）
+                return Visit(initializers[0].Expression);
+            }
+            // new { p, q, ... } → (p, q, ...)  （ValueTuple）
+            var arguments = initializers.Select(static i => SyntaxFactory.Argument((ExpressionSyntax)i.Expression));
+            return SyntaxFactory.TupleExpression(SyntaxFactory.SeparatedList(arguments));
+        }
+    }
+
+    // 引数を持たず Visit に AnonymousTypeRewriter を重ねる rewriter。
+    private sealed class FullOptimizeRewriter : CSharpSyntaxRewriter {
+        public override SyntaxNode? VisitAnonymousObjectCreationExpression(AnonymousObjectCreationExpressionSyntax node) {
+            // まず匿名型変換
+            var rewritten = new AnonymousTypeRewriter().Visit(node);
+            return base.Visit(rewritten);
+        }
+        public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
+            var rewritten = (InvocationExpressionSyntax)base.VisitInvocationExpression(node)!;
+            var optimized = TryOptimizeInvocation(rewritten);
+            if (optimized is null || SyntaxFactory.AreEquivalent(optimized, rewritten)) {
+                return rewritten;
+            }
+            return VisitInvocationExpression(optimized);
+        }
+    }
+
     private static readonly HashSet<string> PushWhereThroughUnaryMethods = new(StringComparer.Ordinal) {
         "Distinct",
         "DistinctBy",
@@ -27,6 +58,23 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         "Concat",
         "Union",
     };
+
+    /// <summary>
+    /// 完全最適化エントリポイント。匿名型→ValueTuple 変換 + Select chain fusion + Where 押し下げを一度に適用する。
+    /// </summary>
+    public static ExpressionSyntax FullOptimize(ExpressionSyntax expression) {
+        // まず匿名型→ValueTuple/unwrap変換
+        var rewritten = new FullOptimizeRewriter().Visit(expression) as ExpressionSyntax ?? expression;
+        // 続いて Where 押し下げ等の通常最適化
+        return new OptimizeVisitor().Visit(rewritten) as ExpressionSyntax ?? rewritten;
+    }
+
+    /// <summary>
+    /// 匿名型 new { p } → p, new { p, q } → (p, q) のみを変換する薄いラッパー。
+    /// </summary>
+    public static ExpressionSyntax RewriteAnonymousTypes(ExpressionSyntax expression) {
+        return new AnonymousTypeRewriter().Visit(expression) as ExpressionSyntax ?? expression;
+    }
 
     // public entry point。呼び出し側は visitor の内部状態を意識せず、式 1 つを投げればよい。
     public static ExpressionSyntax Optimize(ExpressionSyntax expression) {

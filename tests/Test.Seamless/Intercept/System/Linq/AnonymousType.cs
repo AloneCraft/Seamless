@@ -31,10 +31,27 @@ public sealed class AnonymousType {
     }
     [Fact,Trait("Category","Unit")]public void GroupBy() {
         GroupBy_Static();
+        GroupBy_Lambda();
+        GroupBy_Captured();
     }
     private static void GroupBy_Static() {
         var expected=SystemEnumerable.GroupBy(Source(),p=>p/2,static (l,r) =>new{l,r});
         var actual=Source().GroupBy(p=>p/2,static (l,r) =>new{l,r});
+        Assert.Equal(
+            expected.Select(static item => $"{item.l}:{string.Join(",",item.r)}"),
+            actual.Select(static item => $"{item.l}:{string.Join(",",item.r)}"));
+    }
+    private static void GroupBy_Lambda() {
+        var expected=SystemEnumerable.GroupBy(Source(),static(p)=>p/2,(l,r) =>new{l,r});
+        var actual=Source().GroupBy(static(p)=>p/2,(l,r) =>new{l,r});
+        Assert.Equal(
+            expected.Select(static item => $"{item.l}:{string.Join(",",item.r)}"),
+            actual.Select(static item => $"{item.l}:{string.Join(",",item.r)}"));
+    }
+    private static void GroupBy_Captured() {
+        var x=2;
+        var expected=SystemEnumerable.GroupBy(Source(),static(p)=>p/2,(l,r) =>new{l,r,x});
+        var actual=Source().GroupBy(static(p)=>p/2,(l,r) =>new{l,r,x});
         Assert.Equal(
             expected.Select(static item => $"{item.l}:{string.Join(",",item.r)}"),
             actual.Select(static item => $"{item.l}:{string.Join(",",item.r)}"));

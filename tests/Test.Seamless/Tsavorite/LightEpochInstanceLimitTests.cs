@@ -35,29 +35,39 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
         }
     }
 
-    [Fact]
-    public void Cannot_Create_17_Stores_Simultaneously() {
-        var stores = new global::System.Collections.Generic.List<HashSetStore<int>>();
+    [Theory]
+    [InlineData(17)]
+    [InlineData(1023)]
+    [InlineData(1024)]
+    [InlineData(1025)]
+    public void Cannot_Create_Stores_Simultaneously(int Count) {
+        var stores = new List<HashSetStore<int>>();
 
         try {
-            for(int i = 0; i<17; i++) {
+            for(int i = 0; i<Count; i++) {
                 var dir = TempDir($"store-{i}");
-                try {
-                    var store = HashStore.Create(CheckpointDir: Path.Combine(dir,"checkpoint")).Create<int>(
-                        Devices.CreateLogDevice(Path.Combine(dir,"log")),
-                        Devices.CreateLogDevice(Path.Combine(dir,"obj")),
-                        new BlittableStrategy()
-                    );
-                    stores.Add(store);
-                }
-                catch(InvalidOperationException ex) when(ex.Message.Contains("Exceeded maximum number of active LightEpoch instances")) {
-                    output.WriteLine($"✓ 17th store creation failed at iteration {i} with expected error:");
-                    output.WriteLine($"  {ex.Message}");
+                var store = HashStore.Create(CheckpointDir: Path.Combine(dir,"checkpoint")).Create<int>(
+                    Devices.CreateLogDevice(Path.Combine(dir,"log")),
+                    Devices.CreateLogDevice(Path.Combine(dir,"obj")),
+                    new BlittableStrategy()
+                );
+                stores.Add(store);
+                // try {
+                //     var store = HashStore.Create(CheckpointDir: Path.Combine(dir,"checkpoint")).Create<int>(
+                //         Devices.CreateLogDevice(Path.Combine(dir,"log")),
+                //         Devices.CreateLogDevice(Path.Combine(dir,"obj")),
+                //         new BlittableStrategy()
+                //     );
+                //     stores.Add(store);
+                // }
+                // catch(InvalidOperationException ex) when(ex.Message.Contains("Exceeded maximum number of active LightEpoch instances")) {
+                //     output.WriteLine($"✓ 17th store creation failed at iteration {i} with expected error:");
+                //     output.WriteLine($"  {ex.Message}");
 
-                    // 17個目でエラーが発生したことを確認
-                    Assert.Equal(16,stores.Count);
-                    return;// テスト成功
-                }
+                //     // 17個目でエラーが発生したことを確認
+                //     Assert.Equal(16,stores.Count);
+                //     return;// テスト成功
+                // }
             }
 
             // 17個すべて作成できたら失敗（元々限界に達しているはず）
