@@ -26,17 +26,17 @@ public class TakeWhile(int 番号, Enumerable source, FuncFragment predicate) : 
                 : $"{preCode}\n        if(!{condExpr})";
 
             return $$"""
-                if(done || !{{e}}.MoveNext()) {
+                if(this.done || !{{e}}.MoveNext()) {
                     current = default!;
                     return false;
                 }
                 var {{item}} = {{e}}.Current;
                 {{predicateCheck}} {
-                    done = true;
+                    this.done = true;
                     current = default!;
                     return false;
                 }
-                current = {{currentValue}} = {{item}};
+                current = this.{{currentValue}} = {{item}};
                 return true;
                 """;
         }
@@ -66,18 +66,18 @@ public class TakeWhile_index(int 番号, Enumerable source, FuncFragment predica
                 : $"{preCode}\n        if(!{condExpr})";
 
             return $$"""
-                if(done || !{{e}}.MoveNext()) {
+                if(this.done || !{{e}}.MoveNext()) {
                     current = default!;
                     return false;
                 }
                 var {{item}} = {{e}}.Current;
-                {{a}}++;
+                this.{{a}}++;
                 {{predicateCheck}} {
-                    done = true;
+                    this.done = true;
                     current = default!;
                     return false;
                 }
-                current = {{currentValue}} = {{item}};
+                current = this.{{currentValue}} = {{item}};
                 return true;
                 """;
         }

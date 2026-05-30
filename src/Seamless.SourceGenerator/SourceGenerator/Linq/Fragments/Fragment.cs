@@ -249,17 +249,22 @@ public abstract class Fragment(
     }
 
     // 各断片が持つ Current/TryGetNext/Dispose を IValueEnumerator struct にまとめる。
+    // Current プロパティの宣言文。BufferedScalar はオートプロパティを GetEnumeratorFields で宣言するためこのメソッドを空文字列に override する。
+    protected virtual string GetCurrentPropertyDeclaration(string currentType) =>
+        $"public {currentType} Current => {GetCurrentExpression};";
+
     private protected string DefineEnumeratorStructCore(string currentType,string disposeBody) {
         var tryGetNextBody = IndentLines(GetTryGetNextBody, "        ");
         var dispose = IndentLines(disposeBody, "        ");
         var fields = IndentLines(GetEnumeratorFields, "    ");
         var ctor = IndentLines(GetEnumeratorConstructor, "    ");
+        var currentPropDecl = GetCurrentPropertyDeclaration(currentType);
 
         return $$"""
             {{GetEnumeratorStructDeclaration($"global::Seamless.Linq.Carrier.IValueEnumerator<{currentType}>, global::System.Collections.Generic.IEnumerator<{currentType}>")}}
             {{fields}}
             {{ctor}}
-                public {{currentType}} Current => {{GetCurrentExpression}};
+                {{currentPropDecl}}
                 object? global::System.Collections.IEnumerator.Current => Current;
                 {{AggressiveInliningAttribute}}
                 void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();

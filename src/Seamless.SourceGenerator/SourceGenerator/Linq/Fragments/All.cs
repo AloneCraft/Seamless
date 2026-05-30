@@ -22,21 +22,21 @@ public class All(int 番号, Enumerable source, FuncFragment predicate) : Scalar
                 : $"{preCode}\n            if(!{condExpr})";
 
             return $$"""
-                if({{yielded}}) {
+                if(this.{{yielded}}) {
                     current = default;
                     return false;
                 }
-                {{yielded}} = true;
+                this.{{yielded}} = true;
                 while({{e}}.MoveNext()) {
                     var {{item}} = {{e}}.Current;
                     {{predicateCheck}} {
-                        {{currentValue}} = false;
-                        current = {{currentValue}};
+                        this.{{currentValue}} = false;
+                        current = this.{{currentValue}};
                         return true;
                     }
                 }
-                {{currentValue}} = true;
-                current = {{currentValue}};
+                this.{{currentValue}} = true;
+                current = this.{{currentValue}};
                 return true;
                 """;
         }

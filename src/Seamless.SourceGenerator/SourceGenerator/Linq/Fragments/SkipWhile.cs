@@ -21,8 +21,8 @@ public class SkipWhile(int 番号, Enumerable source, FuncFragment predicate) : 
         get {
             var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
-                ? $"if(skipping && ({condExpr}))"
-                : $"{preCode}\n            if(skipping && {condExpr})";
+                ? $"if(this.skipping && ({condExpr}))"
+                : $"{preCode}\n            if(this.skipping && {condExpr})";
 
             return $$"""
                 while({{e}}.MoveNext()) {
@@ -30,8 +30,8 @@ public class SkipWhile(int 番号, Enumerable source, FuncFragment predicate) : 
                     {{predicateCheck}} {
                         continue;
                     }
-                    skipping = false;
-                    current = {{currentValue}} = {{item}};
+                    this.skipping = false;
+                    current = this.{{currentValue}} = {{item}};
                     return true;
                 }
                 current = default!;
@@ -60,18 +60,18 @@ public class SkipWhile_index(int 番号, Enumerable source, FuncFragment predica
         get {
             var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item, a);
             var predicateCheck = string.IsNullOrEmpty(preCode)
-                ? $"if(skipping && ({condExpr}))"
-                : $"{preCode}\n            if(skipping && {condExpr})";
+                ? $"if(this.skipping && ({condExpr}))"
+                : $"{preCode}\n            if(this.skipping && {condExpr})";
 
             return $$"""
                 while({{e}}.MoveNext()) {
                     var {{item}} = {{e}}.Current;
-                    {{a}}++;
+                    this.{{a}}++;
                     {{predicateCheck}} {
                         continue;
                     }
-                    skipping = false;
-                    current = {{currentValue}} = {{item}};
+                    this.skipping = false;
+                    current = this.{{currentValue}} = {{item}};
                     return true;
                 }
                 current = default!;

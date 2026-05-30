@@ -7,17 +7,51 @@ public class OrderBy_comparer(int 番号, Enumerable source, FuncFragment keySel
 public class OrderByDescending_comparer(int 番号, Enumerable source, FuncFragment keySelector, string comparer) : OrderingBase(番号, source, keySelector, comparer, descending: true) { }
 
 public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment keySelector, string comparer, bool descending) : BufferedSequence(番号, source.ElementType) {
-    private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
-    protected override Enumerable PrimarySource => source;
-    public override string StructMethod => FuncSupport(keySelector,nameof(keySelector));
-    protected override string StructSources => source.GetEnumeratorStruct;
+    // チェーン（ThenBy）検出用に一次ソースを公開
+    internal FuncFragment OwnKeySelector => keySelector;
+    internal string OwnComparer => comparer;
+    internal bool OwnDescending => descending;
+    internal Enumerable OwnSource => source;
+
+    // source が OrderingBase の場合、その一次ソートを取得
+    private OrderingBase? PrimaryOrdering => source as OrderingBase;
+    // ソート前の元データソース（OrderingBase チェーンを遡る）
+    private Enumerable UnorderedSource {
+        get {
+            Enumerable s = source;
+            while(s is OrderingBase oo) s = oo.OwnSource;
+            return s;
+        }
+    }
+
+    protected override Enumerable PrimarySource => UnorderedSource;
+
+    public override string StructMethod =>
+        PrimaryOrdering is { } po
+            ? JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)), FuncSupport(po.OwnKeySelector, "primaryKeySelector"))
+            : FuncSupport(keySelector, nameof(keySelector));
+
+    protected override string StructSources => UnorderedSource.GetEnumeratorStruct;
+
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{ClosureArgsSuffix(keySelector)})";
+        PrimaryOrdering is { } po
+            ? $"new {EnumeratorTypeName}({UnorderedSource.GetEnumeratorExpression}, {comparer}, {po.OwnComparer}{ClosureArgsSuffix(keySelector, po.OwnKeySelector)})"
+            : $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{ClosureArgsSuffix(keySelector)})";
+
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer{ClosurePrimaryCtorSuffix(keySelector)}";
+        PrimaryOrdering is { } po
+            ? $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(po.OwnKeySelector)}>? primaryComparer{ClosurePrimaryCtorSuffix(keySelector, po.OwnKeySelector)}"
+            : $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer{ClosurePrimaryCtorSuffix(keySelector)}";
+
     protected override string BuildExpression =>
-        $"Build(source, comparer{ClosureArgsSuffix(keySelector)})";
-    protected override string BuildMembers => $$"""
+        PrimaryOrdering is { } po
+            ? $"Build(source, comparer, primaryComparer{ClosureArgsSuffix(keySelector, po.OwnKeySelector)})"
+            : $"Build(source, comparer{ClosureArgsSuffix(keySelector)})";
+
+    protected override string BuildMembers =>
+        PrimaryOrdering is { } po ? BuildMembersCombined(po) : BuildMembersSingle();
+
+    private string BuildMembersSingle() => $$"""
         private readonly struct SortItem {
             public SortItem({{source.ElementType}} value, {{FuncReturnTypeName(keySelector)}} key, int index) {
                 this.Value = value;
@@ -39,6 +73,45 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
                 items.Add(new SortItem({{item}}, {{key}}, index++));
             }
             items.Sort((left, right) => {
+                var compare = comparer.Compare(left.Key, right.Key);
+                if(compare == 0) compare = left.Index.CompareTo(right.Index);
+                return {{(descending ? "-compare" : "compare")}};
+            });
+            var result = new global::System.Collections.Generic.List<{{source.ElementType}}>(items.Count);
+            foreach(var item in items) result.Add(item.Value);
+            return result;
+        }
+        """;
+
+    private string BuildMembersCombined(OrderingBase po) => $$"""
+        private readonly struct SortItem {
+            public SortItem({{source.ElementType}} value, {{FuncReturnTypeName(keySelector)}} key, {{FuncReturnTypeName(po.OwnKeySelector)}} primaryKey, int index) {
+                this.Value = value;
+                this.Key = key;
+                this.PrimaryKey = primaryKey;
+                this.Index = index;
+            }
+            public {{source.ElementType}} Value { get; }
+            public {{FuncReturnTypeName(keySelector)}} Key { get; }
+            public {{FuncReturnTypeName(po.OwnKeySelector)}} PrimaryKey { get; }
+            public int Index { get; }
+        }
+        private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer, global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>? primaryComparer{{ClosureMethodParameterSuffix(keySelector, po.OwnKeySelector)}}) {
+            comparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
+            primaryComparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>.Default;
+            var items = new global::System.Collections.Generic.List<SortItem>();
+            var index = 0;
+            while(source.MoveNext()) {
+                var {{item}} = source.Current;
+                {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
+                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                {{FuncReturnTypeName(po.OwnKeySelector)}} {{a}} = default!;
+                {{FuncAssign(po.OwnKeySelector,"primaryKeySelector",a,item)}}
+                items.Add(new SortItem({{item}}, {{key}}, {{a}}, index++));
+            }
+            items.Sort((left, right) => {
+                var primaryCompare = primaryComparer.Compare(left.PrimaryKey, right.PrimaryKey);
+                if({{(po.OwnDescending ? "-primaryCompare" : "primaryCompare")}} != 0) return {{(po.OwnDescending ? "-primaryCompare" : "primaryCompare")}};
                 var compare = comparer.Compare(left.Key, right.Key);
                 if(compare == 0) compare = left.Index.CompareTo(right.Index);
                 return {{(descending ? "-compare" : "compare")}};

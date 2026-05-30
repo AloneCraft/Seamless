@@ -30,7 +30,7 @@ public class Where(int 番号, Enumerable source, FuncFragment predicate) : Enum
                 var {{item}} = {{e}}.Current;
                 {{predicateCheck}}
                     goto {{Skip}};
-                current = {{currentValue}} = {{item}};
+                current = this.{{currentValue}} = {{item}};
                 return true;
                 {{Skip}}:
                 goto {{Start}};
@@ -61,8 +61,8 @@ public class Where_WithInlinedScalarPredicate(int 番号, Enumerable source, Fra
             {{item}}.TryGetNext(out var {{temp}});
             {{item}}.Dispose();
             if(!{{temp}}) continue;
-            {{currentValue}} = {{outerParamName}};
-            current = {{currentValue}};
+            this.{{currentValue}} = {{outerParamName}};
+            current = this.{{currentValue}};
             return true;
         }
         current = default!;
@@ -145,10 +145,10 @@ public class Where_index(int 番号, Enumerable source, FuncFragment predicate) 
                     return false;
                 }
                 var {{item}} = {{e}}.Current;
-                {{a}}++;
+                this.{{a}}++;
                 {{predicateCheck}}
                     goto {{Skip}};
-                current = {{currentValue}} = {{item}};
+                current = this.{{currentValue}} = {{item}};
                 return true;
                 {{Skip}}:
                 goto {{Start}};

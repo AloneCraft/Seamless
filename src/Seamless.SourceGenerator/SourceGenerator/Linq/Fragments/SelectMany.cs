@@ -90,7 +90,7 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
             return false;
         }
         {{MoveNextOuterPrologue}}
-        {{outerValue}} = {{e}}.Current;
+        this.{{outerValue}} = {{e}}.Current;
         this.innerEnumerator = {{CreateInnerEnumeratorExpression}};
         goto {{Start}};
         """;
@@ -155,7 +155,7 @@ public class SelectMany(int 番号, Enumerable source, FuncFragment selector) : 
             : IsHoistable
                 ? "innerEnumerable0.GetEnumerator()"
                 : $"((global::System.Collections.Generic.IEnumerable<{CollectionElementType}>){selector.RenderInlineExpression(outerValue)}).GetEnumerator()";
-    protected override string CurrentValueAssignmentFromInner => $"current = {currentValue} = {item};";
+    protected override string CurrentValueAssignmentFromInner => $"current = this.{currentValue} = {item};";
 }
 
 public class SelectMany_index(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
@@ -172,10 +172,10 @@ public class SelectMany_index(int 番号, Enumerable source, FuncFragment select
         {{base.GetEnumeratorFields}}
         private int {{a}} = -1;
         """;
-    protected override string MoveNextOuterPrologue => $"{a}++;";
+    protected override string MoveNextOuterPrologue => $"this.{a}++;";
     protected override string CreateInnerEnumeratorExpression =>
         $"((global::System.Collections.Generic.IEnumerable<{CollectionElementType}>){selector.RenderInlineExpression(outerValue,a)}).GetEnumerator()";
-    protected override string CurrentValueAssignmentFromInner => $"current = {currentValue} = {item};";
+    protected override string CurrentValueAssignmentFromInner => $"current = this.{currentValue} = {item};";
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(selector));
     public override string ElementType => CollectionElementType;
 }
@@ -199,7 +199,7 @@ public class SelectMany_resultSelector(int 番号, Enumerable source, FuncFragme
     protected override string CreateInnerEnumeratorExpression =>
         $"((global::System.Collections.Generic.IEnumerable<{CollectionElementType}>){collectionSelector.RenderInlineExpression(outerValue)}).GetEnumerator()";
     protected override string CurrentValueAssignmentFromInner =>
-        FuncAssignCurrent(resultSelector,nameof(resultSelector),currentValue,outerValue,item);
+        FuncAssignCurrent(resultSelector,nameof(resultSelector),$"this.{currentValue}",outerValue,item);
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(collectionSelector));
     public override string ElementType => FuncReturnTypeName(resultSelector);
 }
@@ -238,27 +238,27 @@ public class SelectMany_WithInlinedInner(int 番号, Enumerable source, Enumerab
     // bool flag replaces the null check
     public override string GetTryGetNextBody => $$"""
         {{Start}}:
-        if({{hasValue}}) {
-            if(innerEnumerator.TryGetNext(out var {{item}})) {
+        if(this.{{hasValue}}) {
+            if(this.innerEnumerator.TryGetNext(out var {{item}})) {
                 {{CurrentValueAssignmentFromInner}}
                 return true;
             }
-            innerEnumerator.Dispose();
-            {{hasValue}} = false;
+            this.innerEnumerator.Dispose();
+            this.{{hasValue}} = false;
         }
         if(!{{e}}.MoveNext()) {
             current = default!;
             return false;
         }
-        {{outerValue}} = {{e}}.Current;
-        innerEnumerator = {{CreateInnerEnumeratorExpression}};
-        {{hasValue}} = true;
+        this.{{outerValue}} = {{e}}.Current;
+        this.innerEnumerator = {{CreateInnerEnumeratorExpression}};
+        this.{{hasValue}} = true;
         goto {{Start}};
         """;
 
     protected override string GetEnumeratorDisposeBody => $$"""
-        if({{hasValue}}) {
-            innerEnumerator.Dispose();
+        if(this.{{hasValue}}) {
+            this.innerEnumerator.Dispose();
         }
         {{e}}.Dispose();
         """;
@@ -272,7 +272,7 @@ public class SelectMany_WithInlinedInner(int 番号, Enumerable source, Enumerab
 
     // Required by SelectManyBase but not used (GetEnumeratorPrimaryConstructorParameters is overridden)
     protected override string CollectionSelectorPrimaryConstructorParameter => string.Empty;
-    protected override string CurrentValueAssignmentFromInner => $"current = {currentValue} = {item};";
+    protected override string CurrentValueAssignmentFromInner => $"current = this.{currentValue} = {item};";
     protected override string CollectionElementType => innerFragment.ElementType;
     public override string ElementType => innerFragment.ElementType;
 
@@ -298,11 +298,11 @@ public class SelectMany_index_resultSelector(int 番号, Enumerable source, Func
         private int {{a}} = -1;
         """;
     protected override string CollectionSelectorPrimaryConstructorParameter => string.Empty;
-    protected override string MoveNextOuterPrologue => $"{a}++;";
+    protected override string MoveNextOuterPrologue => $"this.{a}++;";
     protected override string CreateInnerEnumeratorExpression =>
         $"((global::System.Collections.Generic.IEnumerable<{CollectionElementType}>){collectionSelector.RenderInlineExpression(outerValue,a)}).GetEnumerator()";
     protected override string CurrentValueAssignmentFromInner =>
-        FuncAssignCurrent(resultSelector,nameof(resultSelector),currentValue,outerValue,item);
+        FuncAssignCurrent(resultSelector,nameof(resultSelector),$"this.{currentValue}",outerValue,item);
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(collectionSelector));
     public override string ElementType => FuncReturnTypeName(resultSelector);
 }

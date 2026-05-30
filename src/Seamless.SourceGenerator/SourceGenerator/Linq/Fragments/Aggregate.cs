@@ -15,11 +15,11 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
         private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{yielded}}) {
+        if(this.{{yielded}}) {
             current = default!;
             return false;
         }
-        {{yielded}} = true;
+        this.{{yielded}} = true;
         if(!{{e}}.MoveNext()) {
             throw global::Seamless.Linq.Enumerable.NoElements();
         }
@@ -27,8 +27,8 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
         while({{e}}.MoveNext()) {
             {{result}} = {{FuncInvokeField(func,nameof(func),result,$"{e}.Current")}};
         }
-        {{currentValue}} = {{result}};
-        current = {{currentValue}};
+        this.{{currentValue}} = {{result}};
+        current = this.{{currentValue}};
         return true;
         """;
     public override string GetCurrentExpression => currentValue;
@@ -51,17 +51,17 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
         private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{yielded}}) {
+        if(this.{{yielded}}) {
             current = default!;
             return false;
         }
-        {{yielded}} = true;
+        this.{{yielded}} = true;
         var {{result}} = {{seed}};
         while({{e}}.MoveNext()) {
             {{result}} = {{FuncInvokeField(func,nameof(func),result,$"{e}.Current")}};
         }
-        {{currentValue}} = {{result}};
-        current = {{currentValue}};
+        this.{{currentValue}} = {{result}};
+        current = this.{{currentValue}};
         return true;
         """;
     public override string GetCurrentExpression => currentValue;
@@ -87,17 +87,17 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
         private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{yielded}}) {
+        if(this.{{yielded}}) {
             current = default!;
             return false;
         }
-        {{yielded}} = true;
+        this.{{yielded}} = true;
         var {{result}} = {{seed}};
         while({{e}}.MoveNext()) {
             {{result}} = {{FuncInvokeField(func,nameof(func),result,$"{e}.Current")}};
         }
-        {{currentValue}} = {{FuncInvokeField(resultSelector,nameof(resultSelector),result)}};
-        current = {{currentValue}};
+        this.{{currentValue}} = {{FuncInvokeField(resultSelector,nameof(resultSelector),result)}};
+        current = this.{{currentValue}};
         return true;
         """;
     public override string GetCurrentExpression => currentValue;

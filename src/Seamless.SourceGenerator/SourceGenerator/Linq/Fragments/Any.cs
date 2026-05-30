@@ -64,13 +64,13 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
         private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{yielded}}) {
+        if(this.{{yielded}}) {
             current = default;
             return false;
         }
-        {{yielded}} = true;
-        {{currentValue}} = {{e}}.MoveNext();
-        current = {{currentValue}};
+        this.{{yielded}} = true;
+        this.{{currentValue}} = {{e}}.MoveNext();
+        current = this.{{currentValue}};
         return true;
         """;
     public override string GetCurrentExpression => currentValue;
