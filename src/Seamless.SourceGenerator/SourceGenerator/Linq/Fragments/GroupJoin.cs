@@ -1,22 +1,37 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 public class GroupJoin(int 番号, Enumerable outer, Enumerable inner, FuncFragment outerKeySelector, FuncFragment innerKeySelector, FuncFragment resultSelector, string comparer) : Enumerable(番号) {
-    protected override string StructTypeParameters => "<TOuterEnum, TInnerEnum>";
+    private bool UseResultTypeParam => resultSelector.CanInvokeAsDelegate;
+    public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(resultSelector);
+    protected override string StructTypeParameters =>
+        UseResultTypeParam ? "<TOuterEnum, TInnerEnum, TResult>" : "<TOuterEnum, TInnerEnum>";
     protected override string StructTypeConstraints =>
         $"where TOuterEnum : struct, global::System.Collections.Generic.IEnumerator<{outer.ElementType}>\n    where TInnerEnum : struct, global::System.Collections.Generic.IEnumerator<{inner.ElementType}>";
-    public override string EnumeratorTypeName => $"{Struct}<{outer.EnumeratorTypeName}, {inner.EnumeratorTypeName}>";
-    public override string StructMethod => $$"""
-                                             {{FuncSupport(outerKeySelector,nameof(outerKeySelector))}}
-                                             {{FuncSupport(innerKeySelector,nameof(innerKeySelector))}}
-                                             {{FuncSupport(resultSelector,nameof(resultSelector))}}
-                                             """;
+    public override string EnumeratorTypeName =>
+        UseResultTypeParam
+            ? $"{Struct}<{outer.EnumeratorTypeName}, {inner.EnumeratorTypeName}, TResult>"
+            : $"{Struct}<{outer.EnumeratorTypeName}, {inner.EnumeratorTypeName}>";
+    private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
+        private static global::Seamless.Linq.Carrier.ValueEnumerable<{{Struct}}<TOuterEnum, TInnerEnum, TResult>, TResult> {{FactoryMethodName}}<TOuterEnum, TInnerEnum, TResult>(TOuterEnum outer, TInnerEnum inner, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>? comparer{{ClosurePrimaryCtorSuffix(outerKeySelector,innerKeySelector,resultSelector)}})
+            where TOuterEnum : struct, global::System.Collections.Generic.IEnumerator<{{outer.ElementType}}>
+            where TInnerEnum : struct, global::System.Collections.Generic.IEnumerator<{{inner.ElementType}}>
+            => new(new {{Struct}}<TOuterEnum, TInnerEnum, TResult>(outer, inner, comparer{{ClosureArgsSuffixForFactory(outerKeySelector,innerKeySelector,resultSelector)}}));
+        """;
+    public override string StructMethod => JoinStaticMethods(JoinStaticMethods(JoinStaticMethods(
+        FuncSupport(outerKeySelector,nameof(outerKeySelector)),
+        FuncSupport(innerKeySelector,nameof(innerKeySelector))),
+        FuncSupport(resultSelector,nameof(resultSelector))),
+        FactorySource);
     public override string GetEnumeratorStruct => $$"""
         {{outer.GetEnumeratorStruct}}
         {{inner.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    // --- Enumerator struct パス (ストリーミング用) ---
     public override string GetEnumeratorExpression =>
         $"new {EnumeratorTypeName}({outer.GetEnumeratorExpression}, {inner.GetEnumeratorExpression}, {comparer}{ClosureArgsSuffix(outerKeySelector,innerKeySelector,resultSelector)})";
+    public override string GetEnumerableExpression =>
+        UseResultTypeParam
+            ? $"{FactoryMethodName}({outer.GetEnumeratorExpression}, {inner.GetEnumeratorExpression}, {comparer}{ClosureArgsSuffix(outerKeySelector,innerKeySelector,resultSelector)})"
+            : base.GetEnumerableExpression;
     public override string GetEnumeratorFields => $$"""
         {{ClosureFields(outerKeySelector,innerKeySelector,resultSelector)}}
         private readonly global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(innerKeySelector)}}, global::System.Collections.Generic.List<{{inner.ElementType}}>> {{lookup}};
@@ -47,7 +62,6 @@ public class GroupJoin(int 番号, Enumerable outer, Enumerable inner, FuncFragm
             {{currentValue}} = default!;
         }
         """;
-    // selector はすべて式へインライン展開する。
     public override string GetTryGetNextBody => $$"""
         if({{state}}==1) {
             current = default!;
@@ -70,38 +84,4 @@ public class GroupJoin(int 番号, Enumerable outer, Enumerable inner, FuncFragm
         """;
     public override string GetCurrentExpression => currentValue;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
-    public override string ElementType => FuncReturnTypeName(resultSelector);
-
-    // --- フラットループパス (末尾メソッド用) ---
-    public override bool SupportsFlatLoop => true;
-    public override string GetFlatLoopCode(string elementVariable,string bodyCode) => $$"""
-        var {{lookup}} = new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(innerKeySelector)}}, global::System.Collections.Generic.List<{{inner.ElementType}}>>({{comparer}} ?? global::System.Collections.Generic.EqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>.Default);
-        {
-            using var {{e}} = {{inner.GetEnumeratorExpression}};
-            while({{e}}.MoveNext()) {
-                var {{item}} = {{e}}.Current;
-                {{FuncReturnTypeName(innerKeySelector)}} {{key}} = default!;
-                {{FuncAssignFlat(innerKeySelector,nameof(innerKeySelector),key,item)}}
-                if(!{{lookup}}.TryGetValue({{key}}, out var {{group}})) {
-                    {{group}} = new global::System.Collections.Generic.List<{{inner.ElementType}}>();
-                    {{lookup}}.Add({{key}}, {{group}});
-                }
-                {{group}}.Add({{item}});
-            }
-        }
-        {
-            using var {{temp}} = {{outer.GetEnumeratorExpression}};
-            while({{temp}}.MoveNext()) {
-                var {{outerValue}} = {{temp}}.Current;
-                {{FuncReturnTypeName(outerKeySelector)}} {{key}} = default!;
-                {{FuncAssignFlat(outerKeySelector,nameof(outerKeySelector),key,outerValue)}}
-                if(!{{lookup}}.TryGetValue({{key}}, out var {{group}})) {
-                    {{group}} = new global::System.Collections.Generic.List<{{inner.ElementType}}>();
-                }
-                {{ElementType}} {{elementVariable}} = default!;
-                {{FuncAssignFlat(resultSelector,nameof(resultSelector),elementVariable,outerValue,group)}}
-                {{bodyCode}}
-            }
-        }
-        """;
 }

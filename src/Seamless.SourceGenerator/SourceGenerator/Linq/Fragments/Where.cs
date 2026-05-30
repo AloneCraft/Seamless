@@ -14,23 +14,29 @@ public class Where(int 番号, Enumerable source, FuncFragment predicate) : Enum
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => $"private {source.ElementType} {currentValue} = default!;";
-    public override string GetTryGetNextBody => $$"""
-        {{Start}}:
-        if(!{{e}}.MoveNext()) {
-            current = default!;
-            return false;
+    public override string GetTryGetNextBody {
+        get {
+            var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item);
+            var predicateCheck = string.IsNullOrEmpty(preCode)
+                ? $"if(!({condExpr}))"
+                : $"{preCode}\n        if(!{condExpr})";
+
+            return $$"""
+                {{Start}}:
+                if(!{{e}}.MoveNext()) {
+                    current = default!;
+                    return false;
+                }
+                var {{item}} = {{e}}.Current;
+                {{predicateCheck}}
+                    goto {{Skip}};
+                current = {{currentValue}} = {{item}};
+                return true;
+                {{Skip}}:
+                goto {{Start}};
+                """;
         }
-        var {{item}} = {{e}}.Current;
-        bool {{temp}} = default!;
-        {{FuncAssign(predicate,nameof(predicate),temp,item)}}
-        if(!{{temp}})
-            goto {{Skip}};
-        {{currentValue}} = {{item}};
-        current = {{currentValue}};
-        return true;
-        {{Skip}}:
-        goto {{Start}};
-        """;
+    }
     public override string GetCurrentExpression => currentValue;
     public override string ElementType => source.ElementType;
 }
@@ -125,22 +131,28 @@ public class Where_index(int 番号, Enumerable source, FuncFragment predicate) 
         private {{source.ElementType}} {{currentValue}} = default!;
         private int {{a}} = -1;
         """;
-    public override string GetTryGetNextBody => $$"""
-        {{Start}}:
-        if(!{{e}}.MoveNext()) {
-            current = default!;
-            return false;
+    public override string GetTryGetNextBody {
+        get {
+            var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item, a);
+            var predicateCheck = string.IsNullOrEmpty(preCode)
+                ? $"if(!({condExpr}))"
+                : $"{preCode}\n        if(!{condExpr})";
+
+            return $$"""
+                {{Start}}:
+                if(!{{e}}.MoveNext()) {
+                    current = default!;
+                    return false;
+                }
+                var {{item}} = {{e}}.Current;
+                {{a}}++;
+                {{predicateCheck}}
+                    goto {{Skip}};
+                current = {{currentValue}} = {{item}};
+                return true;
+                {{Skip}}:
+                goto {{Start}};
+                """;
         }
-        var {{item}} = {{e}}.Current;
-        {{a}}++;
-        bool {{temp}} = default!;
-        {{FuncAssign(predicate,nameof(predicate),temp,item,a)}}
-        if(!{{temp}})
-            goto {{Skip}};
-        {{currentValue}} = {{item}};
-        current = {{currentValue}};
-        return true;
-        {{Skip}}:
-        goto {{Start}};
-        """;
+    }
 }

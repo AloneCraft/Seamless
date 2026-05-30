@@ -17,22 +17,28 @@ public class SkipWhile(int 番号, Enumerable source, FuncFragment predicate) : 
         private {{source.ElementType}} {{currentValue}} = default!;
         private bool skipping = true;
         """;
-    public override string GetTryGetNextBody => $$"""
-        while({{e}}.MoveNext()) {
-            var {{item}} = {{e}}.Current;
-            bool {{temp}} = default!;
-            {{FuncAssign(predicate,nameof(predicate),temp,item)}}
-            if(skipping && {{temp}}) {
-                continue;
-            }
-            skipping = false;
-            {{currentValue}} = {{item}};
-            current = {{currentValue}};
-            return true;
+    public override string GetTryGetNextBody {
+        get {
+            var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item);
+            var predicateCheck = string.IsNullOrEmpty(preCode)
+                ? $"if(skipping && ({condExpr}))"
+                : $"{preCode}\n            if(skipping && {condExpr})";
+
+            return $$"""
+                while({{e}}.MoveNext()) {
+                    var {{item}} = {{e}}.Current;
+                    {{predicateCheck}} {
+                        continue;
+                    }
+                    skipping = false;
+                    current = {{currentValue}} = {{item}};
+                    return true;
+                }
+                current = default!;
+                return false;
+                """;
         }
-        current = default!;
-        return false;
-        """;
+    }
     public override string GetCurrentExpression => currentValue;
     public override string ElementType => source.ElementType;
 }
@@ -50,21 +56,27 @@ public class SkipWhile_index(int 番号, Enumerable source, FuncFragment predica
         private bool skipping = true;
         private int {{a}} = -1;
         """;
-    public override string GetTryGetNextBody => $$"""
-        while({{e}}.MoveNext()) {
-            var {{item}} = {{e}}.Current;
-            {{a}}++;
-            bool {{temp}} = default!;
-            {{FuncAssign(predicate,nameof(predicate),temp,item,a)}}
-            if(skipping && {{temp}}) {
-                continue;
-            }
-            skipping = false;
-            {{currentValue}} = {{item}};
-            current = {{currentValue}};
-            return true;
+    public override string GetTryGetNextBody {
+        get {
+            var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item, a);
+            var predicateCheck = string.IsNullOrEmpty(preCode)
+                ? $"if(skipping && ({condExpr}))"
+                : $"{preCode}\n            if(skipping && {condExpr})";
+
+            return $$"""
+                while({{e}}.MoveNext()) {
+                    var {{item}} = {{e}}.Current;
+                    {{a}}++;
+                    {{predicateCheck}} {
+                        continue;
+                    }
+                    skipping = false;
+                    current = {{currentValue}} = {{item}};
+                    return true;
+                }
+                current = default!;
+                return false;
+                """;
         }
-        current = default!;
-        return false;
-        """;
+    }
 }

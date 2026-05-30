@@ -8,8 +8,8 @@ public sealed class Reverse:LinqChain1TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.Reverse(LinqChain1TestBase.Source());
-        var actual=LinqChain1TestBase.Source().Reverse();
+        var expected=SystemEnumerable.Reverse(LinqChain1TestBase.Source()).ToList();
+        var actual=LinqChain1TestBase.Source().Reverse().ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 

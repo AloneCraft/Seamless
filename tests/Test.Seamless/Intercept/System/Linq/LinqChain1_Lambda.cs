@@ -8,8 +8,8 @@ public sealed class LinqChain1_Lambda {
         WhereImpl();
     }
     private static void WhereImpl() {
-        var expected = Enumerable.Where(Source(), p=>Enumerable.Any(Enumerable.Where(Source2(), q=>q==p)));
-        var actual = Source().Where(p=>Source2().Where(q=>q==p).Any());
+        var expected = Enumerable.Where(Source(), p=>Enumerable.Any(Enumerable.Where(Source2(), q=>q==p))).ToList();
+        var actual = Source().Where(p=>Source2().Where(q=>q==p).Any()).ToList();
         Assert.Equal(expected,actual);
     }
 
@@ -18,8 +18,8 @@ public sealed class LinqChain1_Lambda {
         SelectImpl();
     }
     private static void SelectImpl() {
-        var expected = Enumerable.Select(Source(), p=>Enumerable.Count(Enumerable.Select(Source2(), q=>q+p)));
-        var actual = Source().Select(p=>Source2().Select(q=>q+p).Count());
+        var expected = Enumerable.Select(Source(), p=>Enumerable.Count(Enumerable.Select(Source2(), q=>q+p))).ToList();
+        var actual = Source().Select(p=>Source2().Select(q=>q+p).Count()).ToList();
         Assert.Equal(expected,actual);
     }
 
@@ -88,8 +88,8 @@ public sealed class LinqChain1_Lambda {
         SkipWhileImpl();
     }
     private static void SkipWhileImpl() {
-        var expected = Enumerable.SkipWhile(Source(), p=>Enumerable.Any(Enumerable.SkipWhile(Source2(), q=>q<p)));
-        var actual = Source().SkipWhile(p=>Source2().SkipWhile(q=>q<p).Any());
+        var expected = Enumerable.SkipWhile(Source(), p=>Enumerable.Any(Enumerable.SkipWhile(Source2(), q=>q<p))).ToList();
+        var actual = Source().SkipWhile(p=>Source2().SkipWhile(q=>q<p).Any()).ToList();
         Assert.Equal(expected,actual);
     }
 
@@ -98,8 +98,8 @@ public sealed class LinqChain1_Lambda {
         TakeWhileImpl();
     }
     private static void TakeWhileImpl() {
-        var expected = Enumerable.TakeWhile(Source(), p=>Enumerable.Any(Enumerable.TakeWhile(Source2(), q=>q<=p)));
-        var actual = Source().TakeWhile(p=>Source2().TakeWhile(q=>q<=p).Any());
+        var expected = Enumerable.TakeWhile(Source(), p=>Enumerable.Any(Enumerable.TakeWhile(Source2(), q=>q<=p))).ToList();
+        var actual = Source().TakeWhile(p=>Source2().TakeWhile(q=>q<=p).Any()).ToList();
         Assert.Equal(expected,actual);
     }
 
@@ -138,8 +138,8 @@ public sealed class LinqChain1_Lambda {
         OrderByImpl();
     }
     private static void OrderByImpl() {
-        var expected = Enumerable.OrderBy(Source(), p=>Enumerable.First(Enumerable.OrderBy(Source2(), q=>q+p)));
-        var actual = Source().OrderBy(p=>Source2().OrderBy(q=>q+p).First());
+        var expected = Enumerable.OrderBy(Source(), p=>Enumerable.First(Enumerable.OrderBy(Source2(), q=>q+p))).ToList();
+        var actual = Source().OrderBy(p=>Source2().OrderBy(q=>q+p).First()).ToList();
         Assert.Equal(expected,actual);
     }
 
@@ -148,8 +148,8 @@ public sealed class LinqChain1_Lambda {
         GroupByImpl();
     }
     private static void GroupByImpl() {
-        var expected = Enumerable.Select(Enumerable.GroupBy(Source(), p=>Enumerable.Count(Enumerable.GroupBy(Source2(), q=>q%p))), group=>group.Key);
-        var actual = Source().GroupBy(p=>Source2().GroupBy(q=>q%p).Count()).Select(group=>group.Key);
+        var expected = Enumerable.Select(Enumerable.GroupBy(Source(), p=>Enumerable.Count(Enumerable.GroupBy(Source2(), q=>q%p))), group=>group.Key).ToList();
+        var actual = Source().GroupBy(p=>Source2().GroupBy(q=>q%p).Count()).Select(group=>group.Key).ToList();
         Assert.Equal(expected,actual);
     }
 
@@ -158,8 +158,8 @@ public sealed class LinqChain1_Lambda {
         DistinctByImpl();
     }
     private static void DistinctByImpl() {
-        var expected = Enumerable.DistinctBy(Source(), p=>Enumerable.Count(Enumerable.DistinctBy(Source2(), q=>q%p)));
-        var actual = Source().DistinctBy(p=>Source2().DistinctBy(q=>q%p).Count());
+        var expected = Enumerable.DistinctBy(Source(), p=>Enumerable.Count(Enumerable.DistinctBy(Source2(), q=>q%p))).ToList();
+        var actual = Source().DistinctBy(p=>Source2().DistinctBy(q=>q%p).Count()).ToList();
         Assert.Equal(expected,actual);
     }
 

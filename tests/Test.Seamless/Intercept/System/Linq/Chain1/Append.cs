@@ -8,8 +8,8 @@ public sealed class Append:LinqChain1TestBase {
     public static void element() => elementImpl();
 
     private static void elementImpl() {
-        var expected=SystemEnumerable.Append(LinqChain1TestBase.Source(),5);
-        var actual=LinqChain1TestBase.Source().Append(5);
+        var expected=SystemEnumerable.Append(LinqChain1TestBase.Source(),5).ToList();
+        var actual=LinqChain1TestBase.Source().Append(5).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 

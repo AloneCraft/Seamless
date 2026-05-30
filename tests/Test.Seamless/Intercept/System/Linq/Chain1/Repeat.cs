@@ -8,8 +8,8 @@ public sealed class Repeat:LinqChain1TestBase {
     public static void element_count() => element_countImpl();
 
     private static void element_countImpl() {
-        var expected=SystemEnumerable.Repeat(7,3);
-        var actual=Enumerable.Repeat(7,3);
+        var expected=SystemEnumerable.Repeat(7,3).ToList();
+        var actual=Enumerable.Repeat(7,3).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 

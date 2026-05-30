@@ -92,7 +92,7 @@ public sealed class EnumerableMethod2 {
     private static void SelectManyImpl() {
         var actual=Source().SelectMany(
             p=>Source()
-        );
+        ).ToList();
     }
     [Fact, Trait("Category","Unit")]public static void SelectMany内部Where外出し不可() {
         SelectMany内部Where外出し不可Impl();
@@ -100,7 +100,7 @@ public sealed class EnumerableMethod2 {
     private static void SelectMany内部Where外出し不可Impl() {
         var actual=Source().SelectMany(
             p=>Source().Where(q=>q!=p)
-        );
+        ).ToList();
     }
     [Fact, Trait("Category","Unit")]public static void SelectMany内部Where() {
         SelectMany内部WhereImpl();
@@ -108,7 +108,7 @@ public sealed class EnumerableMethod2 {
     private static void SelectMany内部WhereImpl() {
         var actual=Source().SelectMany(
             p=>Source().Where(q=>q==1)
-        );
+        ).ToList();
     }
     [Fact, Trait("Category","Unit")]public static void SelectMany内部WhereをDictionaryにして外出し() {
         SelectMany内部WhereをDictionaryにして外出しImpl();
@@ -138,13 +138,13 @@ public sealed class EnumerableMethod2 {
          */
         var actual=Source().SelectMany(
             p=>Source().Where(q=>q==p)
-        );
+        ).ToList();
     }
     [Fact, Trait("Category","Unit")]public void Join_Where() {
         Join_WhereImpl();
     }
     private void Join_WhereImpl() {
-        var actual=Source().Join(Source(),o=>o+1,i=>i/1,(o,i) => o+i).Where(p => p%2==0);
+        var actual=Source().Join(Source(),o=>o+1,i=>i/1,(o,i) => o+i).Where(p => p%2==0).ToList();
     }
     [Fact, Trait("Category","Unit")]public static void Join_keySelector内部Linqインライン() {
         Join_keySelector内部LinqインラインImpl();
@@ -177,7 +177,7 @@ public sealed class EnumerableMethod2 {
         Select_SelectImpl();
     }
     private void Select_SelectImpl() {
-        var actual=Source().Select(static value => value*10).Where(static value => value>20);
+        var actual=Source().Select(static value => value*10).Where(static value => value>20).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -185,7 +185,7 @@ public sealed class EnumerableMethod2 {
         Select_Select_indexImpl();
     }
     private void Select_Select_indexImpl(){
-        var actual=Source().Select(static value => value+1).Select(static (value,index) => value+index);
+        var actual=Source().Select(static value => value+1).Select(static (value,index) => value+index).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -193,7 +193,7 @@ public sealed class EnumerableMethod2 {
         Select_Where_indexImpl();
     }
     private void Select_Where_indexImpl() {
-        var actual=Source().Select(static value => value*10).Where(static (value,index) => value>20&&index>0);
+        var actual=Source().Select(static value => value*10).Where(static (value,index) => value>20&&index>0).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -201,7 +201,7 @@ public sealed class EnumerableMethod2 {
         Select_index_SelectImpl();
     }
     private void Select_index_SelectImpl() {
-        var actual=Source().Select(static (value,index) => value+index).Select(static value => value*10);
+        var actual=Source().Select(static (value,index) => value+index).Select(static value => value*10).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -209,7 +209,7 @@ public sealed class EnumerableMethod2 {
         Select_index_Select_indexImpl();
     }
     private void Select_index_Select_indexImpl() {
-        var actual=Source().Select(static (value,index) => value+index).Select(static (value,index) => value+index);
+        var actual=Source().Select(static (value,index) => value+index).Select(static (value,index) => value+index).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -217,7 +217,7 @@ public sealed class EnumerableMethod2 {
         Select_index_WhereImpl();
     }
     private void Select_index_WhereImpl() {
-        var actual=Source().Select(static (value,index) => value+index).Where(static value => value>4);
+        var actual=Source().Select(static (value,index) => value+index).Where(static value => value>4).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -225,7 +225,7 @@ public sealed class EnumerableMethod2 {
         Select_index_Where_indexImpl();
     }
     private void Select_index_Where_indexImpl() {
-        var actual=Source().Select(static (value,index) => value+index).Where(static (value,index) => value>3&&index>1);
+        var actual=Source().Select(static (value,index) => value+index).Where(static (value,index) => value>3&&index>1).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -233,7 +233,7 @@ public sealed class EnumerableMethod2 {
         Where_SelectImpl();
     }
     private void Where_SelectImpl() {
-        var actual=Source().Where(static value => value>1).Select(static value => value*10);
+        var actual=Source().Where(static value => value>1).Select(static value => value*10).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -241,7 +241,7 @@ public sealed class EnumerableMethod2 {
         Where_Select_indexImpl();
     }
     private void Where_Select_indexImpl() {
-        var actual=Source().Where(static value => value>1).Select(static (value,index) => value+index);
+        var actual=Source().Where(static value => value>1).Select(static (value,index) => value+index).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -249,7 +249,7 @@ public sealed class EnumerableMethod2 {
         Where_WhereImpl();
     }
     private void Where_WhereImpl() {
-        var actual=Source().Where(static value => value>1).Where(static value => value<4);
+        var actual=Source().Where(static value => value>1).Where(static value => value<4).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -257,7 +257,7 @@ public sealed class EnumerableMethod2 {
         Where_Where_indexImpl();
     }
     private void Where_Where_indexImpl() {
-        var actual=Source().Where(static value => value>1).Where(static (value,index) => value<4&&index<2);
+        var actual=Source().Where(static value => value>1).Where(static (value,index) => value<4&&index<2).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -265,7 +265,7 @@ public sealed class EnumerableMethod2 {
         Where_index_SelectImpl();
     }
     private void Where_index_SelectImpl() {
-        var actual=Source().Where(static (value,index) => value>index).Select(static value => value*10);
+        var actual=Source().Where(static (value,index) => value>index).Select(static value => value*10).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -273,7 +273,7 @@ public sealed class EnumerableMethod2 {
         Where_index_Select_indexImpl();
     }
     private void Where_index_Select_indexImpl() {
-        var actual=Source().Where(static (value,index) => value>index).Select(static (value,index) => value+index);
+        var actual=Source().Where(static (value,index) => value>index).Select(static (value,index) => value+index).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -281,7 +281,7 @@ public sealed class EnumerableMethod2 {
         Where_index_WhereImpl();
     }
     private void Where_index_WhereImpl() {
-        var actual=Source().Where(static (value,index) => value>index).Where(static value => value<4);
+        var actual=Source().Where(static (value,index) => value>index).Where(static value => value<4).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -289,7 +289,7 @@ public sealed class EnumerableMethod2 {
         Where_index_Where_indexImpl();
     }
     private void Where_index_Where_indexImpl() {
-        var actual=Source().Where(static (value,index) => value>index).Where(static (value,index) => value<4&&index<2);
+        var actual=Source().Where(static (value,index) => value>index).Where(static (value,index) => value<4&&index<2).ToList();
     }
 
     [Fact, Trait("Category","Unit")]
@@ -297,7 +297,7 @@ public sealed class EnumerableMethod2 {
         Select_Take_SelectImpl();
     }
     private void Select_Take_SelectImpl() {
-        var actual=Source().Select(static value => value+1).Take(2).Select(static value => value*10);
+        var actual=Source().Select(static value => value+1).Take(2).Select(static value => value*10).ToList();
     }
 
     [Fact, Trait("Category","Unit")]

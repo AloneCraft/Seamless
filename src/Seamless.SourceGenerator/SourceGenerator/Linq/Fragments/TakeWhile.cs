@@ -18,23 +18,29 @@ public class TakeWhile(int 番号, Enumerable source, FuncFragment predicate) : 
         private {{source.ElementType}} {{currentValue}} = default!;
         private bool done = false;
         """;
-    public override string GetTryGetNextBody => $$"""
-        if(done || !{{e}}.MoveNext()) {
-            current = default!;
-            return false;
+    public override string GetTryGetNextBody {
+        get {
+            var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item);
+            var predicateCheck = string.IsNullOrEmpty(preCode)
+                ? $"if(!({condExpr}))"
+                : $"{preCode}\n        if(!{condExpr})";
+
+            return $$"""
+                if(done || !{{e}}.MoveNext()) {
+                    current = default!;
+                    return false;
+                }
+                var {{item}} = {{e}}.Current;
+                {{predicateCheck}} {
+                    done = true;
+                    current = default!;
+                    return false;
+                }
+                current = {{currentValue}} = {{item}};
+                return true;
+                """;
         }
-        var {{item}} = {{e}}.Current;
-        bool {{temp}} = default!;
-        {{FuncAssign(predicate,nameof(predicate),temp,item)}}
-        if(!{{temp}}) {
-            done = true;
-            current = default!;
-            return false;
-        }
-        {{currentValue}} = {{item}};
-        current = {{currentValue}};
-        return true;
-        """;
+    }
     public override string GetCurrentExpression => currentValue;
     public override string ElementType => source.ElementType;
 }
@@ -52,22 +58,28 @@ public class TakeWhile_index(int 番号, Enumerable source, FuncFragment predica
         private bool done = false;
         private int {{a}} = -1;
         """;
-    public override string GetTryGetNextBody => $$"""
-        if(done || !{{e}}.MoveNext()) {
-            current = default!;
-            return false;
+    public override string GetTryGetNextBody {
+        get {
+            var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item, a);
+            var predicateCheck = string.IsNullOrEmpty(preCode)
+                ? $"if(!({condExpr}))"
+                : $"{preCode}\n        if(!{condExpr})";
+
+            return $$"""
+                if(done || !{{e}}.MoveNext()) {
+                    current = default!;
+                    return false;
+                }
+                var {{item}} = {{e}}.Current;
+                {{a}}++;
+                {{predicateCheck}} {
+                    done = true;
+                    current = default!;
+                    return false;
+                }
+                current = {{currentValue}} = {{item}};
+                return true;
+                """;
         }
-        var {{item}} = {{e}}.Current;
-        {{a}}++;
-        bool {{temp}} = default!;
-        {{FuncAssign(predicate,nameof(predicate),temp,item,a)}}
-        if(!{{temp}}) {
-            done = true;
-            current = default!;
-            return false;
-        }
-        {{currentValue}} = {{item}};
-        current = {{currentValue}};
-        return true;
-        """;
+    }
 }

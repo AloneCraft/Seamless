@@ -8,8 +8,8 @@ public sealed class Select:LinqChain1TestBase {
     public static void selector_Static() => selector_StaticImpl();
 
     private static void selector_StaticImpl() {
-        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),static v => v*2);
-        var actual=LinqChain1TestBase.Source().Select(static v => v*2);
+        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),static v => v*2).ToList();
+        var actual=LinqChain1TestBase.Source().Select(static v => v*2).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -17,8 +17,8 @@ public sealed class Select:LinqChain1TestBase {
     public static void selector_Lambda() => selector_LambdaImpl();
 
     private static void selector_LambdaImpl() {
-        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),v => v*2);
-        var actual=LinqChain1TestBase.Source().Select(v => v*2);
+        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),v => v*2).ToList();
+        var actual=LinqChain1TestBase.Source().Select(v => v*2).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -27,8 +27,8 @@ public sealed class Select:LinqChain1TestBase {
 
     private static void selector_CapturedImpl() {
         var multiplier=2;
-        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),v => v*multiplier);
-        var actual=LinqChain1TestBase.Source().Select(v => v*multiplier);
+        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),v => v*multiplier).ToList();
+        var actual=LinqChain1TestBase.Source().Select(v => v*multiplier).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -36,8 +36,8 @@ public sealed class Select:LinqChain1TestBase {
     public static void selector_DelegateSyntax() => selector_DelegateSyntaxImpl();
 
     private static void selector_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),delegate(int v) { return v*2; });
-        var actual=LinqChain1TestBase.Source().Select(delegate(int v) { return v*2; });
+        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),delegate(int v) { return v*2; }).ToList();
+        var actual=LinqChain1TestBase.Source().Select(delegate(int v) { return v*2; }).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -46,8 +46,8 @@ public sealed class Select:LinqChain1TestBase {
 
     private static void selector_VariableImpl() {
         Func<int,int> selector=v => v*2;
-        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),selector);
-        var actual=LinqChain1TestBase.Source().Select(selector);
+        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),selector).ToList();
+        var actual=LinqChain1TestBase.Source().Select(selector).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -55,8 +55,8 @@ public sealed class Select:LinqChain1TestBase {
     public static void selector_index_Static() => selector_index_StaticImpl();
 
     private static void selector_index_StaticImpl() {
-        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),static (v,i) => v+i);
-        var actual=LinqChain1TestBase.Source().Select(static (v,i) => v+i);
+        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),static (v,i) => v+i).ToList();
+        var actual=LinqChain1TestBase.Source().Select(static (v,i) => v+i).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -64,8 +64,8 @@ public sealed class Select:LinqChain1TestBase {
     public static void selector_index_Lambda() => selector_index_LambdaImpl();
 
     private static void selector_index_LambdaImpl() {
-        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),(v,i) => v+i);
-        var actual=LinqChain1TestBase.Source().Select((v,i) => v+i);
+        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),(v,i) => v+i).ToList();
+        var actual=LinqChain1TestBase.Source().Select((v,i) => v+i).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -74,8 +74,8 @@ public sealed class Select:LinqChain1TestBase {
 
     private static void selector_index_CapturedImpl() {
         var offset=0;
-        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),(v,i) => v+i+offset);
-        var actual=LinqChain1TestBase.Source().Select((v,i) => v+i+offset);
+        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),(v,i) => v+i+offset).ToList();
+        var actual=LinqChain1TestBase.Source().Select((v,i) => v+i+offset).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -83,8 +83,8 @@ public sealed class Select:LinqChain1TestBase {
     public static void selector_index_DelegateSyntax() => selector_index_DelegateSyntaxImpl();
 
     private static void selector_index_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),delegate(int v,int i) { return v+i; });
-        var actual=LinqChain1TestBase.Source().Select(delegate(int v,int i) { return v+i; });
+        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),delegate(int v,int i) { return v+i; }).ToList();
+        var actual=LinqChain1TestBase.Source().Select(delegate(int v,int i) { return v+i; }).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -93,8 +93,8 @@ public sealed class Select:LinqChain1TestBase {
 
     private static void selector_index_VariableImpl() {
         Func<int,int,int> selector=(v,i) => v+i;
-        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),selector);
-        var actual=LinqChain1TestBase.Source().Select(selector);
+        var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),selector).ToList();
+        var actual=LinqChain1TestBase.Source().Select(selector).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 

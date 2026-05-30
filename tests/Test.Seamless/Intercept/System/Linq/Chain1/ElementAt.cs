@@ -14,7 +14,9 @@ public sealed class ElementAt:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void indexFromEnd() => indexFromEndImpl();
+    public static void indexFromEnd() {
+        indexFromEndImpl();
+    }
 
     private static void indexFromEndImpl() {
         var expected=SystemEnumerable.ElementAt(LinqChain1TestBase.Source(),^1);

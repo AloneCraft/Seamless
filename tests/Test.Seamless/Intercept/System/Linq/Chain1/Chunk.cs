@@ -8,8 +8,8 @@ public sealed class Chunk:LinqChain1TestBase {
     public static void size() => sizeImpl();
 
     private static void sizeImpl() {
-        var expected=SystemEnumerable.Chunk(LinqChain1TestBase.Source(),2);
-        var actual=LinqChain1TestBase.Source().Chunk(2);
+        var expected=SystemEnumerable.Chunk(LinqChain1TestBase.Source(),2).ToList();
+        var actual=LinqChain1TestBase.Source().Chunk(2).ToList();
         LinqChain1TestBase.AssertNestedSequenceEqual(expected,actual);
     }
 

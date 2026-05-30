@@ -5,7 +5,7 @@ public abstract class Fragment(
     private protected const string AggressiveInliningAttribute = "[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]";
 
     // 生成コード内で enumerator 変数名として使う。
-    private protected string e => $"e{番号}";
+    private protected string e => $"__e{番号}";
     // ループ本体の先頭ラベル名。
     private protected string Head=> $"Head{番号}";
     // MoveNext 判定へ戻る開始ラベル名。
@@ -15,36 +15,36 @@ public abstract class Fragment(
     // スカラー演算の早期終了先ラベル名。
     private protected string End=> $"End{番号}";
     // 集約結果や中間 List の変数名。
-    protected string result=> $"result{番号}";
+    protected string result=> $"__r{番号}";
     // 補助 struct 名。
     private protected string Struct=> $"Struct{番号}";
     // Lookup/Dictionary 系演算の一時変数名。
-    private protected string lookup=> $"lookup{番号}";
+    private protected string lookup=> $"__lk{番号}";
     // 現在要素のローカル名。
-    private protected string item=> $"ite{番号}";
+    private protected string item=> $"__it{番号}";
     // 多重評価を避けるための一時変数名。
-    private protected string temp=> $"temp{番号}";
+    private protected string temp=> $"__tmp{番号}";
     // index オーバーロード用の添字変数名。
-    private protected string a=> $"a{番号}";
+    private protected string a=> $"__a{番号}";
     // GroupBy/Join 系のキー変数名。
-    private protected string key=> $"key{番号}";
+    private protected string key=> $"__k{番号}";
     // GroupBy 系のグループ変数名。
-    private protected string group=> $"group{番号}";
+    private protected string group=> $"__g{番号}";
     //private protected string seed=> $"seed{番号}";
     // Aggregate などで初回要素を読んだかどうかを表すフラグ名。
-    private protected string hasValue => $"hasValue{番号}";
+    private protected string hasValue => $"__hv{番号}";
     // OrderBy 系の並び替え済みバッファ名。
-    private protected string ordered => $"ordered{番号}";
+    private protected string ordered => $"__ord{番号}";
     // Enumerator.Current を保持するためのフィールド名。
-    private protected string currentValue => $"currentValue{番号}";
+    private protected string currentValue => $"__cv{番号}";
     // 複数段階の列挙状態を管理する state 名。
-    private protected string state => $"state{番号}";
+    private protected string state => $"__st{番号}";
     // スカラー結果を 1 回だけ返したかどうかのフラグ名。
-    private protected string yielded => $"yielded{番号}";
+    private protected string yielded => $"__yd{番号}";
     // グループ列挙内の現在位置。
-    private protected string groupIndex => $"groupIndex{番号}";
+    private protected string groupIndex => $"__gi{番号}";
     // Join/Zip 系で外側要素を保持する変数名。
-    private protected string outerValue => $"outerValue{番号}";
+    private protected string outerValue => $"__ov{番号}";
     // struct closure: 含有クラスの完全修飾型名。null なら @this 不使用。
     public string? ContainingTypeName { get; set; }
 
@@ -61,30 +61,38 @@ public abstract class Fragment(
 
     private protected string ClosureArgsSuffix(params FuncFragment[] funcs) {
         var captures = DistinctCapturedLocals(funcs).ToArray();
-        return captures.Length == 0
-            ? string.Empty
-            : ", " + string.Join(", ", captures.Select(static capture => capture.Name));
+        var delegates = DistinctDelegateFuncs(funcs).ToArray();
+        var parts = captures.Select(static c => c.Name)
+            .Concat(delegates.Select(static f => f.DelegateConstructorArg!));
+        var joined = string.Join(", ", parts);
+        return string.IsNullOrEmpty(joined) ? string.Empty : ", " + joined;
     }
 
     private protected string ClosureFields(params FuncFragment[] funcs) {
         var captures = DistinctCapturedLocals(funcs).ToArray();
-        return captures.Length == 0
-            ? string.Empty
-            : string.Join("\n", captures.Select(static capture => $"private readonly {capture.TypeName} {capture.Name};"));
+        var delegates = DistinctDelegateFuncs(funcs).ToArray();
+        var lines = captures.Select(static c => $"private readonly {c.TypeName} {c.Name};")
+            .Concat(delegates.Select(static f => $"private readonly {f.DelegateTypeName} {f.DelegateFieldName};"));
+        var joined = string.Join("\n", lines);
+        return string.IsNullOrEmpty(joined) ? string.Empty : joined;
     }
 
     private protected string ClosureFieldAssignments(params FuncFragment[] funcs) {
         var captures = DistinctCapturedLocals(funcs).ToArray();
-        return captures.Length == 0
-            ? string.Empty
-            : string.Join("\n", captures.Select(static capture => $"this.{capture.Name} = {capture.Name};"));
+        var delegates = DistinctDelegateFuncs(funcs).ToArray();
+        var lines = captures.Select(static c => $"this.{c.Name} = {c.Name};")
+            .Concat(delegates.Select(static f => $"this.{f.DelegateFieldName} = {f.DelegateFieldName};"));
+        var joined = string.Join("\n", lines);
+        return string.IsNullOrEmpty(joined) ? string.Empty : joined;
     }
 
     private static string ClosureParameterSuffix(params FuncFragment[] funcs) {
         var captures = DistinctCapturedLocals(funcs).ToArray();
-        return captures.Length == 0
-            ? string.Empty
-            : ", " + string.Join(", ", captures.Select(static capture => $"{capture.TypeName} {capture.Name}"));
+        var delegates = DistinctDelegateFuncs(funcs).ToArray();
+        var parts = captures.Select(static c => $"{c.TypeName} {c.Name}")
+            .Concat(delegates.Select(static f => $"{f.DelegateTypeName} {f.DelegateFieldName}"));
+        var joined = string.Join(", ", parts);
+        return string.IsNullOrEmpty(joined) ? string.Empty : ", " + joined;
     }
 
     private static IEnumerable<(string Name, string TypeName)> DistinctCapturedLocals(params FuncFragment[] funcs) {
@@ -94,6 +102,15 @@ public abstract class Fragment(
                 if(names.Add(capture.Name)) {
                     yield return capture;
                 }
+            }
+        }
+    }
+
+    private static IEnumerable<FuncFragment> DistinctDelegateFuncs(params FuncFragment[] funcs) {
+        var fieldNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach(var func in funcs) {
+            if(func.CanInvokeAsDelegate && func.DelegateFieldName is { } name && fieldNames.Add(name)) {
+                yield return func;
             }
         }
     }
@@ -173,6 +190,10 @@ public abstract class Fragment(
     // selector/predicate の呼び出しを、可能ならその場の式へ展開する。
     // キャプチャ変数付きラムダもインライン展開可能（キャプチャ変数はインターセプト先メソッドのスコープに存在する）。
     private protected string FuncInvoke(FuncFragment func,string methodName,params string[] arguments) {
+        if(func.CanInvokeAsDelegate) {
+            // primary constructor パラメータは this. なしでアクセスする（struct では this.param は無効）
+            return $"{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})";
+        }
         if(func.CanInlineAssign) {
             return func.RenderInlineExpression(arguments);
         }
@@ -184,32 +205,60 @@ public abstract class Fragment(
         if(func.RequiresStatementInlining) {
             return func.RenderInlineAssign(destination,番号,arguments);
         }
-
+        if(func.CanInvokeAsDelegate) {
+            return $"{destination}={func.DelegateFieldName}.Invoke({string.Join(", ", arguments)});";
+        }
         if(func.CanInlineAssign) {
             return func.RenderInlineAssign(destination,番号,arguments);
         }
-
         if(func is LambdaFunc) {
             throw LambdaInlineUnsupported(func,methodName);
         }
         return $"{destination}={FuncInvoke(func,methodName,arguments)};";
     }
 
-    // フラットループ内では全ラムダを直接式へ展開する。
-    private protected string FuncAssignFlat(FuncFragment func,string methodName,string destination,params string[] arguments) {
-        if(func.RequiresStatementInlining) {
-            return func.RenderInlineAssign(destination,番号,arguments);
+    // TryGetNext 内で destination フィールドと out current の両方を設定する複合代入を生成する。
+    // 単純ラムダなら current = destination = expr; の一行に。
+    // RequiresStatementInlining またはデリゲート呼び出しの場合は FuncAssign の後に current = destination; を付加する。
+    private protected string FuncAssignCurrent(FuncFragment func,string methodName,string destination,params string[] arguments) {
+        if(func.RequiresStatementInlining || (!func.CanInlineAssign && !func.CanInvokeAsDelegate)) {
+            return $"{FuncAssign(func,methodName,destination,arguments)}\ncurrent = {destination};";
         }
+        var expr = FuncInvoke(func,methodName,arguments);
+        return $"current = {destination} = {expr};";
+    }
 
-        return $"{destination}={FuncInvokeFlat(func,methodName,arguments)};";
+    // 述語評価専用ヘルパー。if文の条件式として使う場合に特化。
+    // 単純ラムダなら直接式として展開（一時変数なし）。
+    // RequiresStatementInlining=true（InlinedScalarFuncなど）なら一時変数経由にフォールバック。
+    private protected (string preCode, string conditionExpr) FuncInvokeCondition(FuncFragment func,string methodName,string tempVar,params string[] arguments) {
+        if(func.RequiresStatementInlining) {
+            // InlinedScalarFunc など複数文が必要な場合は一時変数経由
+            var declaration = $"{func.ReturnTypeName} {tempVar} = default!;";
+            var assignStatement = func.RenderInlineAssign(tempVar,番号,arguments);
+            return ($"{declaration}\n{assignStatement}", tempVar);
+        }
+        if(func.CanInvokeAsDelegate) {
+            return (string.Empty, $"{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})");
+        }
+        if(func.CanInlineAssign) {
+            // 単純ラムダなら直接式として展開
+            return (string.Empty, func.RenderInlineExpression(arguments));
+        }
+        throw LambdaInlineUnsupported(func,methodName);
     }
 
     // 各断片が持つ Current/TryGetNext/Dispose を IValueEnumerator struct にまとめる。
     private protected string DefineEnumeratorStructCore(string currentType,string disposeBody) {
+        var tryGetNextBody = IndentLines(GetTryGetNextBody, "        ");
+        var dispose = IndentLines(disposeBody, "        ");
+        var fields = IndentLines(GetEnumeratorFields, "    ");
+        var ctor = IndentLines(GetEnumeratorConstructor, "    ");
+
         return $$"""
             {{GetEnumeratorStructDeclaration($"global::Seamless.Linq.Carrier.IValueEnumerator<{currentType}>, global::System.Collections.Generic.IEnumerator<{currentType}>")}}
-                {{GetEnumeratorFields}}
-                {{GetEnumeratorConstructor}}
+            {{fields}}
+            {{ctor}}
                 public {{currentType}} Current => {{GetCurrentExpression}};
                 object? global::System.Collections.IEnumerator.Current => Current;
                 {{AggressiveInliningAttribute}}
@@ -230,14 +279,33 @@ public abstract class Fragment(
                 public bool TryCopyTo(scoped global::System.Span<{{currentType}}> destination, global::System.Index offset) => false;
                 {{AggressiveInliningAttribute}}
                 public bool TryGetNext(out {{currentType}} current) {
-                    {{GetTryGetNextBody}}
+            {{tryGetNextBody}}
                 }
                 {{AggressiveInliningAttribute}}
                 public void Dispose() {
-                    {{disposeBody}}
+            {{dispose}}
                 }
             }
             """;
+    }
+
+    private protected static string IndentLines(string text, string indent) {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+
+        var lines = text.Replace("\r\n", "\n").Split('\n');
+        var result = new System.Text.StringBuilder();
+
+        for (int i = 0; i < lines.Length; i++) {
+            var line = lines[i];
+            if (!string.IsNullOrWhiteSpace(line)) {
+                result.Append(indent).Append(line);
+            }
+            if (i < lines.Length - 1) {
+                result.AppendLine();
+            }
+        }
+
+        return result.ToString();
     }
 
     // 単一上流源を持つ断片はこれをオーバーライドする。
@@ -275,22 +343,6 @@ public abstract class Fragment(
         throw LambdaInlineUnsupported(func,methodName);
     }
 
-    // フラットループ内で使う。全ラムダをインライン展開（@this が静的メソッドスコープで有効）。
-    private protected string FuncInvokeFlat(FuncFragment func,string methodName,params string[] arguments) {
-        if(!func.CanInlineAssign) {
-            throw LambdaInlineUnsupported(func,methodName);
-        }
-        return func.RenderInlineExpression(arguments);
-    }
-
-    // terminal チェーンでフラットループ生成をサポートするかどうか。
-    public virtual bool SupportsFlatLoop => false;
-
-    // フラットループ生成。elementVariable に各要素を束縛し bodyCode を実行するコードを返す。
-    // 末尾メソッドのスコープに展開されるため @this が使用可能。
-    public virtual string GetFlatLoopCode(string elementVariable,string bodyCode) =>
-        throw new NotSupportedException($"{GetType().Name} does not support flat loop code generation.");
-
     // IEnumerable<T> / T[] の文字列型名から要素型名を取り出す。
     private protected static string SequenceElementTypeName(string sequenceTypeName) {
         if(sequenceTypeName.EndsWith("[]",StringComparison.Ordinal)) {
@@ -320,6 +372,22 @@ public abstract class Fragment(
     // FuncFragment の戻り値型名を取り出す。
     private protected static string FuncReturnTypeName(FuncFragment func) {
         return func.ReturnTypeName;
+    }
+
+    // 型推論用ファクトリメソッドの名前。
+    // "_Factory" サフィックスは 静的メソッド群と本体を補助クラスへ退避21() の Struct{番号} リネーム正規表現に対応している。
+    // 例: Struct0_Factory → {prefix}Struct0_Factory （メソッドごとにユニークな名前に変換される）。
+    private protected string FactoryMethodName => $"{Struct}_Factory";
+
+    // ファクトリメソッド本体のコンストラクタ呼び出し引数サフィックス。
+    // ClosureArgsSuffix と異なり、DelegateConstructorArg（ラムダ式）ではなく DelegateFieldName（フィールド名）を使う。
+    private protected string ClosureArgsSuffixForFactory(params FuncFragment[] funcs) {
+        var captures = DistinctCapturedLocals(funcs).ToArray();
+        var delegates = DistinctDelegateFuncs(funcs).ToArray();
+        var parts = captures.Select(static c => c.Name)
+            .Concat(delegates.Select(static f => f.DelegateFieldName!));
+        var joined = string.Join(", ", parts);
+        return string.IsNullOrEmpty(joined) ? string.Empty : ", " + joined;
     }
 
     private protected static InvalidOperationException LambdaInlineUnsupported(FuncFragment func,string methodName) =>

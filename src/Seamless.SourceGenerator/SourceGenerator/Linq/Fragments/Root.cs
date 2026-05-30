@@ -43,8 +43,7 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
                 if({{e}}.MoveNext()) {
-                    {{currentValue}} = {{e}}.Current;
-                    current = {{currentValue}};
+                    current = {{currentValue}} = {{e}}.Current;
                     return true;
                 }
                 current = default!;
@@ -61,8 +60,7 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
     public override string GetEnumeratorFields => $"private {elementType} {currentValue} = default!;";
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
-            {{currentValue}} = {{e}}.Current;
-            current = {{currentValue}};
+            current = {{currentValue}} = {{e}}.Current;
             return true;
         }
         current = default!;
@@ -143,8 +141,7 @@ public class NonGenericRoot(int 番号, string sourceExpression) : Enumerable(�
         """;
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
-            {{currentValue}} = {{e}}.Current;
-            current = {{currentValue}};
+            current = {{currentValue}} = {{e}}.Current;
             return true;
         }
         current = default!;

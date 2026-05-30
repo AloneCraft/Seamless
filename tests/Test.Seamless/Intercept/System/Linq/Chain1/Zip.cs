@@ -8,8 +8,8 @@ public sealed class Zip:LinqChain1TestBase {
     public static void second() => secondImpl();
 
     private static void secondImpl() {
-        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second());
-        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second());
+        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second()).ToList();
+        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second()).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -17,8 +17,8 @@ public sealed class Zip:LinqChain1TestBase {
     public static void second_third() => second_thirdImpl();
 
     private static void second_thirdImpl() {
-        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),LinqChain1TestBase.EqualSource());
-        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),LinqChain1TestBase.EqualSource());
+        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),LinqChain1TestBase.EqualSource()).ToList();
+        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),LinqChain1TestBase.EqualSource()).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -26,8 +26,8 @@ public sealed class Zip:LinqChain1TestBase {
     public static void second_resultSelector_Static() => second_resultSelector_StaticImpl();
 
     private static void second_resultSelector_StaticImpl() {
-        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),static (a,b) => a+b);
-        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),static (a,b) => a+b);
+        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),static (a,b) => a+b).ToList();
+        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),static (a,b) => a+b).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -35,8 +35,8 @@ public sealed class Zip:LinqChain1TestBase {
     public static void second_resultSelector_Lambda() => second_resultSelector_LambdaImpl();
 
     private static void second_resultSelector_LambdaImpl() {
-        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),(a,b) => a+b);
-        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),(a,b) => a+b);
+        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),(a,b) => a+b).ToList();
+        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),(a,b) => a+b).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -45,8 +45,8 @@ public sealed class Zip:LinqChain1TestBase {
 
     private static void second_resultSelector_CapturedImpl() {
         var offset=0;
-        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),(a,b) => a+b+offset);
-        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),(a,b) => a+b+offset);
+        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),(a,b) => a+b+offset).ToList();
+        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),(a,b) => a+b+offset).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -54,8 +54,8 @@ public sealed class Zip:LinqChain1TestBase {
     public static void second_resultSelector_DelegateSyntax() => second_resultSelector_DelegateSyntaxImpl();
 
     private static void second_resultSelector_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),delegate(int a,int b) { return a+b; });
-        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),delegate(int a,int b) { return a+b; });
+        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),delegate(int a,int b) { return a+b; }).ToList();
+        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),delegate(int a,int b) { return a+b; }).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -64,8 +64,8 @@ public sealed class Zip:LinqChain1TestBase {
 
     private static void second_resultSelector_VariableImpl() {
         Func<int,int,int> resultSelector=(a,b) => a+b;
-        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),resultSelector);
-        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),resultSelector);
+        var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),resultSelector).ToList();
+        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),resultSelector).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 

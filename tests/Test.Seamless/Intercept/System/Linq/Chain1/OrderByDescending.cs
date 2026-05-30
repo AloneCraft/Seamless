@@ -8,8 +8,8 @@ public sealed class OrderByDescending:LinqChain1TestBase {
     public static void keySelector_Static() => keySelector_StaticImpl();
 
     private static void keySelector_StaticImpl() {
-        var expected=SystemEnumerable.OrderByDescending(LinqChain1TestBase.Rows(),static row => row.Key);
-        var actual=LinqChain1TestBase.Rows().OrderByDescending(static row => row.Key);
+        var expected=SystemEnumerable.OrderByDescending(LinqChain1TestBase.Rows(),static row => row.Key).ToList();
+        var actual=LinqChain1TestBase.Rows().OrderByDescending(static row => row.Key).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -17,8 +17,8 @@ public sealed class OrderByDescending:LinqChain1TestBase {
     public static void keySelector_Lambda() => keySelector_LambdaImpl();
 
     private static void keySelector_LambdaImpl() {
-        var expected=SystemEnumerable.OrderByDescending(LinqChain1TestBase.Rows(),row => row.Key);
-        var actual=LinqChain1TestBase.Rows().OrderByDescending(row => row.Key);
+        var expected=SystemEnumerable.OrderByDescending(LinqChain1TestBase.Rows(),row => row.Key).ToList();
+        var actual=LinqChain1TestBase.Rows().OrderByDescending(row => row.Key).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -27,8 +27,8 @@ public sealed class OrderByDescending:LinqChain1TestBase {
 
     private static void keySelector_CapturedImpl() {
         var offset=0;
-        var expected=SystemEnumerable.OrderByDescending(LinqChain1TestBase.Rows(),row => row.Key+offset);
-        var actual=LinqChain1TestBase.Rows().OrderByDescending(row => row.Key+offset);
+        var expected=SystemEnumerable.OrderByDescending(LinqChain1TestBase.Rows(),row => row.Key+offset).ToList();
+        var actual=LinqChain1TestBase.Rows().OrderByDescending(row => row.Key+offset).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -36,8 +36,8 @@ public sealed class OrderByDescending:LinqChain1TestBase {
     public static void keySelector_DelegateSyntax() => keySelector_DelegateSyntaxImpl();
 
     private static void keySelector_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.OrderByDescending(LinqChain1TestBase.Rows(),delegate(Chain1Row row) { return row.Key; });
-        var actual=LinqChain1TestBase.Rows().OrderByDescending(delegate(Chain1Row row) { return row.Key; });
+        var expected=SystemEnumerable.OrderByDescending(LinqChain1TestBase.Rows(),delegate(Chain1Row row) { return row.Key; }).ToList();
+        var actual=LinqChain1TestBase.Rows().OrderByDescending(delegate(Chain1Row row) { return row.Key; }).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -46,8 +46,8 @@ public sealed class OrderByDescending:LinqChain1TestBase {
 
     private static void keySelector_VariableImpl() {
         Func<Chain1Row,int> keySelector=row => row.Key;
-        var expected=SystemEnumerable.OrderByDescending(LinqChain1TestBase.Rows(),keySelector);
-        var actual=LinqChain1TestBase.Rows().OrderByDescending(keySelector);
+        var expected=SystemEnumerable.OrderByDescending(LinqChain1TestBase.Rows(),keySelector).ToList();
+        var actual=LinqChain1TestBase.Rows().OrderByDescending(keySelector).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -55,8 +55,8 @@ public sealed class OrderByDescending:LinqChain1TestBase {
     public static void keySelector_comparer() => keySelector_comparerImpl();
 
     private static void keySelector_comparerImpl() {
-        var expected=SystemEnumerable.OrderByDescending(LinqChain1TestBase.Rows(),static row => row.Key,Comparer<int>.Default);
-        var actual=LinqChain1TestBase.Rows().OrderByDescending(static row => row.Key,Comparer<int>.Default);
+        var expected=SystemEnumerable.OrderByDescending(LinqChain1TestBase.Rows(),static row => row.Key,Comparer<int>.Default).ToList();
+        var actual=LinqChain1TestBase.Rows().OrderByDescending(static row => row.Key,Comparer<int>.Default).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
