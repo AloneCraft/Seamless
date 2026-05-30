@@ -40,8 +40,8 @@ public class Select_index(int 番号, Enumerable source, FuncFragment selector) 
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
             var {{item}} = {{e}}.Current;
-            {{a}}++;
-            {{FuncAssignCurrent(selector,nameof(selector),currentValue,item,a)}}
+            this.{{a}}++;
+            {{FuncAssignCurrent(selector,nameof(selector),$"this.{currentValue}",item,$"this.{a}")}}
             return true;
         }
         current = default!;

@@ -541,6 +541,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 continue;
             }
 
+            // 静的呼び出し（SystemEnumerable.Method(source, ...)）は最適化対象外。
+            // 拡張メソッド呼び出し（source.Method(...)）のみを intercept 対象とする。
+            if(invokedMethod.ReducedFrom is null) {
+                continue;
+            }
+
+            // out/ref パラメータを持つメソッド（TryGetNonEnumeratedCount 等）は
+            // Fragment 化できないため解析対象外とする。
+            if(definition.Parameters.Any(static p => p.RefKind != RefKind.None)) {
+                continue;
+            }
+
             hasEnumerableCall=true;
             if(!Enumerableメソッドフラグメント対応判定32(definition.Name)) {
                 unsupportedMethods.Add(definition.Name);
@@ -2418,7 +2430,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     private static List<InvocationExpressionSyntax> 外側LINQ呼び出し取得41(StatementSyntax statement,SemanticModel semanticModel) {
         return statement.DescendantNodes()
             .OfType<InvocationExpressionSyntax>()
-            .Where(invocation => SystemLinqEnumerable呼び出し判定42(invocation,semanticModel))
+            // 拡張メソッド呼び出しのみを対象とし、out/ref パラメータ持ちは除外する
+            .Where(invocation => SystemLinqEnumerable呼び出し判定42(invocation,semanticModel)
+                && semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol { ReducedFrom: not null } method
+                && !(method.ReducedFrom ?? method).Parameters.Any(static p => p.RefKind != RefKind.None))
             .Where(invocation => !invocation.Ancestors()
                 .TakeWhile(ancestor => ancestor!=statement)
                 .OfType<LambdaExpressionSyntax>()

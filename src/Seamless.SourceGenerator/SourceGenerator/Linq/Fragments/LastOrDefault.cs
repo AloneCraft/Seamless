@@ -16,3 +16,49 @@ public class LastOrDefault(int 番号, Enumerable source, string resultType) : B
         """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
+
+public class LastOrDefault_defaultValue(int 番号, Enumerable source, string defaultValue, string resultType) : BufferedScalar(番号, resultType) {
+    public static bool IsApplicableOverload(IMethodSymbol method) =>
+        method.Parameters.Length == 1 && method.Parameters[0].Type.TypeKind != TypeKind.Delegate;
+    protected override Enumerable PrimarySource => source;
+    public override string StructMethod => string.Empty;
+    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {defaultValue})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {resultType} defaultValue";
+    protected override string ComputeExpression => $"Compute({e}, defaultValue)";
+    protected override string ComputeMembers => $$"""
+        private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue) {
+            {{resultType}} result = defaultValue;
+            while(source.MoveNext()) result = source.Current;
+            return result;
+        }
+        """;
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+}
+
+public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment predicate, string resultType) : BufferedScalar(番号, resultType) {
+    public static bool IsApplicableOverload(IMethodSymbol method) =>
+        method.Parameters.Length > 0 && method.Parameters[0].Type.TypeKind == TypeKind.Delegate;
+    protected override Enumerable PrimarySource => source;
+    public override string StructMethod => FuncSupport(predicate, nameof(predicate));
+    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string GetEnumeratorExpression =>
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
+    public override string GetEnumeratorPrimaryConstructorParameters =>
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
+    protected override string ComputeExpression =>
+        $"Compute({e}{ClosureArgsSuffix(predicate)})";
+    protected override string ComputeMembers => $$"""
+        private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
+            {{resultType}} result = default!;
+            while(source.MoveNext()) {
+                var {{item}} = source.Current;
+                bool {{temp}} = default!;
+                {{FuncAssign(predicate, nameof(predicate), temp, item)}}
+                if({{temp}}) result = {{item}};
+            }
+            return result;
+        }
+        """;
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+}

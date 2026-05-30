@@ -17,13 +17,13 @@ public class Take(int 番号, Enumerable source, string count) : Enumerable(番�
         private int {{a}} = 0;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{a}} >= count) {
+        if(this.{{a}} >= this.count) {
             current = default!;
             return false;
         }
         if({{e}}.MoveNext()) {
-            {{a}}++;
-            current = {{currentValue}} = {{e}}.Current;
+            this.{{a}}++;
+            current = this.{{currentValue}} = {{e}}.Current;
             return true;
         }
         current = default!;

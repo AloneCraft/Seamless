@@ -12,7 +12,7 @@ public class AsEnumerable(int 番号, Enumerable source) : Enumerable(番号) {
     public override string GetEnumeratorFields => $"private {source.ElementType} {currentValue} = default!;";
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
-            current = {{currentValue}} = {{e}}.Current;
+            current = this.{{currentValue}} = {{e}}.Current;
             return true;
         }
         current = default!;

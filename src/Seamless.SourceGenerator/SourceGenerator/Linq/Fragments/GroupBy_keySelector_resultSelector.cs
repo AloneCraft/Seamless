@@ -35,9 +35,14 @@ public class GroupBy_keySelector_resultSelector(
             => new(new {{Struct}}<TEnum, TResult>(source{{ClosureArgsSuffixForFactory(keySelector, resultSelector)}}));
         """;
 
-    public override string StructMethod => JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)), FactorySource);
+    public override string StructMethod => JoinStaticMethods(JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)), FuncSupport(resultSelector, nameof(resultSelector))), FactorySource);
 
     protected override string StructSources => source.GetEnumeratorStruct;
+
+    public override string GetEnumeratorExpression =>
+        UseResultTypeParam
+            ? throw new global::System.NotSupportedException($"{GetType().Name} does not support direct GetEnumeratorExpression for anonymous result type; use GetEnumerableExpression.")
+            : $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector, resultSelector)})";
 
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum source{ClosurePrimaryCtorSuffix(keySelector, resultSelector)}";

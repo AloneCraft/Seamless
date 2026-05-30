@@ -36,7 +36,7 @@ public class Select(int 番号,Enumerable source,FuncFragment selector):Enumerab
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
             var {{item}} = {{e}}.Current;
-            {{FuncAssignCurrent(selector,nameof(selector),currentValue,item)}}
+            {{FuncAssignCurrent(selector,nameof(selector),$"this.{currentValue}",item)}}
             return true;
         }
         current = default!;
@@ -62,9 +62,9 @@ public class Select_WithInlinedScalar(int 番号, Enumerable source, Fragment sc
         if({{e}}.MoveNext()) {
             var {{outerParamName}} = {{e}}.Current;
             var {{item}} = {{scalarFrag.GetEnumeratorExpression}};
-            {{item}}.TryGetNext(out {{currentValue}});
+            {{item}}.TryGetNext(out this.{{currentValue}});
             {{item}}.Dispose();
-            current = {{currentValue}};
+            current = this.{{currentValue}};
             return true;
         }
         current = default!;

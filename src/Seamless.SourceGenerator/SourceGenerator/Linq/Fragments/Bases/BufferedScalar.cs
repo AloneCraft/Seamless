@@ -3,23 +3,24 @@ public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番�
     protected abstract string ComputeExpression { get; }
     protected virtual string ComputeMembers => string.Empty;
     protected virtual string StructSources => string.Empty;
+    protected override string GetCurrentPropertyDeclaration(string currentType) => string.Empty;
+    public override string GetCurrentExpression => "Current";
     public override string GetEnumeratorStruct => $$"""
         {{StructSources}}
         {{DefineScalarEnumeratorStruct(resultType)}}
         """;
     public override string GetEnumeratorFields => $$"""
-        private readonly {{resultType}} {{result}} = {{ComputeExpression}};
+        public {{resultType}} Current { get; private set; } = {{ComputeExpression}};
         private bool {{yielded}} = false;
         {{ComputeMembers}}
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{yielded}}) {
+        if(this.{{yielded}}) {
             current = default!;
             return false;
         }
-        {{yielded}} = true;
-        current = {{result}};
+        this.{{yielded}} = true;
+        current = this.Current;
         return true;
         """;
-    public override string GetCurrentExpression => result;
 }

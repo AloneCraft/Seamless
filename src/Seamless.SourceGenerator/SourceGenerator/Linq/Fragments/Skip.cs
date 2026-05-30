@@ -17,15 +17,15 @@ public class Skip(int 番号, Enumerable source, string count) : Enumerable(番�
         private bool skipped = false;
         """;
     public override string GetTryGetNextBody => $$"""
-        if(!skipped) {
-            skipped = true;
-            var remaining = count;
+        if(!this.skipped) {
+            this.skipped = true;
+            var remaining = this.count;
             while(remaining > 0 && {{e}}.MoveNext()) {
                 remaining--;
             }
         }
         if({{e}}.MoveNext()) {
-            current = {{currentValue}} = {{e}}.Current;
+            current = this.{{currentValue}} = {{e}}.Current;
             return true;
         }
         current = default!;

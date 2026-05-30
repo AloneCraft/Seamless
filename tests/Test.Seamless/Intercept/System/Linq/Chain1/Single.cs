@@ -35,7 +35,7 @@ public sealed class Single:LinqChain1TestBase {
     public static void predicate_Captured() => predicate_CapturedImpl();
 
     private static void predicate_CapturedImpl() {
-        var threshold=2;
+        var threshold=3;
         var expected=SystemEnumerable.Single(LinqChain1TestBase.Source(),v => v>threshold);
         var actual=LinqChain1TestBase.Source().Single(v => v>threshold);
         Assert.Equal(expected,actual);
