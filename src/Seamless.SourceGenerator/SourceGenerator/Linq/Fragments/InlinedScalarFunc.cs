@@ -32,9 +32,11 @@ public sealed class InlinedScalarFunc(Fragment scalarFragment) : LambdaFunc {
                 """;
         }
 
+        var tempName = $"__scalarTmp_{number}";
         return $$"""
             using(var {{enumeratorName}} = {{enumeratorExpression}}) {
-                {{enumeratorName}}.TryGetNext(out {{destination}});
+                {{enumeratorName}}.TryGetNext(out var {{tempName}});
+                {{destination}} = {{tempName}};
             }
             """;
     }

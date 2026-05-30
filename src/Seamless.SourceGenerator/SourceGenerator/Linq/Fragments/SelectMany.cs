@@ -72,7 +72,6 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
     public override string GetEnumeratorFields => $$"""
         private global::System.Collections.Generic.IEnumerator<{{CollectionElementType}}>? innerEnumerator = null;
         private {{source.ElementType}} {{outerValue}} = default!;
-        private {{ElementType}} {{currentValue}} = default!;
         """;
     public override string GetTryGetNextBody => $$"""
         {{Start}}:
@@ -232,7 +231,6 @@ public class SelectMany_WithInlinedInner(int 番号, Enumerable source, Enumerab
         private {{InnerEnumeratorTypeName}} innerEnumerator = default!;
         private bool {{hasValue}} = false;
         private {{source.ElementType}} {{outerValue}} = default!;
-        private {{ElementType}} {{currentValue}} = default!;
         """;
 
     // bool flag replaces the null check

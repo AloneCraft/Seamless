@@ -10,8 +10,8 @@ public class All(int 番号, Enumerable source, FuncFragment predicate) : Scalar
         """;
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
+    protected override string GetCurrentPropertyDefaultExpression => "true";
     public override string GetEnumeratorFields => $$"""
-        private bool {{currentValue}} = true;
         private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody {

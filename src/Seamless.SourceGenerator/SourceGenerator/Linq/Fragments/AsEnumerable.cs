@@ -9,7 +9,7 @@ public class AsEnumerable(int 番号, Enumerable source) : Enumerable(番号) {
         """;
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
-    public override string GetEnumeratorFields => $"private {source.ElementType} {currentValue} = default!;";
+    public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
             current = this.{{currentValue}} = {{e}}.Current;

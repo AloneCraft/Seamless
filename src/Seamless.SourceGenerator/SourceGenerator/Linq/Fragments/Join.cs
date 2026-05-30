@@ -40,7 +40,6 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
         private int {{groupIndex}};
         private int {{state}};
         private {{outer.ElementType}} {{outerValue}};
-        private {{ElementType}} {{currentValue}};
         """;
     public override string GetEnumeratorConstructor => $$"""
         public {{Struct}}(
@@ -61,7 +60,6 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
             {{groupIndex}} = 0;
             {{state}} = 0;
             {{outerValue}} = default!;
-            {{currentValue}} = default!;
         }
         """;
     public override string GetTryGetNextBody => $$"""
@@ -69,7 +67,7 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
         if({{state}}==1 && {{group}} is not null) {
             if({{groupIndex}}<{{group}}.Count) {
                 var {{item}} = {{group}}[{{groupIndex}}++];
-                {{FuncAssignCurrent(resultSelector,nameof(resultSelector),currentValue,outerValue,item)}}
+                {{FuncAssignCurrent(resultSelector,nameof(resultSelector),$"this.{currentValue}",outerValue,item)}}
                 return true;
             }
             {{group}} = null;

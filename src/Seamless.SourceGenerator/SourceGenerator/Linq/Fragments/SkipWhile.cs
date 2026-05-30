@@ -14,7 +14,6 @@ public class SkipWhile(int 番号, Enumerable source, FuncFragment predicate) : 
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => $$"""
-        private {{source.ElementType}} {{currentValue}} = default!;
         private bool skipping = true;
         """;
     public override string GetTryGetNextBody {
@@ -52,7 +51,6 @@ public class SkipWhile_index(int 番号, Enumerable source, FuncFragment predica
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => $$"""
-        private {{source.ElementType}} {{currentValue}} = default!;
         private bool skipping = true;
         private int {{a}} = -1;
         """;

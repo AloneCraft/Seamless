@@ -32,7 +32,7 @@ public class Select(int 番号,Enumerable source,FuncFragment selector):Enumerab
             : base.GetEnumerableExpression;
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
-    public override string GetEnumeratorFields => $"private {ElementType} {currentValue} = default!;";
+    public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
             var {{item}} = {{e}}.Current;
@@ -57,13 +57,14 @@ public class Select_WithInlinedScalar(int 番号, Enumerable source, Fragment sc
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
-    public override string GetEnumeratorFields => $"private {ElementType} {currentValue} = default!;";
+    public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
             var {{outerParamName}} = {{e}}.Current;
             var {{item}} = {{scalarFrag.GetEnumeratorExpression}};
-            {{item}}.TryGetNext(out this.{{currentValue}});
+            {{item}}.TryGetNext(out var {{temp}});
             {{item}}.Dispose();
+            this.{{currentValue}} = {{temp}};
             current = this.{{currentValue}};
             return true;
         }

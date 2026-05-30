@@ -2531,9 +2531,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     // 選んだ名前は usedNames に追加され、同一パス内での二重取得を防ぐ（メソッドスコープ変数用）。
     private static string GetUniqueIdentifier(string baseName, HashSet<string> usedNames) {
         if(usedNames.Add(baseName)) return baseName;
-        for(var i = 0; ; i++) {
-            var candidate = $"{baseName}{i}";
+        var suffix = "_";
+        while(true) {
+            var candidate = $"{baseName}{suffix}";
             if(usedNames.Add(candidate)) return candidate;
+            suffix += "_";
         }
     }
 

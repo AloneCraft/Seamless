@@ -29,6 +29,21 @@ public class LightEpochLimitTests {
             foreach(var s in stores) s.Dispose();
         }
     }
+    [Theory]
+    [InlineData(16)]
+    [InlineData(17)]
+    public void MaxInstances_Stores_AllSucceed(int Count) {
+        var stores = new global::System.Collections.Generic.List<DictionaryStore<int,int>>();
+        try {
+            for(var i = 0; i<Count; i++) {
+                stores.Add(HashStore.Create().Create<int,int>());
+            }
+            Assert.Equal(Count,stores.Count);
+        }
+        finally {
+            foreach(var s in stores) s.Dispose();
+        }
+    }
 
     /// <summary>
     /// 17 蛟狗岼縺ｮ Store 菴懈・縺御ｾ句､悶↓縺ｪ繧九％縺ｨ繧堤｢ｺ隱阪☆繧・(MaxInstances = 16 雜・℃)縲・

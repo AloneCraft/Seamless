@@ -9,7 +9,7 @@ public class OfType(int 番号, Enumerable source, string resultElementType) : E
         """;
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
-    public override string GetEnumeratorFields => $"private {resultElementType} {currentValue} = default!;";
+    public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
         while({{e}}.MoveNext()) {
             if({{e}}.Current is {{resultElementType}} {{item}}) {
