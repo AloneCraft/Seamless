@@ -34,7 +34,6 @@ public class Select_index(int 番号, Enumerable source, FuncFragment selector) 
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
     public override string GetEnumeratorFields => $$"""
-        private {{ElementType}} {{currentValue}} = default!;
         private int {{a}} = -1;
         """;
     public override string GetTryGetNextBody => $$"""

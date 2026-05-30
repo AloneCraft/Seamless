@@ -21,8 +21,7 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
         private struct {{Struct}}<TEnum>(TEnum {{e}}) : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
             where TEnum : {{(useEnumerableInterface ? "" : "struct, ")}}global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
-            private {{elementType}} {{currentValue}} = default!;
-            public {{elementType}} Current => {{currentValue}};
+            public {{elementType}} Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
             void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
@@ -43,7 +42,7 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
                 if({{e}}.MoveNext()) {
-                    current = {{currentValue}} = {{e}}.Current;
+                    current = this.Current = {{e}}.Current;
                     return true;
                 }
                 current = default!;
@@ -57,10 +56,10 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
         """;
     // GetEnumeratorStruct を手動出力しているのでこれらは使われないが実装が必要。
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
-    public override string GetEnumeratorFields => $"private {elementType} {currentValue} = default!;";
+    public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
-            current = {{currentValue}} = {{e}}.Current;
+            current = this.Current = {{e}}.Current;
             return true;
         }
         current = default!;
@@ -137,11 +136,10 @@ public class NonGenericRoot(int 番号, string sourceExpression) : Enumerable(�
     public override string GetEnumeratorPrimaryConstructorParameters => "global::System.Collections.IEnumerable source";
     public override string GetEnumeratorFields => $$"""
         private readonly global::System.Collections.IEnumerator {{e}} = source.GetEnumerator();
-        private object {{currentValue}} = default!;
         """;
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
-            current = {{currentValue}} = {{e}}.Current;
+            current = this.Current = {{e}}.Current;
             return true;
         }
         current = default!;

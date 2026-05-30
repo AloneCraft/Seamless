@@ -60,7 +60,6 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
         """;
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     public override string GetEnumeratorFields => $$"""
-        private bool {{currentValue}} = false;
         private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""

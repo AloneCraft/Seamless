@@ -13,7 +13,7 @@ public class Where(int 番号, Enumerable source, FuncFragment predicate) : Enum
         $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
-    public override string GetEnumeratorFields => $"private {source.ElementType} {currentValue} = default!;";
+    public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody {
         get {
             var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item);
@@ -53,7 +53,7 @@ public class Where_WithInlinedScalarPredicate(int 番号, Enumerable source, Fra
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
-    public override string GetEnumeratorFields => $"private {ElementType} {currentValue} = default!;";
+    public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
         while({{e}}.MoveNext()) {
             var {{outerParamName}} = {{e}}.Current;
@@ -128,7 +128,6 @@ public class Where_index(int 番号, Enumerable source, FuncFragment predicate) 
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => $$"""
-        private {{source.ElementType}} {{currentValue}} = default!;
         private int {{a}} = -1;
         """;
     public override string GetTryGetNextBody {

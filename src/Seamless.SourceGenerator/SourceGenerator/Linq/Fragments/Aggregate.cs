@@ -11,7 +11,6 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(func)}";
     public override string GetEnumeratorFields => $$"""
-        private {{source.ElementType}} {{currentValue}} = default!;
         private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
@@ -47,7 +46,6 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(func)}";
     public override string GetEnumeratorFields => $$"""
-        private {{FuncParameterTypeName(func,0)}} {{currentValue}} = default!;
         private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
@@ -83,7 +81,6 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(func,resultSelector)}";
     public override string GetEnumeratorFields => $$"""
-        private {{FuncReturnTypeName(resultSelector)}} {{currentValue}} = default!;
         private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""

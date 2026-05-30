@@ -15,7 +15,6 @@ public class TakeWhile(int 番号, Enumerable source, FuncFragment predicate) : 
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => $$"""
-        private {{source.ElementType}} {{currentValue}} = default!;
         private bool done = false;
         """;
     public override string GetTryGetNextBody {
@@ -54,7 +53,6 @@ public class TakeWhile_index(int 番号, Enumerable source, FuncFragment predica
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => $$"""
-        private {{source.ElementType}} {{currentValue}} = default!;
         private bool done = false;
         private int {{a}} = -1;
         """;

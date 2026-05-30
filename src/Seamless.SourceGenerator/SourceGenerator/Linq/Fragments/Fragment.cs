@@ -35,8 +35,8 @@ public abstract class Fragment(
     private protected string hasValue => $"__hv{番号}";
     // OrderBy 系の並び替え済みバッファ名。
     private protected string ordered => $"__ord{番号}";
-    // Enumerator.Current を保持するためのフィールド名。
-    private protected string currentValue => $"__cv{番号}";
+    // Enumerator.Current を保持するプロパティ名。auto-property に統一したため常に "Current"。
+    private protected string currentValue => "Current";
     // 複数段階の列挙状態を管理する state 名。
     private protected string state => $"__st{番号}";
     // スカラー結果を 1 回だけ返したかどうかのフラグ名。
@@ -248,10 +248,12 @@ public abstract class Fragment(
         throw LambdaInlineUnsupported(func,methodName);
     }
 
+    // auto-property のイニシャライザ式。All のように true で初期化したい場合は override する。
+    protected virtual string GetCurrentPropertyDefaultExpression => "default!";
     // 各断片が持つ Current/TryGetNext/Dispose を IValueEnumerator struct にまとめる。
     // Current プロパティの宣言文。BufferedScalar はオートプロパティを GetEnumeratorFields で宣言するためこのメソッドを空文字列に override する。
     protected virtual string GetCurrentPropertyDeclaration(string currentType) =>
-        $"public {currentType} Current => {GetCurrentExpression};";
+        $"public {currentType} Current {{ get; private set; }} = {GetCurrentPropertyDefaultExpression};";
 
     private protected string DefineEnumeratorStructCore(string currentType,string disposeBody) {
         var tryGetNextBody = IndentLines(GetTryGetNextBody, "        ");

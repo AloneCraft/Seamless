@@ -37,7 +37,6 @@ public class GroupJoin(int 番号, Enumerable outer, Enumerable inner, FuncFragm
         private readonly global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(innerKeySelector)}}, global::System.Collections.Generic.List<{{inner.ElementType}}>> {{lookup}};
         private TOuterEnum {{e}};
         private int {{state}};
-        private {{ElementType}} {{currentValue}};
         """;
     public override string GetEnumeratorConstructor => $$"""
         public {{Struct}}(
@@ -59,7 +58,6 @@ public class GroupJoin(int 番号, Enumerable outer, Enumerable inner, FuncFragm
             }
             {{e}} = outer;
             {{state}} = 0;
-            {{currentValue}} = default!;
         }
         """;
     public override string GetTryGetNextBody => $$"""
@@ -74,8 +72,8 @@ public class GroupJoin(int 番号, Enumerable outer, Enumerable inner, FuncFragm
             if(!{{lookup}}.TryGetValue({{key}}, out var {{group}})) {
                 {{group}} = new global::System.Collections.Generic.List<{{inner.ElementType}}>();
             }
-            {{FuncAssign(resultSelector,nameof(resultSelector),currentValue,outerValue,group)}}
-            current = {{currentValue}};
+            {{FuncAssign(resultSelector,nameof(resultSelector),$"this.{currentValue}",outerValue,group)}}
+            current = this.{{currentValue}};
             return true;
         }
         {{state}} = 1;

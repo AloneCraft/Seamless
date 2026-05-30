@@ -10,13 +10,12 @@ public abstract class BufferedSequence(int 番号,string elementType) : Enumerab
     protected virtual string StructSources => string.Empty;
     public override string GetEnumeratorFields => $$"""
         private global::System.Collections.Generic.List<{{ElementType}}>.Enumerator {{e}} = {{BuildExpression}}.GetEnumerator();
-        private {{ElementType}} {{currentValue}} = default!;
         {{BuildMembers}}
         """;
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
-            {{currentValue}} = {{e}}.Current;
-            current = {{currentValue}};
+            this.Current = {{e}}.Current;
+            current = this.Current;
             return true;
         }
         current = default!;

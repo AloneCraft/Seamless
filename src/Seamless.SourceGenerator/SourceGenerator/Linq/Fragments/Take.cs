@@ -13,7 +13,6 @@ public class Take(int 番号, Enumerable source, string count) : Enumerable(番�
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int count";
     public override string GetEnumeratorFields => $$"""
         private readonly int count = count < 0 ? 0 : count;
-        private {{source.ElementType}} {{currentValue}} = default!;
         private int {{a}} = 0;
         """;
     public override string GetTryGetNextBody => $$"""

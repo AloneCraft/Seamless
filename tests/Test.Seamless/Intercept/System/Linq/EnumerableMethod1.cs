@@ -7,109 +7,94 @@ namespace Test.Seamless.Intercept.System.Linq;
 public sealed class EnumerableMethod1 {
     [Fact,Trait("Category","Unit")]
     public void Aggregate_func() {
-        Aggregate_func_Static();
-        Aggregate_func_Lambda();
-        Aggregate_func_Captured();
-        Aggregate_func_Delegate();
-        Aggregate_func_Variable();
-    }
-    [Fact, Trait("Category","Unit")]
-    public void Aggregate_seed_func(){
-        Aggregate_seed_func_Static();
-        Aggregate_seed_func_Lambda();
-        Aggregate_seed_func_Captured();
-        Aggregate_seed_func_Delegate();
-        Aggregate_seed_func_Variable();
-        Aggregate_seed_func_resultSelector_Static();
-        Aggregate_seed_func_resultSelector_Lambda();
-    }
-    [Fact, Trait("Category","Unit")]
-    public void Aggregate_seef_func_resultSelector(){
-        Aggregate_seed_func_resultSelector_Captured();
-        Aggregate_seed_func_resultSelector_Delegate();
-        Aggregate_seed_func_resultSelector_Variable();
-    }
-    private static void Aggregate_func_Static() {
-        var expected=SystemEnumerable.Aggregate(Source(),static (l,r) => l+r);
-        var actual=Source().Aggregate(static (l,r) => l+r);
-        Assert.Equal(expected,actual);
-    }
-    private static void Aggregate_func_Lambda() {
-        var expected=SystemEnumerable.Aggregate(Source(),(l,r) => l+r);
-        var actual=Source().Aggregate((l,r) => l+r);
-        Assert.Equal(expected,actual);
-    }
-    private static void Aggregate_func_Captured() {
+        // A: static lambda
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),static (l,r) => l+r),
+                   () => Source().Aggregate(static (l,r) => l+r));
+        // A: non-static lambda
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),(l,r) => l+r),
+                   () => Source().Aggregate((l,r) => l+r));
+        // A: captured lambda
         var offset=0;
-        var expected=SystemEnumerable.Aggregate(Source(),(l,r) => l+r+offset);
-        var actual=Source().Aggregate((l,r) => l+r+offset);
-        Assert.Equal(expected,actual);
-    }
-    private static void Aggregate_func_Delegate() {
-        var expected=SystemEnumerable.Aggregate(Source(),delegate(int l,int r) { return l+r; });
-        var actual=Source().Aggregate(delegate(int l,int r) { return l+r; });
-        Assert.Equal(expected,actual);
-    }
-    private static void Aggregate_func_Variable() {
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),(l,r) => l+r+offset),
+                   () => Source().Aggregate((l,r) => l+r+offset));
+        // A: delegate object (variable)
         Func<int,int,int> func=(l,r) => l+r;
-        var expected=SystemEnumerable.Aggregate(Source(),func);
-        var actual=Source().Aggregate(func);
-        Assert.Equal(expected,actual);
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),func),
+                   () => Source().Aggregate(func));
+        // C: delegate(return only)
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),delegate(int l,int r) { return l+r; }),
+                   () => Source().Aggregate(delegate(int l,int r) { return l+r; }));
+        // C: delegate(try-catch)
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),delegate(int l,int r) { try { return l+r; } catch { return 0; } }),
+                   () => Source().Aggregate(delegate(int l,int r) { try { return l+r; } catch { return 0; } }));
     }
-    private static void Aggregate_seed_func_Static() {
-        var expected=SystemEnumerable.Aggregate(Source(),0,static (sum,v) => sum+v);
-        var actual=Source().Aggregate(0,static (sum,v) => sum+v);
-        Assert.Equal(expected,actual);
-    }
-    private static void Aggregate_seed_func_Lambda() {
-        var expected=SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v);
-        var actual=Source().Aggregate(0,(sum,v) => sum+v);
-        Assert.Equal(expected,actual);
-    }
-    private static void Aggregate_seed_func_Captured() {
+    [Fact, Trait("Category","Unit")]
+    public void Aggregate_seed_func() {
+        // A: static lambda
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,static (sum,v) => sum+v),
+                   () => Source().Aggregate(0,static (sum,v) => sum+v));
+        // A: non-static lambda
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v),
+                   () => Source().Aggregate(0,(sum,v) => sum+v));
+        // A: captured lambda
         var offset=0;
-        var expected=SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v+offset);
-        var actual=Source().Aggregate(0,(sum,v) => sum+v+offset);
-        Assert.Equal(expected,actual);
-    }
-    private static void Aggregate_seed_func_Delegate() {
-        var expected=SystemEnumerable.Aggregate(Source(),0,delegate(int sum,int v) { return sum+v; });
-        var actual=Source().Aggregate(0,delegate(int sum,int v) { return sum+v; });
-        Assert.Equal(expected,actual);
-    }
-    private static void Aggregate_seed_func_Variable() {
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v+offset),
+                   () => Source().Aggregate(0,(sum,v) => sum+v+offset));
+        // A: delegate object (variable)
         Func<int,int,int> func=(sum,v) => sum+v;
-        var expected=SystemEnumerable.Aggregate(Source(),0,func);
-        var actual=Source().Aggregate(0,func);
-        Assert.Equal(expected,actual);
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,func),
+                   () => Source().Aggregate(0,func));
+        // C: delegate(return only)
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,delegate(int sum,int v) { return sum+v; }),
+                   () => Source().Aggregate(0,delegate(int sum,int v) { return sum+v; }));
+        // C: delegate(try-catch)
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,delegate(int sum,int v) { try { return sum+v; } catch { return 0; } }),
+                   () => Source().Aggregate(0,delegate(int sum,int v) { try { return sum+v; } catch { return 0; } }));
     }
-    private static void Aggregate_seed_func_resultSelector_Static() {
-        var expected=SystemEnumerable.Aggregate(Source(),0,static (sum,v) => sum+v,static sum => sum*2);
-        var actual=Source().Aggregate(0,static (sum,v) => sum+v,static sum => sum*2);
-        Assert.Equal(expected,actual);
-    }
-    private static void Aggregate_seed_func_resultSelector_Lambda() {
-        var expected=SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v,sum => sum*2);
-        var actual=Source().Aggregate(0,(sum,v) => sum+v,sum => sum*2);
-        Assert.Equal(expected,actual);
-    }
-    private static void Aggregate_seed_func_resultSelector_Captured() {
+    [Fact, Trait("Category","Unit")]
+    public void Aggregate_seed_func_resultSelector() {
         var offset=0;
-        var expected=SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v+offset,sum => sum*2+offset);
-        var actual=Source().Aggregate(0,(sum,v) => sum+v+offset,sum => sum*2+offset);
-        Assert.Equal(expected,actual);
-    }
-    private static void Aggregate_seed_func_resultSelector_Delegate() {
-        var expected=SystemEnumerable.Aggregate(Source(),0,delegate(int sum,int v) { return sum+v; },delegate(int sum) { return sum*2; });
-        var actual=Source().Aggregate(0,delegate(int sum,int v) { return sum+v; },delegate(int sum) { return sum*2; });
-        Assert.Equal(expected,actual);
-    }
-    private static void Aggregate_seed_func_resultSelector_Variable() {
         Func<int,int,int> func=(sum,v) => sum+v;
-        Func<int,int> resultSelector=sum => sum*2;
-        var expected=SystemEnumerable.Aggregate(Source(),0,func,resultSelector);
-        var actual=Source().Aggregate(0,func,resultSelector);
-        Assert.Equal(expected,actual);
+        Func<int,int> scalarSelector=sum => sum*2;
+        // B: scalar — A×C
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,static (sum,v) => sum+v,static sum => sum*2),
+                   () => Source().Aggregate(0,static (sum,v) => sum+v,static sum => sum*2));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v,sum => sum*2),
+                   () => Source().Aggregate(0,(sum,v) => sum+v,sum => sum*2));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v+offset,sum => sum*2+offset),
+                   () => Source().Aggregate(0,(sum,v) => sum+v+offset,sum => sum*2+offset));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,func,scalarSelector),
+                   () => Source().Aggregate(0,func,scalarSelector));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,delegate(int sum,int v) { return sum+v; },delegate(int sum) { return sum*2; }),
+                   () => Source().Aggregate(0,delegate(int sum,int v) { return sum+v; },delegate(int sum) { return sum*2; }));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,delegate(int sum,int v) { try { return sum+v; } catch { return 0; } },delegate(int sum) { try { return sum*2; } catch { return 0; } }),
+                   () => Source().Aggregate(0,delegate(int sum,int v) { try { return sum+v; } catch { return 0; } },delegate(int sum) { try { return sum*2; } catch { return 0; } }));
+        // B: value tuple — A×C
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,static (sum,v) => sum+v,static sum => (sum,sum*2)),
+                   () => Source().Aggregate(0,static (sum,v) => sum+v,static sum => (sum,sum*2)));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v,sum => (sum,sum*2)),
+                   () => Source().Aggregate(0,(sum,v) => sum+v,sum => (sum,sum*2)));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v+offset,sum => (sum,sum*2+offset)),
+                   () => Source().Aggregate(0,(sum,v) => sum+v+offset,sum => (sum,sum*2+offset)));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,func,sum => (sum,sum*2)),
+                   () => Source().Aggregate(0,func,sum => (sum,sum*2)));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,delegate(int sum,int v) { return sum+v; },delegate(int sum) { return (sum,sum*2); }),
+                   () => Source().Aggregate(0,delegate(int sum,int v) { return sum+v; },delegate(int sum) { return (sum,sum*2); }));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,delegate(int sum,int v) { try { return sum+v; } catch { return 0; } },delegate(int sum) { return (sum,sum*2); }),
+                   () => Source().Aggregate(0,delegate(int sum,int v) { try { return sum+v; } catch { return 0; } },delegate(int sum) { return (sum,sum*2); }));
+        // B: anonymous type — A×C
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,static (sum,v) => sum+v,static sum => new { Value=sum,Double=sum*2 }),
+                   () => Source().Aggregate(0,static (sum,v) => sum+v,static sum => new { Value=sum,Double=sum*2 }));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v,sum => new { Value=sum,Double=sum*2 }),
+                   () => Source().Aggregate(0,(sum,v) => sum+v,sum => new { Value=sum,Double=sum*2 }));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,(sum,v) => sum+v+offset,sum => new { Value=sum,Double=sum*2+offset }),
+                   () => Source().Aggregate(0,(sum,v) => sum+v+offset,sum => new { Value=sum,Double=sum*2+offset }));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,func,sum => new { Value=sum,Double=sum*2 }),
+                   () => Source().Aggregate(0,func,sum => new { Value=sum,Double=sum*2 }));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,delegate(int sum,int v) { return sum+v; },delegate(int sum) { return new { Value=sum,Double=sum*2 }; }),
+                   () => Source().Aggregate(0,delegate(int sum,int v) { return sum+v; },delegate(int sum) { return new { Value=sum,Double=sum*2 }; }));
+        LinqAssert(() => SystemEnumerable.Aggregate(Source(),0,delegate(int sum,int v) { try { return sum+v; } catch { return 0; } },delegate(int sum) { return new { Value=sum,Double=sum*2 }; }),
+                   () => Source().Aggregate(0,delegate(int sum,int v) { try { return sum+v; } catch { return 0; } },delegate(int sum) { return new { Value=sum,Double=sum*2 }; }));
     }
 
     [Fact, Trait("Category","Unit")]
@@ -1040,6 +1025,9 @@ public sealed class EnumerableMethod1 {
         Assert.Equal(expected,actual);
     }
 
+    private static void LinqAssert<T>(Func<T> expected, Func<T> actual) {
+        Assert.Equal(expected(), actual());
+    }
     public static int[] Source() => [1,2,3,4];
     public static int[] Second() => [3,4,5];
     public static int[] Duplicates() => [1,2,2,3,3,4];
