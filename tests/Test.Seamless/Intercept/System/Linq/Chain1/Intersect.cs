@@ -8,8 +8,8 @@ public sealed class Intersect:LinqChain1TestBase {
     public static void second() => secondImpl();
 
     private static void secondImpl() {
-        var expected=SystemEnumerable.Intersect(LinqChain1TestBase.Source(),LinqChain1TestBase.Second());
-        var actual=LinqChain1TestBase.Source().Intersect(LinqChain1TestBase.Second());
+        var expected=SystemEnumerable.Intersect(LinqChain1TestBase.Source(),LinqChain1TestBase.Second()).ToList();
+        var actual=LinqChain1TestBase.Source().Intersect(LinqChain1TestBase.Second()).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -17,8 +17,8 @@ public sealed class Intersect:LinqChain1TestBase {
     public static void second_comparer() => second_comparerImpl();
 
     private static void second_comparerImpl() {
-        var expected=SystemEnumerable.Intersect(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),EqualityComparer<int>.Default);
-        var actual=LinqChain1TestBase.Source().Intersect(LinqChain1TestBase.Second(),EqualityComparer<int>.Default);
+        var expected=SystemEnumerable.Intersect(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),EqualityComparer<int>.Default).ToList();
+        var actual=LinqChain1TestBase.Source().Intersect(LinqChain1TestBase.Second(),EqualityComparer<int>.Default).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 

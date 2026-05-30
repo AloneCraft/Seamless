@@ -33,6 +33,8 @@ public sealed class AnonymousType {
         GroupBy_Static();
         GroupBy_Lambda();
         GroupBy_Captured();
+        GroupBy_Delegate();
+        GroupBy_Variable();
     }
     private static void GroupBy_Static() {
         var expected=SystemEnumerable.GroupBy(Source(),p=>p/2,static (l,r) =>new{l,r});
@@ -42,7 +44,7 @@ public sealed class AnonymousType {
             actual.Select(static item => $"{item.l}:{string.Join(",",item.r)}"));
     }
     private static void GroupBy_Lambda() {
-        var expected=SystemEnumerable.GroupBy(Source(),static(p)=>p/2,(l,r) =>new{l,r});
+        var expected=SystemEnumerable.GroupBy(Source(),(p)=>p/2,(l,r) =>new{l,r});
         var actual=Source().GroupBy(static(p)=>p/2,(l,r) =>new{l,r});
         Assert.Equal(
             expected.Select(static item => $"{item.l}:{string.Join(",",item.r)}"),
@@ -56,12 +58,28 @@ public sealed class AnonymousType {
             expected.Select(static item => $"{item.l}:{string.Join(",",item.r)}"),
             actual.Select(static item => $"{item.l}:{string.Join(",",item.r)}"));
     }
+    private static void GroupBy_Delegate() {
+        var expected=SystemEnumerable.GroupBy(Source(),static delegate(int p){return p/2;},static delegate(int l,IEnumerable<int>r){return new{l,r};});
+        var actual=Source().GroupBy(static delegate(int p){return p/2;},static delegate(int l,IEnumerable<int>r){return new{l,r};});
+        Assert.Equal(
+            expected.Select(static item => $"{item.l}:{string.Join(",",item.r)}"),
+            actual.Select(static item => $"{item.l}:{string.Join(",",item.r)}"));
+    }
+    private static void GroupBy_Variable() {
+        var x=2;
+        var keySelector=static (int p) => p/2;
+        var elementSelector=(int l,IEnumerable<int>r)=>new{l,r,x };
+        var expected=SystemEnumerable.GroupBy(Source(),keySelector,elementSelector);
+        var actual=Source().GroupBy(keySelector,elementSelector);
+        Assert.Equal(expected.Select(static item => $"{item.l}:{string.Join(",",item.r)}"),
+            actual.Select(static item => $"{item.l}:{string.Join(",",item.r)}"));
+    }
     [Fact,Trait("Category","Unit")]
     public void Select() {
         Select_Static();
         Select_Lambda();
         Select_Captured();
-        Select_DelegateSyntax();
+        Select_Delegate();
         Select_Variable();
     }
     private static void Select_Static() {
@@ -80,7 +98,7 @@ public sealed class AnonymousType {
         var actual=Source().Select((l,r) =>new{l,r,offset});
         Assert.Equal(expected,actual);
     }
-    private static void Select_DelegateSyntax() {
+    private static void Select_Delegate() {
         var expected=SystemEnumerable.Select(Source(),delegate(int l,int r) { return l+r; });
         var actual=Source().Select(delegate(int l,int r) { return l+r; });
         Assert.Equal(expected,actual);

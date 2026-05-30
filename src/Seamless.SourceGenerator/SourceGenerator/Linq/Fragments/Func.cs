@@ -40,20 +40,39 @@ public abstract class FuncFragment {
         throw new InvalidOperationException("Inline expression is not supported.");
     }
 
+    // 匿名型ラムダなど型名を書けない場合にデリゲートとして保持するかどうか。
+    public virtual bool CanInvokeAsDelegate => false;
+    // デリゲートの型名（"global::System.Func<TSource, TResult>" 等）。
+    public virtual string? DelegateTypeName => null;
+    // Enumerator struct に生成するデリゲートフィールド名。
+    public virtual string? DelegateFieldName => null;
+    // TryGetNext 等で使うデリゲート呼び出し式（"this._del0.Invoke(item0)" 等）。
+    public virtual string? DelegateInvokeExpr => null;
+    // Enumerator struct のコンストラクタに渡すデリゲート引数（ラムダ式テキスト）。
+    public virtual string? DelegateConstructorArg => null;
+
     // 代入文向け inline 展開の共通処理。
     protected string RenderInlineAssignCore(string destination,int number,params string[] arguments) {
         var builder = new StringBuilder();
         var rewrittenBody=InlineBody;
         for(var index = 0; index<arguments.Length; index++) {
-            var tempName=$"__arg{number}_{SanitizeLocalName(destination)}_{index}";
-            // 代入文に展開するときは、引数式の多重評価を避けるために一度ローカルへ退避する。
-            // 例えば selector(GetValue()) をそのまま展開すると GetValue() が複数回評価されうる。
-            builder.AppendLine($"var {tempName}={arguments[index]};");
+            var arg = arguments[index];
+            string replacement;
+            if(IsSimpleExpression(arg)) {
+                // 単純な識別子・メンバーアクセスは副作用なし → 一時変数不要で直接展開する。
+                replacement = arg;
+            } else {
+                // メソッド呼び出し等の副作用のある式は多重評価を避けるため一時変数へ退避する。
+                // 例えば selector(GetValue()) をそのまま展開すると GetValue() が複数回評価されうる。
+                var tempName=$"__arg{number}_{SanitizeLocalName(destination)}_{index}";
+                builder.AppendLine($"var {tempName}={arg};");
+                replacement = tempName;
+            }
             if(index<ParameterNames.Length && !string.IsNullOrWhiteSpace(ParameterNames[index])) {
                 rewrittenBody=Regex.Replace(
                     rewrittenBody,
                     $@"\b{Regex.Escape(ParameterNames[index])}\b",
-                    tempName,
+                    replacement,
                     RegexOptions.CultureInvariant);
             }
         }
@@ -61,6 +80,10 @@ public abstract class FuncFragment {
         builder.Append($"{destination}={rewrittenBody};");
         return builder.ToString();
     }
+
+    // 識別子・ドット区切りメンバーアクセスだけからなる式は副作用がなく一時変数不要。
+    private static bool IsSimpleExpression(string expr) =>
+        Regex.IsMatch(expr, @"^[@\w\.]+$");
 
     // 式位置向け inline 展開の共通処理。
     protected string RenderInlineExpressionCore(params string[] arguments) {

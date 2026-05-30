@@ -8,8 +8,8 @@ public sealed class Range:LinqChain1TestBase {
     public static void start_count() => start_countImpl();
 
     private static void start_countImpl() {
-        var expected=SystemEnumerable.Range(1,4);
-        var actual=Enumerable.Range(1,4);
+        var expected=SystemEnumerable.Range(1,4).ToList();
+        var actual=Enumerable.Range(1,4).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 

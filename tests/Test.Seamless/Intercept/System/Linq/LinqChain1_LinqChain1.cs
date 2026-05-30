@@ -9,8 +9,8 @@ public sealed class LinqChain1_LinqChain1 {
         WhereSelectImpl();
     }
     private static void WhereSelectImpl() {
-        var expected = Enumerable.Select(Enumerable.Where(Source(),p=>p>1),p=>p*10);
-        var actual = Source().Where(p=>p>1).Select(p=>p*10);
+        var expected = Enumerable.Select(Enumerable.Where(Source(),p=>p>1),p=>p*10).ToList();
+        var actual = Source().Where(p=>p>1).Select(p=>p*10).ToList();
         Assert.Equal(expected,actual);
     }
 

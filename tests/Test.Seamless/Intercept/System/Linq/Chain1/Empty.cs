@@ -8,8 +8,8 @@ public sealed class Empty:LinqChain1TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.Empty<int>();
-        var actual=Enumerable.Empty<int>();
+        var expected=SystemEnumerable.Empty<int>().ToList();
+        var actual=Enumerable.Empty<int>().ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 

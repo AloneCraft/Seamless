@@ -13,8 +13,7 @@ public class OfType(int 番号, Enumerable source, string resultElementType) : E
     public override string GetTryGetNextBody => $$"""
         while({{e}}.MoveNext()) {
             if({{e}}.Current is {{resultElementType}} {{item}}) {
-                {{currentValue}} = {{item}};
-                current = {{item}};
+                current = {{currentValue}} = {{item}};
                 return true;
             }
         }

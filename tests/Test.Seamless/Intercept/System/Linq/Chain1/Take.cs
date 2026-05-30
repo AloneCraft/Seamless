@@ -8,8 +8,8 @@ public sealed class Take:LinqChain1TestBase {
     public static void count() => countImpl();
 
     private static void countImpl() {
-        var expected=SystemEnumerable.Take(LinqChain1TestBase.Source(),3);
-        var actual=LinqChain1TestBase.Source().Take(3);
+        var expected=SystemEnumerable.Take(LinqChain1TestBase.Source(),3).ToList();
+        var actual=LinqChain1TestBase.Source().Take(3).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -17,8 +17,8 @@ public sealed class Take:LinqChain1TestBase {
     public static void range() => rangeImpl();
 
     private static void rangeImpl() {
-        var expected=SystemEnumerable.Take(LinqChain1TestBase.Source(),new global::System.Range(1,3));
-        var actual=LinqChain1TestBase.Source().Take(new global::System.Range(1,3));
+        var expected=SystemEnumerable.Take(LinqChain1TestBase.Source(),new global::System.Range(1,3)).ToList();
+        var actual=LinqChain1TestBase.Source().Take(new global::System.Range(1,3)).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 

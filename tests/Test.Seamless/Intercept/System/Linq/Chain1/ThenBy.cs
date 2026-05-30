@@ -8,8 +8,8 @@ public sealed class ThenBy:LinqChain1TestBase {
     public static void keySelector_Static() => keySelector_StaticImpl();
 
     private static void keySelector_StaticImpl() {
-        var expected=SystemEnumerable.ThenBy(LinqChain1TestBase.Rows().OrderBy(static row => row.Key),static row => row.Name);
-        var actual=LinqChain1TestBase.Rows().OrderBy(static row => row.Key).ThenBy(static row => row.Name);
+        var expected=SystemEnumerable.ThenBy(LinqChain1TestBase.Rows().OrderBy(static row => row.Key),static row => row.Name).ToList();
+        var actual=LinqChain1TestBase.Rows().OrderBy(static row => row.Key).ThenBy(static row => row.Name).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -17,8 +17,8 @@ public sealed class ThenBy:LinqChain1TestBase {
     public static void keySelector_Lambda() => keySelector_LambdaImpl();
 
     private static void keySelector_LambdaImpl() {
-        var expected=SystemEnumerable.ThenBy(LinqChain1TestBase.Rows().OrderBy(row => row.Key),row => row.Name);
-        var actual=LinqChain1TestBase.Rows().OrderBy(row => row.Key).ThenBy(row => row.Name);
+        var expected=SystemEnumerable.ThenBy(LinqChain1TestBase.Rows().OrderBy(row => row.Key),row => row.Name).ToList();
+        var actual=LinqChain1TestBase.Rows().OrderBy(row => row.Key).ThenBy(row => row.Name).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -27,8 +27,8 @@ public sealed class ThenBy:LinqChain1TestBase {
 
     private static void keySelector_CapturedImpl() {
         var suffix="";
-        var expected=SystemEnumerable.ThenBy(LinqChain1TestBase.Rows().OrderBy(row => row.Key),row => row.Name+suffix);
-        var actual=LinqChain1TestBase.Rows().OrderBy(row => row.Key).ThenBy(row => row.Name+suffix);
+        var expected=SystemEnumerable.ThenBy(LinqChain1TestBase.Rows().OrderBy(row => row.Key),row => row.Name+suffix).ToList();
+        var actual=LinqChain1TestBase.Rows().OrderBy(row => row.Key).ThenBy(row => row.Name+suffix).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -36,8 +36,8 @@ public sealed class ThenBy:LinqChain1TestBase {
     public static void keySelector_DelegateSyntax() => keySelector_DelegateSyntaxImpl();
 
     private static void keySelector_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.ThenBy(LinqChain1TestBase.Rows().OrderBy(row => row.Key),delegate(Chain1Row row) { return row.Name; });
-        var actual=LinqChain1TestBase.Rows().OrderBy(row => row.Key).ThenBy(delegate(Chain1Row row) { return row.Name; });
+        var expected=SystemEnumerable.ThenBy(LinqChain1TestBase.Rows().OrderBy(row => row.Key),delegate(Chain1Row row) { return row.Name; }).ToList();
+        var actual=LinqChain1TestBase.Rows().OrderBy(row => row.Key).ThenBy(delegate(Chain1Row row) { return row.Name; }).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -46,8 +46,8 @@ public sealed class ThenBy:LinqChain1TestBase {
 
     private static void keySelector_VariableImpl() {
         Func<Chain1Row,string> keySelector=row => row.Name;
-        var expected=SystemEnumerable.ThenBy(LinqChain1TestBase.Rows().OrderBy(row => row.Key),keySelector);
-        var actual=LinqChain1TestBase.Rows().OrderBy(row => row.Key).ThenBy(keySelector);
+        var expected=SystemEnumerable.ThenBy(LinqChain1TestBase.Rows().OrderBy(row => row.Key),keySelector).ToList();
+        var actual=LinqChain1TestBase.Rows().OrderBy(row => row.Key).ThenBy(keySelector).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -55,8 +55,8 @@ public sealed class ThenBy:LinqChain1TestBase {
     public static void keySelector_comparer() => keySelector_comparerImpl();
 
     private static void keySelector_comparerImpl() {
-        var expected=SystemEnumerable.ThenBy(LinqChain1TestBase.Rows().OrderBy(static row => row.Key),static row => row.Name,StringComparer.Ordinal);
-        var actual=LinqChain1TestBase.Rows().OrderBy(static row => row.Key).ThenBy(static row => row.Name,StringComparer.Ordinal);
+        var expected=SystemEnumerable.ThenBy(LinqChain1TestBase.Rows().OrderBy(static row => row.Key),static row => row.Name,StringComparer.Ordinal).ToList();
+        var actual=LinqChain1TestBase.Rows().OrderBy(static row => row.Key).ThenBy(static row => row.Name,StringComparer.Ordinal).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 

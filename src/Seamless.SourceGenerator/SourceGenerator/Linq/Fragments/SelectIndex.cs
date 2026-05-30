@@ -5,13 +5,32 @@ public class Select_index(int 番号, Enumerable source, FuncFragment selector) 
         method.Parameters.Length > 0 &&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => FuncSupport(selector,nameof(selector));
+    private bool UseResultTypeParam => selector.CanInvokeAsDelegate;
+    public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(selector);
+    protected override string StructTypeParameters =>
+        UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
+    protected override string StructTypeConstraints =>
+        UseResultTypeParam
+            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>"
+            : base.StructTypeConstraints;
+    public override string EnumeratorTypeName =>
+        UseResultTypeParam ? $"{Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
+    private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
+        private static global::Seamless.Linq.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum {{e}}{{ClosurePrimaryCtorSuffix(selector)}})
+            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>
+            => new(new {{Struct}}<TEnum, TResult>({{e}}{{ClosureArgsSuffixForFactory(selector)}}));
+        """;
+    public override string StructMethod => JoinStaticMethods(FuncSupport(selector,nameof(selector)), FactorySource);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
         $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})";
+    public override string GetEnumerableExpression =>
+        UseResultTypeParam
+            ? $"{FactoryMethodName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})"
+            : base.GetEnumerableExpression;
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
     public override string GetEnumeratorFields => $$"""
@@ -22,13 +41,11 @@ public class Select_index(int 番号, Enumerable source, FuncFragment selector) 
         if({{e}}.MoveNext()) {
             var {{item}} = {{e}}.Current;
             {{a}}++;
-            {{FuncAssign(selector,nameof(selector),currentValue,item,a)}}
-            current = {{currentValue}};
+            {{FuncAssignCurrent(selector,nameof(selector),currentValue,item,a)}}
             return true;
         }
         current = default!;
         return false;
         """;
     public override string GetCurrentExpression => currentValue;
-    public override string ElementType => FuncReturnTypeName(selector);
 }

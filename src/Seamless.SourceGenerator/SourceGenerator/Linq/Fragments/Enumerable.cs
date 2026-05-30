@@ -3,7 +3,7 @@ public abstract class Enumerable(int 番号):Fragment(番号){
     // この enumerable 断片が流す要素型。
     public abstract string ElementType{ get; }
     // interceptor が IEnumerable<T> を返すときに使う ValueEnumerable 構築式。
-    public string GetEnumerableExpression => $"new global::Seamless.Linq.Carrier.ValueEnumerable<{EnumeratorTypeName}, {ElementType}>({GetEnumeratorExpression})";
+    public virtual string GetEnumerableExpression => $"new global::Seamless.Linq.Carrier.ValueEnumerable<{EnumeratorTypeName}, {ElementType}>({GetEnumeratorExpression})";
     // 既定では下流の enumerator を Dispose する。
     protected virtual string GetEnumeratorDisposeBody => $"{e}.Dispose();";
     // enumerable 系は要素型を Current とする enumerator struct を共通生成する。

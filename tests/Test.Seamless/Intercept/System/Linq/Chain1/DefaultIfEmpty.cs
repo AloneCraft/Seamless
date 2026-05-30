@@ -8,8 +8,8 @@ public sealed class DefaultIfEmpty:LinqChain1TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.DefaultIfEmpty(LinqChain1TestBase.EmptySource());
-        var actual=LinqChain1TestBase.EmptySource().DefaultIfEmpty();
+        var expected=SystemEnumerable.DefaultIfEmpty(LinqChain1TestBase.EmptySource()).ToList();
+        var actual=LinqChain1TestBase.EmptySource().DefaultIfEmpty().ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -17,8 +17,8 @@ public sealed class DefaultIfEmpty:LinqChain1TestBase {
     public static void defaultValue() => defaultValueImpl();
 
     private static void defaultValueImpl() {
-        var expected=SystemEnumerable.DefaultIfEmpty(LinqChain1TestBase.EmptySource(),42);
-        var actual=LinqChain1TestBase.EmptySource().DefaultIfEmpty(42);
+        var expected=SystemEnumerable.DefaultIfEmpty(LinqChain1TestBase.EmptySource(),42).ToList();
+        var actual=LinqChain1TestBase.EmptySource().DefaultIfEmpty(42).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 

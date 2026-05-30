@@ -25,8 +25,7 @@ public class Skip(int 番号, Enumerable source, string count) : Enumerable(番�
             }
         }
         if({{e}}.MoveNext()) {
-            {{currentValue}} = {{e}}.Current;
-            current = {{currentValue}};
+            current = {{currentValue}} = {{e}}.Current;
             return true;
         }
         current = default!;

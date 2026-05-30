@@ -8,8 +8,8 @@ public sealed class Join:LinqChain1TestBase {
     public static void keySelectors_resultSelector_Static() => keySelectors_resultSelector_StaticImpl();
 
     private static void keySelectors_resultSelector_StaticImpl() {
-        var expected=SystemEnumerable.Join(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue);
-        var actual=LinqChain1TestBase.Source().Join(LinqChain1TestBase.Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue);
+        var expected=SystemEnumerable.Join(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue).ToList();
+        var actual=LinqChain1TestBase.Source().Join(LinqChain1TestBase.Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -17,8 +17,8 @@ public sealed class Join:LinqChain1TestBase {
     public static void keySelectors_resultSelector_Lambda() => keySelectors_resultSelector_LambdaImpl();
 
     private static void keySelectors_resultSelector_LambdaImpl() {
-        var expected=SystemEnumerable.Join(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,innerValue) => outerValue+innerValue);
-        var actual=LinqChain1TestBase.Source().Join(LinqChain1TestBase.Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,innerValue) => outerValue+innerValue);
+        var expected=SystemEnumerable.Join(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,innerValue) => outerValue+innerValue).ToList();
+        var actual=LinqChain1TestBase.Source().Join(LinqChain1TestBase.Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,innerValue) => outerValue+innerValue).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -27,8 +27,8 @@ public sealed class Join:LinqChain1TestBase {
 
     private static void keySelectors_resultSelector_CapturedImpl() {
         var offset=0;
-        var expected=SystemEnumerable.Join(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),outerValue => outerValue+offset,innerValue => innerValue+offset,(outerValue,innerValue) => outerValue+innerValue+offset);
-        var actual=LinqChain1TestBase.Source().Join(LinqChain1TestBase.Second(),outerValue => outerValue+offset,innerValue => innerValue+offset,(outerValue,innerValue) => outerValue+innerValue+offset);
+        var expected=SystemEnumerable.Join(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),outerValue => outerValue+offset,innerValue => innerValue+offset,(outerValue,innerValue) => outerValue+innerValue+offset).ToList();
+        var actual=LinqChain1TestBase.Source().Join(LinqChain1TestBase.Second(),outerValue => outerValue+offset,innerValue => innerValue+offset,(outerValue,innerValue) => outerValue+innerValue+offset).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -36,8 +36,8 @@ public sealed class Join:LinqChain1TestBase {
     public static void keySelectors_resultSelector_DelegateSyntax() => keySelectors_resultSelector_DelegateSyntaxImpl();
 
     private static void keySelectors_resultSelector_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.Join(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),delegate(int outerValue) { return outerValue; },delegate(int innerValue) { return innerValue; },delegate(int outerValue,int innerValue) { return outerValue+innerValue; });
-        var actual=LinqChain1TestBase.Source().Join(LinqChain1TestBase.Second(),delegate(int outerValue) { return outerValue; },delegate(int innerValue) { return innerValue; },delegate(int outerValue,int innerValue) { return outerValue+innerValue; });
+        var expected=SystemEnumerable.Join(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),delegate(int outerValue) { return outerValue; },delegate(int innerValue) { return innerValue; },delegate(int outerValue,int innerValue) { return outerValue+innerValue; }).ToList();
+        var actual=LinqChain1TestBase.Source().Join(LinqChain1TestBase.Second(),delegate(int outerValue) { return outerValue; },delegate(int innerValue) { return innerValue; },delegate(int outerValue,int innerValue) { return outerValue+innerValue; }).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -48,8 +48,8 @@ public sealed class Join:LinqChain1TestBase {
         Func<int,int> outerKeySelector=outerValue => outerValue;
         Func<int,int> innerKeySelector=innerValue => innerValue;
         Func<int,int,int> resultSelector=(outerValue,innerValue) => outerValue+innerValue;
-        var expected=SystemEnumerable.Join(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),outerKeySelector,innerKeySelector,resultSelector);
-        var actual=LinqChain1TestBase.Source().Join(LinqChain1TestBase.Second(),outerKeySelector,innerKeySelector,resultSelector);
+        var expected=SystemEnumerable.Join(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),outerKeySelector,innerKeySelector,resultSelector).ToList();
+        var actual=LinqChain1TestBase.Source().Join(LinqChain1TestBase.Second(),outerKeySelector,innerKeySelector,resultSelector).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 

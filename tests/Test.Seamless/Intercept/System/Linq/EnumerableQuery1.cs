@@ -62,9 +62,9 @@ public sealed class EnumerableQuery1 {
 
     [Fact, Trait("Category","Unit")]
     public void AggregateBy_keySelector_seed_func_StaticDelegate() {
-        var expected=SystemEnumerable.AggregateBy(Source(),static value => value%2,0,static (sum,value) => sum+value);
-        var actual=(from value in Source() select value).AggregateBy(static value => value%2,0,static (sum,value) => sum+value);
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.AggregateBy(Source(),static value => value%2,0,static (sum,value) => sum+value).ToList();
+        var actual=(from value in Source() select value).AggregateBy(static value => value%2,0,static (sum,value) => sum+value).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -90,16 +90,16 @@ public sealed class EnumerableQuery1 {
 
     [Fact, Trait("Category","Unit")]
     public void Append_element_NoDelegate() {
-        var expected=SystemEnumerable.Append(Source(),5);
-        var actual=(from value in Source() select value).Append(5);
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.Append(Source(),5).ToList();
+        var actual=(from value in Source() select value).Append(5).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void AsEnumerable_NoDelegate() {
-        var expected=SystemEnumerable.AsEnumerable(Source());
-        var actual=(from value in Source() select value).AsEnumerable();
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.AsEnumerable(Source()).ToList();
+        var actual=(from value in Source() select value).AsEnumerable().ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -118,23 +118,23 @@ public sealed class EnumerableQuery1 {
 
     [Fact, Trait("Category","Unit")]
     public void Cast_NoDelegate() {
-        var expected=SystemEnumerable.Cast<int>(CastObjects());
-        var actual=(from value in CastObjects().Cast<object>() select value).Cast<int>();
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.Cast<int>(CastObjects()).ToList();
+        var actual=(from value in CastObjects().Cast<object>() select value).Cast<int>().ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Chunk_size_NoDelegate() {
-        var expected=SystemEnumerable.Chunk(Source(),2);
-        var actual=(from value in Source() select value).Chunk(2);
-        AssertNestedSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.Chunk(Source(),2).ToList();
+        var actual=(from value in Source() select value).Chunk(2).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Concat_second_NoDelegate() {
-        var expected=SystemEnumerable.Concat(Source(),Second());
-        var actual=(from value in Source() select value).Concat(Second());
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.Concat(Source(),Second()).ToList();
+        var actual=(from value in Source() select value).Concat(Second()).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -153,16 +153,16 @@ public sealed class EnumerableQuery1 {
 
     [Fact, Trait("Category","Unit")]
     public void Distinct_NoDelegate() {
-        var expected=SystemEnumerable.Distinct(Duplicates());
-        var actual=(from value in Duplicates() select value).Distinct();
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.Distinct(Duplicates()).ToList();
+        var actual=(from value in Duplicates() select value).Distinct().ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void DistinctBy_keySelector_StaticDelegate() {
-        var expected=SystemEnumerable.DistinctBy(Rows(),static row => row.Key);
-        var actual=(from row in Rows() select row).DistinctBy(static row => row.Key);
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.DistinctBy(Rows(),static row => row.Key).ToList();
+        var actual=(from row in Rows() select row).DistinctBy(static row => row.Key).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -174,23 +174,23 @@ public sealed class EnumerableQuery1 {
 
     [Fact, Trait("Category","Unit")]
     public void GroupBy_keySelector_StaticDelegate() {
-        var expected=SystemEnumerable.GroupBy(Rows(),static row => row.Key);
+        var expected=SystemEnumerable.GroupBy(Rows(),static row => row.Key).ToList();
         var actual=from row in Rows() group row by row.Key;
         AssertGroupSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Join_keySelectors_resultSelector_StaticDelegate() {
-        var expected=SystemEnumerable.Join(Source(),Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue);
-        var actual=from outerValue in Source() join innerValue in Second() on outerValue equals innerValue select outerValue+innerValue;
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.Join(Source(),Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue).ToList();
+        var actual=(from outerValue in Source() join innerValue in Second() on outerValue equals innerValue select outerValue+innerValue).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Join_keySelectors_resultSelector_InstanceDelegate() {
-        var expected=SystemEnumerable.Join(Source(),Second(),this.InstanceKeySelector,this.InstanceKeySelector,this.InstanceResultSelector);
-        var actual=from outerValue in Source() join innerValue in Second() on this.InstanceKeySelector(outerValue) equals this.InstanceKeySelector(innerValue) select this.InstanceResultSelector(outerValue,innerValue);
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.Join(Source(),Second(),this.InstanceKeySelector,this.InstanceKeySelector,this.InstanceResultSelector).ToList();
+        var actual=(from outerValue in Source() join innerValue in Second() on this.InstanceKeySelector(outerValue) equals this.InstanceKeySelector(innerValue) select this.InstanceResultSelector(outerValue,innerValue)).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -202,37 +202,37 @@ public sealed class EnumerableQuery1 {
 
     [Fact, Trait("Category","Unit")]
     public void OrderBy_keySelector_StaticDelegate() {
-        var expected=SystemEnumerable.OrderBy(Rows(),static row => row.Key);
-        var actual=from row in Rows() orderby row.Key select row;
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.OrderBy(Rows(),static row => row.Key).ToList();
+        var actual=(from row in Rows() orderby row.Key select row).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Select_selector_StaticDelegate() {
-        var expected=SystemEnumerable.Select(Source(),static value => value*2);
-        var actual=from value in Source() select value*2;
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.Select(Source(),static value => value*2).ToList();
+        var actual=(from value in Source() select value*2).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Select_selector_InstanceDelegate() {
-        var expected=SystemEnumerable.Select(Source(),this.InstanceSelector);
-        var actual=from value in Source() select this.InstanceSelector(value);
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.Select(Source(),this.InstanceSelector).ToList();
+        var actual=(from value in Source() select this.InstanceSelector(value)).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void SelectMany_selector_StaticDelegate() {
-        var expected=SystemEnumerable.SelectMany(Source(),static value => new[] { value,value+10 });
-        var actual=from value in Source() from selected in new[] { value,value+10 } select selected;
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.SelectMany(Source(),static value => new[] { value,value+10 }).ToList();
+        var actual=(from value in Source() from selected in new[] { value,value+10 } select selected).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void SkipWhile_predicate_StaticDelegate() {
-        var expected=SystemEnumerable.SkipWhile(Source(),static value => value<3);
-        var actual=(from value in Source() select value).SkipWhile(static value => value<3);
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.SkipWhile(Source(),static value => value<3).ToList();
+        var actual=(from value in Source() select value).SkipWhile(static value => value<3).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -244,44 +244,44 @@ public sealed class EnumerableQuery1 {
 
     [Fact, Trait("Category","Unit")]
     public void Take_count_NoDelegate() {
-        var expected=SystemEnumerable.Take(Source(),3);
-        var actual=(from value in Source() select value).Take(3);
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.Take(Source(),3).ToList();
+        var actual=(from value in Source() select value).Take(3).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void ToArray_NoDelegate() {
         var expected=SystemEnumerable.ToArray(Source());
         var actual=(from value in Source() select value).ToArray();
-        AssertSequenceEqual(expected,actual);
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void ToList_NoDelegate() {
         var expected=SystemEnumerable.ToList(Source());
         var actual=(from value in Source() select value).ToList();
-        AssertSequenceEqual(expected,actual);
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Where_predicate_StaticDelegate() {
-        var expected=SystemEnumerable.Where(Source(),static value => value>2);
-        var actual=from value in Source() where value>2 select value;
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.Where(Source(),static value => value>2).ToList();
+        var actual=(from value in Source() where value>2 select value).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Where_predicate_InstanceDelegate() {
-        var expected=SystemEnumerable.Where(Source(),this.InstancePredicate);
-        var actual=from value in Source() where this.InstancePredicate(value) select value;
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.Where(Source(),this.InstancePredicate).ToList();
+        var actual=(from value in Source() where this.InstancePredicate(value) select value).ToList();
+        Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Zip_second_resultSelector_StaticDelegate() {
-        var expected=SystemEnumerable.Zip(Source(),Second(),static (first,second) => first+second);
-        var actual=(from value in Source() select value).Zip(Second(),static (first,second) => first+second);
-        AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.Zip(Source(),Second(),static (first,second) => first+second).ToList();
+        var actual=(from value in Source() select value).Zip(Second(),static (first,second) => first+second).ToList();
+        Assert.Equal(expected,actual);
     }
 
     private bool InstancePredicate(int value) => value>this.instanceOffset;

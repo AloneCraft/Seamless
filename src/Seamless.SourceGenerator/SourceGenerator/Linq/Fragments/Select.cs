@@ -1,40 +1,48 @@
-﻿namespace Seamless.SourceGenerator.Linq.Fragments;
+namespace Seamless.SourceGenerator.Linq.Fragments;
 public class Select(int 番号,Enumerable source,FuncFragment selector):Enumerable(番号){
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         !(method.Parameters.Length > 0 &&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
-    // static ラムダなら selector helper を struct として定義する。
-    public override string StructMethod => FuncSupport(selector,nameof(selector));
-    // source 側 enumerator と Select 自身の enumerator をまとめて出す。
+    private bool UseResultTypeParam => selector.CanInvokeAsDelegate;
+    public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(selector);
+    protected override string StructTypeParameters =>
+        UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
+    protected override string StructTypeConstraints =>
+        UseResultTypeParam
+            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>"
+            : base.StructTypeConstraints;
+    public override string EnumeratorTypeName =>
+        UseResultTypeParam ? $"{Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
+    private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
+        private static global::Seamless.Linq.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum {{e}}{{ClosurePrimaryCtorSuffix(selector)}})
+            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>
+            => new(new {{Struct}}<TEnum, TResult>({{e}}{{ClosureArgsSuffixForFactory(selector)}}));
+        """;
+    public override string StructMethod => JoinStaticMethods(FuncSupport(selector,nameof(selector)), FactorySource);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    // Carrier/Enumerator モードでも selector は必ずインライン展開する。
-    // closure が必要なラムダだけ primary ctor へ値を渡す。
     public override string GetEnumeratorExpression =>
         $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})";
+    public override string GetEnumerableExpression =>
+        UseResultTypeParam
+            ? $"{FactoryMethodName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})"
+            : base.GetEnumerableExpression;
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
-    // selector と現在値を保持する。source enumerator は primary ctor backing field。
     public override string GetEnumeratorFields => $"private {ElementType} {currentValue} = default!;";
-    // 1 要素読むごとに selector を適用して TResult を流す。
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
             var {{item}} = {{e}}.Current;
-            {{AssignSelectedValue}}
-            current = {{currentValue}};
+            {{FuncAssignCurrent(selector,nameof(selector),currentValue,item)}}
             return true;
         }
         current = default!;
         return false;
         """;
-    // Current は selector 適用後の値。
     public override string GetCurrentExpression => currentValue;
-    private string AssignSelectedValue => FuncAssign(selector,nameof(selector),currentValue,item);
-    // Select の要素型は selector 戻り値型。
-    public override string ElementType => FuncReturnTypeName(selector);
 }
 
 public class Select_WithInlinedScalar(int 番号, Enumerable source, Fragment scalarFrag, string outerParamName, string elementType)

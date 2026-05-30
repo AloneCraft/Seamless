@@ -8,8 +8,8 @@ public sealed class TakeWhile:LinqChain1TestBase {
     public static void predicate_Static() => predicate_StaticImpl();
 
     private static void predicate_StaticImpl() {
-        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),static v => v<3);
-        var actual=LinqChain1TestBase.Source().TakeWhile(static v => v<3);
+        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),static v => v<3).ToList();
+        var actual=LinqChain1TestBase.Source().TakeWhile(static v => v<3).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -17,8 +17,8 @@ public sealed class TakeWhile:LinqChain1TestBase {
     public static void predicate_Lambda() => predicate_LambdaImpl();
 
     private static void predicate_LambdaImpl() {
-        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),v => v<3);
-        var actual=LinqChain1TestBase.Source().TakeWhile(v => v<3);
+        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),v => v<3).ToList();
+        var actual=LinqChain1TestBase.Source().TakeWhile(v => v<3).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -27,8 +27,8 @@ public sealed class TakeWhile:LinqChain1TestBase {
 
     private static void predicate_CapturedImpl() {
         var threshold=3;
-        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),v => v<threshold);
-        var actual=LinqChain1TestBase.Source().TakeWhile(v => v<threshold);
+        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),v => v<threshold).ToList();
+        var actual=LinqChain1TestBase.Source().TakeWhile(v => v<threshold).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -36,8 +36,8 @@ public sealed class TakeWhile:LinqChain1TestBase {
     public static void predicate_DelegateSyntax() => predicate_DelegateSyntaxImpl();
 
     private static void predicate_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),delegate(int v) { return v<3; });
-        var actual=LinqChain1TestBase.Source().TakeWhile(delegate(int v) { return v<3; });
+        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),delegate(int v) { return v<3; }).ToList();
+        var actual=LinqChain1TestBase.Source().TakeWhile(delegate(int v) { return v<3; }).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -46,8 +46,8 @@ public sealed class TakeWhile:LinqChain1TestBase {
 
     private static void predicate_VariableImpl() {
         Func<int,bool> predicate=v => v<3;
-        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),predicate);
-        var actual=LinqChain1TestBase.Source().TakeWhile(predicate);
+        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),predicate).ToList();
+        var actual=LinqChain1TestBase.Source().TakeWhile(predicate).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -55,8 +55,8 @@ public sealed class TakeWhile:LinqChain1TestBase {
     public static void predicate_index_Static() => predicate_index_StaticImpl();
 
     private static void predicate_index_StaticImpl() {
-        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),static (v,i) => v>i);
-        var actual=LinqChain1TestBase.Source().TakeWhile(static (v,i) => v>i);
+        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),static (v,i) => v>i).ToList();
+        var actual=LinqChain1TestBase.Source().TakeWhile(static (v,i) => v>i).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -64,8 +64,8 @@ public sealed class TakeWhile:LinqChain1TestBase {
     public static void predicate_index_Lambda() => predicate_index_LambdaImpl();
 
     private static void predicate_index_LambdaImpl() {
-        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),(v,i) => v>i);
-        var actual=LinqChain1TestBase.Source().TakeWhile((v,i) => v>i);
+        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),(v,i) => v>i).ToList();
+        var actual=LinqChain1TestBase.Source().TakeWhile((v,i) => v>i).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -74,8 +74,8 @@ public sealed class TakeWhile:LinqChain1TestBase {
 
     private static void predicate_index_CapturedImpl() {
         var predicate=new LinqChain1TestBase.IntIndexPredicate(0);
-        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),predicate.LessThanThreshold);
-        var actual=LinqChain1TestBase.Source().TakeWhile(predicate.LessThanThreshold);
+        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),predicate.LessThanThreshold).ToList();
+        var actual=LinqChain1TestBase.Source().TakeWhile(predicate.LessThanThreshold).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -83,8 +83,8 @@ public sealed class TakeWhile:LinqChain1TestBase {
     public static void predicate_index_DelegateSyntax() => predicate_index_DelegateSyntaxImpl();
 
     private static void predicate_index_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),delegate(int v,int i) { return v>i; });
-        var actual=LinqChain1TestBase.Source().TakeWhile(delegate(int v,int i) { return v>i; });
+        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),delegate(int v,int i) { return v>i; }).ToList();
+        var actual=LinqChain1TestBase.Source().TakeWhile(delegate(int v,int i) { return v>i; }).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 
@@ -93,8 +93,8 @@ public sealed class TakeWhile:LinqChain1TestBase {
 
     private static void predicate_index_VariableImpl() {
         Func<int,int,bool> predicate=(v,i) => v>i;
-        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),predicate);
-        var actual=LinqChain1TestBase.Source().TakeWhile(predicate);
+        var expected=SystemEnumerable.TakeWhile(LinqChain1TestBase.Source(),predicate).ToList();
+        var actual=LinqChain1TestBase.Source().TakeWhile(predicate).ToList();
         LinqChain1TestBase.AssertSequenceEqual(expected,actual);
     }
 

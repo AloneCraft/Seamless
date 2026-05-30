@@ -14,26 +14,33 @@ public class All(int 番号, Enumerable source, FuncFragment predicate) : Scalar
         private bool {{currentValue}} = true;
         private bool {{yielded}} = false;
         """;
-    public override string GetTryGetNextBody => $$"""
-        if({{yielded}}) {
-            current = default;
-            return false;
-        }
-        {{yielded}} = true;
-        while({{e}}.MoveNext()) {
-            var {{item}} = {{e}}.Current;
-            bool {{temp}} = default!;
-            {{FuncAssign(predicate,nameof(predicate),temp,item)}}
-            if(!{{temp}}) {
-                {{currentValue}} = false;
+    public override string GetTryGetNextBody {
+        get {
+            var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item);
+            var predicateCheck = string.IsNullOrEmpty(preCode)
+                ? $"if(!({condExpr}))"
+                : $"{preCode}\n            if(!{condExpr})";
+
+            return $$"""
+                if({{yielded}}) {
+                    current = default;
+                    return false;
+                }
+                {{yielded}} = true;
+                while({{e}}.MoveNext()) {
+                    var {{item}} = {{e}}.Current;
+                    {{predicateCheck}} {
+                        {{currentValue}} = false;
+                        current = {{currentValue}};
+                        return true;
+                    }
+                }
+                {{currentValue}} = true;
                 current = {{currentValue}};
                 return true;
-            }
+                """;
         }
-        {{currentValue}} = true;
-        current = {{currentValue}};
-        return true;
-        """;
+    }
     public override string GetCurrentExpression => currentValue;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
