@@ -599,6 +599,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             }
         }
 
+        // クエリ式（from ... select/where/orderby 等）も System.Linq.Enumerable 呼び出しとして扱う
+        if(!hasEnumerableCall) {
+            IEnumerable<SyntaxNode> queryBodyNodes = methodSyntax.Body is not null
+                ? methodSyntax.Body.DescendantNodes()
+                : methodSyntax.ExpressionBody is not null
+                    ? methodSyntax.ExpressionBody.Expression.DescendantNodesAndSelf()
+                    : [];
+            if(queryBodyNodes.OfType<QueryExpressionSyntax>().Any()) {
+                hasEnumerableCall = true;
+            }
+        }
+
         return new ローカルメソッドLinq解析結果(
             hasEnumerableCall,
             [..unsupportedMethods.OrderBy(static methodName => methodName,StringComparer.Ordinal)],
@@ -625,6 +637,16 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 && SystemLinqEnumerableMethodNames.Contains(genericName.Identifier.ValueText)) {
                 return true;
             }
+        }
+
+        // クエリ式（from ... select/where/orderby 等）も System.Linq.Enumerable 呼び出しに相当するため対象とする
+        IEnumerable<SyntaxNode> bodyNodesForQuery = methodSyntax.Body is not null
+            ? methodSyntax.Body.DescendantNodes()
+            : methodSyntax.ExpressionBody is not null
+                ? methodSyntax.ExpressionBody.Expression.DescendantNodesAndSelf()
+                : [];
+        if(bodyNodesForQuery.OfType<QueryExpressionSyntax>().Any()) {
+            return true;
         }
 
         return false;
@@ -794,11 +816,19 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return false;
         }
 
+        ExpressionSyntax? 式本体式 = null;
         IEnumerable<StatementSyntax> statements;
         if(メソッド構文.Body is { } ブロック本体) {
             statements = ブロック本体.Statements;
         } else if(メソッド構文.ExpressionBody is { Expression: var アロー式 }) {
-            statements = [SyntaxFactory.ReturnStatement(アロー式)];
+            // 合成ノード SyntaxFactory.ReturnStatement(アロー式) を作ると SyntaxTree が null になり
+            // semanticModel.GetSymbolInfo() が「構文ノードが構文ツリー内にありません」を投げる。
+            // static メソッドに限り、元ツリーのノードを保持して後で専用関数に渡す。
+            // インスタンスメソッドでは this. 参照が struct メソッド内の @this でコンパイルエラーになるためスキップ。
+            if(対象.Method.IsStatic) {
+                式本体式 = アロー式;
+            }
+            statements = [];
         } else {
             return false;
         }
@@ -811,6 +841,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         var linq呼び出し数 = 0;
         foreach(var 文 in statements) {
             if(!文生成16(文,セマンティックモデル,対象.EnclosingType,ref フラグメント番号,対象.Method.IsStatic,ref 静的メソッド群,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref linq呼び出し数,usedNames)) {
+                return false;
+            }
+        }
+
+        if(式本体式 is not null) {
+            if(!LINQ呼び出し差し替え文生成38_式本体(式本体式,セマンティックモデル,対象.EnclosingType,ref フラグメント番号,対象.Method.IsStatic,ref 静的メソッド群,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref linq呼び出し数,usedNames)) {
                 return false;
             }
         }
@@ -1955,6 +1991,19 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         StringBuilder builder,
         ref int linqInvocationCount,
         HashSet<string> usedNames) {
+        // ReturnStatement の式がクエリ式（括弧なしまたはあり）の場合は専用パスへ
+        if(statement is ReturnStatementSyntax { Expression: { } retExpr }) {
+            var retUnwrapped = retExpr;
+            while(retUnwrapped is ParenthesizedExpressionSyntax retParen) {
+                retUnwrapped = retParen.Expression;
+            }
+            if(retUnwrapped is QueryExpressionSyntax retQueryExpr) {
+                return クエリ式本体生成(
+                    retQueryExpr,semanticModel,containingType,ref uniqueNumber,
+                    methodIsStatic,ref staticMethods,unsafeAccessorCollector,
+                    generatedFragments,builder,ref linqInvocationCount,usedNames);
+            }
+        }
         // 式文の全体が単一 LINQ 呼び出しで結果が破棄される場合（e.g. Take(0).Select(...)）、
         // GetEnumerator() を呼ばないよう文ごとスキップする（元 LINQ の遅延評価と整合させる）。
         var outerLinqInvocations = 外側LINQ呼び出し取得41(statement,semanticModel);
@@ -2002,6 +2051,208 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             _ => RenderStatementForGeneratedMethod(statement,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
         };
         builder.AppendLine(generatedStatement);
+        return true;
+    }
+
+    // 式本体版 LINQ 差し替え文生成。
+    // SyntaxFactory で合成ノードを作らず元ツリーのノード expression をそのまま処理し、
+    // "return <result>;" を出力する。
+    private static bool LINQ呼び出し差し替え文生成38_式本体(
+        ExpressionSyntax expression,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount,
+        HashSet<string> usedNames) {
+        // 括弧を剥がしてクエリ式かどうかを判定する（例: (from v in Source() select v*2)）
+        var unwrapped = expression;
+        while(unwrapped is ParenthesizedExpressionSyntax paren) {
+            unwrapped = paren.Expression;
+        }
+        if(unwrapped is QueryExpressionSyntax queryExpression) {
+            return クエリ式本体生成(
+                queryExpression,semanticModel,containingType,ref uniqueNumber,
+                methodIsStatic,ref staticMethods,unsafeAccessorCollector,
+                generatedFragments,builder,ref linqInvocationCount,usedNames);
+        }
+
+        var outerLinqInvocations = 外側LINQ呼び出し取得41_式(expression,semanticModel);
+        var replacementMap = new Dictionary<string,string>(StringComparer.Ordinal);
+        foreach(var invocation in outerLinqInvocations) {
+            var snapshot = uniqueNumber;
+            var tempName = GetUniqueIdentifier($"__linq{linqInvocationCount++}",usedNames);
+            if(!呼び出し式フラグメント生成1(semanticModel,invocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector)) {
+                uniqueNumber=snapshot;
+                linqInvocationCount--;
+                if(invocation.Expression is MemberAccessExpressionSyntax { Expression: var recv }
+                    && semanticModel.GetTypeInfo(recv).Type is { } recvType
+                    && ContainsAnonymousType(recvType)) {
+                    continue;
+                }
+                return false;
+            }
+            // fragment 生成が成功しても結果型が匿名型を含む場合は struct コードに不正な型名が埋まるためスキップ。
+            // uniqueNumber をスナップショットに戻してカウントも戻す。
+            var invResultType = semanticModel.GetTypeInfo(invocation).Type;
+            if(invResultType is not null && ContainsAnonymousType(invResultType)) {
+                uniqueNumber=snapshot;
+                linqInvocationCount--;
+                continue;
+            }
+            if(!methodIsStatic) {
+                fragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式));
+            }
+            generatedFragments.Add(fragment);
+            staticMethods=静的メソッド連結14(staticMethods,invocationStaticMethods);
+            staticMethods=静的メソッド連結14(staticMethods,fragment.GetEnumeratorStruct);
+            var resultTypeName = semanticModel.GetTypeInfo(invocation).ConvertedType?.ToDisplayString(完全修飾形式)
+                ?? semanticModel.GetTypeInfo(invocation).Type?.ToDisplayString(完全修飾形式)
+                ?? "object";
+            if(!フラグメントEnumerator実行文追加37(builder,fragment,tempName,resultTypeName,usedNames)) {
+                return false;
+            }
+            replacementMap[NormalizeExpressionText(invocation.ToString())]=tempName;
+        }
+
+        var rendered = RenderExpressionForGeneratedMethod(
+            expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
+        // RenderStatementForGeneratedMethod と同じ後処理：this. → @this. への変換
+        rendered=rendered
+            .Replace("SystemEnumerable.","global::System.Linq.Enumerable.",StringComparison.Ordinal)
+            .Replace("this.","@this.",StringComparison.Ordinal);
+        builder.AppendLine($"return {rendered};");
+        return true;
+    }
+
+    // クエリ式を Fragment チェーンへ変換し "return <result>;" を出力する。
+    // 対応: from/where/orderby(thenby)/select の組み合わせ。let・join・group は未対応。
+    private static bool クエリ式本体生成(
+        QueryExpressionSyntax queryExpression,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount,
+        HashSet<string> usedNames) {
+        var fromClause = queryExpression.FromClause;
+        var body = queryExpression.Body;
+
+        // let / join は未対応（フォールバック）。group は SelectOrGroup で別途チェック。
+        if(body.Clauses.Any(static c => c is LetClauseSyntax or JoinClauseSyntax)) {
+            return false;
+        }
+        if(body.SelectOrGroup is GroupClauseSyntax) {
+            return false;
+        }
+
+        var paramName = fromClause.Identifier.ValueText;
+        var sourceExpression = fromClause.Expression;
+
+        // Source fragment を構築
+        if(!単独列挙フラグメント生成10(semanticModel,sourceExpression,containingType,
+            ref uniqueNumber,out var sourceFragment,out var sourceStaticMethods,unsafeAccessorCollector)) {
+            return false;
+        }
+        staticMethods=静的メソッド連結14(staticMethods,sourceStaticMethods);
+        Enumerable currentFragment = sourceFragment;
+
+        // Where 節
+        foreach(var clause in body.Clauses.OfType<WhereClauseSyntax>()) {
+            var predBody = RenderExpressionForGeneratedMethod(
+                clause.Condition,semanticModel,containingType,unsafeAccessorCollector);
+            var whereFunc = new LambdaFunc {
+                InlineBody = predBody,
+                ParameterNames = [paramName],
+                ParameterTypeNames = [currentFragment.ElementType],
+                ReturnTypeName = "bool",
+                CanInlineAssign = false,
+                CanGenerateMethod = true,
+            };
+            if(!フラグメント候補選択25("Where",string.Empty,out var whereCandidate)) {
+                return false;
+            }
+            var whereFragment = (Enumerable)whereCandidate.Constructor.Invoke(
+                [uniqueNumber++,currentFragment,whereFunc]);
+            staticMethods=静的メソッド連結14(staticMethods,whereFragment.GetEnumeratorStruct);
+            currentFragment=whereFragment;
+        }
+
+        // OrderBy / ThenBy 節
+        foreach(var clause in body.Clauses.OfType<OrderByClauseSyntax>()) {
+            var orderings = clause.Orderings.ToList();
+            for(var i = 0; i<orderings.Count; i++) {
+                var ordering = orderings[i];
+                var keyBody = RenderExpressionForGeneratedMethod(
+                    ordering.Expression,semanticModel,containingType,unsafeAccessorCollector);
+                var keyTypeName = semanticModel.GetTypeInfo(ordering.Expression).Type?
+                    .ToDisplayString(完全修飾形式) ?? "object";
+                var orderFunc = new LambdaFunc {
+                    InlineBody = keyBody,
+                    ParameterNames = [paramName],
+                    ParameterTypeNames = [currentFragment.ElementType],
+                    ReturnTypeName = keyTypeName,
+                    CanInlineAssign = false,
+                    CanGenerateMethod = true,
+                };
+                var isDescending = ordering.AscendingOrDescendingKeyword.IsKind(SyntaxKind.DescendingKeyword);
+                var obMethodName = i==0
+                    ? (isDescending ? "OrderByDescending" : "OrderBy")
+                    : (isDescending ? "ThenByDescending" : "ThenBy");
+                if(!フラグメント候補選択25(obMethodName,string.Empty,out var obCandidate)) {
+                    return false;
+                }
+                var obFragment = (Enumerable)obCandidate.Constructor.Invoke(
+                    [uniqueNumber++,currentFragment,orderFunc]);
+                staticMethods=静的メソッド連結14(staticMethods,obFragment.GetEnumeratorStruct);
+                currentFragment=obFragment;
+            }
+        }
+
+        // Select 節（identity select は不要）
+        if(body.SelectOrGroup is SelectClauseSyntax selectClause) {
+            var selectExpr = selectClause.Expression;
+            var isIdentitySelect = selectExpr is IdentifierNameSyntax { Identifier.ValueText: var sid } && sid==paramName;
+            if(!isIdentitySelect) {
+                var selectorBody = RenderExpressionForGeneratedMethod(
+                    selectExpr,semanticModel,containingType,unsafeAccessorCollector);
+                var resultTypeName2 = semanticModel.GetTypeInfo(selectExpr).Type?
+                    .ToDisplayString(完全修飾形式) ?? "object";
+                var selectFunc = new LambdaFunc {
+                    InlineBody = selectorBody,
+                    ParameterNames = [paramName],
+                    ParameterTypeNames = [currentFragment.ElementType],
+                    ReturnTypeName = resultTypeName2,
+                    CanInlineAssign = true,
+                    CanGenerateMethod = true,
+                };
+                if(!フラグメント候補選択25("Select",string.Empty,out var selectCandidate)) {
+                    return false;
+                }
+                var selectFrag = (Enumerable)selectCandidate.Constructor.Invoke(
+                    [uniqueNumber++,currentFragment,selectFunc]);
+                staticMethods=静的メソッド連結14(staticMethods,selectFrag.GetEnumeratorStruct);
+                currentFragment=selectFrag;
+            }
+        }
+
+        var tempName2 = GetUniqueIdentifier($"__linq{linqInvocationCount++}",usedNames);
+        generatedFragments.Add(currentFragment);
+        var returnTypeName = semanticModel.GetTypeInfo(queryExpression).ConvertedType?.ToDisplayString(完全修飾形式)
+            ?? semanticModel.GetTypeInfo(queryExpression).Type?.ToDisplayString(完全修飾形式)
+            ?? "object";
+        if(!フラグメントEnumerator実行文追加37(builder,currentFragment,tempName2,returnTypeName,usedNames)) {
+            return false;
+        }
+        builder.AppendLine($"return {tempName2};");
         return true;
     }
 
@@ -2113,6 +2364,26 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 .Any())
             .Where(invocation => !invocation.Ancestors()
                 .TakeWhile(ancestor => ancestor!=statement)
+                .OfType<InvocationExpressionSyntax>()
+                .Any(ancestorInvocation => SystemLinqEnumerable呼び出し判定42(ancestorInvocation,semanticModel)))
+            .OrderBy(static invocation => invocation.SpanStart)
+            .ToList();
+    }
+
+    // 式本体版：expression を root として LINQ 呼び出しを検索する。
+    // SyntaxFactory.ReturnStatement(アロー式) のような合成ノードを避け、元ツリーのノードを直接使う。
+    private static List<InvocationExpressionSyntax> 外側LINQ呼び出し取得41_式(ExpressionSyntax expression,SemanticModel semanticModel) {
+        return expression.DescendantNodesAndSelf()
+            .OfType<InvocationExpressionSyntax>()
+            .Where(invocation => SystemLinqEnumerable呼び出し判定42(invocation,semanticModel)
+                && semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol { ReducedFrom: not null } method
+                && !(method.ReducedFrom ?? method).Parameters.Any(static p => p.RefKind != RefKind.None))
+            .Where(invocation => !invocation.Ancestors()
+                .TakeWhile(ancestor => ancestor!=expression)
+                .OfType<LambdaExpressionSyntax>()
+                .Any())
+            .Where(invocation => !invocation.Ancestors()
+                .TakeWhile(ancestor => ancestor!=expression)
                 .OfType<InvocationExpressionSyntax>()
                 .Any(ancestorInvocation => SystemLinqEnumerable呼び出し判定42(ancestorInvocation,semanticModel)))
             .OrderBy(static invocation => invocation.SpanStart)
