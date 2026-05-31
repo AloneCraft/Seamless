@@ -91,7 +91,7 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
         private struct {{Struct}}({{elementType}}[] source) : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private int {{e}} = -1;
-            public {{elementType}} Current => source[{{e}}];
+            public {{elementType}} Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
             void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
@@ -117,7 +117,7 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
                 if(++{{e}} < source.Length) {
-                    current = source[{{e}}];
+                    current = this.Current = source[{{e}}];
                     return true;
                 }
                 current = default!;
