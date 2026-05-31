@@ -24,7 +24,7 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
         }
         var {{result}} = {{e}}.Current;
         while({{e}}.MoveNext()) {
-            {{result}} = {{FuncInvokeField(func,nameof(func),result,$"{e}.Current")}};
+            {{FuncAssign(func,nameof(func),result,result,$"{e}.Current")}}
         }
         this.{{currentValue}} = {{result}};
         current = this.{{currentValue}};
@@ -56,7 +56,7 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
         this.{{yielded}} = true;
         var {{result}} = {{seed}};
         while({{e}}.MoveNext()) {
-            {{result}} = {{FuncInvokeField(func,nameof(func),result,$"{e}.Current")}};
+            {{FuncAssign(func,nameof(func),result,result,$"{e}.Current")}}
         }
         this.{{currentValue}} = {{result}};
         current = this.{{currentValue}};
@@ -91,9 +91,9 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
         this.{{yielded}} = true;
         var {{result}} = {{seed}};
         while({{e}}.MoveNext()) {
-            {{result}} = {{FuncInvokeField(func,nameof(func),result,$"{e}.Current")}};
+            {{FuncAssign(func,nameof(func),result,result,$"{e}.Current")}}
         }
-        this.{{currentValue}} = {{FuncInvokeField(resultSelector,nameof(resultSelector),result)}};
+        {{FuncAssign(resultSelector,nameof(resultSelector),$"this.{currentValue}",result)}}
         current = this.{{currentValue}};
         return true;
         """;

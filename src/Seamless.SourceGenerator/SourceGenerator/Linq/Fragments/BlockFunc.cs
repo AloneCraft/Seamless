@@ -15,7 +15,7 @@ public sealed class BlockFunc : FuncFragment {
     public string BlockBody = string.Empty;
 
     public override string RenderInlineAssign(string destination,int number,params string[] arguments) {
-        var label = $"__blockEnd_{number}";
+        var label = $"__blockEnd_{number}_{SanitizeLocalName(destination)}";
         var prelude = new StringBuilder();
         var body = BlockBody;
         for(var index = 0; index<arguments.Length && index<ParameterNames.Length; index++) {

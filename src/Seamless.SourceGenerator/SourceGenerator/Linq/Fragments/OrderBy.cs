@@ -74,8 +74,8 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             }
             items.Sort((left, right) => {
                 var compare = comparer.Compare(left.Key, right.Key);
-                if(compare == 0) compare = left.Index.CompareTo(right.Index);
-                return {{(descending ? "-compare" : "compare")}};
+                if(compare != 0) return {{(descending ? "-compare" : "compare")}};
+                return left.Index.CompareTo(right.Index);
             });
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>(items.Count);
             foreach(var item in items) result.Add(item.Value);
@@ -113,8 +113,8 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
                 var primaryCompare = primaryComparer.Compare(left.PrimaryKey, right.PrimaryKey);
                 if({{(po.OwnDescending ? "-primaryCompare" : "primaryCompare")}} != 0) return {{(po.OwnDescending ? "-primaryCompare" : "primaryCompare")}};
                 var compare = comparer.Compare(left.Key, right.Key);
-                if(compare == 0) compare = left.Index.CompareTo(right.Index);
-                return {{(descending ? "-compare" : "compare")}};
+                if(compare != 0) return {{(descending ? "-compare" : "compare")}};
+                return left.Index.CompareTo(right.Index);
             });
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>(items.Count);
             foreach(var item in items) result.Add(item.Value);

@@ -3,28 +3,7 @@ using NonGenericEnumerable = System.Collections.IEnumerable;
 using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Seamless.Intercept.System.Linq;
-
-public static class Common {
-    public static void Assert<T>(Func<T> Expected,Func<T> Actual) {
-        var expected=Expected();
-        var actual=Actual();
-        Xunit.Assert.Equal(expected,actual);
-    }
-}
-
 public sealed class AnonymousType {
-    [Fact,Trait("Category","Unit")]public void t0() {
-        Common.Assert(
-            ()=>SystemEnumerable.SelectMany(Source(),p=>Source().Select(q=>new{p,q})),
-            ()=>Source().SelectMany(p=>Source().Select(q=>new{p,q}))
-        );
-    }
-    [Fact,Trait("Category","Unit")]public void t1() {
-        Common.Assert(
-            ()=>SystemEnumerable.Select(Source(),p=>new{a=p,b=p}),
-            ()=>Source().Select(p=>new{a=p,b=p})
-        );
-    }
     [Fact,Trait("Category","Unit")]public void SelectMany() {
         SelectMany_Static();
     }

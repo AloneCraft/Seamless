@@ -29,6 +29,7 @@ public abstract class SetByBase(int 番号, Enumerable source, Enumerable second
                 {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
                 {{BuildSourceDecision}}
             }
+            {{BuildSecondIteration}}
             return result;
         }
         """;
@@ -37,6 +38,17 @@ public abstract class SetByBase(int 番号, Enumerable source, Enumerable second
         _ => $$"""
             while(second.MoveNext()) keys.Add(({{FuncReturnTypeName(keySelector)}})(object)second.Current!);
             """,
+    };
+    private string BuildSecondIteration => operation switch {
+        "union" => $$"""
+            while(second.MoveNext()) {
+                var {{item}} = second.Current;
+                {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
+                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                if(keys.Add({{key}})) result.Add({{item}});
+            }
+            """,
+        _ => string.Empty,
     };
     private string BuildSourceDecision => operation switch {
         "except" => $"if(!keys.Contains({key}) && keys.Add({key})) result.Add({item});",

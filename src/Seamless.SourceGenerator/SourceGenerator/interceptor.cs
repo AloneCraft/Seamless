@@ -63,14 +63,28 @@
 
 ## 5. Fragment の選択・生成フロー
 
+`呼び出し式フラグメント生成1` は **拡張メソッド呼び出し**（`source.Method(...)`）のみを対象とする。
+静的呼び出し（`SystemEnumerable.Method(source, ...)`）は `呼び出しソース式取得51` が false を返し、
+`列挙フラグメント生成9` が `単独列挙フラグメント生成10` にフォールバックして不透明な Root として扱う。
+
 ```
-呼び出し式フラグメント生成1()
+呼び出し式フラグメント生成1()  ※拡張メソッド呼び出しのみ
+  ├─ 呼び出しソース式取得51() → source を抽出（ReducedFrom が null なら false を返す）
   ├─ Any → Anyフラグメント生成3()（Where + Any に変換）
   ├─ SelectMany のインライン化可能ならSelectManyインライン化試行50()
   └─ その他 → 登録済みフラグメント生成24()
                  └─ フラグメント候補一覧から MethodName で候補を検索
                     └─ 各候補を試行（登録済みフラグメント生成試行26）
+
+列挙フラグメント生成9()
+  ├─ invocation かつ 呼び出し式フラグメント生成1 が成功 → Enumerable fragment
+  └─ それ以外（静的LINQ呼び出し含む） → 単独列挙フラグメント生成10()（不透明な Root として扱う）
 ```
+
+例:
+- `source.Where(...).ToList()` → `.Where()` `.ToList()` ともに struct 展開
+- `Enumerable.Select(source, ...).Where(...).ToList()` → `Enumerable.Select(...)` は不透明 Root、`.Where()` `.ToList()` を struct 展開
+- `Enumerable.Select(source, ...).ToList()` → `Enumerable.Select(...)` は不透明 Root、`.ToList()` を struct 展開
 
 ---
 
@@ -93,7 +107,7 @@
 `Block`, `Try`, `Using`, `LocalDeclaration`, `ExpressionStatement`, `For`, `ForEach`, `While`, `Do`, `If`, `Switch`、それ以外
 
 LINQ 呼び出しを含む文に対しては `LINQ呼び出し差し替え文生成38` が走り：
-1. 文の中の LINQ 呼び出し式を抽出（ラムダ内部やネストした LINQ は除外）
+1. 文の中の **拡張メソッド** LINQ 呼び出し式を抽出（静的呼び出し・ラムダ内部・ネストした LINQ は除外）
 2. 各呼び出しを Fragment で展開し、`__linq0`, `__linq1`... などのローカル変数に一時保存
 3. 元の文のテキストを一時変数名で置換して出力
 
@@ -311,6 +325,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         isEnabledByDefault: true,
         description: "匿名型を含む LINQ 式は、生成メソッドの署名に匿名型を記述できないため完全なフラグメント最適化が適用できません。ValueTuple (例: (int x, int y)) または struct record を使うことで最適化が有効になります.");
 
+    // LINQ インターセプト対象メソッドで展開に失敗し、生成コードが例外を throw する形になるとき発行する警告。
+    // これにより「インターセプトはされたが展開できなかった」ことをコンパイル時に検出できる。
+    // 警告が出ない = 全 LINQ 呼び出しがインライン展開されている ことを確認するために使う。
+    private static readonly DiagnosticDescriptor 展開失敗警告Descriptor = new(
+        id: "SEAMLESS002",
+        title: "LINQ インターセプト展開失敗",
+        messageFormat: "'{0}' の LINQ 呼び出しをインライン展開できませんでした。実行時に例外が発生します。未対応メソッドまたはデリゲートパターンが含まれている可能性があります。",
+        category: "Seamless.Performance",
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "対象メソッド内の LINQ 呼び出しをインライン展開できなかったため、生成されたインターセプターコードは実行時に例外を発生させます。Fragment 未実装のメソッド、または未対応のデリゲートパターンが含まれている可能性があります。");
+
     public void Initialize(IncrementalGeneratorInitializationContext context) {
         var interceptTargets = context.SyntaxProvider
             .CreateSyntaxProvider(
@@ -370,13 +396,17 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             var sourceGroups = distinctTargets
                 .GroupBy(static target => target.SourcePath,StringComparer.Ordinal)
                 .ToArray();
+            var diagnostics = new List<Diagnostic>();
             foreach(var sourceGroup in sourceGroups) {
-                var source = インターセプターソース構築([..sourceGroup]);
+                var source = インターセプターソース構築([..sourceGroup],diagnostics);
                 if(source.Length==0) {
                     continue;
                 }
 
                 productionContext.AddSource(インターセプターHintName取得(sourceGroup.Key),SourceText.From(source,Encoding.UTF8));
+            }
+            foreach(var diagnostic in diagnostics) {
+                productionContext.ReportDiagnostic(diagnostic);
             }
         });
     }
@@ -608,7 +638,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return definition.ContainingType.ToDisplayString()=="System.Linq.Enumerable";
     }
 
-    private static string インターセプターソース構築(ImmutableArray<Linq傍受対象型> targets) {
+    private static string インターセプターソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics) {
         var builder = new StringBuilder();
         builder.AppendLine("#nullable enable");
         builder.AppendLine("using System.Linq;");
@@ -625,7 +655,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             }
             foreach(var typeGroup in namespaceGroup.GroupBy(static target => target.EnclosingType.ToDisplayString(完全修飾形式),StringComparer.Ordinal)) {
                 var typeTargets = typeGroup.ToImmutableArray();
-                var typeSource = インターセプター型ソース構築(typeTargets);
+                var typeSource = インターセプター型ソース構築(typeTargets,diagnostics);
                 インデント付き追記(builder,typeSource,"    ");
             }
             builder.AppendLine("}");
@@ -633,7 +663,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return builder.ToString();
     }
 
-    private static string インターセプター型ソース構築(ImmutableArray<Linq傍受対象型> targets) {
+    private static string インターセプター型ソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics) {
         var builder = new StringBuilder();
         var typeStack = 型スタック取得(targets[0].EnclosingType);
         foreach (var t in typeStack)
@@ -667,8 +697,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                     builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
                     builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
                     if(ローカルメソッド未対応Enumerable取得31(target) is { Count: > 0 } unsupportedMethods) {
+                        var loc1 = target.Method.Locations.FirstOrDefault() ?? target.Invocation.GetLocation();
+                        diagnostics.Add(Diagnostic.Create(展開失敗警告Descriptor,loc1,target.Method.Name));
                         インデント付き追記(builder,RenderUnsupportedLocalMethodBody(unsupportedMethods),"        ");
                     } else {
+                        var loc2 = target.Method.Locations.FirstOrDefault() ?? target.Invocation.GetLocation();
+                        diagnostics.Add(Diagnostic.Create(展開失敗警告Descriptor,loc2,target.Method.Name));
                         インデント付き追記(builder,RenderUninlineableLocalMethodBody(target),"        ");
                     }
                     builder.AppendLine("    }");
@@ -680,6 +714,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 }
 
                 emittedMethodNames.Add(target.MethodName);
+                var locEx = target.Method.Locations.FirstOrDefault() ?? target.Invocation.GetLocation();
+                diagnostics.Add(Diagnostic.Create(展開失敗警告Descriptor,locEx,target.Method.Name));
                 インターセプターXmlコメント追加(builder,target);
                 builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
                 builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
@@ -754,7 +790,16 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         // 以前は識別子ハッシュから開始番号を作っていたため Struct1144748 のような読みにくい名前になっていた。
         // いまはメソッドごとに 0 から連番を振り、必要なら外側で補助クラスに包んで衝突を避ける。
         var フラグメント番号 = フラグメント番号初期値取得18();
-        if(対象.Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax { Body: { } メソッド本体 } メソッド構文) {
+        if(対象.Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax メソッド構文) {
+            return false;
+        }
+
+        IEnumerable<StatementSyntax> statements;
+        if(メソッド構文.Body is { } ブロック本体) {
+            statements = ブロック本体.Statements;
+        } else if(メソッド構文.ExpressionBody is { Expression: var アロー式 }) {
+            statements = [SyntaxFactory.ReturnStatement(アロー式)];
+        } else {
             return false;
         }
 
@@ -764,7 +809,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         var generatedFragments = new List<Fragment>();
         var 本体ビルダー = new StringBuilder();
         var linq呼び出し数 = 0;
-        foreach(var 文 in メソッド本体.Statements) {
+        foreach(var 文 in statements) {
             if(!文生成16(文,セマンティックモデル,対象.EnclosingType,ref フラグメント番号,対象.Method.IsStatic,ref 静的メソッド群,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref linq呼び出し数,usedNames)) {
                 return false;
             }
@@ -1014,27 +1059,16 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         argumentStartIndex=0;
         fragmentMethod=method;
 
+        // 拡張メソッド呼び出しのみを対象とする。
+        // 静的呼び出し（SystemEnumerable.Method(source, ...)）は展開せず、
+        // 列挙フラグメント生成9 が単独列挙フラグメント生成10 にフォールバックして不透明な Root として扱う。
         if(method.ReducedFrom is not null
             && invocation.Expression is MemberAccessExpressionSyntax { Expression: var receiverExpression }) {
             sourceExpression=receiverExpression;
             return true;
         }
 
-        // 仕様: static な System.Linq.Enumerable 呼び出しでは第 1 引数を source として扱う。
-        // Cast/OfType のため、source 型は IEnumerable<T> だけでなく非ジェネリック IEnumerable も許可する。
-        var definition = method.ReducedFrom ?? method;
-        if(definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable"
-            || definition.Parameters.Length==0
-            || invocation.ArgumentList.Arguments.Count==0
-            || !IsEnumerableSourceParameter(definition.Parameters[0].Type)) {
-            return false;
-        }
-
-        sourceExpression=invocation.ArgumentList.Arguments[0].Expression;
-        argumentStartIndex=1;
-        var sourceActualType = semanticModel.GetTypeInfo(sourceExpression).Type ?? definition.Parameters[0].Type;
-        fragmentMethod = definition.ReduceExtensionMethod(sourceActualType) ?? method;
-        return true;
+        return false;
     }
 
     private static bool IsEnumerableSourceParameter(ITypeSymbol type) =>
@@ -1213,6 +1247,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         // キャプチャ付きラムダ/delegate 式は struct closure として primary constructor に閉じ込め、
         // ループ内では式へ展開する。delegate 変数・メソッドグループは受け付けない。
         if(funcFragment is LambdaFunc) {
+            return true;
+        }
+
+        // try-catch を含む複数文ブロック本体は BlockFunc で表現し、FuncAssign で文として展開する。
+        // BlockFunc.RequiresStatementInlining = true のため FuncAssign 側が RenderInlineAssign を使う。
+        if(funcFragment is BlockFunc) {
             return true;
         }
 
@@ -1962,373 +2002,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             _ => RenderStatementForGeneratedMethod(statement,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
         };
         builder.AppendLine(generatedStatement);
-        return true;
-    }
-
-    private static bool 匿名型LINQ実行文追加52(
-        StringBuilder builder,
-        SemanticModel semanticModel,
-        InvocationExpressionSyntax invocation,
-        INamedTypeSymbol containingType,
-        ref int uniqueNumber,
-        string actualVariableName,
-        List<string>? unsafeAccessorCollector,
-        HashSet<string> usedNames,
-        out string staticMethods) {
-        staticMethods=string.Empty;
-        if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) {
-            return false;
-        }
-
-        var definition = method.ReducedFrom ?? method;
-        if(definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable"
-            || !呼び出しソース式取得51(semanticModel,invocation,method,out var sourceExpression,out var argumentStartIndex,out var fragmentMethod)) {
-            return false;
-        }
-
-        if(!ContainsAnonymousType(method.ReturnType)
-            && !fragmentMethod.Parameters.Any(static parameter => ContainsAnonymousType(parameter.Type))) {
-            return false;
-        }
-
-        var anonymousTypeParameters = new Dictionary<ITypeSymbol,string>(SymbolEqualityComparer.Default);
-        var helperTypeParameters = new List<string>();
-        var sourceElementType = semanticModel.GetTypeInfo(sourceExpression).Type is { } sourceType
-            && 列挙要素型取得11(sourceType,out var resolvedSourceElementType,out _)
-            ? resolvedSourceElementType
-            : definition.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 1 } sourceParameterType
-                ? sourceParameterType.TypeArguments[0]
-                : null;
-        if(sourceElementType is null) {
-            return false;
-        }
-
-        var helperName = $"Struct{uniqueNumber++}_AnonymousLinq";
-        var invocationArguments = invocation.ArgumentList.Arguments;
-
-        // 「型推論のみ」パターンを使用してループ展開による完全インライン化を実現
-        // Select、GroupByなどに対応
-        if(definition.Name == "Select" && invocationArguments.Count == argumentStartIndex + 1) {
-            return 匿名型Select生成53(builder, semanticModel, invocation, containingType, sourceExpression,
-                invocationArguments[argumentStartIndex].Expression, sourceElementType,
-                anonymousTypeParameters, helperTypeParameters, helperName, actualVariableName,
-                unsafeAccessorCollector, usedNames, out staticMethods);
-        }
-
-        if(definition.Name == "GroupBy") {
-            return 匿名型GroupBy生成54(builder, semanticModel, invocation, containingType, sourceExpression,
-                argumentStartIndex, invocationArguments, fragmentMethod, sourceElementType,
-                anonymousTypeParameters, helperTypeParameters, helperName, actualVariableName,
-                unsafeAccessorCollector, usedNames, out staticMethods);
-        }
-
-        // その他のメソッドは従来通りSystem.Linq.Enumerableに委譲
-        var parameterDeclarations = new List<string> {
-            $"global::System.Collections.Generic.IEnumerable<{RenderGeneratedTypeName(sourceElementType,anonymousTypeParameters,helperTypeParameters)}> source"
-        };
-        var callArguments = new List<string> { "source" };
-        for(var argumentIndex = argumentStartIndex; argumentIndex<invocationArguments.Count; argumentIndex++) {
-            var methodParameterIndex = argumentIndex-argumentStartIndex;
-            if(methodParameterIndex>=fragmentMethod.Parameters.Length) {
-                return false;
-            }
-
-            var parameterName = $"arg{methodParameterIndex}";
-            var parameterType = RenderGeneratedTypeName(fragmentMethod.Parameters[methodParameterIndex].Type,anonymousTypeParameters,helperTypeParameters);
-            parameterDeclarations.Add($"{parameterType} {parameterName}");
-            callArguments.Add(parameterName);
-        }
-
-        if(helperTypeParameters.Count==0) {
-            return false;
-        }
-
-        var sourceText = RenderExpressionForGeneratedMethod(sourceExpression,semanticModel,containingType,unsafeAccessorCollector);
-        var renderedArguments = invocationArguments
-            .Skip(argumentStartIndex)
-            .Select(argument => RenderArgumentForGeneratedMethod(argument,semanticModel,containingType,unsafeAccessorCollector))
-            .ToArray();
-        builder.AppendLine($"var {actualVariableName}={helperName}({string.Join(", ",new[] { sourceText }.Concat(renderedArguments))});");
-
-        var returnType = RenderGeneratedTypeName(method.ReturnType,anonymousTypeParameters,helperTypeParameters);
-        var typeParameterList = $"<{string.Join(", ",helperTypeParameters)}>";
-        staticMethods = $$"""
-            private static {{returnType}} {{helperName}}{{typeParameterList}}({{string.Join(", ",parameterDeclarations)}}) {
-                return global::System.Linq.Enumerable.{{definition.Name}}({{string.Join(", ",callArguments)}});
-            }
-            """;
-        return true;
-    }
-
-    // 「型推論のみ」パターンでSelectを生成：デリゲートを型推論に使い、ラムダ本体を直接インライン展開
-    private static bool 匿名型Select生成53(
-        StringBuilder builder,
-        SemanticModel semanticModel,
-        InvocationExpressionSyntax invocation,
-        INamedTypeSymbol containingType,
-        ExpressionSyntax sourceExpression,
-        ExpressionSyntax selectorExpression,
-        ITypeSymbol sourceElementType,
-        Dictionary<ITypeSymbol,string> anonymousTypeParameters,
-        List<string> helperTypeParameters,
-        string helperName,
-        string actualVariableName,
-        List<string>? unsafeAccessorCollector,
-        HashSet<string> usedNames,
-        out string staticMethods) {
-        staticMethods=string.Empty;
-
-        // selectorがラムダ式の場合のみ対応
-        if(selectorExpression is not LambdaExpressionSyntax selectorLambda) {
-            return false;
-        }
-
-        if(!TryGetLambdaExpressionBody(selectorLambda, out var lambdaBody)) {
-            return false;
-        }
-
-        var parameters = GetLambdaParameters(selectorLambda);
-        if(parameters.Count == 0 || parameters.Count > 2) {
-            return false;
-        }
-
-        // 結果型を取得
-        var resultType = semanticModel.GetTypeInfo(invocation).Type;
-        if(resultType is not INamedTypeSymbol { TypeArguments.Length: 1 } resultNamedType) {
-            return false;
-        }
-
-        var resultElementType = resultNamedType.TypeArguments[0];
-        var sourceTypeName = RenderGeneratedTypeName(sourceElementType, anonymousTypeParameters, helperTypeParameters);
-        var resultTypeName = RenderGeneratedTypeName(resultElementType, anonymousTypeParameters, helperTypeParameters);
-
-        if(helperTypeParameters.Count == 0) {
-            return false;
-        }
-
-        var sourceText = RenderExpressionForGeneratedMethod(sourceExpression, semanticModel, containingType, unsafeAccessorCollector);
-        var typeParameterList = $"<{string.Join(", ", helperTypeParameters)}>";
-
-        // 型推論ヘルパーメソッドを生成（デリゲートは型推論のみに使用）
-        var helperMethodName = $"{helperName}_CreateList";
-        var selectorRendered = RenderExpressionForGeneratedMethod(selectorExpression, semanticModel, containingType, unsafeAccessorCollector);
-
-        // ブロックスコープ（{}内）の変数は兄弟ブロック間で再利用可能なため、
-        // 追加しない FindUniqueIdentifier で衝突のみチェックする。
-        var itemVar = FindUniqueIdentifier(parameters[0], usedNames);
-        var indexVar = parameters.Count == 2 ? FindUniqueIdentifier(parameters[1], usedNames) : null;
-        var tempVar = FindUniqueIdentifier("temp", usedNames);
-
-        var lambdaBodyInlined = RenderExpressionForGeneratedMethod(lambdaBody, semanticModel, containingType, unsafeAccessorCollector);
-        // パラメータ名が itemVar/indexVar に変わった場合のみ本体を置換する
-        if(itemVar != parameters[0]) {
-            lambdaBodyInlined = lambdaBodyInlined.Replace(parameters[0], itemVar, StringComparison.Ordinal);
-        }
-        if(indexVar is not null && indexVar != parameters[1]) {
-            lambdaBodyInlined = lambdaBodyInlined.Replace(parameters[1], indexVar, StringComparison.Ordinal);
-        }
-
-        // ループ展開コードを生成（ブロックスコープで重複宣言を防ぐ）
-        builder.AppendLine($"var {actualVariableName} = {helperMethodName}({selectorRendered});");
-        builder.AppendLine("{");
-        if(indexVar is not null) {
-            builder.AppendLine($"var {indexVar} = 0;");
-        }
-        builder.AppendLine($"foreach(var {itemVar} in {sourceText}) {{");
-        builder.AppendLine($"    var {tempVar} = {lambdaBodyInlined};");
-        builder.AppendLine($"    {actualVariableName}.Add({tempVar});");
-        if(indexVar is not null) {
-            builder.AppendLine($"    {indexVar}++;");
-        }
-        builder.AppendLine("}");
-        builder.AppendLine("}");
-
-        // 型推論ヘルパーメソッドを生成
-        var funcType = parameters.Count == 1
-            ? $"global::System.Func<{sourceTypeName}, {resultTypeName}>"
-            : $"global::System.Func<{sourceTypeName}, int, {resultTypeName}>";
-
-        staticMethods = $$"""
-            private static global::System.Collections.Generic.List<{{resultTypeName}}> {{helperMethodName}}{{typeParameterList}}({{funcType}} _) {
-                return new global::System.Collections.Generic.List<{{resultTypeName}}>();
-            }
-            """;
-        return true;
-    }
-
-    // 「型推論のみ」パターンでGroupByを生成：デリゲートを型推論に使い、ラムダ本体を直接インライン展開
-    private static bool 匿名型GroupBy生成54(
-        StringBuilder builder,
-        SemanticModel semanticModel,
-        InvocationExpressionSyntax invocation,
-        INamedTypeSymbol containingType,
-        ExpressionSyntax sourceExpression,
-        int argumentStartIndex,
-        SeparatedSyntaxList<ArgumentSyntax> invocationArguments,
-        IMethodSymbol fragmentMethod,
-        ITypeSymbol sourceElementType,
-        Dictionary<ITypeSymbol,string> anonymousTypeParameters,
-        List<string> helperTypeParameters,
-        string helperName,
-        string actualVariableName,
-        List<string>? unsafeAccessorCollector,
-        HashSet<string> usedNames,
-        out string staticMethods) {
-        staticMethods=string.Empty;
-
-        // keySelectorがラムダ式の場合のみ対応
-        if(invocationArguments.Count < argumentStartIndex + 1) {
-            return false;
-        }
-
-        var keySelectorExpression = invocationArguments[argumentStartIndex].Expression;
-        if(keySelectorExpression is not LambdaExpressionSyntax keySelectorLambda) {
-            return false;
-        }
-
-        if(!TryGetLambdaExpressionBody(keySelectorLambda, out var keyLambdaBody)) {
-            return false;
-        }
-
-        var keyParameters = GetLambdaParameters(keySelectorLambda);
-        if(keyParameters.Count != 1) {
-            return false;
-        }
-
-        // GroupBy(keySelector, resultSelector) オーバーロード:
-        // 各グループ（IGrouping<TKey,TSource>）を resultSelector (key, elements)=>TResult で射影し List<TResult> を作る。
-        if(invocationArguments.Count >= argumentStartIndex + 2
-            && invocationArguments[argumentStartIndex + 1].Expression is LambdaExpressionSyntax resultSelectorLambda
-            && TryGetLambdaExpressionBody(resultSelectorLambda, out var resultLambdaBody)) {
-            var resultParameters = GetLambdaParameters(resultSelectorLambda);
-            if(resultParameters.Count == 2
-                && semanticModel.GetTypeInfo(invocation).Type is INamedTypeSymbol { TypeArguments.Length: 1 } resultSequenceType
-                && semanticModel.GetTypeInfo(keyLambdaBody).Type is { } keyTypeSymbol) {
-                var resultElementType = resultSequenceType.TypeArguments[0];
-                var groupSourceTypeName = RenderGeneratedTypeName(sourceElementType, anonymousTypeParameters, helperTypeParameters);
-                var groupKeyTypeName = RenderGeneratedTypeName(keyTypeSymbol, anonymousTypeParameters, helperTypeParameters);
-                var resultElementTypeName = RenderGeneratedTypeName(resultElementType, anonymousTypeParameters, helperTypeParameters);
-                if(helperTypeParameters.Count == 0) {
-                    return false;
-                }
-
-                var groupSourceText = RenderExpressionForGeneratedMethod(sourceExpression, semanticModel, containingType, unsafeAccessorCollector);
-                var groupTypeParameterList = $"<{string.Join(", ", helperTypeParameters)}>";
-                var dictionaryHelperName = $"{helperName}_CreateDictionary";
-                var resultListHelperName = $"{helperName}_CreateResultList";
-                var groupKeySelectorRendered = RenderExpressionForGeneratedMethod(keySelectorExpression, semanticModel, containingType, unsafeAccessorCollector);
-                var resultSelectorRendered = RenderExpressionForGeneratedMethod(invocationArguments[argumentStartIndex + 1].Expression, semanticModel, containingType, unsafeAccessorCollector);
-
-                var groupItemVar = FindUniqueIdentifier("item", usedNames);
-                var groupKeyVar = FindUniqueIdentifier("key", usedNames);
-                var groupBucketVar = FindUniqueIdentifier("group", usedNames);
-                var groupingVar = FindUniqueIdentifier("grouping", usedNames);
-
-                var groupKeyBodyInlined = RenderExpressionForGeneratedMethod(keyLambdaBody, semanticModel, containingType, unsafeAccessorCollector);
-                groupKeyBodyInlined = groupKeyBodyInlined.Replace(keyParameters[0], groupItemVar, StringComparison.Ordinal);
-                // resultSelector 本体は引数名のまま埋め込み、各引数を同名のローカルへ束縛して匿名型のメンバー名を保つ。
-                var resultBodyInlined = RenderExpressionForGeneratedMethod(resultLambdaBody, semanticModel, containingType, unsafeAccessorCollector);
-
-                builder.AppendLine($"var {actualVariableName}_dict = {dictionaryHelperName}({groupKeySelectorRendered});");
-                builder.AppendLine($"var {actualVariableName}_groups = new global::System.Collections.Generic.List<{helperName}_Grouping>();");
-                builder.AppendLine($"foreach(var {groupItemVar} in {groupSourceText}) {{");
-                builder.AppendLine($"    var {groupKeyVar} = {groupKeyBodyInlined};");
-                builder.AppendLine($"    if(!{actualVariableName}_dict.TryGetValue({groupKeyVar}, out var {groupBucketVar})) {{");
-                builder.AppendLine($"        {groupBucketVar} = new {helperName}_Grouping({groupKeyVar});");
-                builder.AppendLine($"        {actualVariableName}_dict.Add({groupKeyVar}, {groupBucketVar});");
-                builder.AppendLine($"        {actualVariableName}_groups.Add({groupBucketVar});");
-                builder.AppendLine($"    }}");
-                builder.AppendLine($"    {groupBucketVar}.Add({groupItemVar});");
-                builder.AppendLine("}");
-                builder.AppendLine($"var {actualVariableName}_projected = {resultListHelperName}({resultSelectorRendered});");
-                builder.AppendLine($"foreach(var {groupingVar} in {actualVariableName}_groups) {{");
-                builder.AppendLine($"    {groupKeyTypeName} {resultParameters[0]} = {groupingVar}.Key;");
-                builder.AppendLine($"    global::System.Collections.Generic.IEnumerable<{groupSourceTypeName}> {resultParameters[1]} = {groupingVar};");
-                builder.AppendLine($"    {actualVariableName}_projected.Add({resultBodyInlined});");
-                builder.AppendLine("}");
-                builder.AppendLine($"var {actualVariableName} = {actualVariableName}_projected;");
-
-                staticMethods = $$"""
-                    private sealed class {{helperName}}_Grouping : global::System.Linq.IGrouping<{{groupKeyTypeName}}, {{groupSourceTypeName}}> {
-                        private readonly global::System.Collections.Generic.List<{{groupSourceTypeName}}> values = new();
-                        public {{helperName}}_Grouping({{groupKeyTypeName}} key) {
-                            this.Key = key;
-                        }
-                        public {{groupKeyTypeName}} Key { get; }
-                        public void Add({{groupSourceTypeName}} value) => values.Add(value);
-                        public global::System.Collections.Generic.IEnumerator<{{groupSourceTypeName}}> GetEnumerator() => values.GetEnumerator();
-                        global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
-                    }
-                    private static global::System.Collections.Generic.Dictionary<{{groupKeyTypeName}}, {{helperName}}_Grouping> {{dictionaryHelperName}}{{groupTypeParameterList}}(global::System.Func<{{groupSourceTypeName}}, {{groupKeyTypeName}}> _) {
-                        return new global::System.Collections.Generic.Dictionary<{{groupKeyTypeName}}, {{helperName}}_Grouping>();
-                    }
-                    private static global::System.Collections.Generic.List<{{resultElementTypeName}}> {{resultListHelperName}}{{groupTypeParameterList}}(global::System.Func<{{groupKeyTypeName}}, global::System.Collections.Generic.IEnumerable<{{groupSourceTypeName}}>, {{resultElementTypeName}}> _) {
-                        return new global::System.Collections.Generic.List<{{resultElementTypeName}}>();
-                    }
-                    """;
-                return true;
-            }
-        }
-
-        // 結果型を取得
-        var resultType = semanticModel.GetTypeInfo(invocation).Type;
-        if(resultType is not INamedTypeSymbol { TypeArguments.Length: 2 } resultNamedType) {
-            return false;
-        }
-
-        var keyType = resultNamedType.TypeArguments[0];
-        var sourceTypeName = RenderGeneratedTypeName(sourceElementType, anonymousTypeParameters, helperTypeParameters);
-        var keyTypeName = RenderGeneratedTypeName(keyType, anonymousTypeParameters, helperTypeParameters);
-
-        if(helperTypeParameters.Count == 0) {
-            return false;
-        }
-
-        var sourceText = RenderExpressionForGeneratedMethod(sourceExpression, semanticModel, containingType, unsafeAccessorCollector);
-        var typeParameterList = $"<{string.Join(", ", helperTypeParameters)}>";
-
-        // 型推論ヘルパーメソッドを生成
-        var helperMethodName = $"{helperName}_CreateDictionary";
-        var keySelectorRendered = RenderExpressionForGeneratedMethod(keySelectorExpression, semanticModel, containingType, unsafeAccessorCollector);
-
-        // foreach/if スコープの変数は兄弟ブロック間で再利用可能なため追加しない FindUniqueIdentifier を使う
-        var itemVar = FindUniqueIdentifier("item", usedNames);
-        var keyVar = FindUniqueIdentifier("key", usedNames);
-        var groupVar = FindUniqueIdentifier("group", usedNames);
-
-        var keyBodyInlined = RenderExpressionForGeneratedMethod(keyLambdaBody, semanticModel, containingType, unsafeAccessorCollector);
-        keyBodyInlined = keyBodyInlined.Replace(keyParameters[0], itemVar, StringComparison.Ordinal);
-
-        // ループ展開コードを生成
-        builder.AppendLine($"var {actualVariableName}_dict = {helperMethodName}({keySelectorRendered});");
-        builder.AppendLine($"var {actualVariableName}_result = new global::System.Collections.Generic.List<global::System.Linq.IGrouping<{keyTypeName}, {sourceTypeName}>>();");
-        builder.AppendLine($"foreach(var {itemVar} in {sourceText}) {{");
-        builder.AppendLine($"    var {keyVar} = {keyBodyInlined};");
-        builder.AppendLine($"    if(!{actualVariableName}_dict.TryGetValue({keyVar}, out var {groupVar})) {{");
-        builder.AppendLine($"        {groupVar} = new {helperName}_Grouping({keyVar});");
-        builder.AppendLine($"        {actualVariableName}_dict.Add({keyVar}, {groupVar});");
-        builder.AppendLine($"        {actualVariableName}_result.Add({groupVar});");
-        builder.AppendLine($"    }}");
-        builder.AppendLine($"    {groupVar}.Add({itemVar});");
-        builder.AppendLine("}");
-        builder.AppendLine($"var {actualVariableName} = {actualVariableName}_result;");
-
-        // 型推論ヘルパーメソッドとGroupingクラスを生成
-        staticMethods = $$"""
-            private sealed class {{helperName}}_Grouping : global::System.Linq.IGrouping<{{keyTypeName}}, {{sourceTypeName}}> {
-                private readonly global::System.Collections.Generic.List<{{sourceTypeName}}> values = new();
-                public {{helperName}}_Grouping({{keyTypeName}} key) {
-                    this.Key = key;
-                }
-                public {{keyTypeName}} Key { get; }
-                public void Add({{sourceTypeName}} value) => values.Add(value);
-                public global::System.Collections.Generic.IEnumerator<{{sourceTypeName}}> GetEnumerator() => values.GetEnumerator();
-                global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
-            }
-            private static global::System.Collections.Generic.Dictionary<{{keyTypeName}}, {{helperName}}_Grouping> {{helperMethodName}}{{typeParameterList}}(global::System.Func<{{sourceTypeName}}, {{keyTypeName}}> _) {
-                return new global::System.Collections.Generic.Dictionary<{{keyTypeName}}, {{helperName}}_Grouping>();
-            }
-            """;
         return true;
     }
 
