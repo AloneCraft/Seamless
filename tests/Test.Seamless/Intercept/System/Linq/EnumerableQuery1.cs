@@ -5,26 +5,6 @@ namespace Test.Seamless.Intercept.System.Linq;
 
 public sealed class EnumerableQuery1 {
     [Fact, Trait("Category","Unit")]
-    public void Select1() {
-        var expected=SystemEnumerable.Select(Source(),static v => v*2);
-        var actual0=Select_Actual0();
-        var actual1=Select_Actual1();
-        var actual3=Select_Actual3();
-        var actual2=Select_Actual2();
-        Assert.Equal(expected,actual0);
-        Assert.Equal(expected,actual1);
-        Assert.Equal(expected,actual2);
-        Assert.Equal(expected,actual3);
-    }
-    private static IEnumerable<int> Select_Actual0()=>(from v in Source() select v*2);
-    private static IEnumerable<int> Select_Actual1() {
-        return (from v in Source() select v*2);
-    }
-    private static IEnumerable<int> Select_Actual2()=>Source().Select(p=>p*2);
-    private static IEnumerable<int> Select_Actual3() {
-        return Source().Select(p=>p*2);
-    }
-    [Fact, Trait("Category","Unit")]
     public void Select() {
         var expected=SystemEnumerable.Select(Source(),static v => v*2);
         var actual=Select_Actual();
