@@ -18,7 +18,7 @@ public class All(int 番号, Enumerable source, FuncFragment predicate) : Scalar
         get {
             var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
-                ? $"if(!({condExpr}))"
+                ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n            if(!{condExpr})";
 
             return $$"""

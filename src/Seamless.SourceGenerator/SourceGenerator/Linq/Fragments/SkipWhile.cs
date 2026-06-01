@@ -20,7 +20,7 @@ public class SkipWhile(int 番号, Enumerable source, FuncFragment predicate) : 
         get {
             var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
-                ? $"if(this.skipping && ({condExpr}))"
+                ? $"if(this.skipping && {WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n            if(this.skipping && {condExpr})";
 
             return $$"""
@@ -58,7 +58,7 @@ public class SkipWhile_index(int 番号, Enumerable source, FuncFragment predica
         get {
             var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item, a);
             var predicateCheck = string.IsNullOrEmpty(preCode)
-                ? $"if(this.skipping && ({condExpr}))"
+                ? $"if(this.skipping && {WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n            if(this.skipping && {condExpr})";
 
             return $$"""

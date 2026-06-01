@@ -228,6 +228,33 @@ public abstract class Fragment(
         return $"current = {destination} = {expr};";
     }
 
+    private protected static string WrapConditionExpression(string conditionExpr) =>
+        $"({TrimSingleOuterParentheses(conditionExpr)})";
+
+    private static string TrimSingleOuterParentheses(string expression) {
+        var trimmed = expression.Trim();
+        if(trimmed.Length < 2 || trimmed[0] != '(' || trimmed[^1] != ')') {
+            return trimmed;
+        }
+
+        var depth = 0;
+        for(var i = 0; i < trimmed.Length; i++) {
+            switch(trimmed[i]) {
+                case '(':
+                    depth++;
+                    break;
+                case ')':
+                    depth--;
+                    if(depth==0 && i < trimmed.Length-1) {
+                        return trimmed;
+                    }
+                    break;
+            }
+        }
+
+        return depth==0 ? trimmed[1..^1].Trim() : trimmed;
+    }
+
     // 述語評価専用ヘルパー。if文の条件式として使う場合に特化。
     // 単純ラムダなら直接式として展開（一時変数なし）。
     // RequiresStatementInlining=true（InlinedScalarFuncなど）なら一時変数経由にフォールバック。

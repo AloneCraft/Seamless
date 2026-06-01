@@ -1,4 +1,6 @@
-﻿using System.Text.RegularExpressions;
+﻿using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Text.RegularExpressions;
 
 namespace Seamless.SourceGenerator.Linq.Fragments;
 public abstract class FuncFragment {
@@ -91,11 +93,11 @@ public abstract class FuncFragment {
                 // ラムダ引数名を実引数へ直接置換して式そのものを作る。
                 // こうしておくと生成コードを読んだときに元の LINQ の意味が追いやすく、
                 // JIT にも普通の式として見せられる。
-                rewrittenBody=ReplaceParameterReference(rewrittenBody,ParameterNames[index],$"({arguments[index]})");
+                rewrittenBody=ReplaceParameterReference(rewrittenBody,ParameterNames[index],FormatInlineArgument(arguments[index]));
             }
         }
 
-        return $"({rewrittenBody})";
+        return CanOmitOuterParentheses(rewrittenBody) ? rewrittenBody : $"({rewrittenBody})";
     }
 
     protected static string ReplaceParameterReferences(string text,string[] parameterNames,string[] arguments) {
@@ -105,10 +107,21 @@ public abstract class FuncFragment {
                 continue;
             }
 
-            rewritten=ReplaceParameterReference(rewritten,parameterNames[index],$"({arguments[index]})");
+            rewritten=ReplaceParameterReference(rewritten,parameterNames[index],FormatInlineArgument(arguments[index]));
         }
 
         return rewritten;
+    }
+
+    private static string FormatInlineArgument(string argument) =>
+        IsSimpleExpression(argument) ? argument : $"({argument})";
+
+    private static bool CanOmitOuterParentheses(string expression) {
+        var parsed = SyntaxFactory.ParseExpression(expression);
+        return parsed is not AssignmentExpressionSyntax
+            and not LambdaExpressionSyntax
+            and not AnonymousMethodExpressionSyntax
+            and not QueryExpressionSyntax;
     }
 
     private static string ReplaceParameterReference(string text,string parameterName,string replacement) =>

@@ -18,7 +18,7 @@ public class Where(int 番号, Enumerable source, FuncFragment predicate) : Enum
         get {
             var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
-                ? $"if(!({condExpr}))"
+                ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n        if(!{condExpr})";
 
             return $$"""
@@ -134,7 +134,7 @@ public class Where_index(int 番号, Enumerable source, FuncFragment predicate) 
         get {
             var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item, a);
             var predicateCheck = string.IsNullOrEmpty(preCode)
-                ? $"if(!({condExpr}))"
+                ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n        if(!{condExpr})";
 
             return $$"""
