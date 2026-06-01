@@ -6,7 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq;
 
 public sealed class EnumerableMethod1 {
     [Fact,Trait("Category","Unit")]
-    public void Aggregate_func() {
+    public void LinqWhereSelectStringJoin() => //this.LinqWhereSelectStringJoinImpl();
+    string.Join(",", LinqWhereSelectStringJoinImpl());
+    public IEnumerable<string> LinqWhereSelectStringJoinImpl() => new[]{"abc"}.Where(x => x!=null).Select(x => x.ToString());
+    [Fact,Trait("Category","Unit")]
+    public void LinqWhereSelectStringJoin2() => //this.LinqWhereSelectStringJoinImpl();
+    LinqWhereSelectStringJoinImpl2();
+    public IEnumerable<string> LinqWhereSelectStringJoinImpl2() => new[]{"abc"}.Where(x => x!=null).Select(x => x.ToString());
+    [Fact,Trait("Category","Unit")]
+    public void InstanceAggregate(){
+        this.InstanceAggregate_func_Static();
+    }
+    private void InstanceAggregate_func_Static() {
+        var expected=SystemEnumerable.Aggregate(this.InstanceSource(),static (l,r) => l+r);
+        var actual=this.InstanceSource().Aggregate(static (l,r) => l+r);
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]
+    public static void Aggregate_func() {
         Aggregate_func_Static();
         Aggregate_func_Lambda();
         Aggregate_func_Captured();
@@ -1105,7 +1122,7 @@ public sealed class EnumerableMethod1 {
         var actual=Source().Zip(Second(),resultSelector).ToList();
         Assert.Equal(expected,actual);
     }
-
+    public int[] InstanceSource() => [1,2,3,4];
     public static int[] Source() => [1,2,3,4];
     public static int[] Second() => [3,4,5];
     public static int[] Duplicates() => [1,2,2,3,3,4];

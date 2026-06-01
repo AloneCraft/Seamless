@@ -825,9 +825,16 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         } else if(メソッド構文.ExpressionBody is { Expression: var アロー式 }) {
             // 合成ノード SyntaxFactory.ReturnStatement(アロー式) を作ると SyntaxTree が null になり
             // semanticModel.GetSymbolInfo() が「構文ノードが構文ツリー内にありません」を投げる。
-            // static メソッドに限り、元ツリーのノードを保持して後で専用関数に渡す。
-            // インスタンスメソッドでは this. 参照が struct メソッド内の @this でコンパイルエラーになるためスキップ。
-            if(対象.Method.IsStatic) {
+            // 元ツリーのノードを保持して後で専用関数に渡す。
+            // インスタンスメソッドでも LINQ呼び出し差し替え文生成38_式本体 が PropagateContainingTypeName と
+            // this.→@this. 変換でソース式レベルの this. を処理できる。
+            // ただし lambda 内の this. は fragment struct 内に埋め込まれ @this が未定義になるためスキップ。
+            var hasThisInsideLambda = !対象.Method.IsStatic
+                && アロー式.DescendantNodes().OfType<ThisExpressionSyntax>()
+                    .Any(thisNode => thisNode.Ancestors()
+                        .TakeWhile(a => a !=アロー式)
+                        .Any(a => a is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax));
+            if(対象.Method.IsStatic || !hasThisInsideLambda) {
                 式本体式 = アロー式;
             }
             statements = [];
