@@ -3,9 +3,10 @@ namespace Seamless.SourceGenerator;
 // method-chain を翻訳しやすい形に正規化する syntax rewriter。
 // 仕様: 匿名型→struct record(内部最適化用)→最適化→匿名型(最終出力用)
 //   1. AnonymousToRecordRewriter: new{p,q}→new __R(p:p,q:q) / new{p}→p(unwrap)
-//   2. ExtensionToStaticRewriter: a.Select(b)→Enumerable.Select(a,b) (global::二重化回避)
-//   3. OptimizeVisitor: Where押し下げ等をstruct record上で実行
-//   4. RecordToAnonymousRewriter: new __R(p:expr1,q:expr2)→new{p=expr1,q=expr2}
+//   2. QueryToExtensionMethodRewriter: from a in xs where ... select ...→xs.Where(a=>...).Select(a=>...)
+//   3. ExtensionToStaticRewriter: a.Select(b)→Enumerable.Select(a,b) (global::二重化回避)
+//   4. OptimizeVisitor: Where押し下げ等をstruct record上で実行
+//   5. RecordToAnonymousRewriter: new __R(p:expr1,q:expr2)→new{p=expr1,q=expr2}
 // 解析できないケースでは式を変えずに返す(安全側)。
 internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     const string R="__R";
@@ -37,6 +38,197 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 return SyntaxFactory.AnonymousObjectMemberDeclarator(SyntaxFactory.NameEquals(SyntaxFactory.IdentifierName(name)),expr);
             });
             return SyntaxFactory.AnonymousObjectCreationExpression(SyntaxFactory.SeparatedList(members));
+        }
+    }
+    // クエリ式→拡張メソッドチェーン。
+    // 元の SemanticModel で新規ノードを直接束縛できないため、interceptor 側では下げた構文木を一時 Compilation に入れてから使う。
+    private sealed class QueryToExtensionMethodRewriter:CSharpSyntaxRewriter {
+        int transparentNumber;
+        public override SyntaxNode? VisitQueryExpression(QueryExpressionSyntax node) =>
+            CanLowerQuery(node) ? LowerQueryExpression(node) : base.VisitQueryExpression(node);
+        static bool CanLowerQuery(QueryExpressionSyntax query) => CanLowerQueryBody(query.Body);
+        static bool CanLowerQueryBody(QueryBodySyntax body) {
+            if(body.SelectOrGroup is not SelectClauseSyntax) {
+                return false;
+            }
+            if(body.Clauses.Any(static clause => clause is not WhereClauseSyntax and not OrderByClauseSyntax)) {
+                return false;
+            }
+            return body.Continuation is null || CanLowerQueryBody(body.Continuation.Body);
+        }
+        ExpressionSyntax LowerQueryExpression(QueryExpressionSyntax query) {
+            var from = query.FromClause;
+            var source = (ExpressionSyntax)Visit(from.Expression)!;
+            var state = QueryState.FromRange(from.Identifier.ValueText,from.Type);
+            return LowerQueryBody(source,state,query.Body);
+        }
+        ExpressionSyntax LowerQueryBody(ExpressionSyntax source,QueryState state,QueryBodySyntax body) {
+            foreach(var clause in body.Clauses) {
+                switch(clause) {
+                    case WhereClauseSyntax whereClause:
+                        source=CreateSequenceCall(
+                            source,
+                            "Where",
+                            CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)Visit(whereClause.Condition)!)));
+                        break;
+                    case OrderByClauseSyntax orderByClause:
+                        source=LowerOrderByClause(source,state,orderByClause);
+                        break;
+                    case LetClauseSyntax letClause:
+                        source=LowerLetClause(source,ref state,letClause);
+                        break;
+                    case FromClauseSyntax fromClause:
+                        source=LowerFromClause(source,ref state,fromClause);
+                        break;
+                    case JoinClauseSyntax joinClause:
+                        source=LowerJoinClause(source,ref state,joinClause);
+                        break;
+                    default:
+                        return source;
+                }
+            }
+
+            source=LowerSelectOrGroup(source,state,body.SelectOrGroup);
+            if(body.Continuation is not { } continuation) {
+                return source;
+            }
+
+            return LowerQueryBody(
+                source,
+                QueryState.FromRange(continuation.Identifier.ValueText,null),
+                continuation.Body);
+        }
+        ExpressionSyntax LowerOrderByClause(ExpressionSyntax source,QueryState state,OrderByClauseSyntax orderByClause) {
+            var orderings = orderByClause.Orderings;
+            for(var i=0;i<orderings.Count;i++) {
+                var ordering = orderings[i];
+                var descending = ordering.AscendingOrDescendingKeyword.IsKind(SyntaxKind.DescendingKeyword);
+                var method = i==0
+                    ? descending ? "OrderByDescending" : "OrderBy"
+                    : descending ? "ThenByDescending" : "ThenBy";
+                source=CreateSequenceCall(
+                    source,
+                    method,
+                    CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)Visit(ordering.Expression)!)));
+            }
+            return source;
+        }
+        ExpressionSyntax LowerLetClause(ExpressionSyntax source,ref QueryState state,LetClauseSyntax letClause) {
+            var newBindings = state.Bindings.ToDictionary(static pair => pair.Key,static pair => pair.Value,StringComparer.Ordinal);
+            newBindings[letClause.Identifier.ValueText]=state.Rewrite((ExpressionSyntax)Visit(letClause.Expression)!);
+            var selectorBody = CreateTransparentObject(newBindings);
+            source=CreateSequenceCall(source,"Select",CreateLambda(state.ParameterName,state.ParameterType,selectorBody));
+            state=QueryState.FromTransparent(FreshTransparentName(),newBindings.Keys);
+            return source;
+        }
+        ExpressionSyntax LowerFromClause(ExpressionSyntax source,ref QueryState state,FromClauseSyntax fromClause) {
+            var collectionSelector = CreateLambda(
+                state.ParameterName,
+                state.ParameterType,
+                state.Rewrite((ExpressionSyntax)Visit(fromClause.Expression)!));
+            var resultBindings = state.Bindings.ToDictionary(static pair => pair.Key,static pair => pair.Value,StringComparer.Ordinal);
+            resultBindings[fromClause.Identifier.ValueText]=SyntaxFactory.IdentifierName(fromClause.Identifier);
+            var resultSelector = CreateLambda(
+                [
+                    CreateParameter(state.ParameterName,state.ParameterType),
+                    CreateParameter(fromClause.Identifier.ValueText,fromClause.Type)
+                ],
+                CreateTransparentObject(resultBindings));
+            source=CreateSequenceCall(source,"SelectMany",collectionSelector,resultSelector);
+            state=QueryState.FromTransparent(FreshTransparentName(),resultBindings.Keys);
+            return source;
+        }
+        ExpressionSyntax LowerJoinClause(ExpressionSyntax source,ref QueryState state,JoinClauseSyntax joinClause) {
+            var innerSource = (ExpressionSyntax)Visit(joinClause.InExpression)!;
+            var outerKey = CreateLambda(
+                state.ParameterName,
+                state.ParameterType,
+                state.Rewrite((ExpressionSyntax)Visit(joinClause.LeftExpression)!));
+            var innerKey = CreateLambda(
+                joinClause.Identifier.ValueText,
+                joinClause.Type,
+                (ExpressionSyntax)Visit(joinClause.RightExpression)!);
+            var resultBindings = state.Bindings.ToDictionary(static pair => pair.Key,static pair => pair.Value,StringComparer.Ordinal);
+            var method = joinClause.Into is null ? "Join" : "GroupJoin";
+            var resultName = joinClause.Into?.Identifier.ValueText ?? joinClause.Identifier.ValueText;
+            resultBindings[resultName]=SyntaxFactory.IdentifierName(resultName);
+            var resultSelector = CreateLambda(
+                [
+                    CreateParameter(state.ParameterName,state.ParameterType),
+                    CreateParameter(resultName,joinClause.Into is null ? joinClause.Type : null)
+                ],
+                CreateTransparentObject(resultBindings));
+            source=CreateSequenceCall(source,method,innerSource,outerKey,innerKey,resultSelector);
+            state=QueryState.FromTransparent(FreshTransparentName(),resultBindings.Keys);
+            return source;
+        }
+        ExpressionSyntax LowerSelectOrGroup(ExpressionSyntax source,QueryState state,SelectOrGroupClauseSyntax selectOrGroup) {
+            return selectOrGroup switch {
+                SelectClauseSyntax selectClause => CreateSequenceCall(
+                    source,
+                    "Select",
+                    CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)Visit(selectClause.Expression)!))),
+                GroupClauseSyntax groupClause => CreateSequenceCall(
+                    source,
+                    "GroupBy",
+                    CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)Visit(groupClause.ByExpression)!)),
+                    CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)Visit(groupClause.GroupExpression)!))),
+                _ => source,
+            };
+        }
+        string FreshTransparentName() => $"__q{transparentNumber++}";
+        static AnonymousObjectCreationExpressionSyntax CreateTransparentObject(IReadOnlyDictionary<string,ExpressionSyntax> bindings) {
+            return SyntaxFactory.AnonymousObjectCreationExpression(
+                SyntaxFactory.SeparatedList(bindings.Select(static pair =>
+                    SyntaxFactory.AnonymousObjectMemberDeclarator(
+                        SyntaxFactory.NameEquals(SyntaxFactory.IdentifierName(pair.Key)),
+                        pair.Value))));
+        }
+        static LambdaExpressionSyntax CreateLambda(string parameterName,TypeSyntax? parameterType,ExpressionSyntax body) {
+            if(parameterType is null) {
+                return SyntaxFactory.SimpleLambdaExpression(SyntaxFactory.Parameter(SyntaxFactory.Identifier(parameterName)),body);
+            }
+            return SyntaxFactory.ParenthesizedLambdaExpression(
+                SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(CreateParameter(parameterName,parameterType))),
+                body);
+        }
+        static LambdaExpressionSyntax CreateLambda(IEnumerable<ParameterSyntax> parameters,ExpressionSyntax body) =>
+            SyntaxFactory.ParenthesizedLambdaExpression(
+                SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(parameters)),
+                body);
+        static ParameterSyntax CreateParameter(string name,TypeSyntax? type) =>
+            SyntaxFactory.Parameter(SyntaxFactory.Identifier(name)).WithType(type);
+        sealed class QueryState(string parameterName,TypeSyntax? parameterType,Dictionary<string,ExpressionSyntax> bindings) {
+            public string ParameterName { get; } = parameterName;
+            public TypeSyntax? ParameterType { get; } = parameterType;
+            public Dictionary<string,ExpressionSyntax> Bindings { get; } = bindings;
+            public static QueryState FromRange(string parameterName,TypeSyntax? parameterType) =>
+                new(parameterName,parameterType,new Dictionary<string,ExpressionSyntax>(StringComparer.Ordinal) {
+                    [parameterName]=SyntaxFactory.IdentifierName(parameterName),
+                });
+            public static QueryState FromTransparent(string parameterName,IEnumerable<string> names) =>
+                new(parameterName,null,names.ToDictionary(
+                    static name => name,
+                    name => (ExpressionSyntax)SyntaxFactory.MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        SyntaxFactory.IdentifierName(parameterName),
+                        SyntaxFactory.IdentifierName(name)),
+                    StringComparer.Ordinal));
+            public ExpressionSyntax Rewrite(ExpressionSyntax expression) =>
+                new QueryBindingRewriter(Bindings).Visit(expression) as ExpressionSyntax ?? expression;
+        }
+        sealed class QueryBindingRewriter(IReadOnlyDictionary<string,ExpressionSyntax> bindings):CSharpSyntaxRewriter {
+            public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
+                if(!bindings.TryGetValue(node.Identifier.ValueText,out var replacement) || IsNonValueIdentifier(node)) {
+                    return base.VisitIdentifierName(node);
+                }
+                return replacement.WithTriviaFrom(node);
+            }
+            static bool IsNonValueIdentifier(IdentifierNameSyntax node) =>
+                node.Parent is MemberAccessExpressionSyntax memberAccess && memberAccess.Name==node
+                || node.Parent is NameEqualsSyntax
+                || node.Parent is NameColonSyntax
+                || node.Parent is MemberBindingExpressionSyntax;
         }
     }
     // 拡張メソッド→静的メソッド。a.Select(b)→Enumerable.Select(a,b)。
@@ -77,9 +269,13 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     /// </summary>
     public static ExpressionSyntax FullOptimize(ExpressionSyntax expression) {
         var e=new AnonymousToRecordRewriter().Visit(expression) as ExpressionSyntax??expression;
+        e=new QueryToExtensionMethodRewriter().Visit(e) as ExpressionSyntax??e;
         e=new ExtensionToStaticRewriter().Visit(e) as ExpressionSyntax??e;
         e=new OptimizeVisitor().Visit(e) as ExpressionSyntax??e;
         return new RecordToAnonymousRewriter().Visit(e) as ExpressionSyntax??e;
+    }
+    public static TSyntax RewriteQueriesToExtensionMethods<TSyntax>(TSyntax syntax) where TSyntax:SyntaxNode {
+        return new QueryToExtensionMethodRewriter().Visit(syntax) as TSyntax ?? syntax;
     }
     /// <summary>匿名型→struct record→匿名型の往復変換（最適化なし）。</summary>
     public static ExpressionSyntax RewriteAnonymousTypes(ExpressionSyntax expression) {
