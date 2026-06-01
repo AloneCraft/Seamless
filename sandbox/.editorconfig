@@ -1,0 +1,5 @@
+﻿root = false
+
+[*.{cs}]
+dotnet_diagnostic.CA1822.severity = silent # CA1822: Mark members as static
+

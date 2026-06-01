@@ -1,0 +1,29 @@
+{
+  "profiles": {
+    "Default": {
+      "commandName": "Project",
+      "commandLineArgs": "--filter Benchmark.WhereSelectStringJoin* -- Default",
+      "workingDirectory": "."
+    },
+    "Select Benchmark": {
+      "commandName": "Project",
+      "commandLineArgs": ""
+    },
+    "Run All Benchmarks": {
+      "commandName": "Project",
+      "commandLineArgs": "--filter *"
+    },
+    "Run All Benchmarks with --join": {
+      "commandName": "Project",
+      "commandLineArgs": "--filter * --join"
+    },
+    "List Benchmark": {
+      "commandName": "Project",
+      "commandLineArgs": "--list tree"
+    },
+    "Help": {
+      "commandName": "Project",
+      "commandLineArgs": "--help"
+    }
+  }
+}

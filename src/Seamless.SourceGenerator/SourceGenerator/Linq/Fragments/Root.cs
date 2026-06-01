@@ -129,6 +129,63 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
         """;
 }
 
+// IEnumerator<T> を実装しない duck-typing struct エニュメレータ（例: ImmutableArray<T>.Enumerator）向け。
+// 具象エニュメレータ型を直接フィールドとして持つ非ジェネリック struct を生成する（直接展開）。
+// TEnum の struct 制約が不要なため CS0315 が発生しない。
+// Dispose() は no-op。duck-typing で IDisposable も実装するなら IEnumerator<T> も実装するはずで、
+// その場合は通常の Root パスで処理されるため、ここには到達しない。
+public class DuckTypingRoot(int 番号, string sourceExpression, string elementType, string concreteEnumeratorType) : Enumerable(番号) {
+    public override string StructMethod => string.Empty;
+    public override string EnumeratorTypeName => Struct;
+    public override string GetEnumeratorExpression => $"new {Struct}({sourceExpression}.GetEnumerator())";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"{concreteEnumeratorType} {e}";
+    public override string GetEnumeratorFields => string.Empty;
+    public override string GetTryGetNextBody => $$"""
+        if({{e}}.MoveNext()) {
+            current = this.Current = {{e}}.Current;
+            return true;
+        }
+        current = default!;
+        return false;
+        """;
+    public override string GetCurrentExpression => currentValue;
+    public override string ElementType => elementType;
+    public override string GetEnumeratorStruct => $$"""
+        private struct {{Struct}}({{concreteEnumeratorType}} {{e}}) : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        {
+            public {{elementType}} Current { get; private set; } = default!;
+            object? global::System.Collections.IEnumerator.Current => Current;
+            {{AggressiveInliningAttribute}}
+            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
+            {{AggressiveInliningAttribute}}
+            public bool MoveNext() => TryGetNext(out _);
+            {{AggressiveInliningAttribute}}
+            public bool TryGetNonEnumeratedCount(out int count) {
+                count = 0;
+                return false;
+            }
+            {{AggressiveInliningAttribute}}
+            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
+                span = default;
+                return false;
+            }
+            {{AggressiveInliningAttribute}}
+            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) => false;
+            {{AggressiveInliningAttribute}}
+            public bool TryGetNext(out {{elementType}} current) {
+                if({{e}}.MoveNext()) {
+                    current = this.Current = {{e}}.Current;
+                    return true;
+                }
+                current = default!;
+                return false;
+            }
+            {{AggressiveInliningAttribute}}
+            public void Dispose() { }
+        }
+        """;
+}
+
 // Cast<T> の source は System.Collections.IEnumerable なので、generic Root とは別に object として流す。
 public class NonGenericRoot(int 番号, string sourceExpression) : Enumerable(番号) {
     public override string StructMethod => string.Empty;
