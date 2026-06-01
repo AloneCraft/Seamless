@@ -458,6 +458,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             // private/protected な入れ子型は生成コードから参照できずコンパイル不能になる。
             || method.ContainingType.IsRefLikeType
             // ref struct を interceptor 引数/receiver として扱う経路は未対応。
+            || method.ContainingType.IsStatic
+            // static クラスのメンバーは生成コードで型パラメータとして使用できないため除外。
             || (!method.IsStatic && method.ContainingType.IsValueType)
             // 値型 instance method は receiver のコピー/boxing 差異が大きいためまだ除外。
             || method.DeclaringSyntaxReferences.Length==0
@@ -1337,7 +1339,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         // 具象型エニュメレータ名を取得する。具象 GetEnumerator() が値型を返す場合はその型名を使い、
         // インターフェース経由の場合は IEnumerator<T> 扱いに切り替える。
         var elementTypeName = elementType.ToDisplayString(完全修飾形式);
-        var concreteEnumeratorTypeName = 具象エニュメレータ型名取得(expressionType,elementType,useEnumerableInterface);
+        var (concreteEnumeratorTypeName, isDuckTyping) = 具象エニュメレータ型名取得(expressionType,elementType,useEnumerableInterface);
         var enumeratorTypeName = concreteEnumeratorTypeName
             ?? $"global::System.Collections.Generic.IEnumerator<{elementTypeName}>";
         // 具象型が取れなかった場合はインターフェース IEnumerator<T> になるため struct 制約なし扱いにする。
@@ -1347,15 +1349,19 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         var _num=uniqueNumber++;
         fragment = expressionType is IArrayTypeSymbol
             ? new ArrayRoot(_num, _srcExpr, elementTypeName)
-            : CreateRootEnumerableFragment(_srcExpr, elementTypeName, enumeratorTypeName, effectiveUseEnumerableInterface, _num);
+            : isDuckTyping && concreteEnumeratorTypeName is not null
+                ? new DuckTypingRoot(_num, _srcExpr, elementTypeName, concreteEnumeratorTypeName)
+                : CreateRootEnumerableFragment(_srcExpr, elementTypeName, enumeratorTypeName, effectiveUseEnumerableInterface, _num);
         return true;
     }
 
     // source 型の public な非明示的実装 GetEnumerator() を探し、値型を返す場合はその型名を返す。
-    // インターフェース型・配列・戻り値がインターフェースや抽象型の場合は null を返す。
-    private static string? 具象エニュメレータ型名取得(ITypeSymbol? sourceType,ITypeSymbol elementType,bool useEnumerableInterface) {
+    // インターフェース型・配列・戻り値がインターフェースや抽象型の場合は (null, false) を返す。
+    // isDuckTyping=true の場合、エニュメレータは IEnumerator<T> を実装しない duck-typing struct
+    // （例: ImmutableArray<T>.Enumerator）であり、DuckTypingRoot で直接展開する必要がある。
+    private static (string? typeName, bool isDuckTyping) 具象エニュメレータ型名取得(ITypeSymbol? sourceType,ITypeSymbol elementType,bool useEnumerableInterface) {
         if(useEnumerableInterface || sourceType is not INamedTypeSymbol namedSource) {
-            return null;
+            return (null, false);
         }
         // 明示的インターフェース実装を除いた public GetEnumerator() を探す。
         var getEnumerator = namedSource.GetMembers("GetEnumerator")
@@ -1366,15 +1372,24 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 && m.MethodKind!=MethodKind.ExplicitInterfaceImplementation
                 && !m.IsStatic);
         if(getEnumerator is null) {
-            return null;
+            return (null, false);
         }
         // 戻り値が具象値型（インターフェースでも抽象型でもない）であれば使う。
         if(getEnumerator.ReturnType is not INamedTypeSymbol returnType
             || returnType.IsAbstract
             || returnType.TypeKind==TypeKind.Interface) {
-            return null;
+            return (null, false);
         }
-        return returnType.ToDisplayString(完全修飾形式);
+        var typeName = returnType.ToDisplayString(完全修飾形式);
+        // IEnumerator<elementType> を実装しているかチェック。
+        // ImmutableArray<T>.Enumerator などは duck-typing パターンのみで IEnumerator<T> を実装しない。
+        // そのような型を struct 制約 (where TEnum : struct, IEnumerator<T>) に渡すと CS0315 が発生する。
+        var implementsIEnumerator = returnType.AllInterfaces.Any(i =>
+            i.ContainingNamespace?.ToDisplayString() == "System.Collections.Generic"
+            && i.MetadataName == "IEnumerator`1"
+            && i.TypeArguments.Length == 1
+            && SymbolEqualityComparer.Default.Equals(i.TypeArguments[0],elementType));
+        return (typeName, isDuckTyping: !implementsIEnumerator);
     }
 
     private static bool 列挙要素型取得11(ITypeSymbol? type,out ITypeSymbol elementType,out bool useEnumerableInterface) {
@@ -2048,7 +2063,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         var generatedStatement = statement switch {
             LocalDeclarationStatementSyntax localDeclaration => ローカル宣言生成17(localDeclaration,semanticModel,containingType,replacementMap,unsafeAccessorCollector),
             ExpressionStatementSyntax expressionStatement2 => $"{RenderExpressionForGeneratedMethod(expressionStatement2.Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap)};",
-            _ => RenderStatementForGeneratedMethod(statement,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
+            _ => RenderStatementForGeneratedMethod(statement,replacementMap),
         };
         builder.AppendLine(generatedStatement);
         return true;
@@ -2255,34 +2270,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         builder.AppendLine($"return {tempName2};");
         return true;
     }
-
-    private static string RenderGeneratedTypeName(
-        ITypeSymbol type,
-        Dictionary<ITypeSymbol,string> anonymousTypeParameters,
-        List<string> helperTypeParameters) {
-        if(type.IsAnonymousType) {
-            if(!anonymousTypeParameters.TryGetValue(type,out var typeParameterName)) {
-                typeParameterName=$"TAnonymous{anonymousTypeParameters.Count}";
-                anonymousTypeParameters.Add(type,typeParameterName);
-                helperTypeParameters.Add(typeParameterName);
-            }
-            return typeParameterName;
-        }
-
-        return type switch {
-            IArrayTypeSymbol arrayType => $"{RenderGeneratedTypeName(arrayType.ElementType,anonymousTypeParameters,helperTypeParameters)}[]",
-            IPointerTypeSymbol pointerType => $"{RenderGeneratedTypeName(pointerType.PointedAtType,anonymousTypeParameters,helperTypeParameters)}*",
-            INamedTypeSymbol { TypeArguments.Length: > 0 } namedType => $"{OpenGenericTypeName(namedType)}<{string.Join(", ",namedType.TypeArguments.Select(typeArgument => RenderGeneratedTypeName(typeArgument,anonymousTypeParameters,helperTypeParameters)))}>",
-            _ => type.ToDisplayString(完全修飾形式),
-        };
-    }
-
     private static string OpenGenericTypeName(INamedTypeSymbol namedType) {
         var definitionName = namedType.OriginalDefinition.ToDisplayString(完全修飾形式);
         var typeArgumentStart = definitionName.IndexOf('<',StringComparison.Ordinal);
         return typeArgumentStart<0 ? definitionName : definitionName[..typeArgumentStart];
     }
-
     private static string ローカル宣言生成17(
         LocalDeclarationStatementSyntax statement,
         SemanticModel semanticModel,
@@ -2307,7 +2299,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
         return $"{typeName} {string.Join(", ",variables)};";
     }
-
     private static string 変数宣言生成43(
         VariableDeclarationSyntax declaration,
         SemanticModel semanticModel,
@@ -2320,7 +2311,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             }
             return $"{variable.Identifier.ValueText}={RenderExpressionForGeneratedMethod(variable.Initializer.Value,semanticModel,containingType,unsafeAccessorCollector,replacementMap)}";
         });
-
         string typeName;
         if(declaration.Type is IdentifierNameSyntax { IsVar: true }) {
             typeName="var";
@@ -2332,12 +2322,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
         return $"{typeName} {string.Join(", ",variables)}";
     }
-
     private static string RenderStatementForGeneratedMethod(
         StatementSyntax statement,
-        SemanticModel semanticModel,
-        INamedTypeSymbol containingType,
-        List<string>? unsafeAccessorCollector,
         IReadOnlyDictionary<string,string>? replacementMap) {
         // replacementMap のキーは NormalizeExpressionText 済みなので text も正規化して照合する。
         var text = NormalizeExpressionText(statement.ToString());
@@ -2350,7 +2336,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .Replace("SystemEnumerable.","global::System.Linq.Enumerable.",StringComparison.Ordinal)
             .Replace("this.","@this.",StringComparison.Ordinal);
     }
-
     private static List<InvocationExpressionSyntax> 外側LINQ呼び出し取得41(StatementSyntax statement,SemanticModel semanticModel) {
         return statement.DescendantNodes()
             .OfType<InvocationExpressionSyntax>()
@@ -2369,7 +2354,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .OrderBy(static invocation => invocation.SpanStart)
             .ToList();
     }
-
     // 式本体版：expression を root として LINQ 呼び出しを検索する。
     // SyntaxFactory.ReturnStatement(アロー式) のような合成ノードを避け、元ツリーのノードを直接使う。
     private static List<InvocationExpressionSyntax> 外側LINQ呼び出し取得41_式(ExpressionSyntax expression,SemanticModel semanticModel) {
@@ -2389,7 +2373,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .OrderBy(static invocation => invocation.SpanStart)
             .ToList();
     }
-
     private static bool SystemLinqEnumerable呼び出し判定42(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
         if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) {
             return false;
@@ -2399,16 +2382,13 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return containingType=="System.Linq.Enumerable"
             || (definition.Name=="Contains" && containingType=="System.MemoryExtensions");
     }
-
     private static int フラグメント番号初期値取得18() => 0;
-
     // Struct0 / Struct1 ... のような補助型はクラス直下だと他のインターセプターと衝突するため、
     // メソッド単位の補助クラスへ退避し、本体側の参照だけを差し替える。
     private static void 静的メソッド群と本体を補助クラスへ退避21(string methodName,ref string staticMethods,ref string body) {
         if(string.IsNullOrWhiteSpace(staticMethods)) {
             return;
         }
-
         var prefix = $"{SanitizeIdentifier(methodName)}_補助0_";
         const string pattern = @"\bStruct(?<番号>\d+)(?<接尾辞>_[A-Za-z_][A-Za-z0-9_]*)?\b";
         staticMethods = System.Text.RegularExpressions.Regex.Replace(
@@ -2423,7 +2403,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         staticMethods=補助Struct関数AggressiveInlining付与43(staticMethods);
     }
-
     private static string 補助Struct関数AggressiveInlining付与43(string source) {
         const string attribute = "[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]";
         return System.Text.RegularExpressions.Regex.Replace(
@@ -2436,12 +2415,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 if(previousLine==attribute) {
                     return match.Value;
                 }
-
                 return $"{match.Groups["indent"].Value}{attribute}\n{match.Value}";
             },
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
     }
-
     // インターセプト対象メソッドで宣言・使用されているすべての識別子名を収集する。
     // 生成コードの変数名がユーザーコードと衝突しないようにするための前処理。
     // ラムダ/匿名メソッドの内部はラムダスコープであるため再帰を止め収集しない。
@@ -2453,7 +2430,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             CollectMethodScopeIdentifiers(methodSyntax.Body, names);
         return names;
     }
-
     private static void CollectMethodScopeIdentifiers(SyntaxNode node, HashSet<string> names) {
         // ラムダ/匿名メソッドは別スコープなので子孫まで降りない
         if(node is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax) return;
@@ -2470,7 +2446,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         foreach(var child in node.ChildNodes())
             CollectMethodScopeIdentifiers(child, names);
     }
-
     // baseName を試し、衝突したら baseName0、baseName1... と増やして未使用名を返す。
     // 選んだ名前は usedNames に追加され、同一パス内での二重取得を防ぐ（メソッドスコープ変数用）。
     private static string GetUniqueIdentifier(string baseName, HashSet<string> usedNames) {
@@ -2480,17 +2455,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             var candidate = $"{baseName}{suffix}";
             if(usedNames.Add(candidate)) return candidate;
             suffix += "_";
-        }
-    }
-
-    // ブロックスコープの変数名を決める際に使う読み取り専用バリアント。
-    // usedNames を参照して衝突を検査するが追加はしない。
-    // 同じ名前を複数の兄弟ブロックで再利用できるため、foreach/{ } 内の変数に使う。
-    private static string FindUniqueIdentifier(string baseName, HashSet<string> usedNames) {
-        if(!usedNames.Contains(baseName)) return baseName;
-        for(var i = 0; ; i++) {
-            var candidate = $"{baseName}{i}";
-            if(!usedNames.Contains(candidate)) return candidate;
         }
     }
 
@@ -3078,7 +3042,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 .Replace("this","@this",StringComparison.Ordinal);
             text=text.Replace(memberText,$"{accessorName}({receiverText})",StringComparison.Ordinal);
         }
-
         foreach(var param in allParameters) {
             if(param.Type is null) continue;
             var typeSymbol=semanticModel.GetTypeInfo(param.Type).Type;
@@ -3088,14 +3051,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             if(originalName==qualifiedName||originalName.StartsWith("global::",StringComparison.Ordinal)) continue;
             text=ReplaceTypeNameForGeneratedMethod(text,originalName,qualifiedName);
         }
-
         return text;
     }
-
     private static bool InvocationHasExplicitTypeArguments(InvocationExpressionSyntax invocation) =>
         invocation.Expression is GenericNameSyntax
         || invocation.Expression is MemberAccessExpressionSyntax { Name: GenericNameSyntax };
-
     private static bool TryRenderOrdinaryMethodInvocationExpression(
         IMethodSymbol method,
         InvocationExpressionSyntax invocation,
@@ -3105,63 +3065,52 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         IReadOnlyDictionary<string,string>? replacementMap,
         out string expressionText) {
         expressionText=string.Empty;
-
         if(method.IsGenericMethod
             && method.DeclaredAccessibility is not (Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal)) {
             return false;
         }
-
         if(!TryCreateOrdinaryActualArgumentList(method,invocation,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var actualArguments)) {
             return false;
         }
-
         var explicitTypeArgs = InvocationHasExplicitTypeArguments(invocation) ? RenderTypeArgumentList(method) : string.Empty;
         var argumentList = string.Join(", ",actualArguments);
         var declaringType = method.ContainingType.ToDisplayString(完全修飾形式);
         var canCallDirectly = method.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal;
-
         if(method.IsStatic) {
             if(canCallDirectly) {
                 // 生成 namespace は元 namespace と異なるため、静的メソッド呼び出しは型名を完全修飾する。
                 expressionText=$"{declaringType}.{method.Name}{explicitTypeArgs}({argumentList})";
                 return true;
             }
-
             var accessorName = $"__StaticMethod_{SanitizeIdentifier(method.ContainingType.Name)}_{SanitizeIdentifier(method.Name)}";
             var returnTypeName = method.ReturnsVoid ? "void" : method.ReturnType.ToDisplayString(完全修飾形式);
             var paramParts = new List<string> { $"{declaringType}? _" };
             foreach(var param in method.Parameters) {
                 paramParts.Add(ParameterDeclarationForAccessor(param));
             }
-
             var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = \"{method.Name}\")]\nprivate static extern {returnTypeName} {accessorName}({string.Join(", ",paramParts)});";
             unsafeAccessorCollector?.Add(accessorCode);
             expressionText=$"{accessorName}(null{(actualArguments.Count>0 ? ", " + argumentList : string.Empty)})";
             return true;
         }
-
         if(!TryRenderOrdinaryReceiverExpression(invocation,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var receiverText)) {
             return false;
         }
-
         if(canCallDirectly) {
             expressionText=$"{receiverText}.{method.Name}{explicitTypeArgs}({argumentList})";
             return true;
         }
-
         var instanceAccessorName = $"__Method_{SanitizeIdentifier(method.ContainingType.Name)}_{SanitizeIdentifier(method.Name)}";
         var instanceReturnTypeName = method.ReturnsVoid ? "void" : method.ReturnType.ToDisplayString(完全修飾形式);
         var instanceParamParts = new List<string> { $"{declaringType} @this" };
         foreach(var param in method.Parameters) {
             instanceParamParts.Add(ParameterDeclarationForAccessor(param));
         }
-
         var instanceAccessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"{method.Name}\")]\nprivate static extern {instanceReturnTypeName} {instanceAccessorName}({string.Join(", ",instanceParamParts)});";
         unsafeAccessorCollector?.Add(instanceAccessorCode);
         expressionText=$"{instanceAccessorName}({receiverText}{(actualArguments.Count>0 ? ", " + argumentList : string.Empty)})";
         return true;
     }
-
     private static bool TryCreateOrdinaryActualArgumentList(
         IMethodSymbol method,
         InvocationExpressionSyntax invocation,
@@ -3173,7 +3122,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         actualArguments=[];
         var slots = new string?[method.Parameters.Length];
         var nextParameterIndex = 0;
-
         foreach(var argument in invocation.ArgumentList.Arguments) {
             var targetParameterIndex = -1;
             if(argument.NameColon is { Name.Identifier.ValueText: var argumentName }) {
@@ -3189,21 +3137,17 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 }
                 targetParameterIndex=nextParameterIndex++;
             }
-
             if(targetParameterIndex<0
                 || targetParameterIndex>=slots.Length
                 || slots[targetParameterIndex] is not null) {
                 return false;
             }
-
             slots[targetParameterIndex]=RenderArgumentForGeneratedMethod(argument,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
         }
-
         for(var i=0;i<slots.Length;i++) {
             if(slots[i] is not null) {
                 continue;
             }
-
             var parameter = method.Parameters[i];
             if(parameter.IsParams && parameter.Type is IArrayTypeSymbol paramsArray) {
                 slots[i]=$"global::System.Array.Empty<{paramsArray.ElementType.ToDisplayString(完全修飾形式)}>()";
@@ -3213,11 +3157,9 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 return false;
             }
         }
-
         actualArguments=slots.Select(static slot => slot!).ToList();
         return true;
     }
-
     private static bool TryRenderOrdinaryReceiverExpression(
         InvocationExpressionSyntax invocation,
         SemanticModel semanticModel,
@@ -3230,15 +3172,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             receiverText=RenderExpressionForGeneratedMethod(memberAccess.Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
             return true;
         }
-
         if(invocation.Expression is IdentifierNameSyntax) {
             receiverText="@this";
             return true;
         }
-
         return false;
     }
-
     private static string ParameterDeclarationForAccessor(IParameterSymbol parameter) {
         var prefix = parameter.RefKind switch {
             RefKind.Ref => "ref ",
@@ -3248,19 +3187,16 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         };
         return $"{prefix}{parameter.Type.ToDisplayString(完全修飾形式)} {parameter.Name}";
     }
-
     private static string ReplaceTypeNameForGeneratedMethod(string text,string originalName,string qualifiedName) {
         if(originalName==qualifiedName || originalName.StartsWith("global::",StringComparison.Ordinal)) {
             return text;
         }
-
         return System.Text.RegularExpressions.Regex.Replace(
             text,
             $@"(?<![\w\.:]){System.Text.RegularExpressions.Regex.Escape(originalName)}(?![\w])",
             qualifiedName,
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
     }
-
     private static bool TryRenderExtensionMethodInvocationExpression(
         IMethodSymbol method,
         InvocationExpressionSyntax invocation,
@@ -3271,7 +3207,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         IReadOnlyDictionary<string,string>? replacementMap,
         out string expressionText) {
         expressionText=string.Empty;
-
         if(method.ReducedFrom is not { } definition
             || !definition.IsExtensionMethod
             || definition.Parameters.Length==0
@@ -3279,7 +3214,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             || invocation.ArgumentList.Arguments.Any(static argument => !argument.RefKindKeyword.IsKind(SyntaxKind.None))) {
             return false;
         }
-
         if(!TryCreateExtensionActualArgumentList(
             definition,
             invocation,
@@ -3291,14 +3225,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             out var actualArguments)) {
             return false;
         }
-
         var bodySemanticModel = semanticModel.Compilation.GetSemanticModel(methodSyntax.SyntaxTree);
-
         if(methodSyntax.ExpressionBody is { Expression: var expressionBody }) {
             expressionText=RenderInlineMethodBodyExpression(expressionBody,definition.Parameters,actualArguments,bodySemanticModel,definition.ContainingType,unsafeAccessorCollector);
             return true;
         }
-
         if(methodSyntax.Body is {
             Statements: [
                 ReturnStatementSyntax { Expression: { } returnExpression }
@@ -3307,10 +3238,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             expressionText=RenderInlineMethodBodyExpression(returnExpression,definition.Parameters,actualArguments,bodySemanticModel,definition.ContainingType,unsafeAccessorCollector);
             return true;
         }
-
         return false;
     }
-
     private static bool TryCreateExtensionActualArgumentList(
         IMethodSymbol definition,
         InvocationExpressionSyntax invocation,
@@ -3323,7 +3252,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         var actualArgumentSlots = new string?[definition.Parameters.Length];
         actualArgumentSlots[0]=RenderExpressionForGeneratedMethod(extensionMemberAccess.Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
         var nextParameterIndex = 1;
-
         foreach(var argument in invocation.ArgumentList.Arguments) {
             var targetParameterIndex = -1;
             if(argument.NameColon is { Name.Identifier.ValueText: var argumentName }) {
@@ -3339,22 +3267,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 }
                 targetParameterIndex=nextParameterIndex++;
             }
-
             if(targetParameterIndex<=0
                 || targetParameterIndex>=actualArgumentSlots.Length
                 || actualArgumentSlots[targetParameterIndex] is not null) {
                 actualArguments=[];
                 return false;
             }
-
             actualArgumentSlots[targetParameterIndex]=RenderArgumentForGeneratedMethod(argument,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
         }
-
         for(var i=1;i<actualArgumentSlots.Length;i++) {
             if(actualArgumentSlots[i] is not null) {
                 continue;
             }
-
             var parameter = definition.Parameters[i];
             if(parameter.IsParams && parameter.Type is IArrayTypeSymbol paramsArray) {
                 actualArgumentSlots[i]=$"global::System.Array.Empty<{paramsArray.ElementType.ToDisplayString(完全修飾形式)}>()";
@@ -3365,11 +3289,9 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 return false;
             }
         }
-
         actualArguments=actualArgumentSlots.Select(static argument => argument!).ToList();
         return true;
     }
-
     private static string RenderInlineMethodBodyExpression(
         ExpressionSyntax bodyExpression,
         ImmutableArray<IParameterSymbol> parameters,
@@ -3387,24 +3309,19 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
         return expressionText;
     }
-
     private static string ReplaceInlineParameterReferences(string expressionText,ImmutableArray<IParameterSymbol> parameters,IReadOnlyList<string> actualArguments) {
         var replacements = new Dictionary<string,string>(StringComparer.Ordinal);
         for(var i=0;i<parameters.Length;i++) {
             replacements[parameters[i].Name]=actualArguments[i];
         }
-
         var expression = SyntaxFactory.ParseExpression(expressionText);
         return NormalizeExpressionText(new InlineParameterReferenceRewriter(replacements).Visit(expression)!.ToString());
     }
-
     private sealed class InlineParameterReferenceRewriter : CSharpSyntaxRewriter {
         private readonly IReadOnlyDictionary<string,string> replacements;
-
         public InlineParameterReferenceRewriter(IReadOnlyDictionary<string,string> replacements) {
             this.replacements=replacements;
         }
-
         public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
             if(!replacements.TryGetValue(node.Identifier.ValueText,out var replacement)
                 || node.Parent is MemberAccessExpressionSyntax { Name: var memberName } && ReferenceEquals(memberName,node)
@@ -3413,21 +3330,17 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 || node.Parent is NameEqualsSyntax) {
                 return node;
             }
-
             return SyntaxFactory.ParenthesizedExpression(SyntaxFactory.ParseExpression(replacement)).WithTriviaFrom(node);
         }
     }
-
     private static string RenderInlineFailureInvocationExpression(IMethodSymbol method) {
         var message = EscapeStringLiteral($"Local helper method '{method.Name}' could not be inlined. Forwarding is disabled.");
         return method.ReturnsVoid
             ? $"((global::System.Action)(() => throw global::Seamless.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\")))()"
             : $"((global::System.Func<{method.ReturnType.ToDisplayString(完全修飾形式)}>)(() => throw global::Seamless.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\")))()";
     }
-
     private static string EscapeStringLiteral(string text) =>
         text.Replace("\\","\\\\",StringComparison.Ordinal).Replace("\"","\\\"",StringComparison.Ordinal);
-
     private static string RenderFieldForwardExpression(IFieldSymbol field,MemberAccessExpressionSyntax memberAccess,SemanticModel semanticModel,List<string>? unsafeAccessorCollector = null) {
         var typeName = SanitizeIdentifier(field.ContainingType.Name);
         var fieldName = SanitizeIdentifier(field.Name);
@@ -3449,14 +3362,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         unsafeAccessorCollector?.Add(accessorCode);
         return callExpr;
     }
-
     // メソッドグループ用の UnsafeAccessor 静的 extern メソッド名を返す。
     private static string GetDelegateAccessorMethodName(IMethodSymbol method) {
         var typeName = SanitizeIdentifier(method.ContainingType.Name);
         var methodName = SanitizeIdentifier(method.Name);
         return $"__DelegateAccess_{typeName}_{methodName}";
     }
-
     private static string RenderDelegateCreateExpression(IMethodSymbol method,INamedTypeSymbol delegateType,string? receiver,List<string>? unsafeAccessorCollector = null) {
         var delegateTypeName = delegateType.ToDisplayString(完全修飾形式);
         var declaringType = method.ContainingType.ToDisplayString(完全修飾形式);
@@ -3494,14 +3405,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return $"(({delegateTypeName})(({lambdaParams}) => {accessorName}({lambdaArgs})))";
         }
     }
-
     private static string RenderUnsupportedLocalMethodBody(IReadOnlyList<string> unsupportedMethods) {
         // Fragment クラスが存在しない Enumerable メソッドは、元実装へ黙って戻さず例外にする。
         // これにより「intercept 対象だったが未対応だった」ことを生成コードと実行時の両方で確認できる。
         var methodList = string.Join(", ",unsupportedMethods);
         return $"throw global::Seamless.GeneratedCodeHelpers.LinqInterceptorFailure(\"Local method interception does not support System.Linq.Enumerable methods without Fragment implementations: {methodList}.\");";
     }
-
     private static string RenderUninlineableLocalMethodBody(Linq傍受対象型 target) {
         // Fragment クラス名は存在しても、source 形状や delegate 形状の都合で最終的に再構成できないことがある。
         // その場合も静かに元実装へ戻さず失敗を見える化する。
@@ -3510,29 +3419,24 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .Replace("\"","\\\"",StringComparison.Ordinal);
         return $"throw global::Seamless.GeneratedCodeHelpers.LinqInterceptorFailure(\"Local method interception could not inline '{methodName}'. Forwarding is disabled for methods that contain System.Linq.Enumerable calls.\");";
     }
-
     private static string RenderUnsupportedDirectMethodBody(Linq傍受対象型 target,string? detail = null) {
         var methodName = target.Method.ReducedFrom?.ToDisplayString(完全修飾形式) ?? target.Method.ToDisplayString(完全修飾形式);
         var message = $"Direct interception could not inline '{methodName}' inside '{target.ContainingMethodName}'.";
         if(!string.IsNullOrWhiteSpace(detail)) {
             message=$"{message} {detail}";
         }
-
         message=message
             .Replace("\\","\\\\",StringComparison.Ordinal)
             .Replace("\"","\\\"",StringComparison.Ordinal);
         return $"throw global::Seamless.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\");";
     }
-
     private sealed class ローカルメソッドLinq解析結果 {
         public static readonly ローカルメソッドLinq解析結果 Empty = new(false,ImmutableArray<string>.Empty,false);
-
         public ローカルメソッドLinq解析結果(bool hasEnumerableCall,ImmutableArray<string> unsupportedMethods,bool hasAnonymousTypeLinq) {
             HasEnumerableCall=hasEnumerableCall;
             UnsupportedMethods=unsupportedMethods;
             HasAnonymousTypeLinq=hasAnonymousTypeLinq;
         }
-
         public bool HasEnumerableCall { get; }
         public ImmutableArray<string> UnsupportedMethods { get; }
         /// <summary>
@@ -3544,7 +3448,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         /// </summary>
         public bool HasAnonymousTypeLinq { get; }
     }
-
     private sealed class Linq傍受対象型 {
         public Linq傍受対象型(string identifier,string containingMethodName,string interceptsLocationAttributeText,IMethodSymbol method,IMethodSymbol templateMethod,InvocationExpressionSyntax invocation,INamedTypeSymbol enclosingType,SemanticModel semanticModel,InterceptParameterSpec[] parameters,ローカルメソッドLinq解析結果? linqAnalysis = null,string? sourceElementTypeName = null,string[]? methodTypeParameterNames = null,bool isLocalMethodInterception = false) {
             Identifier=identifier;
@@ -3561,22 +3464,21 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             MethodTypeParameters=methodTypeParameterNames ?? [];
             IsLocalMethodInterception=isLocalMethodInterception;
         }
-
-        public string Identifier { get; }
+        private string Identifier { get; }
         public string ContainingMethodName { get; }
         public string InterceptsLocationAttributeText { get; }
         public IMethodSymbol Method { get; }
-        public IMethodSymbol TemplateMethod { get; }
+        private IMethodSymbol TemplateMethod { get; }
         public InvocationExpressionSyntax Invocation { get; }
         public string SourcePath => Invocation.SyntaxTree.FilePath;
         public INamedTypeSymbol EnclosingType { get; }
         public SemanticModel SemanticModel { get; }
-        public InterceptParameterSpec[] Parameters { get; }
+        private InterceptParameterSpec[] Parameters { get; }
         public ローカルメソッドLinq解析結果 LinqAnalysis { get; }
-        public string? ExplicitSourceElementTypeName { get; }
-        public string[] MethodTypeParameters { get; }
+        private string? ExplicitSourceElementTypeName { get; }
+        private string[] MethodTypeParameters { get; }
         public bool IsLocalMethodInterception { get; }
-        public string SourceElementTypeName {
+        private string SourceElementTypeName {
             get {
                 if(!string.IsNullOrWhiteSpace(ExplicitSourceElementTypeName)) {
                     return ExplicitSourceElementTypeName;
@@ -3604,11 +3506,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                     parameters.AddRange(Parameters.Select(static parameter => parameter.Declaration));
                     return string.Join(", ",parameters);
                 }
-
                 return $"this global::System.Collections.Generic.IEnumerable<{SourceElementTypeName}> source{MethodParameterList}";
             }
         }
-        public string MethodParameterList => Parameters.Length==0
+        private string MethodParameterList => Parameters.Length==0
             ? string.Empty
             : ", "+string.Join(", ",Parameters.Select(static parameter => parameter.Declaration));
         public string MethodTypeParameterList => MethodTypeParameters.Length==0
@@ -3622,13 +3523,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             TypeName=typeName;
             RefKind=refKind;
         }
-
-        public string Name { get; }
-        public string TypeName { get; }
-        public RefKind RefKind { get; }
-
+        private string Name { get; }
+        private string TypeName { get; }
+        private RefKind RefKind { get; }
         public string Declaration => $"{RefKindModifier}{TypeName} {Name}";
-
         private string RefKindModifier => RefKind switch {
             RefKind.Ref => "ref ",
             RefKind.Out => "out ",
@@ -3659,7 +3557,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             }
             return x.InterceptsLocationAttributeText==y.InterceptsLocationAttributeText;
         }
-
         public int GetHashCode(Linq傍受対象型 obj) {
             return obj.InterceptsLocationAttributeText.GetHashCode(StringComparison.Ordinal);
         }
@@ -3673,3 +3570,4 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         public bool IsPartial { get; }
     }
 }
+//20260531 3625
