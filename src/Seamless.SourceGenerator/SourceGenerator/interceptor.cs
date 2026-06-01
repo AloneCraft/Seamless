@@ -1116,7 +1116,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         // 列挙フラグメント生成9 が単独列挙フラグメント生成10 にフォールバックして不透明な Root として扱う。
         if(method.ReducedFrom is not null
             && invocation.Expression is MemberAccessExpressionSyntax { Expression: var receiverExpression }) {
-            sourceExpression=receiverExpression;
+            sourceExpression=括弧除去53(receiverExpression);
             return true;
         }
 
@@ -1319,6 +1319,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     /// LINQ 呼び出しでなければ Root(sourceExpression) として扱う。
     /// </summary>
     private static bool 列挙フラグメント生成9(SemanticModel semanticModel,ExpressionSyntax expression,INamedTypeSymbol containingType,ref int uniqueNumber,out Enumerable fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null) {
+        expression=括弧除去53(expression);
         if(expression is InvocationExpressionSyntax invocation
             && 呼び出し式フラグメント生成1(semanticModel,invocation,containingType,ref uniqueNumber,out var nestedFragment,out staticMethods,unsafeAccessorCollector)
             && nestedFragment is Enumerable enumerableFragment) {
@@ -1327,6 +1328,14 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
 
         return 単独列挙フラグメント生成10(semanticModel,expression,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
+    }
+
+    private static ExpressionSyntax 括弧除去53(ExpressionSyntax expression) {
+        while(expression is ParenthesizedExpressionSyntax parenthesized) {
+            expression=parenthesized.Expression;
+        }
+
+        return expression;
     }
 
     /// <summary>
@@ -2224,8 +2233,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     private static string クエリLowering確認コメント生成(SyntaxNode original,SyntaxNode lowered) =>
         $"// Seamless query lowered: {NormalizeExpressionText(original.ToString())} => {NormalizeExpressionText(lowered.ToString())}";
 
-    // クエリ式を Fragment チェーンへ変換し "return <result>;" を出力する。
-    // 対応: from/where/orderby(thenby)/select の組み合わせ。let・join・group は未対応。
+    // クエリ式を直接 Fragment チェーンへ変換し "return <result>;" を出力する旧フォールバック。
+    // 通常は TryLowerQueriesToExtensionMethods でクエリ式を拡張メソッドチェーンへ下げてから既存の LINQ パスで処理する。
     private static bool クエリ式本体生成(
         QueryExpressionSyntax queryExpression,
         SemanticModel semanticModel,

@@ -69,11 +69,7 @@ public abstract class FuncFragment {
                 replacement = tempName;
             }
             if(index<ParameterNames.Length && !string.IsNullOrWhiteSpace(ParameterNames[index])) {
-                rewrittenBody=Regex.Replace(
-                    rewrittenBody,
-                    $@"\b{Regex.Escape(ParameterNames[index])}\b",
-                    replacement,
-                    RegexOptions.CultureInvariant);
+                rewrittenBody=ReplaceParameterReference(rewrittenBody,ParameterNames[index],replacement);
             }
         }
 
@@ -95,11 +91,7 @@ public abstract class FuncFragment {
                 // ラムダ引数名を実引数へ直接置換して式そのものを作る。
                 // こうしておくと生成コードを読んだときに元の LINQ の意味が追いやすく、
                 // JIT にも普通の式として見せられる。
-                rewrittenBody=Regex.Replace(
-                    rewrittenBody,
-                    $@"\b{Regex.Escape(ParameterNames[index])}\b",
-                    $"({arguments[index]})",
-                    RegexOptions.CultureInvariant);
+                rewrittenBody=ReplaceParameterReference(rewrittenBody,ParameterNames[index],$"({arguments[index]})");
             }
         }
 
@@ -113,15 +105,18 @@ public abstract class FuncFragment {
                 continue;
             }
 
-            rewritten = Regex.Replace(
-                rewritten,
-                $@"\b{Regex.Escape(parameterNames[index])}\b",
-                $"({arguments[index]})",
-                RegexOptions.CultureInvariant);
+            rewritten=ReplaceParameterReference(rewritten,parameterNames[index],$"({arguments[index]})");
         }
 
         return rewritten;
     }
+
+    private static string ReplaceParameterReference(string text,string parameterName,string replacement) =>
+        Regex.Replace(
+            text,
+            $@"\b{Regex.Escape(parameterName)}\b(?!\s*:)",
+            replacement,
+            RegexOptions.CultureInvariant);
 
     protected static string SanitizeLocalName(string value) {
         var builder = new StringBuilder(value.Length);

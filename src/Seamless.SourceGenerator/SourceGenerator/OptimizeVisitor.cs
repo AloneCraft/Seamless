@@ -46,16 +46,67 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         int transparentNumber;
         public override SyntaxNode? VisitQueryExpression(QueryExpressionSyntax node) =>
             CanLowerQuery(node) ? LowerQueryExpression(node) : base.VisitQueryExpression(node);
-        static bool CanLowerQuery(QueryExpressionSyntax query) => CanLowerQueryBody(query.Body);
+        static bool CanLowerQuery(QueryExpressionSyntax query) => CanLowerQueryBody(query.Body) && CanLowerAdvancedShape(query);
         static bool CanLowerQueryBody(QueryBodySyntax body) {
-            if(body.SelectOrGroup is not SelectClauseSyntax) {
+            if(body.SelectOrGroup is not SelectClauseSyntax and not GroupClauseSyntax) {
                 return false;
             }
-            if(body.Clauses.Any(static clause => clause is not WhereClauseSyntax and not OrderByClauseSyntax)) {
+            if(body.Clauses.Any(static clause => clause is not WhereClauseSyntax and not OrderByClauseSyntax and not LetClauseSyntax and not FromClauseSyntax and not JoinClauseSyntax)) {
                 return false;
             }
             return body.Continuation is null || CanLowerQueryBody(body.Continuation.Body);
         }
+        static bool CanLowerAdvancedShape(QueryExpressionSyntax query) {
+            var body = query.Body;
+            var bodies = EnumerateBodies(body).ToArray();
+            var clauses = bodies.SelectMany(static b => b.Clauses).ToArray();
+            var fromCount = clauses.OfType<FromClauseSyntax>().Count();
+            var joinCount = clauses.OfType<JoinClauseSyntax>().Count();
+            var hasLet = clauses.Any(static clause => clause is LetClauseSyntax);
+            var hasGroup = bodies.Any(static b => b.SelectOrGroup is GroupClauseSyntax);
+            var hasContinuation = bodies.Any(static b => b.Continuation is not null);
+            var hasAdvancedClause = fromCount>0 || joinCount>0 || hasGroup;
+
+            if(ContainsAnonymousObject(clauses) || bodies.Any(static b => ContainsAnonymousObject(b.SelectOrGroup))) {
+                return false;
+            }
+            if(hasAdvancedClause && SequenceSourcesContainThis(query)) {
+                return false;
+            }
+            if(fromCount>1 || joinCount>1) {
+                return false;
+            }
+            if(fromCount==1) {
+                return joinCount==0 && !hasLet && !hasGroup && !hasContinuation;
+            }
+            if(joinCount==1) {
+                return !hasLet && !hasGroup && !hasContinuation;
+            }
+            if(hasGroup) {
+                return !hasLet;
+            }
+            return true;
+        }
+        static IEnumerable<QueryBodySyntax> EnumerateBodies(QueryBodySyntax body) {
+            while(true) {
+                yield return body;
+                if(body.Continuation is null) {
+                    yield break;
+                }
+                body=body.Continuation.Body;
+            }
+        }
+        static bool ContainsAnonymousObject(IEnumerable<SyntaxNode> nodes) =>
+            nodes.Any(ContainsAnonymousObject);
+        static bool ContainsAnonymousObject(SyntaxNode node) =>
+            node.DescendantNodesAndSelf().OfType<AnonymousObjectCreationExpressionSyntax>().Any();
+        static bool SequenceSourcesContainThis(QueryExpressionSyntax query) =>
+            ContainsThis(query.FromClause.Expression)
+            || EnumerateBodies(query.Body).SelectMany(static body => body.Clauses).Any(static clause =>
+                clause is FromClauseSyntax fromClause && ContainsThis(fromClause.Expression)
+                || clause is JoinClauseSyntax joinClause && ContainsThis(joinClause.InExpression));
+        static bool ContainsThis(SyntaxNode node) =>
+            node.DescendantNodesAndSelf().OfType<ThisExpressionSyntax>().Any();
         ExpressionSyntax LowerQueryExpression(QueryExpressionSyntax query) {
             var from = query.FromClause;
             var source = (ExpressionSyntax)Visit(from.Expression)!;
@@ -116,9 +167,9 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         ExpressionSyntax LowerLetClause(ExpressionSyntax source,ref QueryState state,LetClauseSyntax letClause) {
             var newBindings = state.Bindings.ToDictionary(static pair => pair.Key,static pair => pair.Value,StringComparer.Ordinal);
             newBindings[letClause.Identifier.ValueText]=state.Rewrite((ExpressionSyntax)Visit(letClause.Expression)!);
-            var selectorBody = CreateTransparentObject(newBindings);
-            source=CreateSequenceCall(source,"Select",CreateLambda(state.ParameterName,state.ParameterType,selectorBody));
-            state=QueryState.FromTransparent(FreshTransparentName(),newBindings.Keys);
+            var selectorBody = CreateTransparentTuple(newBindings);
+            source=CreateSequenceCall(source,"Select",CreateLambda(state.ParameterName,state.ParameterType,selectorBody.Expression));
+            state=QueryState.FromTransparent(FreshTransparentName(),selectorBody.Members);
             return source;
         }
         ExpressionSyntax LowerFromClause(ExpressionSyntax source,ref QueryState state,FromClauseSyntax fromClause) {
@@ -128,14 +179,15 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 state.Rewrite((ExpressionSyntax)Visit(fromClause.Expression)!));
             var resultBindings = state.Bindings.ToDictionary(static pair => pair.Key,static pair => pair.Value,StringComparer.Ordinal);
             resultBindings[fromClause.Identifier.ValueText]=SyntaxFactory.IdentifierName(fromClause.Identifier);
+            var resultTuple = CreateTransparentTuple(resultBindings);
             var resultSelector = CreateLambda(
                 [
                     CreateParameter(state.ParameterName,state.ParameterType),
                     CreateParameter(fromClause.Identifier.ValueText,fromClause.Type)
                 ],
-                CreateTransparentObject(resultBindings));
+                resultTuple.Expression);
             source=CreateSequenceCall(source,"SelectMany",collectionSelector,resultSelector);
-            state=QueryState.FromTransparent(FreshTransparentName(),resultBindings.Keys);
+            state=QueryState.FromTransparent(FreshTransparentName(),resultTuple.Members);
             return source;
         }
         ExpressionSyntax LowerJoinClause(ExpressionSyntax source,ref QueryState state,JoinClauseSyntax joinClause) {
@@ -152,14 +204,15 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             var method = joinClause.Into is null ? "Join" : "GroupJoin";
             var resultName = joinClause.Into?.Identifier.ValueText ?? joinClause.Identifier.ValueText;
             resultBindings[resultName]=SyntaxFactory.IdentifierName(resultName);
+            var resultTuple = CreateTransparentTuple(resultBindings);
             var resultSelector = CreateLambda(
                 [
                     CreateParameter(state.ParameterName,state.ParameterType),
                     CreateParameter(resultName,joinClause.Into is null ? joinClause.Type : null)
                 ],
-                CreateTransparentObject(resultBindings));
+                resultTuple.Expression);
             source=CreateSequenceCall(source,method,innerSource,outerKey,innerKey,resultSelector);
-            state=QueryState.FromTransparent(FreshTransparentName(),resultBindings.Keys);
+            state=QueryState.FromTransparent(FreshTransparentName(),resultTuple.Members);
             return source;
         }
         ExpressionSyntax LowerSelectOrGroup(ExpressionSyntax source,QueryState state,SelectOrGroupClauseSyntax selectOrGroup) {
@@ -177,13 +230,30 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             };
         }
         string FreshTransparentName() => $"__q{transparentNumber++}";
-        static AnonymousObjectCreationExpressionSyntax CreateTransparentObject(IReadOnlyDictionary<string,ExpressionSyntax> bindings) {
-            return SyntaxFactory.AnonymousObjectCreationExpression(
-                SyntaxFactory.SeparatedList(bindings.Select(static pair =>
-                    SyntaxFactory.AnonymousObjectMemberDeclarator(
-                        SyntaxFactory.NameEquals(SyntaxFactory.IdentifierName(pair.Key)),
-                        pair.Value))));
+        static (TupleExpressionSyntax Expression,Dictionary<string,string> Members) CreateTransparentTuple(IReadOnlyDictionary<string,ExpressionSyntax> bindings) {
+            var arguments = new List<ArgumentSyntax>();
+            var members = new Dictionary<string,string>(StringComparer.Ordinal);
+            var index = 1;
+            foreach(var pair in bindings) {
+                var memberName = $"Item{index++}";
+                var argument = IsReservedTupleElementName(pair.Key)
+                    ? SyntaxFactory.Argument(SyntaxFactory.ParenthesizedExpression(pair.Value))
+                    : SyntaxFactory.Argument(pair.Value);
+                if(!IsReservedTupleElementName(pair.Key)) {
+                    argument=argument.WithNameColon(SyntaxFactory.NameColon(SyntaxFactory.IdentifierName(pair.Key)));
+                    memberName=pair.Key;
+                }
+                arguments.Add(argument);
+                members[pair.Key]=memberName;
+            }
+            return (SyntaxFactory.TupleExpression(SyntaxFactory.SeparatedList(arguments)),members);
         }
+        static bool IsReservedTupleElementName(string name) =>
+            name=="Rest"
+            || name.Length>4
+            && name.StartsWith("Item",StringComparison.Ordinal)
+            && name[4] is >= '1' and <= '9'
+            && name.Skip(5).All(static c => c is >= '0' and <= '9');
         static LambdaExpressionSyntax CreateLambda(string parameterName,TypeSyntax? parameterType,ExpressionSyntax body) {
             if(parameterType is null) {
                 return SyntaxFactory.SimpleLambdaExpression(SyntaxFactory.Parameter(SyntaxFactory.Identifier(parameterName)),body);
@@ -206,13 +276,13 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 new(parameterName,parameterType,new Dictionary<string,ExpressionSyntax>(StringComparer.Ordinal) {
                     [parameterName]=SyntaxFactory.IdentifierName(parameterName),
                 });
-            public static QueryState FromTransparent(string parameterName,IEnumerable<string> names) =>
-                new(parameterName,null,names.ToDictionary(
-                    static name => name,
-                    name => (ExpressionSyntax)SyntaxFactory.MemberAccessExpression(
+            public static QueryState FromTransparent(string parameterName,IReadOnlyDictionary<string,string> members) =>
+                new(parameterName,null,members.ToDictionary(
+                    static pair => pair.Key,
+                    pair => (ExpressionSyntax)SyntaxFactory.MemberAccessExpression(
                         SyntaxKind.SimpleMemberAccessExpression,
                         SyntaxFactory.IdentifierName(parameterName),
-                        SyntaxFactory.IdentifierName(name)),
+                        SyntaxFactory.IdentifierName(pair.Value)),
                     StringComparer.Ordinal));
             public ExpressionSyntax Rewrite(ExpressionSyntax expression) =>
                 new QueryBindingRewriter(Bindings).Visit(expression) as ExpressionSyntax ?? expression;
