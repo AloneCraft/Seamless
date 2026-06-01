@@ -868,6 +868,13 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .ToString()
             .TrimEnd()
             .Replace("throw NoElements();","throw global::Seamless.Linq.Enumerable.NoElements();",StringComparison.Ordinal);
+        if(!対象.Method.IsStatic) {
+            本体=System.Text.RegularExpressions.Regex.Replace(
+                本体,
+                @"(?<!@)\bthis\.",
+                "@this.",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        }
 
         静的メソッド群と本体を補助クラスへ退避21(対象.MethodName,ref 静的メソッド群,ref 本体);
 
@@ -2013,6 +2020,14 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         StringBuilder builder,
         ref int linqInvocationCount,
         HashSet<string> usedNames) {
+        var originalStatementForQueryLowering = statement;
+        if(TryLowerQueriesToExtensionMethods(statement,semanticModel,containingType,out var loweredStatement,out var loweredSemanticModel,out var loweredContainingType)) {
+            statement=loweredStatement;
+            semanticModel=loweredSemanticModel;
+            containingType=loweredContainingType;
+            builder.AppendLine(クエリLowering確認コメント生成(originalStatementForQueryLowering,loweredStatement));
+        }
+
         // ReturnStatement の式がクエリ式（括弧なしまたはあり）の場合は専用パスへ
         if(statement is ReturnStatementSyntax { Expression: { } retExpr }) {
             var retUnwrapped = retExpr;
@@ -2091,6 +2106,14 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         StringBuilder builder,
         ref int linqInvocationCount,
         HashSet<string> usedNames) {
+        var originalExpressionForQueryLowering = expression;
+        if(TryLowerQueriesToExtensionMethods(expression,semanticModel,containingType,out var loweredExpression,out var loweredSemanticModel,out var loweredContainingType)) {
+            expression=loweredExpression;
+            semanticModel=loweredSemanticModel;
+            containingType=loweredContainingType;
+            builder.AppendLine(クエリLowering確認コメント生成(originalExpressionForQueryLowering,loweredExpression));
+        }
+
         // 括弧を剥がしてクエリ式かどうかを判定する（例: (from v in Source() select v*2)）
         var unwrapped = expression;
         while(unwrapped is ParenthesizedExpressionSyntax paren) {
@@ -2150,6 +2173,56 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         builder.AppendLine($"return {rendered};");
         return true;
     }
+
+    private static bool TryLowerQueriesToExtensionMethods<TSyntax>(
+        TSyntax node,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        out TSyntax loweredNode,
+        out SemanticModel loweredSemanticModel,
+        out INamedTypeSymbol loweredContainingType)
+        where TSyntax:SyntaxNode {
+        loweredNode=node;
+        loweredSemanticModel=semanticModel;
+        loweredContainingType=containingType;
+
+        if(!node.DescendantNodesAndSelf().OfType<QueryExpressionSyntax>().Any()) {
+            return false;
+        }
+
+        var rewritten = OptimizeVisitor.RewriteQueriesToExtensionMethods(node);
+        if(SyntaxFactory.AreEquivalent(node,rewritten)) {
+            return false;
+        }
+
+        var annotation = new SyntaxAnnotation("SeamlessQueryLowering");
+        var annotated = rewritten.WithAdditionalAnnotations(annotation);
+        var root = node.SyntaxTree.GetRoot();
+        var newRoot = root.ReplaceNode(node,annotated);
+        var newTree = newRoot.SyntaxTree;
+        var newCompilation = semanticModel.Compilation.ReplaceSyntaxTree(node.SyntaxTree,newTree);
+        var newModel = newCompilation.GetSemanticModel(newTree);
+        var annotatedNode = newTree.GetRoot()
+            .GetAnnotatedNodes(annotation)
+            .OfType<TSyntax>()
+            .SingleOrDefault();
+        if(annotatedNode is null) {
+            return false;
+        }
+
+        var typeDeclaration = annotatedNode.AncestorsAndSelf().OfType<TypeDeclarationSyntax>().FirstOrDefault();
+        if(typeDeclaration is null || newModel.GetDeclaredSymbol(typeDeclaration) is not INamedTypeSymbol newContainingType) {
+            return false;
+        }
+
+        loweredNode=annotatedNode;
+        loweredSemanticModel=newModel;
+        loweredContainingType=newContainingType;
+        return true;
+    }
+
+    private static string クエリLowering確認コメント生成(SyntaxNode original,SyntaxNode lowered) =>
+        $"// Seamless query lowered: {NormalizeExpressionText(original.ToString())} => {NormalizeExpressionText(lowered.ToString())}";
 
     // クエリ式を Fragment チェーンへ変換し "return <result>;" を出力する。
     // 対応: from/where/orderby(thenby)/select の組み合わせ。let・join・group は未対応。
