@@ -1,0 +1,18 @@
+namespace Benchmark;
+
+public class All_predicate:Base{
+    [Benchmark(Baseline=true)]
+    public void LINQ(){
+        consumer.Consume(Enumerable.All(src,x=>x>0));
+    }
+
+    [Benchmark]
+    public void Intercept(){
+        consumer.Consume(src.All(x=>x>0));
+    }
+
+    [Benchmark]
+    public void ZLinq(){
+        consumer.Consume(src.AsValueEnumerable().All(x=>x>0));
+    }
+}
