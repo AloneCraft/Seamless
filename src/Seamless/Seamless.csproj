@@ -22,7 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Seamless.Common\Seamless.Common.csproj" />
     <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" />
   </ItemGroup>
 
