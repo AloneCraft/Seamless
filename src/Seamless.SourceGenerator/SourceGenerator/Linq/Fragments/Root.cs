@@ -129,6 +129,69 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
         """;
 }
 
+// List<T> ソース専用。List.Enumerator を包む素通し Root + バージョンチェックを避け、
+// CollectionsMarshal.AsSpan(list) で内部配列を直接 Span として走査する（配列ソースと同等の高速パス）。
+// 内部フィールド名に依存せず public API のみを使うため安全。TryGetSpan/TryGetNonEnumeratedCount/TryCopyTo も提供する。
+public class ListRoot(int 番号, string sourceExpression, string elementType) : Enumerable(番号) {
+    public override string StructMethod => string.Empty;
+    // PrimarySource == null なので基底の EnumeratorTypeName は Struct のみ（型パラメータなし）を返す。
+    public override string GetEnumeratorExpression => $"new {Struct}({sourceExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"global::System.Collections.Generic.List<{elementType}> source";
+    public override string GetEnumeratorFields => $"private int {e} = -1;";
+    public override string GetTryGetNextBody => $$"""
+        var {{temp}} = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source);
+        if(++{{e}} < {{temp}}.Length) {
+            current = {{temp}}[{{e}}];
+            return true;
+        }
+        current = default!;
+        return false;
+        """;
+    public override string GetCurrentExpression => "Current";
+    public override string ElementType => elementType;
+    public override string GetEnumeratorStruct => $$"""
+        private struct {{Struct}}(global::System.Collections.Generic.List<{{elementType}}> source) : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        {
+            private int {{e}} = -1;
+            public {{elementType}} Current { get; private set; } = default!;
+            object? global::System.Collections.IEnumerator.Current => Current;
+            {{AggressiveInliningAttribute}}
+            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
+            {{AggressiveInliningAttribute}}
+            public bool MoveNext() => TryGetNext(out _);
+            {{AggressiveInliningAttribute}}
+            public bool TryGetNonEnumeratedCount(out int count) {
+                count = source.Count - ({{e}} + 1);
+                return true;
+            }
+            {{AggressiveInliningAttribute}}
+            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
+                span = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{e}} + 1);
+                return true;
+            }
+            {{AggressiveInliningAttribute}}
+            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) {
+                var remaining = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{e}} + 1);
+                var start = offset.GetOffset(remaining.Length);
+                remaining.Slice(start).CopyTo(destination);
+                return true;
+            }
+            {{AggressiveInliningAttribute}}
+            public bool TryGetNext(out {{elementType}} current) {
+                var {{temp}} = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source);
+                if(++{{e}} < {{temp}}.Length) {
+                    current = this.Current = {{temp}}[{{e}}];
+                    return true;
+                }
+                current = default!;
+                return false;
+            }
+            {{AggressiveInliningAttribute}}
+            public void Dispose() { }
+        }
+        """;
+}
+
 // IEnumerator<T> を実装しない duck-typing struct エニュメレータ（例: ImmutableArray<T>.Enumerator）向け。
 // 具象エニュメレータ型を直接フィールドとして持つ非ジェネリック struct を生成する（直接展開）。
 // TEnum の struct 制約が不要なため CS0315 が発生しない。
