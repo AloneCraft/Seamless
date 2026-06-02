@@ -547,7 +547,7 @@ public abstract class Collection<
         var Log = this.CollectionStore.Store.Log;
         return this.CollectionStore.OverflowMutableStrategyKind switch {
             OverflowMutableStrategyKind.Memory => MemoryOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
-            OverflowMutableStrategyKind.Storage => this.CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
+            OverflowMutableStrategyKind.Storage => this.CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(Log.TailAddress,KeyLength,ValueLength),
             _ => throw new UnreachableException(),
         };
     }

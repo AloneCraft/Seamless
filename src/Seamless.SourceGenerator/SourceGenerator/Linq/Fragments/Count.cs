@@ -8,6 +8,7 @@ public class Count(int 番号, Enumerable source, string resultType) : BufferedS
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
             {{resultType}} count = 0;
             while(source.MoveNext()) count++;
@@ -29,6 +30,7 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
     protected override string ComputeExpression =>
         $"Compute({e}{ClosureArgsSuffix(predicate)})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
             {{resultType}} count = 0;
             while(source.MoveNext()) {

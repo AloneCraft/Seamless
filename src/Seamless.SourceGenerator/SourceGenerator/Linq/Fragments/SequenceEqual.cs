@@ -14,6 +14,7 @@ public class SequenceEqual_comparer(int 番号, Enumerable source, Enumerable se
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string ComputeExpression => "Compute(source, second, comparer)";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
             comparer ??= global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
             while(true) {

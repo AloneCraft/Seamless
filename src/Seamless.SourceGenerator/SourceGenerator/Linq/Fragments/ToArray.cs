@@ -8,6 +8,7 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             using var enumerator = source;

@@ -19,6 +19,7 @@ public abstract class SetByBase(int 番号, Enumerable source, Enumerable second
     protected override string BuildExpression =>
         $"Build(source, second, comparer{ClosureArgsSuffix(keySelector)})";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{ClosureMethodParameterSuffix(keySelector)}}) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             var keys = new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>(comparer);

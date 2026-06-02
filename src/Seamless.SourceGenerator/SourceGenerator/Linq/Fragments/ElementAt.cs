@@ -10,6 +10,7 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int index";
     protected override string ComputeExpression => $"Compute({e}, index)";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source, int index) {
             if(index < 0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
             var currentIndex = 0;

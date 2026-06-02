@@ -13,6 +13,7 @@ public class Union_comparer(int 番号, Enumerable source, Enumerable second, st
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string BuildExpression => "Build(source, second, comparer)";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             var seen = new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(comparer);

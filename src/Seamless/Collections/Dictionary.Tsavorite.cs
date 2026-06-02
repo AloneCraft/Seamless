@@ -1,4 +1,5 @@
 using Seamless.SessionFunctions;
+using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 namespace Seamless.Collections;
@@ -86,19 +87,41 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         KeyValuePair<TKey,TValue>
     > GetEnumerator() => new(this.ReadSession,new());
     IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new());
-    private global::System.Collections.Generic.List<T> CreateCollection<TIterator, T>(TIterator Iterator) where TIterator : ScanIteratorFunctions_List<T,ListBase<T>> {
-        var Collection = new global::System.Collections.Generic.List<T>();
-        using var e = new Enumerator<TIterator,T>(this.ReadSession,Iterator);
-        while(e.MoveNext()) {
-            Collection.Add(e.Current);
+    private ReadOnlyCollectionView<TIterator,T> CreateCollectionView<TIterator,T>()
+        where TIterator : ScanIteratorFunctions_List<T,ListBase<T>>,ICreate<TIterator> =>
+        new(this);
+
+    private sealed class ReadOnlyCollectionView<TIterator,T>(
+        Dictionary<TKey,TValue,TKeySerializer,TValueSerializer> dictionary
+    ):ICollection<T>
+        where TIterator : ScanIteratorFunctions_List<T,ListBase<T>>,ICreate<TIterator> {
+        public int Count => checked((int)dictionary.GetLongCount());
+        public bool IsReadOnly => true;
+        public void Add(T item) => throw new NotSupportedException();
+        public void Clear() => throw new NotSupportedException();
+        public bool Remove(T item) => throw new NotSupportedException();
+        public bool Contains(T item) {
+            var comparer = EqualityComparer<T>.Default;
+            using var e = this.GetEnumerator();
+            while(e.MoveNext()) {
+                if(comparer.Equals(e.Current,item))
+                    return true;
+            }
+            return false;
         }
-        return Collection;
-    }
-    private IEnumerable<T> Enumerate<TIterator, T>(TIterator Iterator)
-        where TIterator : ScanIteratorFunctions_List<T,ListBase<T>> {
-        using var e = new Enumerator<TIterator,T>(this.ReadSession,Iterator);
-        while(e.MoveNext())
-            yield return e.Current;
+        public void CopyTo(T[] array,int arrayIndex) {
+            ArgumentNullException.ThrowIfNull(array);
+            ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
+            if(array.Length-arrayIndex<this.Count)
+                throw new ArgumentException("The destination array is too small.");
+            using var e = this.GetEnumerator();
+            while(e.MoveNext()) {
+                array[arrayIndex++]=e.Current;
+            }
+        }
+        public Enumerator<TIterator,T> GetEnumerator() => new(dictionary.ReadSession,TIterator.Create());
+        IEnumerator<T> IEnumerable<T>.GetEnumerator() => this.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     }
     public TValue this[TKey key] {
         get {

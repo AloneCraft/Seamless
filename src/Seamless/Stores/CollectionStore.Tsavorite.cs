@@ -30,17 +30,30 @@ public abstract partial class CollectionStore<
         TStoreFunctions StoreFunctions,
         Func<AllocatorSettings,TStoreFunctions,TAllocator> allocatorFactory,
         long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes) {
+        ValidatePowerOfTwo(IndexSize,nameof(IndexSize));
+        ValidatePowerOfTwo(PageSize,nameof(PageSize));
+        ValidatePowerOfTwo(SegmentSize,nameof(SegmentSize));
+        ValidatePowerOfTwo(MemorySize,nameof(MemorySize));
         AssertIsPowerOfTwo(IndexSize,nameof(IndexSize));
         AssertIsPowerOfTwo(PageSize,nameof(PageSize));
         AssertIsPowerOfTwo(SegmentSize,nameof(SegmentSize));
         AssertIsPowerOfTwo(MemorySize,nameof(MemorySize));
-        Debug.Assert(IndexSize>=64,$"{nameof(IndexSize)} must be >= 64");
-        Debug.Assert(PageSize>=1L<<12,$"{nameof(PageSize)} must be >= 4096");
-        Debug.Assert(PageSize<=1L<<30,$"{nameof(PageSize)} must be <= 1GB (1L<<30)");
-        Debug.Assert(PageSize<=SegmentSize,"SegmentSize must be at least equal to PageSize.");
-        Debug.Assert(MemorySize>=2*PageSize,$"{nameof(MemorySize)} must be >= 2*{nameof(PageSize)}");
-        Debug.Assert(SegmentSize<=1L<<62,$"{nameof(SegmentSize)} must be <= 1L<<62");
-        Debug.Assert(ObjectLogDevice.Capacity is >=Const.MinObjectLogCapacity and <=Const.MaxObjectLogCapacity or -1);
+        if(IndexSize<64)
+            throw new ArgumentOutOfRangeException(nameof(IndexSize),$"{nameof(IndexSize)} must be >= 64.");
+        if(PageSize<1L<<12)
+            throw new ArgumentOutOfRangeException(nameof(PageSize),$"{nameof(PageSize)} must be >= 4096.");
+        if(PageSize>1L<<30)
+            throw new ArgumentOutOfRangeException(nameof(PageSize),$"{nameof(PageSize)} must be <= 1GB (1L<<30).");
+        if(PageSize>SegmentSize)
+            throw new ArgumentOutOfRangeException(nameof(SegmentSize),"SegmentSize must be at least equal to PageSize.");
+        if(MemorySize<2*PageSize)
+            throw new ArgumentOutOfRangeException(nameof(MemorySize),$"{nameof(MemorySize)} must be >= 2*{nameof(PageSize)}.");
+        if(SegmentSize>1L<<62)
+            throw new ArgumentOutOfRangeException(nameof(SegmentSize),$"{nameof(SegmentSize)} must be <= 1L<<62.");
+        if(double.IsNaN(MutableFraction)||MutableFraction<0||MutableFraction>1)
+            throw new ArgumentOutOfRangeException(nameof(MutableFraction));
+        if(ObjectLogDevice.Capacity!=-1&&(ObjectLogDevice.Capacity<Const.MinObjectLogCapacity||ObjectLogDevice.Capacity>Const.MaxObjectLogCapacity))
+            throw new ArgumentOutOfRangeException(nameof(ObjectLogDevice),$"{nameof(ObjectLogDevice)} capacity must be -1 or between {Const.MinObjectLogCapacity} and {Const.MaxObjectLogCapacity}.");
         this.LogMemorySize=MemorySize;
         this.MutableFraction=MutableFraction;
         this.OverflowMutableStrategyKind=OverflowMutableStrategyKind;
@@ -50,7 +63,8 @@ public abstract partial class CollectionStore<
             objectLogSegmentSize=Const.MinObjectLogCapacity;
         }
         else {
-            Debug.Assert(ObjectLogDevice.Capacity%SegmentSize==0,$"ObjectLogDevice.Capacity must be a multiple of SegmentSize ({SegmentSize}), but was {ObjectLogDevice.Capacity}");
+            if(ObjectLogDevice.Capacity%SegmentSize!=0)
+                throw new ArgumentOutOfRangeException(nameof(ObjectLogDevice),$"ObjectLogDevice.Capacity must be a multiple of SegmentSize ({SegmentSize}), but was {ObjectLogDevice.Capacity}.");
             objectLogSegmentSize=ObjectLogDevice.Capacity;
         }
         this.Settings=new() {

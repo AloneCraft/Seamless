@@ -8,6 +8,7 @@ public class FirstOrDefault(int 番号, Enumerable source, string resultType) : 
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
             return source.MoveNext() ? source.Current : default!;
         }
@@ -25,6 +26,7 @@ public class FirstOrDefault_defaultValue(int 番号, Enumerable source, string d
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {resultType} defaultValue";
     protected override string ComputeExpression => $"Compute({e}, defaultValue)";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue) {
             return source.MoveNext() ? source.Current : defaultValue;
         }
@@ -46,6 +48,7 @@ public class FirstOrDefault_predicate(int 番号, Enumerable source, FuncFragmen
     protected override string ComputeExpression =>
         $"Compute({e}{ClosureArgsSuffix(predicate)})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
             while(source.MoveNext()) {
                 var {{item}} = source.Current;

@@ -497,7 +497,6 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         var t=Strip(e).ToString();
         return string.Equals(t,"Enumerable",StringComparison.Ordinal)
             ||string.Equals(t,"SystemEnumerable",StringComparison.Ordinal)
-            ||string.Equals(t,"SeamlessEnumerable",StringComparison.Ordinal)
             ||t.EndsWith(".Enumerable",StringComparison.Ordinal);
     }
     // 匿名型プロパティ名を取得。NameEquals優先、なければ式から推論。

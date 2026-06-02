@@ -20,7 +20,7 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
         }
         this.{{yielded}} = true;
         if(!{{e}}.MoveNext()) {
-            throw global::Seamless.Linq.Enumerable.NoElements();
+            throw global::Seamless.GeneratedCodeHelpers.NoElements();
         }
         var {{result}} = {{e}}.Current;
         while({{e}}.MoveNext()) {

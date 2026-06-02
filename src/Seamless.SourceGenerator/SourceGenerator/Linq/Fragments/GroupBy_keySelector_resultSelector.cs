@@ -30,6 +30,7 @@ public class GroupBy_keySelector_resultSelector(
         UseResultTypeParam ? $"{Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
 
     private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
+        {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum source{{ClosurePrimaryCtorSuffix(keySelector, resultSelector)}})
             where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>
             => new(new {{Struct}}<TEnum, TResult>(source{{ClosureArgsSuffixForFactory(keySelector, resultSelector)}}));
@@ -51,6 +52,7 @@ public class GroupBy_keySelector_resultSelector(
         $"Build(source{ClosureArgsSuffixForFactory(keySelector, resultSelector)})";
 
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{ElementType}}> Build(TEnum source{{ClosureMethodParameterSuffix(keySelector, resultSelector)}}) {
             var {{result}} = new global::System.Collections.Generic.List<{{ElementType}}>();
             var map = new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>();

@@ -8,6 +8,7 @@ public class Last(int 番号, Enumerable source, string resultType) : BufferedSc
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
             var found = false;
             {{resultType}} result = default!;
@@ -15,7 +16,7 @@ public class Last(int 番号, Enumerable source, string resultType) : BufferedSc
                 found = true;
                 result = source.Current;
             }
-            if(!found) throw global::Seamless.Linq.Enumerable.NoElements();
+            if(!found) throw global::Seamless.GeneratedCodeHelpers.NoElements();
             return result;
         }
         """;
@@ -36,6 +37,7 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
     protected override string ComputeExpression =>
         $"Compute({e}{ClosureArgsSuffix(predicate)})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
             var found = false;
             {{resultType}} result = default!;
@@ -48,7 +50,7 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
                     result = {{item}};
                 }
             }
-            if(!found) throw global::Seamless.Linq.Enumerable.NoElements();
+            if(!found) throw global::Seamless.GeneratedCodeHelpers.NoElements();
             return result;
         }
         """;

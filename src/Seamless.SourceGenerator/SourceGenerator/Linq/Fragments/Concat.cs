@@ -14,6 +14,7 @@ public class Concat(int 番号, Enumerable source, Enumerable second) : Buffered
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second";
     protected override string BuildExpression => "Build(source, second)";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum1 source, TEnum2 second) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             while(source.MoveNext()) result.Add(source.Current);

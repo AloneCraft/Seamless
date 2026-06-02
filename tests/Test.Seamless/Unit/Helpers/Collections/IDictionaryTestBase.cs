@@ -142,6 +142,12 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // キー一覧を取得できること
             Assert.Equivalent(new[] { TStrategy.K(1),TStrategy.K(2) },dict.Keys);
         }
+        {
+            // キー一覧は全件コピー済みの標準Listではなく読み取り専用viewであること
+            Assert.True(dict.Keys.IsReadOnly);
+            Assert.IsNotType<global::System.Collections.Generic.List<TKey>>(dict.Keys);
+            Assert.Throws<NotSupportedException>(() => dict.Keys.Add(TStrategy.K(3)));
+        }
     }
     [Fact, Trait("Category","Unit")]
     public void Values() {
@@ -153,6 +159,12 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         {
             // 値一覧を取得できること
             Assert.Equivalent(new[] { TStrategy.V(1),TStrategy.V(2) },dict.Values);
+        }
+        {
+            // 値一覧は全件コピー済みの標準Listではなく読み取り専用viewであること
+            Assert.True(dict.Values.IsReadOnly);
+            Assert.IsNotType<global::System.Collections.Generic.List<TValue>>(dict.Values);
+            Assert.Throws<NotSupportedException>(() => dict.Values.Add(TStrategy.V(3)));
         }
     }
     [Fact, Trait("Category","Unit")]

@@ -48,10 +48,10 @@ public partial class Dictionary<
         }
         return List;
     }
-    public ICollection<TKey> Keys => this.CreateCollection<KeyIterator,TKey>(new());
-    public ICollection<TValue> Values => this.CreateCollection<ValueIterator,TValue>(new());
-    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.CreateCollection<KeyIterator,TKey>(new());
-    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.CreateCollection<ValueIterator,TValue>(new());
+    public ICollection<TKey> Keys => this.CreateCollectionView<KeyIterator,TKey>();
+    public ICollection<TValue> Values => this.CreateCollectionView<ValueIterator,TValue>();
+    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Keys;
+    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Values;
     public override bool IsDisposed => this.disposed;
     private bool disposed;
     protected override void Dispose(bool disposing) {

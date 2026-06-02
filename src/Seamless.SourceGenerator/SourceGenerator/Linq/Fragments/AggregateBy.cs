@@ -15,6 +15,7 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
     protected override string BuildExpression =>
         $"Build(source{ClosureArgsSuffix(keySelector,func)})";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{resultElementType}}> Build(TEnum source{{ClosureMethodParameterSuffix(keySelector,func)}}) {
             var result = new global::System.Collections.Generic.List<{{resultElementType}}>();
             var map = new global::System.Collections.Generic.Dictionary<{{KeyType}}, {{FuncReturnTypeName(func)}}>();

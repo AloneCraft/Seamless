@@ -14,6 +14,7 @@ public class ElementAt_index(int 番号, Enumerable source, string index, string
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, global::System.Index index";
     protected override string ComputeExpression => $"Compute({e}, index)";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source, global::System.Index index) {
             if(!index.IsFromEnd) {
                 var idx = index.Value;

@@ -8,6 +8,7 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
             {{resultType}} sum = default!;
             while(source.MoveNext()) sum += source.Current;
@@ -29,6 +30,7 @@ public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, 
     protected override string ComputeExpression =>
         $"Compute({e}{ClosureArgsSuffix(selector)})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
             {{resultType}} sum = default!;
             while(source.MoveNext()) {

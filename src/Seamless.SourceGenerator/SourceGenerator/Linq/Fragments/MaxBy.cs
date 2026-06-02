@@ -11,8 +11,9 @@ public class MaxBy(int 番号, Enumerable source, FuncFragment keySelector, stri
     protected override string ComputeExpression =>
         $"Compute({e}{ClosureArgsSuffix(keySelector)})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(keySelector)}}) {
-            if(!source.MoveNext()) throw global::Seamless.Linq.Enumerable.NoElements();
+            if(!source.MoveNext()) throw global::Seamless.GeneratedCodeHelpers.NoElements();
             {{resultType}} maxElement = source.Current;
             {{FuncReturnTypeName(keySelector)}} maxKey = default!;
             {{FuncAssign(keySelector, nameof(keySelector), "maxKey", "maxElement")}}

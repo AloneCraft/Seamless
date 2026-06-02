@@ -7,8 +7,9 @@ public abstract class MinMaxBase(int 番号, Enumerable source, string resultTyp
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
-            if(!source.MoveNext()) throw global::Seamless.Linq.Enumerable.NoElements();
+            if(!source.MoveNext()) throw global::Seamless.GeneratedCodeHelpers.NoElements();
             {{resultType}} result = source.Current;
             var comparer = global::System.Collections.Generic.Comparer<{{resultType}}>.Default;
             while(source.MoveNext()) {

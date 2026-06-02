@@ -8,6 +8,7 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
             long count = 0;
             double sum = 0;
@@ -15,7 +16,7 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
                 sum += global::System.Convert.ToDouble(source.Current);
                 count++;
             }
-            if(count == 0) throw global::Seamless.Linq.Enumerable.NoElements();
+            if(count == 0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
             return ({{resultType}})(sum / count);
         }
         """;
@@ -34,6 +35,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
     protected override string ComputeExpression =>
         $"Compute({e}{ClosureArgsSuffix(selector)})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
             long count = 0;
             double sum = 0;
@@ -44,7 +46,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                 sum += global::System.Convert.ToDouble({{temp}});
                 count++;
             }
-            if(count == 0) throw global::Seamless.Linq.Enumerable.NoElements();
+            if(count == 0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
             return ({{resultType}})(sum / count);
         }
         """;

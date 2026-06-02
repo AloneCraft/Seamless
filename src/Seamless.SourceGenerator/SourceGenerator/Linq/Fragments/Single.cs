@@ -9,8 +9,9 @@ public class Single(int 番号, Enumerable source, string resultType) : Buffered
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
-            if(!source.MoveNext()) throw global::Seamless.Linq.Enumerable.NoElements();
+            if(!source.MoveNext()) throw global::Seamless.GeneratedCodeHelpers.NoElements();
             {{resultType}} value = source.Current;
             if(source.MoveNext()) throw new global::System.InvalidOperationException("Sequence contains more than one element");
             return value;
@@ -32,6 +33,7 @@ public class Single_predicate(int 番号, Enumerable source, FuncFragment predic
     protected override string ComputeExpression =>
         $"Compute({e}{ClosureArgsSuffix(predicate)})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
             {{resultType}} value = default!;
             bool found = false;
@@ -45,7 +47,7 @@ public class Single_predicate(int 番号, Enumerable source, FuncFragment predic
                     found = true;
                 }
             }
-            if(!found) throw global::Seamless.Linq.Enumerable.NoElements();
+            if(!found) throw global::Seamless.GeneratedCodeHelpers.NoElements();
             return value;
         }
         """;

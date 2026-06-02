@@ -867,7 +867,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         本体=本体ビルダー
             .ToString()
             .TrimEnd()
-            .Replace("throw NoElements();","throw global::Seamless.Linq.Enumerable.NoElements();",StringComparison.Ordinal);
+            .Replace("throw NoElements();","throw global::Seamless.GeneratedCodeHelpers.NoElements();",StringComparison.Ordinal);
         if(!対象.Method.IsStatic) {
             本体=System.Text.RegularExpressions.Regex.Replace(
                 本体,

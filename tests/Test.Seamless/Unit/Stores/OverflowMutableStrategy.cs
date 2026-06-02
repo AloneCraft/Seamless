@@ -56,8 +56,8 @@ public class OverflowMutableStrategy {
             var lastFittingTailAddress = strategy.LimitBytes-requiredBytes;
 
             Assert.Equal(800L,strategy.LimitBytes);
-            Assert.False(strategy.WouldOverflowMutable(beginAddress: lastFittingTailAddress-1,tailAddress: lastFittingTailAddress,keyLength,valueLength));
-            Assert.True(strategy.WouldOverflowMutable(beginAddress: lastFittingTailAddress,tailAddress: lastFittingTailAddress+1,keyLength,valueLength));
+            Assert.False(strategy.WouldOverflowMutable(tailAddress: lastFittingTailAddress,keyLength,valueLength));
+            Assert.True(strategy.WouldOverflowMutable(tailAddress: lastFittingTailAddress+1,keyLength,valueLength));
         }
         {
             var storageCapacity = 1000L;
@@ -68,8 +68,8 @@ public class OverflowMutableStrategy {
             var lastFittingTailAddress = strategy.LimitBytes-requiredBytes;
 
             Assert.Equal(800L,strategy.LimitBytes);
-            Assert.False(strategy.WouldOverflowMutable(beginAddress: lastFittingTailAddress-1,tailAddress: lastFittingTailAddress,keyLength,valueLength));
-            Assert.True(strategy.WouldOverflowMutable(beginAddress: lastFittingTailAddress,tailAddress: lastFittingTailAddress+1,keyLength,valueLength));
+            Assert.False(strategy.WouldOverflowMutable(tailAddress: lastFittingTailAddress,keyLength,valueLength));
+            Assert.True(strategy.WouldOverflowMutable(tailAddress: lastFittingTailAddress+1,keyLength,valueLength));
         }
         {
             var storageCapacity = 1000L;
@@ -80,8 +80,8 @@ public class OverflowMutableStrategy {
             var lastFittingTailAddress = strategy.LimitBytes-requiredBytes;
 
             Assert.Equal(750L,strategy.LimitBytes);
-            Assert.False(strategy.WouldOverflowMutable(beginAddress: lastFittingTailAddress-1,tailAddress: lastFittingTailAddress,keyLength,valueLength));
-            Assert.True(strategy.WouldOverflowMutable(beginAddress: lastFittingTailAddress,tailAddress: lastFittingTailAddress+1,keyLength,valueLength));
+            Assert.False(strategy.WouldOverflowMutable(tailAddress: lastFittingTailAddress,keyLength,valueLength));
+            Assert.True(strategy.WouldOverflowMutable(tailAddress: lastFittingTailAddress+1,keyLength,valueLength));
         }
         {
             var storageCapacity = 1000L;
@@ -91,13 +91,13 @@ public class OverflowMutableStrategy {
             var requiredBytes = MemoryOverflowMutableStrategy.GetRequiredBytes(keyLength,valueLength);
             var firstOverflowTailAddress = strategy.LimitBytes-requiredBytes+1;
 
-            Assert.True(strategy.WouldOverflowMutable(beginAddress: firstOverflowTailAddress-1,tailAddress: firstOverflowTailAddress,keyLength,valueLength));
+            Assert.True(strategy.WouldOverflowMutable(tailAddress: firstOverflowTailAddress,keyLength,valueLength));
         }
         {
             var strategy = new StorageOverflowMutableStrategy(storageCapacity: -1,limitFraction: 0.0,reserveBytes: 0);
 
             Assert.Equal(long.MaxValue,strategy.LimitBytes);
-            Assert.False(strategy.WouldOverflowMutable(beginAddress: long.MaxValue-1,tailAddress: long.MaxValue,keyLength: 10,valueLength: 20));
+            Assert.False(strategy.WouldOverflowMutable(tailAddress: long.MaxValue,keyLength: 10,valueLength: 20));
         }
     }
 }

@@ -9,6 +9,7 @@ public class ElementAtOrDefault(int 番号, Enumerable source, string index, str
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int index";
     protected override string ComputeExpression => $"Compute({e}, index)";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source, int index) {
             if(index < 0) return default!;
             var currentIndex = 0;

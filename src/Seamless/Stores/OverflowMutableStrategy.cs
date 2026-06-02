@@ -71,7 +71,7 @@ internal readonly struct StorageOverflowMutableStrategy {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool WouldOverflowMutable(long beginAddress,long tailAddress,int keyLength,int valueLength) {
+    public bool WouldOverflowMutable(long tailAddress,int keyLength,int valueLength) {
         if(this.storageCapacity<0) {
             return false;
         }

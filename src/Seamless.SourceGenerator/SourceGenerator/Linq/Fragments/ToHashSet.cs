@@ -9,6 +9,7 @@ public class ToHashSet(int 番号, Enumerable source, string resultType) : Buffe
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
             var result = new global::System.Collections.Generic.HashSet<{{source.ElementType}}>();
             while(source.MoveNext()) result.Add(source.Current);
@@ -29,6 +30,7 @@ public class ToHashSet_comparer(int 番号, Enumerable source, string comparer, 
         $"TEnum {e}, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string ComputeExpression => $"Compute({e}, comparer)";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
             var result = new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(comparer);
             while(source.MoveNext()) result.Add(source.Current);

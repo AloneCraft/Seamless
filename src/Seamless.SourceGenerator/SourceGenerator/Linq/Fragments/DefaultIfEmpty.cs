@@ -8,6 +8,7 @@ public class DefaultIfEmpty(int 番号, Enumerable source) : BufferedSequence(�
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source";
     protected override string BuildExpression => "Build(source)";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             while(source.MoveNext()) result.Add(source.Current);
@@ -25,6 +26,7 @@ public class DefaultIfEmpty_defaultValue(int 番号, Enumerable source, string d
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source, {source.ElementType} defaultValue";
     protected override string BuildExpression => "Build(source, defaultValue)";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, {{source.ElementType}} defaultValue) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             while(source.MoveNext()) result.Add(source.Current);

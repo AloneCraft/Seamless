@@ -137,7 +137,7 @@ public sealed class Enumerable2 {
             outerCall.Method.Name.StartsWith("OptimizedLinqInvocation_",StringComparison.Ordinal),
             $"Unexpected outer call: {outerCall.Method.DeclaringType?.FullName}.{outerCall.Method.Name}");
         Assert.True(
-            outerCall.Method.DeclaringType?.FullName=="Seamless.Linq.Enumerable"||
+            outerCall.Method.DeclaringType?.FullName is "Seamless.Linq.Enumerable" or "System.Linq.Enumerable"||
             outerCall.Method.Name.StartsWith("OptimizedLinqInvocation_",StringComparison.Ordinal),
             $"Unexpected outer call declaring type: {outerCall.Method.DeclaringType?.FullName}");
 

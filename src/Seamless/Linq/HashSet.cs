@@ -160,7 +160,7 @@ public static partial class HashSet {
             }
         }
         if(count==0)
-            throw Enumerable.NoElements();
+            throw global::Seamless.GeneratedCodeHelpers.NoElements();
         return sum/count;
     }
 
@@ -180,7 +180,7 @@ public static partial class HashSet {
             }
         }
         if(count==0)
-            throw Enumerable.NoElements();
+            throw global::Seamless.GeneratedCodeHelpers.NoElements();
         return sum/count;
     }
 
@@ -2138,7 +2138,7 @@ public static partial class HashSet {
     public static ILookup<TKey,TSource> ToLookup<TSource, TKey>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer) {
         IEqualityComparer<TKey>? comparer1=comparer;
         comparer1??=EqualityComparer<TKey>.Default;
-        var lookup=new Enumerable.LookupImpl<TKey,TSource>(comparer1);
+        var lookup=new LookupImpl<TKey,TSource>(comparer1);
         foreach(var item in (IEnumerable<TSource>)source) {
             lookup.Add(keySelector(item),item);
         }
@@ -2169,7 +2169,7 @@ public static partial class HashSet {
     ///   <paramref name="source" /> or <paramref name="keySelector" /> or <paramref name="elementSelector" /> is <see langword="null" />.</exception>
     /// <returns>A <see cref="T:System.Linq.Lookup`2" /> that contains values of type <typeparamref name="TElement" /> selected from the input sequence.</returns>
     public static ILookup<TKey,TElement> ToLookup<TSource, TKey, TElement>(this IHashSet<TSource> source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer) {
-        var lookup=new Enumerable.LookupImpl<TKey,TElement>(comparer);
+        var lookup=new LookupImpl<TKey,TElement>(comparer);
         foreach(var item in (IEnumerable<TSource>)source) {
             lookup.Add(keySelector(item),elementSelector(item));
         }
