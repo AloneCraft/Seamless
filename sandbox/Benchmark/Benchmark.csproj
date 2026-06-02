@@ -45,30 +45,6 @@
               Condition="'$(Configuration)' == 'Release' and Exists('$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Release/net10.0/Seamless.SourceGenerator.dll')" />
   </ItemGroup>
 
-  <!-- Exclude ZLinq-specific benchmark files -->
-  <ItemGroup>
-    <Compile Remove="Benchmarks/**" />
-    <Compile Include="Benchmarks/Seamless/**" />
-    <Compile Include="Benchmarks/WhereSelectStringJoin.cs" />
-    <Compile Include="Benchmarks/LibraryComparison.cs" />
-    <Compile Remove="BenchmarkDotNet/ExtensionMethods/ConsumerExtensions.cs" />
-    <Compile Remove="BenchmarkDotNet/ExtensionMethods/ConsumerExtensions.BinaryOperations.cs" />
-    <Compile Remove="BenchmarkDotNet/ExtensionMethods/ConsumerExtensions.UnaryOperations.cs" />
-    <Compile Remove="BenchmarkDotNet/Filters/ZLinqNuGetVersionFilter.cs" />
-    <Compile Remove="BenchmarkDotNet/BenchmarkConfigs/NuGetVersionsBenchmarkConfig.cs" />
-    <Compile Remove="ExtensionMethods/**" />
-    <Compile Remove="TestData/**" />
-    <Compile Remove="Models/**" />
-    <Compile Remove="BenchmarkDotNet/EventProcessors/**" />
-    <Compile Remove="BenchmarkDotNet/ExtensionMethods/SummariesExtensions.cs" />
-    <Compile Remove="BenchmarkDotNet/ExtensionMethods/SummaryTableExtensions.cs" />
-  </ItemGroup>
-
-  <!-- Settings for SystemLinqBenchmarkConfig: disable interceptor, use plain System.Linq -->
-  <PropertyGroup Condition="'$(Configuration)'=='SystemLinq'">
-    <DefineConstants>$(DefineConstants);USE_SYSTEM_LINQ</DefineConstants>
-  </PropertyGroup>
-
   <!-- Custom target to cleanup `bin`, and `BenchmarkDotNet.Artifacts` directories. (`obj` is retained. Because it cause intellisense error when deleted) -->
   <Target Name="CleanBenchmarkDotNetArtifacts" BeforeTargets="Clean" Condition="Exists('bin')">
     <RemoveDir ContinueOnError="WarnAndContinue" Directories="$(MSBuildThisFileDirectory)bin" />

@@ -6,7 +6,6 @@
     <File Path="copilot-instructions.md" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/Benchmark/Benchmark.csproj" />
     <Project Path="src/Seamless.SourceGenerator/Seamless.SourceGenerator.csproj" />
   </Folder>
   <Folder Name="/tests/">
