@@ -1372,9 +1372,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         var _num=uniqueNumber++;
         fragment = expressionType is IArrayTypeSymbol
             ? new ArrayRoot(_num, _srcExpr, elementTypeName)
-            : isDuckTyping && concreteEnumeratorTypeName is not null
-                ? new DuckTypingRoot(_num, _srcExpr, elementTypeName, concreteEnumeratorTypeName)
-                : CreateRootEnumerableFragment(_srcExpr, elementTypeName, enumeratorTypeName, effectiveUseEnumerableInterface, _num);
+            : IsListType(expressionType)
+                ? new ListRoot(_num, _srcExpr, elementTypeName)
+                : isDuckTyping && concreteEnumeratorTypeName is not null
+                    ? new DuckTypingRoot(_num, _srcExpr, elementTypeName, concreteEnumeratorTypeName)
+                    : CreateRootEnumerableFragment(_srcExpr, elementTypeName, enumeratorTypeName, effectiveUseEnumerableInterface, _num);
         return true;
     }
 
@@ -1414,6 +1416,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             && SymbolEqualityComparer.Default.Equals(i.TypeArguments[0],elementType));
         return (typeName, isDuckTyping: !implementsIEnumerator);
     }
+
+    // ちょうど System.Collections.Generic.List<T> 型かを判定する（継承クラスは内部配列の意味が同じでも
+    // 別物として扱い従来パスへ流す）。List<T> なら CollectionsMarshal.AsSpan ベースの ListRoot で直走査できる。
+    private static bool IsListType(ITypeSymbol? type) =>
+        type is INamedTypeSymbol named
+        && named.OriginalDefinition.ToDisplayString()=="System.Collections.Generic.List<T>";
 
     private static bool 列挙要素型取得11(ITypeSymbol? type,out ITypeSymbol elementType,out bool useEnumerableInterface) {
         switch(type) {
@@ -2446,17 +2454,22 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     // 式本体版：expression を root として LINQ 呼び出しを検索する。
     // SyntaxFactory.ReturnStatement(アロー式) のような合成ノードを避け、元ツリーのノードを直接使う。
     private static List<InvocationExpressionSyntax> 外側LINQ呼び出し取得41_式(ExpressionSyntax expression,SemanticModel semanticModel) {
+        // expression 自身が最外の LINQ 呼び出しになりうる（例: 式本体 => xxx.Where(...).Select(...).ToArray()）。
+        // 祖先走査の境界を expression ではなく expression.Parent にしないと、expression(=.ToArray()) 自身が
+        // TakeWhile から抜け落ち、その直下の .Select() が「外側に LINQ なし」と誤判定され __linq1 として
+        // 二重生成される。statement 版は statement が境界なので問題ないが、式本体版はここで明示的に1段上げる。
+        var boundary = expression.Parent;
         return expression.DescendantNodesAndSelf()
             .OfType<InvocationExpressionSyntax>()
             .Where(invocation => SystemLinqEnumerable呼び出し判定42(invocation,semanticModel)
                 && semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol { ReducedFrom: not null } method
                 && !(method.ReducedFrom ?? method).Parameters.Any(static p => p.RefKind != RefKind.None))
             .Where(invocation => !invocation.Ancestors()
-                .TakeWhile(ancestor => ancestor!=expression)
+                .TakeWhile(ancestor => ancestor!=boundary)
                 .OfType<LambdaExpressionSyntax>()
                 .Any())
             .Where(invocation => !invocation.Ancestors()
-                .TakeWhile(ancestor => ancestor!=expression)
+                .TakeWhile(ancestor => ancestor!=boundary)
                 .OfType<InvocationExpressionSyntax>()
                 .Any(ancestorInvocation => SystemLinqEnumerable呼び出し判定42(ancestorInvocation,semanticModel)))
             .OrderBy(static invocation => invocation.SpanStart)
