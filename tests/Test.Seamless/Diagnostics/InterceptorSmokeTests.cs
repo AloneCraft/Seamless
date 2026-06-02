@@ -1,6 +1,5 @@
 using Seamless;
 using System.Linq;
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Seamless.Diagnostics;
 
@@ -65,30 +64,6 @@ public class InterceptorSmokeTests {
     }
 
     [Fact]
-    [Log]
-    public void Where_Select_LoopFusion_Log_Smoke() {
-        var numbers = new[] { 1,2,3,4,5 };
-        var expected = SystemEnumerable.Select(
-            SystemEnumerable.Where(numbers,static value => value%2==0),
-            static value => value*10);
-
-        IEnumerable<int>? actual = null;
-        var log = CaptureConsole(() => actual = numbers
-            .Where(static value => value%2==0)
-            .Select(static value => value*10));
-
-        Assert.Equal(expected,actual);
-        Assert.Contains("変換前:",log);
-        Assert.Contains("変換後:",log);
-        Assert.Contains(".Where(",log);
-        Assert.Contains(".Select(",log);
-        Assert.Contains("foreach(var __seamlessItem in __seamlessSource)",log);
-        Assert.Contains("if(!((__seamlessItem)%2==0))",log);
-        Assert.Contains("var __seamlessValue0 = (__seamlessItem)*10;",log);
-        Assert.Equal(1,CountOccurrences(log,"foreach(var __seamlessItem in __seamlessSource)"));
-    }
-
-    [Fact]
     public void ListWhere_Interceptor_String_Smoke() {
         var values = new List<string> { "a","bb","ccc" };
 
@@ -149,29 +124,6 @@ public class InterceptorSmokeTests {
 
         Assert.Single(matches);
         return matches[0];
-    }
-
-    private static string CaptureConsole(Action action) {
-        var originalOut = Console.Out;
-        using var writer = new StringWriter();
-        Console.SetOut(writer);
-        try {
-            action();
-        }
-        finally {
-            Console.SetOut(originalOut);
-        }
-        return writer.ToString();
-    }
-
-    private static int CountOccurrences(string text,string value) {
-        var count = 0;
-        var index = 0;
-        while((index=text.IndexOf(value,index,StringComparison.Ordinal))>=0) {
-            count++;
-            index+=value.Length;
-        }
-        return count;
     }
 
     private static string GeneratedSourceRoot() {

@@ -8,6 +8,7 @@ public class Reverse(int 番号, Enumerable source) : BufferedSequence(番号, s
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source";
     protected override string BuildExpression => "Build(source)";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             while(source.MoveNext()) result.Add(source.Current);

@@ -9,6 +9,7 @@ public class Contains(int 番号, Enumerable source, string value, string result
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {source.ElementType} value";
     protected override string ComputeExpression => $"Compute({e}, value)";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value) {
             var comparer = global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
             while(source.MoveNext()) {
@@ -30,6 +31,7 @@ public class Contains_comparer(int 番号, Enumerable source, string value, stri
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {source.ElementType} value, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string ComputeExpression => $"Compute({e}, value, comparer)";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
             comparer ??= global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
             while(source.MoveNext()) {

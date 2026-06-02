@@ -50,6 +50,7 @@
     <Compile Remove="Benchmarks/**" />
     <Compile Include="Benchmarks/Seamless/**" />
     <Compile Include="Benchmarks/WhereSelectStringJoin.cs" />
+    <Compile Include="Benchmarks/LibraryComparison.cs" />
     <Compile Remove="BenchmarkDotNet/ExtensionMethods/ConsumerExtensions.cs" />
     <Compile Remove="BenchmarkDotNet/ExtensionMethods/ConsumerExtensions.BinaryOperations.cs" />
     <Compile Remove="BenchmarkDotNet/ExtensionMethods/ConsumerExtensions.UnaryOperations.cs" />

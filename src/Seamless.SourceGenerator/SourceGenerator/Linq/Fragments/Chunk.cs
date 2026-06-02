@@ -8,6 +8,7 @@ public class Chunk(int 番号, Enumerable source, string size) : BufferedSequenc
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source, int size";
     protected override string BuildExpression => "Build(source, size)";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{source.ElementType}}[]> Build(TEnum source, int size) {
             if(size <= 0) throw new global::System.ArgumentOutOfRangeException(nameof(size));
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}[]>();

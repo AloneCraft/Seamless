@@ -122,10 +122,12 @@ public struct PooledArray<TSource> : IDisposable
         return ArraySegment.AsEnumerable();
     }
 
+#if NET9_0_OR_GREATER
     public ValueEnumerable<FromMemory<TSource>, TSource> AsValueEnumerable()
     {
         return Memory.AsValueEnumerable();
     }
+#endif
 
     // for compatibility
 

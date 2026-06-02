@@ -9,9 +9,10 @@ public class First(int 番号, Enumerable source, string resultType) : BufferedS
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
             if(source.MoveNext()) return source.Current;
-            throw global::Seamless.Linq.Enumerable.NoElements();
+            throw global::Seamless.GeneratedCodeHelpers.NoElements();
         }
         """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
@@ -31,6 +32,7 @@ public class First_predicate(int 番号, Enumerable source, FuncFragment predica
     protected override string ComputeExpression =>
         $"Compute({e}{ClosureArgsSuffix(predicate)})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
             while(source.MoveNext()) {
                 var {{item}} = source.Current;
@@ -38,7 +40,7 @@ public class First_predicate(int 番号, Enumerable source, FuncFragment predica
                 {{FuncAssign(predicate,nameof(predicate),temp,item)}}
                 if({{temp}}) return {{item}};
             }
-            throw global::Seamless.Linq.Enumerable.NoElements();
+            throw global::Seamless.GeneratedCodeHelpers.NoElements();
         }
         """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";

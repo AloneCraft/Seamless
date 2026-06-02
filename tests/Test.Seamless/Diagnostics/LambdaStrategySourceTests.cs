@@ -1,3 +1,4 @@
+using System.Linq;
 using Seamless.Linq;
 
 namespace Test.Seamless.Diagnostics;
@@ -27,9 +28,8 @@ public sealed class LambdaStrategySourceTests {
 
         var section = GeneratedInterceptorSection(nameof(CapturingDelegateProbe));
 
-        Assert.DoesNotContain("private readonly struct Select_selector0_",section);
-        Assert.DoesNotContain("result.Add(Select_selector0_",section);
-        Assert.Contains("result.Add(selector(item))",section);
+        Assert.Contains("TEnum __e0, int offset) : global::Seamless.Linq.Carrier.IValueEnumerator",section);
+        Assert.Contains("current = this.Current = __it0+offset;",section);
     }
 
     private static List<int> ExplicitStaticDelegateProbe() =>
@@ -44,13 +44,9 @@ public sealed class LambdaStrategySourceTests {
     }
 
     private static void AssertStaticSelectStrategy(string section,string expressionText) {
-        Assert.Contains("private readonly struct Select_selector0_",section);
-        Assert.Contains(":global::Seamless.SourceGenerator.Generated.LinqInvocationFusionSupport.ISelector<global::System.Int32,global::System.Int32>",section);
-        Assert.Contains($"public static global::System.Int32 selector(global::System.Int32 p) => {expressionText};",section);
-        Assert.Contains("public static global::System.Int32 Invoke(global::System.Int32 p) => selector(p);",section);
-        Assert.Contains("result.Add(Select_selector0_",section);
-        Assert.Contains(".selector(item)",section);
-        Assert.DoesNotContain("result.Add(selector(item))",section);
+        var inlined = expressionText.Replace("p","__it0");
+        Assert.Contains($"current = this.Current = {inlined};",section);
+        Assert.Contains("(TEnum __e0) : global::Seamless.Linq.Carrier.IValueEnumerator",section);
     }
 
     private static string GeneratedInterceptorSection(string containingMethodName) {

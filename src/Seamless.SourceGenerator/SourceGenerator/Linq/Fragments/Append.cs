@@ -8,6 +8,7 @@ public class Append(int 番号, Enumerable source, string element) : BufferedSeq
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source, {source.ElementType} element";
     protected override string BuildExpression => "Build(source, element)";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, {{source.ElementType}} element) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             while(source.MoveNext()) {

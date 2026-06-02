@@ -10,6 +10,7 @@ public class Distinct_comparer(int 番号, Enumerable source, string comparer) :
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string BuildExpression => "Build(source, comparer)";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             var seen = new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(comparer);

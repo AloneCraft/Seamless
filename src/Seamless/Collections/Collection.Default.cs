@@ -16,7 +16,8 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     SpanByteStoreAllocator//TAllocator
 >    where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-    public sealed class KeyIterator:ScanIteratorFunctions_List<TKey,ListBase<TKey>> {
+    public sealed class KeyIterator:ScanIteratorFunctions_List<TKey,ListBase<TKey>>,ICreate<KeyIterator> {
+        public static KeyIterator Create() => new();
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
@@ -24,7 +25,8 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    private protected sealed class ValueIterator:ScanIteratorFunctions_List<TValue,ListBase<TValue>> {
+    private protected sealed class ValueIterator:ScanIteratorFunctions_List<TValue,ListBase<TValue>>,ICreate<ValueIterator> {
+        public static ValueIterator Create() => new();
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }

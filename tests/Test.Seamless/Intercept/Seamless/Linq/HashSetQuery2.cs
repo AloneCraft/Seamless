@@ -1,3 +1,4 @@
+using System.Linq;
 using Seamless.Collections;
 using Seamless.Linq;
 using Seamless.Stores;

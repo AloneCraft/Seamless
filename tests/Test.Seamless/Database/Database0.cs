@@ -1,7 +1,7 @@
+using System.Linq;
+using System.Linq.Expressions;
 using Seamless;
 using Seamless.Linq;
-
-using System.Linq.Expressions;
 
 namespace Test.Seamless.Database.Database0 {
     public sealed class Enumerable2 {
@@ -32,25 +32,25 @@ namespace Test.Seamless.Database.Database0 {
     [Optimize]
     public class Container {
         public global::Seamless.Collections.Generic.IEnumerable<int> Optimize無virtual無(global::Seamless.Collections.Generic.IEnumerable<int> outer) {
-            new global::Seamless.Collections.Generic.IEnumerable<int>(global::Seamless.Linq.Enumerable.Select(outer,static p => p+p));
-            var x=new global::Seamless.Collections.Generic.IEnumerable<int>(global::Seamless.Linq.Enumerable.Select(outer,static p => p+p));
-            return new(global::Seamless.Linq.Enumerable.Select(outer,static p => p+p));
+            new global::Seamless.Collections.Generic.IEnumerable<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
+            var x=new global::Seamless.Collections.Generic.IEnumerable<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
+            return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
         public virtual global::Seamless.Collections.Generic.IEnumerable<int> Optimize無virtual有(global::Seamless.Collections.Generic.IEnumerable<int> outer) {
-            return new(global::Seamless.Linq.Enumerable.Select(outer,static p => p+p));
+            return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
         //[Optimize]public global::Seamless.Collections.Generic.IEnumerable<int> Optimize有virtual無(global::Seamless.Collections.Generic.IEnumerable<int> outer) {
-        //    return new(global::Seamless.Linq.Enumerable.Select(outer,static p => p+p));
+        //    return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         //}
         [Optimize]public virtual global::Seamless.Collections.Generic.IEnumerable<int> Optimize有virtual有(global::Seamless.Collections.Generic.IEnumerable<int> outer) {
-            return new(global::Seamless.Linq.Enumerable.Select(outer,static p => p+p));
+            return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
         [Optimize][Fact]public virtual  void Call(){
             var x=Select_Method(new int[3]);
         }
         [Optimize]
         public virtual global::Seamless.Collections.Generic.IEnumerable<int> Select_Method(global::Seamless.Collections.Generic.IEnumerable<int> outer) {
-            return new(global::Seamless.Linq.Enumerable.Select(outer,static p => p+p));
+            return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
         [Optimize]
         public virtual IEnumerable<int> SelectSelect_Method(IEnumerable<int> outer) {
@@ -154,7 +154,7 @@ namespace Test.Seamless.Database.Database0 {
         public virtual IEnumerable<(T0 o,T1 i)> Query2<T0, T1>(global::Seamless.Collections.IHashSet<T0> outer,global::Seamless.Collections.IHashSet<T1> inner)
             where T0 : IEquatable<T0>
             where T1 : IEquatable<T1> {
-            return global::Seamless.Linq.Enumerable.SelectMany(outer,_ => inner,(o,i) => (o,i));
+            return global::System.Linq.Enumerable.SelectMany(outer,_ => inner,(o,i) => (o,i));
         }
 
         [Optimize]

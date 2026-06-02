@@ -11,6 +11,7 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
             ? $"{Struct}<{outer.EnumeratorTypeName}, {inner.EnumeratorTypeName}, TResult>"
             : $"{Struct}<{outer.EnumeratorTypeName}, {inner.EnumeratorTypeName}>";
     private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
+        {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.Carrier.ValueEnumerable<{{Struct}}<TOuterEnum, TInnerEnum, TResult>, TResult> {{FactoryMethodName}}<TOuterEnum, TInnerEnum, TResult>(TOuterEnum outer, TInnerEnum inner, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>? comparer{{ClosurePrimaryCtorSuffix(outerKeySelector,innerKeySelector,resultSelector)}})
             where TOuterEnum : struct, global::System.Collections.Generic.IEnumerator<{{outer.ElementType}}>
             where TInnerEnum : struct, global::System.Collections.Generic.IEnumerator<{{inner.ElementType}}>
@@ -34,7 +35,7 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
             : base.GetEnumerableExpression;
     public override string GetEnumeratorFields => $$"""
         {{ClosureFields(outerKeySelector,innerKeySelector,resultSelector)}}
-        private readonly global::Seamless.Linq.Enumerable.LookupImpl<{{FuncReturnTypeName(innerKeySelector)}}, {{inner.ElementType}}> {{lookup}};
+        private readonly global::Seamless.Linq.LookupImpl<{{FuncReturnTypeName(innerKeySelector)}}, {{inner.ElementType}}> {{lookup}};
         private TOuterEnum {{e}};
         private global::System.Collections.Generic.List<{{inner.ElementType}}>? {{group}};
         private int {{groupIndex}};
@@ -47,7 +48,7 @@ public class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment oute
             TInnerEnum inner,
             global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>? comparer{{ClosureMethodParameterSuffix(outerKeySelector,innerKeySelector,resultSelector)}}) {
             {{ClosureFieldAssignments(outerKeySelector,innerKeySelector,resultSelector)}}
-            {{lookup}} = new global::Seamless.Linq.Enumerable.LookupImpl<{{FuncReturnTypeName(innerKeySelector)}}, {{inner.ElementType}}>(comparer ?? global::System.Collections.Generic.EqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>.Default);
+            {{lookup}} = new global::Seamless.Linq.LookupImpl<{{FuncReturnTypeName(innerKeySelector)}}, {{inner.ElementType}}>(comparer ?? global::System.Collections.Generic.EqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>.Default);
             using var innerEnumerator = inner;
             while(innerEnumerator.MoveNext()) {
                 var {{item}} = innerEnumerator.Current;

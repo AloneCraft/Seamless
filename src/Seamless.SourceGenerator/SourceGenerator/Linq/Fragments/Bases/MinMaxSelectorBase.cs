@@ -11,8 +11,9 @@ public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFrag
     protected override string ComputeExpression =>
         $"Compute({e}{ClosureArgsSuffix(selector)})";
     protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
-            if(!source.MoveNext()) throw global::Seamless.Linq.Enumerable.NoElements();
+            if(!source.MoveNext()) throw global::Seamless.GeneratedCodeHelpers.NoElements();
             var {{item}} = source.Current;
             {{resultType}} result = default!;
             {{FuncAssign(selector,nameof(selector),"result",item)}}

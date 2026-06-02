@@ -11,6 +11,7 @@ public class Zip(int 番号, Enumerable source, Enumerable second) : BufferedSeq
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second";
     protected override string BuildExpression => "Build(source, second)";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<({{source.ElementType}} First, {{second.ElementType}} Second)> Build(TEnum1 source, TEnum2 second) {
             var result = new global::System.Collections.Generic.List<({{source.ElementType}} First, {{second.ElementType}} Second)>();
             while(source.MoveNext() && second.MoveNext()) {
@@ -35,6 +36,7 @@ public class Zip_resultSelector(int 番号, Enumerable source, Enumerable second
         $"TEnum1 source, TEnum2 second{ClosurePrimaryCtorSuffix(resultSelector)}";
     protected override string BuildExpression => $"Build(source, second{ClosureArgsSuffix(resultSelector)})";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{FuncReturnTypeName(resultSelector)}}> Build(TEnum1 source, TEnum2 second{{ClosureMethodParameterSuffix(resultSelector)}}) {
             var result = new global::System.Collections.Generic.List<{{FuncReturnTypeName(resultSelector)}}>();
             while(source.MoveNext() && second.MoveNext()) {

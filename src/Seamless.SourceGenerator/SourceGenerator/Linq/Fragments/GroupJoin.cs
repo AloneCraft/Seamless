@@ -11,6 +11,7 @@ public class GroupJoin(int 番号, Enumerable outer, Enumerable inner, FuncFragm
             ? $"{Struct}<{outer.EnumeratorTypeName}, {inner.EnumeratorTypeName}, TResult>"
             : $"{Struct}<{outer.EnumeratorTypeName}, {inner.EnumeratorTypeName}>";
     private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
+        {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.Carrier.ValueEnumerable<{{Struct}}<TOuterEnum, TInnerEnum, TResult>, TResult> {{FactoryMethodName}}<TOuterEnum, TInnerEnum, TResult>(TOuterEnum outer, TInnerEnum inner, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>? comparer{{ClosurePrimaryCtorSuffix(outerKeySelector,innerKeySelector,resultSelector)}})
             where TOuterEnum : struct, global::System.Collections.Generic.IEnumerator<{{outer.ElementType}}>
             where TInnerEnum : struct, global::System.Collections.Generic.IEnumerator<{{inner.ElementType}}>

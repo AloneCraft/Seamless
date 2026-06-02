@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\Seamless\Linq\Enumerable.cs" LogicalName="Seamless.Linq.Enumerable.cs" />
+    <EmbeddedResource Include="..\Seamless\Linq\LookupImpl.cs" LogicalName="Seamless.Linq.LookupImpl.cs" />
     <EmbeddedResource Include="..\Seamless\Linq\HashSet.cs" LogicalName="Seamless.Linq.HashSet.cs" />
   </ItemGroup>
 

@@ -120,4 +120,15 @@ public class HashStoreTests {
         Assert.Throws<ArgumentOutOfRangeException>(() => HashStore.Create(StorageLimitFraction: double.NaN));
         Assert.Throws<ArgumentOutOfRangeException>(() => HashStore.Create(StorageReserveBytes: -1));
     }
+
+    [Fact, Trait("Category","Unit")]
+    public void Create_InvalidTsavoriteSizeOptions_Throws() {
+        Assert.Throws<ArgumentOutOfRangeException>(() => HashStore.Create(IndexSize: 63).Create<int,int>());
+        Assert.Throws<ArgumentOutOfRangeException>(() => HashStore.Create(PageSize: 2048).Create<int,int>());
+        Assert.Throws<ArgumentOutOfRangeException>(() => HashStore.Create(PageSize: 1L<<13,SegmentSize: 1L<<12).Create<int,int>());
+        Assert.Throws<ArgumentOutOfRangeException>(() => HashStore.Create(PageSize: 1L<<12,MemorySize: 1L<<12).Create<int,int>());
+        Assert.Throws<ArgumentOutOfRangeException>(() => HashStore.Create(MutableFraction: -0.1).Create<int,int>());
+        Assert.Throws<ArgumentOutOfRangeException>(() => HashStore.Create(MutableFraction: 1.1).Create<int,int>());
+        Assert.Throws<ArgumentOutOfRangeException>(() => HashStore.Create(MutableFraction: double.NaN).Create<int,int>());
+    }
 }

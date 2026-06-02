@@ -13,6 +13,7 @@ public class Except_comparer(int 番号, Enumerable source, Enumerable second, s
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string BuildExpression => "Build(source, second, comparer)";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
             var excluded = new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(comparer);
             while(second.MoveNext()) excluded.Add(({{source.ElementType}})(object)second.Current!);

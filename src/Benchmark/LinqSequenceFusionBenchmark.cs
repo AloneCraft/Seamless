@@ -1,6 +1,5 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
-using SeamlessEnumerable = Seamless.Linq.Enumerable;
 using SystemEnumerable = System.Linq.Enumerable;
 
 namespace BenchmarkExe.Benchmarks;
@@ -34,14 +33,6 @@ public class LinqSequenceFusionBenchmark {
     }
 
     [Benchmark]
-    public int SeamlessLinqWhereSelectSum() {
-        return SeamlessEnumerable.Sum(
-            SeamlessEnumerable.Select(
-                SeamlessEnumerable.Where(this.outer,value => value>10),
-                value => value*2));
-    }
-
-    [Benchmark]
     public int InterceptedContainerWhereSelectSum() {
         return this.baselineContainer.WhereSelectSum(this.outer);
     }
@@ -53,12 +44,6 @@ public class LinqSequenceFusionBenchmark {
                 this.outer,
                 _ => this.inner,
                 static (outerValue,innerValue) => outerValue+innerValue));
-    }
-
-    [Benchmark]
-    public int SeamlessLinqSelectManySum() {
-        return SeamlessEnumerable.Sum(
-            SeamlessEnumerable.SelectMany(this.outer,_ => this.inner,(outerValue,innerValue) => outerValue+innerValue));
     }
 
     [Benchmark]
@@ -80,13 +65,6 @@ public class LinqSequenceFusionBenchmark {
     }
 
     [Benchmark]
-    public int SeamlessLinqJoinSelectSum() {
-        return SumSequence(SeamlessEnumerable.Select(
-            SeamlessEnumerable.Join(this.outer,this.inner,outerValue => outerValue&127,innerValue => innerValue,(outerValue,innerValue) => (outerValue,innerValue)),
-            pair => pair.outerValue+pair.innerValue));
-    }
-
-    [Benchmark]
     public int InterceptedContainerJoinSelectSum() {
         return SumSequence(this.baselineContainer.JoinSelectSequence(this.outer,this.inner));
     }
@@ -101,21 +79,11 @@ public class LinqSequenceFusionBenchmark {
 }
 
 public class LinqSequenceFusionContainer {
-    public virtual int WhereSelectSum(IEnumerable<int> outer) {
-        return SeamlessEnumerable.Sum(
-            SeamlessEnumerable.Select(
-                SeamlessEnumerable.Where(outer,value => value>10),
-                value => value*2));
-    }
-
-    public virtual int SelectManySum(IEnumerable<int> outer,IEnumerable<int> inner) {
-        return SeamlessEnumerable.Sum(
-            SeamlessEnumerable.SelectMany(outer,_ => inner,(outerValue,innerValue) => outerValue+innerValue));
-    }
-
-    public virtual IEnumerable<int> JoinSelectSequence(IEnumerable<int> outer,IEnumerable<int> inner) {
-        return SeamlessEnumerable.Select(
-            SeamlessEnumerable.Join(outer,inner,outerValue => outerValue&127,innerValue => innerValue,(outerValue,innerValue) => (outerValue,innerValue)),
-            pair => pair.outerValue+pair.innerValue);
-    }
+    public virtual int WhereSelectSum(IEnumerable<int> outer)
+        => outer.Where(static value => value>10).Select(static value => value*2).Sum();
+    public virtual int SelectManySum(IEnumerable<int> outer,IEnumerable<int> inner)
+        => outer.SelectMany(_ => inner,static (outerValue,innerValue) => outerValue+innerValue).Sum();
+    public virtual IEnumerable<int> JoinSelectSequence(IEnumerable<int> outer,IEnumerable<int> inner)
+        => outer.Join(inner,static outerValue => outerValue&127,static innerValue => innerValue,
+               static (outerValue,innerValue) => outerValue+innerValue);
 }

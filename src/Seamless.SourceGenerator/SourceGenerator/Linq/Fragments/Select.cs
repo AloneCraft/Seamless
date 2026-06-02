@@ -15,6 +15,7 @@ public class Select(int 番号,Enumerable source,FuncFragment selector):Enumerab
     public override string EnumeratorTypeName =>
         UseResultTypeParam ? $"{Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
     private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
+        {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum {{e}}{{ClosurePrimaryCtorSuffix(selector)}})
             where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>
             => new(new {{Struct}}<TEnum, TResult>({{e}}{{ClosureArgsSuffixForFactory(selector)}}));

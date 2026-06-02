@@ -371,7 +371,9 @@ partial class ValueEnumerableExtensions
     // TFrom == TTo
     internal static ReadOnlySpan<TTo> UnsafeSpanBitCast<TFrom, TTo>(ReadOnlySpan<TFrom> span)
     {
-        return Unsafe.As<ReadOnlySpan<TFrom>, ReadOnlySpan<TTo>>(ref span);
+        return MemoryMarshal.CreateReadOnlySpan(
+            ref Unsafe.As<TFrom, TTo>(ref MemoryMarshal.GetReference(span)),
+            span.Length);
     }
 
     static T SimdSumSignedNumberChecked<T>(ReadOnlySpan<T> span)

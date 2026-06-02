@@ -11,6 +11,7 @@ public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : 
     protected override string BuildExpression =>
         $"Build(source{ClosureArgsSuffix(keySelector)})";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<global::System.Collections.Generic.KeyValuePair<{{FuncReturnTypeName(keySelector)}}, global::System.Int32>> Build(TEnum source{{ClosureMethodParameterSuffix(keySelector)}}) {
             var result = new global::System.Collections.Generic.List<global::System.Collections.Generic.KeyValuePair<{{FuncReturnTypeName(keySelector)}}, global::System.Int32>>();
             var map = new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>();

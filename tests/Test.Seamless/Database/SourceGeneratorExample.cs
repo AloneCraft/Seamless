@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Reflection;
 using Seamless.Linq;
 
@@ -205,7 +206,7 @@ namespace Test.Seamless.Database.Database0 {
             var インターセプト後 = 置き換え先メソッド(new int[3],new int[2]);
             static List<int> 置き換え先メソッド(int[] outer,int[] inner) {
                 var result0 = new List<int>();
-                var Lookup = new Enumerable.LookupImpl<int,int>(EqualityComparer<int>.Default);
+                var Lookup = new LookupImpl<int,int>(EqualityComparer<int>.Default);
                 foreach(var item in inner)
                     Lookup.Add(StructJoin.innerKeySelector1(item),item);
                 foreach(var outerItem in outer) {
@@ -230,7 +231,7 @@ namespace Test.Seamless.Database.Database0 {
             var インターセプト前 = new int[3].Where(p => p%2==0).Join(new int[2],o => o*2,i => i*3,(o,i) => o+i);
             var インターセプト後 = 置き換え先メソッド(new int[3],new int[2]);
             static List<int> 置き換え先メソッド(int[] outer,int[] inner) {
-                var Lookup = new Enumerable.LookupImpl<int,int>(EqualityComparer<int>.Default);
+                var Lookup = new LookupImpl<int,int>(EqualityComparer<int>.Default);
                 foreach(var item0 in inner)
                     Lookup.Add(StructWhereJoin.innerKeySelector2(item0),item0);
                 var result0 = new List<int>();
@@ -274,15 +275,16 @@ namespace Test.Seamless.Database.Database0 {
         }
 
         private static void AssertConcreteInterceptor(string containingMethodName,string linqMethodName) {
-            var interceptors = typeof(SourceGeneratorExample).Assembly
-                .GetTypes()
-                .Where(type => type.Namespace?.StartsWith("Intercept.",StringComparison.Ordinal)==true
-                    || type.Namespace=="Intercept")
-                .SelectMany(type => type.GetMethods(BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic))
-                .Where(method => method.Name.StartsWith("OptimizedLinq_",StringComparison.Ordinal))
-                .Where(method => !method.IsGenericMethodDefinition)
-                .ToArray();
-
+            var interceptors = new List<MethodInfo>();
+            foreach(var type in typeof(SourceGeneratorExample).Assembly.GetTypes()) {
+                if(!((type.Namespace != null && type.Namespace.StartsWith("Intercept.",StringComparison.Ordinal)) || type.Namespace=="Intercept"))
+                    continue;
+                foreach(var method in type.GetMethods(BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic)) {
+                    if(!method.Name.StartsWith("OptimizedLinq_",StringComparison.Ordinal)) continue;
+                    if(method.IsGenericMethodDefinition) continue;
+                    interceptors.Add(method);
+                }
+            }
             Assert.NotEmpty(interceptors);
             Assert.All(interceptors,interceptor => Assert.False(interceptor.IsGenericMethodDefinition));
         }

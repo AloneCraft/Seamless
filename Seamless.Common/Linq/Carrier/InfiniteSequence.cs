@@ -24,48 +24,6 @@ namespace Seamless.Linq.Carrier.Linq
 {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public struct FromInt32InfiniteSequence2<T>(int start, int step) : IValueEnumerator<int>
-    {
-        bool calledGetNext;
-
-        public bool TryGetNonEnumeratedCount(out int count)
-        {
-            count = 0;
-            return false;
-        }
-
-        public bool TryGetSpan(out ReadOnlySpan<int> span)
-        {
-            span = default;
-            return false;
-        }
-
-        public bool TryCopyTo(scoped Span<int> destination, Index offset)
-        {
-            return false;
-        }
-
-        public bool TryGetNext(out int current)
-        {
-            if (!calledGetNext)
-            {
-                calledGetNext = true;
-                current = start;
-                return true;
-            }
-
-            current = start += step;
-            return true;
-        }
-
-        public void Dispose()
-        {
-        }
-    }
-
-
-    [StructLayout(LayoutKind.Auto)]
-    [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromInfiniteSequence<T>(T start, T step) : IValueEnumerator<T>
         where T : IAdditionOperators<T, T, T>
     {

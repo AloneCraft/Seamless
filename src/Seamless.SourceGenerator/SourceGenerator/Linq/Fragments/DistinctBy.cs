@@ -14,6 +14,7 @@ public class DistinctBy_comparer(int 番号, Enumerable source, FuncFragment key
     protected override string BuildExpression =>
         $"Build(source, comparer{ClosureArgsSuffix(keySelector)})";
     protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
         private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{ClosureMethodParameterSuffix(keySelector)}}) {
             var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             var seen = new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>(comparer);
