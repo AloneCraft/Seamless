@@ -44,6 +44,12 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="ZLinq">
+      <HintPath>$(NuGetPackageRoot)zlinq/1.5.6/lib/net10.0/ZLinq.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
     <Compile Remove="CheckpointRecoveryTests.cs" />
     <Compile Remove="TestKeyComparer.cs" />
     <Compile Remove="TestRelation.cs" />
@@ -63,4 +69,3 @@
     <ProjectReference Include="..\..\src\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>
-

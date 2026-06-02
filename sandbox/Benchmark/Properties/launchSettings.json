@@ -2,7 +2,7 @@
   "profiles": {
     "Default": {
       "commandName": "Project",
-      "commandLineArgs": "--filter Benchmark.WhereSelectStringJoin* -- Default",
+      "commandLineArgs": "--filter * -- Default",
       "workingDirectory": "."
     },
     "Select Benchmark": {

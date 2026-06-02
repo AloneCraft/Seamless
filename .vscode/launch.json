@@ -5,23 +5,78 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Benchmark (Debug)",
+            "name": "Default",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-benchmark",
             "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
-            "args": ["--filter", "Benchmark.WhereSelectStringJoin*", "--", "InProcess"],
+            "args": ["--filter", "*", "--", "Default"],
             "cwd": "${workspaceFolder}/sandbox/Benchmark",
             "console": "integratedTerminal",
             "stopAtEntry": false
         },
         {
-            "name": "Benchmark (Release)",
+            "name": "Select Benchmark",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-benchmark",
+            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Run All Benchmarks",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-benchmark",
+            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
+            "args": ["--filter", "*"],
+            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Run All Benchmarks with --join",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-benchmark",
+            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
+            "args": ["--filter", "*", "--join"],
+            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "List Benchmark",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-benchmark",
+            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
+            "args": ["--list", "tree"],
+            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Help",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-benchmark",
+            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
+            "args": ["--help"],
+            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Run All Benchmarks (Release)",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-benchmark-release",
             "program": "${workspaceFolder}/sandbox/Benchmark/bin/Release/net10.0/Benchmark.dll",
-            "args": ["--filter", "Benchmark.WhereSelectStringJoin*", "--", "InProcess"],
+            "args": ["--filter", "*", "--", "Default"],
             "cwd": "${workspaceFolder}/sandbox/Benchmark",
             "console": "integratedTerminal",
             "stopAtEntry": false
