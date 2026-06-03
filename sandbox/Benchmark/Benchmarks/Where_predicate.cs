@@ -29,38 +29,26 @@ public class Where_predicate:Base{
            .Consume(consumer);
     }
 
+    void Where1Core(){ this.src.Where(x=>(x&1)==0).Consume(this.consumer); }
+    void Where2Core(){ this.src.Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
+    void Where3Core(){ this.src.Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
+    void Where4Core(){ this.src.Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
+
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept1(){
-        src.Where(x=>(x&1)==0).Consume(consumer);
-    }
+    public void Intercept1(){ Where1Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept2(){
-        src.Where(x=>(x&1)==0)
-           .Where(x=>(x&1)==0)
-           .Consume(consumer);
-    }
+    public void Intercept2(){ Where2Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept3(){
-        src.Where(x=>(x&1)==0)
-           .Where(x=>(x&1)==0)
-           .Where(x=>(x&1)==0)
-           .Consume(consumer);
-    }
+    public void Intercept3(){ Where3Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept4(){
-        src.Where(x=>(x&1)==0)
-           .Where(x=>(x&1)==0)
-           .Where(x=>(x&1)==0)
-           .Where(x=>(x&1)==0)
-           .Consume(consumer);
-    }
+    public void Intercept4(){ Where4Core(); }
 
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]

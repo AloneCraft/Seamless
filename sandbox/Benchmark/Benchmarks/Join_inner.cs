@@ -6,10 +6,10 @@ public class Join_inner:Base{
         Enumerable.Join(src,src2,x=>x,x=>x,(a,b)=>a).Consume(consumer);
     }
 
+    void JoinCore(){ this.src.Join(this.src2,x=>x,x=>x,(a,b)=>a).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.Join(src2,x=>x,x=>x,(a,b)=>a).Consume(consumer);
-    }
+    public void Intercept(){ JoinCore(); }
 
     [Benchmark]
     public void ZLinq(){
