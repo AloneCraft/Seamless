@@ -29,38 +29,26 @@ public class Select_selector:Base{
            .Consume(consumer);
     }
 
+    void Select1Core(){ this.src.Select(x=>x+x).Consume(this.consumer); }
+    void Select2Core(){ this.src.Select(x=>x+x).Select(x=>x+x).Consume(this.consumer); }
+    void Select3Core(){ this.src.Select(x=>x+x).Select(x=>x+x).Select(x=>x+x).Consume(this.consumer); }
+    void Select4Core(){ this.src.Select(x=>x+x).Select(x=>x+x).Select(x=>x+x).Select(x=>x+x).Consume(this.consumer); }
+
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept1(){
-        src.Select(x=>x+x).Consume(consumer);
-    }
+    public void Intercept1(){ Select1Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept2(){
-        src.Select(x=>x+x)
-           .Select(x=>x+x)
-           .Consume(consumer);
-    }
+    public void Intercept2(){ Select2Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept3(){
-        src.Select(x=>x+x)
-           .Select(x=>x+x)
-           .Select(x=>x+x)
-           .Consume(consumer);
-    }
+    public void Intercept3(){ Select3Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept4(){
-        src.Select(x=>x+x)
-           .Select(x=>x+x)
-           .Select(x=>x+x)
-           .Select(x=>x+x)
-           .Consume(consumer);
-    }
+    public void Intercept4(){ Select4Core(); }
 
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
