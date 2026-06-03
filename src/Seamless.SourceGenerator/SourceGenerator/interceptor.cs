@@ -2715,6 +2715,16 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 .TakeWhile(ancestor => ancestor!=statement)
                 .OfType<InvocationExpressionSyntax>()
                 .Any(ancestorInvocation => SystemLinqEnumerable呼び出し判定42(ancestorInvocation,semanticModel)))
+            // レシーバーが静的 System.Linq.Enumerable 呼び出しかつ Fragment 対応メソッドの場合は傍受しない。
+            // Fragment 対応メソッドは拡張メソッド形式 source.X(...) でも呼ばれるため、
+            // static 形式 Enumerable.X(source,...) は "正解値" として元コードのまま保持する。
+            // Fragment 非対応メソッド（Repeat/Range/Empty 等）は DuckTypingRoot として展開を継続する。
+            .Where(invocation =>
+                !(invocation.Expression is MemberAccessExpressionSyntax { Expression: var receiver }
+                && 括弧除去53(receiver) is InvocationExpressionSyntax receiverInvocation
+                && semanticModel.GetSymbolInfo(receiverInvocation).Symbol is IMethodSymbol { ReducedFrom: null } receiverMethod
+                && SystemLinqEnumerableメソッド判定38(receiverMethod)
+                && Enumerableメソッドフラグメント対応判定32(receiverMethod.Name)))
             .OrderBy(static invocation => invocation.SpanStart)
             .ToList();
     }
@@ -2746,6 +2756,14 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 .TakeWhile(ancestor => ancestor!=boundary)
                 .OfType<InvocationExpressionSyntax>()
                 .Any(ancestorInvocation => SystemLinqEnumerable呼び出し判定42(ancestorInvocation,semanticModel)))
+            // レシーバーが静的 System.Linq.Enumerable 呼び出しかつ Fragment 対応メソッドの場合は傍受しない。
+            // Fragment 非対応メソッド（Repeat/Range/Empty 等）は DuckTypingRoot として展開を継続する。
+            .Where(invocation =>
+                !(invocation.Expression is MemberAccessExpressionSyntax { Expression: var receiver }
+                && 括弧除去53(receiver) is InvocationExpressionSyntax receiverInvocation
+                && semanticModel.GetSymbolInfo(receiverInvocation).Symbol is IMethodSymbol { ReducedFrom: null } receiverMethod
+                && SystemLinqEnumerableメソッド判定38(receiverMethod)
+                && Enumerableメソッドフラグメント対応判定32(receiverMethod.Name)))
             .OrderBy(static invocation => invocation.SpanStart)
             .ToList();
     }
