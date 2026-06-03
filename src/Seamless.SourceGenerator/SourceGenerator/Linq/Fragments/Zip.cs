@@ -22,6 +22,28 @@ public class Zip(int 番号, Enumerable source, Enumerable second) : BufferedSeq
         """;
 }
 
+public class Zip3(int 番号, Enumerable source, Enumerable second, Enumerable third) : BufferedSequence(番号, $"({source.ElementType} First, {second.ElementType} Second, {third.ElementType} Third)") {
+    public override string StructMethod => string.Empty;
+    protected override string StructTypeParameters => "<TEnum1, TEnum2, TEnum3>";
+    protected override string StructTypeConstraints =>
+        $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>\n    where TEnum3 : struct, global::System.Collections.Generic.IEnumerator<{third.ElementType}>";
+    public override string EnumeratorTypeName => $"{Struct}<{source.EnumeratorTypeName}, {second.EnumeratorTypeName}, {third.EnumeratorTypeName}>";
+    protected override string StructSources => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct+"\n"+third.GetEnumeratorStruct;
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression}, {third.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second, TEnum3 third";
+    protected override string BuildExpression => "Build(source, second, third)";
+    protected override string BuildMembers => $$"""
+        {{AggressiveInliningAttribute}}
+        private static global::System.Collections.Generic.List<({{source.ElementType}} First, {{second.ElementType}} Second, {{third.ElementType}} Third)> Build(TEnum1 source, TEnum2 second, TEnum3 third) {
+            var result = new global::System.Collections.Generic.List<({{source.ElementType}} First, {{second.ElementType}} Second, {{third.ElementType}} Third)>();
+            while(source.MoveNext() && second.MoveNext() && third.MoveNext()) {
+                result.Add((source.Current, second.Current, third.Current));
+            }
+            return result;
+        }
+        """;
+}
+
 public class Zip_resultSelector(int 番号, Enumerable source, Enumerable second, FuncFragment resultSelector) : BufferedSequence(番号, FuncReturnTypeName(resultSelector)) {
     private string ResultSelectorFuncType => $"global::System.Func<{source.ElementType}, {second.ElementType}, {FuncReturnTypeName(resultSelector)}>";
     public override string StructMethod => FuncSupport(resultSelector,nameof(resultSelector));
