@@ -26,29 +26,26 @@ public class OrderBy_keySelector:Base{
         Enumerable.OrderBy(Enumerable.OrderBy(Enumerable.OrderBy(Enumerable.OrderBy(src,x=>x),x=>x),x=>x),x=>x).Consume(consumer);
     }
 
+    void OrderBy1Core(){ this.src.OrderBy(x=>x).Consume(this.consumer); }
+    void OrderBy2Core(){ this.src.OrderBy(x=>x).OrderBy(x=>x).Consume(this.consumer); }
+    void OrderBy3Core(){ this.src.OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).Consume(this.consumer); }
+    void OrderBy4Core(){ this.src.OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).Consume(this.consumer); }
+
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept1(){
-        src.OrderBy(x=>x).Consume(consumer);
-    }
+    public void Intercept1(){ OrderBy1Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept2(){
-        src.OrderBy(x=>x).OrderBy(x=>x).Consume(consumer);
-    }
+    public void Intercept2(){ OrderBy2Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept3(){
-        src.OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).Consume(consumer);
-    }
+    public void Intercept3(){ OrderBy3Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept4(){
-        src.OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).Consume(consumer);
-    }
+    public void Intercept4(){ OrderBy4Core(); }
 
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]

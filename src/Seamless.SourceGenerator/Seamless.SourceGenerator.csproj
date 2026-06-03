@@ -7,7 +7,7 @@
     <RootNamespace>Seamless</RootNamespace>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-    <NoWarn>$(NoWarn);RS1041</NoWarn>
+    <NoWarn>$(NoWarn);RS1041;RS2008</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
