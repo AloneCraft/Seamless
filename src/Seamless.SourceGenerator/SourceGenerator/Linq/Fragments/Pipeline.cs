@@ -32,6 +32,9 @@ public enum PipelineStageKind {
     SkipWhile,
     Cast,
     OfType,
+    SkipLast,
+    TakeLast,
+    TakeRange,
 }
 
 public enum PipelineTerminalKind {
@@ -40,6 +43,8 @@ public enum PipelineTerminalKind {
     Count,
     Any,
     First,
+    ToDictionary,
+    Sum,
 }
 
 public delegate bool PipelineEnumerableBuilder(ExpressionSyntax expression,ref int uniqueNumber,out Enumerable fragment,out string staticMethods);
@@ -86,26 +91,29 @@ public static class PipelineBuilder {
 
         var snapshot = uniqueNumber;
         if(!services.BuildEnumerable(sourceExpression,ref snapshot,out var sourceFragment,out var sourceStaticMethods)) {
-            throw Unsupported("source expression could not be converted to an enumerable Fragment.");
+            return false;
         }
 
         var stages = new List<PipelineStage>();
         var currentElementType = sourceFragment.ElementType;
         PipelineTerminalKind? terminalKind = null;
         string? terminalResultType = null;
+        FuncFragment? terminalFunc1 = null;
+        FuncFragment? terminalFunc2 = null;
+        string? terminalComparer = null;
         for(var index = 0; index<invocations.Count; index++) {
             var currentInvocation = invocations[index];
             if(semanticModel.GetSymbolInfo(currentInvocation).Symbol is not IMethodSymbol method) {
-                throw Unsupported("method symbol could not be resolved.");
+                return false;
             }
             var methodName = (method.ReducedFrom ?? method).Name;
             var isLast = index==invocations.Count-1;
             if(TryGetTerminalKind(methodName,out var currentTerminalKind)) {
                 if(!isLast) {
-                    throw Unsupported($"terminal method '{methodName}' appeared before the end of the chain.");
+                    return false;
                 }
-                if(!TryAppendTerminalArguments(currentTerminalKind,semanticModel,currentInvocation,method,services,ref snapshot,stages,ref currentElementType)) {
-                    throw Unsupported($"terminal method '{methodName}' is not supported by Chain IR.");
+                if(!TryAppendTerminalArguments(currentTerminalKind,semanticModel,currentInvocation,method,services,ref snapshot,stages,ref currentElementType,out terminalFunc1,out terminalFunc2,out terminalComparer)) {
+                    return false;
                 }
                 terminalKind=currentTerminalKind;
                 terminalResultType=semanticModel.GetTypeInfo(currentInvocation).ConvertedType?.ToDisplayString(services.FullyQualifiedFormat)
@@ -129,20 +137,20 @@ public static class PipelineBuilder {
                 unsafeAccessorCollector)) {
                 continue;
             }
-            {
-                throw Unsupported($"method '{methodName}' is not supported by Chain IR.");
-            }
+            return false;
         }
 
-        ValidateStageCombination(stages,terminalKind);
+        if(!ValidateStageCombination(stages,terminalKind)) {
+            return false;
+        }
 
         var pipeline = new PipelineEnumerable(snapshot++,sourceFragment,stages.ToArray(),currentElementType);
         AddUnsafeAccessors(stages,unsafeAccessorCollector);
         if(terminalKind is { } terminal) {
             if(terminalResultType is null) {
-                throw Unsupported("terminal chain has no pipeline stage.");
+                return false;
             }
-            fragment=new PipelineTerminal(snapshot++,pipeline,terminal);
+            fragment=new PipelineTerminal(snapshot++,pipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer);
         } else {
             fragment=pipeline;
         }
@@ -251,6 +259,17 @@ public static class PipelineBuilder {
         staticMethods=secondStaticMethods;
         if(invocation.ArgumentList.Arguments.Count==1) {
             nextSource=new Zip(uniqueNumber++,sourceFragment,secondSource);
+            currentElementType=nextSource.ElementType;
+            return true;
+        }
+        // 3-sequence Zip: Zip(second, third) — parameters[1] is IEnumerable<T3>, not Func
+        if(method.Parameters.Length>=2
+            && method.Parameters[1].Type is INamedTypeSymbol { TypeArguments.Length: 1 }) {
+            if(!services.BuildEnumerable(invocation.ArgumentList.Arguments[1].Expression,ref uniqueNumber,out var thirdSource,out var thirdStaticMethods)) {
+                return false;
+            }
+            staticMethods=services.JoinStaticMethods(staticMethods,thirdStaticMethods);
+            nextSource=new Zip3(uniqueNumber++,sourceFragment,secondSource,thirdSource);
             currentElementType=nextSource.ElementType;
             return true;
         }
@@ -412,6 +431,12 @@ public static class PipelineBuilder {
             case "First":
                 terminalKind=PipelineTerminalKind.First;
                 return true;
+            case "ToDictionary":
+                terminalKind=PipelineTerminalKind.ToDictionary;
+                return true;
+            case "Sum":
+                terminalKind=PipelineTerminalKind.Sum;
+                return true;
             default:
                 terminalKind=default;
                 return false;
@@ -426,9 +451,37 @@ public static class PipelineBuilder {
         PipelineBuildServices services,
         ref int uniqueNumber,
         List<PipelineStage> stages,
-        ref string currentElementType) {
+        ref string currentElementType,
+        out FuncFragment? func1,
+        out FuncFragment? func2,
+        out string? comparerValue) {
+        func1=null;
+        func2=null;
+        comparerValue=null;
         if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray) {
             return invocation.ArgumentList.Arguments.Count==0;
+        }
+        if(terminalKind==PipelineTerminalKind.ToDictionary) {
+            return TryAppendToDictionaryTerminalArguments(semanticModel,invocation,method,services,ref uniqueNumber,out func1,out func2,out comparerValue);
+        }
+        if(terminalKind==PipelineTerminalKind.Sum) {
+            // Sum(selector): add Select stage, then Sum() is applied to selected values.
+            if(invocation.ArgumentList.Arguments.Count==0) {
+                return true;
+            }
+            if(invocation.ArgumentList.Arguments.Count!=1
+                || method.Parameters.Length==0
+                || method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 } selectorType) {
+                return false;
+            }
+            if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,selectorType,ref uniqueNumber,out var sumSelector)
+                || !services.CanUseFunc(sumSelector)) {
+                return false;
+            }
+            var sumSelectElementType = sumSelector.ReturnTypeName;
+            stages.Add(new PipelineStage(PipelineStageKind.Select,sumSelector,null,currentElementType,sumSelectElementType));
+            currentElementType=sumSelectElementType;
+            return true;
         }
         if(invocation.ArgumentList.Arguments.Count==0) {
             return true;
@@ -443,6 +496,51 @@ public static class PipelineBuilder {
             return false;
         }
         stages.Add(new PipelineStage(PipelineStageKind.Where,predicate,null,currentElementType,currentElementType));
+        return true;
+    }
+
+    private static bool TryAppendToDictionaryTerminalArguments(
+        SemanticModel semanticModel,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        ref int uniqueNumber,
+        out FuncFragment? func1,
+        out FuncFragment? func2,
+        out string? comparerValue) {
+        func1=null;
+        func2=null;
+        comparerValue=null;
+        if(invocation.ArgumentList.Arguments.Count==0 || method.Parameters.Length==0) {
+            return false;
+        }
+        // First arg is always keySelector Func<TSource,TKey>
+        if(method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 } keySelectorType) {
+            return false;
+        }
+        if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,keySelectorType,ref uniqueNumber,out func1)
+            || !services.CanUseFunc(func1)) {
+            return false;
+        }
+        if(invocation.ArgumentList.Arguments.Count==1) {
+            return true;
+        }
+        // Second arg: elementSelector Func<TSource,TElement> or IEqualityComparer<TKey>
+        if(invocation.ArgumentList.Arguments.Count>=2 && method.Parameters.Length>=2) {
+            if(method.Parameters[1].Type is INamedTypeSymbol { TypeArguments.Length: 2 } elemSelectorType) {
+                if(!services.BuildFunc(invocation.ArgumentList.Arguments[1].Expression,elemSelectorType,ref uniqueNumber,out func2)
+                    || !services.CanUseFunc(func2)) {
+                    return false;
+                }
+                if(invocation.ArgumentList.Arguments.Count==3 && method.Parameters.Length>=3) {
+                    comparerValue=services.RenderExpression(invocation.ArgumentList.Arguments[2].Expression);
+                }
+                return true;
+            }
+            // Second arg is comparer
+            comparerValue=services.RenderExpression(invocation.ArgumentList.Arguments[1].Expression);
+            return true;
+        }
         return true;
     }
 
@@ -524,8 +622,6 @@ public static class PipelineBuilder {
             case "AsEnumerable":
                 stages.Add(new PipelineStage(PipelineStageKind.AsEnumerable,null,null,currentElementType,currentElementType));
                 return true;
-            case "Take":
-                return TryAppendCountStage(PipelineStageKind.Take,invocation,method,services,stages,currentElementType);
             case "Skip":
                 return TryAppendCountStage(PipelineStageKind.Skip,invocation,method,services,stages,currentElementType);
             case "TakeWhile":
@@ -536,6 +632,51 @@ public static class PipelineBuilder {
                 return TryAppendTypeStage(PipelineStageKind.Cast,method,services,stages,ref currentElementType);
             case "OfType":
                 return TryAppendTypeStage(PipelineStageKind.OfType,method,services,stages,ref currentElementType);
+            case "Order":
+            case "OrderDescending": {
+                var descending = methodName=="OrderDescending";
+                var kind = descending ? PipelineStageKind.OrderByDescending : PipelineStageKind.OrderBy;
+                var comparer = "null";
+                if(invocation.ArgumentList.Arguments.Count==1
+                    && method.Parameters.Length>=1) {
+                    comparer=services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression);
+                } else if(invocation.ArgumentList.Arguments.Count>1) {
+                    return false;
+                }
+                // Func=null signals identity key (element itself)
+                stages.Add(new PipelineStage(kind,null,comparer,currentElementType,currentElementType,keyType: currentElementType,descending: descending));
+                return true;
+            }
+            case "SkipLast":
+                if(invocation.ArgumentList.Arguments.Count!=1
+                    || method.Parameters.Length==0
+                    || method.Parameters[0].Type.SpecialType!=SpecialType.System_Int32) {
+                    return false;
+                }
+                stages.Add(new PipelineStage(PipelineStageKind.SkipLast,null,services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression),currentElementType,currentElementType));
+                return true;
+            case "TakeLast":
+                if(invocation.ArgumentList.Arguments.Count!=1
+                    || method.Parameters.Length==0
+                    || method.Parameters[0].Type.SpecialType!=SpecialType.System_Int32) {
+                    return false;
+                }
+                stages.Add(new PipelineStage(PipelineStageKind.TakeLast,null,services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression),currentElementType,currentElementType));
+                return true;
+            case "Take":
+                if(invocation.ArgumentList.Arguments.Count!=1 || method.Parameters.Length==0) {
+                    return false;
+                }
+                if(method.Parameters[0].Type.SpecialType==SpecialType.System_Int32) {
+                    return TryAppendCountStage(PipelineStageKind.Take,invocation,method,services,stages,currentElementType);
+                }
+                // Range overload
+                if(method.Parameters[0].Type.ToDisplayString()=="global::System.Range"
+                    || method.Parameters[0].Type.ToDisplayString()=="System.Range") {
+                    stages.Add(new PipelineStage(PipelineStageKind.TakeRange,null,services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression),currentElementType,currentElementType));
+                    return true;
+                }
+                return false;
             default:
                 return false;
         }
@@ -906,7 +1047,7 @@ public static class PipelineBuilder {
         return true;
     }
 
-    private static void ValidateStageCombination(IReadOnlyList<PipelineStage> stages,PipelineTerminalKind? terminalKind) {
+    private static bool ValidateStageCombination(IReadOnlyList<PipelineStage> stages,PipelineTerminalKind? terminalKind) {
         var selectManyStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.SelectMany);
         var binarySetStageCount = stages.Count(static stage => stage.Kind is PipelineStageKind.Union or PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.UnionBy or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy);
         var concatLikeStageCount = stages.Count(static stage => stage.Kind is PipelineStageKind.Concat or PipelineStageKind.Append or PipelineStageKind.Prepend);
@@ -914,61 +1055,31 @@ public static class PipelineBuilder {
         var groupByStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.GroupBy);
         var reverseStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.Reverse);
         var defaultIfEmptyStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.DefaultIfEmpty);
-        if(selectManyStageCount>1) {
-            throw Unsupported("multiple SelectMany stages are not implemented.");
-        }
-        if(groupByStageCount>1) {
-            throw Unsupported("multiple GroupBy stages are not implemented.");
-        }
-        if(reverseStageCount>1) {
-            throw Unsupported("multiple Reverse stages are not implemented.");
-        }
-        if(defaultIfEmptyStageCount>1) {
-            throw Unsupported("multiple DefaultIfEmpty stages are not implemented.");
-        }
-        if(binarySetStageCount>1) {
-            throw Unsupported("multiple binary set stages are not implemented.");
-        }
-        if(groupByStageCount>0 && (selectManyStageCount>0 || binarySetStageCount>0 || concatLikeStageCount>0 || orderStageCount>0)) {
-            throw Unsupported("GroupBy combined with SelectMany, binary set, concat-like, or ordering stages is not implemented.");
-        }
-        if(reverseStageCount>0 && (selectManyStageCount>0 || binarySetStageCount>0 || concatLikeStageCount>0 || orderStageCount>0 || groupByStageCount>0)) {
-            throw Unsupported("Reverse combined with SelectMany, binary set, concat-like, ordering, or GroupBy stages is not implemented.");
-        }
-        if(defaultIfEmptyStageCount>0 && (selectManyStageCount>0 || binarySetStageCount>0 || concatLikeStageCount>0 || orderStageCount>0 || groupByStageCount>0 || reverseStageCount>0)) {
-            throw Unsupported("DefaultIfEmpty combined with SelectMany, binary set, concat-like, ordering, GroupBy, or Reverse stages is not implemented.");
-        }
-        if(binarySetStageCount>0 && selectManyStageCount>0) {
-            throw Unsupported("binary set stages combined with SelectMany are not implemented.");
-        }
-        if(concatLikeStageCount>1) {
-            throw Unsupported("multiple concat-like stages are not implemented.");
-        }
-        if(concatLikeStageCount>0 && (selectManyStageCount>0 || binarySetStageCount>0)) {
-            throw Unsupported("concat-like stages combined with SelectMany or binary set stages are not implemented.");
-        }
-        if(orderStageCount>2) {
-            throw Unsupported("more than two ordering stages are not implemented.");
-        }
-        if(orderStageCount>0 && (selectManyStageCount>0 || binarySetStageCount>0 || concatLikeStageCount>0)) {
-            throw Unsupported("ordering stages combined with SelectMany, binary set, or concat-like stages are not implemented.");
-        }
+        var skipLastStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.SkipLast);
+        var takeLastStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.TakeLast);
+        var takeRangeStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.TakeRange);
+        var bufferingStageCount = reverseStageCount+skipLastStageCount+takeLastStageCount+takeRangeStageCount+defaultIfEmptyStageCount;
+        if(selectManyStageCount>1) return false;
+        if(groupByStageCount>1) return false;
+        if(bufferingStageCount>1) return false;
+        if(binarySetStageCount>1) return false;
+        if(groupByStageCount>0 && (selectManyStageCount>0 || binarySetStageCount>0 || concatLikeStageCount>0)) return false;
+        if(bufferingStageCount>0 && (selectManyStageCount>0 || binarySetStageCount>0 || concatLikeStageCount>0 || orderStageCount>0 || groupByStageCount>0)) return false;
+        if(binarySetStageCount>0 && selectManyStageCount>0) return false;
+        if(concatLikeStageCount>1) return false;
+        if(concatLikeStageCount>0 && (selectManyStageCount>0 || binarySetStageCount>0)) return false;
+        if(orderStageCount>2) return false;
+        if(orderStageCount>0 && (selectManyStageCount>0 || binarySetStageCount>0 || concatLikeStageCount>0)) return false;
         if(orderStageCount>0) {
             var orderIndexes = stages.Select(static (stage,index) => (stage,index))
                 .Where(static pair => pair.stage.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending or PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending)
                 .Select(static pair => pair.index)
                 .ToArray();
-            if(stages[orderIndexes[0]].Kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending) {
-                throw Unsupported("ThenBy requires a preceding OrderBy stage.");
-            }
-            if(orderIndexes.Length==2
-                && orderIndexes[1]!=orderIndexes[0]+1) {
-                throw Unsupported("ThenBy must immediately follow OrderBy in Chain IR.");
-            }
+            if(stages[orderIndexes[0]].Kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending) return false;
+            if(orderIndexes.Length==2 && orderIndexes[1]!=orderIndexes[0]+1) return false;
         }
-        if(stages.Count<2 && terminalKind is null) {
-            throw Unsupported("single carrier chain without terminal does not need Chain IR.");
-        }
+        if(stages.Count<2 && terminalKind is null) return false;
+        return true;
     }
 
     private static void AddUnsafeAccessors(IEnumerable<PipelineStage> stages,List<string>? unsafeAccessorCollector) {
@@ -1099,6 +1210,9 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             foreach(var stage in CountStages()) {
                 args.Add(stage.Value!);
             }
+            foreach(var stage in RangeStages()) {
+                args.Add(stage.Value!);
+            }
             foreach(var stage in ComparerStages()) {
                 args.Add(stage.Value!);
             }
@@ -1117,6 +1231,9 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             }
             foreach(var (stage,index) in CountStages().Select(static (stage,index) => (stage,index))) {
                 parameters.Add($"int {CountName(index)}");
+            }
+            foreach(var (stage,index) in RangeStages().Select(static (stage,index) => (stage,index))) {
+                parameters.Add($"global::System.Range {RangeName(RangeOrdinal(index))}");
             }
             foreach(var (stage,index) in ComparerStages().Select(static (stage,index) => (stage,index))) {
                 parameters.Add($"global::System.Collections.Generic.IEqualityComparer<{ComparerKeyType(stage)}>? {ComparerName(index)}");
@@ -1180,6 +1297,15 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
                     if(stage.UsesIndex) {
                         builder.AppendLine($"private int {IndexName(index)} = -1;");
                     }
+                } else if(stage.Kind==PipelineStageKind.SkipLast) {
+                    builder.AppendLine($"private global::System.Collections.Generic.Queue<{stage.OutputType}> {QueueName(index)} = new();");
+                } else if(stage.Kind==PipelineStageKind.TakeLast) {
+                    builder.AppendLine($"private global::System.Collections.Generic.List<{stage.OutputType}>? {ReverseItemsName(index)} = null;");
+                    builder.AppendLine($"private int {StateName(index)} = 0;");
+                } else if(stage.Kind==PipelineStageKind.TakeRange) {
+                    builder.AppendLine($"private global::System.Collections.Generic.List<{stage.OutputType}>? {ReverseItemsName(index)} = null;");
+                    builder.AppendLine($"private int {StateName(index)} = 0;");
+                    builder.AppendLine($"private int {StateEndName(index)} = 0;");
                 }
             }
             return builder.ToString().TrimEnd();
@@ -1220,7 +1346,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
     }
 
     private IEnumerable<PipelineStage> CountStages() =>
-        stages.Where(static stage => stage.Kind==PipelineStageKind.Take || stage.Kind==PipelineStageKind.Skip);
+        stages.Where(static stage => stage.Kind==PipelineStageKind.Take || stage.Kind==PipelineStageKind.Skip || stage.Kind==PipelineStageKind.SkipLast || stage.Kind==PipelineStageKind.TakeLast);
 
     private IEnumerable<PipelineStage> ComparerStages() =>
         stages.Where(static stage => stage.Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy or PipelineStageKind.Union or PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.UnionBy or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy or PipelineStageKind.GroupBy);
@@ -1282,6 +1408,24 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         }
         if(orderIndex.Length>1) {
             throw new NotSupportedException("Multiple primary ordering stages are not supported in PipelineEnumerable.");
+        }
+        var skipLastIndex = stages.Select(static (stage,index) => (stage,index))
+            .Where(static pair => pair.stage.Kind==PipelineStageKind.SkipLast)
+            .Select(static pair => pair.index).ToArray();
+        if(skipLastIndex.Length==1) {
+            return BuildSkipLastLoop(enumeratorName,successStatement,endStatement,skipLastIndex[0]);
+        }
+        var takeLastIndex = stages.Select(static (stage,index) => (stage,index))
+            .Where(static pair => pair.stage.Kind==PipelineStageKind.TakeLast)
+            .Select(static pair => pair.index).ToArray();
+        if(takeLastIndex.Length==1) {
+            return BuildTakeLastLoop(enumeratorName,successStatement,endStatement,takeLastIndex[0]);
+        }
+        var takeRangeIndex = stages.Select(static (stage,index) => (stage,index))
+            .Where(static pair => pair.stage.Kind==PipelineStageKind.TakeRange)
+            .Select(static pair => pair.index).ToArray();
+        if(takeRangeIndex.Length==1) {
+            return BuildTakeRangeLoop(enumeratorName,successStatement,endStatement,takeRangeIndex[0]);
         }
         var concatLikeIndex = stages.Select(static (stage,index) => (stage,index))
             .Where(static pair => pair.stage.Kind is PipelineStageKind.Concat or PipelineStageKind.Append or PipelineStageKind.Prepend)
@@ -1450,11 +1594,19 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         }
         var primaryKeyName = KeyName(orderIndex);
         builder.AppendLine($"        {ComparerKeyType(primaryOrder)} {primaryKeyName}=default!;");
-        builder.AppendLine(IndentBlock(FuncAssign(primaryOrder.Func!,primaryOrder.Kind.ToString(),primaryKeyName,currentName),"        "));
+        if(primaryOrder.Func is null) {
+            builder.AppendLine($"        {primaryKeyName}=({ComparerKeyType(primaryOrder)})(object?){currentName}!;");
+        } else {
+            builder.AppendLine(IndentBlock(FuncAssign(primaryOrder.Func,primaryOrder.Kind.ToString(),primaryKeyName,currentName),"        "));
+        }
         if(secondaryOrder is { }) {
             var secondaryKeyName = KeyName(orderIndex+1);
             builder.AppendLine($"        {ComparerKeyType(secondaryOrder)} {secondaryKeyName}=default!;");
-            builder.AppendLine(IndentBlock(FuncAssign(secondaryOrder.Func!,secondaryOrder.Kind.ToString(),secondaryKeyName,currentName),"        "));
+            if(secondaryOrder.Func is null) {
+                builder.AppendLine($"        {secondaryKeyName}=({ComparerKeyType(secondaryOrder)})(object?){currentName}!;");
+            } else {
+                builder.AppendLine(IndentBlock(FuncAssign(secondaryOrder.Func,secondaryOrder.Kind.ToString(),secondaryKeyName,currentName),"        "));
+            }
             builder.AppendLine($"        {SortedItemsName(orderIndex)}.Add(new {SortItemName(orderIndex)}({currentName},{primaryKeyName},{secondaryKeyName},__sortIndex++));");
         } else {
             builder.AppendLine($"        {SortedItemsName(orderIndex)}.Add(new {SortItemName(orderIndex)}({currentName},{primaryKeyName},__sortIndex++));");
@@ -1533,11 +1685,64 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             builder.AppendLine($"        {GroupItemsName(groupByIndex)}.Add({resultName});");
             builder.AppendLine("    }");
         }
+        // GroupBy バッファ収集後、後続に OrderBy/ThenBy があればソートして融合する
+        var orderAfterGroup=-1;
+        for(var checkIdx=groupByIndex+1; checkIdx<stages.Count; checkIdx++) {
+            if(stages[checkIdx].Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending) {
+                orderAfterGroup=checkIdx;
+                break;
+            }
+        }
+        if(orderAfterGroup>=0) {
+            var primaryOrder=stages[orderAfterGroup];
+            var thenByIdx=orderAfterGroup+1<stages.Count
+                && stages[orderAfterGroup+1].Kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending
+                ? (int?)(orderAfterGroup+1) : null;
+            var primaryCmpLocal=OrderComparerLocalName(orderAfterGroup);
+            builder.AppendLine($"    var {primaryCmpLocal}={OrderComparerName(OrderComparerOrdinal(orderAfterGroup))} ?? global::System.Collections.Generic.Comparer<{ComparerKeyType(primaryOrder)}>.Default;");
+            if(thenByIdx.HasValue) {
+                var thenStage=stages[thenByIdx.Value];
+                var secondaryCmpLocal=OrderComparerLocalName(thenByIdx.Value);
+                builder.AppendLine($"    var {secondaryCmpLocal}={OrderComparerName(OrderComparerOrdinal(thenByIdx.Value))} ?? global::System.Collections.Generic.Comparer<{ComparerKeyType(thenStage)}>.Default;");
+            }
+            builder.AppendLine($"    {GroupItemsName(groupByIndex)}.Sort((left,right) => {{");
+            var leftPrimKey=$"__lpk{orderAfterGroup}";
+            var rightPrimKey=$"__rpk{orderAfterGroup}";
+            builder.AppendLine($"        {ComparerKeyType(primaryOrder)} {leftPrimKey}=default!;");
+            if(primaryOrder.Func is null) {
+                builder.AppendLine($"        {leftPrimKey}=({ComparerKeyType(primaryOrder)})(object?)left!;");
+            } else {
+                builder.AppendLine(IndentBlock(FuncAssign(primaryOrder.Func,primaryOrder.Kind.ToString(),leftPrimKey,"left"),"        "));
+            }
+            builder.AppendLine($"        {ComparerKeyType(primaryOrder)} {rightPrimKey}=default!;");
+            if(primaryOrder.Func is null) {
+                builder.AppendLine($"        {rightPrimKey}=({ComparerKeyType(primaryOrder)})(object?)right!;");
+            } else {
+                builder.AppendLine(IndentBlock(FuncAssign(primaryOrder.Func,primaryOrder.Kind.ToString(),rightPrimKey,"right"),"        "));
+            }
+            builder.AppendLine($"        var __gcmp={primaryCmpLocal}.Compare({leftPrimKey},{rightPrimKey});");
+            builder.AppendLine($"        if(__gcmp!=0) return {OrderCompareExpression(primaryOrder,"__gcmp")};");
+            if(thenByIdx.HasValue) {
+                var thenStage=stages[thenByIdx.Value];
+                var secondaryCmpLocal=OrderComparerLocalName(thenByIdx.Value);
+                var leftSecKey=$"__lsk{thenByIdx.Value}";
+                var rightSecKey=$"__rsk{thenByIdx.Value}";
+                builder.AppendLine($"        {ComparerKeyType(thenStage)} {leftSecKey}=default!;");
+                builder.AppendLine(IndentBlock(FuncAssign(thenStage.Func!,thenStage.Kind.ToString(),leftSecKey,"left"),"        "));
+                builder.AppendLine($"        {ComparerKeyType(thenStage)} {rightSecKey}=default!;");
+                builder.AppendLine(IndentBlock(FuncAssign(thenStage.Func!,thenStage.Kind.ToString(),rightSecKey,"right"),"        "));
+                builder.AppendLine($"        var __gcmp2={secondaryCmpLocal}.Compare({leftSecKey},{rightSecKey});");
+                builder.AppendLine($"        if(__gcmp2!=0) return {OrderCompareExpression(thenStage,"__gcmp2")};");
+            }
+            builder.AppendLine("        return 0;");
+            builder.AppendLine("    });");
+        }
         builder.AppendLine($"    this.{GroupItemsName(groupByIndex)}={GroupItemsName(groupByIndex)};");
         builder.AppendLine($"    this.{StateName(groupByIndex)}=0;");
         builder.AppendLine("}");
         builder.AppendLine($"while(this.{StateName(groupByIndex)}<this.{GroupItemsName(groupByIndex)}.Count) {{");
-        currentName=ItemName(groupByIndex+3);
+        // stages.Count+1 は任意の ItemName(index+1) より大きい値なので OrderBy が間にある場合でも名前衝突しない
+        currentName=ItemName(stages.Count+1);
         builder.AppendLine($"    var {currentName}=this.{GroupItemsName(groupByIndex)}[this.{StateName(groupByIndex)}++];");
         for(var index = groupByIndex+1; index<stages.Count; index++) {
             currentName=AppendStage(builder,stages[index],currentName,index);
@@ -1569,6 +1774,92 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         currentName=ItemName(reverseIndex+1);
         builder.AppendLine($"    var {currentName}=this.{ReverseItemsName(reverseIndex)}[this.{StateName(reverseIndex)}++];");
         for(var index = reverseIndex+1; index<stages.Count; index++) {
+            currentName=AppendStage(builder,stages[index],currentName,index);
+        }
+        builder.AppendLine(IndentBlock(string.Format(successStatement,currentName),"    "));
+        builder.AppendLine("}");
+        builder.AppendLine(endStatement);
+        return builder.ToString().TrimEnd();
+    }
+
+    private string BuildSkipLastLoop(string enumeratorName,string successStatement,string endStatement,int skipLastIndex) {
+        var builder = new System.Text.StringBuilder();
+        var countOrd = CountOrdinal(skipLastIndex);
+        builder.AppendLine($"while({enumeratorName}.MoveNext()) {{");
+        builder.AppendLine($"    var {ItemName(0)}={enumeratorName}.Current;");
+        var currentName = ItemName(0);
+        for(var index = 0; index<skipLastIndex; index++) {
+            currentName=AppendStage(builder,stages[index],currentName,index);
+        }
+        builder.AppendLine($"    this.{QueueName(skipLastIndex)}.Enqueue({currentName});");
+        builder.AppendLine($"    if(this.{QueueName(skipLastIndex)}.Count > global::System.Math.Max(0,{CountName(countOrd)})) {{");
+        var dequeueItem = ItemName(skipLastIndex+1);
+        builder.AppendLine($"        var {dequeueItem}=this.{QueueName(skipLastIndex)}.Dequeue();");
+        currentName=dequeueItem;
+        for(var index = skipLastIndex+1; index<stages.Count; index++) {
+            currentName=AppendStage(builder,stages[index],currentName,index);
+        }
+        builder.AppendLine(IndentBlock(string.Format(successStatement,currentName),"        "));
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        builder.AppendLine(endStatement);
+        return builder.ToString().TrimEnd();
+    }
+
+    private string BuildTakeLastLoop(string enumeratorName,string successStatement,string endStatement,int takeLastIndex) {
+        var stage = stages[takeLastIndex];
+        var countOrd = CountOrdinal(takeLastIndex);
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine($"if(this.{ReverseItemsName(takeLastIndex)} is null) {{");
+        builder.AppendLine($"    var __tmpList=new global::System.Collections.Generic.List<{stage.OutputType}>();");
+        builder.AppendLine($"    while({enumeratorName}.MoveNext()) {{");
+        builder.AppendLine($"        var {ItemName(0)}={enumeratorName}.Current;");
+        var currentName = ItemName(0);
+        for(var index = 0; index<takeLastIndex; index++) {
+            currentName=AppendStage(builder,stages[index],currentName,index);
+        }
+        builder.AppendLine($"        __tmpList.Add({currentName});");
+        builder.AppendLine("    }");
+        builder.AppendLine($"    var __takeN=global::System.Math.Max(0,global::System.Math.Min(global::System.Math.Max(0,{CountName(countOrd)}),__tmpList.Count));");
+        builder.AppendLine($"    var __takeStart=__tmpList.Count-__takeN;");
+        builder.AppendLine($"    this.{ReverseItemsName(takeLastIndex)}=__tmpList;");
+        builder.AppendLine($"    this.{StateName(takeLastIndex)}=__takeStart;");
+        builder.AppendLine("}");
+        builder.AppendLine($"while(this.{StateName(takeLastIndex)}<this.{ReverseItemsName(takeLastIndex)}.Count) {{");
+        currentName=ItemName(takeLastIndex+1);
+        builder.AppendLine($"    var {currentName}=this.{ReverseItemsName(takeLastIndex)}[this.{StateName(takeLastIndex)}++];");
+        for(var index = takeLastIndex+1; index<stages.Count; index++) {
+            currentName=AppendStage(builder,stages[index],currentName,index);
+        }
+        builder.AppendLine(IndentBlock(string.Format(successStatement,currentName),"    "));
+        builder.AppendLine("}");
+        builder.AppendLine(endStatement);
+        return builder.ToString().TrimEnd();
+    }
+
+    private string BuildTakeRangeLoop(string enumeratorName,string successStatement,string endStatement,int takeRangeIndex) {
+        var stage = stages[takeRangeIndex];
+        var rangeParamName = RangeName(RangeOrdinal(takeRangeIndex));
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine($"if(this.{ReverseItemsName(takeRangeIndex)} is null) {{");
+        builder.AppendLine($"    var __tmpRange=new global::System.Collections.Generic.List<{stage.OutputType}>();");
+        builder.AppendLine($"    while({enumeratorName}.MoveNext()) {{");
+        builder.AppendLine($"        var {ItemName(0)}={enumeratorName}.Current;");
+        var currentName = ItemName(0);
+        for(var index = 0; index<takeRangeIndex; index++) {
+            currentName=AppendStage(builder,stages[index],currentName,index);
+        }
+        builder.AppendLine($"        __tmpRange.Add({currentName});");
+        builder.AppendLine("    }");
+        builder.AppendLine($"    var (__rangeOff,__rangeLen)={rangeParamName}.GetOffsetAndLength(__tmpRange.Count);");
+        builder.AppendLine($"    this.{ReverseItemsName(takeRangeIndex)}=__tmpRange;");
+        builder.AppendLine($"    this.{StateName(takeRangeIndex)}=__rangeOff;");
+        builder.AppendLine($"    this.{StateEndName(takeRangeIndex)}=__rangeOff+__rangeLen;");
+        builder.AppendLine("}");
+        builder.AppendLine($"while(this.{StateName(takeRangeIndex)}<this.{StateEndName(takeRangeIndex)}) {{");
+        currentName=ItemName(takeRangeIndex+1);
+        builder.AppendLine($"    var {currentName}=this.{ReverseItemsName(takeRangeIndex)}[this.{StateName(takeRangeIndex)}++];");
+        for(var index = takeRangeIndex+1; index<stages.Count; index++) {
             currentName=AppendStage(builder,stages[index],currentName,index);
         }
         builder.AppendLine(IndentBlock(string.Format(successStatement,currentName),"    "));
@@ -1961,6 +2252,13 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         }
     }
 
+    private string QueueName(int index) => $"__queue{item}_{index}";
+    private string StateEndName(int index) => $"__stateEnd{item}_{index}";
+    private string RangeName(int index) => $"__range{item}_{index}";
+    private int RangeOrdinal(int stageIndex) =>
+        stages.Take(stageIndex).Count(static stage => stage.Kind==PipelineStageKind.TakeRange);
+    private IEnumerable<PipelineStage> RangeStages() =>
+        stages.Where(static stage => stage.Kind==PipelineStageKind.TakeRange);
     private string ItemName(int index) => $"{item}_{index}";
     private string TempName(int index) => $"{temp}_{index}";
     private string StateName(int index) => $"{state}_{index}";
@@ -2080,7 +2378,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
     }
 }
 
-public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,PipelineTerminalKind terminalKind):Scalar(番号),DirectExecutionFragment {
+public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,PipelineTerminalKind terminalKind,FuncFragment? func1=null,FuncFragment? func2=null,string? comparerValue=null):Scalar(番号),DirectExecutionFragment {
     protected override Enumerable PrimarySource => pipeline;
     private string ResultType {
         get {
@@ -2099,7 +2397,7 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
     public override string StructMethod => pipeline.StructMethod;
     public override string GetEnumeratorStruct {
         get {
-            if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray) {
+            if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum) {
                 return pipeline.GetEnumeratorStruct;
             }
             return $$"""
@@ -2110,7 +2408,7 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
     }
     public override string GetEnumeratorExpression {
         get {
-            if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray) {
+            if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum) {
                 throw new NotSupportedException($"{nameof(PipelineTerminal)} uses direct execution.");
             }
             return $"new {EnumeratorTypeName}({pipeline.GetEnumeratorExpression})";
@@ -2189,8 +2487,46 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
             builder.AppendLine("}");
             return builder.ToString().TrimEnd();
         }
+        if(terminalKind==PipelineTerminalKind.Sum) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+            builder.AppendLine($"using var {EnumeratorName()}={pipeline.GetEnumeratorExpression};");
+            builder.AppendLine($"while({EnumeratorName()}.MoveNext()) {actualVariableName}+={EnumeratorName()}.Current;");
+            return builder.ToString().TrimEnd();
+        }
+        if(terminalKind==PipelineTerminalKind.ToDictionary) {
+            var func1Code = func1;
+            var func2Code = func2;
+            var cmpArg = comparerValue ?? "null";
+            var keyType = func1Code?.ReturnTypeName ?? "object";
+            var valType = func2Code?.ReturnTypeName ?? pipeline.ElementType;
+            var dictTypeName = $"global::System.Collections.Generic.Dictionary<{keyType},{valType}>";
+            var eName = EnumeratorName();
+            var itemName = $"__dItem{result}";
+            var keyName = $"__dKey{result}";
+            var valName = $"__dVal{result}";
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=new {dictTypeName}((global::System.Collections.Generic.IEqualityComparer<{keyType}>?){cmpArg});");
+            builder.AppendLine($"using var {eName}={pipeline.GetEnumeratorExpression};");
+            builder.AppendLine($"while({eName}.MoveNext()) {{");
+            builder.AppendLine($"    var {itemName}={eName}.Current;");
+            builder.AppendLine($"    {keyType} {keyName}=default!;");
+            AppendIndented(builder,FuncAssign(func1Code!,"ToDictionary",keyName,itemName),"    ");
+            if(func2Code is not null) {
+                builder.AppendLine($"    {valType} {valName}=default!;");
+                AppendIndented(builder,FuncAssign(func2Code,"ToDictionary",valName,itemName),"    ");
+                builder.AppendLine($"    {actualVariableName}[{keyName}]={valName};");
+            } else {
+                builder.AppendLine($"    {actualVariableName}[{keyName}]=({valType})(object?){itemName}!;");
+            }
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
         throw new NotSupportedException($"Unsupported pipeline terminal: {terminalKind}.");
     }
 
     private string EnumeratorName() => $"__pipeline{result}";
+    private static void AppendIndented(System.Text.StringBuilder sb,string text,string indent) {
+        foreach(var line in text.Replace("\r\n","\n").Split('\n')) {
+            if(!string.IsNullOrWhiteSpace(line)) sb.AppendLine($"{indent}{line.Trim()}");
+        }
+    }
 }
