@@ -335,7 +335,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         category: "Seamless.Performance",
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "対象メソッド内の LINQ 呼び出しをインライン展開できなかったため、生成されたインターセプターコードは実行時に例外を発生させます。Fragment 未実装のメソッド、または未対応のデリゲートパターンが含まれている可能性があります。");
+        description: "対象メソッド内の LINQ 呼び出しをインライン展開できなかったため、生成されたインターセプターコードは実行時に例外を発生させます。Fragment 未実装のメソッド、または未対応のデリゲートパターンが含まれている可能性があります.");
 
     public void Initialize(IncrementalGeneratorInitializationContext context) {
         var interceptTargets = context.SyntaxProvider
@@ -532,6 +532,13 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
+    /// <summary>
+    /// <see cref="ローカルメソッドLinq解析実行37"/> の結果を <see cref="Compilation"/> をキーにした
+    /// <see cref="System.Collections.Concurrent.ConcurrentDictionary{TKey,TValue}"/> でキャッシュし、
+    /// 同一 method の重複解析を防ぐ。
+    /// キャッシュは <see cref="ConditionalWeakTable{TKey,TValue}"/> で Compilation ごとに管理されるため、
+    /// インクリメンタルジェネレーターの世代をまたいでキャッシュが汚染されない。
+    /// </summary>
     private static ローカルメソッドLinq解析結果 ローカルメソッドLinq解析取得36(IMethodSymbol method,Compilation compilation) {
         var cache = ローカルメソッドLinq解析キャッシュ.GetValue(
             compilation,
@@ -539,6 +546,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return cache.GetOrAdd(method,static (method,compilation) => ローカルメソッドLinq解析実行37(method,compilation),compilation);
     }
 
+    /// <summary>
+    /// メソッドの構文ツリーを走査して System.Linq.Enumerable 呼び出しを解析する。
+    /// <br/>アルゴリズム:
+    /// <list type="number">
+    ///   <item><description><see cref="メソッド構文Linq候補含む40"/> で構文レベルの早期フィルタを行い、LINQ 候補がなければ即 <see cref="ローカルメソッドLinq解析結果.Empty"/> を返す。</description></item>
+    ///   <item><description>セマンティックモデルで各 <see cref="Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax"/> のシンボルを解決し、<see cref="SystemLinqEnumerableメソッド判定38"/> が true のものだけを対象にする。</description></item>
+    ///   <item><description>拡張メソッド呼び出し（<c>ReducedFrom != null</c>）のみを有効とし、静的呼び出しや out/ref パラメータ持ちは除外する。</description></item>
+    ///   <item><description>Fragment 未対応メソッド名（<see cref="Enumerableメソッドフラグメント対応判定32"/> が false）を <c>unsupportedMethods</c> に集積する。</description></item>
+    ///   <item><description>戻り値・型引数・パラメータのいずれかに匿名型が含まれる呼び出しがあれば <c>hasAnonymousTypeLinq</c> を true にする。</description></item>
+    ///   <item><description>LINQ 呼び出しが見つからなかった場合でも、クエリ式（<c>from...select</c> 等）があれば <c>hasEnumerableCall = true</c> とする。</description></item>
+    /// </list>
+    /// </summary>
     private static ローカルメソッドLinq解析結果 ローカルメソッドLinq解析実行37(IMethodSymbol method,Compilation compilation) {
         if(method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax) {
             return ローカルメソッドLinq解析結果.Empty;
@@ -619,6 +638,13 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             hasAnonymousTypeLinq);
     }
 
+    /// <summary>
+    /// セマンティックモデルを使わず構文だけで「メソッド本体内に System.Linq.Enumerable のメソッド名が出現するか」を判定する。
+    /// <br/>セマンティック解析より安価なため、解析対象を絞る前処理として <see cref="ローカルメソッドLinq解析実行37"/> の冒頭で呼ばれる。
+    /// <br/>判定対象: メンバーアクセス（<c>source.Where(…)</c>）・識別子（<c>Where(…)</c>）・
+    /// ジェネリックメソッド名（<c>Cast&lt;T&gt;(…)</c>）のいずれかが
+    /// <see cref="SystemLinqEnumerableMethodNames"/> に含まれるか、またはクエリ式が存在するか。
+    /// </summary>
     private static bool メソッド構文Linq候補含む40(MethodDeclarationSyntax methodSyntax) {
         var invocationNodes = methodSyntax.Body is not null
             ? methodSyntax.Body.DescendantNodes().OfType<InvocationExpressionSyntax>()
@@ -654,14 +680,26 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return false;
     }
 
-    // intercept target 判定用の広い条件。
-    // ここでは「Fragment に落とせるか」は問わず、System.Linq.Enumerable であることだけを見て
-    // まず対象化する。未対応ケースは生成 body 側の例外で表面化させる。
+    /// <summary>
+    /// インターセプト対象の選定用。Fragment 化できるかどうかは問わず、
+    /// メソッドの所属型が <c>System.Linq.Enumerable</c> であるかだけを判定する。
+    /// <br/><c>method.ReducedFrom</c>（拡張メソッド解決前の定義）を優先して参照するため、
+    /// 拡張メソッド呼び出し形式・静的呼び出し形式のどちらでも正しく判定できる。
+    /// </summary>
     private static bool SystemLinqEnumerableメソッド判定38(IMethodSymbol method) {
         var definition = method.ReducedFrom ?? method;
         return definition.ContainingType.ToDisplayString()=="System.Linq.Enumerable";
     }
 
+    /// <summary>
+    /// インターセプト対象群を名前空間ごとにグループ化し、1 ソースファイル分の C# テキストを生成する。
+    /// <br/>アルゴリズム:
+    /// <list type="number">
+    ///   <item><description><see cref="インターセプト名前空間取得"/> で元の名前空間を <c>Intercept.{originalNs}</c> に変換し、グループ化する。</description></item>
+    ///   <item><description>各名前空間ブロック内に <c>using {originalNs};</c> を挿入して、生成コードで短い型名を使えるようにする。</description></item>
+    ///   <item><description>同一名前空間内でさらに型ごとにグループ化し、<see cref="インターセプター型ソース構築"/> に委譲する。</description></item>
+    /// </list>
+    /// </summary>
     private static string インターセプターソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics) {
         var builder = new StringBuilder();
         builder.AppendLine("#nullable enable");
@@ -687,6 +725,17 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return builder.ToString();
     }
 
+    /// <summary>
+    /// 1 つの型に属するインターセプト対象群をまとめて <c>internal static class</c> ブロックへ出力する。
+    /// <br/>アルゴリズム:
+    /// <list type="number">
+    ///   <item><description><see cref="型スタック取得"/> でネスト型の階層スタックを取得し、外側から順に <c>internal static class</c> を開く。</description></item>
+    ///   <item><description>各ターゲットについて <see cref="生成ローカルメソッド本体構築0"/> を試みる。成功すれば <c>[InterceptsLocation]</c> 付きメソッドを出力する。</description></item>
+    ///   <item><description>本体構築に失敗した場合は Fragment 未対応か展開不能かを判別し、いずれも例外 throw を生成して SEAMLESS002 警告を発行する（静かなフォールバックは作らない）。</description></item>
+    ///   <item><description>例外が発生した場合も同様に例外 throw コードを生成し、同一メソッドへの二重出力は <c>emittedMethodNames</c> で抑制する。</description></item>
+    ///   <item><description>UnsafeAccessor 宣言はクラス直下に出力し、型スタックを逆順に閉じる。</description></item>
+    /// </list>
+    /// </summary>
     private static string インターセプター型ソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics) {
         var builder = new StringBuilder();
         var typeStack = 型スタック取得(targets[0].EnclosingType);
@@ -756,6 +805,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return builder.ToString();
     }
 
+    /// <summary>
+    /// ネスト型の外側から内側への順序で型シンボルのリストを返す。
+    /// <br/>例: <c>Outer.Inner</c> なら <c>[Outer, Inner]</c>。
+    /// <br/><c>ContainingType</c> を辿りながらスタックに積み、最後に Reverse することで外→内の順にする。
+    /// </summary>
     private static List<INamedTypeSymbol> 型スタック取得(INamedTypeSymbol type) {
         var stack = new List<INamedTypeSymbol>();
         for(INamedTypeSymbol? current = type; current is not null; current = current.ContainingType) {
@@ -765,6 +819,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return stack;
     }
 
+    /// <summary>
+    /// 元の型の名前空間を <c>Intercept.{originalNs}</c> へ変換する。
+    /// グローバル名前空間の型は <c>Intercept</c> のみ。
+    /// インターセプターを別名前空間に置くことで、元コードと名前が衝突しない。
+    /// </summary>
     private static string インターセプト名前空間取得(INamedTypeSymbol type) {
         var originalNamespace = type.ContainingNamespace is { IsGlobalNamespace: false } ns
             ? ns.ToDisplayString()
@@ -774,6 +833,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             : $"Intercept.{originalNamespace}";
     }
 
+    /// <summary>
+    /// ソースファイルのパスからインターセプター生成ファイルの HintName（<c>{FileName}.g.cs</c>）を返す。
+    /// ファイル名が空の場合は <c>Unknown.g.cs</c> にフォールバックする。
+    /// <see cref="SanitizeIdentifier"/> で C# 識別子として使えない文字を <c>_</c> に置換する。
+    /// </summary>
     private static string インターセプターHintName取得(string sourcePath) {
         var fileName = System.IO.Path.GetFileNameWithoutExtension(sourcePath);
         return string.IsNullOrWhiteSpace(fileName)
@@ -781,6 +845,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             : $"{SanitizeIdentifier(fileName)}.g.cs";
     }
 
+    /// <summary>
+    /// インターセプターメソッドの直前に <c>&lt;summary&gt;Intercepts <see cref="…" />&lt;/summary&gt;</c> を追加する。
+    /// cref 属性値は XML エスケープ済みの完全修飾メソッド名とする。
+    /// IDE の「定義へ移動」でインターセプト元メソッドへジャンプできるようにするためのもの。
+    /// </summary>
     private static void インターセプターXmlコメント追加(StringBuilder builder,Linq傍受対象型 target) {
         var cref = Xml属性値エスケープ(メソッドCref構築(target.Method));
         var originalName = Xmlテキストエスケープ(target.Method.Name);
@@ -806,7 +875,20 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .Replace("<","&lt;",StringComparison.Ordinal)
             .Replace(">","&gt;",StringComparison.Ordinal);
 
-    // ローカルメソッドを丸ごと再構成し、文中の LINQ 呼び出しをフラグメント実行へ差し替える。
+    /// <summary>
+    /// インターセプト対象メソッドの本体を丸ごと再構成し、文中の LINQ 呼び出しを Fragment 実行へ差し替える。
+    /// <br/>アルゴリズム:
+    /// <list type="number">
+    ///   <item><description>メソッドの構文参照から <see cref="Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax"/> を取得する。式本体（<c>=&gt;</c>）の場合は <c>式本体式</c> として保持し、後段で専用処理に渡す。</description></item>
+    ///   <item><description><see cref="CollectMethodBodyIdentifiers"/> でメソッドスコープの識別子をすべて収集し、生成変数名の衝突防止に使う。</description></item>
+    ///   <item><description>各文を <see cref="文生成16"/> に渡して再構成する。1 文でも失敗したら false を返す。</description></item>
+    ///   <item><description>式本体の場合は <see cref="LINQ呼び出し差し替え文生成38_式本体"/> で処理する（ラムダ内に this. がある場合は対象外）。</description></item>
+    ///   <item><description>LINQ 呼び出しが 1 件も置換されなかった場合は false を返す（再構成不要のメソッドを無駄にインターセプトしない）。</description></item>
+    ///   <item><description>生成済み本体テキストの <c>this.</c> を <c>@this.</c> に置換して、インスタンスメソッドのレシーバー引数と整合させる。</description></item>
+    ///   <item><description><see cref="静的メソッド群と本体を補助クラスへ退避21"/> で補助 struct を専用クラスへ退避し名前衝突を回避する。</description></item>
+    ///   <item><description>Fragment ツリーおよびソース式から UnsafeAccessor 宣言を収集し、クラス直下用の <c>静的メソッド群</c> に追記する。</description></item>
+    /// </list>
+    /// </summary>
     private static bool 生成ローカルメソッド本体構築0(Linq傍受対象型 対象,out string 静的メソッド群,out string 本体,HashSet<string>? emittedUnsafeAccessors = null) {
         静的メソッド群=string.Empty;
         本体=string.Empty;
@@ -926,6 +1008,33 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             }
         }
 
+        if(PipelineBuilder.TryBuild(
+            semanticModel,
+            invocation,
+            ref uniqueNumber,
+            out fragment,
+            out staticMethods,
+            new PipelineBuildServices(
+                完全修飾形式,
+                (ExpressionSyntax expression,ref int number,out Enumerable enumerable,out string methods) =>
+                    列挙フラグメント生成9(semanticModel,expression,containingType,ref number,out enumerable,out methods,unsafeAccessorCollector),
+                (ExpressionSyntax expression,ITypeSymbol delegateType,ref int number,out FuncFragment func) =>
+                    関数フラグメント生成12(expression,delegateType,ref number,out func,semanticModel,containingType),
+                関数フラグメント利用可能28,
+                expression => RenderExpressionForGeneratedMethod(expression,semanticModel,containingType),
+                (ITypeSymbol type,out ITypeSymbol elementType) => {
+                    if(列挙要素型取得11(type,out elementType,out _)) {
+                        return true;
+                    }
+                    elementType=null!;
+                    return false;
+                },
+                ContainsAnonymousType,
+                静的メソッド連結14),
+            unsafeAccessorCollector)) {
+            return true;
+        }
+
         if(methodName=="Any") {
             return Anyフラグメント生成3(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
         }
@@ -938,6 +1047,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
 
         return 登録済みフラグメント生成24(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
     }
+
     /// <summary>
     /// source.Any(x => x > 0)
     /// ↓
@@ -1330,6 +1440,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return 単独列挙フラグメント生成10(semanticModel,expression,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
     }
 
+    /// <summary>
+    /// 式を包む <see cref="Microsoft.CodeAnalysis.CSharp.Syntax.ParenthesizedExpressionSyntax"/> を再帰的に剥がし、内側の式を返す。
+    /// Fragment 生成の前処理として呼ぶことで、<c>(source.Where(…))</c> のような余分な括弧を無視できる。
+    /// </summary>
     private static ExpressionSyntax 括弧除去53(ExpressionSyntax expression) {
         while(expression is ParenthesizedExpressionSyntax parenthesized) {
             expression=parenthesized.Expression;
@@ -1380,10 +1494,15 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
-    // source 型の public な非明示的実装 GetEnumerator() を探し、値型を返す場合はその型名を返す。
-    // インターフェース型・配列・戻り値がインターフェースや抽象型の場合は (null, false) を返す。
-    // isDuckTyping=true の場合、エニュメレータは IEnumerator<T> を実装しない duck-typing struct
-    // （例: ImmutableArray<T>.Enumerator）であり、DuckTypingRoot で直接展開する必要がある。
+    /// <summary>
+    /// ソース型の public な非明示的実装 <c>GetEnumerator()</c> を探し、具象エニュメレータ型名と
+    /// duck-typing フラグを返す。
+    /// <br/>インターフェース型・配列・戻り値がインターフェースや抽象型の場合は <c>(null, false)</c>。
+    /// <br/><c>isDuckTyping=true</c>: エニュメレータが <c>IEnumerator&lt;T&gt;</c> を実装しない
+    /// duck-typing struct（例: <c>ImmutableArray&lt;T&gt;.Enumerator</c>）。
+    /// この場合 struct 制約 (<c>where TEnum : struct, IEnumerator&lt;T&gt;</c>) に渡せず
+    /// <see cref="Linq.Fragments.DuckTypingRoot"/> で直接展開する必要がある。
+    /// </summary>
     private static (string? typeName, bool isDuckTyping) 具象エニュメレータ型名取得(ITypeSymbol? sourceType,ITypeSymbol elementType,bool useEnumerableInterface) {
         if(useEnumerableInterface || sourceType is not INamedTypeSymbol namedSource) {
             return (null, false);
@@ -1417,12 +1536,26 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return (typeName, isDuckTyping: !implementsIEnumerator);
     }
 
-    // ちょうど System.Collections.Generic.List<T> 型かを判定する（継承クラスは内部配列の意味が同じでも
-    // 別物として扱い従来パスへ流す）。List<T> なら CollectionsMarshal.AsSpan ベースの ListRoot で直走査できる。
+    /// <summary>
+    /// 型がちょうど <c>System.Collections.Generic.List&lt;T&gt;</c> かを判定する。
+    /// 継承クラスは内部配列の意味が同じでも別物として扱い、従来の Root パスへ流す。
+    /// <c>List&lt;T&gt;</c> と判定された場合は <see cref="Linq.Fragments.ListRoot"/> で
+    /// <c>CollectionsMarshal.AsSpan</c> ベースの直走査を使える。
+    /// </summary>
     private static bool IsListType(ITypeSymbol? type) =>
         type is INamedTypeSymbol named
         && named.OriginalDefinition.ToDisplayString()=="System.Collections.Generic.List<T>";
 
+    /// <summary>
+    /// 型シンボルから列挙要素型（<c>T</c>）を解決する。
+    /// <br/>解決順序:
+    /// <list type="number">
+    ///   <item><description>配列型 (<c>T[]</c>) → 要素型を直接取得。<c>useEnumerableInterface=true</c>（配列は <c>GetEnumerator()</c> が interface 実装）。</description></item>
+    ///   <item><description>型自体が <c>IEnumerable&lt;T&gt;</c> → 型引数を取得。<c>useEnumerableInterface=true</c>。</description></item>
+    ///   <item><description>上記以外の名前付き型 → <c>AllInterfaces</c> から <c>IEnumerable&lt;T&gt;</c> を探す。見つかれば <c>useEnumerableInterface=false</c>（具象 <c>GetEnumerator()</c> が使える可能性あり）。</description></item>
+    /// </list>
+    /// <c>useEnumerableInterface=false</c> の場合、<see cref="具象エニュメレータ型名取得"/> でさらに具象エニュメレータ型を探す。
+    /// </summary>
     private static bool 列挙要素型取得11(ITypeSymbol? type,out ITypeSymbol elementType,out bool useEnumerableInterface) {
         switch(type) {
             case IArrayTypeSymbol arrayType:
@@ -1607,7 +1740,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                     return true;
                 }
 
-                throw LambdaInlineException(lambda,semanticModel,"ラムダ内 LINQ を Fragment として構築できませんでした。",scalarInvocation);
+                // シーケンスを返す LINQ は SelectMany などの collection selector として有効なので、
+                // スカラー Fragment 化できない場合は通常ラムダとして残す。
             }
 
             // キャプチャなし（this 含む）なら実質 static → struct ゼロコピーでメソッド生成可能。
@@ -1696,10 +1830,15 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return false;
     }
 
-    // 仕様: LINQ に渡された delegate（ローカル変数 / instance・static フィールド）は、
-    // 宣言時 initializer がラムダ / anonymous delegate の場合だけその式を本体として扱う。
-    // `field` / `this.field` / `Type.field` のいずれの参照形でも対象にする。
-    // 変数・フィールド呼び出しを delegate Invoke として残す経路は作らない。
+    /// <summary>
+    /// LINQ に渡された識別子またはメンバーアクセス式が、宣言時にラムダ／<c>delegate</c> で初期化された
+    /// ローカル変数またはフィールドであるかを判定し、そのイニシャライザ式を返す。
+    /// <br/>成功条件: シンボルが <c>ILocalSymbol</c> または <c>IFieldSymbol</c> であり、
+    /// 宣言の <c>VariableDeclarator.Initializer.Value</c> が <see cref="Microsoft.CodeAnalysis.CSharp.Syntax.LambdaExpressionSyntax"/>
+    /// または <see cref="Microsoft.CodeAnalysis.CSharp.Syntax.AnonymousMethodExpressionSyntax"/> であること。
+    /// <br/><c>field</c> / <c>this.field</c> / <c>Type.field</c> のいずれの参照形でも対象にする。
+    /// <br/>delegate 変数呼び出しを delegate Invoke として残す経路は作らない。
+    /// </summary>
     private static bool TryGetInlineableDelegateVariableInitializer(
         ExpressionSyntax expression,
         SemanticModel? semanticModel,
@@ -1754,17 +1893,33 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return false;
     }
 
+    /// <summary>
+    /// 2 つの補助静的メソッド文字列を改行で連結する。空文字列・空白のみの文字列は無視する。
+    /// Fragment 構築中に積み上がる <c>staticMethods</c> を逐次マージするために使う。
+    /// </summary>
     private static string 静的メソッド連結14(string left,string right) {
         return string.Join("\n",new[] { left,right }.Where(static text => !string.IsNullOrWhiteSpace(text)));
     }
 
-    // ローカルメソッド再構成の主経路。
-    // Enumerable フラグメントがフラットループをサポートする場合は末尾メソッド内にループを展開し、
-    // @this スコープで全ラムダをインライン化する。それ以外は enumerator struct + while で消費する。
+    /// <summary>
+    /// Fragment を実行するコードを <paramref name="builder"/> に追記する。
+    /// <br/>Fragment の種類に応じて 3 通りの出力を使い分ける:
+    /// <list type="bullet">
+    ///   <item><description><see cref="DirectExecutionFragment"/>: <c>GetDirectExecutionStatement</c> の結果をそのまま出力（例: <c>ToList()</c> など副作用付き終端操作）。</description></item>
+    ///   <item><description><see cref="Enumerable"/>: <c>var {name} = {GetEnumerableExpression};</c> を出力（遅延評価の列挙結果を変数に束縛）。</description></item>
+    ///   <item><description>その他の <see cref="Fragment"/>（スカラー等）: <c>GetEnumeratorExpression</c> で enumerator を取得し <c>TryGetNext</c> で 1 要素を取り出すパターンを出力。</description></item>
+    /// </list>
+    /// <see cref="GetUniqueIdentifier"/> で enumerator 変数名・current 変数名の衝突を避ける。
+    /// </summary>
     private static bool フラグメントEnumerator実行文追加37(StringBuilder builder,Fragment fragment,string actualVariableName,string actualTypeName,HashSet<string> usedNames) {
         var suffix = SanitizeIdentifier(actualVariableName);
         var enumeratorName = GetUniqueIdentifier($"e_{suffix}", usedNames);
         var currentName = GetUniqueIdentifier($"c_{suffix}", usedNames);
+
+        if(fragment is DirectExecutionFragment directExecutionFragment) {
+            builder.AppendLine(directExecutionFragment.GetDirectExecutionStatement(actualVariableName,actualTypeName));
+            return true;
+        }
 
         if(fragment is Enumerable enumerableFragment) {
             try {
@@ -1787,6 +1942,19 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
+    /// <summary>
+    /// 1 文を受け取り、対応するコードを <paramref name="builder"/> に生成する。
+    /// <br/>文の種類に応じて専用メソッドへディスパッチする:
+    /// <list type="bullet">
+    ///   <item><description><c>Block</c> → 子文を再帰的に処理してブレースで囲む。</description></item>
+    ///   <item><description><c>Try</c> → <see cref="Try文生成39"/>。catch/finally ブロックも再帰処理する。</description></item>
+    ///   <item><description><c>Using</c> → <see cref="Using文生成40"/>。</description></item>
+    ///   <item><description><c>LocalDeclaration</c> / <c>ExpressionStatement</c> → <see cref="LINQ呼び出し差し替え文生成38"/> で LINQ 呼び出しを差し替え。</description></item>
+    ///   <item><description><c>For</c> / <c>ForEach</c> / <c>While</c> / <c>Do</c> / <c>If</c> / <c>Switch</c> → 各専用生成メソッドへ。</description></item>
+    ///   <item><description>その他の文 → <see cref="LINQ呼び出し差し替え文生成38"/> にフォールバック。</description></item>
+    /// </list>
+    /// 1 文でも false を返した時点でメソッド全体の再構成を中止する。
+    /// </summary>
     private static bool 文生成16(
         StatementSyntax statement,
         SemanticModel semanticModel,
@@ -1834,6 +2002,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
     }
 
+    /// <summary>
+    /// <c>try { … } catch(…) { … } finally { … }</c> 文を生成する。
+    /// try ブロック・各 catch ブロック・finally ブロックをそれぞれ <see cref="文生成16"/> で再帰処理する。
+    /// catch 宣言・catch フィルター (<c>when</c>) はソーステキストをそのまま出力する。
+    /// </summary>
     private static bool Try文生成39(
         TryStatementSyntax statement,
         SemanticModel semanticModel,
@@ -1874,6 +2047,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
+    /// <summary>
+    /// <c>using (declaration) { … }</c> または <c>using (expression) { … }</c> 文を生成する。
+    /// 変数宣言がある場合は <see cref="変数宣言生成43"/> で型名を完全修飾し、
+    /// 式の場合は <see cref="RenderExpressionForGeneratedMethod"/> でレンダリングする。
+    /// 本体は <see cref="文生成16"/> で再帰処理する。
+    /// </summary>
     private static bool Using文生成40(
         UsingStatementSyntax statement,
         SemanticModel semanticModel,
@@ -1896,6 +2075,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return 文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
     }
 
+    /// <summary>
+    /// <c>for (init; cond; incr) { … }</c> 文を生成する。
+    /// 初期化部・条件部・増分部はそれぞれ <see cref="RenderExpressionForGeneratedMethod"/> でレンダリングし、
+    /// 本体は <see cref="文生成16"/> で再帰処理する。
+    /// 初期化部が変数宣言の場合は <see cref="変数宣言生成43"/> で完全修飾する。
+    /// </summary>
     private static bool For文生成44(
         ForStatementSyntax statement,
         SemanticModel semanticModel,
@@ -1919,6 +2104,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return 文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
     }
 
+    /// <summary>
+    /// <c>foreach (T x in expr) { … }</c> 文を生成する。
+    /// 要素型をセマンティックモデルで解決して完全修飾名にする（<c>var</c> はそのまま残す）。
+    /// 列挙対象式は <see cref="RenderExpressionForGeneratedMethod"/> でレンダリングする。
+    /// 本体は <see cref="文生成16"/> で再帰処理する。
+    /// </summary>
     private static bool ForEach文生成45(
         ForEachStatementSyntax statement,
         SemanticModel semanticModel,
@@ -1940,6 +2131,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return 文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
     }
 
+    /// <summary>
+    /// <c>while (cond) { … }</c> 文を生成する。
+    /// 条件式を <see cref="RenderExpressionForGeneratedMethod"/> でレンダリングし、
+    /// 本体を <see cref="文生成16"/> で再帰処理する。
+    /// </summary>
     private static bool While文生成46(
         WhileStatementSyntax statement,
         SemanticModel semanticModel,
@@ -1957,6 +2153,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return 文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
     }
 
+    /// <summary>
+    /// <c>do { … } while (cond);</c> 文を生成する。
+    /// 本体を <see cref="文生成16"/> で先に再帰処理し、その後に条件式を出力する。
+    /// </summary>
     private static bool Do文生成47(
         DoStatementSyntax statement,
         SemanticModel semanticModel,
@@ -1976,6 +2176,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
+    /// <summary>
+    /// <c>if (cond) { … } else { … }</c> 文を生成する。
+    /// 条件式を <see cref="RenderExpressionForGeneratedMethod"/> でレンダリングし、
+    /// then 節・else 節をそれぞれ <see cref="文生成16"/> で再帰処理する。
+    /// </summary>
     private static bool If文生成48(
         IfStatementSyntax statement,
         SemanticModel semanticModel,
@@ -1998,6 +2203,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
+    /// <summary>
+    /// <c>switch (expr) { case …: … }</c> 文を生成する。
+    /// switch 対象式を <see cref="RenderExpressionForGeneratedMethod"/> でレンダリングし、
+    /// 各 section のラベルはソーステキストをそのまま出力、
+    /// 各 section の文は <see cref="文生成16"/> で再帰処理する。
+    /// </summary>
     private static bool Switch文生成49(
         SwitchStatementSyntax statement,
         SemanticModel semanticModel,
@@ -2025,6 +2236,19 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
+    /// <summary>
+    /// 文中の LINQ 呼び出しを Fragment 実行コードに置き換えた等価な文を生成する。
+    /// <br/>アルゴリズム:
+    /// <list type="number">
+    ///   <item><description>クエリ式が含まれる場合は <see cref="TryLowerQueriesToExtensionMethods{TSyntax}"/> で拡張メソッドチェーンへ変換し、セマンティックモデルを差し替える。</description></item>
+    ///   <item><description><c>ReturnStatement</c> の式がクエリ式なら <see cref="クエリ式本体生成"/> へ渡す。</description></item>
+    ///   <item><description>文全体が単一 LINQ 呼び出しで戻り値を捨てる場合（列挙自体に副作用がない遅延評価）は文ごとスキップする。</description></item>
+    ///   <item><description><see cref="外側LINQ呼び出し取得41"/> で「ラムダ内部ではなく文直下の LINQ 呼び出し」を出現順に収集する。</description></item>
+    ///   <item><description>各呼び出しに対して <see cref="呼び出し式フラグメント生成1"/> でFragment を生成し、<c>__linq0</c>, <c>__linq1</c>... という一時変数名に束縛するコードを出力する。</description></item>
+    ///   <item><description>文のテキストを <c>replacementMap</c>（正規化済み LINQ 式テキスト → 一時変数名）で置換し、最終的な文を出力する。</description></item>
+    ///   <item><description>匿名型をレシーバーに持つ LINQ 呼び出しは Fragment 化せず System.Linq に委譲するため、置換マップへの登録をスキップして続行する。</description></item>
+    /// </list>
+    /// </summary>
     private static bool LINQ呼び出し差し替え文生成38(
         StatementSyntax statement,
         SemanticModel semanticModel,
@@ -2108,9 +2332,14 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
-    // 式本体版 LINQ 差し替え文生成。
-    // SyntaxFactory で合成ノードを作らず元ツリーのノード expression をそのまま処理し、
-    // "return <result>;" を出力する。
+    /// <summary>
+    /// 式本体メソッド（<c>=> expr</c>）の LINQ 呼び出しを置き換え、<c>return <em>result</em>;</c> を出力する。
+    /// <br/><see cref="LINQ呼び出し差し替え文生成38"/> の式専用版。
+    /// <c>SyntaxFactory.ReturnStatement()</c> で合成ノードを作ると <c>SyntaxTree</c> が null になり
+    /// <c>SemanticModel.GetSymbolInfo()</c> が失敗するため、元ツリーのノードをそのまま使う。
+    /// <br/>Fragment 化結果が匿名型を含む場合は生成コードに不正な型名が埋まるため、
+    /// その呼び出しはスナップショットに戻してスキップする（<see cref="LINQ呼び出し差し替え文生成38"/> と同じ方針）。
+    /// </summary>
     private static bool LINQ呼び出し差し替え文生成38_式本体(
         ExpressionSyntax expression,
         SemanticModel semanticModel,
@@ -2191,6 +2420,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
+    /// <summary>
+    /// クエリ式（<c>from … where … select …</c>）を拡張メソッドチェーン（<c>.Where(…).Select(…)</c>）へ
+    /// 変換（Lowering）し、変換後ノードのセマンティックモデルと含む型シンボルを返す。
+    /// <br/>アルゴリズム:
+    /// <list type="number">
+    ///   <item><description>ノードにクエリ式が含まれなければ false を即返す。</description></item>
+    ///   <item><description><c>OptimizeVisitor.RewriteQueriesToExtensionMethods</c> で構文木を書き換える。等価なら false。</description></item>
+    ///   <item><description>書き換え済みノードに <c>SeamlessQueryLowering</c> アノテーションを付与し、元の構文ツリーを新ツリーで置き換えた新 <see cref="Microsoft.CodeAnalysis.Compilation"/> を作成する。</description></item>
+    ///   <item><description>新ツリーからアノテーション付きノードを探し、そのセマンティックモデルと包含型シンボルを out パラメータで返す。</description></item>
+    /// </list>
+    /// 成功時は呼び出し元が <c>statement</c> / <c>semanticModel</c> / <c>containingType</c> を差し替えて続行する。
+    /// </summary>
     private static bool TryLowerQueriesToExtensionMethods<TSyntax>(
         TSyntax node,
         SemanticModel semanticModel,
@@ -2372,6 +2613,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         var typeArgumentStart = definitionName.IndexOf('<',StringComparison.Ordinal);
         return typeArgumentStart<0 ? definitionName : definitionName[..typeArgumentStart];
     }
+    /// <summary>
+    /// <c>T x = expr, y = expr2;</c> のようなローカル変数宣言文を生成する。
+    /// 型名はセマンティックモデルで解決して完全修飾し、初期化式は
+    /// <see cref="RenderExpressionForGeneratedMethod"/> と <paramref name="replacementMap"/> で LINQ 一時変数に置換する。
+    /// <c>var</c> はそのまま出力する。
+    /// </summary>
     private static string ローカル宣言生成17(
         LocalDeclarationStatementSyntax statement,
         SemanticModel semanticModel,
@@ -2396,6 +2643,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
         return $"{typeName} {string.Join(", ",variables)};";
     }
+    /// <summary>
+    /// 変数宣言部（<c>T x = expr</c>）のテキストを生成する。
+    /// <see cref="ローカル宣言生成17"/> と同様だが、文末セミコロンを付けない点が異なる。
+    /// <c>using (…)</c> や <c>for (…; …; …)</c> の初期化部で使う。
+    /// </summary>
     private static string 変数宣言生成43(
         VariableDeclarationSyntax declaration,
         SemanticModel semanticModel,
@@ -2419,6 +2671,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
         return $"{typeName} {string.Join(", ",variables)}";
     }
+    /// <summary>
+    /// 文のテキストを <paramref name="replacementMap"/>（LINQ 式テキスト → 一時変数名）で置換し、
+    /// <c>SystemEnumerable.</c> を <c>global::System.Linq.Enumerable.</c> に、
+    /// <c>this.</c> を <c>@this.</c> に変換して返す。
+    /// キーは長い順に置換することで部分一致による誤置換を防ぐ。
+    /// </summary>
     private static string RenderStatementForGeneratedMethod(
         StatementSyntax statement,
         IReadOnlyDictionary<string,string>? replacementMap) {
@@ -2433,6 +2691,15 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .Replace("SystemEnumerable.","global::System.Linq.Enumerable.",StringComparison.Ordinal)
             .Replace("this.","@this.",StringComparison.Ordinal);
     }
+    /// <summary>
+    /// 文の直下にある「最も外側の」 LINQ 拡張メソッド呼び出しを出現順に列挙する。
+    /// <br/>除外条件:
+    /// <list type="bullet">
+    ///   <item><description>ラムダ式の内部にある呼び出し（ラムダ内の LINQ は別の Fragment 生成パスで処理される）。</description></item>
+    ///   <item><description>別の LINQ 呼び出しの内側にある呼び出し（メソッドチェーンの途中ノードは最外ノードとして扱う）。</description></item>
+    ///   <item><description>静的呼び出し（<c>ReducedFrom == null</c>）および out/ref パラメータを持つメソッド。</description></item>
+    /// </list>
+    /// </summary>
     private static List<InvocationExpressionSyntax> 外側LINQ呼び出し取得41(StatementSyntax statement,SemanticModel semanticModel) {
         return statement.DescendantNodes()
             .OfType<InvocationExpressionSyntax>()
@@ -2451,8 +2718,15 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .OrderBy(static invocation => invocation.SpanStart)
             .ToList();
     }
-    // 式本体版：expression を root として LINQ 呼び出しを検索する。
-    // SyntaxFactory.ReturnStatement(アロー式) のような合成ノードを避け、元ツリーのノードを直接使う。
+    /// <summary>
+    /// 式本体版 <see cref="外側LINQ呼び出し取得41"/>。
+    /// <c>SyntaxFactory.ReturnStatement(アロー式)</c> のような合成ノードを避け、元ツリーのノードを直接 root として使う。
+    /// <br/>境界を <c>expression.Parent</c> にする理由:
+    /// expression（例: <c>.ToArray()</c>）自体が最外の LINQ 呼び出しであるとき、
+    /// 祖先走査の境界を expression にすると expression 自身が TakeWhile から抜け落ち、
+    /// その直下の <c>.Select()</c> が「外側に LINQ なし」と誤判定されて二重生成される。
+    /// statement 版は statement が境界なので問題ない。
+    /// </summary>
     private static List<InvocationExpressionSyntax> 外側LINQ呼び出し取得41_式(ExpressionSyntax expression,SemanticModel semanticModel) {
         // expression 自身が最外の LINQ 呼び出しになりうる（例: 式本体 => xxx.Where(...).Select(...).ToArray()）。
         // 祖先走査の境界を expression ではなく expression.Parent にしないと、expression(=.ToArray()) 自身が
@@ -2475,6 +2749,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .OrderBy(static invocation => invocation.SpanStart)
             .ToList();
     }
+    /// <summary>
+    /// 呼び出し式が <c>System.Linq.Enumerable</c> または <c>System.MemoryExtensions.Contains</c> の
+    /// メソッドであるかを判定する。
+    /// <c>MemoryExtensions.Contains</c> は <c>Span&lt;T&gt;</c>/<c>ReadOnlySpan&lt;T&gt;</c> の
+    /// 拡張メソッドとして LINQ 的に使われるため対象に含める。
+    /// </summary>
     private static bool SystemLinqEnumerable呼び出し判定42(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
         if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) {
             return false;
@@ -2484,9 +2764,19 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return containingType=="System.Linq.Enumerable"
             || (definition.Name=="Contains" && containingType=="System.MemoryExtensions");
     }
+    /// <summary>Fragment 識別番号をメソッドごとに 0 からリセットする。</summary>
     private static int フラグメント番号初期値取得18() => 0;
-    // Struct0 / Struct1 ... のような補助型はクラス直下だと他のインターセプターと衝突するため、
-    // メソッド単位の補助クラスへ退避し、本体側の参照だけを差し替える。
+
+    /// <summary>
+    /// <c>Struct0</c>, <c>Struct1</c> のような補助型をメソッド単位の補助クラス
+    /// <c>{methodName}_補助0_Struct0</c> 等にリネームし、クラス直下での名前衝突を回避する。
+    /// <br/>アルゴリズム:
+    /// <list type="number">
+    ///   <item><description>補助メソッド群が空なら何もしない。</description></item>
+    ///   <item><description>正規表現 <c>\bStruct\d+(_suffix)?\b</c> で <c>staticMethods</c> と <c>body</c> の両方を一括置換する。</description></item>
+    ///   <item><description><see cref="補助Struct関数AggressiveInlining付与43"/> で <c>Compute</c>/<c>Build</c> メソッドに <c>AggressiveInlining</c> を付与する。</description></item>
+    /// </list>
+    /// </summary>
     private static void 静的メソッド群と本体を補助クラスへ退避21(string methodName,ref string staticMethods,ref string body) {
         if(string.IsNullOrWhiteSpace(staticMethods)) {
             return;
@@ -2505,6 +2795,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         staticMethods=補助Struct関数AggressiveInlining付与43(staticMethods);
     }
+    /// <summary>
+    /// 生成済み補助コード内の <c>private static … Compute(…)</c> / <c>private static … Build(…)</c>
+    /// メソッドに <c>[MethodImpl(AggressiveInlining)]</c> 属性が付いていなければ挿入する。
+    /// 正規表現で前行を確認し、既に属性がある場合は重複を避ける。
+    /// </summary>
     private static string 補助Struct関数AggressiveInlining付与43(string source) {
         const string attribute = "[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]";
         return System.Text.RegularExpressions.Regex.Replace(
@@ -2532,6 +2827,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             CollectMethodScopeIdentifiers(methodSyntax.Body, names);
         return names;
     }
+    /// <summary>
+    /// ノード以下の識別子をすべて <paramref name="names"/> に収集する再帰ヘルパー。
+    /// ラムダ／匿名メソッドに入ったら再帰を止める（別スコープなので生成変数の衝突に使わない）。
+    /// 対象: 変数宣言子・foreach 変数・catch 宣言・パターンの単変数指定。
+    /// </summary>
     private static void CollectMethodScopeIdentifiers(SyntaxNode node, HashSet<string> names) {
         // ラムダ/匿名メソッドは別スコープなので子孫まで降りない
         if(node is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax) return;
@@ -2548,8 +2848,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         foreach(var child in node.ChildNodes())
             CollectMethodScopeIdentifiers(child, names);
     }
-    // baseName を試し、衝突したら baseName0、baseName1... と増やして未使用名を返す。
-    // 選んだ名前は usedNames に追加され、同一パス内での二重取得を防ぐ（メソッドスコープ変数用）。
+    /// <summary>
+    /// <paramref name="usedNames"/> に衝突しない一意な識別子を返し、使用済みセットに追加する。
+    /// <br/>衝突した場合は <c>baseName_</c>、<c>baseName__</c>... と <c>_</c> を増やして試す。
+    /// 選んだ名前を <paramref name="usedNames"/> に追加するため、同一パス内での二重取得を防ぐ。
+    /// </summary>
     private static string GetUniqueIdentifier(string baseName, HashSet<string> usedNames) {
         if(usedNames.Add(baseName)) return baseName;
         var suffix = "_";
@@ -2560,6 +2863,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
     }
 
+    /// <summary>
+    /// 文字列を C# 識別子として使えるようにサニタイズする。
+    /// 非英数字を <c>_</c> に置換し、先頭が識別子開始文字でない場合は先頭に <c>_</c> を挿入する。
+    /// 空または空白のみの場合は <c>"Aggregate"</c> にフォールバックする。
+    /// </summary>
     private static string SanitizeIdentifier(string value) {
         if(string.IsNullOrWhiteSpace(value)) {
             return "Aggregate";
@@ -2578,10 +2886,16 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return builder.ToString();
     }
 
+    /// <summary>グローバル名前空間は空文字列、それ以外は表示文字列を返す。</summary>
     private static string 名前空間テキスト取得(INamespaceSymbol namespaceSymbol) {
         return namespaceSymbol.IsGlobalNamespace ? string.Empty : namespaceSymbol.ToDisplayString();
     }
 
+    /// <summary>
+    /// <paramref name="value"/> の各行先頭に <paramref name="indent"/> を付けて
+    /// <paramref name="builder"/> に追記する。空行はインデントなしで出力する。
+    /// CRLF・LF のどちらにも対応する。
+    /// </summary>
     private static void インデント付き追記(StringBuilder builder,string value,string indent) {
         foreach(var line in value.Replace("\r\n","\n").Split('\n')) {
             if(line.Length==0) {
@@ -2594,6 +2908,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
     }
 
+    /// <summary>
+    /// 文字列から空白のみの行を除去して返す。
+    /// データベーススキーマの生成ソース出力でコンパクト化のために使う。
+    /// </summary>
     private static string 空行除去(string source) {
         var lines = source.Replace("\r\n","\n").Split('\n');
         var builder = new StringBuilder(source.Length);
@@ -2654,6 +2972,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     private static bool IsSingleReturnBlock(BlockSyntax block) =>
         block.Statements is [ReturnStatementSyntax { Expression: not null }];
 
+    /// <summary><c>delegate(params) {}</c> のパラメータ名リストを返す。引数リストがない場合は空リスト。</summary>
     private static List<string> GetAnonymousMethodParameters(AnonymousMethodExpressionSyntax anonymousMethod) =>
         anonymousMethod.ParameterList?.Parameters
             .Select(static parameter => parameter.Identifier.ValueText)
@@ -2733,6 +3052,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
     }
 
+    /// <summary>
+    /// ラムダ式から <see cref="LambdaSpec"/>（戻り値型・パラメータ型・パラメータ名・本体）を抽出する。
+    /// 本体が式本体か単一 <c>return</c> 文の場合のみ成功する。
+    /// デリゲート型が <c>Func&lt;…&gt;</c> でない場合・匿名型が混在する場合も失敗を返す。
+    /// </summary>
     private static bool TryCreateLambdaFuncFragment(LambdaExpressionSyntax lambda,ITypeSymbol delegateType,out LambdaSpec fragment) {
         fragment=null!;
         if(!TryGetLambdaExpressionBody(lambda,out var body)) {
@@ -2763,6 +3087,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return true;
     }
 
+    /// <summary>
+    /// <c>delegate(params) { return expr; }</c> の単一 return 本体から <see cref="LambdaSpec"/> を抽出する。
+    /// 複数文ブロックや戻り値なし本体は失敗する（<see cref="TryBuildBlockFunc"/> の対象になる）。
+    /// </summary>
     private static bool TryCreateAnonymousMethodFuncFragment(
         AnonymousMethodExpressionSyntax anonymousMethod,
         ITypeSymbol delegateType,
@@ -2812,15 +3140,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             && namedType.MetadataName is "Func`2" or "Func`3";
     }
 
+    /// <summary>型が <c>System.Collections.Generic.IEnumerable&lt;T&gt;</c> そのものかを判定する。</summary>
     private static bool IsIEnumerableType(INamedTypeSymbol namedType)
         => namedType.ContainingNamespace.ToDisplayString()=="System.Collections.Generic"
             && namedType.MetadataName=="IEnumerable`1";
 
+    /// <summary>型またはその実装インターフェースに非ジェネリック <c>System.Collections.IEnumerable</c> が含まれるかを判定する。</summary>
     private static bool IsNonGenericIEnumerableType(ITypeSymbol? type)
         => type is INamedTypeSymbol namedType
             && (IsNonGenericIEnumerableType(namedType)
                 || namedType.AllInterfaces.Any(IsNonGenericIEnumerableType));
 
+    /// <summary>型が <c>System.Collections.IEnumerable</c>（非ジェネリック）そのものかを判定する。</summary>
     private static bool IsNonGenericIEnumerableType(INamedTypeSymbol namedType)
         => namedType.ContainingNamespace.ToDisplayString()=="System.Collections"
             && namedType.MetadataName=="IEnumerable";
@@ -2884,6 +3215,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return namedType.ContainingType is not null && NamedTypeAccessibilityRisk(namedType.ContainingType);
     }
 
+    /// <summary>
+    /// ラムダの本体を式として取り出す。
+    /// 式本体ラムダ（<c>x =&gt; expr</c>）はそのまま、単一 <c>return</c> 文ブロック（<c>x =&gt; { return expr; }</c>）は
+    /// return の式を返す。それ以外は false。
+    /// </summary>
     private static bool TryGetLambdaExpressionBody(LambdaExpressionSyntax lambda,out ExpressionSyntax body) {
         body=null!;
         if(lambda.Body is ExpressionSyntax expressionBody) {
@@ -2901,6 +3237,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return false;
     }
 
+    /// <summary>ラムダ式のパラメータ名リストを返す。単純ラムダは 1 要素、括弧ラムダは全パラメータ名。</summary>
     private static List<string> GetLambdaParameters(LambdaExpressionSyntax lambda) {
         if(lambda is SimpleLambdaExpressionSyntax simpleLambda) {
             return [simpleLambda.Parameter.Identifier.ValueText];
@@ -2911,10 +3248,16 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return [];
     }
 
+    /// <summary>改行を空白に置換してトリミングする。置換マップのキー正規化に使う。</summary>
     private static string NormalizeExpressionText(string value) {
         return value.Replace("\r\n"," ").Replace('\n',' ').Trim();
     }
 
+    /// <summary>
+    /// <see cref="NormalizeExpressionText"/> に加え、
+    /// <c>SystemEnumerable.</c> → <c>global::System.Linq.Enumerable.</c> および <c>this.</c> → <c>@this.</c> の変換も行う。
+    /// 生成コードへ埋め込む式テキストの標準化に使う。
+    /// </summary>
     private static string NormalizeGeneratedExpressionText(string value) =>
         NormalizeExpressionText(value)
             .Replace("SystemEnumerable.","global::System.Linq.Enumerable.",StringComparison.Ordinal)
@@ -2938,6 +3281,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return $"<{string.Join(", ",method.TypeArguments.Select(static type => type.ToDisplayString(完全修飾形式)))}>";
     }
 
+    /// <summary>
+    /// コンパイル時定数値を C# リテラルテキストに変換する。
+    /// 浮動小数は <c>"R"</c> 書式でラウンドトリップ保証、文字列は逐語的文字列リテラル (<c>@"…"</c>) に変換する。
+    /// </summary>
     private static string RenderConstantValue(object? value) => value switch {
         null => "null",
         string text => "@\"" + text.Replace("\"","\"\"",StringComparison.Ordinal) + "\"",
@@ -2959,6 +3306,23 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         _ => string.Empty,
     };
 
+    /// <summary>
+    /// 式の構文ノードを生成コードとして出力可能なテキストに変換する。
+    /// <br/>アルゴリズム（ノード種別ごとの処理を 1 回の <c>DescendantNodesAndSelf()</c> 走査でまとめて行う）:
+    /// <list type="number">
+    ///   <item><description>テキストを <see cref="NormalizeGeneratedExpressionText"/> で正規化し、<paramref name="replacementMap"/> で LINQ 一時変数に置換する（長いキーを先に処理して部分一致誤置換を防ぐ）。</description></item>
+    ///   <item><description><b>呼び出し式</b>: <c>nameof(…)</c> は評価済み文字列リテラルに変換。
+    ///     非拡張メソッドは <see cref="TryRenderOrdinaryMethodInvocationExpression"/> でインライン化または UnsafeAccessor 化。
+    ///     非 System.Linq 拡張メソッドは <see cref="TryRenderExtensionMethodInvocationExpression"/> でインライン化。
+    ///     失敗した場合は <see cref="RenderInlineFailureInvocationExpression"/> で例外式に置換。</description></item>
+    ///   <item><description><b>識別子</b>: 非 public 静的フィールドはコンスタントなら値展開し、それ以外は UnsafeAccessor 経由の参照に変換する。</description></item>
+    ///   <item><description><b>メンバーアクセス（メソッドグループ）</b>: 非 public メソッドへのデリゲート参照を UnsafeAccessor ラムダに変換する。</description></item>
+    ///   <item><description><b>オブジェクト生成</b>: 型名を完全修飾名に置換して生成 namespace での参照エラーを防ぐ。</description></item>
+    ///   <item><description><b>メンバーアクセス（フィールド）</b>: 非 public フィールドを UnsafeAccessor 経由の参照に変換する。</description></item>
+    ///   <item><description><b>メンバーアクセス（プロパティ）</b>: 非 public インスタンスプロパティの getter を <c>get_X</c> UnsafeAccessor 呼び出しに変換する。</description></item>
+    ///   <item><description><b>パラメータ型</b>: ネストしたラムダのパラメータ型名を完全修飾名に置換する。</description></item>
+    /// </list>
+    /// </summary>
     private static string RenderExpressionForGeneratedMethod(
         ExpressionSyntax expression,
         SemanticModel semanticModel,
@@ -3155,9 +3519,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
         return text;
     }
+    /// <summary>呼び出し式が明示的な型引数リストを持つかどうか（例: <c>Cast&lt;int&gt;(…)</c>）。</summary>
     private static bool InvocationHasExplicitTypeArguments(InvocationExpressionSyntax invocation) =>
         invocation.Expression is GenericNameSyntax
         || invocation.Expression is MemberAccessExpressionSyntax { Name: GenericNameSyntax };
+
+    /// <summary>
+    /// 通常メソッド呼び出し（非拡張）を生成コード用にレンダリングする。
+    /// <br/>public/internal メソッドは完全修飾名で直接呼び出し、
+    /// 非 public メソッドは <c>UnsafeAccessor</c> 経由のアクセサ宣言を生成して呼び出す。
+    /// static / インスタンスでアクセサの生成方法が異なる（<c>StaticMethod</c> / <c>Method</c>）。
+    /// ジェネリックかつ非 public のメソッドは <c>UnsafeAccessor</c> で型引数を渡せないため失敗を返す。
+    /// </summary>
     private static bool TryRenderOrdinaryMethodInvocationExpression(
         IMethodSymbol method,
         InvocationExpressionSyntax invocation,
@@ -3213,6 +3586,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         expressionText=$"{instanceAccessorName}({receiverText}{(actualArguments.Count>0 ? ", " + argumentList : string.Empty)})";
         return true;
     }
+    /// <summary>
+    /// 通常メソッドの実引数リストを構築する。
+    /// <br/>名前付き引数に対応するため位置引数とスロット配列で処理する。
+    /// 省略可能パラメータは params 配列を空配列で補い、デフォルト値は <see cref="RenderConstantValue"/> で展開する。
+    /// スロットが埋まらない必須パラメータがある場合は false を返す。
+    /// </summary>
     private static bool TryCreateOrdinaryActualArgumentList(
         IMethodSymbol method,
         InvocationExpressionSyntax invocation,
@@ -3262,6 +3641,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         actualArguments=slots.Select(static slot => slot!).ToList();
         return true;
     }
+    /// <summary>
+    /// 通常メソッド呼び出しのレシーバー式テキストを解決する。
+    /// <c>obj.Method(…)</c> → <c>obj</c> のレンダリング結果、
+    /// <c>Method(…)</c>（暗黙の this）→ <c>@this</c>。
+    /// </summary>
     private static bool TryRenderOrdinaryReceiverExpression(
         InvocationExpressionSyntax invocation,
         SemanticModel semanticModel,
@@ -3289,6 +3673,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         };
         return $"{prefix}{parameter.Type.ToDisplayString(完全修飾形式)} {parameter.Name}";
     }
+    /// <summary>
+    /// テキスト内の型名を完全修飾名に安全に置換する。
+    /// 既に一致しているか <c>global::</c> 修飾済みなら何もしない。
+    /// 単語境界を考慮した正規表現で部分一致置換を防ぐ。
+    /// </summary>
     private static string ReplaceTypeNameForGeneratedMethod(string text,string originalName,string qualifiedName) {
         if(originalName==qualifiedName || originalName.StartsWith("global::",StringComparison.Ordinal)) {
             return text;
@@ -3299,6 +3688,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             qualifiedName,
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
     }
+    /// <summary>
+    /// 非 System.Linq 拡張メソッド呼び出しを、その本体をインライン展開した式に置き換える。
+    /// <br/>成功条件: 拡張メソッドのソースが取得でき、本体が式本体か単一 <c>return</c> 文であること。
+    /// <br/>実引数リストを <see cref="TryCreateExtensionActualArgumentList"/> で構築し、
+    /// <see cref="RenderInlineMethodBodyExpression"/> でパラメータ参照を実引数に置換してインライン化する。
+    /// </summary>
     private static bool TryRenderExtensionMethodInvocationExpression(
         IMethodSymbol method,
         InvocationExpressionSyntax invocation,
@@ -3342,6 +3737,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
         return false;
     }
+    /// <summary>
+    /// 拡張メソッドのインライン展開用実引数リストを構築する。
+    /// スロット[0] にレシーバー式（<c>source</c>）をセットし、
+    /// 以降はソース呼び出しの引数リストを名前付き引数対応でスロットに当てはめる。
+    /// <see cref="TryCreateOrdinaryActualArgumentList"/> の拡張メソッド版。
+    /// </summary>
     private static bool TryCreateExtensionActualArgumentList(
         IMethodSymbol definition,
         InvocationExpressionSyntax invocation,
@@ -3394,6 +3795,12 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         actualArguments=actualArgumentSlots.Select(static argument => argument!).ToList();
         return true;
     }
+    /// <summary>
+    /// メソッド本体式をインライン化する。
+    /// <see cref="RenderExpressionForGeneratedMethod"/> で本体テキストを生成した後、
+    /// <see cref="ReplaceInlineParameterReferences"/> でパラメータ参照を実引数テキストに置換する。
+    /// コレクション式や暗黙の配列生成は変換先の型にキャストする（型推論が使えないため）。
+    /// </summary>
     private static string RenderInlineMethodBodyExpression(
         ExpressionSyntax bodyExpression,
         ImmutableArray<IParameterSymbol> parameters,
@@ -3411,6 +3818,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
         return expressionText;
     }
+    /// <summary>
+    /// 式テキスト内のパラメータ名を実引数テキストに置換する。
+    /// <see cref="InlineParameterReferenceRewriter"/> で構文木を書き換えることで、
+    /// 単純な文字列置換では不可能な「メンバー名・ラベル等としてのパラメータ名を置換しない」制約を実現する。
+    /// </summary>
     private static string ReplaceInlineParameterReferences(string expressionText,ImmutableArray<IParameterSymbol> parameters,IReadOnlyList<string> actualArguments) {
         var replacements = new Dictionary<string,string>(StringComparer.Ordinal);
         for(var i=0;i<parameters.Length;i++) {
@@ -3435,14 +3847,27 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return SyntaxFactory.ParenthesizedExpression(SyntaxFactory.ParseExpression(replacement)).WithTriviaFrom(node);
         }
     }
+    /// <summary>
+    /// ローカルヘルパーメソッドをインライン化できなかった場合の代替式を生成する。
+    /// 静かなフォールバックを作らず、実行時に即例外を投げるラムダ式を返す。
+    /// <c>void</c> メソッドは <c>Action</c>、戻り値あり は <c>Func&lt;TResult&gt;</c> のキャストで即呼び出しする。
+    /// </summary>
     private static string RenderInlineFailureInvocationExpression(IMethodSymbol method) {
         var message = EscapeStringLiteral($"Local helper method '{method.Name}' could not be inlined. Forwarding is disabled.");
         return method.ReturnsVoid
             ? $"((global::System.Action)(() => throw global::Seamless.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\")))()"
             : $"((global::System.Func<{method.ReturnType.ToDisplayString(完全修飾形式)}>)(() => throw global::Seamless.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\")))()";
     }
+
+    /// <summary>文字列リテラルに埋め込むために <c>\</c> と <c>"</c> をエスケープする。</summary>
     private static string EscapeStringLiteral(string text) =>
         text.Replace("\\","\\\\",StringComparison.Ordinal).Replace("\"","\\\"",StringComparison.Ordinal);
+    /// <summary>
+    /// 非 public フィールドアクセスを <c>UnsafeAccessor</c> 経由の呼び出し式に変換する。
+    /// static フィールドは <c>StaticField</c> アクセサ、インスタンスフィールドは <c>Field</c> アクセサを生成し、
+    /// アクセサ宣言を <paramref name="unsafeAccessorCollector"/> に追加する。
+    /// アクセサは <c>ref {FieldType}</c> を返すため読み書きの両方に使える。
+    /// </summary>
     private static string RenderFieldForwardExpression(IFieldSymbol field,MemberAccessExpressionSyntax memberAccess,SemanticModel semanticModel,List<string>? unsafeAccessorCollector = null) {
         var typeName = SanitizeIdentifier(field.ContainingType.Name);
         var fieldName = SanitizeIdentifier(field.Name);
@@ -3470,6 +3895,16 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         var methodName = SanitizeIdentifier(method.Name);
         return $"__DelegateAccess_{typeName}_{methodName}";
     }
+    /// <summary>
+    /// メソッドグループ参照をデリゲート生成式に変換する。アクセシビリティに応じて 4 通りに分岐する:
+    /// <list type="bullet">
+    ///   <item><description>public インスタンス: <c>((Delegate)@this.Method)</c>（直接バインド）。</description></item>
+    ///   <item><description>非 public インスタンス: <c>UnsafeAccessor</c> ラムダ経由でデリゲート生成。</description></item>
+    ///   <item><description>public static: 完全修飾名で直接参照。</description></item>
+    ///   <item><description>非 public static: <c>UnsafeAccessor(StaticMethod)</c> ラムダ経由。</description></item>
+    /// </list>
+    /// いずれもリフレクションを使わない。
+    /// </summary>
     private static string RenderDelegateCreateExpression(IMethodSymbol method,INamedTypeSymbol delegateType,string? receiver,List<string>? unsafeAccessorCollector = null) {
         var delegateTypeName = delegateType.ToDisplayString(完全修飾形式);
         var declaringType = method.ContainingType.ToDisplayString(完全修飾形式);
