@@ -7,14 +7,22 @@ public class Count(int 番号, Enumerable source, string resultType) : BufferedS
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
-    protected override string ComputeMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source) {
-            {{resultType}} count = 0;
-            while(source.MoveNext()) count++;
-            return count;
-        }
-        """;
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source) {
+                source.TryGetSpan(out var __span);
+                return ({{resultType}})__span.Length;
+            }
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source) {
+                {{resultType}} count=0;
+                while(source.MoveNext()) count++;
+                return count;
+            }
+            """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 

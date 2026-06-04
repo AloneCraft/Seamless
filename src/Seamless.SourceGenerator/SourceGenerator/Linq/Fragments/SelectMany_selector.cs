@@ -102,7 +102,7 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
         """;
 }
 
-public class SelectMany(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
+public class SelectMany_selector(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, global::System.Collections.Generic.IEnumerable<{CollectionElementType}>>";
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 1 &&
@@ -158,7 +158,7 @@ public class SelectMany(int 番号, Enumerable source, FuncFragment selector) : 
     protected override string CurrentValueAssignmentFromInner => $"current = this.{currentValue} = {item};";
 }
 
-public class SelectMany_index(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
+public class SelectMany_indexSelector(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 1 &&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
@@ -180,7 +180,7 @@ public class SelectMany_index(int 番号, Enumerable source, FuncFragment select
     public override string ElementType => CollectionElementType;
 }
 
-public class SelectMany_resultSelector(int 番号, Enumerable source, FuncFragment collectionSelector, FuncFragment resultSelector) : SelectManyBase(番号, source) {
+public class SelectMany_selector_resultSelector(int 番号, Enumerable source, FuncFragment collectionSelector, FuncFragment resultSelector) : SelectManyBase(番号, source) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 2 &&
         !(method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
@@ -280,7 +280,7 @@ public class SelectMany_WithInlinedInner(int 番号, Enumerable source, Enumerab
         $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
 }
 
-public class SelectMany_index_resultSelector(int 番号, Enumerable source, FuncFragment collectionSelector, FuncFragment resultSelector) : SelectManyBase(番号, source) {
+public class SelectMany_indexSelector_resultSelector(int 番号, Enumerable source, FuncFragment collectionSelector, FuncFragment resultSelector) : SelectManyBase(番号, source) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 2 &&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };

@@ -1,5 +1,5 @@
 ﻿namespace Seamless.SourceGenerator.Linq.Fragments;
-public class Where(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
+public class Where_predicate(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         !(method.Parameters.Length > 0 &&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
@@ -119,7 +119,7 @@ public class Where_WithInlinedScalarPredicate(int 番号, Enumerable source, Fra
     }
 }
 
-public class Where_index(int 番号, Enumerable source, FuncFragment predicate) : Where(番号, source, predicate) {
+public class Where_indexPredicate(int 番号, Enumerable source, FuncFragment predicate) : Where_predicate(番号, source, predicate) {
     public static new bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length > 0 &&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };

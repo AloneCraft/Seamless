@@ -66,12 +66,7 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             comparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
             var items = new global::System.Collections.Generic.List<SortItem>();
             var index = 0;
-            while(source.MoveNext()) {
-                var {{item}} = source.Current;
-                {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
-                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
-                items.Add(new SortItem({{item}}, {{key}}, index++));
-            }
+            {{SortLoopSingle}}
             items.Sort((left, right) => {
                 var compare = comparer.Compare(left.Key, right.Key);
                 if(compare != 0) return {{(descending ? "-compare" : "compare")}};
@@ -82,6 +77,24 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             return result;
         }
         """;
+
+    private string SortLoopSingle => source.CanProvideSpan
+        ? $$"""
+            source.TryGetSpan(out var __span);
+            foreach(var {{item}} in __span){
+                {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                items.Add(new SortItem({{item}},{{key}},index++));
+            }
+            """
+        : $$"""
+            while(source.MoveNext()) {
+                var {{item}} = source.Current;
+                {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
+                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                items.Add(new SortItem({{item}}, {{key}}, index++));
+            }
+            """;
 
     private string BuildMembersCombined(OrderingBase po) => $$"""
         private readonly struct SortItem {
@@ -101,14 +114,7 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             primaryComparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>.Default;
             var items = new global::System.Collections.Generic.List<SortItem>();
             var index = 0;
-            while(source.MoveNext()) {
-                var {{item}} = source.Current;
-                {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
-                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
-                {{FuncReturnTypeName(po.OwnKeySelector)}} {{a}} = default!;
-                {{FuncAssign(po.OwnKeySelector,"primaryKeySelector",a,item)}}
-                items.Add(new SortItem({{item}}, {{key}}, {{a}}, index++));
-            }
+            {{SortLoopCombined(po)}}
             items.Sort((left, right) => {
                 var primaryCompare = primaryComparer.Compare(left.PrimaryKey, right.PrimaryKey);
                 if({{(po.OwnDescending ? "-primaryCompare" : "primaryCompare")}} != 0) return {{(po.OwnDescending ? "-primaryCompare" : "primaryCompare")}};
@@ -121,4 +127,26 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             return result;
         }
         """;
+
+    private string SortLoopCombined(OrderingBase po) => source.CanProvideSpan
+        ? $$"""
+            source.TryGetSpan(out var __span);
+            foreach(var {{item}} in __span){
+                {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                {{FuncReturnTypeName(po.OwnKeySelector)}} {{a}}=default!;
+                {{FuncAssign(po.OwnKeySelector,"primaryKeySelector",a,item)}}
+                items.Add(new SortItem({{item}},{{key}},{{a}},index++));
+            }
+            """
+        : $$"""
+            while(source.MoveNext()) {
+                var {{item}} = source.Current;
+                {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
+                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                {{FuncReturnTypeName(po.OwnKeySelector)}} {{a}} = default!;
+                {{FuncAssign(po.OwnKeySelector,"primaryKeySelector",a,item)}}
+                items.Add(new SortItem({{item}}, {{key}}, {{a}}, index++));
+            }
+            """;
 }

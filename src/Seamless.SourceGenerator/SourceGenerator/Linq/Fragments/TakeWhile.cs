@@ -1,6 +1,6 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
-public class TakeWhile(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
+public class TakeWhile_predicate(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         !(method.Parameters.Length > 0 &&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
@@ -44,7 +44,7 @@ public class TakeWhile(int 番号, Enumerable source, FuncFragment predicate) : 
     public override string ElementType => source.ElementType;
 }
 
-public class TakeWhile_index(int 番号, Enumerable source, FuncFragment predicate) : TakeWhile(番号, source, predicate) {
+public class TakeWhile_indexPredicate(int 番号, Enumerable source, FuncFragment predicate) : TakeWhile_predicate(番号, source, predicate) {
     public static new bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length > 0 &&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };

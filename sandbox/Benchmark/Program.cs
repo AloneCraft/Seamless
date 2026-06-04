@@ -1,7 +1,6 @@
-using BenchmarkDotNet.Diagnosers;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
-using BenchmarkDotNet.Toolchains.InProcess.Emit;
+using Perfolizer.Horology;
 
 namespace Benchmark;
 
@@ -18,26 +17,12 @@ internal static class Program{
         if(args.Length==0){
             args=["--filter","*"];
         }
-        IConfig? config;
-        if(Environment.GetEnvironmentVariable("BDN_DEBUG")=="1"){
-            config=new CustomBenchmarkConfig();
-        }else{
-            config=null;
-        }
+        var config=ManualConfig.Create(DefaultConfig.Instance)
+            .AddJob(Job.Default
+                .WithIterationTime(TimeInterval.Millisecond*100)  // WorkloadPilot の収束目標
+                .WithIterationCount(16)                           // WorkloadActual = 16
+                .WithWarmupCount(4)                               // WorkloadWarmup = 4
+            );
         BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args,config);
-    }
-}
-
-public class CustomBenchmarkConfig : ManualConfig{
-    public CustomBenchmarkConfig(){
-        WithOption(ConfigOptions.DisableOptimizationsValidator, true);
-        AddJob(Job.Default
-            .WithToolchain(InProcessEmitToolchain.Instance)
-            .WithWarmupCount(1)
-            .WithIterationCount(3)
-            .WithInvocationCount(16)
-            .WithLaunchCount(1)
-        );
-        AddDiagnoser(MemoryDiagnoser.Default);
     }
 }

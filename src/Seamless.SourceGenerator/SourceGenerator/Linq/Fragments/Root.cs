@@ -72,6 +72,7 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
 // 配列ソース専用。インデックスベースで走査し、IEnumerator<T> を一切介さない完全具象 struct を生成する。
 // TryGetSpan / TryGetNonEnumeratedCount も正しく実装するため GetEnumeratorStruct を手動出力する。
 public class ArrayRoot(int 番号, string sourceExpression, string elementType) : Enumerable(番号) {
+    public override bool CanProvideSpan => true;
     public override string StructMethod => string.Empty;
     // PrimarySource == null なので基底の EnumeratorTypeName は Struct のみ（型パラメータなし）を返す。
     public override string GetEnumeratorExpression => $"new {Struct}({sourceExpression})";
@@ -133,6 +134,7 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
 // CollectionsMarshal.AsSpan(list) で内部配列を直接 Span として走査する（配列ソースと同等の高速パス）。
 // 内部フィールド名に依存せず public API のみを使うため安全。TryGetSpan/TryGetNonEnumeratedCount/TryCopyTo も提供する。
 public class ListRoot(int 番号, string sourceExpression, string elementType) : Enumerable(番号) {
+    public override bool CanProvideSpan => true;
     public override string StructMethod => string.Empty;
     // PrimarySource == null なので基底の EnumeratorTypeName は Struct のみ（型パラメータなし）を返す。
     public override string GetEnumeratorExpression => $"new {Struct}({sourceExpression})";
