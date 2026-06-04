@@ -8,17 +8,27 @@ public class ElementAtOrDefault(int 番号, Enumerable source, string index, str
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int index";
     protected override string ComputeExpression => $"Compute({e}, index)";
-    protected override string ComputeMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source, int index) {
-            if(index < 0) return default!;
-            var currentIndex = 0;
-            while(source.MoveNext()) {
-                if(currentIndex == index) return source.Current;
-                currentIndex++;
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source, int index) {
+                if(index<0) return default!;
+                source.TryGetSpan(out var __span);
+                if((uint)index>=(uint)__span.Length) return default!;
+                return __span[index];
             }
-            return default!;
-        }
-        """;
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source, int index) {
+                if(index<0) return default!;
+                var currentIndex=0;
+                while(source.MoveNext()) {
+                    if(currentIndex==index) return source.Current;
+                    currentIndex++;
+                }
+                return default!;
+            }
+            """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }

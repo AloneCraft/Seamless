@@ -1,39 +1,62 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
-public class SkipLast(int 番号, Enumerable source, string count) : BufferedSequence(番号, source.ElementType) {
+public class SkipLast(int 番号, Enumerable source, string count) : Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==1 && method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
-    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string GetEnumeratorStruct => $$"""
+        {{source.GetEnumeratorStruct}}
+        {{base.GetEnumeratorStruct}}
+        """;
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {count})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source, int count";
-    protected override string BuildExpression => "Build(source, count)";
-    protected override string BuildMembers => source.CanProvideSpan
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int count";
+    public override string GetEnumeratorFields => source.CanProvideSpan
         ? $$"""
-            {{AggressiveInliningAttribute}}
-            private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, int count) {
-                var c=count<0?0:count;
-                source.TryGetSpan(out var __span);
-                var keep=__span.Length-global::System.Math.Min(c,__span.Length);
-                var result=new global::System.Collections.Generic.List<{{source.ElementType}}>(keep);
-                foreach(var item in __span.Slice(0,keep)) result.Add(item);
-                return result;
-            }
+            private int {{a}};
+            private int {{temp}}=-1;
             """
         : $$"""
-            {{AggressiveInliningAttribute}}
-            private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, int count) {
-                var c=count<0?0:count;
-                var buffer=new global::System.Collections.Generic.List<{{source.ElementType}}>();
-                while(source.MoveNext()) {
-                    buffer.Add(source.Current);
-                }
-                if(c>0&&buffer.Count>0) {
-                    var removeCount=global::System.Math.Min(c,buffer.Count);
-                    buffer.RemoveRange(buffer.Count-removeCount,removeCount);
-                }
-                return buffer;
-            }
+            private global::System.Collections.Generic.Queue<{{source.ElementType}}>? {{lookup}};
+            private bool {{yielded}};
             """;
+    public override string GetTryGetNextBody => source.CanProvideSpan
+        ? $$"""
+            if(this.{{temp}}<0) {
+                {{e}}.TryGetSpan(out var __span0);
+                this.{{temp}}=__span0.Length-global::System.Math.Min(count<0?0:count,__span0.Length);
+            }
+            {{e}}.TryGetSpan(out var __span);
+            if((uint)this.{{a}}<(uint)this.{{temp}}) {
+                current=this.{{currentValue}}=__span[this.{{a}}++];
+                return true;
+            }
+            current=default!;
+            return false;
+            """
+        : $$"""
+            var __c=count<0?0:count;
+            if(__c==0) {
+                if({{e}}.MoveNext()) {
+                    current=this.{{currentValue}}={{e}}.Current;
+                    return true;
+                }
+                current=default!;
+                return false;
+            }
+            if(!this.{{yielded}}) {
+                this.{{lookup}}=new global::System.Collections.Generic.Queue<{{source.ElementType}}>(__c+1);
+                while(this.{{lookup}}.Count<__c&&{{e}}.MoveNext()) this.{{lookup}}.Enqueue({{e}}.Current);
+                this.{{yielded}}=true;
+            }
+            if(this.{{lookup}} is not null&&{{e}}.MoveNext()) {
+                this.{{lookup}}.Enqueue({{e}}.Current);
+                current=this.{{currentValue}}=this.{{lookup}}.Dequeue();
+                return true;
+            }
+            current=default!;
+            return false;
+            """;
+    public override string GetCurrentExpression => currentValue;
+    public override string ElementType => source.ElementType;
 }

@@ -1,36 +1,59 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
-public class TakeLast(int 番号, Enumerable source, string count) : BufferedSequence(番号, source.ElementType) {
+public class TakeLast(int 番号, Enumerable source, string count) : Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==1 && method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
-    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string GetEnumeratorStruct => $$"""
+        {{source.GetEnumeratorStruct}}
+        {{base.GetEnumeratorStruct}}
+        """;
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {count})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source, int count";
-    protected override string BuildExpression => "Build(source, count)";
-    protected override string BuildMembers => source.CanProvideSpan
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int count";
+    public override string GetEnumeratorFields => source.CanProvideSpan
         ? $$"""
-            {{AggressiveInliningAttribute}}
-            private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, int count) {
-                var c=count<0?0:count;
-                source.TryGetSpan(out var __span);
-                var start=__span.Length-global::System.Math.Min(c,__span.Length);
-                var result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__span.Length-start);
-                foreach(var item in __span.Slice(start)) result.Add(item);
-                return result;
-            }
+            private int {{a}}=-1;
+            private int {{temp}};
             """
         : $$"""
-            {{AggressiveInliningAttribute}}
-            private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, int count) {
-                var c=count<0?0:count;
-                var buffer=new global::System.Collections.Generic.List<{{source.ElementType}}>();
-                while(source.MoveNext()) {
-                    buffer.Add(source.Current);
-                }
-                var s=buffer.Count-global::System.Math.Min(c,buffer.Count);
-                return buffer.GetRange(s,buffer.Count-s);
-            }
+            private global::System.Collections.Generic.Queue<{{source.ElementType}}>? {{lookup}};
             """;
+    public override string GetTryGetNextBody => source.CanProvideSpan
+        ? $$"""
+            {{e}}.TryGetSpan(out var __span);
+            if(this.{{a}}<0) {
+                var __c=count<0?0:count;
+                this.{{a}}=__span.Length-global::System.Math.Min(__c,__span.Length);
+                this.{{temp}}=__span.Length;
+            }
+            if((uint)this.{{a}}<(uint)this.{{temp}}) {
+                current=this.{{currentValue}}=__span[this.{{a}}++];
+                return true;
+            }
+            current=default!;
+            return false;
+            """
+        : $$"""
+            var __c=count<0?0:count;
+            if(this.{{lookup}} is null) {
+                this.{{lookup}}=new global::System.Collections.Generic.Queue<{{source.ElementType}}>(__c);
+                if(__c==0) {
+                    current=default!;
+                    return false;
+                }
+                while({{e}}.MoveNext()) {
+                    if(this.{{lookup}}.Count==__c) this.{{lookup}}.Dequeue();
+                    this.{{lookup}}.Enqueue({{e}}.Current);
+                }
+            }
+            if(this.{{lookup}}.Count>0) {
+                current=this.{{currentValue}}=this.{{lookup}}.Dequeue();
+                return true;
+            }
+            current=default!;
+            return false;
+            """;
+    public override string GetCurrentExpression => currentValue;
+    public override string ElementType => source.ElementType;
 }

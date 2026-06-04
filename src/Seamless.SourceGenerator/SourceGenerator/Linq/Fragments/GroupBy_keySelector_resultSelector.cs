@@ -7,7 +7,7 @@ public class GroupBy_keySelector_resultSelector(
     Enumerable source,
     FuncFragment keySelector,
     FuncFragment resultSelector)
-    : BufferedSequence(番号, resultSelector.CanInvokeAsDelegate ? "TResult" : FuncReturnTypeName(resultSelector)) {
+    : Enumerable(番号) {
 
     // resultSelector は Func<TKey, IEnumerable<TSource>, TResult>（3引数）で識別する。
     // elementSelector Func<TSource, TElement>（2引数）は除外。
@@ -17,6 +17,7 @@ public class GroupBy_keySelector_resultSelector(
 
     protected override Enumerable PrimarySource => source;
     private bool UseResultTypeParam => resultSelector.CanInvokeAsDelegate;
+    public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(resultSelector);
 
     protected override string StructTypeParameters =>
         UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
@@ -38,7 +39,10 @@ public class GroupBy_keySelector_resultSelector(
 
     public override string StructMethod => JoinStaticMethods(JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)), FuncSupport(resultSelector, nameof(resultSelector))), FactorySource);
 
-    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string GetEnumeratorStruct => $$"""
+        {{source.GetEnumeratorStruct}}
+        {{base.GetEnumeratorStruct}}
+        """;
 
     public override string GetEnumeratorExpression =>
         UseResultTypeParam
@@ -46,36 +50,44 @@ public class GroupBy_keySelector_resultSelector(
             : $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector, resultSelector)})";
 
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum source{ClosurePrimaryCtorSuffix(keySelector, resultSelector)}";
-
-    protected override string BuildExpression =>
-        $"Build(source{ClosureArgsSuffixForFactory(keySelector, resultSelector)})";
-
-    protected override string BuildMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static global::System.Collections.Generic.List<{{ElementType}}> Build(TEnum source{{ClosureMethodParameterSuffix(keySelector, resultSelector)}}) {
-            var {{result}} = new global::System.Collections.Generic.List<{{ElementType}}>();
-            var map = new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>();
-            var order = new global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>();
-            while(source.MoveNext()) {
-                var {{item}} = source.Current;
-                {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
-                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
-                if(!map.TryGetValue({{key}}, out var {{group}})) {
-                    {{group}} = new global::System.Collections.Generic.List<{{source.ElementType}}>();
-                    map.Add({{key}}, {{group}});
-                    order.Add({{key}});
-                }
-                {{group}}.Add({{item}});
-            }
-            foreach(var {{key}} in order) {
-                {{ElementType}} {{temp}} = default!;
-                {{FuncAssign(resultSelector,nameof(resultSelector),temp,key,$"(global::System.Collections.Generic.IEnumerable<{source.ElementType}>)map[{key}]")}}
-                {{result}}.Add({{temp}});
-            }
-            return {{result}};
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector, resultSelector)}";
+    public override string GetEnumeratorFields => $$"""
+        {{ClosureFields(keySelector,resultSelector)}}
+        private global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>? {{lookup}};
+        private global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>? {{group}};
+        private int {{a}}=-1;
+        """;
+    public override string GetEnumeratorConstructor => $$"""
+        public {{Struct}}({{GetEnumeratorPrimaryConstructorParameters}}) {
+            {{ClosureFieldAssignments(keySelector,resultSelector)}}
         }
         """;
+    public override string GetTryGetNextBody => $$"""
+        if(this.{{lookup}} is null) {
+            this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>();
+            this.{{group}}=new global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>();
+            while({{e}}.MoveNext()) {
+                var {{item}}={{e}}.Current;
+                {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                if(!this.{{lookup}}.TryGetValue({{key}},out var __group)) {
+                    __group=new global::System.Collections.Generic.List<{{source.ElementType}}>();
+                    this.{{lookup}}.Add({{key}},__group);
+                    this.{{group}}.Add({{key}});
+                }
+                __group.Add({{item}});
+            }
+        }
+        this.{{a}}++;
+        if(this.{{group}} is not null&&(uint)this.{{a}}<(uint)this.{{group}}.Count) {
+            var __key=this.{{group}}[this.{{a}}];
+            {{FuncAssignCurrent(resultSelector,nameof(resultSelector),currentValue,"__key",$"(global::System.Collections.Generic.IEnumerable<{source.ElementType}>)this.{lookup}[__key]")}}
+            return true;
+        }
+        current=default!;
+        return false;
+        """;
+    public override string GetCurrentExpression => currentValue;
 
     public override string GetEnumerableExpression =>
         UseResultTypeParam

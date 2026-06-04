@@ -9,17 +9,27 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int index";
     protected override string ComputeExpression => $"Compute({e}, index)";
-    protected override string ComputeMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source, int index) {
-            if(index < 0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
-            var currentIndex = 0;
-            while(source.MoveNext()) {
-                if(currentIndex == index) return source.Current;
-                currentIndex++;
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source, int index) {
+                if(index<0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                source.TryGetSpan(out var __span);
+                if((uint)index>=(uint)__span.Length) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                return __span[index];
             }
-            throw new global::System.ArgumentOutOfRangeException(nameof(index));
-        }
-        """;
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source, int index) {
+                if(index<0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                var currentIndex=0;
+                while(source.MoveNext()) {
+                    if(currentIndex==index) return source.Current;
+                    currentIndex++;
+                }
+                throw new global::System.ArgumentOutOfRangeException(nameof(index));
+            }
+            """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }

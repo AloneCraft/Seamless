@@ -1,5 +1,5 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
-public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector, string seed, FuncFragment func, string resultElementType) : BufferedSequence(番号, resultElementType) {
+public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector, string seed, FuncFragment func, string resultElementType) : Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     private string KeyType => FuncReturnTypeName(keySelector);
 
@@ -7,28 +7,44 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
         {{FuncSupport(keySelector,nameof(keySelector))}}
         {{FuncSupport(func,nameof(func))}}
         """;
-    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string GetEnumeratorStruct => $$"""
+        {{source.GetEnumeratorStruct}}
+        {{base.GetEnumeratorStruct}}
+        """;
     public override string GetEnumeratorExpression =>
         $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector,func)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum source{ClosurePrimaryCtorSuffix(keySelector,func)}";
-    protected override string BuildExpression =>
-        $"Build(source{ClosureArgsSuffix(keySelector,func)})";
-    protected override string BuildMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static global::System.Collections.Generic.List<{{resultElementType}}> Build(TEnum source{{ClosureMethodParameterSuffix(keySelector,func)}}) {
-            var result = new global::System.Collections.Generic.List<{{resultElementType}}>();
-            var map = new global::System.Collections.Generic.Dictionary<{{KeyType}}, {{FuncReturnTypeName(func)}}>();
-            while(source.MoveNext()) {
-                var {{item}} = source.Current;
-                {{KeyType}} {{key}} = default!;
-                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
-                if(!map.TryGetValue({{key}}, out var aggregate)) aggregate = {{seed}};
-                {{FuncAssign(func,nameof(func),"aggregate","aggregate",item)}}
-                map[{{key}}] = aggregate;
-            }
-            foreach(var pair in map) result.Add(new {{resultElementType}}(pair.Key, pair.Value));
-            return result;
-        }
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector,func)}";
+    public override string GetEnumeratorFields => $$"""
+        private global::System.Collections.Generic.Dictionary<{{KeyType}}, {{FuncReturnTypeName(func)}}>? {{lookup}};
+        private global::System.Collections.Generic.List<{{KeyType}}>? {{group}};
+        private int {{a}}=-1;
         """;
+    public override string GetTryGetNextBody => $$"""
+        if(this.{{lookup}} is null) {
+            this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{KeyType}}, {{FuncReturnTypeName(func)}}>();
+            this.{{group}}=new global::System.Collections.Generic.List<{{KeyType}}>();
+            while({{e}}.MoveNext()) {
+                var {{item}}={{e}}.Current;
+                {{KeyType}} {{key}}=default!;
+                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                if(!this.{{lookup}}.TryGetValue({{key}},out var aggregate)) {
+                    aggregate={{seed}};
+                    this.{{group}}.Add({{key}});
+                }
+                {{FuncAssign(func,nameof(func),"aggregate","aggregate",item)}}
+                this.{{lookup}}[{{key}}]=aggregate;
+            }
+        }
+        this.{{a}}++;
+        if(this.{{group}} is not null&&(uint)this.{{a}}<(uint)this.{{group}}.Count) {
+            var __key=this.{{group}}[this.{{a}}];
+            current=this.{{currentValue}}=new {{resultElementType}}(__key,this.{{lookup}}[__key]);
+            return true;
+        }
+        current=default!;
+        return false;
+        """;
+    public override string GetCurrentExpression => currentValue;
+    public override string ElementType => resultElementType;
 }
