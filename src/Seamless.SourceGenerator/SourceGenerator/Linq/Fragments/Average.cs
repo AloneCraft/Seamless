@@ -7,19 +7,34 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
-    protected override string ComputeMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source) {
-            long count = 0;
-            double sum = 0;
-            while(source.MoveNext()) {
-                sum += global::System.Convert.ToDouble(source.Current);
-                count++;
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source) {
+                long count = 0;
+                double sum = 0;
+                source.TryGetSpan(out var __span);
+                if(__span.Length==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
+                foreach(var item in __span){
+                    sum+=global::System.Convert.ToDouble(item);
+                    count++;
+                }
+                return ({{resultType}})(sum/count);
             }
-            if(count == 0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
-            return ({{resultType}})(sum / count);
-        }
-        """;
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source) {
+                long count = 0;
+                double sum = 0;
+                while(source.MoveNext()){
+                    sum+=global::System.Convert.ToDouble(source.Current);
+                    count++;
+                }
+                if(count==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
+                return ({{resultType}})(sum/count);
+            }
+            """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
@@ -34,21 +49,38 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
         $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
     protected override string ComputeExpression =>
         $"Compute({e}{ClosureArgsSuffix(selector)})";
-    protected override string ComputeMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
-            long count = 0;
-            double sum = 0;
-            while(source.MoveNext()) {
-                var {{item}} = source.Current;
-                {{FuncReturnTypeName(selector)}} {{temp}} = default!;
-                {{FuncAssign(selector,nameof(selector),temp,item)}}
-                sum += global::System.Convert.ToDouble({{temp}});
-                count++;
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+                long count = 0;
+                double sum = 0;
+                source.TryGetSpan(out var __span);
+                if(__span.Length==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
+                foreach(var {{item}} in __span){
+                    {{FuncReturnTypeName(selector)}} {{temp}}=default!;
+                    {{FuncAssign(selector,nameof(selector),temp,item)}}
+                    sum+=global::System.Convert.ToDouble({{temp}});
+                    count++;
+                }
+                return ({{resultType}})(sum/count);
             }
-            if(count == 0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
-            return ({{resultType}})(sum / count);
-        }
-        """;
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+                long count = 0;
+                double sum = 0;
+                while(source.MoveNext()){
+                    var {{item}}=source.Current;
+                    {{FuncReturnTypeName(selector)}} {{temp}}=default!;
+                    {{FuncAssign(selector,nameof(selector),temp,item)}}
+                    sum+=global::System.Convert.ToDouble({{temp}});
+                    count++;
+                }
+                if(count==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
+                return ({{resultType}})(sum/count);
+            }
+            """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }

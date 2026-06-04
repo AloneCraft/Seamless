@@ -7,21 +7,35 @@ public class Chunk(int 番号, Enumerable source, string size) : BufferedSequenc
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {size})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source, int size";
     protected override string BuildExpression => "Build(source, size)";
-    protected override string BuildMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static global::System.Collections.Generic.List<{{source.ElementType}}[]> Build(TEnum source, int size) {
-            if(size <= 0) throw new global::System.ArgumentOutOfRangeException(nameof(size));
-            var result = new global::System.Collections.Generic.List<{{source.ElementType}}[]>();
-            var chunk = new global::System.Collections.Generic.List<{{source.ElementType}}>(size);
-            while(source.MoveNext()) {
-                chunk.Add(source.Current);
-                if(chunk.Count == size) {
-                    result.Add(chunk.ToArray());
-                    chunk.Clear();
+    protected override string BuildMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static global::System.Collections.Generic.List<{{source.ElementType}}[]> Build(TEnum source, int size) {
+                if(size <= 0) throw new global::System.ArgumentOutOfRangeException(nameof(size));
+                var result = new global::System.Collections.Generic.List<{{source.ElementType}}[]>();
+                source.TryGetSpan(out var __span);
+                for(int __i=0;__i<__span.Length;__i+=size){
+                    var len=global::System.Math.Min(size,__span.Length-__i);
+                    result.Add(__span.Slice(__i,len).ToArray());
                 }
+                return result;
             }
-            if(chunk.Count > 0) result.Add(chunk.ToArray());
-            return result;
-        }
-        """;
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static global::System.Collections.Generic.List<{{source.ElementType}}[]> Build(TEnum source, int size) {
+                if(size <= 0) throw new global::System.ArgumentOutOfRangeException(nameof(size));
+                var result = new global::System.Collections.Generic.List<{{source.ElementType}}[]>();
+                var chunk = new global::System.Collections.Generic.List<{{source.ElementType}}>(size);
+                while(source.MoveNext()) {
+                    chunk.Add(source.Current);
+                    if(chunk.Count == size) {
+                        result.Add(chunk.ToArray());
+                        chunk.Clear();
+                    }
+                }
+                if(chunk.Count > 0) result.Add(chunk.ToArray());
+                return result;
+            }
+            """;
 }

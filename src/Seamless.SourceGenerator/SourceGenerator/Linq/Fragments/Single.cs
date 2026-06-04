@@ -8,15 +8,25 @@ public class Single(int 番号, Enumerable source, string resultType) : Buffered
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
-    protected override string ComputeMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source) {
-            if(!source.MoveNext()) throw global::Seamless.GeneratedCodeHelpers.NoElements();
-            {{resultType}} value = source.Current;
-            if(source.MoveNext()) throw new global::System.InvalidOperationException("Sequence contains more than one element");
-            return value;
-        }
-        """;
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source) {
+                source.TryGetSpan(out var __span);
+                if(__span.Length==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
+                if(__span.Length>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
+                return __span[0];
+            }
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source) {
+                if(!source.MoveNext()) throw global::Seamless.GeneratedCodeHelpers.NoElements();
+                {{resultType}} value = source.Current;
+                if(source.MoveNext()) throw new global::System.InvalidOperationException("Sequence contains more than one element");
+                return value;
+            }
+            """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
@@ -32,24 +42,44 @@ public class Single_predicate(int 番号, Enumerable source, FuncFragment predic
         $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({e}{ClosureArgsSuffix(predicate)})";
-    protected override string ComputeMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
-            {{resultType}} value = default!;
-            bool found = false;
-            while(source.MoveNext()) {
-                var {{item}} = source.Current;
-                bool {{temp}} = default!;
-                {{FuncAssign(predicate, nameof(predicate), temp, item)}}
-                if({{temp}}) {
-                    if(found) throw new global::System.InvalidOperationException("Sequence contains more than one matching element");
-                    value = {{item}};
-                    found = true;
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
+                {{resultType}} value = default!;
+                bool found = false;
+                source.TryGetSpan(out var __span);
+                foreach(var {{item}} in __span){
+                    bool {{temp}}=default!;
+                    {{FuncAssign(predicate, nameof(predicate), temp, item)}}
+                    if({{temp}}) {
+                        if(found) throw new global::System.InvalidOperationException("Sequence contains more than one matching element");
+                        value={{item}};
+                        found=true;
+                    }
                 }
+                if(!found) throw global::Seamless.GeneratedCodeHelpers.NoElements();
+                return value;
             }
-            if(!found) throw global::Seamless.GeneratedCodeHelpers.NoElements();
-            return value;
-        }
-        """;
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
+                {{resultType}} value = default!;
+                bool found = false;
+                while(source.MoveNext()) {
+                    var {{item}} = source.Current;
+                    bool {{temp}} = default!;
+                    {{FuncAssign(predicate, nameof(predicate), temp, item)}}
+                    if({{temp}}) {
+                        if(found) throw new global::System.InvalidOperationException("Sequence contains more than one matching element");
+                        value = {{item}};
+                        found = true;
+                    }
+                }
+                if(!found) throw global::Seamless.GeneratedCodeHelpers.NoElements();
+                return value;
+            }
+            """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }

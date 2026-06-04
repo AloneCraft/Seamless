@@ -7,14 +7,24 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
-    protected override string ComputeMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source) {
-            {{resultType}} sum = default!;
-            while(source.MoveNext()) sum += source.Current;
-            return sum;
-        }
-        """;
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source) {
+                {{resultType}} sum = default!;
+                source.TryGetSpan(out var __span);
+                foreach(var item in __span) sum+=item;
+                return sum;
+            }
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source) {
+                {{resultType}} sum = default!;
+                while(source.MoveNext()) sum+=source.Current;
+                return sum;
+            }
+            """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
@@ -29,18 +39,32 @@ public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, 
         $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
     protected override string ComputeExpression =>
         $"Compute({e}{ClosureArgsSuffix(selector)})";
-    protected override string ComputeMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
-            {{resultType}} sum = default!;
-            while(source.MoveNext()) {
-                var {{item}} = source.Current;
-                {{FuncReturnTypeName(selector)}} {{temp}} = default!;
-                {{FuncAssign(selector,nameof(selector),temp,item)}}
-                sum += {{temp}};
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+                {{resultType}} sum = default!;
+                source.TryGetSpan(out var __span);
+                foreach(var {{item}} in __span){
+                    {{FuncReturnTypeName(selector)}} {{temp}}=default!;
+                    {{FuncAssign(selector,nameof(selector),temp,item)}}
+                    sum+={{temp}};
+                }
+                return sum;
             }
-            return sum;
-        }
-        """;
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+                {{resultType}} sum = default!;
+                while(source.MoveNext()){
+                    var {{item}}=source.Current;
+                    {{FuncReturnTypeName(selector)}} {{temp}}=default!;
+                    {{FuncAssign(selector,nameof(selector),temp,item)}}
+                    sum+={{temp}};
+                }
+                return sum;
+            }
+            """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }

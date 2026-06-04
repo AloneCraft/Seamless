@@ -1,5 +1,5 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
-public class SkipWhile(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
+public class SkipWhile_predicate(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         !(method.Parameters.Length > 0 &&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
@@ -42,7 +42,7 @@ public class SkipWhile(int 番号, Enumerable source, FuncFragment predicate) : 
     public override string ElementType => source.ElementType;
 }
 
-public class SkipWhile_index(int 番号, Enumerable source, FuncFragment predicate) : SkipWhile(番号, source, predicate) {
+public class SkipWhile_indexPredicate(int 番号, Enumerable source, FuncFragment predicate) : SkipWhile_predicate(番号, source, predicate) {
     public static new bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length > 0 &&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };

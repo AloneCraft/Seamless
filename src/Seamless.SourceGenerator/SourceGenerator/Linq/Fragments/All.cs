@@ -1,5 +1,5 @@
 ﻿namespace Seamless.SourceGenerator.Linq.Fragments;
-public class All(int 番号, Enumerable source, FuncFragment predicate) : Scalar(番号) {
+public class All_predicate(int 番号, Enumerable source, FuncFragment predicate) : Scalar(番号) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => FuncSupport(predicate,nameof(predicate));
     public override string GetEnumeratorExpression =>
@@ -21,24 +21,43 @@ public class All(int 番号, Enumerable source, FuncFragment predicate) : Scalar
                 ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n            if(!{condExpr})";
 
-            return $$"""
-                if(this.{{yielded}}) {
-                    current = default;
-                    return false;
-                }
-                this.{{yielded}} = true;
-                while({{e}}.MoveNext()) {
-                    var {{item}} = {{e}}.Current;
-                    {{predicateCheck}} {
-                        this.{{currentValue}} = false;
-                        current = this.{{currentValue}};
-                        return true;
+            return source.CanProvideSpan
+                ? $$"""
+                    if(this.{{yielded}}) {
+                        current = default;
+                        return false;
                     }
-                }
-                this.{{currentValue}} = true;
-                current = this.{{currentValue}};
-                return true;
-                """;
+                    this.{{yielded}} = true;
+                    {{e}}.TryGetSpan(out var __span);
+                    foreach(var {{item}} in __span){
+                        {{predicateCheck}} {
+                            this.{{currentValue}}=false;
+                            current=this.{{currentValue}};
+                            return true;
+                        }
+                    }
+                    this.{{currentValue}}=true;
+                    current=this.{{currentValue}};
+                    return true;
+                    """
+                : $$"""
+                    if(this.{{yielded}}) {
+                        current = default;
+                        return false;
+                    }
+                    this.{{yielded}} = true;
+                    while({{e}}.MoveNext()) {
+                        var {{item}} = {{e}}.Current;
+                        {{predicateCheck}} {
+                            this.{{currentValue}} = false;
+                            current = this.{{currentValue}};
+                            return true;
+                        }
+                    }
+                    this.{{currentValue}} = true;
+                    current = this.{{currentValue}};
+                    return true;
+                    """;
         }
     }
     public override string GetCurrentExpression => currentValue;

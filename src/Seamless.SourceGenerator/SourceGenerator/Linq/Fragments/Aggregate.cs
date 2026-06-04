@@ -13,23 +13,44 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
     public override string GetEnumeratorFields => $$"""
         private bool {{yielded}} = false;
         """;
-    public override string GetTryGetNextBody => $$"""
-        if(this.{{yielded}}) {
-            current = default!;
-            return false;
-        }
-        this.{{yielded}} = true;
-        if(!{{e}}.MoveNext()) {
-            throw global::Seamless.GeneratedCodeHelpers.NoElements();
-        }
-        var {{result}} = {{e}}.Current;
-        while({{e}}.MoveNext()) {
-            {{FuncAssign(func,nameof(func),result,result,$"{e}.Current")}}
-        }
-        this.{{currentValue}} = {{result}};
-        current = this.{{currentValue}};
-        return true;
-        """;
+    public override string GetTryGetNextBody => source.CanProvideSpan
+        ? $$"""
+            if(this.{{yielded}}) {
+                current = default!;
+                return false;
+            }
+            this.{{yielded}} = true;
+            {{e}}.TryGetSpan(out var __span);
+            if(__span.Length==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
+            {{source.ElementType}} {{result}}=default!;
+            var __first=true;
+            foreach(var __item in __span){
+                if(__first){
+                    {{result}}=__item;
+                    __first=false;
+                }else{
+                    {{FuncAssign(func,nameof(func),result,result,"__item")}}
+                }
+            }
+            this.{{currentValue}}={{result}};
+            current=this.{{currentValue}};
+            return true;
+            """
+        : $$"""
+            if(this.{{yielded}}) {
+                current = default!;
+                return false;
+            }
+            this.{{yielded}} = true;
+            if(!{{e}}.MoveNext()) throw global::Seamless.GeneratedCodeHelpers.NoElements();
+            var {{result}}={{e}}.Current;
+            while({{e}}.MoveNext()){
+                {{FuncAssign(func,nameof(func),result,result,$"{e}.Current")}}
+            }
+            this.{{currentValue}}={{result}};
+            current=this.{{currentValue}};
+            return true;
+            """;
     public override string GetCurrentExpression => currentValue;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
@@ -48,20 +69,36 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
     public override string GetEnumeratorFields => $$"""
         private bool {{yielded}} = false;
         """;
-    public override string GetTryGetNextBody => $$"""
-        if(this.{{yielded}}) {
-            current = default!;
-            return false;
-        }
-        this.{{yielded}} = true;
-        var {{result}} = {{seed}};
-        while({{e}}.MoveNext()) {
-            {{FuncAssign(func,nameof(func),result,result,$"{e}.Current")}}
-        }
-        this.{{currentValue}} = {{result}};
-        current = this.{{currentValue}};
-        return true;
-        """;
+    public override string GetTryGetNextBody => source.CanProvideSpan
+        ? $$"""
+            if(this.{{yielded}}) {
+                current = default!;
+                return false;
+            }
+            this.{{yielded}} = true;
+            var {{result}} = {{seed}};
+            {{e}}.TryGetSpan(out var __span);
+            foreach(var __item in __span){
+                {{FuncAssign(func,nameof(func),result,result,"__item")}}
+            }
+            this.{{currentValue}}={{result}};
+            current=this.{{currentValue}};
+            return true;
+            """
+        : $$"""
+            if(this.{{yielded}}) {
+                current = default!;
+                return false;
+            }
+            this.{{yielded}} = true;
+            var {{result}} = {{seed}};
+            while({{e}}.MoveNext()){
+                {{FuncAssign(func,nameof(func),result,result,$"{e}.Current")}}
+            }
+            this.{{currentValue}}={{result}};
+            current=this.{{currentValue}};
+            return true;
+            """;
     public override string GetCurrentExpression => currentValue;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
@@ -83,20 +120,36 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
     public override string GetEnumeratorFields => $$"""
         private bool {{yielded}} = false;
         """;
-    public override string GetTryGetNextBody => $$"""
-        if(this.{{yielded}}) {
-            current = default!;
-            return false;
-        }
-        this.{{yielded}} = true;
-        var {{result}} = {{seed}};
-        while({{e}}.MoveNext()) {
-            {{FuncAssign(func,nameof(func),result,result,$"{e}.Current")}}
-        }
-        {{FuncAssign(resultSelector,nameof(resultSelector),$"this.{currentValue}",result)}}
-        current = this.{{currentValue}};
-        return true;
-        """;
+    public override string GetTryGetNextBody => source.CanProvideSpan
+        ? $$"""
+            if(this.{{yielded}}) {
+                current = default!;
+                return false;
+            }
+            this.{{yielded}} = true;
+            var {{result}} = {{seed}};
+            {{e}}.TryGetSpan(out var __span);
+            foreach(var __item in __span){
+                {{FuncAssign(func,nameof(func),result,result,"__item")}}
+            }
+            {{FuncAssign(resultSelector,nameof(resultSelector),$"this.{currentValue}",result)}}
+            current=this.{{currentValue}};
+            return true;
+            """
+        : $$"""
+            if(this.{{yielded}}) {
+                current = default!;
+                return false;
+            }
+            this.{{yielded}} = true;
+            var {{result}} = {{seed}};
+            while({{e}}.MoveNext()){
+                {{FuncAssign(func,nameof(func),result,result,$"{e}.Current")}}
+            }
+            {{FuncAssign(resultSelector,nameof(resultSelector),$"this.{currentValue}",result)}}
+            current=this.{{currentValue}};
+            return true;
+            """;
     public override string GetCurrentExpression => currentValue;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }

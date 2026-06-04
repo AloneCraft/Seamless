@@ -54,7 +54,7 @@
 
 - `Fragments/` フォルダ下の `Fragment` 継承クラスをリフレクションで自動列挙。
 - 型名の命名規則: `{MethodName}_{VariantName}` 形式
-  - 例: `Aggregate_func`, `Where_index`, `Join`
+  - 例: `Aggregate_func`, `Where_indexPredicate`, `Join`
 - コンストラクタの第1引数は必ず `int`（一意な番号）
 - パラメータ数の多い（より特化した）オーバーロードを優先して試行
 - 新しい Fragment クラスを追加するだけで辞書が自動更新される
@@ -1074,7 +1074,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     ///   例:
     ///     Aggregate_func          → MethodName="Aggregate", VariantName="func"
     ///     Aggregate_seed_func     → MethodName="Aggregate", VariantName="seed_func"
-    ///     Where_index             → MethodName="Where",     VariantName="index"
+    ///     Where_indexPredicate    → MethodName="Where",     VariantName="indexPredicate"
     ///     Join                    → MethodName="Join",      VariantName="" (空文字)
     ///
     /// 【除外する型 (helperTypes)】
@@ -1171,7 +1171,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     /// Fragment 候補一覧から Method 名に対応する型
     /// 例:
     /// Aggregate_func / Aggregate_seed_func / Aggregate_seed_func_resultSelector
-    /// Where / Where_index
+    /// Where_predicate / Where_indexPredicate
     /// Join / GroupJoin
     /// を順に試し、成立したチェーンへ正規化する。
     /// </summary>

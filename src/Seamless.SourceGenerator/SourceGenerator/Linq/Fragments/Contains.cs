@@ -8,16 +8,28 @@ public class Contains(int 番号, Enumerable source, string value, string result
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {value})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {source.ElementType} value";
     protected override string ComputeExpression => $"Compute({e}, value)";
-    protected override string ComputeMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value) {
-            var comparer = global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
-            while(source.MoveNext()) {
-                if(comparer.Equals(source.Current, value)) return true;
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value) {
+                var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
+                source.TryGetSpan(out var __span);
+                foreach(var item in __span){
+                    if(comparer.Equals(item,value)) return true;
+                }
+                return false;
             }
-            return false;
-        }
-        """;
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value) {
+                var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
+                while(source.MoveNext()){
+                    if(comparer.Equals(source.Current,value)) return true;
+                }
+                return false;
+            }
+            """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
@@ -30,15 +42,27 @@ public class Contains_comparer(int 番号, Enumerable source, string value, stri
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {value}, {comparer})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {source.ElementType} value, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string ComputeExpression => $"Compute({e}, value, comparer)";
-    protected override string ComputeMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
-            comparer ??= global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
-            while(source.MoveNext()) {
-                if(comparer.Equals(source.Current, value)) return true;
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
+                comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
+                source.TryGetSpan(out var __span);
+                foreach(var item in __span){
+                    if(comparer.Equals(item,value)) return true;
+                }
+                return false;
             }
-            return false;
-        }
-        """;
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
+                comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
+                while(source.MoveNext()){
+                    if(comparer.Equals(source.Current,value)) return true;
+                }
+                return false;
+            }
+            """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }

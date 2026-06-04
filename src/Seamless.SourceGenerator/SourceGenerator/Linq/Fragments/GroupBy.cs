@@ -1,6 +1,6 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
-public class GroupBy(int 番号, Enumerable source, FuncFragment keySelector) : BufferedSequence(番号, $"global::System.Linq.IGrouping<{FuncReturnTypeName(keySelector)}, {source.ElementType}>") {
+public class GroupBy_keySelector(int 番号, Enumerable source, FuncFragment keySelector) : BufferedSequence(番号, $"global::System.Linq.IGrouping<{FuncReturnTypeName(keySelector)}, {source.ElementType}>") {
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => FuncSupport(keySelector,nameof(keySelector));
@@ -25,6 +25,25 @@ public class GroupBy(int 番号, Enumerable source, FuncFragment keySelector) : 
         private static global::System.Collections.Generic.List<global::System.Linq.IGrouping<{{FuncReturnTypeName(keySelector)}}, {{source.ElementType}}>> Build(TEnum source{{ClosureMethodParameterSuffix(keySelector)}}) {
             var result = new global::System.Collections.Generic.List<global::System.Linq.IGrouping<{{FuncReturnTypeName(keySelector)}}, {{source.ElementType}}>>();
             var map = new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, Grouping>();
+            {{GroupLoop}}
+            return result;
+        }
+        """;
+    private string GroupLoop => source.CanProvideSpan
+        ? $$"""
+            source.TryGetSpan(out var __span);
+            foreach(var {{item}} in __span){
+                {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                if(!map.TryGetValue({{key}},out var group)){
+                    group=new Grouping({{key}});
+                    map.Add({{key}},group);
+                    result.Add(group);
+                }
+                group.Add({{item}});
+            }
+            """
+        : $$"""
             while(source.MoveNext()) {
                 var {{item}} = source.Current;
                 {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
@@ -36,7 +55,5 @@ public class GroupBy(int 番号, Enumerable source, FuncFragment keySelector) : 
                 }
                 group.Add({{item}});
             }
-            return result;
-        }
-        """;
+            """;
 }

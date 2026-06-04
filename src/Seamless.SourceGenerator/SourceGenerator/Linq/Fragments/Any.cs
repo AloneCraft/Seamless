@@ -35,7 +35,7 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
         if(invocation.ArgumentList.Arguments.Count - argumentStartIndex == 1) {
             if(!buildFunc(invocation.ArgumentList.Arguments[argumentStartIndex].Expression, method.Parameters[argumentStartIndex].Type, ref uniqueNumber, out var predicate, semanticModel, containingType))
                 return false;
-            var whereVariantName = predicate.ParameterTypeNames.Length > 1 ? "index" : string.Empty;
+            var whereVariantName = predicate.ParameterTypeNames.Length > 1 ? "indexPredicate" : "predicate";
             var whereFragment = createFragment("Where", whereVariantName, uniqueNumber++, [sourceFragment, predicate]);
             if(whereFragment is not Enumerable whereEnumerable)
                 return false;
