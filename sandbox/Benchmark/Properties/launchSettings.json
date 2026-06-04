@@ -5,9 +5,12 @@
       "commandLineArgs": "--filter * -- Default",
       "workingDirectory": "."
     },
-    "Select Benchmark": {
+    "RunAllBenchmark(Debug)": {
       "commandName": "Project",
-      "commandLineArgs": ""
+      "commandLineArgs": "--filter *",
+      "environmentVariables": {
+        "BDN_DEBUG": "1"
+      }
     },
     "Run All Benchmarks": {
       "commandName": "Project",

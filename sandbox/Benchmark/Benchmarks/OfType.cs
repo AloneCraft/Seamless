@@ -6,10 +6,10 @@ public class OfType:Base{
         Enumerable.OfType<int>(src).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.OfType<int>().Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.OfType<int>().Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

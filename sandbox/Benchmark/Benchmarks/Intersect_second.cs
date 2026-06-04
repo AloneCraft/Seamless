@@ -6,10 +6,10 @@ public class Intersect_second:Base{
         Enumerable.Intersect(src,src2).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.Intersect(this.src2).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.Intersect(src2).Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

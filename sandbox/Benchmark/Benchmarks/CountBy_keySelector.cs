@@ -6,10 +6,10 @@ public class CountBy_keySelector:Base{
         Enumerable.CountBy(src,x=>x%1000).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.CountBy(x=>x%1000).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.CountBy(x=>x%1000).Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

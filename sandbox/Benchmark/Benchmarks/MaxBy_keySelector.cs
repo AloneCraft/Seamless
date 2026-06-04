@@ -6,10 +6,10 @@ public class MaxBy_keySelector:Base{
         consumer.Consume(Enumerable.MaxBy(src,x=>x%1000));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.MaxBy(x=>x%1000)); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.MaxBy(x=>x%1000));
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

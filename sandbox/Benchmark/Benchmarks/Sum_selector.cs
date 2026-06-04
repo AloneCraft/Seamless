@@ -6,10 +6,10 @@ public class Sum_selector:Base{
         consumer.Consume(Enumerable.Sum(src,x=>(long)x));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.Sum(x=>(long)x)); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.Sum(x=>(long)x));
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

@@ -6,10 +6,10 @@ public class Concat_second:Base{
         Enumerable.Concat(src,src2).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.Concat(this.src2).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.Concat(src2).Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

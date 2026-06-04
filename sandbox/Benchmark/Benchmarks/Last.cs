@@ -6,10 +6,10 @@ public class Last:Base{
         consumer.Consume(Enumerable.Last(src));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.Last()); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.Last());
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

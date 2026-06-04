@@ -6,10 +6,10 @@ public class Aggregate_seed_func_resultSelector:Base{
         consumer.Consume(Enumerable.Aggregate(src,0L,(acc,x)=>acc+x,acc=>(double)acc/1000000));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.Aggregate(0L,(acc,x)=>acc+x,acc=>(double)acc/1000000)); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.Aggregate(0L,(acc,x)=>acc+x,acc=>(double)acc/1000000));
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

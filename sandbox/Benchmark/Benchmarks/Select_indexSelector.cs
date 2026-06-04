@@ -26,29 +26,26 @@ public class Select_indexSelector:Base{
         Enumerable.Select(Enumerable.Select(Enumerable.Select(Enumerable.Select(src,(x,i)=>x+i),(x,i)=>x+i),(x,i)=>x+i),(x,i)=>x+i).Consume(consumer);
     }
 
+    void Intercept1Core(){ this.src.Select((x,i)=>x+i).Consume(this.consumer); }
+    void Intercept2Core(){ this.src.Select((x,i)=>x+i).Select((x,i)=>x+i).Consume(this.consumer); }
+    void Intercept3Core(){ this.src.Select((x,i)=>x+i).Select((x,i)=>x+i).Select((x,i)=>x+i).Consume(this.consumer); }
+    void Intercept4Core(){ this.src.Select((x,i)=>x+i).Select((x,i)=>x+i).Select((x,i)=>x+i).Select((x,i)=>x+i).Consume(this.consumer); }
+
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept1(){
-        src.Select((x,i)=>x+i).Consume(consumer);
-    }
+    public void Intercept1(){ Intercept1Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept2(){
-        src.Select((x,i)=>x+i).Select((x,i)=>x+i).Consume(consumer);
-    }
+    public void Intercept2(){ Intercept2Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept3(){
-        src.Select((x,i)=>x+i).Select((x,i)=>x+i).Select((x,i)=>x+i).Consume(consumer);
-    }
+    public void Intercept3(){ Intercept3Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept4(){
-        src.Select((x,i)=>x+i).Select((x,i)=>x+i).Select((x,i)=>x+i).Select((x,i)=>x+i).Consume(consumer);
-    }
+    public void Intercept4(){ Intercept4Core(); }
 
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]

@@ -6,10 +6,10 @@ public class SequenceEqual_second:Base{
         consumer.Consume(Enumerable.SequenceEqual(src,src));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.SequenceEqual(this.src)); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.SequenceEqual(src));
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

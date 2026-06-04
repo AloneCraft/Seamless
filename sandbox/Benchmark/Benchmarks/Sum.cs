@@ -6,10 +6,10 @@ public class Sum:Base{
         consumer.Consume(Enumerable.Sum(src));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.Sum()); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.Sum());
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){
