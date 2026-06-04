@@ -6,10 +6,10 @@ public class LongCount:Base{
         consumer.Consume(Enumerable.LongCount(src));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.LongCount()); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.LongCount());
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

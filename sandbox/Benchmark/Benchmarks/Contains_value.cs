@@ -6,10 +6,10 @@ public class Contains_value:Base{
         consumer.Consume(Enumerable.Contains(src,500000));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.Contains(500000)); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.Contains(500000));
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

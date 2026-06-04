@@ -6,10 +6,10 @@ public class Count:Base{
         consumer.Consume(Enumerable.Count(src));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.Count()); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.Count());
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

@@ -26,29 +26,26 @@ public class Where_indexPredicate:Base{
         Enumerable.Where(Enumerable.Where(Enumerable.Where(Enumerable.Where(src,(x,i)=>i%2==0),(x,i)=>i%2==0),(x,i)=>i%2==0),(x,i)=>i%2==0).Consume(consumer);
     }
 
+    void Intercept1Core(){ this.src.Where((x,i)=>i%2==0).Consume(this.consumer); }
+    void Intercept2Core(){ this.src.Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Consume(this.consumer); }
+    void Intercept3Core(){ this.src.Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Consume(this.consumer); }
+    void Intercept4Core(){ this.src.Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Consume(this.consumer); }
+
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept1(){
-        src.Where((x,i)=>i%2==0).Consume(consumer);
-    }
+    public void Intercept1(){ Intercept1Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept2(){
-        src.Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Consume(consumer);
-    }
+    public void Intercept2(){ Intercept2Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept3(){
-        src.Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Consume(consumer);
-    }
+    public void Intercept3(){ Intercept3Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept4(){
-        src.Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Consume(consumer);
-    }
+    public void Intercept4(){ Intercept4Core(); }
 
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]

@@ -6,10 +6,10 @@ public class ElementAt_index:Base{
         consumer.Consume(Enumerable.ElementAt(src,500000));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.ElementAt(500000)); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.ElementAt(500000));
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

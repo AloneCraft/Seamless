@@ -6,10 +6,10 @@ public class Except_second:Base{
         Enumerable.Except(src,src2).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.Except(this.src2).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.Except(src2).Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

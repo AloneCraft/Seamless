@@ -6,10 +6,10 @@ public class Index:Base{
         Enumerable.Index(src).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.Index().Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.Index().Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

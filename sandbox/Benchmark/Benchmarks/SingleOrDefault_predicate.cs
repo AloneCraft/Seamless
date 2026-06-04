@@ -6,10 +6,10 @@ public class SingleOrDefault_predicate:Base{
         consumer.Consume(Enumerable.SingleOrDefault(srcOne,x=>x==500000));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.srcOne.SingleOrDefault(x=>x==500000)); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(srcOne.SingleOrDefault(x=>x==500000));
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

@@ -6,10 +6,10 @@ public class SingleOrDefault:Base{
         consumer.Consume(Enumerable.SingleOrDefault(srcOne));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.srcOne.SingleOrDefault()); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(srcOne.SingleOrDefault());
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

@@ -6,10 +6,10 @@ public class UnionBy_keySelector:Base{
         Enumerable.UnionBy(src,src2,x=>x).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.UnionBy(this.src2,x=>x).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.UnionBy(src2,x=>x).Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

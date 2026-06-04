@@ -6,10 +6,10 @@ public class Chunk_size:Base{
         Enumerable.Chunk(src,1000).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.Chunk(1000).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.Chunk(1000).Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

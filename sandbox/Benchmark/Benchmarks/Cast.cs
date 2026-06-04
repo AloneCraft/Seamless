@@ -6,10 +6,10 @@ public class Cast:Base{
         Enumerable.Cast<int>(src).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.Cast<int>().Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.Cast<int>().Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

@@ -6,10 +6,10 @@ public class Union_second:Base{
         Enumerable.Union(src,src2).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.Union(this.src2).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.Union(src2).Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

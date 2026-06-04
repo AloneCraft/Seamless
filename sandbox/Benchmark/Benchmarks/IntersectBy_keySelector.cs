@@ -6,10 +6,10 @@ public class IntersectBy_keySelector:Base{
         Enumerable.IntersectBy(src,src2,x=>x).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.IntersectBy(this.src2,x=>x).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.IntersectBy(src2,x=>x).Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

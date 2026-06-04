@@ -6,10 +6,10 @@ public class Min:Base{
         consumer.Consume(Enumerable.Min(src));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.Min()); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.Min());
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

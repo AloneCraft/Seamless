@@ -6,10 +6,10 @@ public class Any:Base{
         consumer.Consume(Enumerable.Any(src));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.Any()); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.Any());
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

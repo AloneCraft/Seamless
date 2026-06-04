@@ -6,10 +6,10 @@ public class First:Base{
         consumer.Consume(Enumerable.First(src));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.First()); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.First());
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

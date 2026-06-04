@@ -6,10 +6,10 @@ public class Average:Base{
         consumer.Consume(Enumerable.Average(src));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.Average()); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.Average());
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

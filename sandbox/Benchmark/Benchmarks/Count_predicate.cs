@@ -6,10 +6,10 @@ public class Count_predicate:Base{
         consumer.Consume(Enumerable.Count(src,x=>(x&1)==0));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.Count(x=>(x&1)==0)); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.Count(x=>(x&1)==0));
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

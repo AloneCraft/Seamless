@@ -6,10 +6,10 @@ public class GroupBy_resultSelector:Base{
         Enumerable.GroupBy(src,x=>x%1000,(key,g)=>key).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.GroupBy(x=>x%1000,(key,g)=>key).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.GroupBy(x=>x%1000,(key,g)=>key).Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

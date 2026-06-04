@@ -6,10 +6,10 @@ public class LastOrDefault_predicate:Base{
         consumer.Consume(Enumerable.LastOrDefault(src,x=>x>500000));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.LastOrDefault(x=>x>500000)); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.LastOrDefault(x=>x>500000));
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

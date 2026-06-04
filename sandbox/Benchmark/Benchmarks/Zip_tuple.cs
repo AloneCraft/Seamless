@@ -6,10 +6,10 @@ public class Zip_tuple:Base{
         Enumerable.Zip(src,src2).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.Zip(this.src2).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.Zip(src2).Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

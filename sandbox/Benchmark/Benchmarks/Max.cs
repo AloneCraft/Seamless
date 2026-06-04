@@ -6,10 +6,10 @@ public class Max:Base{
         consumer.Consume(Enumerable.Max(src));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.Max()); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.Max());
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

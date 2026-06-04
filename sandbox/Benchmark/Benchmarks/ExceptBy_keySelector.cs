@@ -6,10 +6,10 @@ public class ExceptBy_keySelector:Base{
         Enumerable.ExceptBy(src,src2,x=>x).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.ExceptBy(this.src2,x=>x).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.ExceptBy(src2,x=>x).Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

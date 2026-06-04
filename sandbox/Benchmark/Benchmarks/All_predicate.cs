@@ -6,10 +6,10 @@ public class All_predicate:Base{
         consumer.Consume(Enumerable.All(src,x=>x>0));
     }
 
+    void InterceptCore(){ this.consumer.Consume(this.src.All(x=>x>0)); }
+
     [Benchmark]
-    public void Intercept(){
-        consumer.Consume(src.All(x=>x>0));
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

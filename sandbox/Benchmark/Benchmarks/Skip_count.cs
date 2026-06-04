@@ -26,29 +26,26 @@ public class Skip_count:Base{
         Enumerable.Skip(Enumerable.Skip(Enumerable.Skip(Enumerable.Skip(src,250000),250000),250000),250000).Consume(consumer);
     }
 
+    void Intercept1Core(){ this.src.Skip(250000).Consume(this.consumer); }
+    void Intercept2Core(){ this.src.Skip(250000).Skip(250000).Consume(this.consumer); }
+    void Intercept3Core(){ this.src.Skip(250000).Skip(250000).Skip(250000).Consume(this.consumer); }
+    void Intercept4Core(){ this.src.Skip(250000).Skip(250000).Skip(250000).Skip(250000).Consume(this.consumer); }
+
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept1(){
-        src.Skip(250000).Consume(consumer);
-    }
+    public void Intercept1(){ Intercept1Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept2(){
-        src.Skip(250000).Skip(250000).Consume(consumer);
-    }
+    public void Intercept2(){ Intercept2Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept3(){
-        src.Skip(250000).Skip(250000).Skip(250000).Consume(consumer);
-    }
+    public void Intercept3(){ Intercept3Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept4(){
-        src.Skip(250000).Skip(250000).Skip(250000).Skip(250000).Consume(consumer);
-    }
+    public void Intercept4(){ Intercept4Core(); }
 
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]

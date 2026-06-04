@@ -6,10 +6,10 @@ public class AggregateBy_keySelector:Base{
         Enumerable.AggregateBy(src,x=>x%1000,0,(acc,x)=>acc+x).Consume(consumer);
     }
 
+    void InterceptCore(){ this.src.AggregateBy(x=>x%1000,0,(acc,x)=>acc+x).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        src.AggregateBy(x=>x%1000,0,(acc,x)=>acc+x).Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){

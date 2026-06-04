@@ -6,10 +6,10 @@ public class SelectMany_selector:Base{
         Enumerable.SelectMany(srcNested,x=>x).Consume(consumer);
     }
 
+    void InterceptCore(){ this.srcNested.SelectMany(x=>x).Consume(this.consumer); }
+
     [Benchmark]
-    public void Intercept(){
-        srcNested.SelectMany(x=>x).Consume(consumer);
-    }
+    public void Intercept(){ InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){
