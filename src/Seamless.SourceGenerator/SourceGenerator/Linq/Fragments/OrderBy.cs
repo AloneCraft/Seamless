@@ -64,7 +64,12 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
         }
         private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{ClosureMethodParameterSuffix(keySelector)}}) {
             comparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
-            var items = new global::System.Collections.Generic.List<SortItem>();
+            global::System.Collections.Generic.List<SortItem> items;
+            if(source.TryGetNonEnumeratedCount(out var __count)) {
+                items=new global::System.Collections.Generic.List<SortItem>(__count);
+            }else{
+                items=new global::System.Collections.Generic.List<SortItem>();
+            }
             var index = 0;
             {{SortLoopSingle}}
             items.Sort((left, right) => {
@@ -112,7 +117,12 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
         private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer, global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>? primaryComparer{{ClosureMethodParameterSuffix(keySelector, po.OwnKeySelector)}}) {
             comparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
             primaryComparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>.Default;
-            var items = new global::System.Collections.Generic.List<SortItem>();
+            global::System.Collections.Generic.List<SortItem> items;
+            if(source.TryGetNonEnumeratedCount(out var __count)) {
+                items=new global::System.Collections.Generic.List<SortItem>(__count);
+            }else{
+                items=new global::System.Collections.Generic.List<SortItem>();
+            }
             var index = 0;
             {{SortLoopCombined(po)}}
             items.Sort((left, right) => {

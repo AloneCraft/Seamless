@@ -1,25 +1,37 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
-public class Concat(int 番号, Enumerable source, Enumerable second) : BufferedSequence(番号, source.ElementType) {
+public class Concat(int 番号, Enumerable source, Enumerable second) : Enumerable(番号) {
     public override string StructMethod => string.Empty;
     protected override string StructTypeParameters => "<TEnum1, TEnum2>";
     protected override string StructTypeConstraints =>
         $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName => $"{Struct}<{source.EnumeratorTypeName}, {second.EnumeratorTypeName}>";
-    protected override string StructSources => $$"""
+    public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{second.GetEnumeratorStruct}}
+        {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second";
-    protected override string BuildExpression => "Build(source, second)";
-    protected override string BuildMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum1 source, TEnum2 second) {
-            var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
-            while(source.MoveNext()) result.Add(source.Current);
-            while(second.MoveNext()) result.Add(second.Current);
-            return result;
-        }
+    public override string GetEnumeratorFields => $$"""
+        private bool {{hasValue}};
         """;
+    public override string GetTryGetNextBody => $$"""
+        if(!this.{{hasValue}}) {
+            if(source.MoveNext()) {
+                current=this.{{currentValue}}=source.Current;
+                return true;
+            }
+            this.{{hasValue}}=true;
+        }
+        if(second.MoveNext()) {
+            current=this.{{currentValue}}=({{source.ElementType}})(object)second.Current!;
+            return true;
+        }
+        current=default!;
+        return false;
+        """;
+    public override string GetCurrentExpression => currentValue;
+    public override string ElementType => source.ElementType;
+    protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
 }

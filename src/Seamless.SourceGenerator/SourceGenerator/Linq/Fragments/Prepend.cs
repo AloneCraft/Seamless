@@ -1,19 +1,29 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
-public class Prepend(int 番号, Enumerable source, string element) : BufferedSequence(番号, source.ElementType) {
+public class Prepend(int 番号, Enumerable source, string element) : Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
-    protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {element})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source, {source.ElementType} element";
-    protected override string BuildExpression => "Build(source, element)";
-    protected override string BuildMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source, {{source.ElementType}} element) {
-            var result = new global::System.Collections.Generic.List<{{source.ElementType}}> { element };
-            while(source.MoveNext()) {
-                result.Add(source.Current);
-            }
-            return result;
-        }
+    public override string GetEnumeratorStruct => $$"""
+        {{source.GetEnumeratorStruct}}
+        {{base.GetEnumeratorStruct}}
         """;
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {element})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {source.ElementType} element";
+    public override string GetEnumeratorFields => $$"""
+        private byte {{state}};
+        """;
+    public override string GetTryGetNextBody => $$"""
+        if(this.{{state}}==0) {
+            this.{{state}}=1;
+            current=this.{{currentValue}}=element;
+            return true;
+        }
+        if({{e}}.MoveNext()) {
+            current=this.{{currentValue}}={{e}}.Current;
+            return true;
+        }
+        current=default!;
+        return false;
+        """;
+    public override string GetCurrentExpression => currentValue;
+    public override string ElementType => source.ElementType;
 }
