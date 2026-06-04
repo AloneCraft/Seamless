@@ -5,23 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Default",
+            "name": "SelectFileBenchmark Class(Debug)",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-benchmark",
             "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
-            "args": ["--filter", "*", "--", "Default"],
-            "cwd": "${workspaceFolder}/sandbox/Benchmark",
-            "console": "integratedTerminal",
-            "stopAtEntry": false
-        },
-        {
-            "name": "Select Benchmark",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build-benchmark",
-            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
-            "args": [],
+            "args": ["--filter", "*${fileBasenameNoExtension}*"],
             "env": {
                 "BDN_DEBUG": "1"
             },
@@ -30,56 +19,37 @@
             "stopAtEntry": false
         },
         {
-            "name": "Run All Benchmarks",
+            "name": "RunAllBenchmark(Debug)",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-benchmark",
             "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
             "args": ["--filter", "*"],
+            "env": {
+                "BDN_DEBUG": "1"
+            },
             "cwd": "${workspaceFolder}/sandbox/Benchmark",
             "console": "integratedTerminal",
             "stopAtEntry": false
         },
         {
-            "name": "Run All Benchmarks with --join",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build-benchmark",
-            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
-            "args": ["--filter", "*", "--join"],
-            "cwd": "${workspaceFolder}/sandbox/Benchmark",
-            "console": "integratedTerminal",
-            "stopAtEntry": false
-        },
-        {
-            "name": "List Benchmark",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build-benchmark",
-            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
-            "args": ["--list", "tree"],
-            "cwd": "${workspaceFolder}/sandbox/Benchmark",
-            "console": "integratedTerminal",
-            "stopAtEntry": false
-        },
-        {
-            "name": "Help",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build-benchmark",
-            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
-            "args": ["--help"],
-            "cwd": "${workspaceFolder}/sandbox/Benchmark",
-            "console": "integratedTerminal",
-            "stopAtEntry": false
-        },
-        {
-            "name": "Run All Benchmarks (Release)",
+            "name": "SelectFileBenchmark Class(Release)",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-benchmark-release",
             "program": "${workspaceFolder}/sandbox/Benchmark/bin/Release/net10.0/Benchmark.dll",
-            "args": ["--filter", "*", "--", "Default"],
+            "args": ["--filter", "*${fileBasenameNoExtension}*"],
+            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "RunAllBenchmark(Release)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-benchmark-release",
+            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Release/net10.0/Benchmark.dll",
+            "args": ["--filter", "*"],
             "cwd": "${workspaceFolder}/sandbox/Benchmark",
             "console": "integratedTerminal",
             "stopAtEntry": false
