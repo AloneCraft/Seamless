@@ -1068,7 +1068,6 @@ public static class PipelineBuilder {
         if(binarySetStageCount>0 && selectManyStageCount>0) return false;
         if(concatLikeStageCount>1) return false;
         if(concatLikeStageCount>0 && (selectManyStageCount>0 || binarySetStageCount>0)) return false;
-        if(orderStageCount>2) return false;
         if(orderStageCount>0 && (selectManyStageCount>0 || binarySetStageCount>0 || concatLikeStageCount>0)) return false;
         if(orderStageCount>0) {
             var orderIndexes = stages.Select(static (stage,index) => (stage,index))
@@ -1076,7 +1075,9 @@ public static class PipelineBuilder {
                 .Select(static pair => pair.index)
                 .ToArray();
             if(stages[orderIndexes[0]].Kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending) return false;
-            if(orderIndexes.Length==2 && orderIndexes[1]!=orderIndexes[0]+1) return false;
+            for(var i=1;i<orderIndexes.Length;i++) {
+                if(orderIndexes[i]!=orderIndexes[i-1]+1) return false;
+            }
         }
         if(stages.Count<2 && terminalKind is null) return false;
         return true;
@@ -1407,7 +1408,8 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             return BuildOrderLoop(enumeratorName,successStatement,endStatement,orderIndex[0]);
         }
         if(orderIndex.Length>1) {
-            throw new NotSupportedException("Multiple primary ordering stages are not supported in PipelineEnumerable.");
+            // 連続した OrderBy チェーン: 最後の OrderBy が前の順序を完全に置き換える（LINQ の仕様通り）
+            return BuildOrderLoop(enumeratorName,successStatement,endStatement,orderIndex[^1]);
         }
         var skipLastIndex = stages.Select(static (stage,index) => (stage,index))
             .Where(static pair => pair.stage.Kind==PipelineStageKind.SkipLast)
