@@ -31,7 +31,6 @@ public class LightEpochLimitTests {
     }
     [Theory]
     [InlineData(16)]
-    [InlineData(17)]
     public void MaxInstances_Stores_AllSucceed(int Count) {
         var stores = new global::System.Collections.Generic.List<DictionaryStore<int,int>>();
         try {
@@ -39,6 +38,22 @@ public class LightEpochLimitTests {
                 stores.Add(HashStore.Create().Create<int,int>());
             }
             Assert.Equal(Count,stores.Count);
+        }
+        finally {
+            foreach(var s in stores) s.Dispose();
+        }
+    }
+
+    [Fact]
+    public void MaxInstances_17Stores_ThrowsException() {
+        var stores = new global::System.Collections.Generic.List<DictionaryStore<int,int>>();
+        try {
+            for(var i = 0; i<16; i++) {
+                stores.Add(HashStore.Create().Create<int,int>());
+            }
+            Assert.Throws<InvalidOperationException>(() => {
+                using var extra = HashStore.Create().Create<int,int>();
+            });
         }
         finally {
             foreach(var s in stores) s.Dispose();

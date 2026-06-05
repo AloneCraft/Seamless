@@ -46,28 +46,16 @@ public class GroupJoin(int 番号, Enumerable outer, Enumerable inner, FuncFragm
             global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>? comparer{{ClosureMethodParameterSuffix(outerKeySelector,innerKeySelector,resultSelector)}}) {
             {{ClosureFieldAssignments(outerKeySelector,innerKeySelector,resultSelector)}}
             {{lookup}} = new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(innerKeySelector)}}, global::System.Collections.Generic.List<{{inner.ElementType}}>>(comparer ?? global::System.Collections.Generic.EqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>.Default);
-            if(inner.TryGetSpan(out var __span)) {
-                foreach(var {{item}} in __span){
-                    {{FuncReturnTypeName(innerKeySelector)}} {{key}} = default!;
-                    {{FuncAssign(innerKeySelector,nameof(innerKeySelector),key,item)}}
-                    if(!{{lookup}}.TryGetValue({{key}}, out var {{group}})) {
-                        {{group}} = new global::System.Collections.Generic.List<{{inner.ElementType}}>();
-                        {{lookup}}.Add({{key}}, {{group}});
-                    }
-                    {{group}}.Add({{item}});
+            using var innerEnumerator = inner;
+            while(innerEnumerator.MoveNext()) {
+                var {{item}} = innerEnumerator.Current;
+                {{FuncReturnTypeName(innerKeySelector)}} {{key}} = default!;
+                {{FuncAssign(innerKeySelector,nameof(innerKeySelector),key,item)}}
+                if(!{{lookup}}.TryGetValue({{key}}, out var {{group}})) {
+                    {{group}} = new global::System.Collections.Generic.List<{{inner.ElementType}}>();
+                    {{lookup}}.Add({{key}}, {{group}});
                 }
-            }else{
-                using var innerEnumerator = inner;
-                while(innerEnumerator.MoveNext()) {
-                    var {{item}} = innerEnumerator.Current;
-                    {{FuncReturnTypeName(innerKeySelector)}} {{key}} = default!;
-                    {{FuncAssign(innerKeySelector,nameof(innerKeySelector),key,item)}}
-                    if(!{{lookup}}.TryGetValue({{key}}, out var {{group}})) {
-                        {{group}} = new global::System.Collections.Generic.List<{{inner.ElementType}}>();
-                        {{lookup}}.Add({{key}}, {{group}});
-                    }
-                    {{group}}.Add({{item}});
-                }
+                {{group}}.Add({{item}});
             }
             {{e}} = outer;
             {{state}} = 0;
@@ -82,10 +70,11 @@ public class GroupJoin(int 番号, Enumerable outer, Enumerable inner, FuncFragm
             var {{outerValue}} = {{e}}.Current;
             {{FuncReturnTypeName(outerKeySelector)}} {{key}} = default!;
             {{FuncAssign(outerKeySelector,nameof(outerKeySelector),key,outerValue)}}
-            if(!{{lookup}}.TryGetValue({{key}}, out var {{group}})) {
-                {{group}} = new global::System.Collections.Generic.List<{{inner.ElementType}}>(0);
+            if({{lookup}}.TryGetValue({{key}}, out var {{group}})) {
+                {{FuncAssign(resultSelector,nameof(resultSelector),$"this.{currentValue}",outerValue,group)}}
+            }else{
+                {{FuncAssign(resultSelector,nameof(resultSelector),$"this.{currentValue}",outerValue,$"(global::System.Collections.Generic.IEnumerable<{inner.ElementType}>)global::System.Array.Empty<{inner.ElementType}>()")}}
             }
-            {{FuncAssign(resultSelector,nameof(resultSelector),$"this.{currentValue}",outerValue,group)}}
             current = this.{{currentValue}};
             return true;
         }

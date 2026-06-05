@@ -113,17 +113,22 @@ public class InterceptorSmokeTests {
     private static string GeneratedInterceptorSource() {
         var generatedRoot = GeneratedSourceRoot();
         Assert.True(Directory.Exists(generatedRoot),$"Generated source directory does not exist: {generatedRoot}");
+        string? match = null;
+        foreach(var path in Directory.EnumerateFiles(generatedRoot,"*.g.cs",SearchOption.AllDirectories)) {
+            var text = File.ReadAllText(path);
+            if(!(text.Contains("namespace Intercept.",StringComparison.Ordinal)
+                || text.Contains("namespace Intercept {",StringComparison.Ordinal))) {
+                continue;
+            }
+            if(!text.Contains(nameof(QuerySyntax_Where_With_Projection_Smoke),StringComparison.Ordinal)) {
+                continue;
+            }
+            Assert.True(match is null,$"Expected a single generated interceptor source containing {nameof(QuerySyntax_Where_With_Projection_Smoke)}.");
+            match=text;
+        }
 
-        var matches = Directory
-            .EnumerateFiles(generatedRoot,"*.g.cs",SearchOption.AllDirectories)
-            .Select(File.ReadAllText)
-            .Where(static text => text.Contains("namespace Intercept.",StringComparison.Ordinal)
-                || text.Contains("namespace Intercept {",StringComparison.Ordinal))
-            .Where(static text => text.Contains(nameof(QuerySyntax_Where_With_Projection_Smoke),StringComparison.Ordinal))
-            .ToArray();
-
-        Assert.Single(matches);
-        return matches[0];
+        Assert.NotNull(match);
+        return match;
     }
 
     private static string GeneratedSourceRoot() {

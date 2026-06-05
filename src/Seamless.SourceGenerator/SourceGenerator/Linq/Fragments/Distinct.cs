@@ -12,7 +12,16 @@ public class Distinct_comparer(int 番号, Enumerable source, string comparer) :
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}}=new(comparer);
+        private readonly global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}};
+        """;
+    public override string GetEnumeratorConstructor => $$"""
+        public {{Struct}}({{GetEnumeratorPrimaryConstructorParameters}}) {
+            if({{e}}.TryGetNonEnumeratedCount(out var __count)) {
+                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(__count,comparer);
+            }else{
+                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(comparer);
+            }
+        }
         """;
     public override string GetTryGetNextBody => $$"""
         while({{e}}.MoveNext()) {
