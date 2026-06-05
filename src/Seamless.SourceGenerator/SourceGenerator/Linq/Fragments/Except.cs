@@ -16,8 +16,17 @@ public class Except_comparer(int 番号, Enumerable source, Enumerable second, s
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression}, {comparer})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}}=new(comparer);
+        private readonly global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}};
         private bool {{yielded}};
+        """;
+    public override string GetEnumeratorConstructor => $$"""
+        public {{Struct}}({{GetEnumeratorPrimaryConstructorParameters}}) {
+            if(second.TryGetNonEnumeratedCount(out var __count)) {
+                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(__count,comparer);
+            }else{
+                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(comparer);
+            }
+        }
         """;
     public override string GetTryGetNextBody => $$"""
         if(!this.{{yielded}}) {

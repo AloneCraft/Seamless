@@ -38,19 +38,8 @@
     > {
     >{
 - 改行の前にスペースがあったら削除して
-    break;   
     break;
-- 1.1.1 vs 2.0beta3、Managed vs Unmanaged のような対称ファイルは、意味だけでなく構文配置も揃える
-    対応ファイルでは、フィールド、プロパティ、コンストラクタ、メソッド、ネスト型など全メンバーを同じ順序に並べる
-    メンバー順は親クラスまたは基準となる対応ファイルの順序に合わせる
-    片側にしか存在しないメンバーがあっても後続メンバーの位置を崩さず、空行で対応位置を維持する
-    diffアルゴリズムなしの比較ツールでも見比べられるように、行番号と縦位置を可能な限り揃える
-    自動整形や単独ファイルの見た目より、対称性と比較容易性を優先する
-    版差分、型差分、API差分による最小限の違いだけを許容し、それ以外の順序差分、空白差分、配置差分は作らない
-    この規則は Seamless.1.1.1 と Seamless.2.0beta3 の対応ファイル全体、および Managed... と Unmanaged... の対応ファイル全体に適用する
-    対応ファイルを編集するときは単独ファイルとして最適化せず、必ず対応ファイル群を1セットとして扱う
-    片側だけメンバー順や空行配置を変えて、比較位置対応を崩してはいけない
-
+    break;
 ## User Preferences
 - Listに追加してはいけない。Tsavoriteを使っている理由はメモリに収まらないサイズのコレクションを扱うためであり、Iterator/Enumeratorで全件をList等のメモリ上コレクションに蓄積するのはNG。チャンク単位（固定長配列）でバッファリングし、少しずつ返す方式にすること。
 - C# のジェネリック関連コンパイルエラーでは型変換だけでなく where 制約の不一致を優先して確認すること。
@@ -64,11 +53,6 @@
 	managed(Variable) TKey,managed(Variable)TValue
 - CreateUnmanaged 系の新規経路では識別子に `Unmanaged` を付ける命名方針を優先する。
 ## Test Class Rules
-- テストクラスはテスト対象クラスと同じ名前にすること。テスト対象が `Seamless.1.1.1/Collections/Collection.cs` だとするとテストクラスは `Test.Seamless.1.1.1/Collections/Collection.cs`
-- テストメソッドの順序はテスト対象と全く同じにする
-- テスト対象の public virtual bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value);のテストメソッドは
-- [Fact,Trait("Category","Unit")]public void TryGetValue(){....}
-- TryGetValueに関するあらゆるテストはこの内部で完結させる。つまり複数テストを行う。コメントで何のテストか明示する
 [Fact,Trait("Category","Unit")]public void TryGetValue(){
     {
         //キーが一致するときのテスト

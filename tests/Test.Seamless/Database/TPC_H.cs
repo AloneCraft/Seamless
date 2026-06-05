@@ -657,32 +657,15 @@ namespace Test.Seamless.Database.TPC_H {
         }
 
         private static string[] QueryRows(Container container,int query,bool querySyntax) {
-            var rows = query switch {
-                1 => querySyntax ? container.Q01Query() : container.Q01Method(),
-                2 => querySyntax ? container.Q02Query() : container.Q02Method(),
-                3 => querySyntax ? container.Q03Query() : container.Q03Method(),
-                4 => querySyntax ? container.Q04Query() : container.Q04Method(),
-                5 => querySyntax ? container.Q05Query() : container.Q05Method(),
-                6 => querySyntax ? container.Q06Query() : container.Q06Method(),
-                7 => querySyntax ? container.Q07Query() : container.Q07Method(),
-                8 => querySyntax ? container.Q08Query() : container.Q08Method(),
-                9 => querySyntax ? container.Q09Query() : container.Q09Method(),
-                10 => querySyntax ? container.Q10Query() : container.Q10Method(),
-                11 => querySyntax ? container.Q11Query() : container.Q11Method(),
-                12 => querySyntax ? container.Q12Query() : container.Q12Method(),
-                13 => querySyntax ? container.Q13Query() : container.Q13Method(),
-                14 => querySyntax ? container.Q14Query() : container.Q14Method(),
-                15 => querySyntax ? container.Q15Query() : container.Q15Method(),
-                16 => querySyntax ? container.Q16Query() : container.Q16Method(),
-                17 => querySyntax ? container.Q17Query() : container.Q17Method(),
-                18 => querySyntax ? container.Q18Query() : container.Q18Method(),
-                19 => querySyntax ? container.Q19Query() : container.Q19Method(),
-                20 => querySyntax ? container.Q20Query() : container.Q20Method(),
-                21 => querySyntax ? container.Q21Query() : container.Q21Method(),
-                22 => querySyntax ? container.Q22Query() : container.Q22Method(),
-                _ => throw new ArgumentOutOfRangeException(nameof(query)),
-            };
-            return rows.OrderBy(row => row,StringComparer.Ordinal).ToArray();
+            var prefix = query<10 ? "Q0" : "Q";
+            var suffix = querySyntax ? "Query" : "Method";
+            var methodName = $"{prefix}{query}{suffix}";
+            var method = typeof(Container).GetMethod(methodName,global::System.Reflection.BindingFlags.Instance|global::System.Reflection.BindingFlags.Public)
+                ?? throw new ArgumentOutOfRangeException(nameof(query));
+            var rows = (IEnumerable<string>)(method.Invoke(container,[]) ?? Array.Empty<string>());
+            var result = rows.ToArray();
+            Array.Sort(result,StringComparer.Ordinal);
+            return result;
         }
 
         private void AssertMethodAndQuery(int query) {

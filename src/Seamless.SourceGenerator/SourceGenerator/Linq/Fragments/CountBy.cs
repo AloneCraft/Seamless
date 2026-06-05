@@ -18,17 +18,22 @@ public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : 
         """;
     public override string GetTryGetNextBody => $$"""
         if(this.{{lookup}} is null) {
-            this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>();
-            this.{{group}}=new global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>();
+            if({{e}}.TryGetNonEnumeratedCount(out var __count)) {
+                this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>(__count);
+                this.{{group}}=new global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>(__count);
+            }else{
+                this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>();
+                this.{{group}}=new global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>();
+            }
             while({{e}}.MoveNext()) {
                 var {{item}}={{e}}.Current;
                 {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
                 {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
-                if(!this.{{lookup}}.TryGetValue({{key}},out var __count)) {
+                if(!this.{{lookup}}.TryGetValue({{key}},out var __existingCount)) {
                     this.{{lookup}}.Add({{key}},1);
                     this.{{group}}.Add({{key}});
                 }else{
-                    this.{{lookup}}[{{key}}]=__count+1;
+                    this.{{lookup}}[{{key}}]=__existingCount+1;
                 }
             }
         }

@@ -22,8 +22,13 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
         """;
     public override string GetTryGetNextBody => $$"""
         if(this.{{lookup}} is null) {
-            this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{KeyType}}, {{FuncReturnTypeName(func)}}>();
-            this.{{group}}=new global::System.Collections.Generic.List<{{KeyType}}>();
+            if({{e}}.TryGetNonEnumeratedCount(out var __count)) {
+                this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{KeyType}}, {{FuncReturnTypeName(func)}}>(__count);
+                this.{{group}}=new global::System.Collections.Generic.List<{{KeyType}}>(__count);
+            }else{
+                this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{KeyType}}, {{FuncReturnTypeName(func)}}>();
+                this.{{group}}=new global::System.Collections.Generic.List<{{KeyType}}>();
+            }
             while({{e}}.MoveNext()) {
                 var {{item}}={{e}}.Current;
                 {{KeyType}} {{key}}=default!;

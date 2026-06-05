@@ -22,8 +22,18 @@ public abstract class SetByBase(int 番号, Enumerable source, Enumerable second
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> {{lookup}}=new(comparer);
+        private readonly global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> {{lookup}};
         private byte {{state}};
+        """;
+    public override string GetEnumeratorConstructor => $$"""
+        public {{Struct}}({{GetEnumeratorPrimaryConstructorParameters}}) {
+            {{ClosureFieldAssignments(keySelector)}}
+            if(second.TryGetNonEnumeratedCount(out var __count)) {
+                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>(__count,comparer);
+            }else{
+                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>(comparer);
+            }
+        }
         """;
     public override string GetTryGetNextBody => operation switch {
         "except" => $$"""
