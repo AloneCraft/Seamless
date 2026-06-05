@@ -2064,33 +2064,6 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 tempName)) {
             return true;
         }
-        if(invocationMethodName=="Distinct"
-            && DistinctConsumeループ文生成60(
-                linqInvocation,
-                consumerExpression,
-                semanticModel,
-                containingType,
-                unsafeAccessorCollector,
-                builder,
-                usedNames,
-                tempName)) {
-            return true;
-        }
-        if(invocationMethodName is "ExceptBy" or "IntersectBy"
-            && SetByConsumeループ文生成61(
-                invocationMethodName,
-                linqInvocation,
-                consumerExpression,
-                semanticModel,
-                containingType,
-                ref uniqueNumber,
-                ref staticMethods,
-                unsafeAccessorCollector,
-                builder,
-                usedNames,
-                tempName)) {
-            return true;
-        }
         if(invocationMethodName=="Index"
             && IndexConsumeループ文生成54(
                 linqInvocation,
@@ -2140,9 +2113,13 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         staticMethods=静的メソッド連結14(staticMethods,fragment.GetEnumeratorStruct);
 
         var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
+        builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        if(fragment is ConsumeDirectExecutionFragment consumeDirectExecutionFragment) {
+            builder.AppendLine(consumeDirectExecutionFragment.GetConsumeExecutionStatement(consumerName));
+            return true;
+        }
         var enumeratorName = GetUniqueIdentifier($"e_{SanitizeIdentifier(tempName)}",usedNames);
         var itemName = GetUniqueIdentifier($"item_{SanitizeIdentifier(tempName)}",usedNames);
-        builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
         builder.AppendLine($"using var {enumeratorName}={enumerableFragment.GetEnumeratorExpression};");
         builder.AppendLine($"while({enumeratorName}.TryGetNext(out var {itemName})){{");
         builder.AppendLine($"    {consumerName}.Consume({itemName});");
