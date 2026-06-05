@@ -1,8 +1,5 @@
 ﻿#if NET8_0_OR_GREATER
 
-using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
 using GC = System.GC;
 
 namespace Seamless.Linq.Carrier;

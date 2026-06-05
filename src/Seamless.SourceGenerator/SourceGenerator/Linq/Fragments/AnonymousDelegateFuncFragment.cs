@@ -5,6 +5,7 @@ namespace Seamless.SourceGenerator.Linq.Fragments;
 internal sealed class AnonymousDelegateFuncFragment : LambdaFunc {
     // CanInlineAssign はフィールド（デフォルト false）のため override 不要
     public override bool CanInvokeAsDelegate => true;
+    public override bool RequiresResultTypeParameter => true;
     public override string? DelegateTypeName { get; }
     public override string? DelegateFieldName { get; }
     public override string? DelegateConstructorArg { get; }

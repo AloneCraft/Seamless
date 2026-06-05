@@ -1,10 +1,5 @@
 ﻿#if NET8_0_OR_GREATER
 
-using System;
-using System.Collections.Generic;
-using System.Numerics;
-using System.Text;
-
 namespace Seamless.Linq.Carrier
 {
     public static partial class ValueEnumerable

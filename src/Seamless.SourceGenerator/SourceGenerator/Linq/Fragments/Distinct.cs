@@ -12,14 +12,12 @@ public class Distinct_comparer(int 番号, Enumerable source, string comparer) :
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}};
-        """;
-    public override string GetEnumeratorConstructor => $$"""
-        public {{Struct}}({{GetEnumeratorPrimaryConstructorParameters}}) {
-            if({{e}}.TryGetNonEnumeratedCount(out var __count)) {
-                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(__count,comparer);
+        private readonly global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}}=CreateLookup({{e}},comparer);
+        private static global::System.Collections.Generic.HashSet<{{source.ElementType}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
+            if(source.TryGetNonEnumeratedCount(out var {{count}})) {
+                return new global::System.Collections.Generic.HashSet<{{source.ElementType}}>({{count}},comparer);
             }else{
-                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(comparer);
+                return new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(comparer);
             }
         }
         """;

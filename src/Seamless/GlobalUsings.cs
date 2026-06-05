@@ -4,7 +4,6 @@ global using System.Collections;
 global using System.Collections.Frozen;
 global using System.Collections.Generic;
 global using System.Collections.Immutable;
-global using System.Collections.ObjectModel;
 global using System.ComponentModel;
 global using System.Diagnostics;
 global using System.Diagnostics.CodeAnalysis;
@@ -24,13 +23,10 @@ global using Seamless.Linq.Carrier;
 global using Seamless.Linq.Carrier.Internal;
 global using Seamless.Linq.Carrier.Linq;
 #if NET9_0_OR_GREATER
-global using FlatEnumerable = Seamless.Linq.Carrier.ValueEnumerable;
 #endif
 
 global using Tsavorite.core;
 global using Garnet.common;
-global using SpanByteSessionKey = Tsavorite.core.PinnedSpanByte;
-global using SpanByteOutput = Tsavorite.core.SpanByteAndMemory;
 global using SpanByteStoreFunctions = Tsavorite.core.StoreFunctions<
     Tsavorite.core.SpanByteComparer,
     Tsavorite.core.DefaultRecordDisposer

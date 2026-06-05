@@ -1,8 +1,3 @@
-using System;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
-using System.Threading;
 using Seamless.SessionFunctions;
 using Seamless.Stores;
 namespace Seamless.Collections;
@@ -123,7 +118,7 @@ public abstract class Collection<
         }
         Debug.Assert(Result==TryAddResult.Success);
     }
-    internal sealed class CounterIterator:IScanIteratorFunctions {
+    internal struct CounterIterator:IScanIteratorFunctions {
         public long Counter;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
@@ -141,13 +136,12 @@ public abstract class Collection<
             this.Counter=numberOfRecords;
         }
     }
-    private readonly CounterIterator _counterIterator = new();
     public long GetLongCount() {
-        var Iterator = this._counterIterator;
-        var Cursor = 0L;
-        this.ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+        var iterator = new CounterIterator();
+        var cursor = 0L;
+        this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
         this.ReadSession.BasicContext.CompletePending(wait: true);
-        return _counterIterator.Counter;
+        return iterator.Counter;
     }
     private protected unsafe bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes) {
         var Session = this.ContainsDeleteSession;

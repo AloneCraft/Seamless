@@ -1,9 +1,4 @@
 ﻿// This file is generated from FileGen.Command.cs
-using System;
-using System.Collections.Generic;
-using System.Numerics;
-using System.Text;
-
 // support for all platforms
 // byte/sbyte/ushort/char/short/uint/int/ulong/long
 // float/double/decimal/DateTime/DateTimeOffset

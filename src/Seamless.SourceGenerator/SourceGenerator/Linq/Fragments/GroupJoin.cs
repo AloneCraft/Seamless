@@ -1,6 +1,6 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 public class GroupJoin(int 番号, Enumerable outer, Enumerable inner, FuncFragment outerKeySelector, FuncFragment innerKeySelector, FuncFragment resultSelector, string comparer) : Enumerable(番号) {
-    private bool UseResultTypeParam => resultSelector.CanInvokeAsDelegate;
+    private bool UseResultTypeParam => resultSelector.RequiresResultTypeParameter;
     public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(resultSelector);
     protected override string StructTypeParameters =>
         UseResultTypeParam ? "<TOuterEnum, TInnerEnum, TResult>" : "<TOuterEnum, TInnerEnum>";
@@ -29,36 +29,31 @@ public class GroupJoin(int 番号, Enumerable outer, Enumerable inner, FuncFragm
         """;
     public override string GetEnumeratorExpression =>
         $"new {EnumeratorTypeName}({outer.GetEnumeratorExpression}, {inner.GetEnumeratorExpression}, {comparer}{ClosureArgsSuffix(outerKeySelector,innerKeySelector,resultSelector)})";
+    public override string GetEnumeratorPrimaryConstructorParameters =>
+        $"TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(innerKeySelector)}>? comparer{ClosurePrimaryCtorSuffix(outerKeySelector,innerKeySelector,resultSelector)}";
     public override string GetEnumerableExpression =>
         UseResultTypeParam
             ? $"{FactoryMethodName}({outer.GetEnumeratorExpression}, {inner.GetEnumeratorExpression}, {comparer}{ClosureArgsSuffix(outerKeySelector,innerKeySelector,resultSelector)})"
             : base.GetEnumerableExpression;
     public override string GetEnumeratorFields => $$"""
         {{ClosureFields(outerKeySelector,innerKeySelector,resultSelector)}}
-        private readonly global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(innerKeySelector)}}, global::System.Collections.Generic.List<{{inner.ElementType}}>> {{lookup}};
-        private TOuterEnum {{e}};
+        private readonly global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(innerKeySelector)}}, global::System.Collections.Generic.List<{{inner.ElementType}}>> {{lookup}}=BuildLookup(inner,comparer{{ClosureArgsSuffixForFactory(outerKeySelector,innerKeySelector,resultSelector)}});
+        private TOuterEnum {{e}}=outer;
         private int {{state}};
-        """;
-    public override string GetEnumeratorConstructor => $$"""
-        public {{Struct}}(
-            TOuterEnum outer,
-            TInnerEnum inner,
-            global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>? comparer{{ClosureMethodParameterSuffix(outerKeySelector,innerKeySelector,resultSelector)}}) {
-            {{ClosureFieldAssignments(outerKeySelector,innerKeySelector,resultSelector)}}
-            {{lookup}} = new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(innerKeySelector)}}, global::System.Collections.Generic.List<{{inner.ElementType}}>>(comparer ?? global::System.Collections.Generic.EqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>.Default);
-            using var innerEnumerator = inner;
-            while(innerEnumerator.MoveNext()) {
-                var {{item}} = innerEnumerator.Current;
-                {{FuncReturnTypeName(innerKeySelector)}} {{key}} = default!;
+        private static global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(innerKeySelector)}}, global::System.Collections.Generic.List<{{inner.ElementType}}>> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>? comparer{{ClosureMethodParameterSuffix(outerKeySelector,innerKeySelector,resultSelector)}}) {
+            var {{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(innerKeySelector)}}, global::System.Collections.Generic.List<{{inner.ElementType}}>>(comparer ?? global::System.Collections.Generic.EqualityComparer<{{FuncReturnTypeName(innerKeySelector)}}>.Default);
+            using var {{innerEnumerator}}=inner;
+            while({{innerEnumerator}}.MoveNext()) {
+                var {{item}}={{innerEnumerator}}.Current;
+                {{FuncReturnTypeName(innerKeySelector)}} {{key}}=default!;
                 {{FuncAssign(innerKeySelector,nameof(innerKeySelector),key,item)}}
-                if(!{{lookup}}.TryGetValue({{key}}, out var {{group}})) {
-                    {{group}} = new global::System.Collections.Generic.List<{{inner.ElementType}}>();
-                    {{lookup}}.Add({{key}}, {{group}});
+                if(!{{lookup}}.TryGetValue({{key}},out var {{group}})) {
+                    {{group}}=new global::System.Collections.Generic.List<{{inner.ElementType}}>();
+                    {{lookup}}.Add({{key}},{{group}});
                 }
                 {{group}}.Add({{item}});
             }
-            {{e}} = outer;
-            {{state}} = 0;
+            return {{lookup}};
         }
         """;
     public override string GetTryGetNextBody => $$"""

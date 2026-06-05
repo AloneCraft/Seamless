@@ -4,7 +4,7 @@ public class Select_selector(int 番号,Enumerable source,FuncFragment selector)
         !(method.Parameters.Length > 0 &&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
-    private bool UseResultTypeParam => selector.CanInvokeAsDelegate;
+    private bool UseResultTypeParam => selector.RequiresResultTypeParameter;
     public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(selector);
     protected override string StructTypeParameters =>
         UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
@@ -131,7 +131,7 @@ public class Select_indexSelector(int 番号, Enumerable source, FuncFragment se
         method.Parameters.Length > 0 &&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     protected override Enumerable PrimarySource => source;
-    private bool UseResultTypeParam => selector.CanInvokeAsDelegate;
+    private bool UseResultTypeParam => selector.RequiresResultTypeParameter;
     public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(selector);
     protected override string StructTypeParameters =>
         UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;

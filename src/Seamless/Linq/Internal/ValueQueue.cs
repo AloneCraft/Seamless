@@ -1,6 +1,4 @@
-﻿using System.Buffers;
-
-namespace Seamless.Linq.Carrier.Internal;
+﻿namespace Seamless.Linq.Carrier.Internal;
 
 internal struct ValueQueue<T> : IDisposable
 {

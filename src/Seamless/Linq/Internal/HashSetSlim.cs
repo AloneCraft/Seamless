@@ -1,7 +1,4 @@
 ﻿#pragma warning disable 0436
-using System.Buffers;
-using System.Diagnostics;
-
 namespace Seamless.Linq.Carrier.Internal;
 
 // Most of the time we use class instead of struct because objects are kept in the heap.

@@ -10,7 +10,12 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
-            var result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
+            global::System.Collections.Generic.List<{{source.ElementType}}> result;
+            if(source.TryGetNonEnumeratedCount(out var __count)) {
+                result=new(__count);
+            }else{
+                result=new();
+            }
             using var enumerator = source;
             while(enumerator.MoveNext()) result.Add(enumerator.Current);
             return result;

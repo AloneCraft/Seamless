@@ -1,7 +1,4 @@
-﻿using System.Numerics;
-using System.Security.Cryptography;
-
-namespace Seamless.Linq.Carrier.Internal;
+﻿namespace Seamless.Linq.Carrier.Internal;
 
 internal static class RandomShared
 {
@@ -219,7 +216,7 @@ internal static class RandomShared
             for (int i = 0; i < count;)
             {
                 // Calculates the bound first because, unlike Shuffle(),
-                // it calculates it in the smaller direction: 
+                // it calculates it in the smaller direction:
                 // (Length * (Length - 1) * (Length - 2) * ...).
                 ulong bound = (ulong)(values.Length - i);
                 int nextIndex;

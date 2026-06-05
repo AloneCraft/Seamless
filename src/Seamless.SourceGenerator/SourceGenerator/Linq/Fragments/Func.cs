@@ -44,6 +44,8 @@ public abstract class FuncFragment {
 
     // 匿名型ラムダなど型名を書けない場合にデリゲートとして保持するかどうか。
     public virtual bool CanInvokeAsDelegate => false;
+    // 匿名型戻り値など、生成 struct 側で TResult 型パラメータが必要かどうか。
+    public virtual bool RequiresResultTypeParameter => false;
     // デリゲートの型名（"global::System.Func<TSource, TResult>" 等）。
     public virtual string? DelegateTypeName => null;
     // Enumerator struct に生成するデリゲートフィールド名。

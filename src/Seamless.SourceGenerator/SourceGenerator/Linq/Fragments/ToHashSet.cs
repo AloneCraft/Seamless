@@ -11,7 +11,12 @@ public class ToHashSet(int 番号, Enumerable source, string resultType) : Buffe
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
-            var result = new global::System.Collections.Generic.HashSet<{{source.ElementType}}>();
+            global::System.Collections.Generic.HashSet<{{source.ElementType}}> result;
+            if(source.TryGetNonEnumeratedCount(out var __count)) {
+                result=new(__count);
+            }else{
+                result=new();
+            }
             while(source.MoveNext()) result.Add(source.Current);
             return result;
         }
@@ -32,7 +37,12 @@ public class ToHashSet_comparer(int 番号, Enumerable source, string comparer, 
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
-            var result = new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(comparer);
+            global::System.Collections.Generic.HashSet<{{source.ElementType}}> result;
+            if(source.TryGetNonEnumeratedCount(out var __count)) {
+                result=new(__count,comparer);
+            }else{
+                result=new(comparer);
+            }
             while(source.MoveNext()) result.Add(source.Current);
             return result;
         }

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Reflection;
-
-namespace Seamless.Linq.Carrier
+﻿namespace Seamless.Linq.Carrier
 {
     partial class ValueEnumerableExtensions
     {

@@ -1,11 +1,6 @@
 ﻿// This code is based for Sequence.Primitives.cs and Sequence.DateTime.cs.
 // So if you change this code, need to check theres.
 
-using System;
-using System.Collections.Generic;
-using System.Numerics;
-using System.Text;
-
 namespace Seamless.Linq.Carrier
 {
     public static partial class ValueEnumerable

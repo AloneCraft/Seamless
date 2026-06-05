@@ -1,5 +1,3 @@
-using System;
-
 namespace Seamless.Common {
 
     [AttributeUsage(AttributeTargets.Assembly|AttributeTargets.Class|AttributeTargets.Method,AllowMultiple=false,Inherited=false)]

@@ -1,9 +1,5 @@
 ﻿#if NET8_0_OR_GREATER
 
-using System;
-using System.Collections.Frozen;
-using System.Collections.Generic;
-
 namespace Seamless.Linq.Carrier;
 
 partial class ValueEnumerableExtensions

@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
-using static System.Runtime.InteropServices.CollectionsMarshal;
-
-#if NETSTANDARD2_0 || NETSTANDARD2_1
+﻿#if NETSTANDARD2_0 || NETSTANDARD2_1
 #pragma warning disable
 
 namespace System.Runtime.InteropServices

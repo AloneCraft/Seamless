@@ -1,6 +1,4 @@
-﻿using System.Buffers;
-
-namespace Seamless.Linq.Carrier;
+﻿namespace Seamless.Linq.Carrier;
 
 partial class ValueEnumerableExtensions
 {

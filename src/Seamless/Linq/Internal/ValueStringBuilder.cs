@@ -1,7 +1,4 @@
-﻿using System;
-using System.Buffers;
-
-namespace Seamless.Linq.Carrier.Internal;
+﻿namespace Seamless.Linq.Carrier.Internal;
 
 internal unsafe ref struct ValueStringBuilder
 {

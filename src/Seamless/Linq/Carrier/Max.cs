@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Numerics;
-
-namespace Seamless.Linq.Carrier;
+﻿namespace Seamless.Linq.Carrier;
 
 partial class ValueEnumerableExtensions
 {

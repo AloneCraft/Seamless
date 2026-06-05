@@ -1,5 +1,3 @@
-using System;
-
 // ReSharper disable InvalidXmlDocComment
 namespace Seamless.Common
 {

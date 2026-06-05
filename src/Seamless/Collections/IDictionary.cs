@@ -1,35 +1,32 @@
-using System.Collections;
-using System.Diagnostics.CodeAnalysis;
-
 namespace Seamless.Collections;
 
 /// <summary>
-/// Tsavorite ƒoƒbƒNƒGƒ“ƒh‚ðŽ‚Â Dictionary ‚Ì‹¤’ÊƒCƒ“ƒ^[ƒtƒF[ƒXB
-/// <see cref="IDictionary{TKey,TValue}"/> ‚É‰Á‚¦AŠÇ—EƒAƒ“ƒ}ƒl[ƒW—¼ŽÀ‘•‚ª‹¤—L‚·‚é
-/// <see cref="IsDisposed"/>A<see cref="EntryCount"/>A<see cref="TryAdd"/>A
-/// <see cref="Remove(TKey,out TValue)"/> ‚ðŒöŠJ‚·‚éB
+/// Tsavorite ï¿½oï¿½bï¿½Nï¿½Gï¿½ï¿½ï¿½hï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Dictionary ï¿½Ì‹ï¿½ï¿½ÊƒCï¿½ï¿½ï¿½^ï¿½[ï¿½tï¿½Fï¿½[ï¿½Xï¿½B
+/// <see cref="IDictionary{TKey,TValue}"/> ï¿½É‰ï¿½ï¿½ï¿½ï¿½Aï¿½Ç—ï¿½ï¿½Eï¿½Aï¿½ï¿½ï¿½}ï¿½lï¿½[ï¿½Wï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Lï¿½ï¿½ï¿½ï¿½
+/// <see cref="IsDisposed"/>ï¿½A<see cref="EntryCount"/>ï¿½A<see cref="TryAdd"/>ï¿½A
+/// <see cref="Remove(TKey,out TValue)"/> ï¿½ï¿½ï¿½ï¿½ï¿½Jï¿½ï¿½ï¿½ï¿½B
 /// </summary>
 public interface IDictionary<TKey, TValue>:System.Collections.Generic.IDictionary<TKey,TValue>, IReadOnlyDictionary<TKey,TValue>, IMemoryCollection<KeyValuePair<TKey,TValue>>, IDisposable {
-    /// <summary>‚±‚ÌƒCƒ“ƒXƒ^ƒ“ƒX‚ªŠù‚É”jŠü‚³‚ê‚Ä‚¢‚é‚©‚Ç‚¤‚©‚ðŽæ“¾‚·‚éB</summary>
+    /// <summary>ï¿½ï¿½ï¿½ÌƒCï¿½ï¿½ï¿½Xï¿½^ï¿½ï¿½ï¿½Xï¿½ï¿½ï¿½ï¿½ï¿½É”jï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½é‚©ï¿½Ç‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½æ“¾ï¿½ï¿½ï¿½ï¿½B</summary>
     bool IsDisposed { get; }
     /// <summary>
-    /// “à•” session ‚ð’£‚è‘Ö‚¦‚ÄATsavorite ‚ª•ÛŽ‚µ‚Ä‚¢‚éŒÃ‚¢ epoch ¢‘ãŽQÆ‚ð‰ð•ú‚·‚éB
-    /// Šù’èŽÀ‘•‚Í no-op ‚ÅAsession ‚ð–¾Ž¦ŠÇ—‚·‚éŽÀ‘•‚ª•K—v‚É‰ž‚¶‚Äã‘‚«‚·‚éB
+    /// ï¿½ï¿½ï¿½ï¿½ session ï¿½ð’£‚ï¿½Ö‚ï¿½ï¿½ÄATsavorite ï¿½ï¿½ï¿½ÛŽï¿½ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½Ã‚ï¿½ epoch ï¿½ï¿½ï¿½ï¿½Qï¿½Æ‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½B
+    /// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ no-op ï¿½ÅAsession ï¿½ð–¾Žï¿½ï¿½Ç—ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Kï¿½vï¿½É‰ï¿½ï¿½ï¿½ï¿½Äã‘ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½B
     /// </summary>
     void Refresh() {
     }
-    /// <summary>ƒXƒgƒA‚ÉŠi”[‚³‚ê‚Ä‚¢‚éƒGƒ“ƒgƒŠ”‚ðŽæ“¾‚·‚éB</summary>
+    /// <summary>ï¿½Xï¿½gï¿½Aï¿½ÉŠiï¿½[ï¿½ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½Gï¿½ï¿½ï¿½gï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½æ“¾ï¿½ï¿½ï¿½ï¿½B</summary>
     long EntryCount { get; }
-    /// <summary>Šù‘¶ŒÄ‚Ño‚µŒÝŠ·‚Ì‚½‚ß‚Ì long Œ”Žæ“¾ƒƒ\ƒbƒhB</summary>
+    /// <summary>ï¿½ï¿½ï¿½ï¿½ï¿½Ä‚Ñoï¿½ï¿½ï¿½ÝŠï¿½ï¿½Ì‚ï¿½ï¿½ß‚ï¿½ long ï¿½ï¿½ï¿½ï¿½ï¿½æ“¾ï¿½ï¿½ï¿½\ï¿½bï¿½hï¿½B</summary>
     long GetLongCount() => this.EntryCount;
-    /// <summary>ƒL[‚ª‘¶Ý‚µ‚È‚¢ê‡‚Ì‚Ý’Ç‰Á‚·‚éB</summary>
+    /// <summary>ï¿½Lï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½Ý‚ï¿½ï¿½È‚ï¿½ï¿½ê‡ï¿½Ì‚Ý’Ç‰ï¿½ï¿½ï¿½ï¿½ï¿½B</summary>
     TryAddResult TryAdd(TKey key,TValue value);
-    /// <summary>Žw’è‚µ‚½ƒL[‚ª‘¶Ý‚·‚é‚©‚Ç‚¤‚©‚ð•Ô‚·B</summary>
+    /// <summary>ï¿½wï¿½è‚µï¿½ï¿½ï¿½Lï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½Ý‚ï¿½ï¿½é‚©ï¿½Ç‚ï¿½ï¿½ï¿½ï¿½ï¿½Ô‚ï¿½ï¿½B</summary>
     bool Contains(TKey key) => this.ContainsKey(key);
-    /// <summary>ƒL[‚ðíœ‚µAíœ‚³‚ê‚½’l‚ð•Ô‚·B</summary>
+    /// <summary>ï¿½Lï¿½[ï¿½ï¿½ï¿½íœï¿½ï¿½ï¿½Aï¿½íœï¿½ï¿½ï¿½ê‚½ï¿½lï¿½ï¿½Ô‚ï¿½ï¿½B</summary>
     bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value);
-    // IDictionary<TKey,TValue> ‚Æ IReadOnlyDictionary<TKey,TValue> ‚Ì—¼•û‚É“¯–¼ƒƒ“ƒo[‚ª‘¶Ý‚·‚é‚½‚ßA
-    // new ‚Å’Pˆê‚ÌƒXƒƒbƒg‚Æ‚µ‚ÄéŒ¾‚µAŒÄ‚Ño‚µ‘¤‚Ì‚ ‚¢‚Ü‚¢‚³‚ð‰ðÁ‚·‚éB
+    // IDictionary<TKey,TValue> ï¿½ï¿½ IReadOnlyDictionary<TKey,TValue> ï¿½Ì—ï¿½ï¿½ï¿½ï¿½É“ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½oï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½Ý‚ï¿½ï¿½é‚½ï¿½ßA
+    // new ï¿½Å’Pï¿½ï¿½ÌƒXï¿½ï¿½ï¿½bï¿½gï¿½Æ‚ï¿½ï¿½ÄéŒ¾ï¿½ï¿½ï¿½Aï¿½Ä‚Ñoï¿½ï¿½ï¿½ï¿½ï¿½Ì‚ï¿½ï¿½ï¿½ï¿½Ü‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½B
     new bool ContainsKey(TKey key);
     new bool TryGetValue(TKey key,[MaybeNullWhen(false)] out TValue value);
     new TValue this[TKey key] { get; set; }

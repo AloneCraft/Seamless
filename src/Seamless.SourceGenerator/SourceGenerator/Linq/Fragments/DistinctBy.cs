@@ -15,15 +15,12 @@ public class DistinctBy_comparer(int 番号, Enumerable source, FuncFragment key
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}, global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> {{lookup}};
-        """;
-    public override string GetEnumeratorConstructor => $$"""
-        public {{Struct}}({{GetEnumeratorPrimaryConstructorParameters}}) {
-            {{ClosureFieldAssignments(keySelector)}}
-            if({{e}}.TryGetNonEnumeratedCount(out var __count)) {
-                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>(__count,comparer);
+        private readonly global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> {{lookup}}=CreateLookup({{e}},comparer);
+        private static global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer) {
+            if(source.TryGetNonEnumeratedCount(out var {{count}})) {
+                return new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>({{count}},comparer);
             }else{
-                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>(comparer);
+                return new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>(comparer);
             }
         }
         """;

@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Diagnostics;
 namespace Seamless.Collections;
 /// <summary>
 /// Tsavorite ???o?b?N?G???h??g???I???????? Dictionary?B
@@ -42,7 +40,8 @@ public partial class Dictionary<
     IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
     public global::System.Collections.Generic.List<KeyValuePair<TKey,TValue>> ToList() {
         using var Enumerator = this.GetEnumerator();
-        var List = new global::System.Collections.Generic.List<KeyValuePair<TKey,TValue>>();
+        var capacity=checked((int)global::System.Math.Min(this.EntryCount,int.MaxValue));
+        var List=new global::System.Collections.Generic.List<KeyValuePair<TKey,TValue>>(capacity);
         while(Enumerator.MoveNext()) {
             List.Add(Enumerator.Current);
         }

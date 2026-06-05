@@ -10,7 +10,7 @@ public abstract class SetByBase(int 番号, Enumerable source, Enumerable second
     public override string StructMethod => FuncSupport(keySelector,nameof(keySelector));
     protected override string StructTypeParameters => "<TEnum1, TEnum2>";
     protected override string StructTypeConstraints =>
-        $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>";
+        $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName => $"{Struct}<{source.EnumeratorTypeName}, {second.EnumeratorTypeName}>";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
@@ -22,16 +22,13 @@ public abstract class SetByBase(int 番号, Enumerable source, Enumerable second
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> {{lookup}};
+        private readonly global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> {{lookup}}=CreateLookup(second,comparer);
         private byte {{state}};
-        """;
-    public override string GetEnumeratorConstructor => $$"""
-        public {{Struct}}({{GetEnumeratorPrimaryConstructorParameters}}) {
-            {{ClosureFieldAssignments(keySelector)}}
-            if(second.TryGetNonEnumeratedCount(out var __count)) {
-                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>(__count,comparer);
+        private static global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum2 source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer) {
+            if(source.TryGetNonEnumeratedCount(out var {{count}})) {
+                return new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>({{count}},comparer);
             }else{
-                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>(comparer);
+                return new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>(comparer);
             }
         }
         """;

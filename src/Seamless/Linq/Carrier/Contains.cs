@@ -1,9 +1,4 @@
 ﻿#if NET8_0_OR_GREATER
-using System;
-using System.Buffers;
-using System.ComponentModel;
-using System.Numerics;
-using System.Runtime.Intrinsics;
 #endif
 
 namespace Seamless.Linq.Carrier

@@ -2454,17 +2454,44 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
     public string GetDirectExecutionStatement(string actualVariableName,string actualTypeName) {
         var builder = new System.Text.StringBuilder();
         if(terminalKind==PipelineTerminalKind.ToList) {
-            builder.AppendLine($"{actualTypeName} {actualVariableName}=new();");
             builder.AppendLine($"using var {EnumeratorName()}={pipeline.GetEnumeratorExpression};");
+            builder.AppendLine($"{actualTypeName} {actualVariableName};");
+            builder.AppendLine($"if({EnumeratorName()}.TryGetNonEnumeratedCount(out var __count{result})) {{");
+            builder.AppendLine($"    {actualVariableName}=new(__count{result});");
+            builder.AppendLine($"}}else{{");
+            builder.AppendLine($"    {actualVariableName}=new();");
+            builder.AppendLine($"}}");
             builder.AppendLine($"while({EnumeratorName()}.MoveNext()) {actualVariableName}.Add({EnumeratorName()}.Current);");
             return builder.ToString().TrimEnd();
         }
         if(terminalKind==PipelineTerminalKind.ToArray) {
             var listName = $"{actualVariableName}_list";
-            builder.AppendLine($"var {listName}=new global::System.Collections.Generic.List<{pipeline.ElementType}>();");
+            var countName = $"{actualVariableName}_count";
+            var indexName = $"{actualVariableName}_index";
+            var endLabel = $"__arrayEnd{result}";
             builder.AppendLine($"using var {EnumeratorName()}={pipeline.GetEnumeratorExpression};");
-            builder.AppendLine($"while({EnumeratorName()}.MoveNext()) {listName}.Add({EnumeratorName()}.Current);");
-            builder.AppendLine($"{actualTypeName} {actualVariableName}={listName}.ToArray();");
+            builder.AppendLine($"{actualTypeName} {actualVariableName};");
+            builder.AppendLine($"if({EnumeratorName()}.TryGetNonEnumeratedCount(out var {countName})) {{");
+            builder.AppendLine($"    {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({countName});");
+            builder.AppendLine($"    var {indexName}=0;");
+            builder.AppendLine($"    while({EnumeratorName()}.MoveNext()) {{");
+            builder.AppendLine($"        if((uint){indexName}>=(uint){actualVariableName}.Length) {{");
+            builder.AppendLine($"            var {listName}=new global::System.Collections.Generic.List<{pipeline.ElementType}>({actualVariableName});");
+            builder.AppendLine($"            do {{");
+            builder.AppendLine($"                {listName}.Add({EnumeratorName()}.Current);");
+            builder.AppendLine($"            }} while({EnumeratorName()}.MoveNext());");
+            builder.AppendLine($"            {actualVariableName}={listName}.ToArray();");
+            builder.AppendLine($"            goto {endLabel};");
+            builder.AppendLine($"        }}");
+            builder.AppendLine($"        {actualVariableName}[{indexName}++]={EnumeratorName()}.Current;");
+            builder.AppendLine($"    }}");
+            builder.AppendLine($"    if({indexName}!={actualVariableName}.Length) global::System.Array.Resize(ref {actualVariableName},{indexName});");
+            builder.AppendLine($"}}else{{");
+            builder.AppendLine($"    var {listName}=new global::System.Collections.Generic.List<{pipeline.ElementType}>();");
+            builder.AppendLine($"    while({EnumeratorName()}.MoveNext()) {listName}.Add({EnumeratorName()}.Current);");
+            builder.AppendLine($"    {actualVariableName}={listName}.ToArray();");
+            builder.AppendLine($"}}");
+            builder.AppendLine($"{endLabel}:;");
             return builder.ToString().TrimEnd();
         }
         if(terminalKind==PipelineTerminalKind.Count) {
@@ -2506,8 +2533,13 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
             var itemName = $"__dItem{result}";
             var keyName = $"__dKey{result}";
             var valName = $"__dVal{result}";
-            builder.AppendLine($"{actualTypeName} {actualVariableName}=new {dictTypeName}((global::System.Collections.Generic.IEqualityComparer<{keyType}>?){cmpArg});");
             builder.AppendLine($"using var {eName}={pipeline.GetEnumeratorExpression};");
+            builder.AppendLine($"{actualTypeName} {actualVariableName};");
+            builder.AppendLine($"if({eName}.TryGetNonEnumeratedCount(out var __count{result})) {{");
+            builder.AppendLine($"    {actualVariableName}=new {dictTypeName}(__count{result},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){cmpArg});");
+            builder.AppendLine($"}}else{{");
+            builder.AppendLine($"    {actualVariableName}=new {dictTypeName}((global::System.Collections.Generic.IEqualityComparer<{keyType}>?){cmpArg});");
+            builder.AppendLine($"}}");
             builder.AppendLine($"while({eName}.MoveNext()) {{");
             builder.AppendLine($"    var {itemName}={eName}.Current;");
             builder.AppendLine($"    {keyType} {keyName}=default!;");

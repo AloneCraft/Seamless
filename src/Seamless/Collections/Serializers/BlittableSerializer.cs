@@ -1,6 +1,3 @@
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-
 namespace Seamless.Collections;
 
 public readonly struct BlittableSerializer<T>:ISerializer<T>

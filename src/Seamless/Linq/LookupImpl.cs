@@ -1,17 +1,4 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 namespace Seamless.Linq;
-
-public sealed class GroupingImpl<TKey,TElement>:IGrouping<TKey,TElement> {
-    private readonly List<TElement> elements=new();
-    public GroupingImpl(TKey key) { Key=key; }
-    public TKey Key { get; }
-    public void Add(TElement element) { elements.Add(item: element); }
-    public IEnumerator<TElement> GetEnumerator() => elements.GetEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-}
-
 public sealed class LookupImpl<TKey,TElement>(IEqualityComparer<TKey>? Comparer):ILookup<TKey,TElement> {
     public LookupImpl():this(Comparer: EqualityComparer<TKey>.Default) { }
     public List<GroupingImpl<TKey,TElement>> Groups { get; }=new();

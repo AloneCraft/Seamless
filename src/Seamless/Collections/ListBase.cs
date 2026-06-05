@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.IO.MemoryMappedFiles;
-using System.Runtime.InteropServices;
+﻿using System.IO.MemoryMappedFiles;
 
 namespace Seamless.Collections;
 

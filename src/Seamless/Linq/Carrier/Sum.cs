@@ -1,6 +1,4 @@
-﻿using System.Numerics;
-
-namespace Seamless.Linq.Carrier;
+﻿namespace Seamless.Linq.Carrier;
 
 partial class ValueEnumerableExtensions
 {
@@ -407,9 +405,9 @@ partial class ValueEnumerableExtensions
 
                 vectorSum = sum;
                 current = ref Unsafe.Add(ref current, Vector<T>.Count);
-            } while (!Unsafe.IsAddressGreaterThan(ref current, ref to)); // (current <= to) -> !(current > to) 
+            } while (!Unsafe.IsAddressGreaterThan(ref current, ref to)); // (current <= to) -> !(current > to)
 
-            // Perform the final addition using checked. 
+            // Perform the final addition using checked.
             // Do not use Vector.Sum as it does not check for overflow.
             for (int i = 0; i < Vector<T>.Count; i++)
             {
@@ -455,7 +453,7 @@ partial class ValueEnumerableExtensions
                 current = ref Unsafe.Add(ref current, Vector<T>.Count);
             } while (!Unsafe.IsAddressGreaterThan(ref current, ref to));
 
-            // Perform the final addition using checked. 
+            // Perform the final addition using checked.
             // Do not use Vector.Sum as it does not check for overflow.
             for (int i = 0; i < Vector<T>.Count; i++)
             {
@@ -490,7 +488,7 @@ partial class ValueEnumerableExtensions
                 var data = Vector.LoadUnsafe(ref current);
                 vectorSum += data;
                 current = ref Unsafe.Add(ref current, Vector<T>.Count);
-            } while (!Unsafe.IsAddressGreaterThan(ref current, ref to)); // (current <= to) -> !(current > to) 
+            } while (!Unsafe.IsAddressGreaterThan(ref current, ref to)); // (current <= to) -> !(current > to)
 
             result = Vector.Sum(vectorSum);
         }

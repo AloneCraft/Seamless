@@ -1,6 +1,4 @@
 #if NET8_0_OR_GREATER
-using System.Numerics;
-
 namespace Seamless.Linq.Carrier;
 
 internal static class SimdIndexVectors
