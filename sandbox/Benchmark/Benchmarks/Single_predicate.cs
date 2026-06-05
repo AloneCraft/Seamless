@@ -13,6 +13,6 @@ public class Single_predicate:Base{
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(srcOne.AsValueEnumerable().Single(x=>x==500000));
+        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(srcOne).Single(x=>x==500000));
     }
 }

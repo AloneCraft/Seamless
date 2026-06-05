@@ -53,24 +53,24 @@ public class Append_element:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        src.AsValueEnumerable().Append(0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Append(0).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        src.AsValueEnumerable().Append(0).Append(0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Append(0).Append(0).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        src.AsValueEnumerable().Append(0).Append(0).Append(0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Append(0).Append(0).Append(0).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        src.AsValueEnumerable().Append(0).Append(0).Append(0).Append(0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Append(0).Append(0).Append(0).Append(0).Consume(consumer);
     }
 }

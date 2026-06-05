@@ -13,6 +13,6 @@ public class ExceptBy_keySelector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().ExceptBy(src2,x=>x).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).ExceptBy(src2,x=>x).Consume(consumer);
     }
 }

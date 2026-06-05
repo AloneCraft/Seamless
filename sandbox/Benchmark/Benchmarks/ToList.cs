@@ -13,6 +13,6 @@ public class ToList:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().ToList().Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).ToList().Consume(consumer);
     }
 }

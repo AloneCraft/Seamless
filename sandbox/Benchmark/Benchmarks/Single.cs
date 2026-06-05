@@ -13,6 +13,6 @@ public class Single:Base{
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(srcOne.AsValueEnumerable().Single());
+        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(srcOne).Single());
     }
 }

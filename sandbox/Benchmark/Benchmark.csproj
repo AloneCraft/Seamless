@@ -9,6 +9,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Features>InterceptorsPreview</Features>
     <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>obj/Generated</CompilerGeneratedFilesOutputPath>
     <!-- CS8002: Referenced assembly does not have a strong name.-->
     <NoWarn>$(NoWarn);CS8002</NoWarn>
   </PropertyGroup>

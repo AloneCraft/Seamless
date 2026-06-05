@@ -13,6 +13,6 @@ public class Count:Base{
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(src.AsValueEnumerable().Count());
+        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Count());
     }
 }

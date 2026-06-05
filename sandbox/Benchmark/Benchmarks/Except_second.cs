@@ -13,6 +13,6 @@ public class Except_second:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().Except(src2).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Except(src2).Consume(consumer);
     }
 }

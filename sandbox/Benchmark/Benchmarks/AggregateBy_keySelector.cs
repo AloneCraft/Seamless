@@ -13,6 +13,6 @@ public class AggregateBy_keySelector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().AggregateBy(x=>x%1000,0,(acc,x)=>acc+x).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).AggregateBy(x=>x%1000,0,(acc,x)=>acc+x).Consume(consumer);
     }
 }

@@ -13,6 +13,6 @@ public class CountBy_keySelector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().CountBy(x=>x%1000).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).CountBy(x=>x%1000).Consume(consumer);
     }
 }

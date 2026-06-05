@@ -53,24 +53,24 @@ public class SkipWhile_indexPredicate:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        src.AsValueEnumerable().SkipWhile((x,i)=>i<250000).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).SkipWhile((x,i)=>i<250000).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        src.AsValueEnumerable().SkipWhile((x,i)=>i<250000).SkipWhile((x,i)=>i<250000).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).SkipWhile((x,i)=>i<250000).SkipWhile((x,i)=>i<250000).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        src.AsValueEnumerable().SkipWhile((x,i)=>i<250000).SkipWhile((x,i)=>i<250000).SkipWhile((x,i)=>i<250000).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).SkipWhile((x,i)=>i<250000).SkipWhile((x,i)=>i<250000).SkipWhile((x,i)=>i<250000).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        src.AsValueEnumerable().SkipWhile((x,i)=>i<250000).SkipWhile((x,i)=>i<250000).SkipWhile((x,i)=>i<250000).SkipWhile((x,i)=>i<250000).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).SkipWhile((x,i)=>i<250000).SkipWhile((x,i)=>i<250000).SkipWhile((x,i)=>i<250000).SkipWhile((x,i)=>i<250000).Consume(consumer);
     }
 }

@@ -13,6 +13,6 @@ public class Zip_second:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().Zip(src2,(a,b)=>a+b).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Zip(src2,(a,b)=>a+b).Consume(consumer);
     }
 }

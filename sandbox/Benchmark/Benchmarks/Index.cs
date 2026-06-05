@@ -13,6 +13,6 @@ public class Index:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().Index().Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Index().Consume(consumer);
     }
 }

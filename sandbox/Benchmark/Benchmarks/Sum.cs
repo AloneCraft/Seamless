@@ -13,6 +13,6 @@ public class Sum:Base{
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(src.AsValueEnumerable().Sum());
+        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Sum());
     }
 }

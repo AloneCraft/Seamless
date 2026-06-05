@@ -53,24 +53,24 @@ public class Distinct:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        src.AsValueEnumerable().Distinct().Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Distinct().Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        src.AsValueEnumerable().Distinct().Distinct().Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Distinct().Distinct().Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        src.AsValueEnumerable().Distinct().Distinct().Distinct().Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Distinct().Distinct().Distinct().Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        src.AsValueEnumerable().Distinct().Distinct().Distinct().Distinct().Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Distinct().Distinct().Distinct().Distinct().Consume(consumer);
     }
 }

@@ -13,6 +13,6 @@ public class FirstOrDefault:Base{
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(src.AsValueEnumerable().FirstOrDefault());
+        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).FirstOrDefault());
     }
 }

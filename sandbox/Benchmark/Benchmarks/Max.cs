@@ -13,6 +13,6 @@ public class Max:Base{
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(src.AsValueEnumerable().Max());
+        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Max());
     }
 }

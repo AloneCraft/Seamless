@@ -13,6 +13,6 @@ public class Cast:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().Cast<int>().Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Cast<int>().Consume(consumer);
     }
 }

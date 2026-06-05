@@ -53,7 +53,7 @@ public class Where_predicate:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        src.AsValueEnumerable()
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src)
            .Where(x=>(x&1)==0)
            .Consume(consumer);
     }
@@ -61,7 +61,7 @@ public class Where_predicate:Base{
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        src.AsValueEnumerable()
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src)
            .Where(x=>(x&1)==0)
            .Where(x=>(x&1)==0)
            .Consume(consumer);
@@ -70,7 +70,7 @@ public class Where_predicate:Base{
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        src.AsValueEnumerable()
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src)
            .Where(x=>(x&1)==0)
            .Where(x=>(x&1)==0)
            .Where(x=>(x&1)==0)
@@ -80,7 +80,7 @@ public class Where_predicate:Base{
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        src.AsValueEnumerable()
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src)
            .Where(x=>(x&1)==0)
            .Where(x=>(x&1)==0)
            .Where(x=>(x&1)==0)

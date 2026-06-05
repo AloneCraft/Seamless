@@ -13,6 +13,6 @@ public class UnionBy_keySelector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().UnionBy(src2,x=>x).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).UnionBy(src2,x=>x).Consume(consumer);
     }
 }
