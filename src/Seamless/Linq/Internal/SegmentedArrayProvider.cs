@@ -1,10 +1,4 @@
-﻿using System.Buffers;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-
-namespace Seamless.Linq.Carrier.Internal;
+﻿namespace Seamless.Linq.Carrier.Internal;
 
 // similar as IBufferWriter style to avoid Add frequently.
 internal ref struct SegmentedArrayProvider<T>

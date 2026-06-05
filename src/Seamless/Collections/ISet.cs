@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace Seamless.Collections;
 
 public interface ISet<TRecord>:IMemoryCollection<TRecord>, IReadOnlyCollection<TRecord>, IDisposable {

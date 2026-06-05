@@ -1,6 +1,4 @@
-﻿using System.Security;
-
-namespace Seamless.Linq.Carrier
+﻿namespace Seamless.Linq.Carrier
 {
     // Cast has been moved to instance method
 

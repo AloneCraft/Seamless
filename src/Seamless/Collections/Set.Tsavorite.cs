@@ -1,5 +1,3 @@
-using System.Collections;
-
 namespace Seamless.Collections;
 
 public partial class Set<TKey, TRecord>

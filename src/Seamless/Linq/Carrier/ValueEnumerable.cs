@@ -1,8 +1,4 @@
-﻿using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
-
-namespace Seamless.Linq.Carrier;
+﻿namespace Seamless.Linq.Carrier;
 
 [StructLayout(LayoutKind.Auto)]
 [DebuggerDisplay("{DebuggerDisplay,nq}")]

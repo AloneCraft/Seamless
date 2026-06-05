@@ -1,7 +1,4 @@
-﻿using System;
-using System.Numerics;
-
-// System.Linq returns float -> float, decimal -> decimal, others(int, long, double) -> double
+﻿// System.Linq returns float -> float, decimal -> decimal, others(int, long, double) -> double
 
 namespace Seamless.Linq.Carrier;
 
@@ -950,7 +947,7 @@ partial class ValueEnumerableExtensions
                 vectorSum += low;  // add low  <1, 2, 3, 4>
                 vectorSum += high; // and high <6, 8, 10, 12>
                 current = ref Unsafe.Add(ref current, Vector<int>.Count);
-            } while (!Unsafe.IsAddressGreaterThan(ref current, ref to)); // (current <= to) -> !(current > to) 
+            } while (!Unsafe.IsAddressGreaterThan(ref current, ref to)); // (current <= to) -> !(current > to)
 
             sum = Vector.Sum(vectorSum);
         }

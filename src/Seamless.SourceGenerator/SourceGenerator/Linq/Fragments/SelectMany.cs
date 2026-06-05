@@ -107,11 +107,16 @@ public class SelectMany_selector(int 番号, Enumerable source, FuncFragment sel
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 1 &&
         !(method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
-    private bool UseResultTypeParam => selector.CanInvokeAsDelegate;
+    private bool UseResultTypeParam => selector.RequiresResultTypeParameter;
     private bool IsHoistable =>
         !selector.CanInvokeAsDelegate &&
         selector.CanInlineAssign &&
-        !selector.RenderInlineExpression("__SeamlessHoistProbe__").Contains("__SeamlessHoistProbe__");
+        !selector.RenderInlineExpression("__SeamlessHoistProbe__").Contains("__SeamlessHoistProbe__") &&
+        !SelectorContainsAnchor(selector.RenderInlineExpression("__SeamlessHoistProbe__"));
+    private static bool SelectorContainsAnchor(string expression) =>
+        expression.Contains(".Anchor(",StringComparison.Ordinal) ||
+        expression.Contains("global::Seamless.Linq.AnchorExtensions.Anchor(",StringComparison.Ordinal) ||
+        expression.Contains("Seamless.Linq.AnchorExtensions.Anchor(",StringComparison.Ordinal);
     protected override string CollectionElementType =>
         UseResultTypeParam ? "TResult" : SequenceElementTypeName(FuncReturnTypeName(selector));
     public override string ElementType => CollectionElementType;
@@ -150,7 +155,7 @@ public class SelectMany_selector(int 番号, Enumerable source, FuncFragment sel
             ? $"global::System.Collections.Generic.IEnumerable<{CollectionElementType}> innerEnumerable0"
             : string.Empty;
     protected override string CreateInnerEnumeratorExpression =>
-        UseResultTypeParam
+        selector.CanInvokeAsDelegate
             ? $"{selector.DelegateFieldName}.Invoke({outerValue}).GetEnumerator()"
             : IsHoistable
                 ? "innerEnumerable0.GetEnumerator()"

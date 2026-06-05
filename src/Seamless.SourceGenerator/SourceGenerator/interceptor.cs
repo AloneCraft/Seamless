@@ -1418,6 +1418,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return true;
         }
 
+        if(funcFragment.CanInvokeAsDelegate) {
+            return true;
+        }
+
         return false;
     }
 
@@ -1579,6 +1583,42 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         elementType=null!;
         useEnumerableInterface=false;
         return false;
+    }
+
+    private static bool TryCreateDelegateFuncFragment(
+        ExpressionSyntax expression,
+        ITypeSymbol delegateType,
+        ref int uniqueNumber,
+        out FuncFragment fragment,
+        SemanticModel? semanticModel,
+        INamedTypeSymbol? containingType) {
+        fragment=null!;
+        if(delegateType is not INamedTypeSymbol namedDelegate) {
+            return false;
+        }
+
+        var invoke=namedDelegate.DelegateInvokeMethod
+            ?? namedDelegate.GetMembers("Invoke").OfType<IMethodSymbol>().FirstOrDefault();
+        if(invoke is null || invoke.ReturnsVoid) {
+            return false;
+        }
+
+        var delegateTypeName=delegateType.ToDisplayString(完全修飾形式);
+        var delegateFieldName=$"_del{uniqueNumber++}";
+        string delegateConstructorArg;
+        if(semanticModel is not null && containingType is not null) {
+            delegateConstructorArg=RenderExpressionForGeneratedMethod(expression,semanticModel,containingType);
+        }else{
+            delegateConstructorArg=NormalizeExpressionText(expression.ToString());
+        }
+        fragment=new DelegateFuncFragment(delegateTypeName,delegateFieldName,delegateConstructorArg) {
+            ReturnTypeName=invoke.ReturnType.ToDisplayString(完全修飾形式),
+            ParameterTypeNames=invoke.Parameters.Select(static p=>p.Type.ToDisplayString(完全修飾形式)).ToArray(),
+            ParameterNames=invoke.Parameters.Select(static p=>p.Name).ToArray(),
+            CanGenerateMethod=false,
+            CanInlineAssign=false,
+        };
+        return true;
     }
 
     /// <summary>
@@ -1824,6 +1864,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 CapturedLocals = capturedLocals,
                 BodyUnsafeAccessorCodes = bodyAccessorCodes,
             };
+            return true;
+        }
+
+        if(TryCreateDelegateFuncFragment(expression,delegateType,ref uniqueNumber,out fragment,semanticModel,containingType)) {
             return true;
         }
 
@@ -3428,6 +3472,25 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
 
         foreach(var identifier in allIdentifiers) {
+            if(identifier.Parent is ArgumentSyntax argument
+                && argument.Expression==identifier
+                && semanticModel.GetSymbolInfo(identifier).Symbol is IMethodSymbol methodGroup
+                && methodGroup.MethodKind==MethodKind.Ordinary
+                && SymbolEqualityComparer.Default.Equals(methodGroup.ContainingType,containingType)) {
+                var methodGroupText=NormalizeExpressionText(identifier.ToString());
+                var replacement=$"@this.{methodGroup.Name}";
+                if(methodGroup.IsStatic) {
+                    replacement=$"{methodGroup.ContainingType.ToDisplayString(完全修飾形式)}.{methodGroup.Name}";
+                }else{
+                }
+                text=System.Text.RegularExpressions.Regex.Replace(
+                    text,
+                    $@"\b{System.Text.RegularExpressions.Regex.Escape(methodGroupText)}\b",
+                    replacement,
+                    System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+                continue;
+            }
+
             if(semanticModel.GetSymbolInfo(identifier).Symbol is not IFieldSymbol field
                 || !field.IsStatic
                 || !SymbolEqualityComparer.Default.Equals(field.ContainingType,containingType)

@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-namespace Seamless.Devices;
+﻿namespace Seamless.Devices;
 /// <summary>
 /// ディスクI/Oを行わず、退避ページをヒープ上のバイト配列に保持するデバイス。
 /// </summary>

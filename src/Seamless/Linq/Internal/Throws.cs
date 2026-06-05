@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace Seamless.Linq.Carrier.Internal;
+﻿namespace Seamless.Linq.Carrier.Internal;
 
 internal static class Throws
 {

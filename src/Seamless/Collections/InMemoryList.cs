@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-namespace Seamless.Collections;
+﻿namespace Seamless.Collections;
 /// <summary>
 /// これはSystem.Collections.Generic.List<T>に使えるならそれに置き換えてこれは削除して
 /// </summary>

@@ -101,7 +101,7 @@ public class GroupBy_keySelector_resultSelector(
         && method.Parameters[1].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
 
     protected override Enumerable PrimarySource => source;
-    private bool UseResultTypeParam => resultSelector.CanInvokeAsDelegate;
+    private bool UseResultTypeParam => resultSelector.RequiresResultTypeParameter;
     public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(resultSelector);
 
     protected override string StructTypeParameters =>
@@ -270,7 +270,7 @@ public class GroupBy_keySelector_elementSelector_resultSelector(
         && method.Parameters[2].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
 
     protected override Enumerable PrimarySource => source;
-    private bool UseResultTypeParam => resultSelector.CanInvokeAsDelegate;
+    private bool UseResultTypeParam => resultSelector.RequiresResultTypeParameter;
     private string KeyType => FuncReturnTypeName(keySelector);
     private string ElemType => FuncReturnTypeName(elementSelector);
     public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(resultSelector);

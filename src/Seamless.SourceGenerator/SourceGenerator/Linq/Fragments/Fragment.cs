@@ -45,6 +45,12 @@ public abstract class Fragment(
     private protected string groupIndex => $"__gi{番号}";
     // Join/Zip 系で外側要素を保持する変数名。
     private protected string outerValue => $"__ov{番号}";
+    // 件数取得用の共通ローカル名。
+    private protected string count => $"__cnt{番号}";
+    // Dictionary/HashSet の既存値用ローカル名。
+    private protected string existing => $"__ex{番号}";
+    // 内部列挙用の共通ローカル名。
+    private protected string innerEnumerator => $"__ie{番号}";
     // struct closure: 含有クラスの完全修飾型名。null なら @this 不使用。
     public string? ContainingTypeName { get; set; }
 
@@ -69,21 +75,11 @@ public abstract class Fragment(
     }
 
     private protected string ClosureFields(params FuncFragment[] funcs) {
-        var captures = DistinctCapturedLocals(funcs).ToArray();
-        var delegates = DistinctDelegateFuncs(funcs).ToArray();
-        var lines = captures.Select(static c => $"private readonly {c.TypeName} {c.Name};")
-            .Concat(delegates.Select(static f => $"private readonly {f.DelegateTypeName} {f.DelegateFieldName};"));
-        var joined = string.Join("\n", lines);
-        return string.IsNullOrEmpty(joined) ? string.Empty : joined;
+        return string.Empty;
     }
 
     private protected string ClosureFieldAssignments(params FuncFragment[] funcs) {
-        var captures = DistinctCapturedLocals(funcs).ToArray();
-        var delegates = DistinctDelegateFuncs(funcs).ToArray();
-        var lines = captures.Select(static c => $"this.{c.Name} = {c.Name};")
-            .Concat(delegates.Select(static f => $"this.{f.DelegateFieldName} = {f.DelegateFieldName};"));
-        var joined = string.Join("\n", lines);
-        return string.IsNullOrEmpty(joined) ? string.Empty : joined;
+        return string.Empty;
     }
 
     private static string ClosureParameterSuffix(params FuncFragment[] funcs) {

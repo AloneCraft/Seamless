@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-
-namespace Seamless.Stores;
+﻿namespace Seamless.Stores;
 
 internal enum OverflowMutableStrategyKind:byte {
     Memory,

@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Seamless.Stores;
 namespace Seamless.SessionFunctions;
 /// <summary>

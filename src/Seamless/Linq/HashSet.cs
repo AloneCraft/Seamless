@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-namespace Seamless.Linq;
+﻿namespace Seamless.Linq;
 
 using Collections;
 

@@ -15,7 +15,12 @@ public class ToDictionary_keySelector(int 番号, Enumerable source, FuncFragmen
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(keySelector)}}) {
-            var result = new {{resultType}}();
+            {{resultType}} result;
+            if(source.TryGetNonEnumeratedCount(out var __count)) {
+                result=new(__count);
+            }else{
+                result=new();
+            }
             while(source.MoveNext()) {
                 var {{item}} = source.Current;
                 {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
@@ -45,7 +50,12 @@ public class ToDictionary_keySelector_elementSelector(int 番号, Enumerable sou
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(keySelector, elementSelector)}}) {
-            var result = new {{resultType}}();
+            {{resultType}} result;
+            if(source.TryGetNonEnumeratedCount(out var __count)) {
+                result=new(__count);
+            }else{
+                result=new();
+            }
             while(source.MoveNext()) {
                 var {{item}} = source.Current;
                 {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
@@ -78,7 +88,12 @@ public class ToDictionary_keySelector_comparer(int 番号, Enumerable source, Fu
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{ClosureMethodParameterSuffix(keySelector)}}) {
-            var result = new {{resultType}}(comparer);
+            {{resultType}} result;
+            if(source.TryGetNonEnumeratedCount(out var __count)) {
+                result=new(__count,comparer);
+            }else{
+                result=new(comparer);
+            }
             while(source.MoveNext()) {
                 var {{item}} = source.Current;
                 {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
@@ -109,7 +124,12 @@ public class ToDictionary_keySelector_elementSelector_comparer(int 番号, Enume
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{ClosureMethodParameterSuffix(keySelector, elementSelector)}}) {
-            var result = new {{resultType}}(comparer);
+            {{resultType}} result;
+            if(source.TryGetNonEnumeratedCount(out var __count)) {
+                result=new(__count,comparer);
+            }else{
+                result=new(comparer);
+            }
             while(source.MoveNext()) {
                 var {{item}} = source.Current;
                 {{FuncReturnTypeName(keySelector)}} {{key}} = default!;

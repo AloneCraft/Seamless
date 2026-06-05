@@ -6,7 +6,7 @@ public class Except_comparer(int 番号, Enumerable source, Enumerable second, s
     public override string StructMethod => string.Empty;
     protected override string StructTypeParameters => "<TEnum1, TEnum2>";
     protected override string StructTypeConstraints =>
-        $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>";
+        $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName => $"{Struct}<{source.EnumeratorTypeName}, {second.EnumeratorTypeName}>";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
@@ -16,15 +16,13 @@ public class Except_comparer(int 番号, Enumerable source, Enumerable second, s
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression}, {comparer})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}};
+        private readonly global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}}=CreateLookup(second,comparer);
         private bool {{yielded}};
-        """;
-    public override string GetEnumeratorConstructor => $$"""
-        public {{Struct}}({{GetEnumeratorPrimaryConstructorParameters}}) {
-            if(second.TryGetNonEnumeratedCount(out var __count)) {
-                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(__count,comparer);
+        private static global::System.Collections.Generic.HashSet<{{source.ElementType}}> CreateLookup(TEnum2 source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
+            if(source.TryGetNonEnumeratedCount(out var {{count}})) {
+                return new global::System.Collections.Generic.HashSet<{{source.ElementType}}>({{count}},comparer);
             }else{
-                this.{{lookup}}=new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(comparer);
+                return new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(comparer);
             }
         }
         """;

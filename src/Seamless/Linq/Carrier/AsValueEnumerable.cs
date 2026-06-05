@@ -1,11 +1,4 @@
-﻿using System;
-using System.Buffers;
-using System.Collections;
-using System.Collections.Generic;
-#if NET8_0_OR_GREATER
-using System.Collections.Immutable;
-using System.Collections.ObjectModel;
-using System.Numerics;
+﻿#if NET8_0_OR_GREATER
 #endif
 
 namespace Seamless.Linq.Carrier

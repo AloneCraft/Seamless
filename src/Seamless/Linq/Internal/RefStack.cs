@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-
-namespace Seamless.Linq.Carrier.Internal;
+﻿namespace Seamless.Linq.Carrier.Internal;
 
 // storing struct enumerator, with pooling(stack itself is node)
 internal sealed class RefStack<T> where T : IDisposable

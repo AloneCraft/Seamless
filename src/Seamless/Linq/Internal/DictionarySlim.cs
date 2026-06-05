@@ -1,7 +1,4 @@
 ﻿#pragma warning disable 0436
-using System.Buffers;
-using System.Diagnostics;
-
 namespace Seamless.Linq.Carrier.Internal;
 
 // Lightweight dictionary implementation optimized for performance
