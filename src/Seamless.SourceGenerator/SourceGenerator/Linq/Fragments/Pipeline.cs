@@ -140,6 +140,7 @@ public static class PipelineBuilder {
             return false;
         }
 
+        stages=NormalizeStages(stages,services.JoinStaticMethods);
         if(!ValidateStageCombination(stages,terminalKind)) {
             return false;
         }
@@ -1046,6 +1047,139 @@ public static class PipelineBuilder {
         currentElementType=outputType;
         return true;
     }
+
+    private static List<PipelineStage> NormalizeStages(List<PipelineStage> stages,Func<string,string,string> joinStaticMethods) {
+        if(stages.Count<=1) {
+            return stages;
+        }
+        stages=MergeTakeStages(stages);
+        stages=MergeSkipStages(stages);
+        stages=CancelReverseStages(stages);
+        stages=MergeWhereStages(stages,joinStaticMethods);
+        return stages;
+    }
+
+    private static List<PipelineStage> MergeTakeStages(List<PipelineStage> stages) {
+        var normalized = new List<PipelineStage>(stages.Count);
+        foreach(var stage in stages) {
+            if(stage.Kind==PipelineStageKind.Take
+                && normalized.Count>0
+                && normalized[^1].Kind==PipelineStageKind.Take) {
+                var previous = normalized[^1];
+                normalized[^1]=new PipelineStage(
+                    PipelineStageKind.Take,
+                    null,
+                    MinCountExpression(previous.Value!,stage.Value!),
+                    previous.InputType,
+                    previous.OutputType);
+                continue;
+            }
+            normalized.Add(stage);
+        }
+        return normalized;
+    }
+
+    private static List<PipelineStage> MergeSkipStages(List<PipelineStage> stages) {
+        var normalized = new List<PipelineStage>(stages.Count);
+        foreach(var stage in stages) {
+            if(stage.Kind==PipelineStageKind.Skip
+                && normalized.Count>0
+                && normalized[^1].Kind==PipelineStageKind.Skip) {
+                var previous = normalized[^1];
+                normalized[^1]=new PipelineStage(
+                    PipelineStageKind.Skip,
+                    null,
+                    AddCountExpression(previous.Value!,stage.Value!),
+                    previous.InputType,
+                    previous.OutputType);
+                continue;
+            }
+            normalized.Add(stage);
+        }
+        return normalized;
+    }
+
+    private static List<PipelineStage> CancelReverseStages(List<PipelineStage> stages) {
+        var normalized = new List<PipelineStage>(stages.Count);
+        foreach(var stage in stages) {
+            if(stage.Kind==PipelineStageKind.Reverse
+                && normalized.Count>0
+                && normalized[^1].Kind==PipelineStageKind.Reverse) {
+                normalized.RemoveAt(normalized.Count-1);
+                continue;
+            }
+            normalized.Add(stage);
+        }
+        return normalized;
+    }
+
+    private static List<PipelineStage> MergeWhereStages(List<PipelineStage> stages,Func<string,string,string> joinStaticMethods) {
+        var normalized = new List<PipelineStage>(stages.Count);
+        foreach(var stage in stages) {
+            if(stage.Kind==PipelineStageKind.Where
+                && !stage.UsesIndex
+                && normalized.Count>0
+                && normalized[^1].Kind==PipelineStageKind.Where
+                && !normalized[^1].UsesIndex
+                && TryMergeWhereFunc(normalized[^1].Func!,stage.Func!,joinStaticMethods,out var mergedFunc)) {
+                var previous = normalized[^1];
+                normalized[^1]=new PipelineStage(
+                    PipelineStageKind.Where,
+                    mergedFunc,
+                    null,
+                    previous.InputType,
+                    previous.OutputType);
+                continue;
+            }
+            normalized.Add(stage);
+        }
+        return normalized;
+    }
+
+    private static bool TryMergeWhereFunc(FuncFragment left,FuncFragment right,Func<string,string,string> joinStaticMethods,out FuncFragment merged) {
+        merged=null!;
+        if(left.RequiresStatementInlining
+            || right.RequiresStatementInlining
+            || !left.CanInlineAssign
+            || !right.CanInlineAssign
+            || left.ParameterTypeNames.Length!=right.ParameterTypeNames.Length
+            || left.ParameterNames.Length!=right.ParameterNames.Length
+            || left.ParameterTypeNames.Length!=1
+            || left.ReturnTypeName!="bool"
+            || right.ReturnTypeName!="bool") {
+            return false;
+        }
+        for(var index = 0; index<left.ParameterTypeNames.Length; index++) {
+            if(left.ParameterTypeNames[index]!=right.ParameterTypeNames[index]) {
+                return false;
+            }
+        }
+        var parameterNames = left.ParameterNames.ToArray();
+        try {
+            var leftExpr = left.RenderInlineExpression(parameterNames);
+            var rightExpr = right.RenderInlineExpression(parameterNames);
+            merged=new LambdaFunc {
+                ReturnTypeName="bool",
+                ParameterTypeNames=left.ParameterTypeNames.ToArray(),
+                ParameterNames=parameterNames,
+                CanGenerateMethod=left.CanGenerateMethod&&right.CanGenerateMethod,
+                CanInlineAssign=true,
+                InlineBody=$"{leftExpr}&&{rightExpr}",
+                CapturedLocals=left.CapturedLocals.Concat(right.CapturedLocals).Distinct().ToArray(),
+                BodyUnsafeAccessorCodes=left.BodyUnsafeAccessorCodes.Concat(right.BodyUnsafeAccessorCodes).Distinct().ToArray(),
+                SupportingMemberSources=joinStaticMethods(left.SupportingMemberSources,right.SupportingMemberSources)
+            };
+            return true;
+        } catch(InvalidOperationException) {
+            return false;
+        }
+    }
+
+    private static string MinCountExpression(string left,string right) =>
+        $"global::System.Math.Min(global::System.Math.Max(0,{left}),global::System.Math.Max(0,{right}))";
+
+    private static string AddCountExpression(string left,string right) =>
+        $"global::System.Math.Max(0,{left})+global::System.Math.Max(0,{right})";
 
     private static bool ValidateStageCombination(IReadOnlyList<PipelineStage> stages,PipelineTerminalKind? terminalKind) {
         var selectManyStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.SelectMany);

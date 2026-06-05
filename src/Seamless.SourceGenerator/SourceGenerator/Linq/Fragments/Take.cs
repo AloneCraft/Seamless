@@ -3,13 +3,19 @@ namespace Seamless.SourceGenerator.Linq.Fragments;
 public class Take(int 番号, Enumerable source, string takeCount) : Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_Int32;
-    protected override Enumerable PrimarySource => source;
+    private Enumerable Source => source;
+    private string TakeCountExpression => takeCount;
+    private Enumerable RootSource => Source is Take take ? take.RootSource : Source;
+    private string EffectiveTakeCount => Source is Take take
+        ? $"global::System.Math.Min({take.EffectiveTakeCount},{TakeCountExpression})"
+        : TakeCountExpression;
+    protected override Enumerable PrimarySource => RootSource;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""
-        {{source.GetEnumeratorStruct}}
+        {{RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {takeCount})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({RootSource.GetEnumeratorExpression}, {EffectiveTakeCount})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int count";
     public override string GetEnumeratorFields => $$"""
         private readonly int count = count < 0 ? 0 : count;
@@ -29,5 +35,5 @@ public class Take(int 番号, Enumerable source, string takeCount) : Enumerable(
         return false;
         """;
     public override string GetCurrentExpression => currentValue;
-    public override string ElementType => source.ElementType;
+    public override string ElementType => Source.ElementType;
 }
