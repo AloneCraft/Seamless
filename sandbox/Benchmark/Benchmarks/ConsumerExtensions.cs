@@ -7,6 +7,15 @@ static class ConsumerExtensions{
         }
     }
 
+    public static void Consume<TEnumerator,T>(this global::Seamless.Linq.Carrier.ValueEnumerable<TEnumerator,T> source,Consumer consumer)
+        where TEnumerator:struct,global::Seamless.Linq.Carrier.IValueEnumerator<T>{
+        var e=source.Enumerator;
+        while(e.TryGetNext(out var item)){
+            consumer.Consume(item);
+        }
+        e.Dispose();
+    }
+
     public static void Consume<TEnumerator,T>(this global::ZLinq.ValueEnumerable<TEnumerator,T> source,Consumer consumer)
         where TEnumerator:struct,global::ZLinq.IValueEnumerator<T>,allows ref struct{
         using var e=source.Enumerator;
