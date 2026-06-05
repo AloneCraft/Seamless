@@ -28,27 +28,24 @@ public class SkipWhile_predicate:Base{
 
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept1(){
-        src.SkipWhile(x=>x<250001).Consume(consumer);
-    }
+    public void Intercept1(){ Intercept1Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept2(){
-        src.SkipWhile(x=>x<250001).SkipWhile(x=>x<250001).Consume(consumer);
-    }
+    public void Intercept2(){ Intercept2Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept3(){
-        src.SkipWhile(x=>x<250001).SkipWhile(x=>x<250001).SkipWhile(x=>x<250001).Consume(consumer);
-    }
+    public void Intercept3(){ Intercept3Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept4(){
-        src.SkipWhile(x=>x<250001).SkipWhile(x=>x<250001).SkipWhile(x=>x<250001).SkipWhile(x=>x<250001).Consume(consumer);
-    }
+    public void Intercept4(){ Intercept4Core(); }
+
+    void Intercept1Core(){ this.src.AsEnumerable().SkipWhile(x=>x<250001).Consume(this.consumer); }
+    void Intercept2Core(){ this.src.AsEnumerable().SkipWhile(x=>x<250001).SkipWhile(x=>x<250001).Consume(this.consumer); }
+    void Intercept3Core(){ this.src.AsEnumerable().SkipWhile(x=>x<250001).SkipWhile(x=>x<250001).SkipWhile(x=>x<250001).Consume(this.consumer); }
+    void Intercept4Core(){ this.src.AsEnumerable().SkipWhile(x=>x<250001).SkipWhile(x=>x<250001).SkipWhile(x=>x<250001).SkipWhile(x=>x<250001).Consume(this.consumer); }
 
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]

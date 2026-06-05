@@ -28,27 +28,24 @@ public class Append_element:Base{
 
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept1(){
-        src.Append(0).Consume(consumer);
-    }
+    public void Intercept1(){ Intercept1Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept2(){
-        src.Append(0).Append(0).Consume(consumer);
-    }
+    public void Intercept2(){ Intercept2Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept3(){
-        src.Append(0).Append(0).Append(0).Consume(consumer);
-    }
+    public void Intercept3(){ Intercept3Core(); }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept4(){
-        src.Append(0).Append(0).Append(0).Append(0).Consume(consumer);
-    }
+    public void Intercept4(){ Intercept4Core(); }
+
+    void Intercept1Core(){ this.src.AsEnumerable().Append(0).Consume(this.consumer); }
+    void Intercept2Core(){ this.src.AsEnumerable().Append(0).Append(0).Consume(this.consumer); }
+    void Intercept3Core(){ this.src.AsEnumerable().Append(0).Append(0).Append(0).Consume(this.consumer); }
+    void Intercept4Core(){ this.src.AsEnumerable().Append(0).Append(0).Append(0).Append(0).Consume(this.consumer); }
 
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
