@@ -10,14 +10,14 @@ public class Select_selector(int 番号,Enumerable source,FuncFragment selector)
         UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
     protected override string StructTypeConstraints =>
         UseResultTypeParam
-            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>"
+            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{source.ElementType}>"
             : base.StructTypeConstraints;
     public override string EnumeratorTypeName =>
         UseResultTypeParam ? $"{Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
     private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum {{e}}{{ClosurePrimaryCtorSuffix(selector)}})
-            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>
+            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.Linq.Carrier.IValueEnumerator<{{source.ElementType}}>
             => new(new {{Struct}}<TEnum, TResult>({{e}}{{ClosureArgsSuffixForFactory(selector)}}));
         """;
     public override string StructMethod => JoinStaticMethods(FuncSupport(selector,nameof(selector)), FactorySource);
@@ -35,8 +35,7 @@ public class Select_selector(int 番号,Enumerable source,FuncFragment selector)
         $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
-        if({{e}}.MoveNext()) {
-            var {{item}} = {{e}}.Current;
+        if({{e}}.TryGetNext(out var {{item}})) {
             {{FuncAssignCurrent(selector,nameof(selector),$"this.{currentValue}",item)}}
             return true;
         }
@@ -60,8 +59,7 @@ public class Select_WithInlinedScalar(int 番号, Enumerable source, Fragment sc
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
-        if({{e}}.MoveNext()) {
-            var {{outerParamName}} = {{e}}.Current;
+        if({{e}}.TryGetNext(out var {{outerParamName}})) {
             var {{item}} = {{scalarFrag.GetEnumeratorExpression}};
             {{item}}.TryGetNext(out var {{temp}});
             {{item}}.Dispose();
@@ -137,14 +135,14 @@ public class Select_indexSelector(int 番号, Enumerable source, FuncFragment se
         UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
     protected override string StructTypeConstraints =>
         UseResultTypeParam
-            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>"
+            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{source.ElementType}>"
             : base.StructTypeConstraints;
     public override string EnumeratorTypeName =>
         UseResultTypeParam ? $"{Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
     private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum {{e}}{{ClosurePrimaryCtorSuffix(selector)}})
-            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>
+            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.Linq.Carrier.IValueEnumerator<{{source.ElementType}}>
             => new(new {{Struct}}<TEnum, TResult>({{e}}{{ClosureArgsSuffixForFactory(selector)}}));
         """;
     public override string StructMethod => JoinStaticMethods(FuncSupport(selector,nameof(selector)), FactorySource);
@@ -164,8 +162,7 @@ public class Select_indexSelector(int 番号, Enumerable source, FuncFragment se
         private int {{a}} = -1;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{e}}.MoveNext()) {
-            var {{item}} = {{e}}.Current;
+        if({{e}}.TryGetNext(out var {{item}})) {
             this.{{a}}++;
             {{FuncAssignCurrent(selector,nameof(selector),$"this.{currentValue}",item,$"this.{a}")}}
             return true;

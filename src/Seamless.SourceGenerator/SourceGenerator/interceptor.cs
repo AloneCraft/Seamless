@@ -2023,6 +2023,74 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
 
         var snapshot = uniqueNumber;
         var tempName = GetUniqueIdentifier($"__linq{linqInvocationCount++}", usedNames);
+        if(invocationMethodName=="Reverse"
+            && ReverseConsumeループ文生成55(
+                linqInvocation,
+                consumerExpression,
+                semanticModel,
+                containingType,
+                ref staticMethods,
+                unsafeAccessorCollector,
+                builder,
+                usedNames,
+                tempName)) {
+            return true;
+        }
+        if(invocationMethodName=="Where"
+            && WhereConsumeループ文生成56(
+                linqInvocation,
+                consumerExpression,
+                semanticModel,
+                containingType,
+                ref uniqueNumber,
+                ref staticMethods,
+                unsafeAccessorCollector,
+                builder,
+                usedNames,
+                tempName)) {
+            return true;
+        }
+        if(invocationMethodName=="Select"
+            && SelectConsumeループ文生成59(
+                linqInvocation,
+                consumerExpression,
+                semanticModel,
+                containingType,
+                ref uniqueNumber,
+                ref staticMethods,
+                unsafeAccessorCollector,
+                builder,
+                usedNames,
+                tempName)) {
+            return true;
+        }
+        if(invocationMethodName=="Distinct"
+            && DistinctConsumeループ文生成60(
+                linqInvocation,
+                consumerExpression,
+                semanticModel,
+                containingType,
+                unsafeAccessorCollector,
+                builder,
+                usedNames,
+                tempName)) {
+            return true;
+        }
+        if(invocationMethodName is "ExceptBy" or "IntersectBy"
+            && SetByConsumeループ文生成61(
+                invocationMethodName,
+                linqInvocation,
+                consumerExpression,
+                semanticModel,
+                containingType,
+                ref uniqueNumber,
+                ref staticMethods,
+                unsafeAccessorCollector,
+                builder,
+                usedNames,
+                tempName)) {
+            return true;
+        }
         if(invocationMethodName=="Index"
             && IndexConsumeループ文生成54(
                 linqInvocation,
@@ -2077,6 +2145,103 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
         builder.AppendLine($"using var {enumeratorName}={enumerableFragment.GetEnumeratorExpression};");
         builder.AppendLine($"while({enumeratorName}.TryGetNext(out var {itemName})){{");
+        builder.AppendLine($"    {consumerName}.Consume({itemName});");
+        builder.AppendLine("}");
+        return true;
+    }
+
+    private static bool ReverseConsumeループ文生成55(
+        InvocationExpressionSyntax linqInvocation,
+        ExpressionSyntax consumerExpression,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        StringBuilder builder,
+        HashSet<string> usedNames,
+        string tempName) {
+        if(!TryCollectReverseChain(linqInvocation,semanticModel,out var rootSourceExpression,out var reverseCount)) {
+            return false;
+        }
+        var sourceType = semanticModel.GetTypeInfo(rootSourceExpression).Type;
+        if(sourceType is not IArrayTypeSymbol && !IsListType(sourceType)) {
+            return false;
+        }
+        var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
+        var sourceName = GetUniqueIdentifier($"source_{SanitizeIdentifier(tempName)}",usedNames);
+        var spanName = GetUniqueIdentifier($"span_{SanitizeIdentifier(tempName)}",usedNames);
+        var indexName = GetUniqueIdentifier($"index_{SanitizeIdentifier(tempName)}",usedNames);
+        var itemName = GetUniqueIdentifier($"item_{SanitizeIdentifier(tempName)}",usedNames);
+        builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        builder.AppendLine($"var {sourceName}={RenderExpressionForGeneratedMethod(rootSourceExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        if(sourceType is IArrayTypeSymbol) {
+            builder.AppendLine($"var {spanName}=global::System.MemoryExtensions.AsSpan({sourceName});");
+        }else{
+            builder.AppendLine($"var {spanName}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({sourceName});");
+        }
+        if((reverseCount&1)==0) {
+            builder.AppendLine($"for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++){{");
+        }else{
+            builder.AppendLine($"for(var {indexName}={spanName}.Length-1;{indexName}>=0;{indexName}--){{");
+        }
+        builder.AppendLine($"    var {itemName}={spanName}[{indexName}];");
+        builder.AppendLine($"    {consumerName}.Consume({itemName});");
+        builder.AppendLine("}");
+        return true;
+    }
+
+    private static bool WhereConsumeループ文生成56(
+        InvocationExpressionSyntax linqInvocation,
+        ExpressionSyntax consumerExpression,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        StringBuilder builder,
+        HashSet<string> usedNames,
+        string tempName) {
+        if(!TryCollectWhereChain(linqInvocation,semanticModel,out var rootSourceExpression,out var predicates)) {
+            return false;
+        }
+        var sourceType = semanticModel.GetTypeInfo(rootSourceExpression).Type;
+        if(sourceType is not IArrayTypeSymbol && !IsListType(sourceType)) {
+            return false;
+        }
+        var funcs = new List<FuncFragment>(predicates.Count);
+        var snapshot = uniqueNumber;
+        foreach(var (predicateExpression,delegateType) in predicates) {
+            if(!関数フラグメント生成12(predicateExpression,delegateType,ref uniqueNumber,out var func,semanticModel,containingType)
+                || func.RequiresStatementInlining
+                || func.CanInvokeAsDelegate
+                || !func.CanInlineAssign
+                || func.ParameterNames.Length!=1) {
+                uniqueNumber=snapshot;
+                return false;
+            }
+            funcs.Add(func);
+            staticMethods=静的メソッド連結14(staticMethods,func.SupportingMemberSources);
+            unsafeAccessorCollector.AddRange(func.BodyUnsafeAccessorCodes);
+        }
+        var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
+        var sourceName = GetUniqueIdentifier($"source_{SanitizeIdentifier(tempName)}",usedNames);
+        var spanName = GetUniqueIdentifier($"span_{SanitizeIdentifier(tempName)}",usedNames);
+        var indexName = GetUniqueIdentifier($"index_{SanitizeIdentifier(tempName)}",usedNames);
+        var itemName = GetUniqueIdentifier($"item_{SanitizeIdentifier(tempName)}",usedNames);
+        builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        builder.AppendLine($"var {sourceName}={RenderExpressionForGeneratedMethod(rootSourceExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        if(sourceType is IArrayTypeSymbol) {
+            builder.AppendLine($"var {spanName}=global::System.MemoryExtensions.AsSpan({sourceName});");
+        }else{
+            builder.AppendLine($"var {spanName}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({sourceName});");
+        }
+        builder.AppendLine($"for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++){{");
+        builder.AppendLine($"    var {itemName}={spanName}[{indexName}];");
+        foreach(var func in funcs) {
+            builder.AppendLine($"    if(!({func.RenderInlineExpression(itemName)})){{");
+            builder.AppendLine("        continue;");
+            builder.AppendLine("    }");
+        }
         builder.AppendLine($"    {consumerName}.Consume({itemName});");
         builder.AppendLine("}");
         return true;
@@ -2192,6 +2357,372 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             return true;
         }
         return false;
+    }
+
+    private static bool TryCollectReverseChain(
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        out ExpressionSyntax rootSourceExpression,
+        out int reverseCount) {
+        rootSourceExpression=null!;
+        reverseCount=0;
+        var current = invocation;
+        while(true) {
+            if(semanticModel.GetSymbolInfo(current).Symbol is not IMethodSymbol currentMethod
+                || currentMethod.ReducedFrom is null
+                || currentMethod.ReducedFrom.Name!="Reverse"
+                || current.ArgumentList.Arguments.Count!=0
+                || current.Expression is not MemberAccessExpressionSyntax { Expression: var receiverExpression }) {
+                return false;
+            }
+            reverseCount++;
+            var receiver = 括弧除去53(receiverExpression);
+            if(receiver is InvocationExpressionSyntax receiverInvocation
+                && semanticModel.GetSymbolInfo(receiverInvocation).Symbol is IMethodSymbol receiverMethod
+                && receiverMethod.ReducedFrom is not null
+                && receiverMethod.ReducedFrom.Name=="Reverse") {
+                current=receiverInvocation;
+                continue;
+            }
+            rootSourceExpression=UnwrapAsEnumerable58(receiver,semanticModel);
+            return true;
+        }
+    }
+
+    private static bool TryCollectWhereChain(
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        out ExpressionSyntax rootSourceExpression,
+        out List<(ExpressionSyntax PredicateExpression,ITypeSymbol DelegateType)> predicates) {
+        rootSourceExpression=null!;
+        predicates=[];
+        var current = invocation;
+        while(true) {
+            if(semanticModel.GetSymbolInfo(current).Symbol is not IMethodSymbol currentMethod
+                || currentMethod.ReducedFrom is null
+                || currentMethod.ReducedFrom.Name!="Where"
+                || current.ArgumentList.Arguments.Count!=1
+                || current.Expression is not MemberAccessExpressionSyntax { Expression: var receiverExpression }
+                || currentMethod.Parameters.Length==0
+                || currentMethod.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 } predicateType) {
+                return false;
+            }
+            predicates.Insert(0,(current.ArgumentList.Arguments[0].Expression,predicateType));
+            var receiver = 括弧除去53(receiverExpression);
+            if(receiver is InvocationExpressionSyntax receiverInvocation
+                && semanticModel.GetSymbolInfo(receiverInvocation).Symbol is IMethodSymbol receiverMethod
+                && receiverMethod.ReducedFrom is not null
+                && receiverMethod.ReducedFrom.Name=="Where") {
+                current=receiverInvocation;
+                continue;
+            }
+            rootSourceExpression=UnwrapAsEnumerable58(receiver,semanticModel);
+            return true;
+        }
+    }
+
+    private static bool TryCollectSelectChain(
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        out ExpressionSyntax rootSourceExpression,
+        out List<(ExpressionSyntax SelectorExpression,ITypeSymbol DelegateType,bool UsesIndex)> selectors) {
+        rootSourceExpression=null!;
+        selectors=[];
+        var current = invocation;
+        while(true) {
+            if(semanticModel.GetSymbolInfo(current).Symbol is not IMethodSymbol currentMethod
+                || currentMethod.ReducedFrom is null
+                || currentMethod.ReducedFrom.Name!="Select"
+                || current.ArgumentList.Arguments.Count!=1
+                || current.Expression is not MemberAccessExpressionSyntax { Expression: var receiverExpression }
+                || currentMethod.Parameters.Length==0
+                || currentMethod.Parameters[0].Type is not INamedTypeSymbol selectorType
+                || selectorType.TypeArguments.Length is not (2 or 3)) {
+                return false;
+            }
+            selectors.Insert(0,(current.ArgumentList.Arguments[0].Expression,selectorType,selectorType.TypeArguments.Length==3));
+            var receiver = 括弧除去53(receiverExpression);
+            if(receiver is InvocationExpressionSyntax receiverInvocation
+                && semanticModel.GetSymbolInfo(receiverInvocation).Symbol is IMethodSymbol receiverMethod
+                && receiverMethod.ReducedFrom is not null
+                && receiverMethod.ReducedFrom.Name=="Select") {
+                current=receiverInvocation;
+                continue;
+            }
+            rootSourceExpression=UnwrapAsEnumerable58(receiver,semanticModel);
+            return true;
+        }
+    }
+
+    private static bool TryCollectDistinctChain(
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        out ExpressionSyntax rootSourceExpression) {
+        rootSourceExpression=null!;
+        var current = invocation;
+        while(true) {
+            if(semanticModel.GetSymbolInfo(current).Symbol is not IMethodSymbol currentMethod
+                || currentMethod.ReducedFrom is null
+                || currentMethod.ReducedFrom.Name!="Distinct"
+                || current.ArgumentList.Arguments.Count!=0
+                || current.Expression is not MemberAccessExpressionSyntax { Expression: var receiverExpression }) {
+                return false;
+            }
+            var receiver = 括弧除去53(receiverExpression);
+            if(receiver is InvocationExpressionSyntax receiverInvocation
+                && semanticModel.GetSymbolInfo(receiverInvocation).Symbol is IMethodSymbol receiverMethod
+                && receiverMethod.ReducedFrom is not null
+                && receiverMethod.ReducedFrom.Name=="Distinct") {
+                current=receiverInvocation;
+                continue;
+            }
+            rootSourceExpression=UnwrapAsEnumerable58(receiver,semanticModel);
+            return true;
+        }
+    }
+
+    private static bool TryCollectSetByCall(
+        string methodName,
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        out ExpressionSyntax rootSourceExpression,
+        out ExpressionSyntax secondSourceExpression,
+        out ExpressionSyntax keySelectorExpression,
+        out ITypeSymbol delegateType) {
+        rootSourceExpression=null!;
+        secondSourceExpression=null!;
+        keySelectorExpression=null!;
+        delegateType=null!;
+        if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
+            || method.ReducedFrom is null
+            || method.ReducedFrom.Name!=methodName
+            || invocation.ArgumentList.Arguments.Count<2
+            || invocation.Expression is not MemberAccessExpressionSyntax { Expression: var receiverExpression }
+            || method.Parameters.Length<2
+            || method.Parameters[1].Type is not INamedTypeSymbol selectorType
+            || selectorType.TypeArguments.Length!=2) {
+            return false;
+        }
+        rootSourceExpression=UnwrapAsEnumerable58(括弧除去53(receiverExpression),semanticModel);
+        secondSourceExpression=括弧除去53(invocation.ArgumentList.Arguments[0].Expression);
+        keySelectorExpression=invocation.ArgumentList.Arguments[1].Expression;
+        delegateType=selectorType;
+        return true;
+    }
+
+    private static ExpressionSyntax UnwrapAsEnumerable58(
+        ExpressionSyntax expression,
+        SemanticModel semanticModel) {
+        var current = 括弧除去53(expression);
+        while(current is InvocationExpressionSyntax invocation
+            && semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol method
+            && (method.ReducedFrom ?? method).Name=="AsEnumerable") {
+            if(method.ReducedFrom is not null
+                && invocation.Expression is MemberAccessExpressionSyntax { Expression: var receiverExpression }) {
+                current=括弧除去53(receiverExpression);
+                continue;
+            }
+            if(invocation.ArgumentList.Arguments.Count==1) {
+                current=括弧除去53(invocation.ArgumentList.Arguments[0].Expression);
+                continue;
+            }
+            break;
+        }
+        return current;
+    }
+
+    private static bool SelectConsumeループ文生成59(
+        InvocationExpressionSyntax linqInvocation,
+        ExpressionSyntax consumerExpression,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        StringBuilder builder,
+        HashSet<string> usedNames,
+        string tempName) {
+        if(!TryCollectSelectChain(linqInvocation,semanticModel,out var rootSourceExpression,out var selectors)) {
+            return false;
+        }
+        var sourceType = semanticModel.GetTypeInfo(rootSourceExpression).Type;
+        if(sourceType is not IArrayTypeSymbol && !IsListType(sourceType)) {
+            return false;
+        }
+        var snapshot = uniqueNumber;
+        var funcs = new List<FuncFragment>(selectors.Count);
+        foreach(var (selectorExpression,delegateType,usesIndex) in selectors) {
+            if(!関数フラグメント生成12(selectorExpression,delegateType,ref uniqueNumber,out var func,semanticModel,containingType)
+                || func.RequiresStatementInlining
+                || !func.CanInlineAssign
+                || func.ParameterNames.Length!=(usesIndex ? 2 : 1)) {
+                uniqueNumber=snapshot;
+                return false;
+            }
+            funcs.Add(func);
+            staticMethods=静的メソッド連結14(staticMethods,func.SupportingMemberSources);
+            unsafeAccessorCollector.AddRange(func.BodyUnsafeAccessorCodes);
+        }
+        var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
+        var sourceName = GetUniqueIdentifier($"source_{SanitizeIdentifier(tempName)}",usedNames);
+        var spanName = GetUniqueIdentifier($"span_{SanitizeIdentifier(tempName)}",usedNames);
+        var loopIndexName = GetUniqueIdentifier($"index_{SanitizeIdentifier(tempName)}",usedNames);
+        var stageIndexNames = new string[selectors.Count];
+        builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        builder.AppendLine($"var {sourceName}={RenderExpressionForGeneratedMethod(rootSourceExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        if(sourceType is IArrayTypeSymbol) {
+            builder.AppendLine($"var {spanName}=global::System.MemoryExtensions.AsSpan({sourceName});");
+        }else{
+            builder.AppendLine($"var {spanName}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({sourceName});");
+        }
+        for(var index=0;index<selectors.Count;index++) {
+            if(selectors[index].UsesIndex) {
+                stageIndexNames[index]=GetUniqueIdentifier($"index_{SanitizeIdentifier(tempName)}_{index}",usedNames);
+                builder.AppendLine($"var {stageIndexNames[index]}=0;");
+            }
+        }
+        builder.AppendLine($"for(var {loopIndexName}=0;{loopIndexName}<{spanName}.Length;{loopIndexName}++){{");
+        var currentName = GetUniqueIdentifier($"item_{SanitizeIdentifier(tempName)}_0",usedNames);
+        builder.AppendLine($"    var {currentName}={spanName}[{loopIndexName}];");
+        for(var index=0;index<funcs.Count;index++) {
+            var nextName = GetUniqueIdentifier($"item_{SanitizeIdentifier(tempName)}_{index+1}",usedNames);
+            builder.AppendLine($"    {funcs[index].ReturnTypeName} {nextName}=default!;");
+            string renderedExpression;
+            if(selectors[index].UsesIndex) {
+                renderedExpression=funcs[index].RenderInlineExpression(currentName,$"{stageIndexNames[index]}++");
+            }else{
+                renderedExpression=funcs[index].RenderInlineExpression(currentName);
+            }
+            builder.AppendLine($"    {nextName}={renderedExpression};");
+            currentName=nextName;
+        }
+        builder.AppendLine($"    {consumerName}.Consume({currentName});");
+        builder.AppendLine("}");
+        return true;
+    }
+
+    private static bool DistinctConsumeループ文生成60(
+        InvocationExpressionSyntax linqInvocation,
+        ExpressionSyntax consumerExpression,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        List<string> unsafeAccessorCollector,
+        StringBuilder builder,
+        HashSet<string> usedNames,
+        string tempName) {
+        if(!TryCollectDistinctChain(linqInvocation,semanticModel,out var rootSourceExpression)) {
+            return false;
+        }
+        var sourceType = semanticModel.GetTypeInfo(rootSourceExpression).Type;
+        if(sourceType is not IArrayTypeSymbol arrayType && !IsListType(sourceType)) {
+            return false;
+        }
+        var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
+        var sourceName = GetUniqueIdentifier($"source_{SanitizeIdentifier(tempName)}",usedNames);
+        var spanName = GetUniqueIdentifier($"span_{SanitizeIdentifier(tempName)}",usedNames);
+        var indexName = GetUniqueIdentifier($"index_{SanitizeIdentifier(tempName)}",usedNames);
+        var itemName = GetUniqueIdentifier($"item_{SanitizeIdentifier(tempName)}",usedNames);
+        var setName = GetUniqueIdentifier($"set_{SanitizeIdentifier(tempName)}",usedNames);
+        string elementTypeName;
+        if(sourceType is IArrayTypeSymbol arraySourceType) {
+            elementTypeName=arraySourceType.ElementType.ToDisplayString(完全修飾形式);
+        }else{
+            elementTypeName=((INamedTypeSymbol)sourceType!).TypeArguments[0].ToDisplayString(完全修飾形式);
+        }
+        builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        builder.AppendLine($"var {sourceName}={RenderExpressionForGeneratedMethod(rootSourceExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        if(sourceType is IArrayTypeSymbol) {
+            builder.AppendLine($"var {spanName}=global::System.MemoryExtensions.AsSpan({sourceName});");
+        }else{
+            builder.AppendLine($"var {spanName}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({sourceName});");
+        }
+        builder.AppendLine($"var {setName}=new global::System.Collections.Generic.HashSet<{elementTypeName}>({spanName}.Length);");
+        builder.AppendLine($"for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++){{");
+        builder.AppendLine($"    var {itemName}={spanName}[{indexName}];");
+        builder.AppendLine($"    if(!{setName}.Add({itemName})){{");
+        builder.AppendLine("        continue;");
+        builder.AppendLine("    }");
+        builder.AppendLine($"    {consumerName}.Consume({itemName});");
+        builder.AppendLine("}");
+        return true;
+    }
+
+    private static bool SetByConsumeループ文生成61(
+        string methodName,
+        InvocationExpressionSyntax linqInvocation,
+        ExpressionSyntax consumerExpression,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        StringBuilder builder,
+        HashSet<string> usedNames,
+        string tempName) {
+        if(!TryCollectSetByCall(methodName,linqInvocation,semanticModel,out var rootSourceExpression,out var secondSourceExpression,out var keySelectorExpression,out var delegateType)) {
+            return false;
+        }
+        var sourceType = semanticModel.GetTypeInfo(rootSourceExpression).Type;
+        var secondType = semanticModel.GetTypeInfo(secondSourceExpression).Type;
+        if((sourceType is not IArrayTypeSymbol && !IsListType(sourceType))
+            || (secondType is not IArrayTypeSymbol && !IsListType(secondType))) {
+            return false;
+        }
+        var snapshot = uniqueNumber;
+        if(!関数フラグメント生成12(keySelectorExpression,delegateType,ref uniqueNumber,out var keySelector,semanticModel,containingType)
+            || keySelector.RequiresStatementInlining
+            || !keySelector.CanInlineAssign
+            || keySelector.ParameterNames.Length!=1) {
+            uniqueNumber=snapshot;
+            return false;
+        }
+        staticMethods=静的メソッド連結14(staticMethods,keySelector.SupportingMemberSources);
+        unsafeAccessorCollector.AddRange(keySelector.BodyUnsafeAccessorCodes);
+        var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
+        var sourceName = GetUniqueIdentifier($"source_{SanitizeIdentifier(tempName)}",usedNames);
+        var secondName = GetUniqueIdentifier($"second_{SanitizeIdentifier(tempName)}",usedNames);
+        var sourceSpanName = GetUniqueIdentifier($"sourceSpan_{SanitizeIdentifier(tempName)}",usedNames);
+        var secondSpanName = GetUniqueIdentifier($"secondSpan_{SanitizeIdentifier(tempName)}",usedNames);
+        var indexName = GetUniqueIdentifier($"index_{SanitizeIdentifier(tempName)}",usedNames);
+        var secondIndexName = GetUniqueIdentifier($"secondIndex_{SanitizeIdentifier(tempName)}",usedNames);
+        var itemName = GetUniqueIdentifier($"item_{SanitizeIdentifier(tempName)}",usedNames);
+        var secondItemName = GetUniqueIdentifier($"secondItem_{SanitizeIdentifier(tempName)}",usedNames);
+        var keyName = GetUniqueIdentifier($"key_{SanitizeIdentifier(tempName)}",usedNames);
+        var setName = GetUniqueIdentifier($"set_{SanitizeIdentifier(tempName)}",usedNames);
+        builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        builder.AppendLine($"var {sourceName}={RenderExpressionForGeneratedMethod(rootSourceExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        builder.AppendLine($"var {secondName}={RenderExpressionForGeneratedMethod(secondSourceExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        if(sourceType is IArrayTypeSymbol) {
+            builder.AppendLine($"var {sourceSpanName}=global::System.MemoryExtensions.AsSpan({sourceName});");
+        }else{
+            builder.AppendLine($"var {sourceSpanName}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({sourceName});");
+        }
+        if(secondType is IArrayTypeSymbol) {
+            builder.AppendLine($"var {secondSpanName}=global::System.MemoryExtensions.AsSpan({secondName});");
+        }else{
+            builder.AppendLine($"var {secondSpanName}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({secondName});");
+        }
+        builder.AppendLine($"var {setName}=new global::System.Collections.Generic.HashSet<{keySelector.ReturnTypeName}>({secondSpanName}.Length);");
+        builder.AppendLine($"for(var {secondIndexName}=0;{secondIndexName}<{secondSpanName}.Length;{secondIndexName}++){{");
+        builder.AppendLine($"    var {secondItemName}={secondSpanName}[{secondIndexName}];");
+        builder.AppendLine($"    {setName}.Add({keySelector.RenderInlineExpression(secondItemName)});");
+        builder.AppendLine("}");
+        builder.AppendLine($"for(var {indexName}=0;{indexName}<{sourceSpanName}.Length;{indexName}++){{");
+        builder.AppendLine($"    var {itemName}={sourceSpanName}[{indexName}];");
+        builder.AppendLine($"    {keySelector.ReturnTypeName} {keyName}=default!;");
+        builder.AppendLine($"    {keyName}={keySelector.RenderInlineExpression(itemName)};");
+        if(methodName=="ExceptBy") {
+            builder.AppendLine($"    if(!{setName}.Add({keyName})){{");
+            builder.AppendLine("        continue;");
+            builder.AppendLine("    }");
+        }else{
+            builder.AppendLine($"    if(!{setName}.Remove({keyName})){{");
+            builder.AppendLine("        continue;");
+            builder.AppendLine("    }");
+        }
+        builder.AppendLine($"    {consumerName}.Consume({itemName});");
+        builder.AppendLine("}");
+        return true;
     }
 
     private static bool TryCollectAppendPrependChain(
@@ -2619,8 +3150,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
 
             staticMethods=静的メソッド連結14(staticMethods,invocationStaticMethods);
             staticMethods=静的メソッド連結14(staticMethods,fragment.GetEnumeratorStruct);
-            var resultTypeName = semanticModel.GetTypeInfo(invocation).ConvertedType?.ToDisplayString(完全修飾形式)
-                ?? semanticModel.GetTypeInfo(invocation).Type?.ToDisplayString(完全修飾形式)
+            var resultTypeName = semanticModel.GetTypeInfo(invocation).Type?.ToDisplayString(完全修飾形式)
+                ?? semanticModel.GetTypeInfo(invocation).ConvertedType?.ToDisplayString(完全修飾形式)
                 ?? "object";
             if(!フラグメントEnumerator実行文追加37(builder,fragment,tempName,resultTypeName,usedNames)) {
                 return false;
@@ -2706,8 +3237,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             generatedFragments.Add(fragment);
             staticMethods=静的メソッド連結14(staticMethods,invocationStaticMethods);
             staticMethods=静的メソッド連結14(staticMethods,fragment.GetEnumeratorStruct);
-            var resultTypeName = semanticModel.GetTypeInfo(invocation).ConvertedType?.ToDisplayString(完全修飾形式)
-                ?? semanticModel.GetTypeInfo(invocation).Type?.ToDisplayString(完全修飾形式)
+            var resultTypeName = semanticModel.GetTypeInfo(invocation).Type?.ToDisplayString(完全修飾形式)
+                ?? semanticModel.GetTypeInfo(invocation).ConvertedType?.ToDisplayString(完全修飾形式)
                 ?? "object";
             if(!フラグメントEnumerator実行文追加37(builder,fragment,tempName,resultTypeName,usedNames)) {
                 return false;
@@ -2904,8 +3435,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
 
         var tempName2 = GetUniqueIdentifier($"__linq{linqInvocationCount++}",usedNames);
         generatedFragments.Add(currentFragment);
-        var returnTypeName = semanticModel.GetTypeInfo(queryExpression).ConvertedType?.ToDisplayString(完全修飾形式)
-            ?? semanticModel.GetTypeInfo(queryExpression).Type?.ToDisplayString(完全修飾形式)
+        var returnTypeName = semanticModel.GetTypeInfo(queryExpression).Type?.ToDisplayString(完全修飾形式)
+            ?? semanticModel.GetTypeInfo(queryExpression).ConvertedType?.ToDisplayString(完全修飾形式)
             ?? "object";
         if(!フラグメントEnumerator実行文追加37(builder,currentFragment,tempName2,returnTypeName,usedNames)) {
             return false;

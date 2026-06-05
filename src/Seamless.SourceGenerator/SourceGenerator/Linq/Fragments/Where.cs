@@ -23,11 +23,10 @@ public class Where_predicate(int 番号, Enumerable source, FuncFragment predica
 
             return $$"""
                 {{Start}}:
-                if(!{{e}}.MoveNext()) {
+                if(!{{e}}.TryGetNext(out var {{item}})) {
                     current = default!;
                     return false;
                 }
-                var {{item}} = {{e}}.Current;
                 {{predicateCheck}}
                     goto {{Skip}};
                 current = this.{{currentValue}} = {{item}};
@@ -55,8 +54,7 @@ public class Where_WithInlinedScalarPredicate(int 番号, Enumerable source, Fra
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
-        while({{e}}.MoveNext()) {
-            var {{outerParamName}} = {{e}}.Current;
+        while({{e}}.TryGetNext(out var {{outerParamName}})) {
             var {{item}} = {{scalarFrag.GetEnumeratorExpression}};
             {{item}}.TryGetNext(out var {{temp}});
             {{item}}.Dispose();
@@ -139,11 +137,10 @@ public class Where_indexPredicate(int 番号, Enumerable source, FuncFragment pr
 
             return $$"""
                 {{Start}}:
-                if(!{{e}}.MoveNext()) {
+                if(!{{e}}.TryGetNext(out var {{item}})) {
                     current = default!;
                     return false;
                 }
-                var {{item}} = {{e}}.Current;
                 this.{{a}}++;
                 {{predicateCheck}}
                     goto {{Skip}};

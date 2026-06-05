@@ -29,26 +29,31 @@ public class DistinctBy_keySelector:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept1(){
-        src.DistinctBy(x=>x%1000).Consume(consumer);
+        Intercept1Core();
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept2(){
-        src.DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).Consume(consumer);
+        Intercept2Core();
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept3(){
-        src.DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).Consume(consumer);
+        Intercept3Core();
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept4(){
-        src.DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).Consume(consumer);
+        Intercept4Core();
     }
+
+    void Intercept1Core(){ this.src.AsEnumerable().DistinctBy(x=>x%1000).Consume(this.consumer); }
+    void Intercept2Core(){ this.src.AsEnumerable().DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).Consume(this.consumer); }
+    void Intercept3Core(){ this.src.AsEnumerable().DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).Consume(this.consumer); }
+    void Intercept4Core(){ this.src.AsEnumerable().DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).Consume(this.consumer); }
 
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
