@@ -29,26 +29,31 @@ public class Reverse:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept1(){
-        src.Reverse().Consume(consumer);
+        Intercept1Core();
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept2(){
-        src.Reverse().Reverse().Consume(consumer);
+        Intercept2Core();
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept3(){
-        src.Reverse().Reverse().Reverse().Consume(consumer);
+        Intercept3Core();
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept4(){
-        src.Reverse().Reverse().Reverse().Reverse().Consume(consumer);
+        Intercept4Core();
     }
+
+    void Intercept1Core(){ this.src.AsEnumerable().Reverse().Consume(this.consumer); }
+    void Intercept2Core(){ this.src.AsEnumerable().Reverse().Reverse().Consume(this.consumer); }
+    void Intercept3Core(){ this.src.AsEnumerable().Reverse().Reverse().Reverse().Consume(this.consumer); }
+    void Intercept4Core(){ this.src.AsEnumerable().Reverse().Reverse().Reverse().Reverse().Consume(this.consumer); }
 
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]

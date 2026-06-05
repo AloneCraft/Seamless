@@ -29,26 +29,31 @@ public class Distinct:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept1(){
-        src.Distinct().Consume(consumer);
+        Intercept1Core();
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept2(){
-        src.Distinct().Distinct().Consume(consumer);
+        Intercept2Core();
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept3(){
-        src.Distinct().Distinct().Distinct().Consume(consumer);
+        Intercept3Core();
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept4(){
-        src.Distinct().Distinct().Distinct().Distinct().Consume(consumer);
+        Intercept4Core();
     }
+
+    void Intercept1Core(){ this.src.AsEnumerable().Distinct().Consume(this.consumer); }
+    void Intercept2Core(){ this.src.AsEnumerable().Distinct().Distinct().Consume(this.consumer); }
+    void Intercept3Core(){ this.src.AsEnumerable().Distinct().Distinct().Distinct().Consume(this.consumer); }
+    void Intercept4Core(){ this.src.AsEnumerable().Distinct().Distinct().Distinct().Distinct().Consume(this.consumer); }
 
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
