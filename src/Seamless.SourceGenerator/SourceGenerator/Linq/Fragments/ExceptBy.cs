@@ -8,6 +8,11 @@ public abstract class SetByBase(int 番号, Enumerable source, Enumerable second
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => FuncSupport(keySelector,nameof(keySelector));
+    public override string GetEnumerableExpression => operation switch {
+        "except" => $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.ExceptBy({source.GetEnumerableExpression}, {second.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {comparer})",
+        "intersect" => $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.IntersectBy({source.GetEnumerableExpression}, {second.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {comparer})",
+        _ => $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.UnionBy({source.GetEnumerableExpression}, {second.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {comparer})",
+    };
     protected override string StructTypeParameters => "<TEnum1, TEnum2>";
     protected override string StructTypeConstraints =>
         $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{second.ElementType}>";

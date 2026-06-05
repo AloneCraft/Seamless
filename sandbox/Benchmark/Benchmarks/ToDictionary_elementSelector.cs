@@ -13,6 +13,6 @@ public class ToDictionary_elementSelector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().ToDictionary(x=>x,x=>x*2).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).ToDictionary(x=>x,x=>x*2).Consume(consumer);
     }
 }

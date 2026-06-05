@@ -13,6 +13,6 @@ public class GroupJoin_inner:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().GroupJoin(src2,x=>x,x=>x,(outer,inner)=>outer).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).GroupJoin(src2,x=>x,x=>x,(outer,inner)=>outer).Consume(consumer);
     }
 }

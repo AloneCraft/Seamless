@@ -5,6 +5,8 @@ public class Distinct(int 番号, Enumerable source) : Distinct_comparer(番号,
 public class Distinct_comparer(int 番号, Enumerable source, string comparer) : Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
+    public override string GetEnumerableExpression =>
+        $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.Distinct({source.GetEnumerableExpression}, {comparer})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}

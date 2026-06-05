@@ -24,6 +24,6 @@ public class TryGetNonEnumeratedCount:Base{
 
     [Benchmark]
     public void ZLinq(){
-        ConsumeResult(consumer,src.AsValueEnumerable().TryGetNonEnumeratedCount(out var count),count);
+        ConsumeResult(consumer,global::ZLinq.ValueEnumerable.AsValueEnumerable(src).TryGetNonEnumeratedCount(out var count),count);
     }
 }

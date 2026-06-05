@@ -13,6 +13,6 @@ public class MaxBy_keySelector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(src.AsValueEnumerable().MaxBy(x=>x%1000));
+        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).MaxBy(x=>x%1000));
     }
 }

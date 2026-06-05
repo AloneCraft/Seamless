@@ -13,6 +13,6 @@ public class SelectMany_indexSelector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        srcNested.AsValueEnumerable().SelectMany((x,i)=>x.AsValueEnumerable()).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(srcNested).SelectMany((x,i)=>global::ZLinq.ValueEnumerable.AsValueEnumerable(x)).Consume(consumer);
     }
 }

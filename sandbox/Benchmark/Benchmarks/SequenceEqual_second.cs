@@ -13,6 +13,6 @@ public class SequenceEqual_second:Base{
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(src.AsValueEnumerable().SequenceEqual(src));
+        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).SequenceEqual(src));
     }
 }

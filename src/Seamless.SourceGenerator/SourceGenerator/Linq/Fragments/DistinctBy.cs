@@ -6,6 +6,8 @@ public class DistinctBy_comparer(int 番号, Enumerable source, FuncFragment key
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => FuncSupport(keySelector,nameof(keySelector));
+    public override string GetEnumerableExpression =>
+        $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.DistinctBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {comparer})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}

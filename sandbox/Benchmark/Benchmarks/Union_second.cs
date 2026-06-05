@@ -13,6 +13,6 @@ public class Union_second:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().Union(src2).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Union(src2).Consume(consumer);
     }
 }

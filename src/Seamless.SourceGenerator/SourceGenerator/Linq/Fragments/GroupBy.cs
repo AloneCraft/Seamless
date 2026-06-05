@@ -3,6 +3,8 @@ namespace Seamless.SourceGenerator.Linq.Fragments;
 public class GroupBy_keySelector(int 番号, Enumerable source, FuncFragment keySelector) : Enumerable(番号) {
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     protected override Enumerable PrimarySource => source;
+    public override string GetEnumerableExpression =>
+        $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()})";
     public override string StructMethod => JoinStaticMethods(FuncSupport(keySelector,nameof(keySelector)),$$"""
         private sealed class Grouping : global::System.Linq.IGrouping<{{FuncReturnTypeName(keySelector)}}, {{source.ElementType}}> {
             private readonly global::System.Collections.Generic.List<{{source.ElementType}}> values = new();
@@ -103,7 +105,6 @@ public class GroupBy_keySelector_resultSelector(
     protected override Enumerable PrimarySource => source;
     private bool UseResultTypeParam => resultSelector.RequiresResultTypeParameter;
     public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(resultSelector);
-
     protected override string StructTypeParameters =>
         UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
 
@@ -177,7 +178,7 @@ public class GroupBy_keySelector_resultSelector(
     public override string GetEnumerableExpression =>
         UseResultTypeParam
             ? $"{FactoryMethodName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector, resultSelector)})"
-            : base.GetEnumerableExpression;
+            : $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {resultSelector.DelegateConstructorArg ?? resultSelector.RenderAsLambda()})";
 }
 public class GroupBy_keySelector_elementSelector(
     int 番号,
@@ -195,6 +196,8 @@ public class GroupBy_keySelector_elementSelector(
     protected override Enumerable PrimarySource => source;
     private string KeyType => FuncReturnTypeName(keySelector);
     private string ElemType => FuncReturnTypeName(elementSelector);
+    public override string GetEnumerableExpression =>
+        $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {elementSelector.DelegateConstructorArg ?? elementSelector.RenderAsLambda()})";
     public override string StructMethod => JoinStaticMethods(JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)), FuncSupport(elementSelector, nameof(elementSelector))),$$"""
         private sealed class Grouping : global::System.Linq.IGrouping<{{KeyType}}, {{ElemType}}> {
             private readonly global::System.Collections.Generic.List<{{ElemType}}> values = new();
@@ -350,5 +353,5 @@ public class GroupBy_keySelector_elementSelector_resultSelector(
     public override string GetEnumerableExpression =>
         UseResultTypeParam
             ? $"{FactoryMethodName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector, elementSelector, resultSelector)})"
-            : base.GetEnumerableExpression;
+            : $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {elementSelector.DelegateConstructorArg ?? elementSelector.RenderAsLambda()}, {resultSelector.DelegateConstructorArg ?? resultSelector.RenderAsLambda()})";
 }

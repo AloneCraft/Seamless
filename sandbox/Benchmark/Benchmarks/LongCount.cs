@@ -13,6 +13,6 @@ public class LongCount:Base{
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(src.AsValueEnumerable().LongCount());
+        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).LongCount());
     }
 }

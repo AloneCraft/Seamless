@@ -13,6 +13,6 @@ public class Average:Base{
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(src.AsValueEnumerable().Average());
+        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Average());
     }
 }

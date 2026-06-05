@@ -50,24 +50,24 @@ public class OrderBy_keySelector:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        src.AsValueEnumerable().OrderBy(x=>x).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).OrderBy(x=>x).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        src.AsValueEnumerable().OrderBy(x=>x).OrderBy(x=>x).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).OrderBy(x=>x).OrderBy(x=>x).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        src.AsValueEnumerable().OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        src.AsValueEnumerable().OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).Consume(consumer);
     }
 }

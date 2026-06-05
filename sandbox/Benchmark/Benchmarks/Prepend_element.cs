@@ -53,24 +53,24 @@ public class Prepend_element:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        src.AsValueEnumerable().Prepend(0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Prepend(0).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        src.AsValueEnumerable().Prepend(0).Prepend(0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Prepend(0).Prepend(0).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        src.AsValueEnumerable().Prepend(0).Prepend(0).Prepend(0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Prepend(0).Prepend(0).Prepend(0).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        src.AsValueEnumerable().Prepend(0).Prepend(0).Prepend(0).Prepend(0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Prepend(0).Prepend(0).Prepend(0).Prepend(0).Consume(consumer);
     }
 }

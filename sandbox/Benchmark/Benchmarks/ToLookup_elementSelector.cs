@@ -13,6 +13,6 @@ public class ToLookup_elementSelector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().ToLookup(x=>x%1000,x=>x*2).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).ToLookup(x=>x%1000,x=>x*2).Consume(consumer);
     }
 }

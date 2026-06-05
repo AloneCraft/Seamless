@@ -15,6 +15,6 @@ public class Range:Base{
 
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.Range(1,1000000).Consume(consumer);
+        global::ZLinq.ValueEnumerable.Range(1,1000000).Consume(consumer);
     }
 }

@@ -13,6 +13,6 @@ public class Intersect_second:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().Intersect(src2).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Intersect(src2).Consume(consumer);
     }
 }

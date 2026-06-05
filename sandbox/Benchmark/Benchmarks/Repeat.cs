@@ -15,6 +15,6 @@ public class Repeat:Base{
 
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.Repeat(7,1000000).Consume(consumer);
+        global::ZLinq.ValueEnumerable.Repeat(7,1000000).Consume(consumer);
     }
 }

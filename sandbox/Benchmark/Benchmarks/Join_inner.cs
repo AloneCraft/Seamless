@@ -13,6 +13,6 @@ public class Join_inner:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().Join(src2,x=>x,x=>x,(a,b)=>a).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Join(src2,x=>x,x=>x,(a,b)=>a).Consume(consumer);
     }
 }

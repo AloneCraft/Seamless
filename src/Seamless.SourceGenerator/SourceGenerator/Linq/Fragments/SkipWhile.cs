@@ -5,6 +5,8 @@ public class SkipWhile_predicate(int 番号, Enumerable source, FuncFragment pre
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => FuncSupport(predicate,nameof(predicate));
+    public override string GetEnumerableExpression =>
+        $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.SkipWhile({source.GetEnumerableExpression}, {predicate.DelegateConstructorArg ?? predicate.RenderAsLambda()})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}

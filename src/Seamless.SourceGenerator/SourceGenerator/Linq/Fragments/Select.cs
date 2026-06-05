@@ -157,7 +157,7 @@ public class Select_indexSelector(int 番号, Enumerable source, FuncFragment se
     public override string GetEnumerableExpression =>
         UseResultTypeParam
             ? $"{FactoryMethodName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})"
-            : base.GetEnumerableExpression;
+            : $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.Select({source.GetEnumerableExpression}, {selector.DelegateConstructorArg ?? selector.RenderAsLambda()})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
     public override string GetEnumeratorFields => $$"""

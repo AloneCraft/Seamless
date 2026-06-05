@@ -13,6 +13,6 @@ public class SingleOrDefault_predicate:Base{
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(srcOne.AsValueEnumerable().SingleOrDefault(x=>x==500000));
+        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(srcOne).SingleOrDefault(x=>x==500000));
     }
 }

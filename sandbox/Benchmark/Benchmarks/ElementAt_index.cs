@@ -13,6 +13,6 @@ public class ElementAt_index:Base{
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(src.AsValueEnumerable().ElementAt(500000));
+        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).ElementAt(500000));
     }
 }

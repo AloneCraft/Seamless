@@ -13,6 +13,6 @@ public class Concat_second:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().Concat(src2).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Concat(src2).Consume(consumer);
     }
 }

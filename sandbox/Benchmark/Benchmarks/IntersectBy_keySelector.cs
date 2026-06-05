@@ -13,6 +13,6 @@ public class IntersectBy_keySelector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        src.AsValueEnumerable().IntersectBy(src2,x=>x).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).IntersectBy(src2,x=>x).Consume(consumer);
     }
 }

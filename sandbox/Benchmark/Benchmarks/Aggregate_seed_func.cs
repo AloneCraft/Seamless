@@ -13,6 +13,6 @@ public class Aggregate_seed_func:Base{
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(src.AsValueEnumerable().Aggregate(0L,(acc,x)=>acc+x));
+        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Aggregate(0L,(acc,x)=>acc+x));
     }
 }

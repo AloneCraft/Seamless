@@ -50,24 +50,24 @@ public class Where_indexPredicate:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        src.AsValueEnumerable().Where((x,i)=>i%2==0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Where((x,i)=>i%2==0).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        src.AsValueEnumerable().Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        src.AsValueEnumerable().Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        src.AsValueEnumerable().Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Where((x,i)=>i%2==0).Consume(consumer);
     }
 }

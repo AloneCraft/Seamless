@@ -53,24 +53,24 @@ public class DefaultIfEmpty:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        src.AsValueEnumerable().DefaultIfEmpty(0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).DefaultIfEmpty(0).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        src.AsValueEnumerable().DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        src.AsValueEnumerable().DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        src.AsValueEnumerable().DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(consumer);
     }
 }

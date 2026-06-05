@@ -54,6 +54,18 @@ public abstract class FuncFragment {
     public virtual string? DelegateInvokeExpr => null;
     // Enumerator struct のコンストラクタに渡すデリゲート引数（ラムダ式テキスト）。
     public virtual string? DelegateConstructorArg => null;
+    public virtual string RenderAsLambda() {
+        if(DelegateConstructorArg is { } delegateConstructorArg) {
+            return delegateConstructorArg;
+        }
+        if(RequiresStatementInlining || string.IsNullOrWhiteSpace(InlineBody)) {
+            throw new InvalidOperationException("Lambda expression rendering is not supported.");
+        }
+        var parameters = ParameterNames.Length==1
+            ? ParameterNames[0]
+            : $"({string.Join(", ",ParameterNames)})";
+        return $"{parameters}=>{InlineBody}";
+    }
 
     // 代入文向け inline 展開の共通処理。
     protected string RenderInlineAssignCore(string destination,int number,params string[] arguments) {

@@ -3,6 +3,8 @@ namespace Seamless.SourceGenerator.Linq.Fragments;
 public class Append(int 番号, Enumerable source, string element) : Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
+    public override string GetEnumerableExpression =>
+        $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.Append({source.GetEnumerableExpression}, {element})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
