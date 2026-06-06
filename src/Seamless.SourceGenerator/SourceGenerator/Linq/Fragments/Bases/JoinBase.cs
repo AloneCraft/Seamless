@@ -19,7 +19,7 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
             while({{innerEnumerator}}.MoveNext()){
                 var {{item}}={{innerEnumerator}}.Current;
                 {{InnerKeyType}} {{key}}=default!;
-                {{FuncAssign(innerKey,nameof(innerKey),key,item)}}
+                {{FuncAssignStatic(innerKey,nameof(innerKey),key,item)}}
                 if(IsNullKey({{key}})){
                     continue;
                 }
@@ -38,7 +38,7 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
             while({{innerEnumerator}}.MoveNext()){
                 var {{item}}={{innerEnumerator}}.Current;
                 {{InnerKeyType}} {{key}}=default!;
-                {{FuncAssign(innerKey,nameof(innerKey),key,item)}}
+                {{FuncAssignStatic(innerKey,nameof(innerKey),key,item)}}
                 if(!{{lookup}}.TryGetValue({{key}},out var {{group}})){
                     {{group}}=new global::System.Collections.Generic.List<{{InnerElementType}}>();
                     {{lookup}}.Add({{key}},{{group}});
