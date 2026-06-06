@@ -69,12 +69,6 @@ class A:IDisposable{
         }
     }
 }
-## user prompt
-この計画のあらゆる側面について共通理解が得られるまで徹底的に質問してください
-
-質問は1つずつ順番にしてください
-
-コードベースを調べることで回答が得られる質問であれば、コードベースを調べてください
 
 ## Collection And LINQ Constraints
 

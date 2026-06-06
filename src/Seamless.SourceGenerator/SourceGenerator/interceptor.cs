@@ -2680,9 +2680,31 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             builder.AppendLine($"var {secondSpanName}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({secondName});");
         }
         builder.AppendLine($"var {setName}=new global::System.Collections.Generic.HashSet<{keySelector.ReturnTypeName}>({secondSpanName}.Length);");
+        if(keySelector is LambdaFunc lambda && lambda.IsIdentity && keySelector.ReturnTypeName==sourceType.ToDisplayString(完全修飾形式)){
+            builder.AppendLine($"for(var {secondIndexName}=0;{secondIndexName}<{secondSpanName}.Length;{secondIndexName}++){{");
+            builder.AppendLine($"    var {secondItemName}={secondSpanName}[{secondIndexName}];");
+            builder.AppendLine($"    {setName}.Add({secondItemName});");
+            builder.AppendLine("}");
+            builder.AppendLine($"for(var {indexName}=0;{indexName}<{sourceSpanName}.Length;{indexName}++){{");
+            builder.AppendLine($"    var {itemName}={sourceSpanName}[{indexName}];");
+            if(methodName=="ExceptBy") {
+                builder.AppendLine($"    if(!{setName}.Add({itemName})){{");
+                builder.AppendLine("        continue;");
+                builder.AppendLine("    }");
+            }else{
+                builder.AppendLine($"    if(!{setName}.Remove({itemName})){{");
+                builder.AppendLine("        continue;");
+                builder.AppendLine("    }");
+            }
+            builder.AppendLine($"    {consumerName}.Consume({itemName});");
+            builder.AppendLine("}");
+            return true;
+        }
         builder.AppendLine($"for(var {secondIndexName}=0;{secondIndexName}<{secondSpanName}.Length;{secondIndexName}++){{");
         builder.AppendLine($"    var {secondItemName}={secondSpanName}[{secondIndexName}];");
-        builder.AppendLine($"    {setName}.Add({keySelector.RenderInlineExpression(secondItemName)});");
+        builder.AppendLine($"    {keySelector.ReturnTypeName} {keyName}=default!;");
+        builder.AppendLine($"    {keyName}={keySelector.RenderInlineExpression(secondItemName)};");
+        builder.AppendLine($"    {setName}.Add({keyName});");
         builder.AppendLine("}");
         builder.AppendLine($"for(var {indexName}=0;{indexName}<{sourceSpanName}.Length;{indexName}++){{");
         builder.AppendLine($"    var {itemName}={sourceSpanName}[{indexName}];");

@@ -130,6 +130,8 @@ public abstract class FuncFragment {
     private static string FormatInlineArgument(string argument) =>
         IsSimpleExpression(argument) ? argument : $"({argument})";
 
+    public virtual bool IsIdentity => false;
+
     private static bool CanOmitOuterParentheses(string expression) {
         var parsed = SyntaxFactory.ParseExpression(expression);
         return parsed is not AssignmentExpressionSyntax

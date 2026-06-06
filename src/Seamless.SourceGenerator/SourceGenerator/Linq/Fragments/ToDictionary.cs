@@ -5,26 +5,6 @@ public abstract class ToDictionaryBase(int 番号,Enumerable source,string resul
     public override string StructMethod=>string.Empty;
     protected override string StructSources=>source.GetEnumeratorStruct;
     protected override string GetEnumeratorDisposeBody=>$"{e}.Dispose();";
-    protected string ComputeCore(string sourceExpression,string comparerExpression,string keyBody,string valueBody,string ctorArgs){
-        return $$"""
-            {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{ctorArgs}}){
-                {{resultType}} result;
-                if(source.TryGetNonEnumeratedCount(out var __count)){
-                    result=new(__count{{comparerExpression}});
-                }else{
-                    result=new({{comparerExpression}});
-                }
-                while(source.MoveNext()){
-                    var {{item}}=source.Current;
-                    {{keyBody}}
-                    {{valueBody}}
-                    result.Add({{key}},{{temp}});
-                }
-                return result;
-            }
-            """;
-    }
 }
 
 public class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragment keySelector,string resultType):ToDictionaryBase(番号,source,resultType){

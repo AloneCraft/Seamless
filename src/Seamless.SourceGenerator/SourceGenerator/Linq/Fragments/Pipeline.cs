@@ -1052,11 +1052,65 @@ public static class PipelineBuilder {
         if(stages.Count<=1) {
             return stages;
         }
+        stages=MergeDistinctStages(stages);
+        stages=MergeDistinctByStages(stages);
         stages=MergeTakeStages(stages);
         stages=MergeSkipStages(stages);
         stages=CancelReverseStages(stages);
         stages=MergeWhereStages(stages,joinStaticMethods);
         return stages;
+    }
+
+    private static List<PipelineStage> MergeDistinctStages(List<PipelineStage> stages) {
+        var normalized = new List<PipelineStage>(stages.Count);
+        foreach(var stage in stages) {
+            if(stage.Kind==PipelineStageKind.Distinct
+                && normalized.Count>0
+                && normalized[^1].Kind==PipelineStageKind.Distinct
+                && string.Equals(normalized[^1].Value,stage.Value,StringComparison.Ordinal)) {
+                continue;
+            }
+            normalized.Add(stage);
+        }
+        return normalized;
+    }
+
+    private static List<PipelineStage> MergeDistinctByStages(List<PipelineStage> stages) {
+        var normalized = new List<PipelineStage>(stages.Count);
+        foreach(var stage in stages) {
+            if(stage.Kind==PipelineStageKind.DistinctBy
+                && normalized.Count>0
+                && normalized[^1].Kind==PipelineStageKind.DistinctBy
+                && string.Equals(normalized[^1].Value,stage.Value,StringComparison.Ordinal)
+                && normalized[^1].KeyType==stage.KeyType
+                && normalized[^1].Func is { } leftFunc
+                && stage.Func is { } rightFunc
+                && DistinctByKeySelectorEquals(leftFunc,rightFunc)) {
+                continue;
+            }
+            normalized.Add(stage);
+        }
+        return normalized;
+    }
+
+    private static bool DistinctByKeySelectorEquals(FuncFragment left,FuncFragment right) {
+        if(left.RequiresStatementInlining
+            || right.RequiresStatementInlining
+            || left.ParameterNames.Length!=right.ParameterNames.Length
+            || left.ParameterTypeNames.Length!=right.ParameterTypeNames.Length
+            || left.ReturnTypeName!=right.ReturnTypeName) {
+            return false;
+        }
+        for(var index = 0; index<left.ParameterTypeNames.Length; index++) {
+            if(left.ParameterTypeNames[index]!=right.ParameterTypeNames[index]) {
+                return false;
+            }
+        }
+        try {
+            return string.Equals(left.RenderAsLambda(),right.RenderAsLambda(),StringComparison.Ordinal);
+        } catch(InvalidOperationException) {
+            return false;
+        }
     }
 
     private static List<PipelineStage> MergeTakeStages(List<PipelineStage> stages) {

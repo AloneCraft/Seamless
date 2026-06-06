@@ -1,6 +1,11 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
 public class LambdaFunc : FuncFragment {
+    public override bool IsIdentity =>
+        ParameterNames.Length==1
+        && !RequiresStatementInlining
+        && string.Equals(InlineBody.Trim(),ParameterNames[0],StringComparison.Ordinal);
+
     // ラムダ本体を代入文として埋め込む。
     public override string RenderInlineAssign(string destination,int number,params string[] arguments) {
         return RenderInlineAssignCore(destination,number,arguments);
