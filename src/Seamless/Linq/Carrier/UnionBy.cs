@@ -60,7 +60,9 @@ namespace Seamless.Linq.Carrier.Linq
         {
             if (state == 0)
             {
-                set = new HashSetSlim<TKey>(comparer ?? EqualityComparer<TKey>.Default);
+                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator, TSource>(ref source)
+                    + EnumeratorHelper.GetCapacityHint<TEnumerator2, TSource>(ref second);
+                set = hint > 0 ? new HashSetSlim<TKey>(hint, comparer) : new HashSetSlim<TKey>(comparer);
                 state = 1;
             }
 
