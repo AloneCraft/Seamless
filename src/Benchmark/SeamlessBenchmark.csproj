@@ -68,6 +68,7 @@
     <Compile Include="HashSetApiSurfaceBenchmark.cs" />
     <Compile Include="ListApiSurfaceBenchmark.cs" />
     <Compile Include="LinqSequenceFusionBenchmark.cs" />
+    <Compile Include="SetOperationCapacityBenchmark.cs" />
   </ItemGroup>
 
   <ItemGroup>

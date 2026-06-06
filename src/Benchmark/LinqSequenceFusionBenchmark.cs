@@ -1,5 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
+using Seamless.Linq.Carrier;
 using SystemEnumerable = System.Linq.Enumerable;
 
 namespace BenchmarkExe.Benchmarks;
@@ -38,6 +39,14 @@ public class LinqSequenceFusionBenchmark {
     }
 
     [Benchmark]
+    public int CarrierDirectWhereSelectSum() {
+        return this.outer.AsValueEnumerable()
+            .Where(static value => value>10)
+            .Select(static value => value*2)
+            .Sum();
+    }
+
+    [Benchmark]
     public int SystemLinqSelectManySum() {
         return SystemEnumerable.Sum(
             SystemEnumerable.SelectMany(
@@ -49,6 +58,14 @@ public class LinqSequenceFusionBenchmark {
     [Benchmark]
     public int InterceptedContainerSelectManySum() {
         return this.baselineContainer.SelectManySum(this.outer,this.inner);
+    }
+
+    [Benchmark]
+    public int CarrierDirectSelectManySum() {
+        var inner = this.inner;
+        return this.outer.AsValueEnumerable()
+            .SelectMany(_ => (IEnumerable<int>)inner,static (o,i) => o+i)
+            .Sum();
     }
 
     [Benchmark]
@@ -67,6 +84,16 @@ public class LinqSequenceFusionBenchmark {
     [Benchmark]
     public int InterceptedContainerJoinSelectSum() {
         return SumSequence(this.baselineContainer.JoinSelectSequence(this.outer,this.inner));
+    }
+
+    [Benchmark]
+    public int CarrierDirectJoinSelectSum() {
+        return this.outer.AsValueEnumerable()
+            .Join((IEnumerable<int>)this.inner,
+                static o => o&127,
+                static i => i,
+                static (o,i) => o+i)
+            .Sum();
     }
 
     private static int SumSequence(IEnumerable<int> source) {
