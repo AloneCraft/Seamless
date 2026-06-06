@@ -74,8 +74,11 @@ public abstract class Fragment(
         return string.IsNullOrEmpty(joined) ? string.Empty : ", " + joined;
     }
 
-    private protected string ClosureFields(params FuncFragment[] funcs) {
-        return string.Empty;
+    private protected string ClosureFields(params FuncFragment[] funcs){
+        var delegates=DistinctDelegateFuncs(funcs).ToArray();
+        if(delegates.Length==0){ return string.Empty; }
+        return string.Join("\n    ",delegates.Select(
+            static f=>$"private {f.DelegateTypeName} {f.DelegateFieldName}={f.DelegateFieldName};"));
     }
 
     private protected string ClosureFieldAssignments(params FuncFragment[] funcs) {
@@ -187,8 +190,7 @@ public abstract class Fragment(
     // キャプチャ変数付きラムダもインライン展開可能（キャプチャ変数はインターセプト先メソッドのスコープに存在する）。
     private protected string FuncInvoke(FuncFragment func,string methodName,params string[] arguments) {
         if(func.CanInvokeAsDelegate) {
-            // primary constructor パラメータは this. なしでアクセスする（struct では this.param は無効）
-            return $"{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})";
+            return $"this.{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})";
         }
         if(func.CanInlineAssign) {
             return func.RenderInlineExpression(arguments);
@@ -202,7 +204,7 @@ public abstract class Fragment(
             return func.RenderInlineAssign(destination,番号,arguments);
         }
         if(func.CanInvokeAsDelegate) {
-            return $"{destination}={func.DelegateFieldName}.Invoke({string.Join(", ", arguments)});";
+            return $"{destination}=this.{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)});";
         }
         if(func.CanInlineAssign) {
             return func.RenderInlineAssign(destination,番号,arguments);
@@ -262,7 +264,7 @@ public abstract class Fragment(
             return ($"{declaration}\n{assignStatement}", tempVar);
         }
         if(func.CanInvokeAsDelegate) {
-            return (string.Empty, $"{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})");
+            return (string.Empty, $"this.{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})");
         }
         if(func.CanInlineAssign) {
             // 単純ラムダなら直接式として展開
@@ -369,6 +371,31 @@ public abstract class Fragment(
     private protected string FuncInvokeField(FuncFragment func,string methodName,params string[] arguments) {
         if(func.CanInlineAssign) {
             return func.RenderInlineExpression(arguments);
+        }
+        throw LambdaInlineUnsupported(func,methodName);
+    }
+
+    // static メソッド本体内（this. が使えない文脈）でのデリゲート呼び出し生成。
+    private protected string FuncInvokeStatic(FuncFragment func,string methodName,params string[] arguments){
+        if(func.CanInvokeAsDelegate){
+            return $"{func.DelegateFieldName}.Invoke({string.Join(", ",arguments)})";
+        }
+        if(func.CanInlineAssign){
+            return func.RenderInlineExpression(arguments);
+        }
+        throw LambdaInlineUnsupported(func,methodName);
+    }
+
+    // static メソッド本体内（this. が使えない文脈）での代入文生成。
+    private protected string FuncAssignStatic(FuncFragment func,string methodName,string destination,params string[] arguments){
+        if(func.RequiresStatementInlining){
+            return func.RenderInlineAssign(destination,番号,arguments);
+        }
+        if(func.CanInvokeAsDelegate){
+            return $"{destination}={func.DelegateFieldName}.Invoke({string.Join(", ",arguments)});";
+        }
+        if(func.CanInlineAssign){
+            return func.RenderInlineAssign(destination,番号,arguments);
         }
         throw LambdaInlineUnsupported(func,methodName);
     }

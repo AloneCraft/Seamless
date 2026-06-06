@@ -3,12 +3,12 @@ namespace Seamless.SourceGenerator.Linq.Fragments;
 internal static class GroupBySupport{
     public static string GroupingClass(string keyType,string elementType)=>$$"""
         private sealed class Grouping:global::System.Linq.IGrouping<{{keyType}},{{elementType}}>{
-            private readonly global::System.Collections.Generic.List<{{elementType}}> values=new();
-            public Grouping({{keyType}} key){
+            private readonly global::System.Collections.Generic.List<{{elementType}}> values;
+            public Grouping({{keyType}} key,global::System.Collections.Generic.List<{{elementType}}> values){
                 this.Key=key;
+                this.values=values;
             }
             public {{keyType}} Key{get;}
-            public void Add({{elementType}} value)=>values.Add(value);
             public global::System.Collections.Generic.IEnumerator<{{elementType}}> GetEnumerator()=>values.GetEnumerator();
             global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator()=>this.GetEnumerator();
         }
@@ -216,9 +216,53 @@ internal class GroupBy_keySelector(int 番号, Enumerable source, FuncFragment k
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorFields => $$"""
-        {{GroupBySupport.LookupFields(FuncReturnTypeName(keySelector),"Grouping","Grouping",lookup,group,a)}}
+        {{GroupBySupport.LookupFields(FuncReturnTypeName(keySelector),$"global::System.Collections.Generic.List<{source.ElementType}>","Grouping",lookup,group,a)}}
         """;
-    public override string GetTryGetNextBody => GroupBySupport.BuildGroupingLookupBody(e,source.CanProvideSpan,FuncReturnTypeName(keySelector),"Grouping",FuncAssign(keySelector,nameof(keySelector),key,item),"__group.Add("+item+");",lookup,group,a,item,key);
+    public override string GetTryGetNextBody => $$"""
+        if(this.{{lookup}} is null){
+            if({{e}}.TryGetSpan(out var __span)){
+                this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>(__span.Length);
+                this.{{group}}=new global::System.Collections.Generic.List<Grouping>(__span.Length);
+                for(var __i=0;__i<__span.Length;__i++){
+                    var {{item}}=__span[__i];
+                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                    {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                    ref var __list=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookup}},{{key}},out var __exists);
+                    if(!__exists){
+                        __list=new global::System.Collections.Generic.List<{{source.ElementType}}>();
+                        this.{{group}}.Add(new Grouping({{key}},__list));
+                    }
+                    __list.Add({{item}});
+                }
+            }else{
+                if({{e}}.TryGetNonEnumeratedCount(out var __count)){
+                    this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>(__count);
+                    this.{{group}}=new global::System.Collections.Generic.List<Grouping>(__count);
+                }else{
+                    this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>();
+                    this.{{group}}=new global::System.Collections.Generic.List<Grouping>();
+                }
+                while({{e}}.MoveNext()){
+                    var {{item}}={{e}}.Current;
+                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                    {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                    ref var __list=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookup}},{{key}},out var __exists);
+                    if(!__exists){
+                        __list=new global::System.Collections.Generic.List<{{source.ElementType}}>();
+                        this.{{group}}.Add(new Grouping({{key}},__list));
+                    }
+                    __list.Add({{item}});
+                }
+            }
+        }
+        this.{{a}}++;
+        if(this.{{group}} is not null&&(uint)this.{{a}}<(uint)this.{{group}}.Count){
+            current=this.Current=this.{{group}}[this.{{a}}];
+            return true;
+        }
+        current=default!;
+        return false;
+        """;
     public override string GetCurrentExpression => currentValue;
     public override string ElementType => $"global::System.Linq.IGrouping<{FuncReturnTypeName(keySelector)}, {source.ElementType}>";
 }
@@ -246,7 +290,7 @@ internal class GroupBy_keySelector_resultSelector(
     private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum source{{ClosurePrimaryCtorSuffix(keySelector, resultSelector)}})
-            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.Linq.Carrier.IValueEnumerator<{{source.ElementType}}>
+            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{source.ElementType}>
             => new(new {{Struct}}<TEnum, TResult>(source{{ClosureArgsSuffixForFactory(keySelector, resultSelector)}}));
         """;
     public override string StructMethod => JoinStaticMethods(JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)), FuncSupport(resultSelector, nameof(resultSelector))), FactorySource);
@@ -305,9 +349,53 @@ internal class GroupBy_keySelector_elementSelector(
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector, elementSelector)}";
     public override string GetEnumeratorFields => $$"""
-        {{GroupBySupport.LookupFields(KeyType,"Grouping","Grouping",lookup,group,a)}}
+        {{GroupBySupport.LookupFields(KeyType,$"global::System.Collections.Generic.List<{ElemType}>","Grouping",lookup,group,a)}}
         """;
-    public override string GetTryGetNextBody => GroupBySupport.BuildGroupingLookupBody(e,source.CanProvideSpan,KeyType,"Grouping",FuncAssign(keySelector,nameof(keySelector),key,item),"__group.Add("+a+");",lookup,group,a,item,key);
+    public override string GetTryGetNextBody => $$"""
+        if(this.{{lookup}} is null){
+            if({{e}}.TryGetSpan(out var __span)){
+                this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{KeyType}}, global::System.Collections.Generic.List<{{ElemType}}>>(__span.Length);
+                this.{{group}}=new global::System.Collections.Generic.List<Grouping>(__span.Length);
+                for(var __i=0;__i<__span.Length;__i++){
+                    var {{item}}=__span[__i];
+                    {{KeyType}} {{key}}=default!;
+                    {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                    ref var __list=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookup}},{{key}},out var __exists);
+                    if(!__exists){
+                        __list=new global::System.Collections.Generic.List<{{ElemType}}>();
+                        this.{{group}}.Add(new Grouping({{key}},__list));
+                    }
+                    __list.Add({{item}});
+                }
+            }else{
+                if({{e}}.TryGetNonEnumeratedCount(out var __count)){
+                    this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{KeyType}}, global::System.Collections.Generic.List<{{ElemType}}>>(__count);
+                    this.{{group}}=new global::System.Collections.Generic.List<Grouping>(__count);
+                }else{
+                    this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{KeyType}}, global::System.Collections.Generic.List<{{ElemType}}>>();
+                    this.{{group}}=new global::System.Collections.Generic.List<Grouping>();
+                }
+                while({{e}}.MoveNext()){
+                    var {{item}}={{e}}.Current;
+                    {{KeyType}} {{key}}=default!;
+                    {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
+                    ref var __list=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookup}},{{key}},out var __exists);
+                    if(!__exists){
+                        __list=new global::System.Collections.Generic.List<{{ElemType}}>();
+                        this.{{group}}.Add(new Grouping({{key}},__list));
+                    }
+                    __list.Add({{item}});
+                }
+            }
+        }
+        this.{{a}}++;
+        if(this.{{group}} is not null&&(uint)this.{{a}}<(uint)this.{{group}}.Count){
+            current=this.Current=this.{{group}}[this.{{a}}];
+            return true;
+        }
+        current=default!;
+        return false;
+        """;
     public override string GetCurrentExpression => currentValue;
     public override string ElementType => $"global::System.Linq.IGrouping<{FuncReturnTypeName(keySelector)}, {FuncReturnTypeName(elementSelector)}>";
 }
@@ -338,7 +426,7 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
     private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum source{{ClosurePrimaryCtorSuffix(keySelector, elementSelector, resultSelector)}})
-            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.Linq.Carrier.IValueEnumerator<{{source.ElementType}}>
+            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{source.ElementType}>
             => new(new {{Struct}}<TEnum, TResult>(source{{ClosureArgsSuffixForFactory(keySelector, elementSelector, resultSelector)}}));
         """;
     public override string StructMethod => JoinStaticMethods(JoinStaticMethods(JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)), FuncSupport(elementSelector, nameof(elementSelector))), FuncSupport(resultSelector, nameof(resultSelector))), FactorySource);
