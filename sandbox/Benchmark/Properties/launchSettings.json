@@ -2,19 +2,29 @@
   "profiles": {
     "Default": {
       "commandName": "Project",
-      "commandLineArgs": "--filter * -- Default",
       "workingDirectory": "."
     },
     "RunAllBenchmark(Debug)": {
       "commandName": "Project",
-      "commandLineArgs": "--filter *",
       "environmentVariables": {
         "BDN_DEBUG": "1"
       }
     },
-    "Run All Benchmarks": {
+    "RunAll1FileBenchmark(Debug)": {
       "commandName": "Project",
-      "commandLineArgs": "--filter *"
+      "environmentVariables": {
+        "BDN_DEBUG": "1",
+        "SEAMLESS_BENCHMARK_SINGLE_FILE": "1"
+      }
+    },
+    "Run All Benchmarks": {
+      "commandName": "Project"
+    },
+    "Run All 1 File Benchmarks": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "SEAMLESS_BENCHMARK_SINGLE_FILE": "1"
+      }
     },
     "Run All Benchmarks with --join": {
       "commandName": "Project",
