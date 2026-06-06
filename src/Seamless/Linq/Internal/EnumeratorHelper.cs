@@ -32,6 +32,18 @@ public static class EnumeratorHelper
         return false;
     }
 
+    // Returns a non-negative capacity hint for pre-sizing hash sets/dictionaries.
+    // Returns 0 when the count is unknown (caller should fall back to a default capacity).
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int GetCapacityHint<TEnumerator, T>(ref TEnumerator enumerator)
+        where TEnumerator : struct, IValueEnumerator<T>
+#if NET9_0_OR_GREATER
+        , allows ref struct
+#endif
+    {
+        return enumerator.TryGetNonEnumeratedCount(out var count) && count > 0 ? count : 0;
+    }
+
     public static bool TryConsumeGetAt<TEnumerator, T>(ref TEnumerator enumerator, Index offset, out T value)
         where TEnumerator : struct, IValueEnumerator<T>
 #if NET9_0_OR_GREATER
