@@ -1,6 +1,6 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
-public abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment keySelector,string resultType,string direction):BufferedScalar(番号,resultType){
+internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment keySelector,string resultType,string direction):BufferedScalar(番号,resultType){
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=>FuncSupport(keySelector,nameof(keySelector));
     protected override string StructSources=>source.GetEnumeratorStruct;

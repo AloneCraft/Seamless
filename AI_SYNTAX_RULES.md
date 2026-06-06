@@ -76,6 +76,21 @@ class A:IDisposable{
 - `Tsavorite` を使う理由は、メモリに収まらないサイズのコレクションを扱うためです。
 - `Iterator`/`Enumerator` では、必要に応じて固定長配列などのチャンク単位でバッファリングし、少しずつ返してください。
 
+## File Layout Rules
+
+- `src/Seamless.SourceGenerator/SourceGenerator/Linq/Fragments` 配下の配置は、役割で分けてください。
+- `Bases` には、`abstract` または `virtual` を持つ共通基底クラスだけを置いてください。
+- `Helpers` には、複数クラスから使う純粋な共通ヘルパーだけを置いてください。
+- 1 つのクラスからしか使われない共通処理は、可能ならそのクラスのファイル内に file-scoped でまとめてください。
+- `Bases` に置くものは、`JoinBase`、`MinMaxByBase` のような複数クラスで共有する基底に限定してください。
+- `Helpers` に置くものは、`InlinedScalarFunc` のような状態を持たない共通補助処理に限定してください。
+- `DistinctBase` や `ToLookupBase` のように実質 1 系列専用の基底は、対応する本体ファイルへ集約してください。
+- `GroupBySupport` のような補助ロジックは、関連する本体クラスのファイルへ移してください。
+- アクセス修飾は最小にしてください。
+- 外部公開 API である必要がない型は `internal` を優先してください。
+- ファイル内限定で足りる補助関数は `private` にしてください。
+- 新しい共通基底やヘルパーを追加するときは、まずこの分類に当てはめてから配置を決めてください。
+
 
 ## Tests
 
@@ -97,4 +112,3 @@ class A:IDisposable{
     }
 }
 ```
-
