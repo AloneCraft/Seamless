@@ -171,6 +171,19 @@ partial class ValueEnumerableExtensions
             return Unsafe.As<UInt128, TSource>(ref result);
         }
         #endregion
+        // float/double: NaN を伝播させつつ SIMD 化する（NaN が 1 つでもあれば Min は NaN）。
+        else if (typeof(TSource) == typeof(double))
+        {
+            if (comparer != Comparer<TSource>.Default) return MinSpanComparer(span, comparer);
+            var result = SimdMinFloat(UnsafeSpanBitCast<TSource, double>(span));
+            return Unsafe.As<double, TSource>(ref result);
+        }
+        else if (typeof(TSource) == typeof(float))
+        {
+            if (comparer != Comparer<TSource>.Default) return MinSpanComparer(span, comparer);
+            var result = SimdMinFloat(UnsafeSpanBitCast<TSource, float>(span));
+            return Unsafe.As<float, TSource>(ref result);
+        }
         else
         {
             return MinSpanComparer(span, comparer);
@@ -291,6 +304,69 @@ partial class ValueEnumerableExtensions
                 {
                     result = span[i];
                 }
+            }
+            return result;
+        }
+    }
+
+    // float/double 用の SIMD Min。
+    // NaN は IComparer<T>.Default の全順序で最小（System.Linq.Min と同じく NaN が 1 つでもあれば結果は NaN）。
+    // ベクトル計算では NaN レーンを +Inf に置換して数値 Min を求め、別途 NaN 有無を追跡して最終判定する。
+    static T SimdMinFloat<T>(ReadOnlySpan<T> span)
+        where T : struct, IFloatingPointIeee754<T>
+    {
+        if (span.Length == 0) Throws.NoElements();
+
+        if (Vector.IsHardwareAccelerated && Vector<T>.IsSupported && span.Length >= Vector<T>.Count)
+        {
+            ref var current = ref MemoryMarshal.GetReference(span);
+            ref var end = ref Unsafe.Add(ref current, span.Length);
+            ref var to = ref Unsafe.Subtract(ref end, Vector<T>.Count);
+
+            var posInf = new Vector<T>(T.PositiveInfinity);
+            var hasNaN = false;
+
+            var first = Vector.LoadUnsafe(ref current);
+            hasNaN |= !Vector.EqualsAll(first, first); // NaN != NaN
+            var vectorResult = Vector.ConditionalSelect(Vector.Equals(first, first), first, posInf);
+            current = ref Unsafe.Add(ref current, Vector<T>.Count);
+
+            while (Unsafe.IsAddressLessThan(ref current, ref to)) // exclude last
+            {
+                var data = Vector.LoadUnsafe(ref current);
+                hasNaN |= !Vector.EqualsAll(data, data);
+                var cleaned = Vector.ConditionalSelect(Vector.Equals(data, data), data, posInf);
+                vectorResult = Vector.Min(vectorResult, cleaned);
+                current = ref Unsafe.Add(ref current, Vector<T>.Count);
+            }
+
+            // overlap load for the tail
+            var lastData = Vector.LoadUnsafe(ref to);
+            hasNaN |= !Vector.EqualsAll(lastData, lastData);
+            var lastCleaned = Vector.ConditionalSelect(Vector.Equals(lastData, lastData), lastData, posInf);
+            vectorResult = Vector.Min(vectorResult, lastCleaned);
+
+            if (hasNaN) return T.NaN;
+
+            var result = vectorResult[0];
+            for (int i = 1; i < Vector<T>.Count; i++)
+            {
+                if (vectorResult[i] < result)
+                {
+                    result = vectorResult[i];
+                }
+            }
+            return result;
+        }
+        else
+        {
+            var result = span[0];
+            if (T.IsNaN(result)) return result;
+            for (int i = 1; (uint)i < (uint)span.Length; i++)
+            {
+                var x = span[i];
+                if (T.IsNaN(x)) return x;
+                if (x < result) result = x;
             }
             return result;
         }
