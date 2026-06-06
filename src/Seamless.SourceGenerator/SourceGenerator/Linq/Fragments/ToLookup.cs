@@ -1,6 +1,37 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
-public class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment keySelector,string resultType):ToLookupBase(番号,source,resultType){
+internal abstract class ToLookupBase(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType){
+    protected override Enumerable PrimarySource=>source;
+    public override string StructMethod=>string.Empty;
+    protected override string StructSources=>source.GetEnumeratorStruct;
+    protected override string ComputeMembers=>string.Empty;
+    protected override string ComputeExpression=>throw new NotSupportedException();
+
+    protected static string LookupImpl(string elementType,string keyType)=>$$"""
+        private sealed class SeamlessGrouping:global::System.Linq.IGrouping<{{keyType}},{{elementType}}>{
+            private readonly {{keyType}} key;
+            private readonly global::System.Collections.Generic.List<{{elementType}}> elements;
+            public SeamlessGrouping({{keyType}} key,global::System.Collections.Generic.List<{{elementType}}> elements){this.key=key;this.elements=elements;}
+            public {{keyType}} Key=>this.key;
+            public global::System.Collections.Generic.IEnumerator<{{elementType}}> GetEnumerator()=>this.elements.GetEnumerator();
+            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator()=>GetEnumerator();
+        }
+        private sealed class SeamlessLookup:global::System.Linq.ILookup<{{keyType}},{{elementType}}>{
+            private readonly global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>> map;
+            private readonly global::System.Collections.Generic.List<{{keyType}}> order;
+            public SeamlessLookup(global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>> map,global::System.Collections.Generic.List<{{keyType}}> order){this.map=map;this.order=order;}
+            public int Count=>this.map.Count;
+            public global::System.Collections.Generic.IEnumerable<{{elementType}}> this[{{keyType}} key]=>this.map.TryGetValue(key,out var g)?g:global::System.Linq.Enumerable.Empty<{{elementType}}>();
+            public bool Contains({{keyType}} key)=>this.map.ContainsKey(key);
+            public global::System.Collections.Generic.IEnumerator<global::System.Linq.IGrouping<{{keyType}},{{elementType}}>> GetEnumerator(){
+                foreach(var k in this.order) yield return new SeamlessGrouping(k,this.map[k]);
+            }
+            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator()=>GetEnumerator();
+        }
+        """;
+}
+
+internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment keySelector,string resultType):ToLookupBase(番号,source,resultType){
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 1 && method.Parameters[0].Type.TypeKind == TypeKind.Delegate;
     public override string StructMethod => FuncSupport(keySelector, nameof(keySelector));
@@ -31,7 +62,7 @@ public class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment keyS
         """;
 }
 
-public class ToLookup_keySelector_elementSelector(int 番号,Enumerable source,FuncFragment keySelector,FuncFragment elementSelector,string resultType):ToLookupBase(番号,source,resultType){
+internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source,FuncFragment keySelector,FuncFragment elementSelector,string resultType):ToLookupBase(番号,source,resultType){
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 2
         && method.Parameters[0].Type.TypeKind == TypeKind.Delegate
@@ -66,7 +97,7 @@ public class ToLookup_keySelector_elementSelector(int 番号,Enumerable source,F
         """;
 }
 
-public class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFragment keySelector,string comparer,string resultType):ToLookupBase(番号,source,resultType){
+internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFragment keySelector,string comparer,string resultType):ToLookupBase(番号,source,resultType){
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 2
         && method.Parameters[0].Type.TypeKind == TypeKind.Delegate
@@ -100,7 +131,7 @@ public class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFrag
         """;
 }
 
-public class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerable source,FuncFragment keySelector,FuncFragment elementSelector,string comparer,string resultType):ToLookupBase(番号,source,resultType){
+internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerable source,FuncFragment keySelector,FuncFragment elementSelector,string comparer,string resultType):ToLookupBase(番号,source,resultType){
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 3
         && method.Parameters[0].Type.TypeKind == TypeKind.Delegate

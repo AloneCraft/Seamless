@@ -1,6 +1,6 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
-public abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer):Enumerable(番号){
+internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer):Enumerable(番号){
     protected readonly Enumerable outerSource=outer;
     protected readonly Enumerable innerSource=inner;
     protected readonly FuncFragment outerKey=outerKeySelector;

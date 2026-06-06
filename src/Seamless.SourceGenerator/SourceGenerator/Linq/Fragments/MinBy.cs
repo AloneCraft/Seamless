@@ -1,3 +1,3 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
-public class MinBy_keySelector(int 番号,Enumerable source,FuncFragment keySelector,string resultType):MinMaxByBase(番号,source,keySelector,resultType,"less");
+internal class MinBy_keySelector(int 番号,Enumerable source,FuncFragment keySelector,string resultType):MinMaxByBase(番号,source,keySelector,resultType,"less");
