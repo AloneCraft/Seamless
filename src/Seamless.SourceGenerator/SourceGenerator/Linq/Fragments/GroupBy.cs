@@ -92,12 +92,13 @@ internal static class GroupBySupport{
             {{enumeratorName}}.TryGetSpan(out var __span);
             this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},{{lookupValueType}}>(__span.Length);
             this.{{groupName}}=new global::System.Collections.Generic.List<{{groupListType}}>(__span.Length);
-            foreach(var {{itemName}} in __span){
+            for(var __i=0;__i<__span.Length;__i++){
+                var {{itemName}}=__span[__i];
                 {{keyType}} {{keyName}}=default!;
                 {{IndentBlock(keyAssignCode,"                ")}}
-                if(!this.{{lookupName}}.TryGetValue({{keyName}},out var __group)){
+                ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
+                if(!__exists){
                     __group={{lookupValueCreateExpression}};
-                    this.{{lookupName}}.Add({{keyName}},__group);
                     {{groupListAddCode}}
                 }
                 {{IndentBlock(groupAddCode,"                ")}}
@@ -116,9 +117,9 @@ internal static class GroupBySupport{
                 var {{itemName}}={{enumeratorName}}.Current;
                 {{keyType}} {{keyName}}=default!;
                 {{IndentBlock(keyAssignCode,"                ")}}
-                if(!this.{{lookupName}}.TryGetValue({{keyName}},out var __group)){
+                ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
+                if(!__exists){
                     __group={{lookupValueCreateExpression}};
-                    this.{{lookupName}}.Add({{keyName}},__group);
                     {{groupListAddCode}}
                 }
                 {{IndentBlock(groupAddCode,"                ")}}
@@ -145,12 +146,13 @@ internal static class GroupBySupport{
                 {{enumeratorName}}.TryGetSpan(out var __span);
                 this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},{{lookupValueType}}>(__span.Length);
                 this.{{groupName}}=new global::System.Collections.Generic.List<{{groupListType}}>(__span.Length);
-                foreach(var {{itemName}} in __span){
+            for(var __i=0;__i<__span.Length;__i++){
+                var {{itemName}}=__span[__i];
                     {{keyType}} {{keyName}}=default!;
                     {{IndentBlock(keyAssignCode,"                    ")}}
-                    if(!this.{{lookupName}}.TryGetValue({{keyName}},out var __group)){
+                    ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
+                    if(!__exists){
                         __group={{lookupValueCreateExpression}};
-                        this.{{lookupName}}.Add({{keyName}},__group);
                         this.{{groupName}}.Add(__group);
                     }
                     {{IndentBlock(groupAddCode,"                    ")}}
@@ -176,9 +178,9 @@ internal static class GroupBySupport{
                     var {{itemName}}={{enumeratorName}}.Current;
                     {{keyType}} {{keyName}}=default!;
                     {{IndentBlock(keyAssignCode,"                    ")}}
-                    if(!this.{{lookupName}}.TryGetValue({{keyName}},out var __group)){
+                    ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
+                    if(!__exists){
                         __group={{lookupValueCreateExpression}};
-                        this.{{lookupName}}.Add({{keyName}},__group);
                         this.{{groupName}}.Add(__group);
                     }
                     {{IndentBlock(groupAddCode,"                    ")}}

@@ -926,7 +926,7 @@ partial class ValueEnumerableExtensions
 
 #if NET8_0_OR_GREATER
 
-    internal static double AverageIntSimd(ReadOnlySpan<int> span)
+    public static double AverageIntSimd(ReadOnlySpan<int> span)
     {
         // based on SimdSumNumberUnchecked<T>
         // int[int.MaxValue] { int.MaxValue... }.Sum() is lower than long.MaxValue

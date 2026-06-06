@@ -45,16 +45,25 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
         }
         if(UseDoubleAccumulator) {
             return source.CanProvideSpan
-                ? $$"""
-                    {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source) {
-                        double sum=0;
-                        source.TryGetSpan(out var __span);
-                        if(__span.Length==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
-                        foreach(var item in __span) sum+=item;
-                        return ({{resultType}})(sum/__span.Length);
-                    }
-                    """
+                ? source.ElementType=="int"
+                    ? $$"""
+                        {{AggressiveInliningAttribute}}
+                        private static {{resultType}} Compute(TEnum source) {
+                            source.TryGetSpan(out var __span);
+                            if(__span.Length==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
+                            return ({{resultType}})global::Seamless.Linq.Carrier.ValueEnumerableExtensions.AverageIntSimd(__span);
+                        }
+                        """
+                    : $$"""
+                        {{AggressiveInliningAttribute}}
+                        private static {{resultType}} Compute(TEnum source) {
+                            double sum=0;
+                            source.TryGetSpan(out var __span);
+                            if(__span.Length==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
+                            foreach(var item in __span) sum+=item;
+                            return ({{resultType}})(sum/__span.Length);
+                        }
+                        """
                 : $$"""
                     {{AggressiveInliningAttribute}}
                     private static {{resultType}} Compute(TEnum source) {

@@ -10,7 +10,7 @@ using Tsavorite.core;
 namespace Test.Seamless.Database.TPC_H {
     // DatabaseGenerator marker ? Keys / Records ・ｽ・ｽ schema struct ・ｽ・ｽ namespace Keys / Records ・ｽﾉ抵ｿｽ・ｽﾚ宣言・ｽ・ｽ・ｽ・ｽB
     // source generator ・ｽ・ｽ・ｽ{・ｽC・ｽ・ｽ・ｽ[・ｽR・ｽ[・ｽh (・ｽR・ｽ・ｽ・ｽX・ｽg・ｽ・ｽ・ｽN・ｽ^・ｽ[・ｽE_u/_m ・ｽt・ｽB・ｽ[・ｽ・ｽ・ｽh・ｽEMemoryPack ・ｽ・ｽ・ｽ・ｽ) ・ｽｶ撰ｿｽ・ｽ・ｽ・ｽ・ｽB
-    static partial class DatabaseGenerator;
+    static class DatabaseGenerator;
 
     public sealed class Container:IDisposable {
         private readonly global::System.Collections.Generic.List<IDisposable> disposables = [];
@@ -688,55 +688,111 @@ namespace Test.Seamless.Database.TPC_H {
             }
         }
 
-        [Fact] public void Q01_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(1);
-        [Fact] public void Q02_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(2);
-        [Fact] public void Q03_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(3);
-        [Fact] public void Q04_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(4);
-        [Fact] public void Q05_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(5);
-        [Fact] public void Q06_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(6);
-        [Fact] public void Q07_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(7);
-        [Fact] public void Q08_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(8);
-        [Fact] public void Q09_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(9);
-        [Fact] public void Q10_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(10);
-        [Fact] public void Q11_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(11);
-        [Fact] public void Q12_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(12);
-        [Fact] public void Q13_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(13);
-        [Fact] public void Q14_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(14);
-        [Fact] public void Q15_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(15);
-        [Fact] public void Q16_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(16);
-        [Fact] public void Q17_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(17);
-        [Fact] public void Q18_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(18);
-        [Fact] public void Q19_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(19);
-        [Fact] public void Q20_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(20);
-        [Fact] public void Q21_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(21);
-        [Fact] public void Q22_MethodAndQuery_ReturnSameRows() => AssertMethodAndQuery(22);
+        private void AssertInterceptedMatchesReflection(int query,bool querySyntax) {
+            var expected = QueryRows(this.Container,query,querySyntax);
+            var actual = (querySyntax ? DirectQuery(this.Container,query) : DirectMethod(this.Container,query)).ToArray();
+            Array.Sort(actual,StringComparer.Ordinal);
+            Assert.Equal(expected,actual);
+        }
 
-        [Fact] public void Q01_StorageList_RoundTrips() => AssertStorageListRoundTrip(1);
-        [Fact] public void Q02_StorageList_RoundTrips() => AssertStorageListRoundTrip(2);
-        [Fact] public void Q03_StorageList_RoundTrips() => AssertStorageListRoundTrip(3);
-        [Fact] public void Q04_StorageList_RoundTrips() => AssertStorageListRoundTrip(4);
-        [Fact] public void Q05_StorageList_RoundTrips() => AssertStorageListRoundTrip(5);
-        [Fact] public void Q06_StorageList_RoundTrips() => AssertStorageListRoundTrip(6);
-        [Fact] public void Q07_StorageList_RoundTrips() => AssertStorageListRoundTrip(7);
-        [Fact] public void Q08_StorageList_RoundTrips() => AssertStorageListRoundTrip(8);
-        [Fact] public void Q09_StorageList_RoundTrips() => AssertStorageListRoundTrip(9);
-        [Fact] public void Q10_StorageList_RoundTrips() => AssertStorageListRoundTrip(10);
-        [Fact] public void Q11_StorageList_RoundTrips() => AssertStorageListRoundTrip(11);
-        [Fact] public void Q12_StorageList_RoundTrips() => AssertStorageListRoundTrip(12);
-        [Fact] public void Q13_StorageList_RoundTrips() => AssertStorageListRoundTrip(13);
-        [Fact] public void Q14_StorageList_RoundTrips() => AssertStorageListRoundTrip(14);
-        [Fact] public void Q15_StorageList_RoundTrips() => AssertStorageListRoundTrip(15);
-        [Fact] public void Q16_StorageList_RoundTrips() => AssertStorageListRoundTrip(16);
-        [Fact] public void Q17_StorageList_RoundTrips() => AssertStorageListRoundTrip(17);
-        [Fact] public void Q18_StorageList_RoundTrips() => AssertStorageListRoundTrip(18);
-        [Fact] public void Q19_StorageList_RoundTrips() => AssertStorageListRoundTrip(19);
-        [Fact] public void Q20_StorageList_RoundTrips() => AssertStorageListRoundTrip(20);
-        [Fact] public void Q21_StorageList_RoundTrips() => AssertStorageListRoundTrip(21);
-        [Fact] public void Q22_StorageList_RoundTrips() => AssertStorageListRoundTrip(22);
+        private static IEnumerable<string> DirectMethod(Container c,int query) => query switch {
+            1 => c.Q01Method(),
+            2 => c.Q02Method(),
+            3 => c.Q03Method(),
+            4 => c.Q04Method(),
+            5 => c.Q05Method(),
+            6 => c.Q06Method(),
+            7 => c.Q07Method(),
+            8 => c.Q08Method(),
+            9 => c.Q09Method(),
+            10 => c.Q10Method(),
+            11 => c.Q11Method(),
+            12 => c.Q12Method(),
+            13 => c.Q13Method(),
+            14 => c.Q14Method(),
+            15 => c.Q15Method(),
+            16 => c.Q16Method(),
+            17 => c.Q17Method(),
+            18 => c.Q18Method(),
+            19 => c.Q19Method(),
+            20 => c.Q20Method(),
+            21 => c.Q21Method(),
+            22 => c.Q22Method(),
+            _ => throw new ArgumentOutOfRangeException(nameof(query)),
+        };
+
+        private static IEnumerable<string> DirectQuery(Container c,int query) => query switch {
+            1 => c.Q01Query(),
+            2 => c.Q02Query(),
+            3 => c.Q03Query(),
+            4 => c.Q04Query(),
+            5 => c.Q05Query(),
+            6 => c.Q06Query(),
+            7 => c.Q07Query(),
+            8 => c.Q08Query(),
+            9 => c.Q09Query(),
+            10 => c.Q10Query(),
+            11 => c.Q11Query(),
+            12 => c.Q12Query(),
+            13 => c.Q13Query(),
+            14 => c.Q14Query(),
+            15 => c.Q15Query(),
+            16 => c.Q16Query(),
+            17 => c.Q17Query(),
+            18 => c.Q18Query(),
+            19 => c.Q19Query(),
+            20 => c.Q20Query(),
+            21 => c.Q21Query(),
+            22 => c.Q22Query(),
+            _ => throw new ArgumentOutOfRangeException(nameof(query)),
+        };
+
+        [Fact] public void Q01_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(1,false);
+        [Fact] public void Q02_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(2,false);
+        [Fact] public void Q03_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(3,false);
+        [Fact] public void Q04_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(4,false);
+        [Fact] public void Q05_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(5,false);
+        [Fact] public void Q06_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(6,false);
+        [Fact] public void Q07_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(7,false);
+        [Fact] public void Q08_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(8,false);
+        [Fact] public void Q09_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(9,false);
+        [Fact] public void Q10_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(10,false);
+        [Fact] public void Q11_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(11,false);
+        [Fact] public void Q12_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(12,false);
+        [Fact] public void Q13_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(13,false);
+        [Fact] public void Q14_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(14,false);
+        [Fact] public void Q15_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(15,false);
+        [Fact] public void Q16_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(16,false);
+        [Fact] public void Q17_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(17,false);
+        [Fact] public void Q18_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(18,false);
+        [Fact] public void Q19_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(19,false);
+        [Fact] public void Q20_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(20,false);
+        [Fact] public void Q21_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(21,false);
+        [Fact] public void Q22_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(22,false);
+
+        [Fact] public void Q01_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(1,true);
+        [Fact] public void Q02_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(2,true);
+        [Fact] public void Q03_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(3,true);
+        [Fact] public void Q04_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(4,true);
+        [Fact] public void Q05_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(5,true);
+        [Fact] public void Q06_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(6,true);
+        [Fact] public void Q07_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(7,true);
+        [Fact] public void Q08_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(8,true);
+        [Fact] public void Q09_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(9,true);
+        [Fact] public void Q10_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(10,true);
+        [Fact] public void Q11_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(11,true);
+        [Fact] public void Q12_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(12,true);
+        [Fact] public void Q13_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(13,true);
+        [Fact] public void Q14_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(14,true);
+        [Fact] public void Q15_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(15,true);
+        [Fact] public void Q16_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(16,true);
+        [Fact] public void Q17_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(17,true);
+        [Fact] public void Q18_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(18,true);
+        [Fact] public void Q19_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(19,true);
+        [Fact] public void Q20_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(20,true);
+        [Fact] public void Q21_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(21,true);
+        [Fact] public void Q22_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(22,true);
     }
-
-    // TPC-H ・ｽ・ｽ 8 ・ｽe・ｽ[・ｽu・ｽ・ｽ・ｽﾉ対会ｿｽ・ｽ・ｽ・ｽ・ｽL・ｽ[ struct・ｽB
-    // source generator ・ｽ・ｽ・ｽR・ｽ・ｽ・ｽX・ｽg・ｽ・ｽ・ｽN・ｽ^・ｽ[・ｽE_u ・ｽt・ｽB・ｽ[・ｽ・ｽ・ｽh・ｽEMemoryPack ・ｽ・ｽ・ｽ・ｽ・ｽ・ｽ竓ｮ・ｽ・ｽ・ｽ・ｽB
     namespace Keys {
         public partial struct region {
             public partial int r_regionkey { get; }
