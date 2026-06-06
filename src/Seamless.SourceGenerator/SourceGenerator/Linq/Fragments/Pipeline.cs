@@ -1068,6 +1068,8 @@ public static class PipelineBuilder {
                 && normalized.Count>0
                 && normalized[^1].Kind==PipelineStageKind.Distinct
                 && string.Equals(normalized[^1].Value,stage.Value,StringComparison.Ordinal)) {
+                // 同じ Distinct の連続は結果集合が変わらないので、生成前に 1 段へ畳む。
+                // ここで runtime の分岐を増やさず、set の再構築も避ける。
                 continue;
             }
             normalized.Add(stage);
@@ -1086,6 +1088,8 @@ public static class PipelineBuilder {
                 && normalized[^1].Func is { } leftFunc
                 && stage.Func is { } rightFunc
                 && DistinctByKeySelectorEquals(leftFunc,rightFunc)) {
+                // 同じ keySelector/comparer の DistinctBy も冪等なので、ここで重ねない。
+                // key 投影と HashSet 構築の重複を防ぐための compile-time 正規化。
                 continue;
             }
             normalized.Add(stage);

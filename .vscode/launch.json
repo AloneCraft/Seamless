@@ -24,9 +24,22 @@
             "request": "launch",
             "preLaunchTask": "build-benchmark",
             "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
-            "args": ["--filter", "*"],
             "env": {
                 "BDN_DEBUG": "1"
+            },
+            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "RunAll1FileBenchmark(Debug)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-benchmark",
+            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
+            "env": {
+                "BDN_DEBUG": "1",
+                "SEAMLESS_BENCHMARK_SINGLE_FILE": "1"
             },
             "cwd": "${workspaceFolder}/sandbox/Benchmark",
             "console": "integratedTerminal",
@@ -49,7 +62,19 @@
             "request": "launch",
             "preLaunchTask": "build-benchmark-release",
             "program": "${workspaceFolder}/sandbox/Benchmark/bin/Release/net10.0/Benchmark.dll",
-            "args": ["--filter", "*"],
+            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "RunAll1FileBenchmark(Release)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-benchmark-release",
+            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Release/net10.0/Benchmark.dll",
+            "env": {
+                "SEAMLESS_BENCHMARK_SINGLE_FILE": "1"
+            },
             "cwd": "${workspaceFolder}/sandbox/Benchmark",
             "console": "integratedTerminal",
             "stopAtEntry": false

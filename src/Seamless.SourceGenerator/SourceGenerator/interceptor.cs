@@ -2594,6 +2594,9 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         if(sourceType is not IArrayTypeSymbol arrayType && !IsListType(sourceType)) {
             return false;
         }
+        // Distinct / DistinctBy は列挙途中で HashSet を更新しながら結果をその場で返す。
+        // root が配列/List のときだけ span 直走査へ落とすと、enumerator 経由の固定コストを避けられる。
+        // ここは実行時分岐ではなく生成時分岐にして、span 可能な root だけ専用コードを吐く。
         var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
         var sourceName = GetUniqueIdentifier($"source_{SanitizeIdentifier(tempName)}",usedNames);
         var spanName = GetUniqueIdentifier($"span_{SanitizeIdentifier(tempName)}",usedNames);
