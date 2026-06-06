@@ -36,21 +36,13 @@ public abstract class DistinctBase(int 番号,Enumerable source,string comparer)
         var sourceName=$"__src{番号}";
         var builder=new System.Text.StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
-        builder.AppendLine($"var {lookup}=new global::System.Collections.Generic.HashSet<{source.ElementType}>((global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){comparer});");
-        AppendConsumeLoop(builder,sourceName,"value",$"if({lookup}.Add(value)){{ {consumerName}.Consume(value); }}");
+        TraversalSupport.AppendHashSetInitialization(builder,lookup,source.ElementType,sourceName,comparer);
+        TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
+            if({{lookup}}.Add(value)){
+                {{consumerName}}.Consume(value);
+            }
+            """);
         return builder.ToString().TrimEnd();
-    }
-    protected static void AppendConsumeLoop(System.Text.StringBuilder builder,string enumeratorName,string valueName,string statement){
-        var spanName=$"__sp_{enumeratorName}";
-        builder.AppendLine($"if({enumeratorName}.TryGetSpan(out var {spanName})){{");
-        builder.AppendLine($"    foreach(var {valueName} in {spanName}){{");
-        builder.AppendLine($"        {statement}");
-        builder.AppendLine("    }");
-        builder.AppendLine("}else{");
-        builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {valueName})){{");
-        builder.AppendLine($"        {statement}");
-        builder.AppendLine("    }");
-        builder.AppendLine("}");
     }
 }
 
@@ -93,10 +85,11 @@ public abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment k
         var keyName=$"__key{番号}";
         var builder=new System.Text.StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
-        builder.AppendLine($"var {lookup}=new global::System.Collections.Generic.HashSet<{FuncReturnTypeName(keySelector)}>((global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>?){comparer});");
-        AppendConsumeLoop(
+        TraversalSupport.AppendHashSetInitialization(builder,lookup,FuncReturnTypeName(keySelector),sourceName,comparer);
+        TraversalSupport.AppendTraversalLoop(
             builder,
             sourceName,
+            source.ElementType,
             "value",
             $$"""
             {{FuncReturnTypeName(keySelector)}} {{keyName}}=default!;
@@ -106,20 +99,5 @@ public abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment k
             }
             """);
         return builder.ToString().TrimEnd();
-    }
-    private static void AppendConsumeLoop(System.Text.StringBuilder builder,string enumeratorName,string valueName,string statement){
-        var spanName=$"__sp_{enumeratorName}";
-        builder.AppendLine($"if({enumeratorName}.TryGetSpan(out var {spanName})){{");
-        builder.AppendLine($"    foreach(var {valueName} in {spanName}){{");
-        builder.AppendLine(IndentBlock(statement,"        "));
-        builder.AppendLine("    }");
-        builder.AppendLine("}else{");
-        builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {valueName})){{");
-        builder.AppendLine(IndentBlock(statement,"        "));
-        builder.AppendLine("    }");
-        builder.AppendLine("}");
-    }
-    private static string IndentBlock(string text,string indent){
-        return string.Join("\n",text.Replace("\r\n","\n").Split('\n').Select(line=>line.Length==0?line:indent+line));
     }
 }
