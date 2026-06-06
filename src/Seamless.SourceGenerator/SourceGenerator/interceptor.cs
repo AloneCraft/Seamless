@@ -367,21 +367,16 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
 
         });
 
+        // SEAMLESS001 警告: グローバルな重複除去が必要なため Collect で一括処理（軽量）
         context.RegisterSourceOutput(interceptTargets.Collect(),static (productionContext,interceptTargets) => {
             if(interceptTargets.IsDefaultOrEmpty) {
                 return;
             }
-
-            var distinctTargets = interceptTargets.Distinct(LinqInterceptTargetComparer.Instance).ToArray();
-
-            // 匿名型を含む LINQ を持つメソッドに対して SEAMLESS001 警告を発行する。
-            // 同一メソッドに複数の呼び出しサイトがある場合でも警告は 1 回のみにする。
             var reportedMethods = new HashSet<string>(StringComparer.Ordinal);
-            foreach(var target in distinctTargets) {
+            foreach(var target in interceptTargets.Distinct(LinqInterceptTargetComparer.Instance)) {
                 if(!target.LinqAnalysis.HasAnonymousTypeLinq) {
                     continue;
                 }
-                // メソッドの完全修飾名で重複を除去する。
                 var methodKey = target.Method.ToDisplayString();
                 if(!reportedMethods.Add(methodKey)) {
                     continue;
@@ -392,18 +387,21 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                     location,
                     target.Method.Name));
             }
+        });
 
-            var sourceGroups = distinctTargets
-                .GroupBy(static target => target.SourcePath,StringComparer.Ordinal)
-                .ToArray();
+        // コード生成: ファイル単位で独立してキャッシュされる
+        var perFileGroups = interceptTargets
+            .Collect()
+            .SelectMany(static (targets,_) => targets
+                .Distinct(LinqInterceptTargetComparer.Instance)
+                .GroupBy(static t => t.SourcePath,StringComparer.Ordinal)
+                .Select(static g => new PerFileInterceptGroup(g.Key,[..g])));
+
+        context.RegisterSourceOutput(perFileGroups,static (productionContext,group) => {
             var diagnostics = new List<Diagnostic>();
-            foreach(var sourceGroup in sourceGroups) {
-                var source = インターセプターソース構築([..sourceGroup],diagnostics);
-                if(source.Length==0) {
-                    continue;
-                }
-
-                productionContext.AddSource(インターセプターHintName取得(sourceGroup.Key),SourceText.From(source,Encoding.UTF8));
+            var source = インターセプターソース構築(group.Targets,diagnostics);
+            if(source.Length>0) {
+                productionContext.AddSource(インターセプターHintName取得(group.SourcePath),SourceText.From(source,Encoding.UTF8));
             }
             foreach(var diagnostic in diagnostics) {
                 productionContext.ReportDiagnostic(diagnostic);
@@ -4860,7 +4858,14 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         /// </summary>
         public bool HasAnonymousTypeLinq { get; }
     }
-    private sealed class Linq傍受対象型 {
+    private sealed class Linq傍受対象型:IEquatable<Linq傍受対象型> {
+        public bool Equals(Linq傍受対象型? other) {
+            if(other is null) return false;
+            if(ReferenceEquals(this,other)) return true;
+            return string.Equals(InterceptsLocationAttributeText,other.InterceptsLocationAttributeText,StringComparison.Ordinal);
+        }
+        public override bool Equals(object? obj) => obj is Linq傍受対象型 other && Equals(other);
+        public override int GetHashCode() => InterceptsLocationAttributeText.GetHashCode(StringComparison.Ordinal);
         public Linq傍受対象型(string identifier,string containingMethodName,string interceptsLocationAttributeText,IMethodSymbol method,IMethodSymbol templateMethod,InvocationExpressionSyntax invocation,INamedTypeSymbol enclosingType,SemanticModel semanticModel,InterceptParameterSpec[] parameters,ローカルメソッドLinq解析結果? linqAnalysis = null,string? sourceElementTypeName = null,string[]? methodTypeParameterNames = null,bool isLocalMethodInterception = false) {
             Identifier=identifier;
             ContainingMethodName=containingMethodName;
@@ -4971,6 +4976,32 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
         public int GetHashCode(Linq傍受対象型 obj) {
             return obj.InterceptsLocationAttributeText.GetHashCode(StringComparison.Ordinal);
+        }
+    }
+    private sealed class PerFileInterceptGroup:IEquatable<PerFileInterceptGroup> {
+        public PerFileInterceptGroup(string sourcePath,ImmutableArray<Linq傍受対象型> targets) {
+            SourcePath=sourcePath;
+            Targets=targets;
+        }
+        public string SourcePath { get; }
+        public ImmutableArray<Linq傍受対象型> Targets { get; }
+        public bool Equals(PerFileInterceptGroup? other) {
+            if(other is null) return false;
+            if(ReferenceEquals(this,other)) return true;
+            if(!string.Equals(SourcePath,other.SourcePath,StringComparison.Ordinal)) return false;
+            if(Targets.Length!=other.Targets.Length) return false;
+            for(var i = 0;i<Targets.Length;i++) {
+                if(!Targets[i].Equals(other.Targets[i])) return false;
+            }
+            return true;
+        }
+        public override bool Equals(object? obj) => obj is PerFileInterceptGroup other && Equals(other);
+        public override int GetHashCode() {
+            var hc = StringComparer.Ordinal.GetHashCode(SourcePath);
+            foreach(var t in Targets) {
+                hc=HashCode.Combine(hc,t.GetHashCode());
+            }
+            return hc;
         }
     }
     private sealed class 型対象型 {
