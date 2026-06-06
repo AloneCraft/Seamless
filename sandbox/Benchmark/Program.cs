@@ -229,7 +229,7 @@ internal static class Program{
         var input=Console.ReadLine()?.Trim()??string.Empty;
 
         if(string.IsNullOrEmpty(input)||input=="*"){
-            return ["--filter","*"];
+            return ["--filter","*","--join"];
         }
 
         var selected=new List<string>();
@@ -241,10 +241,13 @@ internal static class Program{
         }
 
         if(selected.Count==0){
-            return ["--filter","*"];
+            return ["--filter","*","--join"];
         }
 
         var pattern=string.Join("|",selected.Select(s=>$"*{s}*"));
+        if(selected.Count>1){
+            return ["--filter",pattern,"--join"];
+        }
         return ["--filter",pattern];
     }
 }
