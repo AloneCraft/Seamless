@@ -72,10 +72,13 @@ public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment
             private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
                 {{resultType}} result = default!;
                 source.TryGetSpan(out var __span);
-                foreach(var {{item}} in __span){
+                for(var __i=__span.Length-1;__i>=0;__i--){
+                    var {{item}}=__span[__i];
                     bool {{temp}}=default!;
-                    {{FuncAssign(predicate, nameof(predicate), temp, item)}}
-                    if({{temp}}) result={{item}};
+                    {{FuncAssign(predicate,nameof(predicate),temp,item)}}
+                    if({{temp}}){
+                        return {{item}};
+                    }
                 }
                 return result;
             }
