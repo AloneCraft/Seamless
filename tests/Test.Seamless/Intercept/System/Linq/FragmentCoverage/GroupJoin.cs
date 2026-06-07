@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class GroupJoin {
     [Fact,Trait("Category","Unit")]
-    public static void GroupJoin_keySelectors_resultSelector(){
-        GeneratedInterceptorAssert.ContainsMethod<GroupJoin>(nameof(GroupJoin_keySelectors_resultSelectorImpl));
+    public static void keySelectors_resultSelector(){
+        GeneratedInterceptorAssert.ContainsMethod<GroupJoin>(nameof(keySelectors_resultSelectorImpl));
         var expected=SystemEnumerable.GroupJoin(new[]{1,2,3},new[]{2,3,4},static o => o,static i => i,static (o,ig) => o).ToList();
-        var actual=GroupJoin_keySelectors_resultSelectorImpl();
+        var actual=keySelectors_resultSelectorImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> GroupJoin_keySelectors_resultSelectorImpl(){
+    private static List<int> keySelectors_resultSelectorImpl(){
         return new[]{1,2,3}.GroupJoin(new[]{2,3,4},static o => o,static i => i,static (o,ig) => o).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void GroupJoin_keySelectors_resultSelector_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<GroupJoin>(nameof(GroupJoin_keySelectors_resultSelector_enumerableImpl));
+    public static void keySelectors_resultSelector_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<GroupJoin>(nameof(keySelectors_resultSelector_enumerableImpl));
         var expected=SystemEnumerable.GroupJoin(new[]{1,2,3},new[]{2,3,4},static o => o,static i => i,static (o,ig) => o).ToList();
-        var actual=GroupJoin_keySelectors_resultSelector_enumerableImpl();
+        var actual=keySelectors_resultSelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> GroupJoin_keySelectors_resultSelector_enumerableImpl(){
+    private static List<int> keySelectors_resultSelector_enumerableImpl(){
         IEnumerable<int>outer=new[]{1,2,3};
         IEnumerable<int>inner=new[]{2,3,4};
         return outer.GroupJoin(inner,static o => o,static i => i,static (o,ig) => o).ToList();

@@ -6,48 +6,48 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class UnionBy {
     [Fact,Trait("Category","Unit")]
-    public static void UnionBy_keySelector(){
-        GeneratedInterceptorAssert.ContainsMethod<UnionBy>(nameof(UnionBy_keySelectorImpl));
+    public static void keySelector(){
+        GeneratedInterceptorAssert.ContainsMethod<UnionBy>(nameof(keySelectorImpl));
         var expected=SystemEnumerable.UnionBy(new[]{1,2,3},new[]{3,4,5},static v => v).ToList();
-        var actual=UnionBy_keySelectorImpl();
+        var actual=keySelectorImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> UnionBy_keySelectorImpl(){
+    private static List<int> keySelectorImpl(){
         return new[]{1,2,3}.UnionBy(new[]{3,4,5},static v => v).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void UnionBy_comparer(){
-        GeneratedInterceptorAssert.ContainsMethod<UnionBy>(nameof(UnionBy_comparerImpl));
+    public static void comparer(){
+        GeneratedInterceptorAssert.ContainsMethod<UnionBy>(nameof(comparerImpl));
         var expected=SystemEnumerable.UnionBy(new[]{1,2,3},new[]{3,4,5},static v => v,EqualityComparer<int>.Default).ToList();
-        var actual=UnionBy_comparerImpl();
+        var actual=comparerImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> UnionBy_comparerImpl(){
+    private static List<int> comparerImpl(){
         return new[]{1,2,3}.UnionBy(new[]{3,4,5},static v => v,EqualityComparer<int>.Default).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void UnionBy_keySelector_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<UnionBy>(nameof(UnionBy_keySelector_enumerableImpl));
+    public static void keySelector_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<UnionBy>(nameof(keySelector_enumerableImpl));
         var expected=SystemEnumerable.UnionBy(new[]{1,2,3},new[]{3,4,5},static v => v).ToList();
-        var actual=UnionBy_keySelector_enumerableImpl();
+        var actual=keySelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> UnionBy_keySelector_enumerableImpl(){
+    private static List<int> keySelector_enumerableImpl(){
         IEnumerable<int>first=new[]{1,2,3};
         IEnumerable<int>second=new[]{3,4,5};
         return first.UnionBy(second,static v => v).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void UnionBy_comparer_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<UnionBy>(nameof(UnionBy_comparer_enumerableImpl));
+    public static void comparer_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<UnionBy>(nameof(comparer_enumerableImpl));
         var expected=SystemEnumerable.UnionBy(new[]{1,2,3},new[]{3,4,5},static v => v,EqualityComparer<int>.Default).ToList();
-        var actual=UnionBy_comparer_enumerableImpl();
+        var actual=comparer_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> UnionBy_comparer_enumerableImpl(){
+    private static List<int> comparer_enumerableImpl(){
         IEnumerable<int>first=new[]{1,2,3};
         IEnumerable<int>second=new[]{3,4,5};
         return first.UnionBy(second,static v => v,EqualityComparer<int>.Default).ToList();

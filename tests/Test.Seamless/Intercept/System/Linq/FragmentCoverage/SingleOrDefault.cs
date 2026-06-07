@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class SingleOrDefault {
     [Fact,Trait("Category","Unit")]
-    public static void SingleOrDefault_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<SingleOrDefault>(nameof(SingleOrDefault_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<SingleOrDefault>(nameof(noArgImpl));
         var expected=SystemEnumerable.SingleOrDefault(new[]{42});
-        var actual=SingleOrDefault_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static int SingleOrDefault_noArgImpl(){
+    private static int noArgImpl(){
         return new[]{42}.SingleOrDefault();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void SingleOrDefault_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<SingleOrDefault>(nameof(SingleOrDefault_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<SingleOrDefault>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.SingleOrDefault(new[]{42});
-        var actual=SingleOrDefault_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int SingleOrDefault_noArg_enumerableImpl(){
+    private static int noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{42};
         return src.SingleOrDefault();
     }

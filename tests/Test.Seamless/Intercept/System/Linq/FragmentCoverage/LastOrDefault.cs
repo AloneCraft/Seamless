@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class LastOrDefault {
     [Fact,Trait("Category","Unit")]
-    public static void LastOrDefault_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<LastOrDefault>(nameof(LastOrDefault_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<LastOrDefault>(nameof(noArgImpl));
         var expected=SystemEnumerable.LastOrDefault(new[]{1,2,3,4});
-        var actual=LastOrDefault_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static int LastOrDefault_noArgImpl(){
+    private static int noArgImpl(){
         return new[]{1,2,3,4}.LastOrDefault();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void LastOrDefault_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<LastOrDefault>(nameof(LastOrDefault_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<LastOrDefault>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.LastOrDefault(new[]{1,2,3,4});
-        var actual=LastOrDefault_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int LastOrDefault_noArg_enumerableImpl(){
+    private static int noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.LastOrDefault();
     }

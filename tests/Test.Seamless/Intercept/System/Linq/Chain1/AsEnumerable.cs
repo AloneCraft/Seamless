@@ -9,8 +9,9 @@ public sealed class AsEnumerable:LinqChain1TestBase {
 
     private static void NoDelegateImpl() {
         var expected=SystemEnumerable.AsEnumerable(LinqChain1TestBase.Source()).ToList();
-        var actual=LinqChain1TestBase.Source().AsEnumerable().ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().AsEnumerable().Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
 }

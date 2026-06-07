@@ -9,8 +9,9 @@ public sealed class OfType:LinqChain1TestBase {
 
     private static void NoDelegateImpl() {
         var expected=SystemEnumerable.OfType<int>(LinqChain1TestBase.CastObjects()).ToList();
-        var actual=LinqChain1TestBase.CastObjects().OfType<int>().ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.CastObjects().OfType<int>().Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -18,8 +19,9 @@ public sealed class OfType:LinqChain1TestBase {
 
     private static void mixedTypesImpl() {
         var expected=SystemEnumerable.OfType<int>(LinqChain1TestBase.MixedObjects()).ToList();
-        var actual=LinqChain1TestBase.MixedObjects().OfType<int>().ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.MixedObjects().OfType<int>().Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
 }

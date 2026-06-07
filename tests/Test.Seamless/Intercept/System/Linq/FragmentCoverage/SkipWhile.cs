@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class SkipWhile {
     [Fact,Trait("Category","Unit")]
-    public static void SkipWhile_predicate(){
-        GeneratedInterceptorAssert.ContainsMethod<SkipWhile>(nameof(SkipWhile_predicateImpl));
+    public static void predicate(){
+        GeneratedInterceptorAssert.ContainsMethod<SkipWhile>(nameof(predicateImpl));
         var expected=SystemEnumerable.SkipWhile(new[]{1,2,3,4},static v => v<3).ToList();
-        var actual=SkipWhile_predicateImpl();
+        var actual=predicateImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> SkipWhile_predicateImpl(){
+    private static List<int> predicateImpl(){
         return new[]{1,2,3,4}.SkipWhile(static v => v<3).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void SkipWhile_predicate_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<SkipWhile>(nameof(SkipWhile_predicate_enumerableImpl));
+    public static void predicate_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<SkipWhile>(nameof(predicate_enumerableImpl));
         var expected=SystemEnumerable.SkipWhile(new[]{1,2,3,4},static v => v<3).ToList();
-        var actual=SkipWhile_predicate_enumerableImpl();
+        var actual=predicate_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> SkipWhile_predicate_enumerableImpl(){
+    private static List<int> predicate_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.SkipWhile(static v => v<3).ToList();
     }

@@ -15,8 +15,8 @@ internal static class Program {
     private const bool RUN_LINQ = true;
     private const bool RUN_INTERCEPT = true;
     private const bool RUN_ZLINQ = true;
-    private const int IterationTime=100;
-    private const int IterationCount=4;
+    private const int IterationTime=1000;
+    private const int IterationCount=16;
     private const int WarmupCount=2;
 
     public static void Main(string[] args) {
@@ -147,9 +147,10 @@ internal static class Program {
                 if(kindIndex<0) {
                     continue;
                 }
-                var rowKey = row[typeIndex]+suffix;
+                var type = row[typeIndex];
+                var rowKey = type+suffix;
                 if(!map.TryGetValue(rowKey,out var summary)) {
-                    summary=new SummaryRow(rowKey);
+                    summary=new SummaryRow(type,suffix);
                     map[rowKey]=summary;
                 }
                 summary.MeanText[kindIndex]=row[meanIndex];
@@ -221,13 +222,14 @@ internal static class Program {
         writer.AppendLine("  </div>");
         writer.AppendLine("  <table id=\"summary\">");
         writer.AppendLine("    <thead>");
-        writer.AppendLine("      <tr><th rowspan=\"2\">Class</th><th colspan=\"3\">Time</th><th colspan=\"3\">Ratio</th></tr>");
-        writer.AppendLine("      <tr><th>LINQ</th><th>Intercept</th><th>ZLinq</th><th>LINQ</th><th>Intercept</th><th>ZLinq</th></tr>");
+        writer.AppendLine("      <tr><th>Type</th><th>Method</th><th>LinqTime</th><th>InterceptTime</th><th>ZLinqTime</th><th>LinqRatio</th><th>InterceptRatio</th><th>ZLinqRatio</th></tr>");
         writer.AppendLine("    </thead>");
         writer.AppendLine("    <tbody>");
         foreach(var summary in rows.OrderBy(static r => r.RowKey,StringComparer.Ordinal)) {
             writer.Append($"      <tr data-name=\"{EscapeHtml(summary.RowKey)}\" data-maxratio=\"{summary.MaxRatio.ToString(CultureInfo.InvariantCulture)}\"><td>");
-            writer.Append(EscapeHtml(summary.RowKey));
+            writer.Append(EscapeHtml(summary.Type));
+            writer.Append("</td><td>");
+            writer.Append(EscapeHtml(summary.Method));
             writer.Append("</td>");
             for(var i = 0; i<3; i++) {
                 writer.Append("<td class=\"num\">");
@@ -259,10 +261,11 @@ internal static class Program {
     }
     static void WriteSummaryCsv(IEnumerable<SummaryRow> rows,string path) {
         var writer = new StringBuilder();
-        writer.AppendLine(",Time,,,Ratio,,");
-        writer.AppendLine("Class,LINQ,Intercept,ZLinq,LINQ,Intercept,ZLinq");
+        writer.AppendLine("Type,Method,LinqTime,InterceptTime,ZLinqTime,LinqRatio,InterceptRatio,ZLinqRatio");
         foreach(var summary in rows) {
-            writer.Append(CsvField(summary.RowKey));
+            writer.Append(CsvField(summary.Type));
+            writer.Append(',');
+            writer.Append(CsvField(summary.Method));
             for(var i = 0; i<3; i++) {
                 writer.Append(',');
                 writer.Append(CsvField(summary.MeanText[i]??string.Empty));
@@ -282,8 +285,10 @@ internal static class Program {
         }
         return "\""+value.Replace("\"","\"\"",StringComparison.Ordinal)+"\"";
     }
-    sealed class SummaryRow(string rowKey) {
-        public string RowKey { get; } = rowKey;
+    sealed class SummaryRow(string type,string method) {
+        public string Type { get; } = type;
+        public string Method { get; } = method;
+        public string RowKey { get; } = type+method;
         public string?[] MeanText { get; } = new string?[3];
         public double?[] MeanNs { get; } = new double?[3];
         public double?[] Ratio { get; } = new double?[3];

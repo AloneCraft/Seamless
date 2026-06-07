@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class ThenBy {
     [Fact,Trait("Category","Unit")]
-    public static void ThenBy_keySelector(){
-        GeneratedInterceptorAssert.ContainsMethod<ThenBy>(nameof(ThenBy_keySelectorImpl));
+    public static void keySelector(){
+        GeneratedInterceptorAssert.ContainsMethod<ThenBy>(nameof(keySelectorImpl));
         var expected=SystemEnumerable.ThenBy(SystemEnumerable.OrderBy(new[]{3,1,4,2},static v => v%2),static v => v).ToList();
-        var actual=ThenBy_keySelectorImpl();
+        var actual=keySelectorImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> ThenBy_keySelectorImpl(){
+    private static List<int> keySelectorImpl(){
         return new[]{3,1,4,2}.OrderBy(static v => v%2).ThenBy(static v => v).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void ThenBy_comparer(){
-        GeneratedInterceptorAssert.ContainsMethod<ThenBy>(nameof(ThenBy_comparerImpl));
+    public static void comparer(){
+        GeneratedInterceptorAssert.ContainsMethod<ThenBy>(nameof(comparerImpl));
         var expected=SystemEnumerable.ThenBy(SystemEnumerable.OrderBy(new[]{3,1,4,2},static v => v%2),static v => v,Comparer<int>.Default).ToList();
-        var actual=ThenBy_comparerImpl();
+        var actual=comparerImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> ThenBy_comparerImpl(){
+    private static List<int> comparerImpl(){
         return new[]{3,1,4,2}.OrderBy(static v => v%2).ThenBy(static v => v,Comparer<int>.Default).ToList();
     }
 
@@ -50,25 +50,25 @@ public sealed class ThenBy {
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void ThenBy_keySelector_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<ThenBy>(nameof(ThenBy_keySelector_enumerableImpl));
+    public static void keySelector_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<ThenBy>(nameof(keySelector_enumerableImpl));
         var expected=SystemEnumerable.ThenBy(SystemEnumerable.OrderBy(new[]{3,1,4,2},static v => v%2),static v => v).ToList();
-        var actual=ThenBy_keySelector_enumerableImpl();
+        var actual=keySelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> ThenBy_keySelector_enumerableImpl(){
+    private static List<int> keySelector_enumerableImpl(){
         IEnumerable<int>src=new[]{3,1,4,2};
         return src.OrderBy(static v => v%2).ThenBy(static v => v).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void ThenBy_comparer_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<ThenBy>(nameof(ThenBy_comparer_enumerableImpl));
+    public static void comparer_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<ThenBy>(nameof(comparer_enumerableImpl));
         var expected=SystemEnumerable.ThenBy(SystemEnumerable.OrderBy(new[]{3,1,4,2},static v => v%2),static v => v,Comparer<int>.Default).ToList();
-        var actual=ThenBy_comparer_enumerableImpl();
+        var actual=comparer_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> ThenBy_comparer_enumerableImpl(){
+    private static List<int> comparer_enumerableImpl(){
         IEnumerable<int>src=new[]{3,1,4,2};
         return src.OrderBy(static v => v%2).ThenBy(static v => v,Comparer<int>.Default).ToList();
     }

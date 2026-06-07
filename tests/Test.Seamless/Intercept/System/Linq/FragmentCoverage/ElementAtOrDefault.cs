@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class ElementAtOrDefault {
     [Fact,Trait("Category","Unit")]
-    public static void ElementAtOrDefault_index(){
-        GeneratedInterceptorAssert.ContainsMethod<ElementAtOrDefault>(nameof(ElementAtOrDefault_indexImpl));
+    public static void index(){
+        GeneratedInterceptorAssert.ContainsMethod<ElementAtOrDefault>(nameof(indexImpl));
         var expected=SystemEnumerable.ElementAtOrDefault(new[]{1,2,3,4},1);
-        var actual=ElementAtOrDefault_indexImpl();
+        var actual=indexImpl();
         Assert.Equal(expected,actual);
     }
-    private static int ElementAtOrDefault_indexImpl(){
+    private static int indexImpl(){
         return new[]{1,2,3,4}.ElementAtOrDefault(1);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void ElementAtOrDefault_index_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<ElementAtOrDefault>(nameof(ElementAtOrDefault_index_enumerableImpl));
+    public static void index_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<ElementAtOrDefault>(nameof(index_enumerableImpl));
         var expected=SystemEnumerable.ElementAtOrDefault(new[]{1,2,3,4},1);
-        var actual=ElementAtOrDefault_index_enumerableImpl();
+        var actual=index_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int ElementAtOrDefault_index_enumerableImpl(){
+    private static int index_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.ElementAtOrDefault(1);
     }

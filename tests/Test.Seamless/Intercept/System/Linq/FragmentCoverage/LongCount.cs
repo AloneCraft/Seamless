@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class LongCount {
     [Fact,Trait("Category","Unit")]
-    public static void LongCount_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<LongCount>(nameof(LongCount_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<LongCount>(nameof(noArgImpl));
         var expected=SystemEnumerable.LongCount(new[]{1,2,3,4});
-        var actual=LongCount_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static long LongCount_noArgImpl(){
+    private static long noArgImpl(){
         return new[]{1,2,3,4}.LongCount();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void LongCount_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<LongCount>(nameof(LongCount_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<LongCount>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.LongCount(new[]{1,2,3,4});
-        var actual=LongCount_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static long LongCount_noArg_enumerableImpl(){
+    private static long noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.LongCount();
     }

@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class MaxBy {
     [Fact,Trait("Category","Unit")]
-    public static void MaxBy_keySelector(){
-        GeneratedInterceptorAssert.ContainsMethod<MaxBy>(nameof(MaxBy_keySelectorImpl));
+    public static void keySelector(){
+        GeneratedInterceptorAssert.ContainsMethod<MaxBy>(nameof(keySelectorImpl));
         var expected=SystemEnumerable.MaxBy(new[]{1,2,3,4},static v => v);
-        var actual=MaxBy_keySelectorImpl();
+        var actual=keySelectorImpl();
         Assert.Equal(expected,actual);
     }
-    private static int MaxBy_keySelectorImpl(){
+    private static int keySelectorImpl(){
         return new[]{1,2,3,4}.MaxBy(static v => v);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void MaxBy_keySelector_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<MaxBy>(nameof(MaxBy_keySelector_enumerableImpl));
+    public static void keySelector_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<MaxBy>(nameof(keySelector_enumerableImpl));
         var expected=SystemEnumerable.MaxBy(new[]{1,2,3,4},static v => v);
-        var actual=MaxBy_keySelector_enumerableImpl();
+        var actual=keySelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int MaxBy_keySelector_enumerableImpl(){
+    private static int keySelector_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.MaxBy(static v => v);
     }

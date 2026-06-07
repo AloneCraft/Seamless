@@ -9,8 +9,9 @@ public sealed class Except:LinqChain1TestBase {
 
     private static void secondImpl() {
         var expected=SystemEnumerable.Except(LinqChain1TestBase.Source(),LinqChain1TestBase.Second()).ToList();
-        var actual=LinqChain1TestBase.Source().Except(LinqChain1TestBase.Second()).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Except(LinqChain1TestBase.Second()).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -18,8 +19,9 @@ public sealed class Except:LinqChain1TestBase {
 
     private static void second_comparerImpl() {
         var expected=SystemEnumerable.Except(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),EqualityComparer<int>.Default).ToList();
-        var actual=LinqChain1TestBase.Source().Except(LinqChain1TestBase.Second(),EqualityComparer<int>.Default).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Except(LinqChain1TestBase.Second(),EqualityComparer<int>.Default).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
 }

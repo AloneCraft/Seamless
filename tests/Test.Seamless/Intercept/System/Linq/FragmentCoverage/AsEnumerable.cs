@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class AsEnumerable {
     [Fact,Trait("Category","Unit")]
-    public static void AsEnumerable_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<AsEnumerable>(nameof(AsEnumerable_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<AsEnumerable>(nameof(noArgImpl));
         var expected=SystemEnumerable.AsEnumerable(new[]{1,2,3,4}).ToList();
-        var actual=AsEnumerable_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> AsEnumerable_noArgImpl(){
+    private static List<int> noArgImpl(){
         return new[]{1,2,3,4}.AsEnumerable().ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void AsEnumerable_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<AsEnumerable>(nameof(AsEnumerable_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<AsEnumerable>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.AsEnumerable(new[]{1,2,3,4}).ToList();
-        var actual=AsEnumerable_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> AsEnumerable_noArg_enumerableImpl(){
+    private static List<int> noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.AsEnumerable().ToList();
     }

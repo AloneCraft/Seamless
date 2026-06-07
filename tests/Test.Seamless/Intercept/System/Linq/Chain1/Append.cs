@@ -9,8 +9,9 @@ public sealed class Append:LinqChain1TestBase {
 
     private static void elementImpl() {
         var expected=SystemEnumerable.Append(LinqChain1TestBase.Source(),5).ToList();
-        var actual=LinqChain1TestBase.Source().Append(5).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Append(5).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
 }

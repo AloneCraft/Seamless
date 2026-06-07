@@ -6,47 +6,47 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class Distinct {
     [Fact,Trait("Category","Unit")]
-    public static void Distinct_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<Distinct>(nameof(Distinct_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<Distinct>(nameof(noArgImpl));
         var expected=SystemEnumerable.Distinct(new[]{1,2,2,3}).ToList();
-        var actual=Distinct_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> Distinct_noArgImpl(){
+    private static List<int> noArgImpl(){
         return new[]{1,2,2,3}.Distinct().ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Distinct_comparer(){
-        GeneratedInterceptorAssert.ContainsMethod<Distinct>(nameof(Distinct_comparerImpl));
+    public static void comparer(){
+        GeneratedInterceptorAssert.ContainsMethod<Distinct>(nameof(comparerImpl));
         var expected=SystemEnumerable.Distinct(new[]{1,2,2,3},EqualityComparer<int>.Default).ToList();
-        var actual=Distinct_comparerImpl();
+        var actual=comparerImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> Distinct_comparerImpl(){
+    private static List<int> comparerImpl(){
         return new[]{1,2,2,3}.Distinct(EqualityComparer<int>.Default).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Distinct_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Distinct>(nameof(Distinct_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Distinct>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.Distinct(new[]{1,2,2,3}).ToList();
-        var actual=Distinct_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> Distinct_noArg_enumerableImpl(){
+    private static List<int> noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,2,3};
         return src.Distinct().ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Distinct_comparer_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Distinct>(nameof(Distinct_comparer_enumerableImpl));
+    public static void comparer_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Distinct>(nameof(comparer_enumerableImpl));
         var expected=SystemEnumerable.Distinct(new[]{1,2,2,3},EqualityComparer<int>.Default).ToList();
-        var actual=Distinct_comparer_enumerableImpl();
+        var actual=comparer_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> Distinct_comparer_enumerableImpl(){
+    private static List<int> comparer_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,2,3};
         return src.Distinct(EqualityComparer<int>.Default).ToList();
     }

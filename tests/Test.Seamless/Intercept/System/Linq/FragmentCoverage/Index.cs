@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class Index {
     [Fact,Trait("Category","Unit")]
-    public static void Index_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<Index>(nameof(Index_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<Index>(nameof(noArgImpl));
         var expected=SystemEnumerable.Index(new[]{1,2,3,4}).ToList();
-        var actual=Index_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<(int Index,int Item)> Index_noArgImpl(){
+    private static List<(int Index,int Item)> noArgImpl(){
         return new[]{1,2,3,4}.Index().ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Index_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Index>(nameof(Index_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Index>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.Index(new[]{1,2,3,4}).ToList();
-        var actual=Index_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<(int Index,int Item)> Index_noArg_enumerableImpl(){
+    private static List<(int Index,int Item)> noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.Index().ToList();
     }

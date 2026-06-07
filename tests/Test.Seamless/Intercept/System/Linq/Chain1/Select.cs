@@ -9,8 +9,9 @@ public sealed class Select:LinqChain1TestBase {
 
     private static void selector_StaticImpl() {
         var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),static v => v*2).ToList();
-        var actual=LinqChain1TestBase.Source().Select(static v => v*2).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Select(static v => v*2).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -18,8 +19,9 @@ public sealed class Select:LinqChain1TestBase {
 
     private static void selector_LambdaImpl() {
         var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),v => v*2).ToList();
-        var actual=LinqChain1TestBase.Source().Select(v => v*2).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Select(v => v*2).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -28,8 +30,9 @@ public sealed class Select:LinqChain1TestBase {
     private static void selector_CapturedImpl() {
         var multiplier=2;
         var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),v => v*multiplier).ToList();
-        var actual=LinqChain1TestBase.Source().Select(v => v*multiplier).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Select(v => v*multiplier).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -37,8 +40,9 @@ public sealed class Select:LinqChain1TestBase {
 
     private static void selector_DelegateSyntaxImpl() {
         var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),delegate(int v) { return v*2; }).ToList();
-        var actual=LinqChain1TestBase.Source().Select(delegate(int v) { return v*2; }).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Select(delegate(int v) { return v*2; }).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -47,8 +51,9 @@ public sealed class Select:LinqChain1TestBase {
     private static void selector_VariableImpl() {
         Func<int,int> selector=v => v*2;
         var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),selector).ToList();
-        var actual=LinqChain1TestBase.Source().Select(selector).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Select(selector).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -56,8 +61,9 @@ public sealed class Select:LinqChain1TestBase {
 
     private static void selector_index_StaticImpl() {
         var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),static (v,i) => v+i).ToList();
-        var actual=LinqChain1TestBase.Source().Select(static (v,i) => v+i).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Select(static (v,i) => v+i).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -65,8 +71,9 @@ public sealed class Select:LinqChain1TestBase {
 
     private static void selector_index_LambdaImpl() {
         var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),(v,i) => v+i).ToList();
-        var actual=LinqChain1TestBase.Source().Select((v,i) => v+i).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Select((v,i) => v+i).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -75,8 +82,9 @@ public sealed class Select:LinqChain1TestBase {
     private static void selector_index_CapturedImpl() {
         var offset=0;
         var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),(v,i) => v+i+offset).ToList();
-        var actual=LinqChain1TestBase.Source().Select((v,i) => v+i+offset).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Select((v,i) => v+i+offset).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -84,8 +92,9 @@ public sealed class Select:LinqChain1TestBase {
 
     private static void selector_index_DelegateSyntaxImpl() {
         var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),delegate(int v,int i) { return v+i; }).ToList();
-        var actual=LinqChain1TestBase.Source().Select(delegate(int v,int i) { return v+i; }).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Select(delegate(int v,int i) { return v+i; }).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -94,8 +103,9 @@ public sealed class Select:LinqChain1TestBase {
     private static void selector_index_VariableImpl() {
         Func<int,int,int> selector=(v,i) => v+i;
         var expected=SystemEnumerable.Select(LinqChain1TestBase.Source(),selector).ToList();
-        var actual=LinqChain1TestBase.Source().Select(selector).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Select(selector).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
 }

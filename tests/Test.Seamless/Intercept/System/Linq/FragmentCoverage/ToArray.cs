@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class ToArray {
     [Fact,Trait("Category","Unit")]
-    public static void ToArray_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<ToArray>(nameof(ToArray_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<ToArray>(nameof(noArgImpl));
         var expected=SystemEnumerable.ToArray(new[]{1,2,3,4});
-        var actual=ToArray_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static int[] ToArray_noArgImpl(){
+    private static int[] noArgImpl(){
         return new[]{1,2,3,4}.ToArray();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void ToArray_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<ToArray>(nameof(ToArray_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<ToArray>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.ToArray(new[]{1,2,3,4});
-        var actual=ToArray_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int[] ToArray_noArg_enumerableImpl(){
+    private static int[] noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.ToArray();
     }

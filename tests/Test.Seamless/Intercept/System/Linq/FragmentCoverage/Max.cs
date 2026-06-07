@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class Max {
     [Fact,Trait("Category","Unit")]
-    public static void Max_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<Max>(nameof(Max_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<Max>(nameof(noArgImpl));
         var expected=SystemEnumerable.Max(new[]{1,2,3,4});
-        var actual=Max_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Max_noArgImpl(){
+    private static int noArgImpl(){
         return new[]{1,2,3,4}.Max();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Max_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Max>(nameof(Max_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Max>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.Max(new[]{1,2,3,4});
-        var actual=Max_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Max_noArg_enumerableImpl(){
+    private static int noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.Max();
     }

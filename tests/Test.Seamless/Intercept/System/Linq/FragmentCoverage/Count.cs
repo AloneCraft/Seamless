@@ -6,47 +6,47 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class Count {
     [Fact,Trait("Category","Unit")]
-    public static void Count_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<Count>(nameof(Count_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<Count>(nameof(noArgImpl));
         var expected=SystemEnumerable.Count(new[]{1,2,3,4});
-        var actual=Count_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Count_noArgImpl(){
+    private static int noArgImpl(){
         return new[]{1,2,3,4}.Count();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Count_predicate(){
-        GeneratedInterceptorAssert.ContainsMethod<Count>(nameof(Count_predicateImpl));
+    public static void predicate(){
+        GeneratedInterceptorAssert.ContainsMethod<Count>(nameof(predicateImpl));
         var expected=SystemEnumerable.Count(new[]{1,2,3,4},static v => v>2);
-        var actual=Count_predicateImpl();
+        var actual=predicateImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Count_predicateImpl(){
+    private static int predicateImpl(){
         return new[]{1,2,3,4}.Count(static v => v>2);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Count_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Count>(nameof(Count_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Count>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.Count(new[]{1,2,3,4});
-        var actual=Count_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Count_noArg_enumerableImpl(){
+    private static int noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.Count();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Count_predicate_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Count>(nameof(Count_predicate_enumerableImpl));
+    public static void predicate_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Count>(nameof(predicate_enumerableImpl));
         var expected=SystemEnumerable.Count(new[]{1,2,3,4},static v => v>2);
-        var actual=Count_predicate_enumerableImpl();
+        var actual=predicate_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Count_predicate_enumerableImpl(){
+    private static int predicate_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.Count(static v => v>2);
     }

@@ -9,8 +9,9 @@ public sealed class Prepend:LinqChain1TestBase {
 
     private static void elementImpl() {
         var expected=SystemEnumerable.Prepend(LinqChain1TestBase.Source(),0).ToList();
-        var actual=LinqChain1TestBase.Source().Prepend(0).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Prepend(0).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
 }
