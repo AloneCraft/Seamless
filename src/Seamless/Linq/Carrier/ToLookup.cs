@@ -115,7 +115,7 @@ namespace Seamless.Linq.Carrier.Linq
     }
 
     [StructLayout(LayoutKind.Auto)]
-    internal struct LookupBuilder<TKey, TElement>
+    public struct LookupBuilder<TKey, TElement>
     {
         const int MinimumSize = 16; // minimum arraypool size
         const double LoadFactor = 0.72;
@@ -238,7 +238,7 @@ namespace Seamless.Linq.Carrier.Linq
         }
 
         // GroupBy only needs root group.
-        internal Grouping<TKey, TElement>? GetRootGroupAndClear()
+        public Grouping<TKey, TElement>? GetRootGroupAndClear()
         {
             if (groupCount == 0 || buckets is null)
             {
@@ -471,7 +471,7 @@ namespace Seamless.Linq.Carrier.Linq
 
     [DebuggerDisplay("Key = {Key}")]
     [DebuggerTypeProxy(typeof(GroupingDebugView<,>))]
-    internal sealed class Grouping<TKey, TElement> : IGrouping<TKey, TElement>, IList<TElement>, IReadOnlyList<TElement>
+    public sealed class Grouping<TKey, TElement> : IGrouping<TKey, TElement>, IList<TElement>, IReadOnlyList<TElement>
     {
         TKey key;
         uint hashCode;
