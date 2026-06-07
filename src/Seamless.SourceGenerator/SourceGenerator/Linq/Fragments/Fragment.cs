@@ -185,6 +185,9 @@ public abstract class Fragment(
     public virtual string GetEnumeratorFields => string.Empty;
     // enumerator struct のコンストラクタ定義。
     public virtual string GetEnumeratorConstructor => string.Empty;
+    // enumerator struct の TryGetNonEnumeratedCount 本体。既定は非対応（false）。
+    // bool 戻り値を呼び出し側が必ず確認する実行時 fast path のため、断片が安全に override 可能。
+    protected virtual string GetTryGetNonEnumeratedCountBody => "count = 0;\nreturn false;";
     // Enumerable 断片が List<T> へ結果を積む共通形。
     private protected static string var_List(string name,string ElementType) =>
         $"var {name}=new global::System.Collections.Generic.List<{ElementType}>();";
@@ -336,8 +339,7 @@ public abstract class Fragment(
                 public bool MoveNext() => TryGetNext(out _);
                 {{AggressiveInliningAttribute}}
                 public bool TryGetNonEnumeratedCount(out int count) {
-                    count = 0;
-                    return false;
+            {{IndentLines(GetTryGetNonEnumeratedCountBody, "        ")}}
                 }
                 {{AggressiveInliningAttribute}}
                 public bool TryGetSpan(out global::System.ReadOnlySpan<{{currentType}}> span) {

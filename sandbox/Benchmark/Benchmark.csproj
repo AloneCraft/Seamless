@@ -43,6 +43,9 @@
     <Analyzer Include="$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Debug/net10.0/Seamless.SourceGenerator.dll" Condition="'$(Configuration)' == 'Debug' and Exists('$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Debug/net10.0/Seamless.SourceGenerator.dll')" />
     <Analyzer Include="$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Release/net10.0/Seamless.SourceGenerator.dll" Condition="'$(Configuration)' == 'Release' and Exists('$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Release/net10.0/Seamless.SourceGenerator.dll')" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Benchmarks\Helpers\" />
+  </ItemGroup>
 
   <!-- Custom target to cleanup `bin`, and `BenchmarkDotNet.Artifacts` directories. (`obj` is retained. Because it cause intellisense error when deleted) -->
   <Target Name="CleanBenchmarkDotNetArtifacts" BeforeTargets="Clean" Condition="Exists('bin')">
