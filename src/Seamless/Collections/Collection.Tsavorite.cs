@@ -13,7 +13,7 @@ public abstract class Collection<
     TContainsDeleteFunctions,
     TStoreFunctions,
     TAllocator
->:IDisposable    where TReadFunctions : struct, ISessionFunctions<
+>:IDisposable where TReadFunctions : struct, ISessionFunctions<
         EqualityEmpty,
         TReadOutput,
         EqualityEmpty
@@ -118,7 +118,8 @@ public abstract class Collection<
         }
         Debug.Assert(Result==TryAddResult.Success);
     }
-    internal struct CounterIterator:IScanIteratorFunctions {
+    //todo 現在のバージョンではstructでは更新できない。
+    internal sealed class CounterIterator:IScanIteratorFunctions {
         public long Counter;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
@@ -133,7 +134,6 @@ public abstract class Collection<
         public void OnException(Exception exception,long numberOfRecords) {
         }
         public void OnStop(bool completed,long numberOfRecords) {
-            this.Counter=numberOfRecords;
         }
     }
     public long GetLongCount() {
