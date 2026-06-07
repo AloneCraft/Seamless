@@ -1,11 +1,11 @@
-using Seamless.Stores;
+﻿using Seamless.Stores;
 using System.Linq;
 namespace Test.Seamless.Tsavorite;
 
 /// <summary>
 /// LightEpoch 縺ｮ蛻ｶ髯舌ｒ遒ｺ隱阪☆繧九ユ繧ｹ繝医・
 /// <list type="bullet">
-///   <item><description>MaxInstances = 16: 蜷梧凾縺ｫ蟄伜惠縺ｧ縺阪ｋ TsavoriteKV (= Store) 縺ｯ譛螟ｧ 16 蛟九・/description></item>
+///   <item><description>MaxInstances = 1024: 蜷梧凾縺ｫ蟄伜惠縺ｧ縺阪ｋ TsavoriteKV (= Store) 縺ｯ譛螟ｧ 1024 蛟九・/description></item>
 ///   <item><description>kTableSize = 128: 1 縺､縺ｮ Store 縺ｫ蜷梧凾繧｢繧ｯ繧ｻ繧ｹ縺ｧ縺阪ｋ繧ｹ繝ｬ繝・ラ縺ｯ譛螟ｧ 128 蛟九・/description></item>
 /// </list>
 /// MaxInstances 雜・℃繝・せ繝医・ LightEpoch 縺ｮ繧ｰ繝ｭ繝ｼ繝舌Ν迥ｶ諷九↓萓晏ｭ倥☆繧九◆繧√・
@@ -14,16 +14,17 @@ namespace Test.Seamless.Tsavorite;
 [Collection("LightEpochLimit")]
 public class LightEpochLimitTests {
     /// <summary>
-    /// 16 蛟九・ Store 繧貞酔譎ゅ↓菴懈・繝ｻ菫晄戟縺ｧ縺阪ｋ縺薙→繧堤｢ｺ隱阪☆繧・(MaxInstances = 16 縺ｮ豁｣蟶ｸ邉ｻ)縲・
+    /// 1024 蛟九・ Store 繧貞酔譎ゅ↓菴懈・繝ｻ菫晄戟縺ｧ縺阪ｋ縺薙→繧堤｢ｺ隱阪☆繧・(MaxInstances = 1024 縺ｮ豁｣蟶ｸ邉ｻ)縲・
     /// </summary>
     [Fact]
-    public void MaxInstances_16Stores_AllSucceed() {
+    public void MaxInstances_1024Stores_AllSucceed() {
         var stores = new global::System.Collections.Generic.List<DictionaryStore<int,int>>();
         try {
-            for(var i = 0; i<16; i++) {
+            const int Count=1024;
+            for(var i = 0; i<Count; i++) {
                 stores.Add(HashStore.Create().Create<int,int>());
             }
-            Assert.Equal(16,stores.Count);
+            Assert.Equal(Count,stores.Count);
         }
         finally {
             foreach(var s in stores) s.Dispose();
@@ -45,34 +46,13 @@ public class LightEpochLimitTests {
     }
 
     [Fact]
-    public void MaxInstances_17Stores_ThrowsException() {
+    public void MaxInstances_1025Stores_ThrowsException() {
         var stores = new global::System.Collections.Generic.List<DictionaryStore<int,int>>();
         try {
             for(var i = 0; i<1024; i++) {
                 stores.Add(HashStore.Create().Create<int,int>());
             }
             Assert.Throws<InvalidOperationException>(() => {
-                using var extra = HashStore.Create().Create<int,int>();
-            });
-        }
-        finally {
-            foreach(var s in stores) s.Dispose();
-        }
-    }
-
-    /// <summary>
-    /// 17 蛟狗岼縺ｮ Store 菴懈・縺御ｾ句､悶↓縺ｪ繧九％縺ｨ繧堤｢ｺ隱阪☆繧・(MaxInstances = 16 雜・℃)縲・
-    /// 莉悶・繝・せ繝医′ Store 繧剃ｿ晄戟縺励◆迥ｶ諷九〒荳ｦ蛻怜ｮ溯｡後＆繧後ｋ縺ｨ邨先棡縺悟､峨ｏ繧九◆繧√・
-    /// 蜷後さ繝ｬ繧ｯ繧ｷ繝ｧ繝ｳ蜀・〒逶ｴ蛻怜ｮ溯｡後＆繧後ｋ縲・
-    /// </summary>
-    [Fact]
-    public void MaxInstances_17thStore_ThrowsException() {
-        var stores = new global::System.Collections.Generic.List<DictionaryStore<int,int>>();
-        try {
-            for(var i = 0; i<16; i++) {
-                stores.Add(HashStore.Create().Create<int,int>());
-            }
-            Assert.ThrowsAny<Exception>(() => {
                 using var extra = HashStore.Create().Create<int,int>();
             });
         }
