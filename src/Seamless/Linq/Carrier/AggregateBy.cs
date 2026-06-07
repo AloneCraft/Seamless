@@ -54,18 +54,18 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out KeyValuePair<TKey, TAccumulate> current)
         {
-            if (dictionary == null)
+            if (this.dictionary == null)
             {
                 // if empty, don't create dictionary.
-                if (source.TryGetNonEnumeratedCount(out var count) && count == 0)
+                if (this.source.TryGetNonEnumeratedCount(out var count) && count == 0)
                 {
                     Unsafe.SkipInit(out current);
                     return false;
                 }
-                Initialize();
+                this.Initialize();
             }
 
-            if (enumerator.TryGetNext(out current))
+            if (this.enumerator.TryGetNext(out current))
             {
                 return true;
             }
@@ -80,9 +80,9 @@ namespace Seamless.Linq.Carrier.Linq
                 ? new DictionarySlim<TKey, TAccumulate>(keyComparer)
                 : new DictionarySlim<TKey, TAccumulate>();
 
-            using (source)
+            using (this.source)
             {
-                if (source.TryGetSpan(out var span))
+                if (this.source.TryGetSpan(out var span))
                 {
                     foreach (var item in span)
                     {
@@ -93,7 +93,7 @@ namespace Seamless.Linq.Carrier.Linq
                 }
                 else
                 {
-                    while (source.TryGetNext(out var item))
+                    while (this.source.TryGetNext(out var item))
                     {
                         var key = keySelector(item);
                         ref var accumulate = ref dict.GetValueRefOrAddDefault(key, out var exists);
@@ -108,8 +108,8 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            dictionary?.Dispose();
-            source.Dispose();
+            this.dictionary?.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -140,19 +140,19 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out KeyValuePair<TKey, TAccumulate> current)
         {
-            if (dictionary == null)
+            if (this.dictionary == null)
             {
                 // if empty, don't create dictionary.
-                if (source.TryGetNonEnumeratedCount(out var count) && count == 0)
+                if (this.source.TryGetNonEnumeratedCount(out var count) && count == 0)
                 {
                     Unsafe.SkipInit(out current);
                     return false;
                 }
 
-                Initialize();
+                this.Initialize();
             }
 
-            if (enumerator.TryGetNext(out current))
+            if (this.enumerator.TryGetNext(out current))
             {
                 return true;
             }
@@ -167,9 +167,9 @@ namespace Seamless.Linq.Carrier.Linq
                 ? new DictionarySlim<TKey, TAccumulate>(keyComparer)
                 : new DictionarySlim<TKey, TAccumulate>();
 
-            using (source)
+            using (this.source)
             {
-                if (source.TryGetSpan(out var span))
+                if (this.source.TryGetSpan(out var span))
                 {
                     foreach (var item in span)
                     {
@@ -180,7 +180,7 @@ namespace Seamless.Linq.Carrier.Linq
                 }
                 else
                 {
-                    while (source.TryGetNext(out var item))
+                    while (this.source.TryGetNext(out var item))
                     {
                         var key = keySelector(item);
                         ref var accumulate = ref dict.GetValueRefOrAddDefault(key, out var exists);
@@ -195,8 +195,8 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            dictionary?.Dispose();
-            source.Dispose();
+            this.dictionary?.Dispose();
+            this.source.Dispose();
         }
     }
 }

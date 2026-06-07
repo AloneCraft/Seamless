@@ -3,16 +3,16 @@ namespace Benchmark.Benchmarks;
 public class ToDictionary_keySelector:Base{
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        Enumerable.ToDictionary(src,x=>x).Consume(consumer);
+        Enumerable.ToDictionary(this.src,x=>x).Consume(this.consumer);
     }
 
     [Benchmark]
     public void Intercept(){
-        src.ToDictionary(x=>x).Consume(consumer);
+        this.src.ToDictionary(x=>x).Consume(this.consumer);
     }
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).ToDictionary(x=>x).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).ToDictionary(x=>x).Consume(this.consumer);
     }
 }

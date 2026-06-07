@@ -144,9 +144,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(Span<int> destination, Index offset)
         {
-            if (EnumeratorHelper.TryGetSliceRange(count, offset, destination.Length, out var fillStart, out var fillCount))
+            if (EnumeratorHelper.TryGetSliceRange(this.count, offset, destination.Length, out var fillStart, out var fillCount))
             {
-                FillIncremental(destination.Slice(0, fillCount), start + fillStart);
+                FillIncremental(destination.Slice(0, fillCount),this.start + fillStart);
                 return true;
             }
 
@@ -155,10 +155,10 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out int current)
         {
-            if (value < to)
+            if (this.value <this.to)
             {
-                current = value;
-                value++;
+                current =this.value;
+                this.value++;
                 return true;
             }
 
@@ -244,17 +244,17 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out T current)
         {
-            if (index < count)
+            if (this.index <this.count)
             {
-                if (index != 0)
+                if (this.index != 0)
                 {
                     checked
                     {
-                        value += step;
+                        this.value +=this.step;
                     }
                 }
-                current = value;
-                index++;
+                current =this.value;
+                this.index++;
                 return true;
             }
 
@@ -298,17 +298,17 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out DateTime current)
         {
-            if (index < count)
+            if (this.index <this.count)
             {
-                if (index != 0)
+                if (this.index != 0)
                 {
                     checked
                     {
-                        value += step;
+                        this.value += step;
                     }
                 }
-                current = value;
-                index++;
+                current =this.value;
+                this.index++;
                 return true;
             }
 
@@ -350,17 +350,17 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out DateTimeOffset current)
         {
-            if (index < count)
+            if (this.index <this.count)
             {
-                if (index != 0)
+                if (this.index != 0)
                 {
                     checked
                     {
-                        value += step;
+                        this.value += step;
                     }
                 }
-                current = value;
-                index++;
+                current =this.value;
+                this.index++;
                 return true;
             }
 
@@ -390,7 +390,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (isInfinite)
+            if (this.isInfinite)
             {
                 count = 0;
                 return false;
@@ -408,11 +408,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(Span<int> destination, Index offset)
         {
-            if (isInfinite) return false;
+            if (this.isInfinite) return false;
 
-            if (EnumeratorHelper.TryGetSliceRange(count, offset, destination.Length, out var fillStart, out var fillCount))
+            if (EnumeratorHelper.TryGetSliceRange(this.count, offset, destination.Length, out var fillStart, out var fillCount))
             {
-                FromRange.FillIncremental(destination.Slice(0, fillCount), start + fillStart);
+                FromRange.FillIncremental(destination.Slice(0, fillCount),this.start + fillStart);
                 return true;
             }
 
@@ -421,12 +421,12 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out int current)
         {
-            if (value < to)
+            if (this.value <this.to)
             {
-                current = value;
+                current =this.value;
                 checked
                 {
-                    value++;
+                    this.value++;
                 }
                 return true;
             }
@@ -475,31 +475,31 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out T current)
         {
-            if (first)
+            if (this.first)
             {
-                current = value;
-                first = false;
+                current =this.value;
+                this.first = false;
                 return true;
             }
 
             checked
             {
-                value += step;
+                this.value +=this.step;
             }
 
-            if (forward)
+            if (this.forward)
             {
-                if (value < end || (rightBound == RightBound.Inclusive && value <= end))
+                if (this.value <this.end || (this.rightBound == RightBound.Inclusive &&this.value <=this.end))
                 {
-                    current = value;
+                    current =this.value;
                     return true;
                 }
             }
             else
             {
-                if (value > end || (rightBound == RightBound.Inclusive && value >= end))
+                if (this.value >this.end || (this.rightBound == RightBound.Inclusive &&this.value >=this.end))
                 {
-                    current = value;
+                    current =this.value;
                     return true;
                 }
             }
@@ -547,31 +547,31 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out DateTime current)
         {
-            if (first)
+            if (this.first)
             {
-                current = value;
-                first = false;
+                current =this.value;
+                this.first = false;
                 return true;
             }
 
             checked
             {
-                value += step;
+                this.value +=this.step;
             }
 
-            if (forward)
+            if (this.forward)
             {
-                if (value < end || (rightBound == RightBound.Inclusive && value <= end))
+                if (this.value <this.end || (this.rightBound == RightBound.Inclusive &&this.value <=this.end))
                 {
-                    current = value;
+                    current =this.value;
                     return true;
                 }
             }
             else
             {
-                if (value > end || (rightBound == RightBound.Inclusive && value >= end))
+                if (this.value >this.end || (this.rightBound == RightBound.Inclusive &&this.value >=this.end))
                 {
-                    current = value;
+                    current =this.value;
                     return true;
                 }
             }
@@ -617,31 +617,31 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out DateTimeOffset current)
         {
-            if (first)
+            if (this.first)
             {
-                current = value;
-                first = false;
+                current =this.value;
+                this.first = false;
                 return true;
             }
 
             checked
             {
-                value += step;
+                this.value +=this.step;
             }
 
-            if (forward)
+            if (this.forward)
             {
-                if (value < end || (rightBound == RightBound.Inclusive && value <= end))
+                if (this.value <this.end || (this.rightBound == RightBound.Inclusive &&this.value <=this.end))
                 {
-                    current = value;
+                    current =this.value;
                     return true;
                 }
             }
             else
             {
-                if (value > end || (rightBound == RightBound.Inclusive && value >= end))
+                if (this.value >this.end || (this.rightBound == RightBound.Inclusive &&this.value >=this.end))
                 {
-                    current = value;
+                    current =this.value;
                     return true;
                 }
             }

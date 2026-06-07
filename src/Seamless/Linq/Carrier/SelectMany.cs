@@ -71,21 +71,21 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryGetNext(out TResult current)
         {
         BEGIN:
-            if (hasInner)
+            if (this.hasInner)
             {
-                if (innerEnumerator.TryGetNext(out current))
+                if (this.innerEnumerator.TryGetNext(out current))
                 {
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner = false;
+                this.innerEnumerator.Dispose();
+                this.hasInner = false;
             }
 
-            if (source.TryGetNext(out var value))
+            if (this.source.TryGetNext(out var value))
             {
-                innerEnumerator = selector(value).AsValueEnumerable().Enumerator;
-                hasInner = true;
+                this.innerEnumerator = selector(value).AsValueEnumerable().Enumerator;
+                this.hasInner = true;
                 goto BEGIN;
             }
 
@@ -95,11 +95,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            if (hasInner)
+            if (this.hasInner)
             {
-                innerEnumerator.Dispose();
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -132,21 +132,21 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryGetNext(out TResult current)
         {
         BEGIN:
-            if (hasInner)
+            if (this.hasInner)
             {
-                if (innerEnumerator.TryGetNext(out current))
+                if (this.innerEnumerator.TryGetNext(out current))
                 {
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner = false;
+                this.innerEnumerator.Dispose();
+                this.hasInner = false;
             }
 
-            if (source.TryGetNext(out var value))
+            if (this.source.TryGetNext(out var value))
             {
-                innerEnumerator = selector(value, index++).Enumerator;
-                hasInner = true;
+                this.innerEnumerator = selector(value,this.index++).Enumerator;
+                this.hasInner = true;
                 goto BEGIN;
             }
 
@@ -156,11 +156,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            if (hasInner)
+            if (this.hasInner)
             {
-                innerEnumerator.Dispose();
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -193,23 +193,23 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryGetNext(out TResult current)
         {
         BEGIN:
-            if (hasInner)
+            if (this.hasInner)
             {
-                if (innerEnumerator.TryGetNext(out var innerCurrent))
+                if (this.innerEnumerator.TryGetNext(out var innerCurrent))
                 {
-                    current = resultSelector(currentSource, innerCurrent);
+                    current = resultSelector(this.currentSource, innerCurrent);
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner = false;
+                this.innerEnumerator.Dispose();
+                this.hasInner = false;
             }
 
-            if (source.TryGetNext(out var value))
+            if (this.source.TryGetNext(out var value))
             {
-                currentSource = value;
-                innerEnumerator = collectionSelector(value).Enumerator;
-                hasInner = true;
+                this.currentSource = value;
+                this.innerEnumerator = collectionSelector(value).Enumerator;
+                this.hasInner = true;
                 goto BEGIN;
             }
 
@@ -219,11 +219,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            if (hasInner)
+            if (this.hasInner)
             {
-                innerEnumerator.Dispose();
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -257,23 +257,23 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryGetNext(out TResult current)
         {
         BEGIN:
-            if (hasInner)
+            if (this.hasInner)
             {
-                if (innerEnumerator.TryGetNext(out var innerCurrent))
+                if (this.innerEnumerator.TryGetNext(out var innerCurrent))
                 {
-                    current = resultSelector(currentSource, innerCurrent);
+                    current = resultSelector(this.currentSource, innerCurrent);
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner = false;
+                this.innerEnumerator.Dispose();
+                this.hasInner = false;
             }
 
-            if (source.TryGetNext(out var value))
+            if (this.source.TryGetNext(out var value))
             {
-                currentSource = value;
-                innerEnumerator = collectionSelector(value, index++).Enumerator;
-                hasInner = true;
+                this.currentSource = value;
+                this.innerEnumerator = collectionSelector(value,this.index++).Enumerator;
+                this.hasInner = true;
                 goto BEGIN;
             }
 
@@ -283,11 +283,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            if (hasInner)
+            if (this.hasInner)
             {
-                innerEnumerator.Dispose();
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -321,21 +321,21 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryGetNext(out TResult current)
         {
         BEGIN:
-            if (hasInner)
+            if (this.hasInner)
             {
-                if (innerEnumerator.TryGetNext(out current))
+                if (this.innerEnumerator.TryGetNext(out current))
                 {
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner = false;
+                this.innerEnumerator.Dispose();
+                this.hasInner = false;
             }
 
-            if (source.TryGetNext(out var value))
+            if (this.source.TryGetNext(out var value))
             {
-                innerEnumerator = selector(value).Enumerator;
-                hasInner = true;
+                this.innerEnumerator = selector(value).Enumerator;
+                this.hasInner = true;
                 goto BEGIN;
             }
 
@@ -345,11 +345,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            if (hasInner)
+            if (this.hasInner)
             {
-                innerEnumerator.Dispose();
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -381,21 +381,21 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryGetNext(out TResult current)
         {
         BEGIN:
-            if (hasInner)
+            if (this.hasInner)
             {
-                if (innerEnumerator.TryGetNext(out current))
+                if (this.innerEnumerator.TryGetNext(out current))
                 {
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner = false;
+                this.innerEnumerator.Dispose();
+                this.hasInner = false;
             }
 
-            if (source.TryGetNext(out var value))
+            if (this.source.TryGetNext(out var value))
             {
-                innerEnumerator = selector(value, index++).AsValueEnumerable().Enumerator;
-                hasInner = true;
+                this.innerEnumerator = selector(value,this.index++).AsValueEnumerable().Enumerator;
+                this.hasInner = true;
                 goto BEGIN;
             }
 
@@ -405,11 +405,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            if (hasInner)
+            if (this.hasInner)
             {
-                innerEnumerator.Dispose();
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -441,23 +441,23 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryGetNext(out TResult current)
         {
         BEGIN:
-            if (hasInner)
+            if (this.hasInner)
             {
-                if (innerEnumerator.TryGetNext(out var innerCurrent))
+                if (this.innerEnumerator.TryGetNext(out var innerCurrent))
                 {
-                    current = resultSelector(currentSource, innerCurrent);
+                    current = resultSelector(this.currentSource, innerCurrent);
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner = false;
+                this.innerEnumerator.Dispose();
+                this.hasInner = false;
             }
 
-            if (source.TryGetNext(out var value))
+            if (this.source.TryGetNext(out var value))
             {
-                currentSource = value;
-                innerEnumerator = collectionSelector(value).AsValueEnumerable().Enumerator;
-                hasInner = true;
+                this.currentSource = value;
+                this.innerEnumerator = collectionSelector(value).AsValueEnumerable().Enumerator;
+                this.hasInner = true;
                 goto BEGIN;
             }
 
@@ -467,11 +467,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            if (hasInner)
+            if (this.hasInner)
             {
-                innerEnumerator.Dispose();
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -504,23 +504,23 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryGetNext(out TResult current)
         {
         BEGIN:
-            if (hasInner)
+            if (this.hasInner)
             {
-                if (innerEnumerator.TryGetNext(out var innerCurrent))
+                if (this.innerEnumerator.TryGetNext(out var innerCurrent))
                 {
-                    current = resultSelector(currentSource, innerCurrent);
+                    current = resultSelector(this.currentSource, innerCurrent);
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner = false;
+                this.innerEnumerator.Dispose();
+                this.hasInner = false;
             }
 
-            if (source.TryGetNext(out var value))
+            if (this.source.TryGetNext(out var value))
             {
-                currentSource = value;
-                innerEnumerator = collectionSelector(value, index++).AsValueEnumerable().Enumerator;
-                hasInner = true;
+                this.currentSource = value;
+                this.innerEnumerator = collectionSelector(value,this.index++).AsValueEnumerable().Enumerator;
+                this.hasInner = true;
                 goto BEGIN;
             }
 
@@ -530,11 +530,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            if (hasInner)
+            if (this.hasInner)
             {
-                innerEnumerator.Dispose();
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 

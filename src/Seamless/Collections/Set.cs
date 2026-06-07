@@ -30,10 +30,7 @@ public class Set<TRecord>:List<TRecord>, ISet<TRecord> {
     public new int Count => checked((int)this.GetLongCount());
     public bool IsReadOnly => false;
     public long EntryCount => this.GetLongCount();
-    public IEnumerator<TRecord> GetEnumerator() {
-        throw new NotImplementedException();
-    }
-    IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator() => this.GetEnumerator();
+    IEnumerator<TRecord> IMemoryCollection<TRecord>.GetEnumerator() => ((IEnumerable<TRecord>)this).GetEnumerator();
 }
 public partial class Set<TKey, TRecord>:
     Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>>,

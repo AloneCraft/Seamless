@@ -66,42 +66,42 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out IGrouping<TKey, TSource> current)
         {
-            if (!init)
+            if (!this.init)
             {
-                init = true;
-                rootGrouping = BuildRoot();
-                if (rootGrouping != null)
+                this.init = true;
+                this.rootGrouping =this.BuildRoot();
+                if (this.rootGrouping != null)
                 {
-                    current = rootGrouping;
-                    currentGrouping = rootGrouping;
+                    current =this.rootGrouping;
+                    this.currentGrouping =this.rootGrouping;
                     return true;
                 }
             }
 
-            currentGrouping = currentGrouping?.NextGroupInAddOrder;
+            this.currentGrouping =this.currentGrouping?.NextGroupInAddOrder;
 
-            if (currentGrouping == null || currentGrouping == rootGrouping)
+            if (this.currentGrouping == null ||this.currentGrouping ==this.rootGrouping)
             {
                 current = default!;
                 return false;
             }
             else
             {
-                current = currentGrouping;
+                current =this.currentGrouping;
                 return true;
             }
         }
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
 
         Grouping<TKey, TSource>? BuildRoot()
         {
             var lookupBuilder = new LookupBuilder<TKey, TSource>(comparer ?? EqualityComparer<TKey>.Default);
 
-            if (source.TryGetSpan(out var span))
+            if (this.source.TryGetSpan(out var span))
             {
                 foreach (var item in span)
                 {
@@ -110,9 +110,9 @@ namespace Seamless.Linq.Carrier.Linq
             }
             else
             {
-                using (source)
+                using (this.source)
                 {
-                    while (source.TryGetNext(out var item))
+                    while (this.source.TryGetNext(out var item))
                     {
                         lookupBuilder.Add(keySelector(item), item);
                     }
@@ -150,42 +150,42 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out IGrouping<TKey, TElement> current)
         {
-            if (!init)
+            if (!this.init)
             {
-                init = true;
-                rootGrouping = BuildRoot();
-                if (rootGrouping != null)
+                this.init = true;
+                this.rootGrouping =this.BuildRoot();
+                if (this.rootGrouping != null)
                 {
-                    current = rootGrouping;
-                    currentGrouping = rootGrouping;
+                    current =this.rootGrouping;
+                    this.currentGrouping =this.rootGrouping;
                     return true;
                 }
             }
 
-            currentGrouping = currentGrouping?.NextGroupInAddOrder;
+            this.currentGrouping =this.currentGrouping?.NextGroupInAddOrder;
 
-            if (currentGrouping == null || currentGrouping == rootGrouping)
+            if (this.currentGrouping == null ||this.currentGrouping ==this.rootGrouping)
             {
                 current = default!;
                 return false;
             }
             else
             {
-                current = currentGrouping;
+                current =this.currentGrouping;
                 return true;
             }
         }
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
 
         Grouping<TKey, TElement>? BuildRoot()
         {
             var lookupBuilder = new LookupBuilder<TKey, TElement>(comparer ?? EqualityComparer<TKey>.Default);
 
-            if (source.TryGetSpan(out var span))
+            if (this.source.TryGetSpan(out var span))
             {
                 foreach (var item in span)
                 {
@@ -194,9 +194,9 @@ namespace Seamless.Linq.Carrier.Linq
             }
             else
             {
-                using (source)
+                using (this.source)
                 {
-                    while (source.TryGetNext(out var item))
+                    while (this.source.TryGetNext(out var item))
                     {
                         lookupBuilder.Add(keySelector(item), elementSelector(item));
                     }
@@ -234,42 +234,42 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            if (!init)
+            if (!this.init)
             {
-                init = true;
-                rootGrouping = BuildRoot();
-                if (rootGrouping != null)
+                this.init = true;
+                this.rootGrouping =this.BuildRoot();
+                if (this.rootGrouping != null)
                 {
-                    current = resultSelector(rootGrouping.Key, rootGrouping);
-                    currentGrouping = rootGrouping;
+                    current = resultSelector(this.rootGrouping.Key,this.rootGrouping);
+                    this.currentGrouping =this.rootGrouping;
                     return true;
                 }
             }
 
-            currentGrouping = currentGrouping?.NextGroupInAddOrder;
+            this.currentGrouping =this.currentGrouping?.NextGroupInAddOrder;
 
-            if (currentGrouping == null || currentGrouping == rootGrouping)
+            if (this.currentGrouping == null ||this.currentGrouping ==this.rootGrouping)
             {
                 current = default!;
                 return false;
             }
             else
             {
-                current = resultSelector(currentGrouping.Key, currentGrouping);
+                current = resultSelector(this.currentGrouping.Key,this.currentGrouping);
                 return true;
             }
         }
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
 
         Grouping<TKey, TSource>? BuildRoot()
         {
             var lookupBuilder = new LookupBuilder<TKey, TSource>(comparer ?? EqualityComparer<TKey>.Default);
 
-            if (source.TryGetSpan(out var span))
+            if (this.source.TryGetSpan(out var span))
             {
                 foreach (var item in span)
                 {
@@ -278,9 +278,9 @@ namespace Seamless.Linq.Carrier.Linq
             }
             else
             {
-                using (source)
+                using (this.source)
                 {
-                    while (source.TryGetNext(out var item))
+                    while (this.source.TryGetNext(out var item))
                     {
                         lookupBuilder.Add(keySelector(item), item);
                     }
@@ -318,42 +318,42 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            if (!init)
+            if (!this.init)
             {
-                init = true;
-                rootGrouping = BuildRoot();
-                if (rootGrouping != null)
+                this.init = true;
+                this.rootGrouping =this.BuildRoot();
+                if (this.rootGrouping != null)
                 {
-                    current = resultSelector(rootGrouping.Key, rootGrouping);
-                    currentGrouping = rootGrouping;
+                    current = resultSelector(this.rootGrouping.Key,this.rootGrouping);
+                    this.currentGrouping =this.rootGrouping;
                     return true;
                 }
             }
 
-            currentGrouping = currentGrouping?.NextGroupInAddOrder;
+            this.currentGrouping =this.currentGrouping?.NextGroupInAddOrder;
 
-            if (currentGrouping == null || currentGrouping == rootGrouping)
+            if (this.currentGrouping == null ||this.currentGrouping ==this.rootGrouping)
             {
                 current = default!;
                 return false;
             }
             else
             {
-                current = resultSelector(currentGrouping.Key, currentGrouping);
+                current = resultSelector(this.currentGrouping.Key,this.currentGrouping);
                 return true;
             }
         }
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
 
         Grouping<TKey, TElement>? BuildRoot()
         {
             var lookupBuilder = new LookupBuilder<TKey, TElement>(comparer ?? EqualityComparer<TKey>.Default);
 
-            if (source.TryGetSpan(out var span))
+            if (this.source.TryGetSpan(out var span))
             {
                 foreach (var item in span)
                 {
@@ -362,9 +362,9 @@ namespace Seamless.Linq.Carrier.Linq
             }
             else
             {
-                using (source)
+                using (this.source)
                 {
-                    while (source.TryGetNext(out var item))
+                    while (this.source.TryGetNext(out var item))
                     {
                         lookupBuilder.Add(keySelector(item), elementSelector(item));
                     }

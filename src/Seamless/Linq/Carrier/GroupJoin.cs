@@ -54,23 +54,23 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            if (innerLookup == null)
+            if (this.innerLookup == null)
             {
                 try
                 {
-                    innerLookup = Lookup.CreateForJoin(ref inner, innerKeySelector, comparer);
+                    this.innerLookup = Lookup.CreateForJoin(ref this.inner, innerKeySelector, comparer);
                 }
                 finally
                 {
-                    inner.Dispose();
+                    this.inner.Dispose();
                 }
             }
 
-            while (source.TryGetNext(out var value))
+            while (this.source.TryGetNext(out var value))
             {
                 var key = outerKeySelector(value);
                 // Enumerable.GroupJoin allows null unlike Join
-                var group = innerLookup.GetGroup(key);
+                var group = this.innerLookup.GetGroup(key);
                 if (group != null)
                 {
                     current = resultSelector(value, group);
@@ -90,11 +90,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            if (innerLookup == null)
+            if (this.innerLookup == null)
             {
-                inner.Dispose();
+                this.inner.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 }

@@ -3046,21 +3046,21 @@ public static partial class HashSet {
         private readonly global::System.Collections.Generic.List<TElement> elements = new();
 
         public GroupingImpl(TKey key) {
-            Key=key;
+            this.Key=key;
         }
 
         public TKey Key { get; }
 
         public void Add(TElement element) {
-            elements.Add(element);
+            this.elements.Add(element);
         }
 
         public IEnumerator<TElement> GetEnumerator() {
-            return elements.GetEnumerator();
+            return this.elements.GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
-            return GetEnumerator();
+            return this.GetEnumerator();
         }
     }
 
@@ -3069,46 +3069,46 @@ public static partial class HashSet {
 
         public LookupImpl(IEqualityComparer<TKey>? comparer) {
             this.comparer=comparer??EqualityComparer<TKey>.Default;
-            Groups=new global::System.Collections.Generic.List<GroupingImpl<TKey,TElement>>();
+            this.Groups=new global::System.Collections.Generic.List<GroupingImpl<TKey,TElement>>();
         }
 
         public global::System.Collections.Generic.List<GroupingImpl<TKey,TElement>> Groups { get; }
 
-        public int Count => Groups.Count;
+        public int Count => this.Groups.Count;
 
         public IEnumerable<TElement> this[TKey key] {
             get {
-                var group = Find(key);
+                var group = this.Find(key);
                 return group is null ? global::System.Array.Empty<TElement>() : group;
             }
         }
 
         public bool Contains(TKey key) {
-            return Find(key) is not null;
+            return this.Find(key) is not null;
         }
 
         public void Add(TKey key,TElement element) {
-            var group = Find(key);
+            var group = this.Find(key);
             if(group is null) {
                 group=new GroupingImpl<TKey,TElement>(key);
-                Groups.Add(group);
+                this.Groups.Add(group);
             }
             group.Add(element);
         }
 
         public IEnumerator<IGrouping<TKey,TElement>> GetEnumerator() {
-            foreach(var group in Groups) {
+            foreach(var group in this.Groups) {
                 yield return group;
             }
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
-            return GetEnumerator();
+            return this.GetEnumerator();
         }
 
         private GroupingImpl<TKey,TElement>? Find(TKey key) {
-            foreach(var group in Groups) {
-                if(comparer.Equals(group.Key,key)) {
+            foreach(var group in this.Groups) {
+                if(this.comparer.Equals(group.Key,key)) {
                     return group;
                 }
             }
@@ -3127,11 +3127,11 @@ public static partial class HashSet {
         }
 
         public IEnumerator<T> GetEnumerator() {
-            return new InfiniteSequenceEnumerator<T>(start,step);
+            return new InfiniteSequenceEnumerator<T>(this.start,this.step);
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
-            return GetEnumerator();
+            return this.GetEnumerator();
         }
     }
 
@@ -3147,24 +3147,24 @@ public static partial class HashSet {
             this.step=step;
         }
 
-        public T Current => current;
+        public T Current => this.current;
 
-        object IEnumerator.Current => Current;
+        object IEnumerator.Current => this.Current;
 
         public bool MoveNext() {
-            if(!started) {
-                current=start;
-                started=true;
+            if(!this.started) {
+                this.current=this.start;
+                this.started=true;
             }
             else {
-                current+=step;
+                this.current+=this.step;
             }
             return true;
         }
 
         public void Reset() {
-            started=false;
-            current=default!;
+            this.started=false;
+            this.current=default!;
         }
 
         public void Dispose() {
@@ -3177,7 +3177,7 @@ public static partial class HashSet {
 
         public OrderedEnumerableImpl(IEnumerable<T> source) {
             this.source=source;
-            comparisons=new global::System.Collections.Generic.List<Comparison<T>>();
+            this.comparisons=new global::System.Collections.Generic.List<Comparison<T>>();
         }
 
         private OrderedEnumerableImpl(IEnumerable<T> source,global::System.Collections.Generic.List<Comparison<T>> comparisons) {
@@ -3187,35 +3187,35 @@ public static partial class HashSet {
 
         public IOrderedEnumerable<T> CreateOrderedEnumerable<TKey>(Func<T,TKey> keySelector,IComparer<TKey>? comparer,bool descending) {
             comparer??=Comparer<TKey>.Default;
-            var next = new global::System.Collections.Generic.List<Comparison<T>>(comparisons);
+            var next = new global::System.Collections.Generic.List<Comparison<T>>(this.comparisons);
             next.Add((left,right) => {
                 var result = comparer.Compare(keySelector(left),keySelector(right));
                 return descending ? Negate(result) : result;
             });
-            return new OrderedEnumerableImpl<T>(source,next);
+            return new OrderedEnumerableImpl<T>(this.source,next);
         }
 
         public IEnumerator<T> GetEnumerator() {
             var items = new global::System.Collections.Generic.List<OrderedItem<T>>();
             var index = 0;
-            foreach(var item in source) {
+            foreach(var item in this.source) {
                 items.Add(new OrderedItem<T>(item,index));
                 checked {
                     index++;
                 }
             }
-            items.Sort(Compare);
+            items.Sort(this.Compare);
             foreach(var item in items) {
                 yield return item.Value;
             }
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
-            return GetEnumerator();
+            return this.GetEnumerator();
         }
 
         private int Compare(OrderedItem<T> left,OrderedItem<T> right) {
-            foreach(var comparison in comparisons) {
+            foreach(var comparison in this.comparisons) {
                 var result = comparison(left.Value,right.Value);
                 if(result!=0) {
                     return result;
@@ -3231,8 +3231,8 @@ public static partial class HashSet {
 
     private readonly struct OrderedItem<T> {
         public OrderedItem(T value,int index) {
-            Value=value;
-            Index=index;
+            this.Value=value;
+            this.Index=index;
         }
 
         public T Value { get; }

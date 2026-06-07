@@ -19,7 +19,7 @@ public class NativeLightEpochInstanceLimitTests(ITestOutputHelper output) {
         private readonly IDevice logDevice;
         private readonly IDevice objDevice;
         private readonly KVSettings settings;
-        private readonly TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>> Store;
+        private readonly TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordTriggers>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordTriggers>>> Store;
 
         public NativeStoreHandle(string rootDir) {
             this.rootDir=rootDir;
@@ -37,16 +37,16 @@ public class NativeLightEpochInstanceLimitTests(ITestOutputHelper output) {
                 CheckpointDir=Path.Combine(rootDir,"checkpoint")
             };
 
-            var storeFunctions = new StoreFunctions<SpanByteComparer,DefaultRecordDisposer>(
+            var storeFunctions = new StoreFunctions<SpanByteComparer,DefaultRecordTriggers>(
                 new SpanByteComparer(),
                 static () => null,
-                new DefaultRecordDisposer()
+                DefaultRecordTriggers.Instance
             );
 
-            this.Store=new TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>>(
+            this.Store=new TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordTriggers>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordTriggers>>>(
                 this.settings,
                 storeFunctions,
-                static (allocSettings,funcs) => new SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordDisposer>>(allocSettings,funcs)
+                static (allocSettings,funcs) => new SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordTriggers>>(allocSettings,funcs)
             );
         }
 

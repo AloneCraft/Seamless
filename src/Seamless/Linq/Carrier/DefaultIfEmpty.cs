@@ -26,7 +26,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (source.TryGetNonEnumeratedCount(out count))
+            if (this.source.TryGetNonEnumeratedCount(out count))
             {
                 if (count == 0)
                 {
@@ -40,7 +40,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetSpan(out ReadOnlySpan<TSource> span)
         {
-            if (source.TryGetSpan(out span))
+            if (this.source.TryGetSpan(out span))
             {
                 if (span.Length == 0)
                 {
@@ -57,7 +57,7 @@ namespace Seamless.Linq.Carrier.Linq
             if (destination.Length == 0) return true;
 
             // ignore offset when checking
-            if (source.TryGetNonEnumeratedCount(out var sourceCount) && sourceCount == 0 && destination.Length >= 1)
+            if (this.source.TryGetNonEnumeratedCount(out var sourceCount) && sourceCount == 0 && destination.Length >= 1)
             {
                 // check offset
                 if (offset.GetOffset(sourceCount) == 0)
@@ -69,21 +69,21 @@ namespace Seamless.Linq.Carrier.Linq
             }
             else
             {
-                return source.TryCopyTo(destination, offset);
+                return this.source.TryCopyTo(destination, offset);
             }
         }
 
         public bool TryGetNext(out TSource current)
         {
-            if (source.TryGetNext(out current))
+            if (this.source.TryGetNext(out current))
             {
-                iterateDefault = false;
+                this.iterateDefault = false;
                 return true;
             }
 
-            if (iterateDefault)
+            if (this.iterateDefault)
             {
-                iterateDefault = false;
+                this.iterateDefault = false;
                 current = defaultValue;
                 return true;
             }
@@ -94,7 +94,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 }

@@ -30,15 +30,15 @@ public readonly struct Read<TValue, TStrategy>():
         return true;
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
         return ThrowReadOnlyEntryPoint<bool>();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,IHeapObject srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
         return ThrowReadOnlyEntryPoint<bool>();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref TValue output,ref UpsertInfo upsertInfo)
+    public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref TValue output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
         return ThrowReadOnlyEntryPoint<bool>();
     }
@@ -102,7 +102,7 @@ public readonly struct Read<TValue, TStrategy>():
         return ThrowReadOnlyEntryPoint<bool>();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo) {
+    public bool InPlaceUpdater(ref LogRecord logRecord,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo) {
         return ThrowReadOnlyEntryPoint<bool>();
     }
     [ExcludeFromCodeCoverage]
@@ -205,6 +205,15 @@ public readonly struct Read<TValue, TStrategy>():
         #endif
         where TSourceLogRecord : ISourceLogRecord {
         return ThrowReadOnlyEntryPoint<RecordFieldInfo>();
+    }
+    public void BeforeConsistentReadCallback(long hash) {
+    }
+    public void AfterConsistentReadKeyCallback() {
+    }
+    public void BeforeConsistentReadKeyBatchCallback(ReadOnlySpan<PinnedSpanByte> parameters) {
+    }
+    public bool AfterConsistentReadKeyBatchCallback(int keyCount) {
+        return true;
     }
     public void ConvertOutputToHeap(ref EqualityEmpty input,ref TValue output) {
     }

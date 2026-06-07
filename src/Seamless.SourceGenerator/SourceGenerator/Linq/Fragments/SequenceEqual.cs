@@ -8,9 +8,9 @@ public class SequenceEqual_comparer(int 番号, Enumerable source, Enumerable se
     protected override string StructTypeParameters => "<TEnum1, TEnum2>";
     protected override string StructTypeConstraints =>
         $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{second.ElementType}>";
-    public override string EnumeratorTypeName => $"{Struct}<{source.EnumeratorTypeName}, {second.EnumeratorTypeName}>";
+    public override string EnumeratorTypeName => $"{this.Struct}<{source.EnumeratorTypeName}, {second.EnumeratorTypeName}>";
     protected override string StructSources => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression}, {comparer})";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression}, {comparer})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string ComputeExpression => "Compute(source, second, comparer)";
     protected override string ComputeMembers => source.CanProvideSpan && second.CanProvideSpan

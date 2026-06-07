@@ -39,15 +39,15 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            if (set == null)
+            if (this.set == null)
             {
-                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator, TSource>(ref source);
-                set = hint > 0 ? new HashSetSlim<TKey>(hint, comparer) : new HashSetSlim<TKey>(comparer);
+                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator, TSource>(ref this.source);
+                this.set = hint > 0 ? new HashSetSlim<TKey>(hint, comparer) : new HashSetSlim<TKey>(comparer);
             }
 
-            while (source.TryGetNext(out var value))
+            while (this.source.TryGetNext(out var value))
             {
-                if (set.Add(keySelector(value)))
+                if (this.set.Add(keySelector(value)))
                 {
                     current = value;
                     return true;
@@ -60,8 +60,8 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            set?.Dispose();
-            source.Dispose();
+            this.set?.Dispose();
+            this.source.Dispose();
         }
     }
 }

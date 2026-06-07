@@ -2,28 +2,28 @@ namespace Seamless.SourceGenerator.Linq.Fragments;
 public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFragment selector, string resultType, string direction) : BufferedScalar(番号, resultType) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(selector)}>";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => FuncSupport(selector,nameof(selector));
+    public override string StructMethod => this.FuncSupport(selector,nameof(selector));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(selector)}";
     protected override string ComputeExpression =>
-        $"Compute({e}{ClosureArgsSuffix(selector)})";
+        $"Compute({this.e}{this.ClosureArgsSuffix(selector)})";
     private string CompareCond => direction=="greater" ? "comparer.Compare(value,result)>0" : "comparer.Compare(value,result)<0";
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                 var comparer=global::System.Collections.Generic.Comparer<{{resultType}}>.Default;
                 {{resultType}} result=default!;
                 source.TryGetSpan(out var __span);
                 if(__span.Length==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
                 var __first=true;
-                foreach(var {{item}} in __span){
+                foreach(var {{this.item}} in __span){
                     {{resultType}} value=default!;
-                    {{FuncAssign(selector,nameof(selector),"value",item)}}
-                    if(__first||{{CompareCond}}){
+                    {{this.FuncAssign(selector,nameof(selector),"value",this.item)}}
+                    if(__first||{{this.CompareCond}}){
                         __first=false;
                         result=value;
                     }
@@ -33,21 +33,21 @@ public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFrag
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                 var comparer=global::System.Collections.Generic.Comparer<{{resultType}}>.Default;
-                {{source.ElementType}} {{item}};
+                {{source.ElementType}} {{this.item}};
                 {{resultType}} result=default!;
                 if(!source.MoveNext()) throw global::Seamless.GeneratedCodeHelpers.NoElements();
-                {{item}}=source.Current;
-                {{FuncAssign(selector,nameof(selector),"result",item)}}
+                {{this.item}}=source.Current;
+                {{this.FuncAssign(selector,nameof(selector),"result",this.item)}}
                 while(source.MoveNext()){
-                    {{item}}=source.Current;
+                    {{this.item}}=source.Current;
                     {{resultType}} value=default!;
-                    {{FuncAssign(selector,nameof(selector),"value",item)}}
-                    if({{CompareCond}}) result=value;
+                    {{this.FuncAssign(selector,nameof(selector),"value",this.item)}}
+                    if({{this.CompareCond}}) result=value;
                 }
                 return result;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

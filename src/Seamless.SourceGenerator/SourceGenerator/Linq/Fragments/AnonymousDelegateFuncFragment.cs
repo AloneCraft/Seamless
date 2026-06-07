@@ -14,8 +14,8 @@ internal sealed class AnonymousDelegateFuncFragment : LambdaFunc {
         string delegateTypeName,
         string delegateFieldName,
         string delegateConstructorArg) {
-        DelegateTypeName = delegateTypeName;
-        DelegateFieldName = delegateFieldName;
-        DelegateConstructorArg = delegateConstructorArg;
+        this.DelegateTypeName = delegateTypeName;
+        this.DelegateFieldName = delegateFieldName;
+        this.DelegateConstructorArg = delegateConstructorArg;
     }
 }

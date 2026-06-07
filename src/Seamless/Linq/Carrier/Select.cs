@@ -41,7 +41,7 @@ namespace Seamless.Linq.Carrier.Linq
         internal TEnumerator source = source;
         internal readonly Func<TSource, TResult> selector = selector;
 
-        public bool TryGetNonEnumeratedCount(out int count) => source.TryGetNonEnumeratedCount(out count);
+        public bool TryGetNonEnumeratedCount(out int count) => this.source.TryGetNonEnumeratedCount(out count);
 
         public bool TryGetSpan(out ReadOnlySpan<TResult> span)
         {
@@ -52,13 +52,13 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryCopyTo(scoped Span<TResult> destination, Index offset)
         {
             // Iterate inlining
-            if (source.TryGetSpan(out var span))
+            if (this.source.TryGetSpan(out var span))
             {
                 if (EnumeratorHelper.TryGetSlice(span, offset, destination.Length, out var slice))
                 {
                     for (var i = 0; (uint)i < (uint)slice.Length; i++)
                     {
-                        destination[i] = selector(slice[i]);
+                        destination[i] =this.selector(slice[i]);
                     }
                     return true;
                 }
@@ -83,16 +83,16 @@ namespace Seamless.Linq.Carrier.Linq
                 }
 #else
                 var current = default(TSource)!;
-                if (source.TryCopyTo(SingleSpan.Create(ref current), offset))
+                if (this.source.TryCopyTo(SingleSpan.Create(ref current), offset))
                 {
-                    destination[0] = selector(current);
+                    destination[0] =this.selector(current);
                     return true;
                 }
 #endif
 
-                if (EnumeratorHelper.TryConsumeGetAt(ref source, offset, out TSource value))
+                if (EnumeratorHelper.TryConsumeGetAt(ref this.source, offset, out TSource value))
                 {
-                    destination[0] = selector(value);
+                    destination[0] =this.selector(value);
                     return true;
                 }
             }
@@ -102,9 +102,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            if (source.TryGetNext(out var value))
+            if (this.source.TryGetNext(out var value))
             {
-                current = selector(value);
+                current =this.selector(value);
                 return true;
             }
 
@@ -114,11 +114,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
 
         internal SelectWhere<TEnumerator, TSource, TResult> Where(Func<TResult, bool> predicate)
-            => new(source, selector, predicate);
+            => new(this.source,this.selector, predicate);
     }
 
     [StructLayout(LayoutKind.Auto)]
@@ -130,7 +130,7 @@ namespace Seamless.Linq.Carrier.Linq
         TEnumerator source = source;
         int index = 0;
 
-        public bool TryGetNonEnumeratedCount(out int count) => source.TryGetNonEnumeratedCount(out count);
+        public bool TryGetNonEnumeratedCount(out int count) => this.source.TryGetNonEnumeratedCount(out count);
 
         public bool TryGetSpan(out ReadOnlySpan<TResult> span)
         {
@@ -142,9 +142,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            if (source.TryGetNext(out var value))
+            if (this.source.TryGetNext(out var value))
             {
-                current = selector(value, index++);
+                current = selector(value,this.index++);
                 return true;
             }
 
@@ -154,7 +154,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -185,12 +185,12 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(scoped Span<TResult> destination, Index offset)
         {
-            if (EnumeratorHelper.TryGetSliceRange(count, offset, destination.Length, out var fillStart, out var fillCount))
+            if (EnumeratorHelper.TryGetSliceRange(this.count, offset, destination.Length, out var fillStart, out var fillCount))
             {
-                var value = start + fillStart;
+                var value = this.start + fillStart;
                 for (int i = 0; i < fillCount; i++)
                 {
-                    destination[i] = selector(value);
+                    destination[i] =this.selector(value);
                     value++;
                 }
                 return true;
@@ -201,10 +201,10 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            if (value < to)
+            if (this.value <this.to)
             {
-                current = selector(value);
-                value++;
+                current =this.selector(this.value);
+                this.value++;
                 return true;
             }
 
@@ -241,7 +241,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            while (source.TryGetNext(out var value))
+            while (this.source.TryGetNext(out var value))
             {
                 var result = selector(value);
                 if (predicate(result))
@@ -257,7 +257,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -271,7 +271,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            count = source.Length;
+            count =this.source.Length;
             return true;
         }
 
@@ -284,16 +284,16 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryCopyTo(scoped Span<TResult> destination, Index offset)
         {
             // AsSpan is failed by array variance
-            if (!typeof(TSource).IsValueType && source.GetType() != typeof(TSource[]))
+            if (!typeof(TSource).IsValueType &&this.source.GetType() != typeof(TSource[]))
             {
                 return false;
             }
 
-            if (EnumeratorHelper.TryGetSlice<TSource>(source.AsSpan(), offset, destination.Length, out var slice))
+            if (EnumeratorHelper.TryGetSlice<TSource>(this.source.AsSpan(), offset, destination.Length, out var slice))
             {
                 for (var i = 0; (uint)i < (uint)slice.Length; i++)
                 {
-                    destination[i] = selector(slice[i]);
+                    destination[i] =this.selector(slice[i]);
                 }
                 return true;
             }
@@ -303,9 +303,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            if ((uint)index < (uint)source.Length)
+            if ((uint)this.index < (uint)this.source.Length)
             {
-                current = selector(source[index++]); // must be index++
+                current =this.selector(this.source[this.index++]); // must be index++
                 return true;
             }
 
@@ -319,7 +319,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         internal ArraySelectWhere<TSource, TResult> Where(Func<TResult, bool> predicate)
         {
-            return new ArraySelectWhere<TSource, TResult>(source, selector, predicate);
+            return new ArraySelectWhere<TSource, TResult>(this.source,this.selector, predicate);
         }
     }
 
@@ -351,10 +351,10 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            while ((uint)index < (uint)source.Length)
+            while ((uint)this.index < (uint)this.source.Length)
             {
-                current = selector(source[index++]);
-                if (predicate(current))
+                current =this.selector(this.source[this.index++]);
+                if (this.predicate(current))
                 {
                     return true;
                 }
@@ -379,7 +379,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            count = source.Count;
+            count =this.source.Count;
             return true;
         }
 
@@ -391,11 +391,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(scoped Span<TResult> destination, Index offset)
         {
-            if (EnumeratorHelper.TryGetSlice<TSource>(CollectionsMarshal.AsSpan(source), offset, destination.Length, out var slice))
+            if (EnumeratorHelper.TryGetSlice<TSource>(CollectionsMarshal.AsSpan(this.source), offset, destination.Length, out var slice))
             {
                 for (var i = 0; (uint)i < (uint)slice.Length; i++)
                 {
-                    destination[i] = selector(slice[i]);
+                    destination[i] =this.selector(slice[i]);
                 }
                 return true;
             }
@@ -405,9 +405,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            if ((uint)index < (uint)source.Count)
+            if ((uint)this.index < (uint)this.source.Count)
             {
-                current = selector(source[index++]);
+                current =this.selector(this.source[this.index++]);
                 return true;
             }
 
@@ -421,7 +421,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         internal ListSelectWhere<TSource, TResult> Where(Func<TResult, bool> predicate)
         {
-            return new ListSelectWhere<TSource, TResult>(source, selector, predicate);
+            return new ListSelectWhere<TSource, TResult>(this.source,this.selector, predicate);
         }
     }
 
@@ -453,11 +453,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            var span = CollectionsMarshal.AsSpan(source);
-            while ((uint)index < (uint)span.Length)
+            var span = CollectionsMarshal.AsSpan(this.source);
+            while ((uint)this.index < (uint)span.Length)
             {
-                current = selector(span[index++]);
-                if (predicate(current))
+                current =this.selector(span[this.index++]);
+                if (this.predicate(current))
                 {
                     return true;
                 }

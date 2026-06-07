@@ -30,7 +30,7 @@ public readonly struct ContainsDelete:
         throw new NotSupportedException();
     }
     // Delete: キー存在時は Tombstone を挿入して削除。output=trueで成功を通知。
-    public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) {
+    public bool InPlaceUpdater(ref LogRecord logRecord,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) {
         output=true;
         rmwInfo.Action=RMWAction.ExpireAndStop;
         return false;
@@ -54,15 +54,15 @@ public readonly struct ContainsDelete:
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref bool output,ref UpsertInfo upsertInfo) where TSourceLogRecord : ISourceLogRecord {
+    public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref bool output,ref UpsertInfo upsertInfo) where TSourceLogRecord : ISourceLogRecord {
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -186,6 +186,15 @@ public readonly struct ContainsDelete:
 #endif
         where TSourceLogRecord : ISourceLogRecord {
         throw new NotSupportedException();
+    }
+    public void BeforeConsistentReadCallback(long hash) {
+    }
+    public void AfterConsistentReadKeyCallback() {
+    }
+    public void BeforeConsistentReadKeyBatchCallback(ReadOnlySpan<PinnedSpanByte> parameters) {
+    }
+    public bool AfterConsistentReadKeyBatchCallback(int keyCount) {
+        return true;
     }
     public void ConvertOutputToHeap(ref EqualityEmpty input,ref bool output) {
     }

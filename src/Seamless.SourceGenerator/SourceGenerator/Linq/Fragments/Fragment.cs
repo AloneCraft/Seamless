@@ -122,8 +122,8 @@ public abstract class Fragment(
     // ContainingTypeName をこの断片と全子断片に再帰的に伝播する。
     // リフレクションで Fragment 型フィールドを走査するため、個別の override は不要。
     public virtual void PropagateContainingTypeName(string? name) {
-        ContainingTypeName = name;
-        foreach(var field in EnumerateInstanceFields(GetType())) {
+        this.ContainingTypeName = name;
+        foreach(var field in EnumerateInstanceFields(this.GetType())) {
             if(typeof(Fragment).IsAssignableFrom(field.FieldType) && field.GetValue(this) is Fragment child) {
                 child.PropagateContainingTypeName(name);
             }
@@ -137,7 +137,7 @@ public abstract class Fragment(
     // UnsafeAccessor コードを断片ツリー全体から収集する。
     // リフレクションで FuncFragment / Fragment 型フィールドを再帰的に走査する。
     public IEnumerable<string> CollectAllUnsafeAccessorCodes() {
-        foreach(var field in EnumerateInstanceFields(GetType())) {
+        foreach(var field in EnumerateInstanceFields(this.GetType())) {
             if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
                 && field.GetValue(this) is FuncFragment funcFrag) {
                 // ラムダ本体内のフィールド/static メソッドアクセス用 UnsafeAccessor
@@ -176,9 +176,9 @@ public abstract class Fragment(
     public abstract string GetCurrentExpression { get; }
     // 生成した enumerator struct の型名。PrimarySource が設定されると自動でジェネリック型名を返す。
     public virtual string EnumeratorTypeName =>
-        PrimarySource is { } src ? $"{Struct}<{src.EnumeratorTypeName}>" : Struct;
+        this.PrimarySource is { } src ? $"{this.Struct}<{src.EnumeratorTypeName}>" : this.Struct;
     // Enumerable を直接返す interceptor 用の new Enumerator(...) 式。
-    public virtual string GetEnumeratorExpression => throw new NotSupportedException($"{GetType().Name} does not support Enumerator mode expression generation.");
+    public virtual string GetEnumeratorExpression => throw new NotSupportedException($"{this.GetType().Name} does not support Enumerator mode expression generation.");
     // primary constructor を使う enumerator struct の引数一覧。空なら通常 struct 宣言。
     public virtual string GetEnumeratorPrimaryConstructorParameters => string.Empty;
     // enumerator struct が持つ追加フィールド定義。
@@ -220,7 +220,7 @@ public abstract class Fragment(
         if(func is LambdaFunc) {
             throw LambdaInlineUnsupported(func,methodName);
         }
-        return $"{destination}={FuncInvoke(func,methodName,arguments)};";
+        return $"{destination}={this.FuncInvoke(func,methodName,arguments)};";
     }
 
     // TryGetNext 内で destination フィールドと out current の両方を設定する複合代入を生成する。
@@ -228,9 +228,9 @@ public abstract class Fragment(
     // RequiresStatementInlining またはデリゲート呼び出しの場合は FuncAssign の後に current = destination; を付加する。
     private protected string FuncAssignCurrent(FuncFragment func,string methodName,string destination,params string[] arguments) {
         if(func.RequiresStatementInlining || (!func.CanInlineAssign && !func.CanInvokeAsDelegate)) {
-            return $"{FuncAssign(func,methodName,destination,arguments)}\ncurrent = {destination};";
+            return $"{this.FuncAssign(func,methodName,destination,arguments)}\ncurrent = {destination};";
         }
-        var expr = FuncInvoke(func,methodName,arguments);
+        var expr = this.FuncInvoke(func,methodName,arguments);
         return $"current = {destination} = {expr};";
     }
 
@@ -286,7 +286,7 @@ public abstract class Fragment(
     // 各断片が持つ Current/TryGetNext/Dispose を IValueEnumerator struct にまとめる。
     // Current プロパティの宣言文。BufferedScalar はオートプロパティを GetEnumeratorFields で宣言するためこのメソッドを空文字列に override する。
     protected virtual string GetCurrentPropertyDeclaration(string currentType) =>
-        $"public {currentType} Current {{ get; private set; }} = {GetCurrentPropertyDefaultExpression};";
+        $"public {currentType} Current {{ get; private set; }} = {this.GetCurrentPropertyDefaultExpression};";
 
     private protected static IEnumerable<(string TypeExpr, string Name)> ParseCtorParams(string paramList) {
         if(string.IsNullOrWhiteSpace(paramList)) yield break;
@@ -305,29 +305,29 @@ public abstract class Fragment(
     }
 
     private protected string DefineEnumeratorStructCore(string currentType,string disposeBody) {
-        var ctorParams = ParseCtorParams(GetEnumeratorPrimaryConstructorParameters).ToArray();
+        var ctorParams = ParseCtorParams(this.GetEnumeratorPrimaryConstructorParameters).ToArray();
         var ctorParamFields = ctorParams.Length > 0
             ? string.Join("\n", ctorParams.Select(static p => $"private {p.TypeExpr} {p.Name};"))
             : string.Empty;
         string ctorDecl = string.Empty;
         if(ctorParams.Length > 0) {
             var assignments = string.Join("\n    ", ctorParams.Select(static p => $"this.{p.Name} = {p.Name};"));
-            var extraBody = GetEnumeratorConstructor;
+            var extraBody = this.GetEnumeratorConstructor;
             var ctorBody = string.IsNullOrWhiteSpace(extraBody)
                 ? "    " + assignments
                 : "    " + assignments + "\n    " + IndentLines(extraBody.Trim(), "    ");
-            ctorDecl = $"public {Struct}({GetEnumeratorPrimaryConstructorParameters}) {{\n{ctorBody}\n}}";
+            ctorDecl = $"public {this.Struct}({this.GetEnumeratorPrimaryConstructorParameters}) {{\n{ctorBody}\n}}";
         }
 
-        var tryGetNextBody = IndentLines(GetTryGetNextBody, "        ");
+        var tryGetNextBody = IndentLines(this.GetTryGetNextBody, "        ");
         var dispose = IndentLines(disposeBody, "        ");
         var fieldsFromParams = IndentLines(ctorParamFields, "    ");
-        var fields = IndentLines(GetEnumeratorFields, "    ");
+        var fields = IndentLines(this.GetEnumeratorFields, "    ");
         var ctor = IndentLines(ctorDecl, "    ");
-        var currentPropDecl = GetCurrentPropertyDeclaration(currentType);
+        var currentPropDecl = this.GetCurrentPropertyDeclaration(currentType);
 
         return $$"""
-            {{GetEnumeratorStructDeclaration($"global::Seamless.Linq.Carrier.IValueEnumerator<{currentType}>, global::System.Collections.Generic.IEnumerator<{currentType}>")}}
+            {{this.GetEnumeratorStructDeclaration($"global::Seamless.Linq.Carrier.IValueEnumerator<{currentType}>, global::System.Collections.Generic.IEnumerator<{currentType}>")}}
             {{fieldsFromParams}}
             {{fields}}
             {{ctor}}
@@ -339,7 +339,7 @@ public abstract class Fragment(
                 public bool MoveNext() => TryGetNext(out _);
                 {{AggressiveInliningAttribute}}
                 public bool TryGetNonEnumeratedCount(out int count) {
-            {{IndentLines(GetTryGetNonEnumeratedCountBody, "        ")}}
+            {{IndentLines(this.GetTryGetNonEnumeratedCountBody, "        ")}}
                 }
                 {{AggressiveInliningAttribute}}
                 public bool TryGetSpan(out global::System.ReadOnlySpan<{{currentType}}> span) {
@@ -384,22 +384,22 @@ public abstract class Fragment(
     protected virtual Enumerable? PrimarySource => null;
 
     // 生成 struct に付ける型パラメータ（"<TEnum>" 等）。PrimarySource が設定されると "<TEnum>" になる。
-    protected virtual string StructTypeParameters => PrimarySource is not null ? "<TEnum>" : string.Empty;
+    protected virtual string StructTypeParameters => this.PrimarySource is not null ? "<TEnum>" : string.Empty;
     // 生成 struct に付ける where 制約。PrimarySource が設定されると struct 制約付きの where 句になる。
     protected virtual string StructTypeConstraints =>
-        PrimarySource is { } src
+        this.PrimarySource is { } src
             ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{src.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{src.ElementType}>"
             : string.Empty;
 
     private protected string GetEnumeratorStructDeclaration(string interfaceType) {
-        var tp = StructTypeParameters;
-        var tc = string.IsNullOrEmpty(StructTypeConstraints) ? "" : $"\n    {StructTypeConstraints}";
-        return $"private struct {Struct}{tp} : {interfaceType}{tc} {{";
+        var tp = this.StructTypeParameters;
+        var tc = string.IsNullOrEmpty(this.StructTypeConstraints) ? "" : $"\n    {this.StructTypeConstraints}";
+        return $"private struct {this.Struct}{tp} : {interfaceType}{tc} {{";
     }
 
     private protected string GetGenericEnumeratorStructDeclaration(string typeParameters,string interfaceType) {
-        var tc = string.IsNullOrEmpty(StructTypeConstraints) ? "" : $"\n    {StructTypeConstraints}";
-        return $"private struct {Struct}{typeParameters} : {interfaceType}{tc} {{";
+        var tc = string.IsNullOrEmpty(this.StructTypeConstraints) ? "" : $"\n    {this.StructTypeConstraints}";
+        return $"private struct {this.Struct}{typeParameters} : {interfaceType}{tc} {{";
     }
 
     // struct の TryGetNext 内で使う。static ラムダまたはキャプチャ変数付きラムダならインライン展開する。
@@ -469,7 +469,7 @@ public abstract class Fragment(
     // 型推論用ファクトリメソッドの名前。
     // "_Factory" サフィックスは 静的メソッド群と本体を補助クラスへ退避21() の Struct{番号} リネーム正規表現に対応している。
     // 例: Struct0_Factory → {prefix}Struct0_Factory （メソッドごとにユニークな名前に変換される）。
-    private protected string FactoryMethodName => $"{Struct}_Factory";
+    private protected string FactoryMethodName => $"{this.Struct}_Factory";
 
     // ファクトリメソッド本体のコンストラクタ呼び出し引数サフィックス。
     // ClosureArgsSuffix と異なり、DelegateConstructorArg（ラムダ式）ではなく DelegateFieldName（フィールド名）を使う。

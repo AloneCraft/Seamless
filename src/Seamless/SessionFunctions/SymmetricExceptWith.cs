@@ -25,17 +25,17 @@ internal readonly struct SymmetricExceptWith:
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,IHeapObject srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref EqualityEmpty output,ref UpsertInfo upsertInfo)
+    public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref EqualityEmpty output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
@@ -90,7 +90,7 @@ internal readonly struct SymmetricExceptWith:
         //NeedInitialUpdateがtrueを返すときに呼ばれる
         return dstLogRecord.TrySetValueSpanAndPrepareOptionals(ReadOnlySpan<byte>.Empty,in sizeInfo);
     }
-    public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref EqualityEmpty output,ref RMWInfo rmwInfo) {
+    public bool InPlaceUpdater(ref LogRecord logRecord,ref EqualityEmpty input,ref EqualityEmpty output,ref RMWInfo rmwInfo) {
         rmwInfo.Action=RMWAction.ExpireAndStop;//キーが存在する場合は削除する。SymmetricExceptWithなので、更新はせずに削除のみ行う。
         return false;
     }
@@ -197,6 +197,15 @@ internal readonly struct SymmetricExceptWith:
         where TSourceLogRecord : ISourceLogRecord {
         // Upsert 操作は使用しない。
         throw new NotSupportedException();
+    }
+    public void BeforeConsistentReadCallback(long hash) {
+    }
+    public void AfterConsistentReadKeyCallback() {
+    }
+    public void BeforeConsistentReadKeyBatchCallback(ReadOnlySpan<PinnedSpanByte> parameters) {
+    }
+    public bool AfterConsistentReadKeyBatchCallback(int keyCount) {
+        return true;
     }
     public void ConvertOutputToHeap(ref EqualityEmpty input,ref EqualityEmpty output) {
     }

@@ -20,7 +20,7 @@ namespace Seamless.Linq.Carrier.Linq
     {
         TEnumerator source = source;
 
-        internal TEnumerator GetSource() => source;
+        internal TEnumerator GetSource() => this.source;
 
         public bool TryGetNonEnumeratedCount(out int count)
         {
@@ -38,7 +38,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            while (source.TryGetNext(out var value))
+            while (this.source.TryGetNext(out var value))
             {
                 if (value is TResult v)
                 {
@@ -53,7 +53,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 }

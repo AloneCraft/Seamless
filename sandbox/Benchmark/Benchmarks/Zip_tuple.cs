@@ -3,16 +3,16 @@ namespace Benchmark.Benchmarks;
 public class Zip_tuple:Base{
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        Enumerable.Zip(src,src2).Consume(consumer);
+        Enumerable.Zip(this.src,this.src2).Consume(this.consumer);
     }
 
     void InterceptCore(){ this.src.Zip(this.src2).Consume(this.consumer); }
 
     [Benchmark]
-    public void Intercept(){ InterceptCore(); }
+    public void Intercept(){ this.InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Zip(src2).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Zip(this.src2).Consume(this.consumer);
     }
 }

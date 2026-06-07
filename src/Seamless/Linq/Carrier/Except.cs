@@ -52,14 +52,14 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            if (set == null)
+            if (this.set == null)
             {
-                set = second.ToHashSetSlim(comparer ?? EqualityComparer<TSource>.Default);
+                this.set =this.second.ToHashSetSlim(comparer ?? EqualityComparer<TSource>.Default);
             }
 
-            while (source.TryGetNext(out var value))
+            while (this.source.TryGetNext(out var value))
             {
-                if (set.Add(value))
+                if (this.set.Add(value))
                 {
                     current = value;
                     return true;
@@ -72,8 +72,8 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            set?.Dispose();
-            source.Dispose();
+            this.set?.Dispose();
+            this.source.Dispose();
         }
     }
 }

@@ -7,11 +7,11 @@ namespace Test.Seamless.Intercept.System.Linq;
 public sealed class EnumerableMethod1 {
     [Fact,Trait("Category","Unit")]
     public void LinqWhereSelectStringJoin() => //this.LinqWhereSelectStringJoinImpl();
-    string.Join(",",LinqWhereSelectStringJoinImpl());
+    string.Join(",",this.LinqWhereSelectStringJoinImpl());
     public IEnumerable<string> LinqWhereSelectStringJoinImpl() => new[]{"abc"}.Where(x => x!=null).Select(x => x.ToString());
     [Fact,Trait("Category","Unit")]
     public void LinqWhereSelectStringJoin2() => //this.LinqWhereSelectStringJoinImpl();
-    LinqWhereSelectStringJoinImpl2();
+    this.LinqWhereSelectStringJoinImpl2();
     public IEnumerable<string> LinqWhereSelectStringJoinImpl2() => new[]{"abc"}.Where(x => x!=null).Select(x => x.ToString());
     [Fact,Trait("Category","Unit")]
     public void InstanceAggregate() {

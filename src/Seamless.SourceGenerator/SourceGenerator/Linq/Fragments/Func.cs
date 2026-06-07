@@ -55,22 +55,22 @@ public abstract class FuncFragment {
     // Enumerator struct のコンストラクタに渡すデリゲート引数（ラムダ式テキスト）。
     public virtual string? DelegateConstructorArg => null;
     public virtual string RenderAsLambda() {
-        if(DelegateConstructorArg is { } delegateConstructorArg) {
+        if(this.DelegateConstructorArg is { } delegateConstructorArg) {
             return delegateConstructorArg;
         }
-        if(RequiresStatementInlining || string.IsNullOrWhiteSpace(InlineBody)) {
+        if(this.RequiresStatementInlining || string.IsNullOrWhiteSpace(this.InlineBody)) {
             throw new InvalidOperationException("Lambda expression rendering is not supported.");
         }
-        var parameters = ParameterNames.Length==1
-            ? ParameterNames[0]
-            : $"({string.Join(", ",ParameterNames)})";
-        return $"{parameters}=>{InlineBody}";
+        var parameters = this.ParameterNames.Length==1
+            ? this.ParameterNames[0]
+            : $"({string.Join(", ",this.ParameterNames)})";
+        return $"{parameters}=>{this.InlineBody}";
     }
 
     // 代入文向け inline 展開の共通処理。
     protected string RenderInlineAssignCore(string destination,int number,params string[] arguments) {
         var builder = new StringBuilder();
-        var rewrittenBody=InlineBody;
+        var rewrittenBody= this.InlineBody;
         for(var index = 0; index<arguments.Length; index++) {
             var arg = arguments[index];
             string replacement;
@@ -84,8 +84,8 @@ public abstract class FuncFragment {
                 builder.AppendLine($"var {tempName}={arg};");
                 replacement = tempName;
             }
-            if(index<ParameterNames.Length && !string.IsNullOrWhiteSpace(ParameterNames[index])) {
-                rewrittenBody=ReplaceParameterReference(rewrittenBody,ParameterNames[index],replacement);
+            if(index<this.ParameterNames.Length && !string.IsNullOrWhiteSpace(this.ParameterNames[index])) {
+                rewrittenBody=ReplaceParameterReference(rewrittenBody,this.ParameterNames[index],replacement);
             }
         }
 
@@ -99,15 +99,15 @@ public abstract class FuncFragment {
 
     // 式位置向け inline 展開の共通処理。
     protected string RenderInlineExpressionCore(params string[] arguments) {
-        var rewrittenBody=InlineBody;
+        var rewrittenBody= this.InlineBody;
         for(var index = 0; index<arguments.Length; index++) {
-            if(index<ParameterNames.Length && !string.IsNullOrWhiteSpace(ParameterNames[index])) {
+            if(index<this.ParameterNames.Length && !string.IsNullOrWhiteSpace(this.ParameterNames[index])) {
                 // 条件式や Add 引数のような「式の中」に埋め込む場合は、
                 // helper メソッド呼び出し `StructX_selector.selector(value)` を残さず、
                 // ラムダ引数名を実引数へ直接置換して式そのものを作る。
                 // こうしておくと生成コードを読んだときに元の LINQ の意味が追いやすく、
                 // JIT にも普通の式として見せられる。
-                rewrittenBody=ReplaceParameterReference(rewrittenBody,ParameterNames[index],FormatInlineArgument(arguments[index]));
+                rewrittenBody=ReplaceParameterReference(rewrittenBody,this.ParameterNames[index],FormatInlineArgument(arguments[index]));
             }
         }
 

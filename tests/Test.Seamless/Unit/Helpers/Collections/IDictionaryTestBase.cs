@@ -215,7 +215,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
         {
             // FlushAndEvict 後もコールドデータを読めること
-            var folder = CreateDiskFolder();
+            var folder = this.CreateDiskFolder();
             using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var sh = TStrategy.CreateStorageStore(logDevice,objDevice);
@@ -370,7 +370,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     public void WouldOverflowMutable() {
         {
             // mutableFraction=0 でも格納できること
-            var folder = CreateDiskFolder();
+            var folder = this.CreateDiskFolder();
             using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var sh = TStrategy.CreateStorageStore(logDevice,objDevice,memorySize: Const.MinObjectLogCapacity,mutableFraction: 0);
@@ -392,7 +392,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     [Fact, Trait("Category","Unit")]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<保留中>")]
     public void SaveLoad() {
-        var folder = CreateDiskFolder();
+        var folder = this.CreateDiskFolder();
         var checkpointDir = folder+"_checkpoint";
         Guid token;
         {

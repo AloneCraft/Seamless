@@ -22,7 +22,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            return source.TryGetNonEnumeratedCount(out count);
+            return this.source.TryGetNonEnumeratedCount(out count);
         }
 
         public bool TryGetSpan(out ReadOnlySpan<(int Index, TSource Item)> span)
@@ -34,7 +34,7 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryCopyTo(scoped Span<(int Index, TSource Item)> destination, Index offset)
         {
             // Iterate inlining
-            if (source.TryGetSpan(out var span))
+            if (this.source.TryGetSpan(out var span))
             {
                 if (EnumeratorHelper.TryGetSlice(span, offset, destination.Length, out var slice))
                 {
@@ -53,10 +53,10 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out (int Index, TSource Item) current)
         {
-            if (source.TryGetNext(out var value))
+            if (this.source.TryGetNext(out var value))
             {
-                checked { index++; }
-                current = (index, value);
+                checked { this.index++; }
+                current = (this.index, value);
                 return true;
             }
 
@@ -66,7 +66,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 }

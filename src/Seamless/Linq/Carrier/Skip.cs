@@ -22,9 +22,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (source.TryGetNonEnumeratedCount(out count))
+            if (this.source.TryGetNonEnumeratedCount(out count))
             {
-                count = Math.Max(0, count - skipCount); // subtract skip count, ensure non-negative
+                count = Math.Max(0, count -this.skipCount); // subtract skip count, ensure non-negative
                 return true;
             }
 
@@ -34,9 +34,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(scoped Span<TSource> destination, Index offset)
         {
-            if (source.TryGetNonEnumeratedCount(out var count))
+            if (this.source.TryGetNonEnumeratedCount(out var count))
             {
-                var actualSkipCount = Math.Min(count, skipCount);
+                var actualSkipCount = Math.Min(count,this.skipCount);
 
                 var remainingCount = count - actualSkipCount;
 
@@ -63,7 +63,7 @@ namespace Seamless.Linq.Carrier.Linq
                     return false;
                 }
 
-                return source.TryCopyTo(destination.Slice(0, elementsToCopy), sourceOffset);
+                return this.source.TryCopyTo(destination.Slice(0, elementsToCopy), sourceOffset);
             }
 
             return false;
@@ -71,14 +71,14 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetSpan(out ReadOnlySpan<TSource> span)
         {
-            if (source.TryGetSpan(out span))
+            if (this.source.TryGetSpan(out span))
             {
-                if (span.Length <= skipCount)
+                if (span.Length <=this.skipCount)
                 {
                     span = default;
                     return true;
                 }
-                span = span.Slice(skipCount);
+                span = span.Slice(this.skipCount);
                 return true;
             }
 
@@ -89,18 +89,18 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryGetNext(out TSource current)
         {
             // Skip elements if not already skipped
-            while (skipped < skipCount)
+            while (this.skipped <this.skipCount)
             {
-                if (!source.TryGetNext(out var _))
+                if (!this.source.TryGetNext(out var _))
                 {
                     Unsafe.SkipInit(out current);
                     return false;
                 }
-                skipped++;
+                this.skipped++;
             }
 
             // Return elements after skipping
-            if (source.TryGetNext(out current))
+            if (this.source.TryGetNext(out current))
             {
                 return true;
             }
@@ -111,7 +111,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 }

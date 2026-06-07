@@ -4,9 +4,9 @@ public class LastOrDefault(int 番号, Enumerable source, string resultType) : B
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
-    protected override string ComputeExpression => $"Compute({e})";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    protected override string ComputeExpression => $"Compute({this.e})";
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -23,7 +23,7 @@ public class LastOrDefault(int 番号, Enumerable source, string resultType) : B
                 return result;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
 public class LastOrDefault_defaultValue(int 番号, Enumerable source, string defaultValue, string resultType) : BufferedScalar(番号, resultType) {
@@ -32,9 +32,9 @@ public class LastOrDefault_defaultValue(int 番号, Enumerable source, string de
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {defaultValue})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {resultType} defaultValue";
-    protected override string ComputeExpression => $"Compute({e}, defaultValue)";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {defaultValue})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {resultType} defaultValue";
+    protected override string ComputeExpression => $"Compute({this.e}, defaultValue)";
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -51,33 +51,33 @@ public class LastOrDefault_defaultValue(int 番号, Enumerable source, string de
                 return result;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
 public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment predicate, string resultType) : BufferedScalar(番号, resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length > 0 && method.Parameters[0].Type.TypeKind == TypeKind.Delegate;
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => FuncSupport(predicate, nameof(predicate));
+    public override string StructMethod => this.FuncSupport(predicate, nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({e}{ClosureArgsSuffix(predicate)})";
+        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                 {{resultType}} result = default!;
                 source.TryGetSpan(out var __span);
                 for(var __i=__span.Length-1;__i>=0;__i--){
-                    var {{item}}=__span[__i];
-                    bool {{temp}}=default!;
-                    {{FuncAssign(predicate,nameof(predicate),temp,item)}}
-                    if({{temp}}){
-                        return {{item}};
+                    var {{this.item}}=__span[__i];
+                    bool {{this.temp}}=default!;
+                    {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
+                    if({{this.temp}}){
+                        return {{this.item}};
                     }
                 }
                 return result;
@@ -85,16 +85,16 @@ public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                 {{resultType}} result = default!;
                 while(source.MoveNext()) {
-                    var {{item}} = source.Current;
-                    bool {{temp}} = default!;
-                    {{FuncAssign(predicate, nameof(predicate), temp, item)}}
-                    if({{temp}}) result = {{item}};
+                    var {{this.item}} = source.Current;
+                    bool {{this.temp}} = default!;
+                    {{this.FuncAssign(predicate, nameof(predicate),this.temp,this.item)}}
+                    if({{this.temp}}) result = {{this.item}};
                 }
                 return result;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

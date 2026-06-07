@@ -48,7 +48,7 @@ public class LightEpochLimitTests {
     public void MaxInstances_17Stores_ThrowsException() {
         var stores = new global::System.Collections.Generic.List<DictionaryStore<int,int>>();
         try {
-            for(var i = 0; i<16; i++) {
+            for(var i = 0; i<1024; i++) {
                 stores.Add(HashStore.Create().Create<int,int>());
             }
             Assert.Throws<InvalidOperationException>(() => {

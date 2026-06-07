@@ -26,17 +26,17 @@ internal readonly struct IntersectWith:
 
     // 笏笏 Upsert・域悴菴ｿ逕ｨ・俄楳笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
         // Upsert 謫堺ｽ懊・菴ｿ逕ｨ縺励↑縺・・
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,IHeapObject srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
         // Upsert 謫堺ｽ懊・菴ｿ逕ｨ縺励↑縺・・
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref EqualityEmpty output,ref UpsertInfo upsertInfo)
+    public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref EqualityEmpty output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
         // Upsert 謫堺ｽ懊・菴ｿ逕ｨ縺励↑縺・・
         throw new NotSupportedException();
@@ -173,7 +173,7 @@ internal readonly struct IntersectWith:
         // IntersectWith 縺ｧ縺ｯ RMW 縺ｧ譁ｰ隕上Ξ繧ｳ繝ｼ繝峨ｒ菴懈・縺励↑縺・・eedInitialUpdate 縺・false 繧定ｿ斐☆縺溘ａ蛻ｰ驕斐＠縺ｪ縺・・
         throw new NotSupportedException();
     }
-    public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref EqualityEmpty output,ref RMWInfo rmwInfo) {
+    public bool InPlaceUpdater(ref LogRecord logRecord,ref EqualityEmpty input,ref EqualityEmpty output,ref RMWInfo rmwInfo) {
         rmwInfo.Action=RMWAction.ExpireAndStop;
         return false;
     }
@@ -220,6 +220,15 @@ internal readonly struct IntersectWith:
     }
 
     // 笏笏 縺昴・莉・笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    public void BeforeConsistentReadCallback(long hash) {
+    }
+    public void AfterConsistentReadKeyCallback() {
+    }
+    public void BeforeConsistentReadKeyBatchCallback(ReadOnlySpan<PinnedSpanByte> parameters) {
+    }
+    public bool AfterConsistentReadKeyBatchCallback(int keyCount) {
+        return true;
+    }
     public void ConvertOutputToHeap(ref EqualityEmpty input,ref EqualityEmpty output) {
         // IterateLookup 縺ｯ繝・ぅ繧ｹ繧ｯ荳翫Ξ繧ｳ繝ｼ繝峨ｂ霑斐☆縺溘ａ縲ヽMW 縺・IsPending 縺ｫ縺ｪ繧九％縺ｨ縺後≠繧九・
         // EqualityEmpty 縺ｯ繝偵・繝励ョ繝ｼ繧ｿ繧呈戟縺溘↑縺・◆繧∝､画鋤荳崎ｦ√・

@@ -6,21 +6,21 @@ public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番�
     protected override string GetCurrentPropertyDeclaration(string currentType) => string.Empty;
     public override string GetCurrentExpression => "Current";
     public override string GetEnumeratorStruct => $$"""
-        {{StructSources}}
-        {{DefineScalarEnumeratorStruct(resultType)}}
+        {{this.StructSources}}
+        {{this.DefineScalarEnumeratorStruct(resultType)}}
         """;
     public override string GetEnumeratorFields => $$"""
         public {{resultType}} Current { get; private set; }
-        private bool {{yielded}} = false;
-        {{ComputeMembers}}
+        private bool {{this.yielded}} = false;
+        {{this.ComputeMembers}}
         """;
-    public override string GetEnumeratorConstructor => $"this.Current = {ComputeExpression};";
+    public override string GetEnumeratorConstructor => $"this.Current = {this.ComputeExpression};";
     public override string GetTryGetNextBody => $$"""
-        if(this.{{yielded}}) {
+        if(this.{{this.yielded}}) {
             current = default!;
             return false;
         }
-        this.{{yielded}} = true;
+        this.{{this.yielded}} = true;
         current = this.Current;
         return true;
         """;

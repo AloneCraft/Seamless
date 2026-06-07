@@ -62,16 +62,22 @@ public readonly struct Upsert<TValue, TStrategy>:
         where TSourceLogRecord : ISourceLogRecord {
     }
 
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
+        RecordSizeInfo sizeInfo=default;
+        logRecord.PopulateRecordSizeInfoForIPU(ref sizeInfo);
         return logRecord.TrySetValueSpanAndPrepareOptionals(srcValue,in sizeInfo);
     }
 
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref TValue input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,ref TValue input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
+        RecordSizeInfo sizeInfo=default;
+        logRecord.PopulateRecordSizeInfoForIPU(ref sizeInfo);
         return logRecord.TrySetValueObjectAndPrepareOptionals(srcValue,in sizeInfo);
     }
 
-    public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,in TSourceLogRecord inputLogRecord,ref bool output,ref UpsertInfo upsertInfo)
+    public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,ref TValue input,in TSourceLogRecord inputLogRecord,ref bool output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
+        RecordSizeInfo sizeInfo=default;
+        dstLogRecord.PopulateRecordSizeInfoForIPU(ref sizeInfo);
         return dstLogRecord.TryCopyFrom(in inputLogRecord,in sizeInfo);
     }
 
@@ -147,7 +153,7 @@ public readonly struct Upsert<TValue, TStrategy>:
     /// <summary>
     /// キー既存時は InPlaceUpdater=false で更新を拒否�E�Eutput は default(false) のまま�E�失敗！E
     /// </summary>
-    public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
+    public bool InPlaceUpdater(ref LogRecord logRecord,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
         return false;
     }
 
@@ -236,9 +242,18 @@ public readonly struct Upsert<TValue, TStrategy>:
         where TKey : IKey
         #endif
         where TSourceLogRecord : ISourceLogRecord {
-        return new() { KeySize=key.KeyBytes.Length,ValueSize=inputLogRecord.Info.ValueIsObject ? ObjectIdMap.ObjectIdSize : inputLogRecord.ValueSpan.Length,ValueIsObject=inputLogRecord.Info.ValueIsObject };
+        return new() { KeySize=key.KeyBytes.Length,ValueSize=inputLogRecord.DataHeader.ValueIsObject ? ObjectIdMap.ObjectIdSize : inputLogRecord.ValueSpan.Length,ValueIsObject=inputLogRecord.DataHeader.ValueIsObject };
     }
 
+    public void BeforeConsistentReadCallback(long hash) {
+    }
+    public void AfterConsistentReadKeyCallback() {
+    }
+    public void BeforeConsistentReadKeyBatchCallback(ReadOnlySpan<PinnedSpanByte> parameters) {
+    }
+    public bool AfterConsistentReadKeyBatchCallback(int keyCount) {
+        return true;
+    }
     public void ConvertOutputToHeap(ref TValue input,ref bool output) {
     }
 }

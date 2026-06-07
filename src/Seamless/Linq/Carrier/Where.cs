@@ -40,7 +40,7 @@ namespace Seamless.Linq.Carrier.Linq
     {
         TEnumerator source = source;
 
-        internal TEnumerator GetSource() => source;
+        internal TEnumerator GetSource() => this.source;
         internal Func<TSource, bool> Predicate => predicate;
 
         public bool TryGetNonEnumeratedCount(out int count)
@@ -59,7 +59,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            while (source.TryGetNext(out var value))
+            while (this.source.TryGetNext(out var value))
             {
                 if (predicate(value))
                 {
@@ -74,12 +74,12 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
 
         // Optimize for common pattern: Where().Select()
         internal WhereSelect<TEnumerator, TSource, TResult> Select<TResult>(Func<TSource, TResult> selector)
-            => new(source, predicate, selector);
+            => new(this.source, predicate, selector);
     }
 
     [StructLayout(LayoutKind.Auto)]
@@ -107,9 +107,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            while (source.TryGetNext(out var value))
+            while (this.source.TryGetNext(out var value))
             {
-                if (predicate(value, index++))
+                if (predicate(value,this.index++))
                 {
                     current = value;
                     return true;
@@ -122,7 +122,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -133,7 +133,7 @@ namespace Seamless.Linq.Carrier.Linq
         where TEnumerator : struct, IValueEnumerator<TSource>
     {
         TEnumerator source = source;
-        internal TEnumerator GetSource() => source;
+        internal TEnumerator GetSource() => this.source;
         internal Func<TSource, bool> Predicate => predicate;
         internal Func<TSource, TResult> Selector => selector;
 
@@ -153,7 +153,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            while (source.TryGetNext(out var value))
+            while (this.source.TryGetNext(out var value))
             {
                 if (predicate(value))
                 {
@@ -168,7 +168,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -177,7 +177,7 @@ namespace Seamless.Linq.Carrier.Linq
     public struct ArrayWhere<TSource>(FromArray<TSource> source, Func<TSource, Boolean> predicate) : IValueEnumerator<TSource>
     {
         TSource[] source = source.GetSource();
-        internal TSource[] GetSource() => source;
+        internal TSource[] GetSource() => this.source;
         internal Func<TSource, bool> Predicate => predicate;
         int index;
 
@@ -197,10 +197,10 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            while ((uint)index < (uint)source.Length)
+            while ((uint)this.index < (uint)this.source.Length)
             {
-                var value = source[index];
-                index++;
+                var value = this.source[this.index];
+                this.index++;
                 if (predicate(value))
                 {
                     current = value;
@@ -218,7 +218,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         // Optimize for common pattern: Where().Select()
         public ArrayWhereSelect<TSource, TResult> Select<TResult>(Func<TSource, TResult> selector)
-            => new(source, predicate, selector);
+            => new(this.source, predicate, selector);
     }
 
     [StructLayout(LayoutKind.Auto)]
@@ -228,7 +228,7 @@ namespace Seamless.Linq.Carrier.Linq
     {
         int index;
         TSource[] source = source;
-        internal TSource[] GetSource() => source;
+        internal TSource[] GetSource() => this.source;
         internal Func<TSource, bool> Predicate => predicate;
         internal Func<TSource, TResult> Selector => selector;
 
@@ -248,10 +248,10 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            while ((uint)index < (uint)source.Length)
+            while ((uint)this.index < (uint)this.source.Length)
             {
-                var value = source[index];
-                index++;
+                var value = this.source[this.index];
+                this.index++;
                 if (predicate(value))
                 {
                     current = selector(value);
@@ -273,7 +273,7 @@ namespace Seamless.Linq.Carrier.Linq
     public struct ListWhere<TSource>(FromList<TSource> source, Func<TSource, Boolean> predicate) : IValueEnumerator<TSource>
     {
         List<TSource> source = source.GetSource();
-        internal List<TSource> GetSource() => source;
+        internal List<TSource> GetSource() => this.source;
         internal Func<TSource, bool> Predicate => predicate;
         int index;
 
@@ -293,11 +293,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            var span = CollectionsMarshal.AsSpan(source);
-            while ((uint)index < (uint)span.Length)
+            var span = CollectionsMarshal.AsSpan(this.source);
+            while ((uint)this.index < (uint)span.Length)
             {
-                var value = span[index];
-                index++;
+                var value = span[this.index];
+                this.index++;
                 if (predicate(value))
                 {
                     current = value;
@@ -315,7 +315,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         // Optimize for common pattern: Where().Select()
         public ListWhereSelect<TSource, TResult> Select<TResult>(Func<TSource, TResult> selector)
-            => new(source, predicate, selector);
+            => new(this.source, predicate, selector);
     }
 
     [StructLayout(LayoutKind.Auto)]
@@ -325,7 +325,7 @@ namespace Seamless.Linq.Carrier.Linq
     {
         int index;
         List<TSource> source = source;
-        internal List<TSource> GetSource() => source;
+        internal List<TSource> GetSource() => this.source;
         internal Func<TSource, bool> Predicate => predicate;
         internal Func<TSource, TResult> Selector => selector;
 
@@ -345,11 +345,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            var span = CollectionsMarshal.AsSpan(source);
-            while ((uint)index < (uint)span.Length)
+            var span = CollectionsMarshal.AsSpan(this.source);
+            while ((uint)this.index < (uint)span.Length)
             {
-                var value = span[index];
-                index++;
+                var value = span[this.index];
+                this.index++;
                 if (predicate(value))
                 {
                     current = selector(value);

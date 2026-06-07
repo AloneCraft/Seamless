@@ -80,7 +80,7 @@ public partial class HashSet<TKey> {
         base.ExceptWith(other,this.ExceptWith_ClientSession);
     }
     public partial void IntersectWith(HashSet<TKey> other) {
-        IntersectWith(this,other,this.IntersectWith_ClientSession);
+        this.IntersectWith(this,other,this.IntersectWith_ClientSession);
     }
     public partial bool IsProperSubsetOf(HashSet<TKey> other) => IsProperSubsetOfSet(this,other);
     public partial bool IsProperSupersetOf(HashSet<TKey> other) => IsProperSupersetOfSet(this,other);

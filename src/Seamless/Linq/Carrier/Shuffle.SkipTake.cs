@@ -50,9 +50,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (source.TryGetNonEnumeratedCount(out count))
+            if (this.source.TryGetNonEnumeratedCount(out count))
             {
-                count = GetLength(count);
+                count =this.GetLength(count);
                 return true;
             }
 
@@ -61,16 +61,16 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetSpan(out ReadOnlySpan<TSource> span)
         {
-            InitBuffer();
-            span = buffer.Span;
+            this.InitBuffer();
+            span =this.buffer.Span;
             return true;
         }
 
         public bool TryCopyTo(scoped Span<TSource> destination, Index offset)
         {
-            InitBuffer();
+            this.InitBuffer();
 
-            if (EnumeratorHelper.TryGetSlice<TSource>(buffer.Span, offset, destination.Length, out var slice))
+            if (EnumeratorHelper.TryGetSlice<TSource>(this.buffer.Span, offset, destination.Length, out var slice))
             {
                 slice.CopyTo(destination);
                 return true;
@@ -81,15 +81,15 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            if (buffer == null)
+            if (this.buffer == null)
             {
-                InitBuffer();
+                this.InitBuffer();
             }
 
-            if ((uint)index < (uint)buffer.Length)
+            if ((uint)this.index < (uint)this.buffer.Length)
             {
-                current = buffer.UnsafeGetAt(index);
-                index++;
+                current =this.buffer.UnsafeGetAt(this.index);
+                this.index++;
                 return true;
             }
 
@@ -99,21 +99,21 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            buffer?.Dispose();
+            this.buffer?.Dispose();
 
-            if (buffer != null)
+            if (this.buffer != null)
             {
                 // source already disposed by enumeration in the InitBuffer()
                 return;
             }
 
-            source.Dispose();
+            this.source.Dispose();
         }
 
         int GetLength(int count)
         {
-            var length = Math.Max(0, count - skipCount);
-            length = Math.Min(length, takeCount);
+            var length = Math.Max(0, count -this.skipCount);
+            length = Math.Min(length,this.takeCount);
             return length;
         }
 
@@ -121,21 +121,21 @@ namespace Seamless.Linq.Carrier.Linq
         [MethodImpl(MethodImplOptions.NoInlining)]
         void InitBuffer()
         {
-            if (buffer == null)
+            if (this.buffer == null)
             {
-                var (array, count) = new ValueEnumerable<TEnumerator, TSource>(source).ToArrayPool();
+                var (array, count) = new ValueEnumerable<TEnumerator, TSource>(this.source).ToArrayPool();
 
                 // Extract only the counts and perform partial shuffling
-                var resultCount = GetLength(count);
+                var resultCount = this.GetLength(count);
                 if (resultCount == 0)
                 {
                     ArrayPool<TSource>.Shared.Return(array, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TSource>());
-                    buffer = RentedArrayBox<TSource>.Empty;
+                    this.buffer = RentedArrayBox<TSource>.Empty;
                 }
                 else
                 {
                     RandomShared.PartialShuffle(array.AsSpan(0, count), resultCount);
-                    buffer = new RentedArrayBox<TSource>(array, resultCount);
+                    this.buffer = new RentedArrayBox<TSource>(array, resultCount);
                 }
             }
         }

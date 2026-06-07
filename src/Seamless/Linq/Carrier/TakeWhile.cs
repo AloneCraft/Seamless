@@ -39,7 +39,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            if (source.TryGetNext(out current) && predicate(current))
+            if (this.source.TryGetNext(out current) && predicate(current))
             {
                 return true;
             }
@@ -50,7 +50,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -79,7 +79,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            if (source.TryGetNext(out current) && predicate(current, index++))
+            if (this.source.TryGetNext(out current) && predicate(current,this.index++))
             {
                 return true;
             }
@@ -90,7 +90,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 }

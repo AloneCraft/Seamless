@@ -29,11 +29,11 @@ global using Tsavorite.core;
 global using Garnet.common;
 global using SpanByteStoreFunctions = Tsavorite.core.StoreFunctions<
     Tsavorite.core.SpanByteComparer,
-    Tsavorite.core.DefaultRecordDisposer
+    Tsavorite.core.DefaultRecordTriggers
 >;
 global using SpanByteStoreAllocator = Tsavorite.core.SpanByteAllocator<
     Tsavorite.core.StoreFunctions<
         Tsavorite.core.SpanByteComparer,
-        Tsavorite.core.DefaultRecordDisposer
+        Tsavorite.core.DefaultRecordTriggers
     >
 >;

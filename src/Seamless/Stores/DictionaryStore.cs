@@ -30,20 +30,20 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
                 return new Dictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(this);
             }
 
-            return CreateDictionary(
+            return this.CreateDictionary(
                 typeof(Dictionary<,,,>),
                 typeof(MemoryPackSerializer<>),
                 typeof(BlittableSerializer<>));
         }
 
         if(this.valueUsesMemoryPackSerializer) {
-            return CreateDictionary(
+            return this.CreateDictionary(
                 typeof(Dictionary<,,,>),
                 typeof(BlittableSerializer<>),
                 typeof(MemoryPackSerializer<>));
         }
 
-        return CreateDictionary(
+        return this.CreateDictionary(
             typeof(Dictionary<,,,>),
             typeof(BlittableSerializer<>),
             typeof(BlittableSerializer<>));

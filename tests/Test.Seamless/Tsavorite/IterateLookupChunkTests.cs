@@ -9,11 +9,11 @@ using Tsavorite.core;
 // ファイルスコープ型エイリアス
 using TStoreFuncs = Tsavorite.core.StoreFunctions<
     Tsavorite.core.SpanByteComparer,
-    Tsavorite.core.DefaultRecordDisposer>;
+    Tsavorite.core.DefaultRecordTriggers>;
 using TAlloc = Tsavorite.core.SpanByteAllocator<
     Tsavorite.core.StoreFunctions<
         Tsavorite.core.SpanByteComparer,
-        Tsavorite.core.DefaultRecordDisposer>>;
+        Tsavorite.core.DefaultRecordTriggers>>;
 
 namespace Test.Seamless.Tsavorite;
 
@@ -90,7 +90,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
             output=input;
         }
 
-        public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref int input,ref int output,ref RMWInfo rmwInfo) {
+        public bool InPlaceUpdater(ref LogRecord logRecord,ref int input,ref int output,ref RMWInfo rmwInfo) {
             return false;
         }
 
@@ -138,13 +138,13 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         public bool InitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref int input,in TSourceLogRecord inputLogRecord,ref int output,ref UpsertInfo upsertInfo)
             where TSourceLogRecord : ISourceLogRecord => ThrowRmwOnlyEntryPoint<bool>();
 
-        public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref int input,ReadOnlySpan<byte> srcValue,ref int output,ref UpsertInfo upsertInfo) =>
+        public bool InPlaceWriter(ref LogRecord logRecord,ref int input,ReadOnlySpan<byte> srcValue,ref int output,ref UpsertInfo upsertInfo) =>
             ThrowRmwOnlyEntryPoint<bool>();
 
-        public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref int input,IHeapObject srcValue,ref int output,ref UpsertInfo upsertInfo) =>
+        public bool InPlaceWriter(ref LogRecord logRecord,ref int input,IHeapObject srcValue,ref int output,ref UpsertInfo upsertInfo) =>
             ThrowRmwOnlyEntryPoint<bool>();
 
-        public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref int input,in TSourceLogRecord inputLogRecord,ref int output,ref UpsertInfo upsertInfo)
+        public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,ref int input,in TSourceLogRecord inputLogRecord,ref int output,ref UpsertInfo upsertInfo)
             where TSourceLogRecord : ISourceLogRecord => ThrowRmwOnlyEntryPoint<bool>();
 
         public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref int input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
@@ -194,8 +194,19 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         public RecordFieldInfo GetUpsertFieldInfo<TKey, TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref int input)
             where TKey : IKey, allows ref struct
             where TSourceLogRecord : ISourceLogRecord {
-            return new() { KeySize=key.KeyBytes.Length,ValueSize=inputLogRecord.ValueSpan.Length,ValueIsObject=inputLogRecord.Info.ValueIsObject };
+            return new() { KeySize=key.KeyBytes.Length,ValueSize=inputLogRecord.ValueSpan.Length,ValueIsObject=inputLogRecord.DataHeader.ValueIsObject };
         }
+
+        public void BeforeConsistentReadCallback(long hash) {
+        }
+
+        public void AfterConsistentReadKeyCallback() {
+        }
+
+        public void BeforeConsistentReadKeyBatchCallback(ReadOnlySpan<PinnedSpanByte> parameters) {
+        }
+
+        public bool AfterConsistentReadKeyBatchCallback(int keyCount) => true;
 
         public void ConvertOutputToHeap(ref int input,ref int output) {
         }
@@ -309,7 +320,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         var storeFunctions = new TStoreFuncs(
             new SpanByteComparer(),
             static () => null,
-            new DefaultRecordDisposer());
+            DefaultRecordTriggers.Instance);
         return new TsavoriteKV<TStoreFuncs,TAlloc>(
             settings,
             storeFunctions,

@@ -47,7 +47,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out T current)
         {
-            if (index++ < _count)
+            if (this.index++ < _count)
             {
                 current = _element;
                 return true;

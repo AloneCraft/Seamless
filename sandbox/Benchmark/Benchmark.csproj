@@ -45,6 +45,8 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Benchmarks\Helpers\" />
+    <Folder Include="Benchmarks\SimpleChain\" />
+    <Folder Include="Benchmarks\ComplexChain\" />
   </ItemGroup>
 
   <!-- Custom target to cleanup `bin`, and `BenchmarkDotNet.Artifacts` directories. (`obj` is retained. Because it cause intellisense error when deleted) -->

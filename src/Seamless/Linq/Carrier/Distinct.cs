@@ -40,7 +40,7 @@ namespace Seamless.Linq.Carrier.Linq
         {
             if (destination.Length == 1 && offset.Value == 0) // as TryGetFirst
             {
-                return source.TryCopyTo(destination, offset);
+                return this.source.TryCopyTo(destination, offset);
             }
 
             return false;
@@ -48,15 +48,15 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            if (set == null)
+            if (this.set == null)
             {
-                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator, TSource>(ref source);
-                set = hint > 0 ? new HashSetSlim<TSource>(hint, comparer) : new HashSetSlim<TSource>(comparer);
+                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator, TSource>(ref this.source);
+                this.set = hint > 0 ? new HashSetSlim<TSource>(hint, comparer) : new HashSetSlim<TSource>(comparer);
             }
 
-            while (source.TryGetNext(out var value))
+            while (this.source.TryGetNext(out var value))
             {
-                if (set.Add(value))
+                if (this.set.Add(value))
                 {
                     current = value;
                     return true;
@@ -69,8 +69,8 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            set?.Dispose();
-            source.Dispose();
+            this.set?.Dispose();
+            this.source.Dispose();
         }
     }
 

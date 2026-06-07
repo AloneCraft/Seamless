@@ -3,16 +3,16 @@ namespace Benchmark.Benchmarks;
 public class ToArray:Base{
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        Enumerable.ToArray(src).Consume(consumer);
+        Enumerable.ToArray(this.src).Consume(this.consumer);
     }
 
     [Benchmark]
     public void Intercept(){
-        src.ToArray().Consume(consumer);
+        this.src.ToArray().Consume(this.consumer);
     }
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).ToArray().Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).ToArray().Consume(this.consumer);
     }
 }

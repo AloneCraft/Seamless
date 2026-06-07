@@ -837,10 +837,11 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     /// <see cref="SanitizeIdentifier"/> で C# 識別子として使えない文字を <c>_</c> に置換する。
     /// </summary>
     private static string インターセプターHintName取得(string sourcePath) {
-        var fileName = System.IO.Path.GetFileNameWithoutExtension(sourcePath);
-        return string.IsNullOrWhiteSpace(fileName)
-            ? "Unknown.g.cs"
-            : $"{SanitizeIdentifier(fileName)}.g.cs";
+        if(string.IsNullOrWhiteSpace(sourcePath)) {
+            return "Unknown.g.cs";
+        }
+        //同名ファイルが別ディレクトリに存在しても hintName が衝突しないよう、フルパスから生成する
+        return $"{SanitizeIdentifier(sourcePath)}.g.cs";
     }
 
     /// <summary>
@@ -4729,7 +4730,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             this.replacements=replacements;
         }
         public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
-            if(!replacements.TryGetValue(node.Identifier.ValueText,out var replacement)
+            if(!this.replacements.TryGetValue(node.Identifier.ValueText,out var replacement)
                 || node.Parent is MemberAccessExpressionSyntax { Name: var memberName } && ReferenceEquals(memberName,node)
                 || node.Parent is MemberBindingExpressionSyntax { Name: var bindingName } && ReferenceEquals(bindingName,node)
                 || node.Parent is NameColonSyntax
@@ -4862,9 +4863,9 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     private sealed class ローカルメソッドLinq解析結果 {
         public static readonly ローカルメソッドLinq解析結果 Empty = new(false,ImmutableArray<string>.Empty,false);
         public ローカルメソッドLinq解析結果(bool hasEnumerableCall,ImmutableArray<string> unsupportedMethods,bool hasAnonymousTypeLinq) {
-            HasEnumerableCall=hasEnumerableCall;
-            UnsupportedMethods=unsupportedMethods;
-            HasAnonymousTypeLinq=hasAnonymousTypeLinq;
+            this.HasEnumerableCall=hasEnumerableCall;
+            this.UnsupportedMethods=unsupportedMethods;
+            this.HasAnonymousTypeLinq=hasAnonymousTypeLinq;
         }
         public bool HasEnumerableCall { get; }
         public ImmutableArray<string> UnsupportedMethods { get; }
@@ -4881,24 +4882,24 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         public bool Equals(Linq傍受対象型? other) {
             if(other is null) return false;
             if(ReferenceEquals(this,other)) return true;
-            return string.Equals(InterceptsLocationAttributeText,other.InterceptsLocationAttributeText,StringComparison.Ordinal);
+            return string.Equals(this.InterceptsLocationAttributeText,other.InterceptsLocationAttributeText,StringComparison.Ordinal);
         }
-        public override bool Equals(object? obj) => obj is Linq傍受対象型 other && Equals(other);
-        public override int GetHashCode() => InterceptsLocationAttributeText.GetHashCode(StringComparison.Ordinal);
+        public override bool Equals(object? obj) => obj is Linq傍受対象型 other &&this.Equals(other);
+        public override int GetHashCode() => this.InterceptsLocationAttributeText.GetHashCode(StringComparison.Ordinal);
         public Linq傍受対象型(string identifier,string containingMethodName,string interceptsLocationAttributeText,IMethodSymbol method,IMethodSymbol templateMethod,InvocationExpressionSyntax invocation,INamedTypeSymbol enclosingType,SemanticModel semanticModel,InterceptParameterSpec[] parameters,ローカルメソッドLinq解析結果? linqAnalysis = null,string? sourceElementTypeName = null,string[]? methodTypeParameterNames = null,bool isLocalMethodInterception = false) {
-            Identifier=identifier;
-            ContainingMethodName=containingMethodName;
-            InterceptsLocationAttributeText=interceptsLocationAttributeText;
-            Method=method;
-            TemplateMethod=templateMethod;
-            Invocation=invocation;
-            EnclosingType=enclosingType;
-            SemanticModel=semanticModel;
-            Parameters=parameters;
-            LinqAnalysis=linqAnalysis ?? ローカルメソッドLinq解析結果.Empty;
-            ExplicitSourceElementTypeName=sourceElementTypeName;
-            MethodTypeParameters=methodTypeParameterNames ?? [];
-            IsLocalMethodInterception=isLocalMethodInterception;
+            this.Identifier=identifier;
+            this.ContainingMethodName=containingMethodName;
+            this.InterceptsLocationAttributeText=interceptsLocationAttributeText;
+            this.Method=method;
+            this.TemplateMethod=templateMethod;
+            this.Invocation=invocation;
+            this.EnclosingType=enclosingType;
+            this.SemanticModel=semanticModel;
+            this.Parameters=parameters;
+            this.LinqAnalysis=linqAnalysis ?? ローカルメソッドLinq解析結果.Empty;
+            this.ExplicitSourceElementTypeName=sourceElementTypeName;
+            this.MethodTypeParameters=methodTypeParameterNames ?? [];
+            this.IsLocalMethodInterception=isLocalMethodInterception;
         }
         private string Identifier { get; }
         public string ContainingMethodName { get; }
@@ -4906,7 +4907,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         public IMethodSymbol Method { get; }
         private IMethodSymbol TemplateMethod { get; }
         public InvocationExpressionSyntax Invocation { get; }
-        public string SourcePath => Invocation.SyntaxTree.FilePath;
+        public string SourcePath => this.Invocation.SyntaxTree.FilePath;
         public INamedTypeSymbol EnclosingType { get; }
         public SemanticModel SemanticModel { get; }
         private InterceptParameterSpec[] Parameters { get; }
@@ -4916,54 +4917,54 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         public bool IsLocalMethodInterception { get; }
         private string SourceElementTypeName {
             get {
-                if(!string.IsNullOrWhiteSpace(ExplicitSourceElementTypeName)) {
-                    return ExplicitSourceElementTypeName;
+                if(!string.IsNullOrWhiteSpace(this.ExplicitSourceElementTypeName)) {
+                    return this.ExplicitSourceElementTypeName;
                 }
-                if(Method.TypeArguments.Length>0) {
-                    return Method.TypeArguments[0].ToDisplayString(完全修飾形式);
+                if(this.Method.TypeArguments.Length>0) {
+                    return this.Method.TypeArguments[0].ToDisplayString(完全修飾形式);
                 }
-                var parameters = TemplateMethod.Parameters;
+                var parameters = this.TemplateMethod.Parameters;
                 if(parameters.Length==0
                     ||parameters[0].Type is not INamedTypeSymbol sourceType
                     ||sourceType.TypeArguments.Length!=1) {
-                    throw new InvalidOperationException($"Could not determine source element type for '{TemplateMethod.ToDisplayString(完全修飾形式)}'.");
+                    throw new InvalidOperationException($"Could not determine source element type for '{this.TemplateMethod.ToDisplayString(完全修飾形式)}'.");
                 }
                 return sourceType.TypeArguments[0].ToDisplayString(完全修飾形式);
             }
         }
-        public string ReturnTypeName => Method.ReturnsVoid ? "void" : Method.ReturnType.ToDisplayString(完全修飾形式);
+        public string ReturnTypeName => this.Method.ReturnsVoid ? "void" : this.Method.ReturnType.ToDisplayString(完全修飾形式);
         public string InterceptorParameterList {
             get {
-                if(IsLocalMethodInterception) {
+                if(this.IsLocalMethodInterception) {
                     var parameters = new List<string>();
-                    if(!Method.IsStatic) {
-                        parameters.Add($"this {Method.ContainingType.ToDisplayString(完全修飾形式)} @this");
+                    if(!this.Method.IsStatic) {
+                        parameters.Add($"this {this.Method.ContainingType.ToDisplayString(完全修飾形式)} @this");
                     }
-                    parameters.AddRange(Parameters.Select(static parameter => parameter.Declaration));
+                    parameters.AddRange(this.Parameters.Select(static parameter => parameter.Declaration));
                     return string.Join(", ",parameters);
                 }
-                return $"this global::System.Collections.Generic.IEnumerable<{SourceElementTypeName}> source{MethodParameterList}";
+                return $"this global::System.Collections.Generic.IEnumerable<{this.SourceElementTypeName}> source{this.MethodParameterList}";
             }
         }
-        private string MethodParameterList => Parameters.Length==0
+        private string MethodParameterList => this.Parameters.Length==0
             ? string.Empty
-            : ", "+string.Join(", ",Parameters.Select(static parameter => parameter.Declaration));
-        public string MethodTypeParameterList => MethodTypeParameters.Length==0
+            : ", "+string.Join(", ",this.Parameters.Select(static parameter => parameter.Declaration));
+        public string MethodTypeParameterList => this.MethodTypeParameters.Length==0
             ? string.Empty
-            : "<"+string.Join(", ",MethodTypeParameters)+">";
-        public string MethodName => $"OptimizedLinq_{Identifier}";
+            : "<"+string.Join(", ",this.MethodTypeParameters)+">";
+        public string MethodName => $"OptimizedLinq_{this.Identifier}";
     }
     private sealed class InterceptParameterSpec {
         public InterceptParameterSpec(string name,string typeName,RefKind refKind = RefKind.None) {
-            Name=name;
-            TypeName=typeName;
-            RefKind=refKind;
+            this.Name=name;
+            this.TypeName=typeName;
+            this.RefKind=refKind;
         }
         private string Name { get; }
         private string TypeName { get; }
         private RefKind RefKind { get; }
-        public string Declaration => $"{RefKindModifier}{TypeName} {Name}";
-        private string RefKindModifier => RefKind switch {
+        public string Declaration => $"{this.RefKindModifier}{this.TypeName} {this.Name}";
+        private string RefKindModifier => this.RefKind switch {
             RefKind.Ref => "ref ",
             RefKind.Out => "out ",
             RefKind.In => "in ",
@@ -4972,10 +4973,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     }
     private sealed class LambdaSpec {
         public LambdaSpec(string returnTypeName,string[] parameterTypeNames,string[] parameterNames,string body) {
-            ReturnTypeName=returnTypeName;
-            ParameterTypeNames=parameterTypeNames;
-            ParameterNames=parameterNames;
-            Body=body;
+            this.ReturnTypeName=returnTypeName;
+            this.ParameterTypeNames=parameterTypeNames;
+            this.ParameterNames=parameterNames;
+            this.Body=body;
         }
         public string ReturnTypeName { get; }
         public string[] ParameterTypeNames { get; }
@@ -4999,25 +5000,25 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     }
     private sealed class PerFileInterceptGroup:IEquatable<PerFileInterceptGroup> {
         public PerFileInterceptGroup(string sourcePath,ImmutableArray<Linq傍受対象型> targets) {
-            SourcePath=sourcePath;
-            Targets=targets;
+            this.SourcePath=sourcePath;
+            this.Targets=targets;
         }
         public string SourcePath { get; }
         public ImmutableArray<Linq傍受対象型> Targets { get; }
         public bool Equals(PerFileInterceptGroup? other) {
             if(other is null) return false;
             if(ReferenceEquals(this,other)) return true;
-            if(!string.Equals(SourcePath,other.SourcePath,StringComparison.Ordinal)) return false;
-            if(Targets.Length!=other.Targets.Length) return false;
-            for(var i = 0;i<Targets.Length;i++) {
-                if(!Targets[i].Equals(other.Targets[i])) return false;
+            if(!string.Equals(this.SourcePath,other.SourcePath,StringComparison.Ordinal)) return false;
+            if(this.Targets.Length!=other.Targets.Length) return false;
+            for(var i = 0;i<this.Targets.Length;i++) {
+                if(!this.Targets[i].Equals(other.Targets[i])) return false;
             }
             return true;
         }
-        public override bool Equals(object? obj) => obj is PerFileInterceptGroup other && Equals(other);
+        public override bool Equals(object? obj) => obj is PerFileInterceptGroup other &&this.Equals(other);
         public override int GetHashCode() {
-            var hc = StringComparer.Ordinal.GetHashCode(SourcePath);
-            foreach(var t in Targets) {
+            var hc = StringComparer.Ordinal.GetHashCode(this.SourcePath);
+            foreach(var t in this.Targets) {
                 hc=HashCode.Combine(hc,t.GetHashCode());
             }
             return hc;
@@ -5025,8 +5026,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     }
     private sealed class 型対象型 {
         public 型対象型(INamedTypeSymbol symbol,bool isPartial) {
-            Symbol=symbol;
-            IsPartial=isPartial;
+            this.Symbol=symbol;
+            this.IsPartial=isPartial;
         }
         public INamedTypeSymbol Symbol { get; }
         public bool IsPartial { get; }
