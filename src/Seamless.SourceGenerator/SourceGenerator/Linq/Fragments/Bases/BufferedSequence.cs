@@ -9,9 +9,10 @@ public abstract class BufferedSequence(int 番号,string elementType) : Enumerab
         """;
     protected virtual string StructSources => string.Empty;
     public override string GetEnumeratorFields => $$"""
-        private global::System.Collections.Generic.List<{{ElementType}}>.Enumerator {{e}} = {{BuildExpression}}.GetEnumerator();
+        private global::System.Collections.Generic.List<{{ElementType}}>.Enumerator {{e}};
         {{BuildMembers}}
         """;
+    public override string GetEnumeratorConstructor => $"this.{e} = ({BuildExpression}).GetEnumerator();";
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
             this.Current = {{e}}.Current;

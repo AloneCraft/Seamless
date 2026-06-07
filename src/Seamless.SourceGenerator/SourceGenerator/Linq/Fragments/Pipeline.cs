@@ -1448,7 +1448,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
                     builder.AppendLine($"private int {StateName(index)} = -1;");
                 } else if(stage.Kind==PipelineStageKind.Take || stage.Kind==PipelineStageKind.Skip) {
                     var countName = CountName(countIndex++);
-                    builder.AppendLine($"private readonly int {countName}Value = global::System.Math.Max(0,{countName});");
+                    builder.AppendLine($"private int {countName}Value;");
                     builder.AppendLine($"private int {StateName(index)} = 0;");
                 } else if(stage.Kind==PipelineStageKind.SelectMany) {
                     builder.AppendLine($"private global::System.Collections.Generic.IEnumerator<{stage.InnerElementType}>? {InnerEnumeratorName(index)} = null;");
@@ -1457,13 +1457,13 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
                         builder.AppendLine($"private int {StateName(index)} = -1;");
                     }
                 } else if(stage.Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy) {
-                    builder.AppendLine($"private readonly global::System.Collections.Generic.HashSet<{ComparerKeyType(stage)}> {SetName(index)} = new({ComparerName(ComparerOrdinal(index))});");
+                    builder.AppendLine($"private global::System.Collections.Generic.HashSet<{ComparerKeyType(stage)}> {SetName(index)};");
                 } else if(stage.Kind is PipelineStageKind.Union or PipelineStageKind.UnionBy) {
-                    builder.AppendLine($"private readonly global::System.Collections.Generic.HashSet<{ComparerKeyType(stage)}> {SetName(index)} = new({ComparerName(ComparerOrdinal(index))});");
+                    builder.AppendLine($"private global::System.Collections.Generic.HashSet<{ComparerKeyType(stage)}> {SetName(index)};");
                     builder.AppendLine($"private bool {StateName(index)} = false;");
                 } else if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy) {
-                    builder.AppendLine($"private readonly global::System.Collections.Generic.HashSet<{ComparerKeyType(stage)}> {SecondSetName(index)} = new({ComparerName(ComparerOrdinal(index))});");
-                    builder.AppendLine($"private readonly global::System.Collections.Generic.HashSet<{ComparerKeyType(stage)}> {SetName(index)} = new({ComparerName(ComparerOrdinal(index))});");
+                    builder.AppendLine($"private global::System.Collections.Generic.HashSet<{ComparerKeyType(stage)}> {SecondSetName(index)};");
+                    builder.AppendLine($"private global::System.Collections.Generic.HashSet<{ComparerKeyType(stage)}> {SetName(index)};");
                     builder.AppendLine($"private bool {StateName(index)} = false;");
                 } else if(stage.Kind is PipelineStageKind.Concat or PipelineStageKind.Append or PipelineStageKind.Prepend) {
                     builder.AppendLine($"private int {StateName(index)} = 0;");
@@ -1499,6 +1499,27 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
                     builder.AppendLine($"private global::System.Collections.Generic.List<{stage.OutputType}>? {ReverseItemsName(index)} = null;");
                     builder.AppendLine($"private int {StateName(index)} = 0;");
                     builder.AppendLine($"private int {StateEndName(index)} = 0;");
+                }
+            }
+            return builder.ToString().TrimEnd();
+        }
+    }
+    public override string GetEnumeratorConstructor {
+        get {
+            var builder = new System.Text.StringBuilder();
+            var countIndex = 0;
+            for(var index = 0; index<stages.Count; index++) {
+                var stage = stages[index];
+                if(stage.Kind==PipelineStageKind.Take || stage.Kind==PipelineStageKind.Skip) {
+                    var countName = CountName(countIndex++);
+                    builder.AppendLine($"this.{countName}Value = global::System.Math.Max(0, {countName});");
+                } else if(stage.Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy) {
+                    builder.AppendLine($"this.{SetName(index)} = new({ComparerName(ComparerOrdinal(index))});");
+                } else if(stage.Kind is PipelineStageKind.Union or PipelineStageKind.UnionBy) {
+                    builder.AppendLine($"this.{SetName(index)} = new({ComparerName(ComparerOrdinal(index))});");
+                } else if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy) {
+                    builder.AppendLine($"this.{SecondSetName(index)} = new({ComparerName(ComparerOrdinal(index))});");
+                    builder.AppendLine($"this.{SetName(index)} = new({ComparerName(ComparerOrdinal(index))});");
                 }
             }
             return builder.ToString().TrimEnd();
@@ -2597,8 +2618,9 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
         }
     }
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string GetEnumeratorConstructor => $"this.Current = Compute({e});";
     public override string GetEnumeratorFields => $$"""
-        public {{ResultType}} Current { get; private set; } = Compute({{e}});
+        public {{ResultType}} Current { get; private set; }
         private bool {{yielded}} = false;
         {{AggressiveInliningAttribute}}
         private static {{ResultType}} Compute(TEnum source) {

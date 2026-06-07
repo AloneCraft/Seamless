@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 static class Categories{
     public const string LINQ="LINQ";

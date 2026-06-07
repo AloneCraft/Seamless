@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class Aggregate_func:Base{
     [Benchmark(Baseline=true)]
@@ -6,7 +6,7 @@ public class Aggregate_func:Base{
         consumer.Consume(Enumerable.Aggregate(src,(acc,x)=>acc+x));
     }
 
-    void InterceptCore(){ this.consumer.Consume(this.src.Aggregate((acc,x)=>acc+x)); }
+    public void InterceptCore(){ this.consumer.Consume(this.src.Aggregate((acc,x)=>acc+x)); }
 
     [Benchmark]
     public void Intercept(){ InterceptCore(); }
@@ -15,4 +15,14 @@ public class Aggregate_func:Base{
     public void ZLinq(){
         consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Aggregate((acc,x)=>acc+x));
     }
+
+    /// <summary>Intercepts <see cref="Benchmark.Benchmarks.Aggregate_func.Intercept()" /> (InterceptCore).</summary>
+    void ff() {
+
+    }
+    /// <summary>Intercepts <see cref="Benchmark.Benchmarks.Aggregate_func.InterceptCore()" /> (InterceptCore).</summary>
+    void fgf() {
+
+    }
+
 }

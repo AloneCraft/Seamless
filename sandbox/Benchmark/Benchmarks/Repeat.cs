@@ -1,6 +1,6 @@
 using SystemEnumerable=global::System.Linq.Enumerable;
 
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class Repeat:Base{
     [Benchmark(Baseline=true)]

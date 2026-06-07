@@ -15,9 +15,7 @@ public class SkipWhile_predicate(int 番号, Enumerable source, FuncFragment pre
         $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
-    public override string GetEnumeratorFields => $$"""
-        private bool skipping = true;
-        """;
+    public override string GetEnumeratorFields => "private bool skipping = true;";
     public override string GetTryGetNextBody {
         get {
             var (preCode, condExpr) = FuncInvokeCondition(predicate, nameof(predicate), temp, item);

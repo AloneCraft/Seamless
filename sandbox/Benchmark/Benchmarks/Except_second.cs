@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class Except_second:Base{
     [Benchmark(Baseline=true)]

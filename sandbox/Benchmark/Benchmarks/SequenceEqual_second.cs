@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class SequenceEqual_second:Base{
     [Benchmark(Baseline=true)]

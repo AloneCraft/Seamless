@@ -19,14 +19,12 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
         $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector,func)}";
     public override string GetEnumeratorFields => $$"""
         private global::System.Collections.Generic.Dictionary<{{KeyType}}, {{FuncReturnTypeName(func)}}>? {{lookup}};
-        private global::System.Collections.Generic.List<{{KeyType}}>? {{group}};
-        private int {{a}}=-1;
+        private global::System.Collections.Generic.Dictionary<{{KeyType}}, {{FuncReturnTypeName(func)}}>.Enumerator {{innerEnumerator}};
         """;
     public override string GetTryGetNextBody => $$"""
         if(this.{{lookup}} is null) {
             if({{e}}.TryGetSpan(out var __span)) {
                 this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{KeyType}}, {{FuncReturnTypeName(func)}}>(__span.Length);
-                this.{{group}}=new global::System.Collections.Generic.List<{{KeyType}}>(__span.Length);
                 for(var __i=0;__i<__span.Length;__i++) {
                     var {{item}}=__span[__i];
                     {{KeyType}} {{key}}=default!;
@@ -34,17 +32,14 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
                     ref var __agg=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookup}},{{key}},out var __exists);
                     if(!__exists) {
                         __agg={{seed}};
-                        this.{{group}}.Add({{key}});
                     }
                     {{FuncAssign(func,nameof(func),"__agg","__agg",item)}}
                 }
             }else{
                 if({{e}}.TryGetNonEnumeratedCount(out var __count)) {
                     this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{KeyType}}, {{FuncReturnTypeName(func)}}>(__count);
-                    this.{{group}}=new global::System.Collections.Generic.List<{{KeyType}}>(__count);
                 }else{
                     this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{KeyType}}, {{FuncReturnTypeName(func)}}>();
-                    this.{{group}}=new global::System.Collections.Generic.List<{{KeyType}}>();
                 }
                 while({{e}}.MoveNext()) {
                     var {{item}}={{e}}.Current;
@@ -53,16 +48,15 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
                     ref var __agg=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookup}},{{key}},out var __exists);
                     if(!__exists) {
                         __agg={{seed}};
-                        this.{{group}}.Add({{key}});
                     }
                     {{FuncAssign(func,nameof(func),"__agg","__agg",item)}}
                 }
             }
+            this.{{innerEnumerator}}=this.{{lookup}}.GetEnumerator();
         }
-        this.{{a}}++;
-        if(this.{{group}} is not null&&(uint)this.{{a}}<(uint)this.{{group}}.Count) {
-            var __key=this.{{group}}[this.{{a}}];
-            current=this.{{currentValue}}=new {{resultElementType}}(__key,this.{{lookup}}[__key]);
+        if(this.{{innerEnumerator}}.MoveNext()) {
+            var __kv=this.{{innerEnumerator}}.Current;
+            current=this.{{currentValue}}=new {{resultElementType}}(__kv.Key,__kv.Value);
             return true;
         }
         current=default!;

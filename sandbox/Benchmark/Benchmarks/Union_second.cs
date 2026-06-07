@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class Union_second:Base{
     [Benchmark(Baseline=true)]

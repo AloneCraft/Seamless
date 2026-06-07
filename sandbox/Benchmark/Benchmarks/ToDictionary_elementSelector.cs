@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class ToDictionary_elementSelector:Base{
     [Benchmark(Baseline=true)]

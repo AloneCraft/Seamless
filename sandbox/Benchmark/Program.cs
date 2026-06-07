@@ -6,11 +6,11 @@ using Perfolizer.Horology;
 using Microsoft.VisualBasic.FileIO;
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 
-namespace Benchmark;
-
+namespace Benchmark.Benchmarks;
 internal static class Program{
-    public static void Main(string[] args){
+    public static void Main(string[]args){
         // ダブルクリック起動時など CWD が不定の場合、BDN が .csproj を広範検索して
         // macOS の .Trash 等アクセス拒否ディレクトリに当たるのを防ぐ
         for(var d=new DirectoryInfo(AppContext.BaseDirectory);d!=null;d=d.Parent){
@@ -19,6 +19,29 @@ internal static class Program{
                 break;
             }
         }
+
+        // 環境変数で無効化フラグを指定できるようにする
+        // DISABLE_LINQ=1 / DISABLE_INTERCEPT=1 / DISABLE_ZLINQ=1
+        var disableLinq = Environment.GetEnvironmentVariable("DISABLE_LINQ") == "1";
+        var disableIntercept = Environment.GetEnvironmentVariable("DISABLE_INTERCEPT") == "1";
+        var disableZLinq = Environment.GetEnvironmentVariable("DISABLE_ZLINQ") == "1";
+
+        // args が空 (= 対話選択モード) のとき、自動でフィルタを作って即実行する
+        if ((args == null || args.Length == 0) && (disableLinq || disableIntercept || disableZLinq))
+        {
+            var disabled = new List<string>();
+            if (disableLinq) disabled.Add("LINQ");
+            if (disableIntercept) disabled.Add("Intercept");
+            if (disableZLinq) disabled.Add("ZLinq");
+
+            // フルベンチ名（Namespace.Type.Method）で末尾が対象メソッド名と一致するものを除外する正規表現
+            // 例: ^(?!(?:.*\.LINQ$|.*\.Intercept$)).*
+            var parts = disabled.Select(n => $".*\\.{Regex.Escape(n)}$");
+            var exclusion = $"^(?!(?:{string.Join("|", parts)})).*";
+
+            args = new[] { "--filter", exclusion, "--join" };
+        }
+
         var singleFileMode=IsSingleFileMode(args);
         if(args.Length==0){
             var selection=PromptInteractiveSelection();
@@ -28,8 +51,8 @@ internal static class Program{
         args=RemoveSingleFileSwitch(args);
         var job=Job.Default
             .WithIterationTime(TimeInterval.Millisecond*100)  // WorkloadPilot の収束目標
-            .WithIterationCount(16)                           // WorkloadActual = 16
-            .WithWarmupCount(4);                              // WorkloadWarmup = 4
+            .WithIterationCount(8)                           // WorkloadActual = 16
+            .WithWarmupCount(2);// WorkloadWarmup = 4
         if(Environment.GetEnvironmentVariable("SEAMLESS_BENCHMARK_INPROCESS")=="1"){
             job=job.WithToolchain(InProcessNoEmitToolchain.Instance);
         }
@@ -40,7 +63,6 @@ internal static class Program{
             WriteSingleFileReport();
         }
     }
-
     static InteractiveSelection PromptInteractiveSelection(){
         Console.WriteLine("=== 実行モード選択 ===");
         Console.WriteLine("1: RunAllBenchmark");
@@ -58,17 +80,16 @@ internal static class Program{
         return new InteractiveSelection(args,singleFileMode);
     }
 
-    readonly record struct InteractiveSelection(string[] Args,bool SingleFileMode);
+    readonly record struct InteractiveSelection(string[]Args,bool SingleFileMode);
 
-    static bool IsSingleFileMode(string[] args){
+    static bool IsSingleFileMode(string[]args){
         if(Environment.GetEnvironmentVariable("SEAMLESS_BENCHMARK_SINGLE_FILE")=="1"){
             return true;
         }
         return args.Any(static arg=>string.Equals(arg,"--single-file",StringComparison.OrdinalIgnoreCase)
             ||string.Equals(arg,"--ai-summary",StringComparison.OrdinalIgnoreCase));
     }
-
-    static string[] RemoveSingleFileSwitch(string[] args){
+    static string[]RemoveSingleFileSwitch(string[]args){
         var filtered=new List<string>(args.Length);
         foreach(var arg in args){
             if(string.Equals(arg,"--single-file",StringComparison.OrdinalIgnoreCase)
@@ -79,13 +100,12 @@ internal static class Program{
         }
         return filtered.ToArray();
     }
-
     static void WriteSingleFileReport(){
         var resultsDir=FindResultsDirectory();
         if(!Directory.Exists(resultsDir)){
             return;
         }
-        var csvFiles=Directory.GetFiles(resultsDir,"Benchmark.*-report.csv").OrderBy(static path=>path,StringComparer.OrdinalIgnoreCase).ToArray();
+        var csvFiles=Directory.GetFiles(resultsDir,"*-report.csv").OrderBy(static path=>path,StringComparer.OrdinalIgnoreCase).ToArray();
         if(csvFiles.Length==0){
             return;
         }
@@ -119,7 +139,6 @@ internal static class Program{
         File.WriteAllText(outputPath,writer.ToString(),Encoding.UTF8);
         Console.WriteLine($"Single file summary written to {outputPath}");
     }
-
     static string FindResultsDirectory(){
         for(var directory=new DirectoryInfo(Directory.GetCurrentDirectory());directory!=null;directory=directory.Parent){
             var candidate=Path.Combine(directory.FullName,"BenchmarkDotNet.Artifacts","results");
@@ -135,7 +154,6 @@ internal static class Program{
         }
         return Path.Combine(Directory.GetCurrentDirectory(),"BenchmarkDotNet.Artifacts","results");
     }
-
     static void AppendCsvReport(StringBuilder writer,string csvFile){
         var rows=ReadCsv(csvFile);
         if(rows.Count<=1){
@@ -176,7 +194,6 @@ internal static class Program{
         writer.AppendLine("    </table>");
         writer.AppendLine("  </section>");
     }
-
     static List<string[]> ReadCsv(string path){
         var rows=new List<string[]>();
         using var parser=new TextFieldParser(path,Encoding.UTF8){
@@ -190,7 +207,6 @@ internal static class Program{
         }
         return rows;
     }
-
     static string EscapeHtml(string value){
         return value
             .Replace("&","&amp;",StringComparison.Ordinal)
@@ -198,32 +214,26 @@ internal static class Program{
             .Replace(">","&gt;",StringComparison.Ordinal)
             .Replace("\"","&quot;",StringComparison.Ordinal);
     }
-
-    static string GetCell(string[] row,int index){
+    static string GetCell(string[]row,int index){
         if(index<0||index>=row.Length){
             return string.Empty;
         }
         return row[index];
     }
-
-    static string[] SelectBenchmarks(){
+    static string[]SelectBenchmarks(){
         var benchmarkTypes=typeof(Program).Assembly.GetTypes()
             .Where(t=>t.GetMethods()
                 .Any(m=>m.GetCustomAttributes(typeof(BenchmarkAttribute),false).Length>0))
             .OrderBy(t=>t.Name)
             .ToList();
-
         if(benchmarkTypes.Count==0){
             return ["--filter","*"];
         }
-
         Console.WriteLine("番号を選択してください (カンマ区切りで複数選択可、Enterで全て実行):");
         Console.WriteLine("全ベンチ実行は `*`、個別は番号指定です。\n");
-
         for(int i=0;i<benchmarkTypes.Count;i++){
             Console.WriteLine($"{i+1,2}: {benchmarkTypes[i].Name}");
         }
-
         Console.Write("\n選択 > ");
         Console.Out.Flush();
         var input=Console.ReadLine()?.Trim()??string.Empty;
@@ -231,7 +241,6 @@ internal static class Program{
         if(string.IsNullOrEmpty(input)||input=="*"){
             return ["--filter","*","--join"];
         }
-
         var selected=new List<string>();
         var indices=input.Split(',');
         foreach(var idx in indices){
@@ -239,11 +248,9 @@ internal static class Program{
                 selected.Add(benchmarkTypes[n-1].Name);
             }
         }
-
         if(selected.Count==0){
             return ["--filter","*","--join"];
         }
-
         var pattern=string.Join("|",selected.Select(s=>$"*{s}*"));
         if(selected.Count>1){
             return ["--filter",pattern,"--join"];

@@ -158,9 +158,7 @@ public class Select_indexSelector(int 番号, Enumerable source, FuncFragment se
             : $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.Select({source.GetEnumerableExpression}, {selector.DelegateConstructorArg ?? selector.RenderAsLambda()})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
-    public override string GetEnumeratorFields => $$"""
-        private int {{a}} = -1;
-        """;
+    public override string GetEnumeratorFields => $"private int {a} = -1;";
     public override string GetTryGetNextBody => $$"""
         if({{e}}.TryGetNext(out var {{item}})) {
             this.{{a}}++;

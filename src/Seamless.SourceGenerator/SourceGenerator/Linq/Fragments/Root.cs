@@ -18,9 +18,11 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
     }
     // TEnum でパラメータ化された struct を手動で出力する（where 制約が struct 宣言の opening brace より前に来る必要があるため）。
     public override string GetEnumeratorStruct => $$"""
-        private struct {{Struct}}<TEnum>(TEnum {{e}}) : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{Struct}}<TEnum> : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
             where TEnum : {{(useEnumerableInterface ? "" : "struct, ")}}global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
+            private TEnum {{e}};
+            public {{Struct}}(TEnum {{e}}) { this.{{e}} = {{e}}; }
             public {{elementType}} Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
@@ -89,9 +91,11 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
     public override string GetCurrentExpression => $"source[{e}]";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{Struct}}({{elementType}}[] source) : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{Struct}} : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
+            private {{elementType}}[] source;
             private int {{e}} = -1;
+            public {{Struct}}({{elementType}}[] source) { this.source = source; }
             public {{elementType}} Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
@@ -152,9 +156,11 @@ public class ListRoot(int 番号, string sourceExpression, string elementType) :
     public override string GetCurrentExpression => "Current";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{Struct}}(global::System.Collections.Generic.List<{{elementType}}> source) : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{Struct}} : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
+            private global::System.Collections.Generic.List<{{elementType}}> source;
             private int {{e}} = -1;
+            public {{Struct}}(global::System.Collections.Generic.List<{{elementType}}> source) { this.source = source; }
             public {{elementType}} Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
@@ -216,8 +222,10 @@ public class DuckTypingRoot(int 番号, string sourceExpression, string elementT
     public override string GetCurrentExpression => currentValue;
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{Struct}}({{concreteEnumeratorType}} {{e}}) : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{Struct}} : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
+            private {{concreteEnumeratorType}} {{e}};
+            public {{Struct}}({{concreteEnumeratorType}} {{e}}) { this.{{e}} = {{e}}; }
             public {{elementType}} Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
@@ -256,9 +264,8 @@ public class NonGenericRoot(int 番号, string sourceExpression) : Enumerable(�
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({sourceExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => "global::System.Collections.IEnumerable source";
-    public override string GetEnumeratorFields => $$"""
-        private readonly global::System.Collections.IEnumerator {{e}} = source.GetEnumerator();
-        """;
+    public override string GetEnumeratorConstructor => $"this.{e} = source.GetEnumerator();";
+    public override string GetEnumeratorFields => $"private global::System.Collections.IEnumerator {e};";
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
             current = this.Current = {{e}}.Current;

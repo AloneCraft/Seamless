@@ -10,10 +10,11 @@ public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番�
         {{DefineScalarEnumeratorStruct(resultType)}}
         """;
     public override string GetEnumeratorFields => $$"""
-        public {{resultType}} Current { get; private set; } = {{ComputeExpression}};
+        public {{resultType}} Current { get; private set; }
         private bool {{yielded}} = false;
         {{ComputeMembers}}
         """;
+    public override string GetEnumeratorConstructor => $"this.Current = {ComputeExpression};";
     public override string GetTryGetNextBody => $$"""
         if(this.{{yielded}}) {
             current = default!;

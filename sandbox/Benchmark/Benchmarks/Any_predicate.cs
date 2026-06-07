@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class Any_predicate:Base{
     [Benchmark(Baseline=true)]

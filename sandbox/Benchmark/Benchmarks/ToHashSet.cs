@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class ToHashSet:Base{
     [Benchmark(Baseline=true)]

@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class GroupBy_resultSelector:Base{
     [Benchmark(Baseline=true)]

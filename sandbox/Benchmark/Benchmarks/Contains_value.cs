@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class Contains_value:Base{
     [Benchmark(Baseline=true)]

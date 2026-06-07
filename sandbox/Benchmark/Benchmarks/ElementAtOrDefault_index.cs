@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class ElementAtOrDefault_index:Base{
     [Benchmark(Baseline=true)]

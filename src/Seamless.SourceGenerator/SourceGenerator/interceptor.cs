@@ -844,14 +844,33 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// インターセプターメソッドの直前に <c>&lt;summary&gt;Intercepts <see cref="…" />&lt;/summary&gt;</c> を追加する。
-    /// cref 属性値は XML エスケープ済みの完全修飾メソッド名とする。
-    /// IDE の「定義へ移動」でインターセプト元メソッドへジャンプできるようにするためのもの。
+    /// インターセプターメソッドの直前に XML doc コメントを追加する。
+    /// 型が公開アクセス可能な場合は <c>&lt;see cref="Type"/&gt;</c> でクラスへのリンクを生成し、
+    /// そうでない場合は <c>&lt;c&gt;</c> タグのみで完全修飾名を表示する。
+    /// private メソッドへの <c>&lt;see cref&gt;</c> は Roslyn が解決できず CS1574 になるため、
+    /// メソッド名は常に <c>&lt;c&gt;</c> タグで出力する。
     /// </summary>
     private static void インターセプターXmlコメント追加(StringBuilder builder,Linq傍受対象型 target) {
-        var cref = Xml属性値エスケープ(メソッドCref構築(target.Method));
-        var originalName = Xmlテキストエスケープ(target.Method.Name);
-        builder.AppendLine($"    /// <summary>Intercepts <see cref=\"{cref}\" /> ({originalName}).</summary>");
+        var method = target.Method;
+        var methodName = Xmlテキストエスケープ(method.Name);
+        string content;
+        if(型が公開アクセス可能か(method.ContainingType)){
+            var typeCref = Xml属性値エスケープ(method.ContainingType.ToDisplayString(cref形式));
+            content = $"<c>{methodName}()</c> in <see cref=\"{typeCref}\"/>";
+        }else{
+            var fqn = Xmlテキストエスケープ(メソッドCref構築(method));
+            content = $"<c>{fqn}</c>";
+        }
+        builder.AppendLine($"    /// <summary>Intercepts {content}.</summary>");
+    }
+
+    private static bool 型が公開アクセス可能か(INamedTypeSymbol type) {
+        for(var t = type; t is not null; t = t.ContainingType){
+            if(t.DeclaredAccessibility is not(Accessibility.Public or Accessibility.Internal)){
+                return false;
+            }
+        }
+        return true;
     }
 
     private static string メソッドCref構築(IMethodSymbol method) {

@@ -15,7 +15,7 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
     public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression},{second.GetEnumeratorExpression},{comparer})";
     public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum1 source,TEnum2 second,global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     public override string GetEnumeratorFields=>operation.PreloadSecondFirst ? $$"""
-            private readonly global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}}=CreateLookup(second,comparer);
+            private readonly global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}};
             private bool {{yielded}};
             private static global::System.Collections.Generic.HashSet<{{source.ElementType}}> CreateLookup(TEnum2 source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
                 if(source.TryGetNonEnumeratedCount(out var {{count}})){
@@ -25,9 +25,12 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
                 }
             }
             """ : $$"""
-            private readonly global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}}=new(comparer);
+            private readonly global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}};
             private bool {{yielded}};
             """;
+    public override string GetEnumeratorConstructor=>operation.PreloadSecondFirst
+        ? $"this.{lookup}=CreateLookup(this.second,this.comparer);"
+        : $"this.{lookup}=new(this.comparer);";
     public override string GetEnumerableExpression=>operation.GetEnumerableExpression(source,second,comparer);
     public override string GetTryGetNextBody=>operation.PreloadSecondFirst ? $$"""
             if(!this.{{yielded}}){
@@ -121,7 +124,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
     public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression},{second.GetEnumeratorExpression},{comparer}{ClosureArgsSuffix(keySelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum1 source,TEnum2 second,global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorFields=>$$"""
-        private readonly global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> {{lookup}}=CreateLookup(second,comparer);
+        private readonly global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> {{lookup}};
         private byte {{state}};
         private static global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum2 source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
             if(source.TryGetNonEnumeratedCount(out var {{count}})){
@@ -131,6 +134,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             }
         }
         """;
+    public override string GetEnumeratorConstructor=>$"this.{lookup}=CreateLookup(this.second,this.comparer);";
     public override string GetEnumerableExpression=>operation.GetEnumerableExpression(source,second,keySelector,comparer);
     public override string GetTryGetNextBody=>UseIdentityKeySelector ? GetTryGetNextIdentityBody : operation.PreloadSecondFirst ? $$"""
             if(this.{{state}}==0){

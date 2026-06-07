@@ -1,200 +1,145 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
 internal static class GroupBySupport{
-    public static string GroupingClass(string keyType,string elementType)=>$$"""
+    public static string ArrayBackedGroupingClass(string keyType,string elementType)=>$$"""
         private sealed class Grouping:global::System.Linq.IGrouping<{{keyType}},{{elementType}}>{
-            private readonly global::System.Collections.Generic.List<{{elementType}}> values;
-            public Grouping({{keyType}} key,global::System.Collections.Generic.List<{{elementType}}> values){
-                this.Key=key;
-                this.values=values;
+            private readonly {{keyType}} key;
+            private {{elementType}}[] elements;
+            private int count;
+            public Grouping({{keyType}} key,{{elementType}} value){
+                this.key=key;
+                this.elements=[value];
+                this.count=1;
             }
-            public {{keyType}} Key{get;}
-            public global::System.Collections.Generic.IEnumerator<{{elementType}}> GetEnumerator()=>values.GetEnumerator();
+            public {{keyType}} Key=>key;
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+            public void Add({{elementType}} value){
+                if(this.elements.Length==this.count){
+                    global::System.Array.Resize(ref this.elements,this.count*2);
+                }
+                this.elements[this.count]=value;
+                this.count++;
+            }
+            public global::System.Collections.Generic.IEnumerator<{{elementType}}> GetEnumerator(){
+                for(var __i=0;__i<this.count;__i++){
+                    yield return this.elements[__i];
+                }
+            }
             global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator()=>this.GetEnumerator();
         }
         """;
 
-    public static string LookupFields(string keyType,string lookupValueType,string groupListType,string lookupName,string groupName,string indexName)=>$$"""
-        private global::System.Collections.Generic.Dictionary<{{keyType}},{{lookupValueType}}>? {{lookupName}};
-        private global::System.Collections.Generic.List<{{groupListType}}>? {{groupName}};
-        private int {{indexName}}=-1;
+    public static string GroupingDictionaryFields(string keyType,string lookupName,string innerEnumeratorName)=>$$"""
+        private global::System.Collections.Generic.Dictionary<{{keyType}},Grouping>? {{lookupName}};
+        private global::System.Collections.Generic.Dictionary<{{keyType}},Grouping>.Enumerator {{innerEnumeratorName}};
         """;
 
-    public static string BuildGroupingLookupBody(
-        string enumeratorName,
-        bool canProvideSpan,
-        string keyType,
-        string groupingType,
-        string keyAssignCode,
-        string groupAddCode,
-        string lookupName,
-        string groupName,
-        string indexName,
-        string itemName,
-        string keyName)=>BuildLookupBody(
-            enumeratorName,
-            canProvideSpan,
-            keyType,
-            groupingType,
-            groupingType,
-            $"new {groupingType}({keyName})",
-            keyAssignCode,
-            groupAddCode,
-            lookupName,
-            groupName,
-            indexName,
-            itemName,
-            keyName);
+    public static string ListDictionaryFields(string keyType,string elementType,string lookupName,string innerEnumeratorName)=>$$"""
+        private global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>>? {{lookupName}};
+        private global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>>.Enumerator {{innerEnumeratorName}};
+        """;
 
-    public static string BuildListLookupBody(
+    public static string BuildGroupingDictionaryBody(
         string enumeratorName,
         bool canProvideSpan,
         string keyType,
-        string lookupValueType,
-        string groupListType,
-        string lookupValueCreateExpression,
+        string elementType,
         string keyAssignCode,
-        string groupAddCode,
+        string elementAssignCode,
+        string elementName,
         string lookupName,
-        string groupName,
-        string indexName,
-        string itemName,
-        string keyName)=>BuildLookupBody(
-            enumeratorName,
-            canProvideSpan,
-            keyType,
-            lookupValueType,
-            groupListType,
-            lookupValueCreateExpression,
-            keyAssignCode,
-            groupAddCode,
-            lookupName,
-            groupName,
-            indexName,
-            itemName,
-            keyName);
-
-    public static string BuildLookupInitialization(
-        string enumeratorName,
-        bool canProvideSpan,
-        string keyType,
-        string lookupValueType,
-        string groupListType,
-        string lookupValueCreateExpression,
-        string keyAssignCode,
-        string groupAddCode,
-        string groupListAddCode,
-        string lookupName,
-        string groupName,
+        string innerEnumeratorName,
         string itemName,
         string keyName)=>canProvideSpan ? $$"""
         if(this.{{lookupName}} is null){
             {{enumeratorName}}.TryGetSpan(out var __span);
-            this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},{{lookupValueType}}>(__span.Length);
-            this.{{groupName}}=new global::System.Collections.Generic.List<{{groupListType}}>(__span.Length);
+            this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},Grouping>(__span.Length);
             for(var __i=0;__i<__span.Length;__i++){
                 var {{itemName}}=__span[__i];
                 {{keyType}} {{keyName}}=default!;
                 {{IndentBlock(keyAssignCode,"                ")}}
+                {{IndentBlock(elementAssignCode,"                ")}}
                 ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
                 if(!__exists){
-                    __group={{lookupValueCreateExpression}};
-                    {{groupListAddCode}}
+                    __group=new Grouping({{keyName}},{{elementName}});
+                }else{
+                    __group!.Add({{elementName}});
                 }
-                {{IndentBlock(groupAddCode,"                ")}}
             }
+            this.{{innerEnumeratorName}}=this.{{lookupName}}.GetEnumerator();
         }
         """ : $$"""
         if(this.{{lookupName}} is null){
             if({{enumeratorName}}.TryGetNonEnumeratedCount(out var __count)){
-                this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},{{lookupValueType}}>(__count);
-                this.{{groupName}}=new global::System.Collections.Generic.List<{{groupListType}}>(__count);
+                this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},Grouping>(__count);
             }else{
-                this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},{{lookupValueType}}>();
-                this.{{groupName}}=new global::System.Collections.Generic.List<{{groupListType}}>();
+                this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},Grouping>();
             }
             while({{enumeratorName}}.MoveNext()){
                 var {{itemName}}={{enumeratorName}}.Current;
                 {{keyType}} {{keyName}}=default!;
                 {{IndentBlock(keyAssignCode,"                ")}}
+                {{IndentBlock(elementAssignCode,"                ")}}
                 ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
                 if(!__exists){
-                    __group={{lookupValueCreateExpression}};
-                    {{groupListAddCode}}
+                    __group=new Grouping({{keyName}},{{elementName}});
+                }else{
+                    __group!.Add({{elementName}});
                 }
-                {{IndentBlock(groupAddCode,"                ")}}
             }
+            this.{{innerEnumeratorName}}=this.{{lookupName}}.GetEnumerator();
         }
         """;
 
-    private static string BuildLookupBody(
+    public static string BuildListDictionaryBody(
         string enumeratorName,
         bool canProvideSpan,
         string keyType,
-        string lookupValueType,
-        string groupListType,
-        string lookupValueCreateExpression,
+        string elementType,
         string keyAssignCode,
-        string groupAddCode,
+        string elementAssignCode,
+        string elementName,
         string lookupName,
-        string groupName,
-        string indexName,
+        string innerEnumeratorName,
         string itemName,
-        string keyName){
-        return canProvideSpan ? $$"""
-            if(this.{{lookupName}} is null){
-                {{enumeratorName}}.TryGetSpan(out var __span);
-                this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},{{lookupValueType}}>(__span.Length);
-                this.{{groupName}}=new global::System.Collections.Generic.List<{{groupListType}}>(__span.Length);
+        string keyName)=>canProvideSpan ? $$"""
+        if(this.{{lookupName}} is null){
+            {{enumeratorName}}.TryGetSpan(out var __span);
+            this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>>(__span.Length);
             for(var __i=0;__i<__span.Length;__i++){
                 var {{itemName}}=__span[__i];
-                    {{keyType}} {{keyName}}=default!;
-                    {{IndentBlock(keyAssignCode,"                    ")}}
-                    ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
-                    if(!__exists){
-                        __group={{lookupValueCreateExpression}};
-                        this.{{groupName}}.Add(__group);
-                    }
-                    {{IndentBlock(groupAddCode,"                    ")}}
+                {{keyType}} {{keyName}}=default!;
+                {{IndentBlock(keyAssignCode,"                ")}}
+                {{IndentBlock(elementAssignCode,"                ")}}
+                ref var __list=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
+                if(!__exists){
+                    __list=new global::System.Collections.Generic.List<{{elementType}}>();
                 }
+                __list.Add({{elementName}});
             }
-            this.{{indexName}}++;
-            if(this.{{groupName}} is not null&&(uint)this.{{indexName}}<(uint)this.{{groupName}}.Count){
-                current=this.Current=this.{{groupName}}[this.{{indexName}}];
-                return true;
+            this.{{innerEnumeratorName}}=this.{{lookupName}}.GetEnumerator();
+        }
+        """ : $$"""
+        if(this.{{lookupName}} is null){
+            if({{enumeratorName}}.TryGetNonEnumeratedCount(out var __count)){
+                this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>>(__count);
+            }else{
+                this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>>();
             }
-            current=default!;
-            return false;
-            """ : $$"""
-            if(this.{{lookupName}} is null){
-                if({{enumeratorName}}.TryGetNonEnumeratedCount(out var __count)){
-                    this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},{{lookupValueType}}>(__count);
-                    this.{{groupName}}=new global::System.Collections.Generic.List<{{groupListType}}>(__count);
-                }else{
-                    this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},{{lookupValueType}}>();
-                    this.{{groupName}}=new global::System.Collections.Generic.List<{{groupListType}}>();
+            while({{enumeratorName}}.MoveNext()){
+                var {{itemName}}={{enumeratorName}}.Current;
+                {{keyType}} {{keyName}}=default!;
+                {{IndentBlock(keyAssignCode,"                ")}}
+                {{IndentBlock(elementAssignCode,"                ")}}
+                ref var __list=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
+                if(!__exists){
+                    __list=new global::System.Collections.Generic.List<{{elementType}}>();
                 }
-                while({{enumeratorName}}.MoveNext()){
-                    var {{itemName}}={{enumeratorName}}.Current;
-                    {{keyType}} {{keyName}}=default!;
-                    {{IndentBlock(keyAssignCode,"                    ")}}
-                    ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
-                    if(!__exists){
-                        __group={{lookupValueCreateExpression}};
-                        this.{{groupName}}.Add(__group);
-                    }
-                    {{IndentBlock(groupAddCode,"                    ")}}
-                }
+                __list.Add({{elementName}});
             }
-            this.{{indexName}}++;
-            if(this.{{groupName}} is not null&&(uint)this.{{indexName}}<(uint)this.{{groupName}}.Count){
-                current=this.Current=this.{{groupName}}[this.{{indexName}}];
-                return true;
-            }
-            current=default!;
-            return false;
-            """;
-    }
+            this.{{innerEnumeratorName}}=this.{{lookupName}}.GetEnumerator();
+        }
+        """;
 
     public static string IndentBlock(string text,string indent){
         return string.Join("\n",text.Replace("\r\n","\n").Split('\n').Select(line=>line.Length==0 ? line : indent+line));
@@ -206,7 +151,7 @@ internal class GroupBy_keySelector(int 番号, Enumerable source, FuncFragment k
     protected override Enumerable PrimarySource => source;
     public override string GetEnumerableExpression =>
         $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()})";
-    public override string StructMethod => JoinStaticMethods(FuncSupport(keySelector,nameof(keySelector)),GroupBySupport.GroupingClass(FuncReturnTypeName(keySelector),source.ElementType));
+    public override string StructMethod => JoinStaticMethods(FuncSupport(keySelector,nameof(keySelector)),GroupBySupport.ArrayBackedGroupingClass(FuncReturnTypeName(keySelector),source.ElementType));
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -215,49 +160,11 @@ internal class GroupBy_keySelector(int 番号, Enumerable source, FuncFragment k
         $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector)}";
-    public override string GetEnumeratorFields => $$"""
-        {{GroupBySupport.LookupFields(FuncReturnTypeName(keySelector),$"global::System.Collections.Generic.List<{source.ElementType}>","Grouping",lookup,group,a)}}
-        """;
-    public override string GetTryGetNextBody => $$"""
-        if(this.{{lookup}} is null){
-            if({{e}}.TryGetSpan(out var __span)){
-                this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>(__span.Length);
-                this.{{group}}=new global::System.Collections.Generic.List<Grouping>(__span.Length);
-                for(var __i=0;__i<__span.Length;__i++){
-                    var {{item}}=__span[__i];
-                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
-                    {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
-                    ref var __list=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookup}},{{key}},out var __exists);
-                    if(!__exists){
-                        __list=new global::System.Collections.Generic.List<{{source.ElementType}}>();
-                        this.{{group}}.Add(new Grouping({{key}},__list));
-                    }
-                    __list.Add({{item}});
-                }
-            }else{
-                if({{e}}.TryGetNonEnumeratedCount(out var __count)){
-                    this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>(__count);
-                    this.{{group}}=new global::System.Collections.Generic.List<Grouping>(__count);
-                }else{
-                    this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>();
-                    this.{{group}}=new global::System.Collections.Generic.List<Grouping>();
-                }
-                while({{e}}.MoveNext()){
-                    var {{item}}={{e}}.Current;
-                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
-                    {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
-                    ref var __list=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookup}},{{key}},out var __exists);
-                    if(!__exists){
-                        __list=new global::System.Collections.Generic.List<{{source.ElementType}}>();
-                        this.{{group}}.Add(new Grouping({{key}},__list));
-                    }
-                    __list.Add({{item}});
-                }
-            }
-        }
-        this.{{a}}++;
-        if(this.{{group}} is not null&&(uint)this.{{a}}<(uint)this.{{group}}.Count){
-            current=this.Current=this.{{group}}[this.{{a}}];
+    public override string GetEnumeratorFields =>
+        GroupBySupport.GroupingDictionaryFields(FuncReturnTypeName(keySelector),lookup,innerEnumerator);
+    public override string GetTryGetNextBody => GroupBySupport.BuildGroupingDictionaryBody(e,source.CanProvideSpan,FuncReturnTypeName(keySelector),source.ElementType,FuncAssign(keySelector,nameof(keySelector),key,item),"",item,lookup,innerEnumerator,item,key)+$$"""
+        if(this.{{innerEnumerator}}.MoveNext()){
+            current=this.Current=this.{{innerEnumerator}}.Current.Value;
             return true;
         }
         current=default!;
@@ -290,7 +197,7 @@ internal class GroupBy_keySelector_resultSelector(
     private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum source{{ClosurePrimaryCtorSuffix(keySelector, resultSelector)}})
-            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{source.ElementType}>
+            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.Linq.Carrier.IValueEnumerator<{{source.ElementType}}>
             => new(new {{Struct}}<TEnum, TResult>(source{{ClosureArgsSuffixForFactory(keySelector, resultSelector)}}));
         """;
     public override string StructMethod => JoinStaticMethods(JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)), FuncSupport(resultSelector, nameof(resultSelector))), FactorySource);
@@ -304,15 +211,12 @@ internal class GroupBy_keySelector_resultSelector(
             : $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector, resultSelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector, resultSelector)}";
-    public override string GetEnumeratorFields => $$"""
-        {{ClosureFields(keySelector,resultSelector)}}
-        {{GroupBySupport.LookupFields(FuncReturnTypeName(keySelector),$"global::System.Collections.Generic.List<{source.ElementType}>",FuncReturnTypeName(keySelector),lookup,group,a)}}
-        """;
-    public override string GetTryGetNextBody => GroupBySupport.BuildLookupInitialization(e,source.CanProvideSpan,FuncReturnTypeName(keySelector),$"global::System.Collections.Generic.List<{source.ElementType}>",FuncReturnTypeName(keySelector),$"new global::System.Collections.Generic.List<{source.ElementType}>()",FuncAssign(keySelector,nameof(keySelector),key,item),"__group.Add("+item+");","this."+group+".Add("+key+");",lookup,group,item,key)+$$"""
-        this.{{a}}++;
-        if(this.{{group}} is not null&&(uint)this.{{a}}<(uint)this.{{group}}.Count){
-            var __key=this.{{group}}[this.{{a}}];
-            {{FuncAssignCurrent(resultSelector,nameof(resultSelector),currentValue,"__key",$"(global::System.Collections.Generic.IEnumerable<{source.ElementType}>)this.{lookup}[__key]")}}
+    public override string GetEnumeratorFields =>
+        GroupBySupport.ListDictionaryFields(FuncReturnTypeName(keySelector),source.ElementType,lookup,innerEnumerator);
+    public override string GetTryGetNextBody => GroupBySupport.BuildListDictionaryBody(e,source.CanProvideSpan,FuncReturnTypeName(keySelector),source.ElementType,FuncAssign(keySelector,nameof(keySelector),key,item),"",item,lookup,innerEnumerator,item,key)+$$"""
+        if(this.{{innerEnumerator}}.MoveNext()){
+            var __kv=this.{{innerEnumerator}}.Current;
+            {{FuncAssignCurrent(resultSelector,nameof(resultSelector),currentValue,"__kv.Key",$"(global::System.Collections.Generic.IEnumerable<{source.ElementType}>)__kv.Value")}}
             return true;
         }
         current=default!;
@@ -339,7 +243,7 @@ internal class GroupBy_keySelector_elementSelector(
     private string ElemType => FuncReturnTypeName(elementSelector);
     public override string GetEnumerableExpression =>
         $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {elementSelector.DelegateConstructorArg ?? elementSelector.RenderAsLambda()})";
-    public override string StructMethod => JoinStaticMethods(JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)), FuncSupport(elementSelector, nameof(elementSelector))),GroupBySupport.GroupingClass(KeyType,ElemType));
+    public override string StructMethod => JoinStaticMethods(JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)), FuncSupport(elementSelector, nameof(elementSelector))),GroupBySupport.ArrayBackedGroupingClass(KeyType,ElemType));
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -348,49 +252,11 @@ internal class GroupBy_keySelector_elementSelector(
         $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector, elementSelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector, elementSelector)}";
-    public override string GetEnumeratorFields => $$"""
-        {{GroupBySupport.LookupFields(KeyType,$"global::System.Collections.Generic.List<{ElemType}>","Grouping",lookup,group,a)}}
-        """;
-    public override string GetTryGetNextBody => $$"""
-        if(this.{{lookup}} is null){
-            if({{e}}.TryGetSpan(out var __span)){
-                this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{KeyType}}, global::System.Collections.Generic.List<{{ElemType}}>>(__span.Length);
-                this.{{group}}=new global::System.Collections.Generic.List<Grouping>(__span.Length);
-                for(var __i=0;__i<__span.Length;__i++){
-                    var {{item}}=__span[__i];
-                    {{KeyType}} {{key}}=default!;
-                    {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
-                    ref var __list=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookup}},{{key}},out var __exists);
-                    if(!__exists){
-                        __list=new global::System.Collections.Generic.List<{{ElemType}}>();
-                        this.{{group}}.Add(new Grouping({{key}},__list));
-                    }
-                    __list.Add({{item}});
-                }
-            }else{
-                if({{e}}.TryGetNonEnumeratedCount(out var __count)){
-                    this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{KeyType}}, global::System.Collections.Generic.List<{{ElemType}}>>(__count);
-                    this.{{group}}=new global::System.Collections.Generic.List<Grouping>(__count);
-                }else{
-                    this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{KeyType}}, global::System.Collections.Generic.List<{{ElemType}}>>();
-                    this.{{group}}=new global::System.Collections.Generic.List<Grouping>();
-                }
-                while({{e}}.MoveNext()){
-                    var {{item}}={{e}}.Current;
-                    {{KeyType}} {{key}}=default!;
-                    {{FuncAssign(keySelector,nameof(keySelector),key,item)}}
-                    ref var __list=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookup}},{{key}},out var __exists);
-                    if(!__exists){
-                        __list=new global::System.Collections.Generic.List<{{ElemType}}>();
-                        this.{{group}}.Add(new Grouping({{key}},__list));
-                    }
-                    __list.Add({{item}});
-                }
-            }
-        }
-        this.{{a}}++;
-        if(this.{{group}} is not null&&(uint)this.{{a}}<(uint)this.{{group}}.Count){
-            current=this.Current=this.{{group}}[this.{{a}}];
+    public override string GetEnumeratorFields =>
+        GroupBySupport.GroupingDictionaryFields(KeyType,lookup,innerEnumerator);
+    public override string GetTryGetNextBody => GroupBySupport.BuildGroupingDictionaryBody(e,source.CanProvideSpan,KeyType,ElemType,FuncAssign(keySelector,nameof(keySelector),key,item),$"{ElemType} {a}=default!;\n{FuncAssign(elementSelector,nameof(elementSelector),a,item)}",a,lookup,innerEnumerator,item,key)+$$"""
+        if(this.{{innerEnumerator}}.MoveNext()){
+            current=this.Current=this.{{innerEnumerator}}.Current.Value;
             return true;
         }
         current=default!;
@@ -426,7 +292,7 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
     private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum source{{ClosurePrimaryCtorSuffix(keySelector, elementSelector, resultSelector)}})
-            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{source.ElementType}>
+            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.Linq.Carrier.IValueEnumerator<{{source.ElementType}}>
             => new(new {{Struct}}<TEnum, TResult>(source{{ClosureArgsSuffixForFactory(keySelector, elementSelector, resultSelector)}}));
         """;
     public override string StructMethod => JoinStaticMethods(JoinStaticMethods(JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)), FuncSupport(elementSelector, nameof(elementSelector))), FuncSupport(resultSelector, nameof(resultSelector))), FactorySource);
@@ -440,15 +306,12 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
             : $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector, elementSelector, resultSelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector, elementSelector, resultSelector)}";
-    public override string GetEnumeratorFields => $$"""
-        {{ClosureFields(keySelector,elementSelector,resultSelector)}}
-        {{GroupBySupport.LookupFields(KeyType,$"global::System.Collections.Generic.List<{ElemType}>",KeyType,lookup,group,a)}}
-        """;
-    public override string GetTryGetNextBody => GroupBySupport.BuildLookupInitialization(e,source.CanProvideSpan,KeyType,$"global::System.Collections.Generic.List<{ElemType}>",KeyType,$"new global::System.Collections.Generic.List<{ElemType}>()",FuncAssign(keySelector,nameof(keySelector),key,item),"__group.Add("+a+");","this."+group+".Add("+key+");",lookup,group,item,key)+$$"""
-        this.{{a}}++;
-        if(this.{{group}} is not null&&(uint)this.{{a}}<(uint)this.{{group}}.Count){
-            var __key=this.{{group}}[this.{{a}}];
-            {{FuncAssignCurrent(resultSelector,nameof(resultSelector),currentValue,"__key",$"(global::System.Collections.Generic.IEnumerable<{ElemType}>)this.{lookup}[__key]")}}
+    public override string GetEnumeratorFields =>
+        GroupBySupport.ListDictionaryFields(KeyType,ElemType,lookup,innerEnumerator);
+    public override string GetTryGetNextBody => GroupBySupport.BuildListDictionaryBody(e,source.CanProvideSpan,KeyType,ElemType,FuncAssign(keySelector,nameof(keySelector),key,item),$"{ElemType} {a}=default!;\n{FuncAssign(elementSelector,nameof(elementSelector),a,item)}",a,lookup,innerEnumerator,item,key)+$$"""
+        if(this.{{innerEnumerator}}.MoveNext()){
+            var __kv=this.{{innerEnumerator}}.Current;
+            {{FuncAssignCurrent(resultSelector,nameof(resultSelector),currentValue,"__kv.Key",$"(global::System.Collections.Generic.IEnumerable<{ElemType}>)__kv.Value")}}
             return true;
         }
         current=default!;

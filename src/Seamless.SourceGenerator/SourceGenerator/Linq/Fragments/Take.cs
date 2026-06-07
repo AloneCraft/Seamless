@@ -18,9 +18,9 @@ public class Take(int 番号, Enumerable source, string takeCount) : Enumerable(
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({RootSource.GetEnumeratorExpression}, {EffectiveTakeCount})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int count";
     public override string GetEnumeratorFields => $$"""
-        private readonly int count = count < 0 ? 0 : count;
         private int {{a}} = 0;
         """;
+    public override string GetEnumeratorConstructor => "if(this.count < 0) { this.count = 0; }";
     public override string GetTryGetNextBody => $$"""
         if(this.{{a}} >= this.count) {
             current = default!;
