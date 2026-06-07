@@ -21,7 +21,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (source.TryGetNonEnumeratedCount(out count) && count < int.MaxValue)
+            if (this.source.TryGetNonEnumeratedCount(out count) && count < int.MaxValue)
             {
                 count++;
                 return true;
@@ -39,7 +39,7 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryCopyTo(scoped Span<TSource> destination, Index offset)
         {
             if (destination.Length == 0) return false;
-            if (!source.TryGetNonEnumeratedCount(out var srcCount)) return false;
+            if (!this.source.TryGetNonEnumeratedCount(out var srcCount)) return false;
 
             var totalLength = srcCount + 1;
             var start = offset.GetOffset(totalLength);
@@ -52,7 +52,7 @@ namespace Seamless.Linq.Carrier.Linq
             var destinationOffset = 0;
             if (start < srcCount)
             {
-                if (!source.TryCopyTo(destination, start))
+                if (!this.source.TryCopyTo(destination, start))
                 {
                     return false;
                 }
@@ -69,19 +69,19 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            if (state == 0)
+            if (this.state == 0)
             {
-                if (source.TryGetNext(out current))
+                if (this.source.TryGetNext(out current))
                 {
                     return true;
                 }
-                state = 1;
+                this.state = 1;
             }
 
-            if (state == 1)
+            if (this.state == 1)
             {
                 current = element;
-                state = 2;
+                this.state = 2;
                 return true;
             }
 
@@ -91,8 +91,8 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            state = 2;
-            source.Dispose();
+            this.state = 2;
+            this.source.Dispose();
         }
     }
 

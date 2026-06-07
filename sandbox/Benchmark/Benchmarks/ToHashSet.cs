@@ -3,16 +3,16 @@ namespace Benchmark.Benchmarks;
 public class ToHashSet:Base{
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        Enumerable.ToHashSet(src).Consume(consumer);
+        Enumerable.ToHashSet(this.src).Consume(this.consumer);
     }
 
     [Benchmark]
     public void Intercept(){
-        src.ToHashSet().Consume(consumer);
+        this.src.ToHashSet().Consume(this.consumer);
     }
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).ToHashSet().Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).ToHashSet().Consume(this.consumer);
     }
 }

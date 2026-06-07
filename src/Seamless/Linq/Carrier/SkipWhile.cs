@@ -42,17 +42,17 @@ namespace Seamless.Linq.Carrier.Linq
         {
             // If we've already found an element that doesn't match the predicate,
             // we can just return elements directly from the source
-            if (skippingDone)
+            if (this.skippingDone)
             {
-                return source.TryGetNext(out current);
+                return this.source.TryGetNext(out current);
             }
 
             // Skip all elements that match the predicate
-            while (source.TryGetNext(out current))
+            while (this.source.TryGetNext(out current))
             {
                 if (!predicate(current))
                 {
-                    skippingDone = true;
+                    this.skippingDone = true;
                     return true;
                 }
             }
@@ -63,7 +63,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -95,11 +95,11 @@ namespace Seamless.Linq.Carrier.Linq
         {
             // If we've already found an element that doesn't match the predicate,
             // we can just return elements directly from the source
-            if (skippingDone)
+            if (this.skippingDone)
             {
-                if (source.TryGetNext(out current))
+                if (this.source.TryGetNext(out current))
                 {
-                    index++;
+                    this.index++;
                     return true;
                 }
 
@@ -108,15 +108,15 @@ namespace Seamless.Linq.Carrier.Linq
             }
 
             // Skip all elements that match the predicate
-            while (source.TryGetNext(out current))
+            while (this.source.TryGetNext(out current))
             {
-                if (!predicate(current, index))
+                if (!predicate(current,this.index))
                 {
-                    skippingDone = true;
-                    index++;
+                    this.skippingDone = true;
+                    this.index++;
                     return true;
                 }
-                index++;
+                this.index++;
             }
 
             Unsafe.SkipInit(out current);
@@ -125,7 +125,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 

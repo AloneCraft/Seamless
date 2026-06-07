@@ -7,36 +7,36 @@ internal struct ValueQueue<T> : IDisposable
     private int tail;
     private int size;
 
-    public int Count => size;
+    public int Count => this.size;
 
     public ValueQueue(int capacity)
     {
-        items = ArrayPool<T>.Shared.Rent(capacity);
-        head = 0;
-        tail = 0;
-        size = 0;
+        this.items = ArrayPool<T>.Shared.Rent(capacity);
+        this.head = 0;
+        this.tail = 0;
+        this.size = 0;
     }
 
     public void Enqueue(T item)
     {
-        if (items.Length == size)
+        if (this.items.Length ==this.size)
         {
-            Grow();
+            this.Grow();
         }
 
-        items[tail] = item;
-        tail = (tail + 1) % items.Length;
-        size++;
+        this.items[this.tail] = item;
+        this.tail = (this.tail + 1) %this.items.Length;
+        this.size++;
     }
 
     public T Dequeue()
     {
-        if (size == 0) Throw();
+        if (this.size == 0) Throw();
 
-        T removed = items[head];
-        items[head] = default!;
-        head = (head + 1) % items.Length;
-        size--;
+        T removed = this.items[this.head];
+        this.items[this.head] = default!;
+        this.head = (this.head + 1) %this.items.Length;
+        this.size--;
         return removed;
     }
 
@@ -44,31 +44,31 @@ internal struct ValueQueue<T> : IDisposable
 
     void Grow()
     {
-        T[] newArray = ArrayPool<T>.Shared.Rent(items.Length * 2);
-        if (size > 0)
+        T[] newArray = ArrayPool<T>.Shared.Rent(this.items.Length * 2);
+        if (this.size > 0)
         {
-            if (head < tail)
+            if (this.head <this.tail)
             {
-                Array.Copy(items, head, newArray, 0, size);
+                Array.Copy(this.items,this.head, newArray, 0,this.size);
             }
             else
             {
-                Array.Copy(items, head, newArray, 0, items.Length - head);
-                Array.Copy(items, 0, newArray, items.Length - head, tail);
+                Array.Copy(this.items,this.head, newArray, 0,this.items.Length -this.head);
+                Array.Copy(this.items, 0, newArray,this.items.Length -this.head,this.tail);
             }
         }
-        ArrayPool<T>.Shared.Return(items, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
-        items = newArray;
-        head = 0;
-        tail = size;
+        ArrayPool<T>.Shared.Return(this.items, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+        this.items = newArray;
+        this.head = 0;
+        this.tail =this.size;
     }
 
     public void Dispose()
     {
-        if (items != null)
+        if (this.items != null)
         {
-            ArrayPool<T>.Shared.Return(items, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
-            items = null!;
+            ArrayPool<T>.Shared.Return(this.items, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+            this.items = null!;
         }
     }
 }

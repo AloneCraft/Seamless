@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Test.Seamless.Intercept.System.Linq;
 
 internal static class GeneratedInterceptorAssert {
@@ -12,7 +14,7 @@ internal static class GeneratedInterceptorAssert {
                 && !text.Contains("namespace Intercept {",StringComparison.Ordinal)) {
                 continue;
             }
-            if(!text.Contains(methodName,StringComparison.Ordinal)) {
+            if(!Regex.IsMatch(text,$@"(?<![A-Za-z0-9_]){Regex.Escape(methodName)}")) {
                 continue;
             }
             matches.Add(text);

@@ -10,14 +10,14 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
-    protected override string ComputeExpression => $"Compute({e})";
-    protected override string ComputeMembers => BuildComputeMembers(source.ElementType,"item","source.Current");
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    protected override string ComputeExpression => $"Compute({this.e})";
+    protected override string ComputeMembers => this.BuildComputeMembers(source.ElementType,"item","source.Current");
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 
     private string BuildComputeMembers(string valueType,string spanValue,string enumValue) {
-        if(UseDecimalAccumulator) {
+        if(this.UseDecimalAccumulator) {
             return source.CanProvideSpan
                 ? $$"""
                     {{AggressiveInliningAttribute}}
@@ -43,7 +43,7 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
                     }
                     """;
         }
-        if(UseDoubleAccumulator) {
+        if(this.UseDoubleAccumulator) {
             return source.CanProvideSpan
                 ? source.ElementType=="int"
                     ? $$"""
@@ -118,44 +118,44 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
         || FuncReturnTypeName(selector)=="float"
         || FuncReturnTypeName(selector)=="double";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => FuncSupport(selector,nameof(selector));
+    public override string StructMethod => this.FuncSupport(selector,nameof(selector));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(selector)}";
     protected override string ComputeExpression =>
-        $"Compute({e}{ClosureArgsSuffix(selector)})";
-    protected override string ComputeMembers => BuildComputeMembers();
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+        $"Compute({this.e}{this.ClosureArgsSuffix(selector)})";
+    protected override string ComputeMembers => this.BuildComputeMembers();
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 
     private string BuildComputeMembers() {
-        if(UseDecimalAccumulator) {
+        if(this.UseDecimalAccumulator) {
             return source.CanProvideSpan
                 ? $$"""
                     {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+                    private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                         var sum=0m;
                         source.TryGetSpan(out var __span);
                         if(__span.Length==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
-                        foreach(var {{item}} in __span){
-                            {{FuncReturnTypeName(selector)}} {{temp}}=default!;
-                            {{FuncAssign(selector,nameof(selector),temp,item)}}
-                            sum+={{temp}};
+                        foreach(var {{this.item}} in __span){
+                            {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                            {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                            sum+={{this.temp}};
                         }
                         return ({{resultType}})(sum/__span.Length);
                     }
                     """
                 : $$"""
                     {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+                    private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                         long count=0;
                         var sum=0m;
                         while(source.MoveNext()){
-                            var {{item}}=source.Current;
-                            {{FuncReturnTypeName(selector)}} {{temp}}=default!;
-                            {{FuncAssign(selector,nameof(selector),temp,item)}}
-                            sum+={{temp}};
+                            var {{this.item}}=source.Current;
+                            {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                            {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                            sum+={{this.temp}};
                             count++;
                         }
                         if(count==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
@@ -163,32 +163,32 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                     }
                     """;
         }
-        if(UseDoubleAccumulator) {
+        if(this.UseDoubleAccumulator) {
             return source.CanProvideSpan
                 ? $$"""
                     {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+                    private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                         double sum=0;
                         source.TryGetSpan(out var __span);
                         if(__span.Length==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
-                        foreach(var {{item}} in __span){
-                            {{FuncReturnTypeName(selector)}} {{temp}}=default!;
-                            {{FuncAssign(selector,nameof(selector),temp,item)}}
-                            sum+={{temp}};
+                        foreach(var {{this.item}} in __span){
+                            {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                            {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                            sum+={{this.temp}};
                         }
                         return ({{resultType}})(sum/__span.Length);
                     }
                     """
                 : $$"""
                     {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+                    private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                         long count=0;
                         double sum=0;
                         while(source.MoveNext()){
-                            var {{item}}=source.Current;
-                            {{FuncReturnTypeName(selector)}} {{temp}}=default!;
-                            {{FuncAssign(selector,nameof(selector),temp,item)}}
-                            sum+={{temp}};
+                            var {{this.item}}=source.Current;
+                            {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                            {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                            sum+={{this.temp}};
                             count++;
                         }
                         if(count==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
@@ -199,15 +199,15 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
         return source.CanProvideSpan
             ? $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+                private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                     long count=0;
                     {{resultType}} sum=default!;
                     source.TryGetSpan(out var __span);
                     if(__span.Length==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();
-                    foreach(var {{item}} in __span){
-                        {{FuncReturnTypeName(selector)}} {{temp}}=default!;
-                        {{FuncAssign(selector,nameof(selector),temp,item)}}
-                        sum+={{temp}};
+                    foreach(var {{this.item}} in __span){
+                        {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                        {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                        sum+={{this.temp}};
                         count++;
                     }
                     return sum/({{resultType}})count;
@@ -215,14 +215,14 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                 """
             : $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+                private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                     long count=0;
                     {{resultType}} sum=default!;
                     while(source.MoveNext()){
-                        var {{item}}=source.Current;
-                        {{FuncReturnTypeName(selector)}} {{temp}}=default!;
-                        {{FuncAssign(selector,nameof(selector),temp,item)}}
-                        sum+={{temp}};
+                        var {{this.item}}=source.Current;
+                        {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                        {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                        sum+={{this.temp}};
                         count++;
                     }
                     if(count==0) throw global::Seamless.GeneratedCodeHelpers.NoElements();

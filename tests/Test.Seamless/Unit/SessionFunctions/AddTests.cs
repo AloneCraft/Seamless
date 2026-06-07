@@ -63,7 +63,7 @@ public abstract class AddTests<TKey, TValue>
 
     [Fact, Trait("Category","Unit")]
     public void RMWCompletionCallback() {
-        var folder = CreateDiskFolder();
+        var folder = this.CreateDiskFolder();
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         var (dict,store)=this.CreateDisk(logDevice,objDevice);
@@ -76,7 +76,7 @@ public abstract class AddTests<TKey, TValue>
 
     [Fact, Trait("Category","Unit")]
     public void ReadCompletionCallback() {
-        var folder = CreateDiskFolder();
+        var folder = this.CreateDiskFolder();
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         var (dict,store)=this.CreateDisk(logDevice,objDevice);
@@ -90,7 +90,7 @@ public abstract class AddTests<TKey, TValue>
 
     [Fact, Trait("Category","Unit")]
     public void ConvertOutputToHeap() {
-        var folder = CreateDiskFolder();
+        var folder = this.CreateDiskFolder();
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         var (dict,store)=this.CreateDisk(logDevice,objDevice);

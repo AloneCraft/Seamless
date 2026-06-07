@@ -14,10 +14,10 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     private sealed class AnonymousToRecordRewriter:CSharpSyntaxRewriter {
         public override SyntaxNode? VisitAnonymousObjectCreationExpression(AnonymousObjectCreationExpressionSyntax node) {
             var init=node.Initializers;
-            if(init.Count==1) return Visit(init[0].Expression);
+            if(init.Count==1) return this.Visit(init[0].Expression);
             var args=init.Select(i=>{
                 var name=MemberName(i);
-                var expr=(ExpressionSyntax)Visit(i.Expression)!;
+                var expr=(ExpressionSyntax)this.Visit(i.Expression)!;
                 var arg=SyntaxFactory.Argument(expr);
                 return string.IsNullOrEmpty(name)?arg:arg.WithNameColon(SyntaxFactory.NameColon(SyntaxFactory.IdentifierName(name)));
             });
@@ -30,7 +30,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         public override SyntaxNode? VisitObjectCreationExpression(ObjectCreationExpressionSyntax node) {
             if(node.Type is not IdentifierNameSyntax id||id.Identifier.ValueText!=R) return base.VisitObjectCreationExpression(node);
             var members=node.ArgumentList!.Arguments.Select(a=>{
-                var expr=(ExpressionSyntax)Visit(a.Expression)!;
+                var expr=(ExpressionSyntax)this.Visit(a.Expression)!;
                 if(a.NameColon is null) return SyntaxFactory.AnonymousObjectMemberDeclarator(expr);
                 var name=a.NameColon.Name.Identifier.ValueText;
                 if(expr is IdentifierNameSyntax eid&&eid.Identifier.ValueText==name)
@@ -45,7 +45,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     private sealed class QueryToExtensionMethodRewriter:CSharpSyntaxRewriter {
         int transparentNumber;
         public override SyntaxNode? VisitQueryExpression(QueryExpressionSyntax node) =>
-            CanLowerQuery(node) ? LowerQueryExpression(node) : base.VisitQueryExpression(node);
+            CanLowerQuery(node) ? this.LowerQueryExpression(node) : base.VisitQueryExpression(node);
         static bool CanLowerQuery(QueryExpressionSyntax query) => CanLowerQueryBody(query.Body) && CanLowerAdvancedShape(query);
         static bool CanLowerQueryBody(QueryBodySyntax body) {
             if(body.SelectOrGroup is not SelectClauseSyntax and not GroupClauseSyntax) {
@@ -109,9 +109,9 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             node.DescendantNodesAndSelf().OfType<ThisExpressionSyntax>().Any();
         ExpressionSyntax LowerQueryExpression(QueryExpressionSyntax query) {
             var from = query.FromClause;
-            var source = (ExpressionSyntax)Visit(from.Expression)!;
+            var source = (ExpressionSyntax)this.Visit(from.Expression)!;
             var state = QueryState.FromRange(from.Identifier.ValueText,from.Type);
-            return LowerQueryBody(source,state,query.Body);
+            return this.LowerQueryBody(source,state,query.Body);
         }
         ExpressionSyntax LowerQueryBody(ExpressionSyntax source,QueryState state,QueryBodySyntax body) {
             foreach(var clause in body.Clauses) {
@@ -120,31 +120,31 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                         source=CreateSequenceCall(
                             source,
                             "Where",
-                            CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)Visit(whereClause.Condition)!)));
+                            CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)this.Visit(whereClause.Condition)!)));
                         break;
                     case OrderByClauseSyntax orderByClause:
-                        source=LowerOrderByClause(source,state,orderByClause);
+                        source=this.LowerOrderByClause(source,state,orderByClause);
                         break;
                     case LetClauseSyntax letClause:
-                        source=LowerLetClause(source,ref state,letClause);
+                        source=this.LowerLetClause(source,ref state,letClause);
                         break;
                     case FromClauseSyntax fromClause:
-                        source=LowerFromClause(source,ref state,fromClause);
+                        source=this.LowerFromClause(source,ref state,fromClause);
                         break;
                     case JoinClauseSyntax joinClause:
-                        source=LowerJoinClause(source,ref state,joinClause);
+                        source=this.LowerJoinClause(source,ref state,joinClause);
                         break;
                     default:
                         return source;
                 }
             }
 
-            source=LowerSelectOrGroup(source,state,body.SelectOrGroup);
+            source=this.LowerSelectOrGroup(source,state,body.SelectOrGroup);
             if(body.Continuation is not { } continuation) {
                 return source;
             }
 
-            return LowerQueryBody(
+            return this.LowerQueryBody(
                 source,
                 QueryState.FromRange(continuation.Identifier.ValueText,null),
                 continuation.Body);
@@ -160,23 +160,23 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 source=CreateSequenceCall(
                     source,
                     method,
-                    CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)Visit(ordering.Expression)!)));
+                    CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)this.Visit(ordering.Expression)!)));
             }
             return source;
         }
         ExpressionSyntax LowerLetClause(ExpressionSyntax source,ref QueryState state,LetClauseSyntax letClause) {
             var newBindings = state.Bindings.ToDictionary(static pair => pair.Key,static pair => pair.Value,StringComparer.Ordinal);
-            newBindings[letClause.Identifier.ValueText]=state.Rewrite((ExpressionSyntax)Visit(letClause.Expression)!);
+            newBindings[letClause.Identifier.ValueText]=state.Rewrite((ExpressionSyntax)this.Visit(letClause.Expression)!);
             var selectorBody = CreateTransparentTuple(newBindings);
             source=CreateSequenceCall(source,"Select",CreateLambda(state.ParameterName,state.ParameterType,selectorBody.Expression));
-            state=QueryState.FromTransparent(FreshTransparentName(),selectorBody.Members);
+            state=QueryState.FromTransparent(this.FreshTransparentName(),selectorBody.Members);
             return source;
         }
         ExpressionSyntax LowerFromClause(ExpressionSyntax source,ref QueryState state,FromClauseSyntax fromClause) {
             var collectionSelector = CreateLambda(
                 state.ParameterName,
                 state.ParameterType,
-                state.Rewrite((ExpressionSyntax)Visit(fromClause.Expression)!));
+                state.Rewrite((ExpressionSyntax)this.Visit(fromClause.Expression)!));
             var resultBindings = state.Bindings.ToDictionary(static pair => pair.Key,static pair => pair.Value,StringComparer.Ordinal);
             resultBindings[fromClause.Identifier.ValueText]=SyntaxFactory.IdentifierName(fromClause.Identifier);
             var resultTuple = CreateTransparentTuple(resultBindings);
@@ -187,19 +187,19 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 ],
                 resultTuple.Expression);
             source=CreateSequenceCall(source,"SelectMany",collectionSelector,resultSelector);
-            state=QueryState.FromTransparent(FreshTransparentName(),resultTuple.Members);
+            state=QueryState.FromTransparent(this.FreshTransparentName(),resultTuple.Members);
             return source;
         }
         ExpressionSyntax LowerJoinClause(ExpressionSyntax source,ref QueryState state,JoinClauseSyntax joinClause) {
-            var innerSource = (ExpressionSyntax)Visit(joinClause.InExpression)!;
+            var innerSource = (ExpressionSyntax)this.Visit(joinClause.InExpression)!;
             var outerKey = CreateLambda(
                 state.ParameterName,
                 state.ParameterType,
-                state.Rewrite((ExpressionSyntax)Visit(joinClause.LeftExpression)!));
+                state.Rewrite((ExpressionSyntax)this.Visit(joinClause.LeftExpression)!));
             var innerKey = CreateLambda(
                 joinClause.Identifier.ValueText,
                 joinClause.Type,
-                (ExpressionSyntax)Visit(joinClause.RightExpression)!);
+                (ExpressionSyntax)this.Visit(joinClause.RightExpression)!);
             var resultBindings = state.Bindings.ToDictionary(static pair => pair.Key,static pair => pair.Value,StringComparer.Ordinal);
             var method = joinClause.Into is null ? "Join" : "GroupJoin";
             var resultName = joinClause.Into?.Identifier.ValueText ?? joinClause.Identifier.ValueText;
@@ -212,7 +212,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 ],
                 resultTuple.Expression);
             source=CreateSequenceCall(source,method,innerSource,outerKey,innerKey,resultSelector);
-            state=QueryState.FromTransparent(FreshTransparentName(),resultTuple.Members);
+            state=QueryState.FromTransparent(this.FreshTransparentName(),resultTuple.Members);
             return source;
         }
         ExpressionSyntax LowerSelectOrGroup(ExpressionSyntax source,QueryState state,SelectOrGroupClauseSyntax selectOrGroup) {
@@ -220,16 +220,16 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 SelectClauseSyntax selectClause => CreateSequenceCall(
                     source,
                     "Select",
-                    CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)Visit(selectClause.Expression)!))),
+                    CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)this.Visit(selectClause.Expression)!))),
                 GroupClauseSyntax groupClause => CreateSequenceCall(
                     source,
                     "GroupBy",
-                    CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)Visit(groupClause.ByExpression)!)),
-                    CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)Visit(groupClause.GroupExpression)!))),
+                    CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)this.Visit(groupClause.ByExpression)!)),
+                    CreateLambda(state.ParameterName,state.ParameterType,state.Rewrite((ExpressionSyntax)this.Visit(groupClause.GroupExpression)!))),
                 _ => source,
             };
         }
-        string FreshTransparentName() => $"__q{transparentNumber++}";
+        string FreshTransparentName() => $"__q{this.transparentNumber++}";
         static (TupleExpressionSyntax Expression,Dictionary<string,string> Members) CreateTransparentTuple(IReadOnlyDictionary<string,ExpressionSyntax> bindings) {
             var arguments = new List<ArgumentSyntax>();
             var members = new Dictionary<string,string>(StringComparer.Ordinal);
@@ -285,7 +285,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                         SyntaxFactory.IdentifierName(pair.Value)),
                     StringComparer.Ordinal));
             public ExpressionSyntax Rewrite(ExpressionSyntax expression) =>
-                new QueryBindingRewriter(Bindings).Visit(expression) as ExpressionSyntax ?? expression;
+                new QueryBindingRewriter(this.Bindings).Visit(expression) as ExpressionSyntax ?? expression;
         }
         sealed class QueryBindingRewriter(IReadOnlyDictionary<string,ExpressionSyntax> bindings):CSharpSyntaxRewriter {
             public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
@@ -315,8 +315,8 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         };
         public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
             if(node.Expression is MemberAccessExpressionSyntax m&&Methods.Contains(m.Name.Identifier.ValueText)) {
-                var recv=(ExpressionSyntax)Visit(m.Expression)!;
-                var args=node.ArgumentList.Arguments.Select(a=>(ArgumentSyntax)Visit(a)!);
+                var recv=(ExpressionSyntax)this.Visit(m.Expression)!;
+                var args=node.ArgumentList.Arguments.Select(a=>(ArgumentSyntax)this.Visit(a)!);
                 return SyntaxFactory.InvocationExpression(
                     SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,SyntaxFactory.IdentifierName("Enumerable"),m.Name),
                     SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[]{SyntaxFactory.Argument(recv)}.Concat(args))));
@@ -361,7 +361,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         var rewritten=(InvocationExpressionSyntax)base.VisitInvocationExpression(node)!;
         var optimized=TryOptimizeInvocation(rewritten);
         if(optimized is null||SyntaxFactory.AreEquivalent(optimized,rewritten)) return rewritten;
-        return VisitInvocationExpression(optimized);
+        return this.VisitInvocationExpression(optimized);
     }
     // Where直下のsequence callの種類で押し下げ戦略を分岐。
     static InvocationExpressionSyntax? TryOptimizeInvocation(InvocationExpressionSyntax invocation) {
@@ -611,7 +611,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     // predicate中のcarrier member accessを元expressionに戻すrewriter。
     sealed class CarrierAccessRewriter(string rootName,CarrierShape shape):CSharpSyntaxRewriter {
         public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node) {
-            if(TryGetPath(node,out var path)&&shape.TryResolve(path,out var rep)) return Wrap(rep);
+            if(this.TryGetPath(node,out var path)&&shape.TryResolve(path,out var rep)) return Wrap(rep);
             return base.VisitMemberAccessExpression(node);
         }
         public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
@@ -623,7 +623,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         bool TryGetPath(ExpressionSyntax e,out IReadOnlyList<string> path) {
             e=Strip(e);
             if(e is IdentifierNameSyntax id&&string.Equals(id.Identifier.ValueText,rootName,StringComparison.Ordinal)){path=[];return true;}
-            if(e is MemberAccessExpressionSyntax ma&&TryGetPath(ma.Expression,out var pp)) {
+            if(e is MemberAccessExpressionSyntax ma&&this.TryGetPath(ma.Expression,out var pp)) {
                 var parts=pp.ToList();parts.Add(ma.Name.Identifier.ValueText);path=parts;return true;
             }
             path=[];return false;

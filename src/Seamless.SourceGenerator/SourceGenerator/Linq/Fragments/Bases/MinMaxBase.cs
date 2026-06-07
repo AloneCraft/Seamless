@@ -3,10 +3,10 @@ public abstract class MinMaxBase(int 番号, Enumerable source, string resultTyp
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => direction=="greater"
-        ? $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.Max(new global::Seamless.Linq.Carrier.ValueEnumerable<TEnum, {source.ElementType}>({e}))"
-        : $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.Min(new global::Seamless.Linq.Carrier.ValueEnumerable<TEnum, {source.ElementType}>({e}))";
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+        ? $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.Max(new global::Seamless.Linq.Carrier.ValueEnumerable<TEnum, {source.ElementType}>({this.e}))"
+        : $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.Min(new global::Seamless.Linq.Carrier.ValueEnumerable<TEnum, {source.ElementType}>({this.e}))";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

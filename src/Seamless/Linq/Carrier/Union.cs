@@ -53,7 +53,7 @@ namespace Seamless.Linq.Carrier.Linq
         {
             if (destination.Length == 1 && offset.Value == 0) // as TryGetFirst
             {
-                return source.TryCopyTo(destination, offset);
+                return this.source.TryCopyTo(destination, offset);
             }
 
             return false;
@@ -61,39 +61,39 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            if (state == 0)
+            if (this.state == 0)
             {
-                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator, TSource>(ref source)
-                    + EnumeratorHelper.GetCapacityHint<TEnumerator2, TSource>(ref second);
-                set = hint > 0 ? new HashSetSlim<TSource>(hint, comparer) : new HashSetSlim<TSource>(comparer);
-                state = 1;
+                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator, TSource>(ref this.source)
+                    + EnumeratorHelper.GetCapacityHint<TEnumerator2, TSource>(ref this.second);
+                this.set = hint > 0 ? new HashSetSlim<TSource>(hint, comparer) : new HashSetSlim<TSource>(comparer);
+                this.state = 1;
             }
 
-            if (state == 1)
+            if (this.state == 1)
             {
-                while (source.TryGetNext(out var value))
+                while (this.source.TryGetNext(out var value))
                 {
-                    if (set!.Add(value))
+                    if (this.set!.Add(value))
                     {
                         current = value;
                         return true;
                     }
                 }
-                state = 2;
+                this.state = 2;
             }
 
-            if (state == 2)
+            if (this.state == 2)
             {
-                while (second.TryGetNext(out var value))
+                while (this.second.TryGetNext(out var value))
                 {
-                    if (set!.Add(value))
+                    if (this.set!.Add(value))
                     {
                         current = value;
                         return true;
                     }
                 }
 
-                state = 3;
+                this.state = 3;
             }
 
             Unsafe.SkipInit(out current);
@@ -102,10 +102,10 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            state = 3;
-            set?.Dispose();
-            source.Dispose();
-            second.Dispose();
+            this.state = 3;
+            this.set?.Dispose();
+            this.source.Dispose();
+            this.second.Dispose();
         }
     }
 }

@@ -9,9 +9,9 @@ public abstract class ToHashSetBase(int 番号,Enumerable source,string resultTy
 
 public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSetBase(番号,source,resultType){
     public static bool IsApplicableOverload(IMethodSymbol method)=>method.Parameters.Length==0;
-    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {e}";
-    protected override string ComputeExpression=>$"Compute({e})";
+    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e}";
+    protected override string ComputeExpression=>$"Compute({this.e})";
     protected override string ComputeMembers=>$$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source){
@@ -30,10 +30,10 @@ public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSet
 public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,string resultType):ToHashSetBase(番号,source,resultType){
     public static bool IsApplicableOverload(IMethodSymbol method)=>
         method.Parameters.Length==1&&method.Parameters[0].Name=="comparer";
-    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression},{comparer})";
+    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{comparer})";
     public override string GetEnumeratorPrimaryConstructorParameters=>
-        $"TEnum {e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
-    protected override string ComputeExpression=>$"Compute({e},comparer)";
+        $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
+    protected override string ComputeExpression=>$"Compute({this.e},comparer)";
     protected override string ComputeMembers=>$$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){

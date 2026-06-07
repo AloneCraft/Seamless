@@ -22,9 +22,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (source.TryGetNonEnumeratedCount(out count))
+            if (this.source.TryGetNonEnumeratedCount(out count))
             {
-                count = Math.Max(0, count - skipCount);
+                count = Math.Max(0, count -this.skipCount);
                 return true;
             }
 
@@ -34,14 +34,14 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetSpan(out ReadOnlySpan<TSource> span)
         {
-            if (source.TryGetSpan(out span))
+            if (this.source.TryGetSpan(out span))
             {
-                if (span.Length <= skipCount)
+                if (span.Length <=this.skipCount)
                 {
                     span = default;
                     return true;
                 }
-                span = span[..^skipCount]; // Slice from start to (length - skipCount)
+                span = span[..^this.skipCount]; // Slice from start to (length - skipCount)
                 return true;
             }
 
@@ -51,9 +51,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(scoped Span<TSource> destination, Index offset)
         {
-            if (source.TryGetNonEnumeratedCount(out var count))
+            if (this.source.TryGetNonEnumeratedCount(out var count))
             {
-                var actualSkipCount = Math.Min(count, skipCount);
+                var actualSkipCount = Math.Min(count,this.skipCount);
 
                 var remainingCount = count - actualSkipCount;
 
@@ -80,7 +80,7 @@ namespace Seamless.Linq.Carrier.Linq
                     return false;
                 }
 
-                return source.TryCopyTo(destination.Slice(0, elementsToCopy), sourceOffset);
+                return this.source.TryCopyTo(destination.Slice(0, elementsToCopy), sourceOffset);
             }
 
             return false;
@@ -88,23 +88,23 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            if (skipCount == 0)
+            if (this.skipCount == 0)
             {
-                return source.TryGetNext(out current);
+                return this.source.TryGetNext(out current);
             }
 
-            if (buffer == null)
+            if (this.buffer == null)
             {
-                buffer = new RefBox<ValueQueue<TSource>>(new ValueQueue<TSource>(4));
+                this.buffer = new RefBox<ValueQueue<TSource>>(new ValueQueue<TSource>(4));
 
                 // Fill the buffer with initial items
-                while (buffer.GetValueRef().Count < skipCount && source.TryGetNext(out var item))
+                while (this.buffer.GetValueRef().Count <this.skipCount &&this.source.TryGetNext(out var item))
                 {
-                    buffer.GetValueRef().Enqueue(item);
+                    this.buffer.GetValueRef().Enqueue(item);
                 }
 
                 // If we couldn't fill the buffer, there aren't enough items
-                if (buffer.GetValueRef().Count < skipCount)
+                if (this.buffer.GetValueRef().Count <this.skipCount)
                 {
                     Unsafe.SkipInit(out current);
                     return false;
@@ -112,11 +112,11 @@ namespace Seamless.Linq.Carrier.Linq
             }
 
             // Try to get the next item from the source
-            if (source.TryGetNext(out var next))
+            if (this.source.TryGetNext(out var next))
             {
                 // Return the oldest item from buffer and add the new one
-                current = buffer.GetValueRef().Dequeue();
-                buffer.GetValueRef().Enqueue(next);
+                current =this.buffer.GetValueRef().Dequeue();
+                this.buffer.GetValueRef().Enqueue(next);
                 return true;
             }
 
@@ -126,8 +126,8 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            buffer?.Dispose();
-            source.Dispose();
+            this.buffer?.Dispose();
+            this.source.Dispose();
         }
     }
 }

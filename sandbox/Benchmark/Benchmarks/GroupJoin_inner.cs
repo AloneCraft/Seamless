@@ -3,16 +3,16 @@ namespace Benchmark.Benchmarks;
 public class GroupJoin_inner:Base{
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        Enumerable.GroupJoin(src,src2,x=>x,x=>x,(outer,inner)=>outer).Consume(consumer);
+        Enumerable.GroupJoin(this.src,this.src2,x=>x,x=>x,(outer,inner)=>outer).Consume(this.consumer);
     }
 
     void InterceptCore(){ this.src.GroupJoin(this.src2,x=>x,x=>x,(outer,inner)=>outer).Consume(this.consumer); }
 
     [Benchmark]
-    public void Intercept(){ InterceptCore(); }
+    public void Intercept(){ this.InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(src).GroupJoin(src2,x=>x,x=>x,(outer,inner)=>outer).Consume(consumer);
+        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).GroupJoin(this.src2,x=>x,x=>x,(outer,inner)=>outer).Consume(this.consumer);
     }
 }

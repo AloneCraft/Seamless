@@ -41,9 +41,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out DateTime current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = start;
                 return true;
             }
@@ -82,9 +82,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out DateTimeOffset current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = start;
                 return true;
             }

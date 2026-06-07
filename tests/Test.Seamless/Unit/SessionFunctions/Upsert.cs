@@ -101,7 +101,7 @@ public sealed class Upsert:AddTests<int,string> {
         public void Serialize(BinaryWriter writer){ }
         public void WriteType(BinaryWriter writer,bool includeNamespace){ }
         public void DoSerialize(BinaryWriter writer){ }
-        public void CacheSerializedObjectData(ref LogRecord srcLogRecord,ref LogRecord newLogRecord,ref RMWInfo rmwInfo){ }
+        public void CacheSerializedObjectData(ref LogRecord dstLogRecord,ref RMWInfo rmwInfo,bool srcIsOnMemoryLog){ }
         public void ClearSerializedObjectData(){ }
         public void Dispose(){ }
     }
@@ -149,11 +149,11 @@ public sealed class Upsert:AddTests<int,string> {
             bool,
             EqualityEmpty,
             global::Seamless.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>,
-            StoreFunctions<SpanByteComparer,DefaultRecordDisposer>,
+            StoreFunctions<SpanByteComparer,DefaultRecordTriggers>,
             SpanByteAllocator<
                 StoreFunctions<
                     SpanByteComparer,
-                    DefaultRecordDisposer
+                    DefaultRecordTriggers
                 >
             >
         >
@@ -249,7 +249,7 @@ public sealed class Upsert:AddTests<int,string> {
     }
     [Fact, Trait("Category","Unit")]
     public void RMWCompletionCallback_Managed(){
-        var folder=CreateDiskFolder();
+        var folder= this.CreateDiskFolder();
         using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var store=HashStore.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
@@ -260,7 +260,7 @@ public sealed class Upsert:AddTests<int,string> {
     }
     [Fact, Trait("Category","Unit")]
     public void ReadCompletionCallback_Managed(){
-        var folder=CreateDiskFolder();
+        var folder= this.CreateDiskFolder();
         using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var store=HashStore.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
@@ -272,7 +272,7 @@ public sealed class Upsert:AddTests<int,string> {
     }
     [Fact, Trait("Category","Unit")]
     public void ConvertOutputToHeap_Managed(){
-        var folder=CreateDiskFolder();
+        var folder= this.CreateDiskFolder();
         using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var store=HashStore.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);

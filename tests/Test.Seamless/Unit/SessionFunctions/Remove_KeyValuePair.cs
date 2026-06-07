@@ -36,7 +36,7 @@ public abstract class RemoveKeyValuePairTests<TKey, TValue>
     }
 
     private void DiskSpill() {
-        var folder = CreateDiskFolder();
+        var folder = this.CreateDiskFolder();
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
         var (dict,store)=this.CreateDiskSpill(logDevice,objDevice);
@@ -56,7 +56,7 @@ public abstract class RemoveKeyValuePairTests<TKey, TValue>
     public void RMWCompletionCallback() => this.DiskSpill();
 
     private void FlushAndEvictPath() {
-        var folder = CreateDiskFolder();
+        var folder = this.CreateDiskFolder();
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
         var (dict,store)=this.CreateDisk(logDevice,objDevice);

@@ -3,16 +3,16 @@ namespace Benchmark.Benchmarks;
 public class Count_predicate:Base{
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        consumer.Consume(Enumerable.Count(src,x=>(x&1)==0));
+        this.consumer.Consume(Enumerable.Count(this.src,x=>(x&1)==0));
     }
 
     void InterceptCore(){ this.consumer.Consume(this.src.Count(x=>(x&1)==0)); }
 
     [Benchmark]
-    public void Intercept(){ InterceptCore(); }
+    public void Intercept(){ this.InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Count(x=>(x&1)==0));
+        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Count(x=>(x&1)==0));
     }
 }

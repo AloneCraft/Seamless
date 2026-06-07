@@ -10,7 +10,7 @@ using Tsavorite.core;
 namespace Test.Seamless.Database.TPC_H {
     // DatabaseGenerator marker ? Keys / Records ・ｽ・ｽ schema struct ・ｽ・ｽ namespace Keys / Records ・ｽﾉ抵ｿｽ・ｽﾚ宣言・ｽ・ｽ・ｽ・ｽB
     // source generator ・ｽ・ｽ・ｽ{・ｽC・ｽ・ｽ・ｽ[・ｽR・ｽ[・ｽh (・ｽR・ｽ・ｽ・ｽX・ｽg・ｽ・ｽ・ｽN・ｽ^・ｽ[・ｽE_u/_m ・ｽt・ｽB・ｽ[・ｽ・ｽ・ｽh・ｽEMemoryPack ・ｽ・ｽ・ｽ・ｽ) ・ｽｶ撰ｿｽ・ｽ・ｽ・ｽ・ｽB
-    static class DatabaseGenerator;
+    static partial class DatabaseGenerator;
 
     public sealed class Container:IDisposable {
         private readonly global::System.Collections.Generic.List<IDisposable> disposables = [];
@@ -453,7 +453,7 @@ namespace Test.Seamless.Database.TPC_H {
 
     public sealed class ContainerFixture:IDisposable {
         public Container Container { get; } = TpchTests.Load();
-        public void Dispose() => Container.Dispose();
+        public void Dispose() => this.Container.Dispose();
     }
 
     [Collection("TpchCollection")]
@@ -747,51 +747,51 @@ namespace Test.Seamless.Database.TPC_H {
             _ => throw new ArgumentOutOfRangeException(nameof(query)),
         };
 
-        [Fact] public void Q01_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(1,false);
-        [Fact] public void Q02_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(2,false);
-        [Fact] public void Q03_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(3,false);
-        [Fact] public void Q04_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(4,false);
-        [Fact] public void Q05_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(5,false);
-        [Fact] public void Q06_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(6,false);
-        [Fact] public void Q07_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(7,false);
-        [Fact] public void Q08_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(8,false);
-        [Fact] public void Q09_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(9,false);
-        [Fact] public void Q10_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(10,false);
-        [Fact] public void Q11_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(11,false);
-        [Fact] public void Q12_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(12,false);
-        [Fact] public void Q13_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(13,false);
-        [Fact] public void Q14_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(14,false);
-        [Fact] public void Q15_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(15,false);
-        [Fact] public void Q16_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(16,false);
-        [Fact] public void Q17_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(17,false);
-        [Fact] public void Q18_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(18,false);
-        [Fact] public void Q19_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(19,false);
-        [Fact] public void Q20_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(20,false);
-        [Fact] public void Q21_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(21,false);
-        [Fact] public void Q22_DirectMethod_MatchesReflection() => AssertInterceptedMatchesReflection(22,false);
+        [Fact] public void Q01_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(1,false);
+        [Fact] public void Q02_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(2,false);
+        [Fact] public void Q03_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(3,false);
+        [Fact] public void Q04_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(4,false);
+        [Fact] public void Q05_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(5,false);
+        [Fact] public void Q06_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(6,false);
+        [Fact] public void Q07_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(7,false);
+        [Fact] public void Q08_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(8,false);
+        [Fact] public void Q09_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(9,false);
+        [Fact] public void Q10_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(10,false);
+        [Fact] public void Q11_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(11,false);
+        [Fact] public void Q12_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(12,false);
+        [Fact] public void Q13_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(13,false);
+        [Fact] public void Q14_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(14,false);
+        [Fact] public void Q15_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(15,false);
+        [Fact] public void Q16_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(16,false);
+        [Fact] public void Q17_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(17,false);
+        [Fact] public void Q18_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(18,false);
+        [Fact] public void Q19_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(19,false);
+        [Fact] public void Q20_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(20,false);
+        [Fact] public void Q21_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(21,false);
+        [Fact] public void Q22_DirectMethod_MatchesReflection() => this.AssertInterceptedMatchesReflection(22,false);
 
-        [Fact] public void Q01_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(1,true);
-        [Fact] public void Q02_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(2,true);
-        [Fact] public void Q03_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(3,true);
-        [Fact] public void Q04_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(4,true);
-        [Fact] public void Q05_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(5,true);
-        [Fact] public void Q06_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(6,true);
-        [Fact] public void Q07_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(7,true);
-        [Fact] public void Q08_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(8,true);
-        [Fact] public void Q09_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(9,true);
-        [Fact] public void Q10_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(10,true);
-        [Fact] public void Q11_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(11,true);
-        [Fact] public void Q12_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(12,true);
-        [Fact] public void Q13_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(13,true);
-        [Fact] public void Q14_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(14,true);
-        [Fact] public void Q15_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(15,true);
-        [Fact] public void Q16_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(16,true);
-        [Fact] public void Q17_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(17,true);
-        [Fact] public void Q18_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(18,true);
-        [Fact] public void Q19_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(19,true);
-        [Fact] public void Q20_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(20,true);
-        [Fact] public void Q21_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(21,true);
-        [Fact] public void Q22_DirectQuery_MatchesReflection() => AssertInterceptedMatchesReflection(22,true);
+        [Fact] public void Q01_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(1,true);
+        [Fact] public void Q02_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(2,true);
+        [Fact] public void Q03_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(3,true);
+        [Fact] public void Q04_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(4,true);
+        [Fact] public void Q05_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(5,true);
+        [Fact] public void Q06_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(6,true);
+        [Fact] public void Q07_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(7,true);
+        [Fact] public void Q08_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(8,true);
+        [Fact] public void Q09_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(9,true);
+        [Fact] public void Q10_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(10,true);
+        [Fact] public void Q11_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(11,true);
+        [Fact] public void Q12_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(12,true);
+        [Fact] public void Q13_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(13,true);
+        [Fact] public void Q14_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(14,true);
+        [Fact] public void Q15_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(15,true);
+        [Fact] public void Q16_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(16,true);
+        [Fact] public void Q17_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(17,true);
+        [Fact] public void Q18_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(18,true);
+        [Fact] public void Q19_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(19,true);
+        [Fact] public void Q20_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(20,true);
+        [Fact] public void Q21_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(21,true);
+        [Fact] public void Q22_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(22,true);
     }
     namespace Keys {
         public partial struct region {

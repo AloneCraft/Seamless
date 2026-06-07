@@ -14,16 +14,16 @@ public class TryGetNonEnumeratedCount:Base{
 
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        ConsumeResult(consumer,SystemEnumerable.TryGetNonEnumeratedCount(src,out var count),count);
+        ConsumeResult(this.consumer,SystemEnumerable.TryGetNonEnumeratedCount(this.src,out var count),count);
     }
 
     void InterceptCore(){ ConsumeResult(this.consumer,this.src.TryGetNonEnumeratedCount(out var count),count); }
 
     [Benchmark]
-    public void Intercept(){ InterceptCore(); }
+    public void Intercept(){ this.InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){
-        ConsumeResult(consumer,global::ZLinq.ValueEnumerable.AsValueEnumerable(src).TryGetNonEnumeratedCount(out var count),count);
+        ConsumeResult(this.consumer,global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).TryGetNonEnumeratedCount(out var count),count);
     }
 }

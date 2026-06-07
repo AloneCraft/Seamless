@@ -3,16 +3,16 @@ namespace Benchmark.Benchmarks;
 public class Min:Base{
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        consumer.Consume(Enumerable.Min(src));
+        this.consumer.Consume(Enumerable.Min(this.src));
     }
 
     void InterceptCore(){ this.consumer.Consume(this.src.Min()); }
 
     [Benchmark]
-    public void Intercept(){ InterceptCore(); }
+    public void Intercept(){ this.InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Min());
+        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Min());
     }
 }

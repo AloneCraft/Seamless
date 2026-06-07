@@ -3,16 +3,16 @@ namespace Benchmark.Benchmarks;
 public class SingleOrDefault:Base{
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        consumer.Consume(Enumerable.SingleOrDefault(srcOne));
+        this.consumer.Consume(Enumerable.SingleOrDefault(this.srcOne));
     }
 
     void InterceptCore(){ this.consumer.Consume(this.srcOne.SingleOrDefault()); }
 
     [Benchmark]
-    public void Intercept(){ InterceptCore(); }
+    public void Intercept(){ this.InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(srcOne).SingleOrDefault());
+        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.srcOne).SingleOrDefault());
     }
 }

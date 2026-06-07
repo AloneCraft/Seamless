@@ -26,7 +26,7 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
         // NeedInitialUpdate ぁEfalse を返すため到達しなぁE��E
         throw new NotSupportedException();
     }
-    public bool InPlaceUpdater(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo) {
+    public bool InPlaceUpdater(ref LogRecord logRecord,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo) {
         output=TStrategy.Deserialize(logRecord.ValueSpan);
         rmwInfo.Action=RMWAction.ExpireAndStop;
         return false;
@@ -69,17 +69,17 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
         // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter(ref LogRecord logRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
+    public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,IHeapObject srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
         // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
-    public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref TValue output,ref UpsertInfo upsertInfo)
+    public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref TValue output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
         // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
@@ -205,6 +205,15 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
         where TSourceLogRecord : ISourceLogRecord {
         // Upsert 操作�E使用しなぁE��E
         throw new NotSupportedException();
+    }
+    public void BeforeConsistentReadCallback(long hash) {
+    }
+    public void AfterConsistentReadKeyCallback() {
+    }
+    public void BeforeConsistentReadKeyBatchCallback(ReadOnlySpan<PinnedSpanByte> parameters) {
+    }
+    public bool AfterConsistentReadKeyBatchCallback(int keyCount) {
+        return true;
     }
     public void ConvertOutputToHeap(ref EqualityEmpty input,ref TValue output) {
     }

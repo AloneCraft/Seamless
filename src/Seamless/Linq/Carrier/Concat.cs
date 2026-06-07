@@ -32,7 +32,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (first.TryGetNonEnumeratedCount(out var count1) && second.TryGetNonEnumeratedCount(out var count2))
+            if (this.first.TryGetNonEnumeratedCount(out var count1) &&this.second.TryGetNonEnumeratedCount(out var count2))
             {
                 count = checked(count1 + count2);
                 return true;
@@ -58,19 +58,19 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            if (!firstCompleted)
+            if (!this.firstCompleted)
             {
                 // iterate first
-                if (first.TryGetNext(out current))
+                if (this.first.TryGetNext(out current))
                 {
                     return true;
                 }
-                first.Dispose();
-                firstCompleted = true;
+                this.first.Dispose();
+                this.firstCompleted = true;
             }
 
             // iterate second
-            if (second.TryGetNext(out current))
+            if (this.second.TryGetNext(out current))
             {
                 return true;
             }
@@ -81,11 +81,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            if (!firstCompleted)
+            if (!this.firstCompleted)
             {
-                first.Dispose();
+                this.first.Dispose();
             }
-            second.Dispose();
+            this.second.Dispose();
         }
     }
 }

@@ -22,7 +22,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (source.TryGetNonEnumeratedCount(out count) && count < int.MaxValue)
+            if (this.source.TryGetNonEnumeratedCount(out count) && count < int.MaxValue)
             {
                 count++;
                 return true;
@@ -40,7 +40,7 @@ namespace Seamless.Linq.Carrier.Linq
         public bool TryCopyTo(scoped Span<TSource> destination, Index offset)
         {
             if (destination.Length == 0) return false;
-            if (!source.TryGetNonEnumeratedCount(out var srcCount)) return false;
+            if (!this.source.TryGetNonEnumeratedCount(out var srcCount)) return false;
 
             var totalLength = srcCount + 1; // +1 for the prepended element
             var start = offset.GetOffset(totalLength);
@@ -60,7 +60,7 @@ namespace Seamless.Linq.Carrier.Linq
             {
                 var destinationOffset = includePrependedElement ? 1 : 0;
                 var destinationSlice = destination.Slice(destinationOffset, elementsToCopy);
-                if (!source.TryCopyTo(destinationSlice, sourceStart))
+                if (!this.source.TryCopyTo(destinationSlice, sourceStart))
                 {
                     return false;
                 }
@@ -75,20 +75,20 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TSource current)
         {
-            if (state == 0)
+            if (this.state == 0)
             {
                 current = element;
-                state = 1;
+                this.state = 1;
                 return true;
             }
 
-            if (state == 1)
+            if (this.state == 1)
             {
-                if (source.TryGetNext(out current))
+                if (this.source.TryGetNext(out current))
                 {
                     return true;
                 }
-                state = 2;
+                this.state = 2;
             }
 
             current = default!;
@@ -97,8 +97,8 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            state = 2;
-            source.Dispose();
+            this.state = 2;
+            this.source.Dispose();
         }
     }
 

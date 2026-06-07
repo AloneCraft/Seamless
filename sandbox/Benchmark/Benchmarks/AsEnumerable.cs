@@ -5,11 +5,11 @@ namespace Benchmark.Benchmarks;
 public class AsEnumerable:Base{
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        SystemEnumerable.AsEnumerable(src).Consume(consumer);
+        SystemEnumerable.AsEnumerable(this.src).Consume(this.consumer);
     }
 
     void InterceptCore(){ this.src.AsEnumerable().Consume(this.consumer); }
 
     [Benchmark]
-    public void Intercept(){ InterceptCore(); }
+    public void Intercept(){ this.InterceptCore(); }
 }

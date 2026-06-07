@@ -83,9 +83,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out T current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = currentValue;
                 return true;
             }

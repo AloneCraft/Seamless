@@ -58,46 +58,46 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out TResult current)
         {
-            if (innerLookup == null)
+            if (this.innerLookup == null)
             {
                 try
                 {
                     // CreateForJoin excludes null.
                     // If we want to accept null keys, we should create a lookup with null keys and join them.
                     // However, this behavior matches the official dotnet implementation.
-                    innerLookup = Lookup.CreateForJoin(ref inner, innerKeySelector, comparer);
+                    this.innerLookup = Lookup.CreateForJoin(ref this.inner, innerKeySelector, comparer);
                 }
                 finally
                 {
-                    inner.Dispose();
+                    this.inner.Dispose();
                 }
             }
 
         // iterating group
         ITERATE:
-            if (currentGroup != null)
+            if (this.currentGroup != null)
             {
-                if (currentGroupIndex < currentGroup.Count)
+                if (this.currentGroupIndex <this.currentGroup.Count)
                 {
-                    current = resultSelector(currentOuter, currentGroup[currentGroupIndex]);
-                    currentGroupIndex++;
+                    current = resultSelector(this.currentOuter,this.currentGroup[this.currentGroupIndex]);
+                    this.currentGroupIndex++;
                     return true;
                 }
                 else
                 {
-                    currentGroup = null;
+                    this.currentGroup = null;
                 }
             }
 
-            while (source.TryGetNext(out var value))
+            while (this.source.TryGetNext(out var value))
             {
                 var key = outerKeySelector(value);
-                var group = innerLookup.GetGroup(key);
+                var group = this.innerLookup.GetGroup(key);
                 if (group != null)
                 {
-                    currentOuter = value;
-                    currentGroup = group;
-                    currentGroupIndex = 0;
+                    this.currentOuter = value;
+                    this.currentGroup = group;
+                    this.currentGroupIndex = 0;
                     goto ITERATE;
                 }
                 else
@@ -114,11 +114,11 @@ namespace Seamless.Linq.Carrier.Linq
 
         public void Dispose()
         {
-            if (innerLookup == null)
+            if (this.innerLookup == null)
             {
-                inner.Dispose();
+                this.inner.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 }

@@ -3,16 +3,16 @@ namespace Benchmark.Benchmarks;
 public class Last:Base{
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        consumer.Consume(Enumerable.Last(src));
+        this.consumer.Consume(Enumerable.Last(this.src));
     }
 
     void InterceptCore(){ this.consumer.Consume(this.src.Last()); }
 
     [Benchmark]
-    public void Intercept(){ InterceptCore(); }
+    public void Intercept(){ this.InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Last());
+        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Last());
     }
 }

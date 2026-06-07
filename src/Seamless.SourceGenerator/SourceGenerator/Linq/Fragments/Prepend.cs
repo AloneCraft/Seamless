@@ -2,7 +2,7 @@ namespace Seamless.SourceGenerator.Linq.Fragments;
 public class Prepend(int 番号, Enumerable source, string element) : Enumerable(番号) {
     private Enumerable Source => source;
     private string ElementExpression => element;
-    private Enumerable RootSource => Source is Prepend prepend ? prepend.RootSource : Source;
+    private Enumerable RootSource => this.Source is Prepend prepend ? prepend.RootSource : this.Source;
     private global::System.Collections.Generic.IReadOnlyList<string> FlattenedElements {
         get {
             var list = new global::System.Collections.Generic.List<string>();
@@ -11,39 +11,39 @@ public class Prepend(int 番号, Enumerable source, string element) : Enumerable
         }
     }
     private string EnumeratorElementParameters =>
-        string.Concat(FlattenedElements.Select((_,index) => $", {ElementType} element{index}"));
+        string.Concat(this.FlattenedElements.Select((_,index) => $", {this.ElementType} element{index}"));
     private string EnumeratorElementArguments =>
-        string.Concat(FlattenedElements.Select((value,index) => $", {value}"));
+        string.Concat(this.FlattenedElements.Select((value,index) => $", {value}"));
     private static void CollectElements(Prepend prepend,global::System.Collections.Generic.List<string> list) {
         list.Add(prepend.ElementExpression);
         if(prepend.Source is Prepend nested) {
             CollectElements(nested,list);
         }
     }
-    protected override Enumerable PrimarySource => RootSource;
+    protected override Enumerable PrimarySource => this.RootSource;
     public override string StructMethod => string.Empty;
     public override string GetEnumerableExpression => base.GetEnumerableExpression;
     public override string GetEnumeratorStruct => $$"""
-        {{RootSource.GetEnumeratorStruct}}
+        {{this.RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({RootSource.GetEnumeratorExpression}{EnumeratorElementArguments})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}{EnumeratorElementParameters}";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}{this.EnumeratorElementArguments})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}{this.EnumeratorElementParameters}";
     public override string GetEnumeratorFields => $$"""
-        private byte {{state}};
+        private byte {{this.state}};
         """;
     public override string GetTryGetNextBody {
         get {
             var builder = new global::System.Text.StringBuilder();
-            for(var i = 0; i < FlattenedElements.Count; i++) {
-                builder.AppendLine($"if(this.{state}=={i}) {{");
-                builder.AppendLine($"    this.{state}={i+1};");
-                builder.AppendLine($"    current=this.{currentValue}=element{i};");
+            for(var i = 0; i <this.FlattenedElements.Count; i++) {
+                builder.AppendLine($"if(this.{this.state}=={i}) {{");
+                builder.AppendLine($"    this.{this.state}={i+1};");
+                builder.AppendLine($"    current=this.{this.currentValue}=element{i};");
                 builder.AppendLine("    return true;");
                 builder.AppendLine("}");
             }
-            builder.AppendLine($"if({e}.MoveNext()) {{");
-            builder.AppendLine($"    current=this.{currentValue}={e}.Current;");
+            builder.AppendLine($"if({this.e}.MoveNext()) {{");
+            builder.AppendLine($"    current=this.{this.currentValue}={this.e}.Current;");
             builder.AppendLine("    return true;");
             builder.AppendLine("}");
             builder.AppendLine("current=default!;");
@@ -51,6 +51,6 @@ public class Prepend(int 番号, Enumerable source, string element) : Enumerable
             return builder.ToString();
         }
     }
-    public override string GetCurrentExpression => currentValue;
+    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
 }

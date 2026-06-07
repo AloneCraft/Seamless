@@ -46,7 +46,7 @@ namespace Test.Seamless.Database.Database0 {
             return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
         [Optimize][Fact]public virtual  void Call(){
-            var x=Select_Method(new int[3]);
+            var x= this.Select_Method(new int[3]);
         }
         [Optimize]
         public virtual global::Seamless.Collections.Generic.IEnumerable<int> Select_Method(global::Seamless.Collections.Generic.IEnumerable<int> outer) {
@@ -258,9 +258,6 @@ namespace Test.Seamless.Database.Database0 {
     namespace Keys {
         public partial struct Key0 {
             public partial int Column0 { get; }
-            public void mm(){
-                var u=this._u;
-            }
         }
 
         public partial struct Key1 {

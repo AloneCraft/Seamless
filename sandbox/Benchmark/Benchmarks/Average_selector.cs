@@ -3,16 +3,16 @@ namespace Benchmark.Benchmarks;
 public class Average_selector:Base{
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        consumer.Consume(Enumerable.Average(src,x=>(double)x));
+        this.consumer.Consume(Enumerable.Average(this.src,x=>(double)x));
     }
 
     void InterceptCore(){ this.consumer.Consume(this.src.Average(x=>(double)x)); }
 
     [Benchmark]
-    public void Intercept(){ InterceptCore(); }
+    public void Intercept(){ this.InterceptCore(); }
 
     [Benchmark]
     public void ZLinq(){
-        consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(src).Average(x=>(double)x));
+        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Average(x=>(double)x));
     }
 }

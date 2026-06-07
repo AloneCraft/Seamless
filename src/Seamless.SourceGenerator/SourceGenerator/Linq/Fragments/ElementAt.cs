@@ -6,9 +6,9 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int index";
-    protected override string ComputeExpression => $"Compute({e}, index)";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int index";
+    protected override string ComputeExpression => $"Compute({this.e}, index)";
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -31,7 +31,7 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
                 throw new global::System.ArgumentOutOfRangeException(nameof(index));
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
 public class ElementAt_index(int 番号, Enumerable source, string index, string resultType) : BufferedScalar(番号, resultType) {
@@ -44,9 +44,9 @@ public class ElementAt_index(int 番号, Enumerable source, string index, string
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, global::System.Index index";
-    protected override string ComputeExpression => $"Compute({e}, index)";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, global::System.Index index";
+    protected override string ComputeExpression => $"Compute({this.e}, index)";
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -82,5 +82,5 @@ public class ElementAt_index(int 番号, Enumerable source, string index, string
                 }
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

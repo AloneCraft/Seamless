@@ -55,9 +55,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out Byte current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = currentValue;
                 return true;
             }
@@ -107,7 +107,7 @@ namespace Seamless.Linq.Carrier.Linq
         }
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (CanOptimize())
+            if (this.CanOptimize())
             {
                 count = (int)(endInclusive - currentValue + 1); // currentValue is start if not strated yet.
                 return true;
@@ -125,7 +125,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(scoped Span<Byte> destination, Index offset)
         {
-            if (TryGetNonEnumeratedCount(out var count))
+            if (this.TryGetNonEnumeratedCount(out var count))
             {
                 if (EnumeratorHelper.TryGetSliceRange(count, offset, destination.Length, out var fillStart, out var fillCount))
                 {
@@ -240,9 +240,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out SByte current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = currentValue;
                 return true;
             }
@@ -292,7 +292,7 @@ namespace Seamless.Linq.Carrier.Linq
         }
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (CanOptimize())
+            if (this.CanOptimize())
             {
                 count = (int)(endInclusive - currentValue + 1); // currentValue is start if not strated yet.
                 return true;
@@ -310,7 +310,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(scoped Span<SByte> destination, Index offset)
         {
-            if (TryGetNonEnumeratedCount(out var count))
+            if (this.TryGetNonEnumeratedCount(out var count))
             {
                 if (EnumeratorHelper.TryGetSliceRange(count, offset, destination.Length, out var fillStart, out var fillCount))
                 {
@@ -425,9 +425,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out UInt16 current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = currentValue;
                 return true;
             }
@@ -477,7 +477,7 @@ namespace Seamless.Linq.Carrier.Linq
         }
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (CanOptimize())
+            if (this.CanOptimize())
             {
                 count = (int)(endInclusive - currentValue + 1); // currentValue is start if not strated yet.
                 return true;
@@ -495,7 +495,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(scoped Span<UInt16> destination, Index offset)
         {
-            if (TryGetNonEnumeratedCount(out var count))
+            if (this.TryGetNonEnumeratedCount(out var count))
             {
                 if (EnumeratorHelper.TryGetSliceRange(count, offset, destination.Length, out var fillStart, out var fillCount))
                 {
@@ -610,9 +610,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out Int16 current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = currentValue;
                 return true;
             }
@@ -662,7 +662,7 @@ namespace Seamless.Linq.Carrier.Linq
         }
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (CanOptimize())
+            if (this.CanOptimize())
             {
                 count = (int)(endInclusive - currentValue + 1); // currentValue is start if not strated yet.
                 return true;
@@ -680,7 +680,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(scoped Span<Int16> destination, Index offset)
         {
-            if (TryGetNonEnumeratedCount(out var count))
+            if (this.TryGetNonEnumeratedCount(out var count))
             {
                 if (EnumeratorHelper.TryGetSliceRange(count, offset, destination.Length, out var fillStart, out var fillCount))
                 {
@@ -795,9 +795,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out UInt32 current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = currentValue;
                 return true;
             }
@@ -847,7 +847,7 @@ namespace Seamless.Linq.Carrier.Linq
         }
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (CanOptimize())
+            if (this.CanOptimize())
             {
                 count = (int)(endInclusive - currentValue + 1); // currentValue is start if not strated yet.
                 return true;
@@ -865,7 +865,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(scoped Span<UInt32> destination, Index offset)
         {
-            if (TryGetNonEnumeratedCount(out var count))
+            if (this.TryGetNonEnumeratedCount(out var count))
             {
                 if (EnumeratorHelper.TryGetSliceRange(count, offset, destination.Length, out var fillStart, out var fillCount))
                 {
@@ -980,9 +980,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out Int32 current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = currentValue;
                 return true;
             }
@@ -1032,7 +1032,7 @@ namespace Seamless.Linq.Carrier.Linq
         }
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (CanOptimize())
+            if (this.CanOptimize())
             {
                 count = (int)(endInclusive - currentValue + 1); // currentValue is start if not strated yet.
                 return true;
@@ -1050,7 +1050,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(scoped Span<Int32> destination, Index offset)
         {
-            if (TryGetNonEnumeratedCount(out var count))
+            if (this.TryGetNonEnumeratedCount(out var count))
             {
                 if (EnumeratorHelper.TryGetSliceRange(count, offset, destination.Length, out var fillStart, out var fillCount))
                 {
@@ -1165,9 +1165,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out UInt64 current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = currentValue;
                 return true;
             }
@@ -1217,7 +1217,7 @@ namespace Seamless.Linq.Carrier.Linq
         }
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (CanOptimize())
+            if (this.CanOptimize())
             {
                 count = (int)(endInclusive - currentValue + 1); // currentValue is start if not strated yet.
                 return true;
@@ -1235,7 +1235,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(scoped Span<UInt64> destination, Index offset)
         {
-            if (TryGetNonEnumeratedCount(out var count))
+            if (this.TryGetNonEnumeratedCount(out var count))
             {
                 if (EnumeratorHelper.TryGetSliceRange(count, offset, destination.Length, out var fillStart, out var fillCount))
                 {
@@ -1350,9 +1350,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out Int64 current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = currentValue;
                 return true;
             }
@@ -1402,7 +1402,7 @@ namespace Seamless.Linq.Carrier.Linq
         }
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (CanOptimize())
+            if (this.CanOptimize())
             {
                 count = (int)(endInclusive - currentValue + 1); // currentValue is start if not strated yet.
                 return true;
@@ -1420,7 +1420,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(scoped Span<Int64> destination, Index offset)
         {
-            if (TryGetNonEnumeratedCount(out var count))
+            if (this.TryGetNonEnumeratedCount(out var count))
             {
                 if (EnumeratorHelper.TryGetSliceRange(count, offset, destination.Length, out var fillStart, out var fillCount))
                 {
@@ -1535,9 +1535,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out Char current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = currentValue;
                 return true;
             }
@@ -1587,7 +1587,7 @@ namespace Seamless.Linq.Carrier.Linq
         }
         public bool TryGetNonEnumeratedCount(out int count)
         {
-            if (CanOptimize())
+            if (this.CanOptimize())
             {
                 count = (int)(endInclusive - currentValue + 1); // currentValue is start if not strated yet.
                 return true;
@@ -1605,7 +1605,7 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryCopyTo(scoped Span<Char> destination, Index offset)
         {
-            if (TryGetNonEnumeratedCount(out var count))
+            if (this.TryGetNonEnumeratedCount(out var count))
             {
                 if (EnumeratorHelper.TryGetSliceRange(count, offset, destination.Length, out var fillStart, out var fillCount))
                 {
@@ -1722,9 +1722,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out Single current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = currentValue;
                 return true;
             }
@@ -1845,9 +1845,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out Double current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = currentValue;
                 return true;
             }
@@ -1966,9 +1966,9 @@ namespace Seamless.Linq.Carrier.Linq
 
         public bool TryGetNext(out Decimal current)
         {
-            if (!calledGetNext)
+            if (!this.calledGetNext)
             {
-                calledGetNext = true;
+                this.calledGetNext = true;
                 current = currentValue;
                 return true;
             }
