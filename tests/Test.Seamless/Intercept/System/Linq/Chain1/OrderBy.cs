@@ -9,8 +9,9 @@ public sealed class OrderBy:LinqChain1TestBase {
 
     private static void keySelector_StaticImpl() {
         var expected=SystemEnumerable.OrderBy(LinqChain1TestBase.Rows(),static row => row.Key).ToList();
-        var actual=LinqChain1TestBase.Rows().OrderBy(static row => row.Key).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<Chain1Row>();
+        LinqChain1TestBase.Rows().OrderBy(static row => row.Key).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -18,8 +19,9 @@ public sealed class OrderBy:LinqChain1TestBase {
 
     private static void keySelector_LambdaImpl() {
         var expected=SystemEnumerable.OrderBy(LinqChain1TestBase.Rows(),row => row.Key).ToList();
-        var actual=LinqChain1TestBase.Rows().OrderBy(row => row.Key).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<Chain1Row>();
+        LinqChain1TestBase.Rows().OrderBy(row => row.Key).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -28,8 +30,9 @@ public sealed class OrderBy:LinqChain1TestBase {
     private static void keySelector_CapturedImpl() {
         var offset=0;
         var expected=SystemEnumerable.OrderBy(LinqChain1TestBase.Rows(),row => row.Key+offset).ToList();
-        var actual=LinqChain1TestBase.Rows().OrderBy(row => row.Key+offset).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<Chain1Row>();
+        LinqChain1TestBase.Rows().OrderBy(row => row.Key+offset).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -37,8 +40,9 @@ public sealed class OrderBy:LinqChain1TestBase {
 
     private static void keySelector_DelegateSyntaxImpl() {
         var expected=SystemEnumerable.OrderBy(LinqChain1TestBase.Rows(),delegate(Chain1Row row) { return row.Key; }).ToList();
-        var actual=LinqChain1TestBase.Rows().OrderBy(delegate(Chain1Row row) { return row.Key; }).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<Chain1Row>();
+        LinqChain1TestBase.Rows().OrderBy(delegate(Chain1Row row) { return row.Key; }).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -47,8 +51,9 @@ public sealed class OrderBy:LinqChain1TestBase {
     private static void keySelector_VariableImpl() {
         Func<Chain1Row,int> keySelector=row => row.Key;
         var expected=SystemEnumerable.OrderBy(LinqChain1TestBase.Rows(),keySelector).ToList();
-        var actual=LinqChain1TestBase.Rows().OrderBy(keySelector).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<Chain1Row>();
+        LinqChain1TestBase.Rows().OrderBy(keySelector).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -56,8 +61,9 @@ public sealed class OrderBy:LinqChain1TestBase {
 
     private static void keySelector_comparerImpl() {
         var expected=SystemEnumerable.OrderBy(LinqChain1TestBase.Rows(),static row => row.Key,Comparer<int>.Default).ToList();
-        var actual=LinqChain1TestBase.Rows().OrderBy(static row => row.Key,Comparer<int>.Default).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<Chain1Row>();
+        LinqChain1TestBase.Rows().OrderBy(static row => row.Key,Comparer<int>.Default).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
 }

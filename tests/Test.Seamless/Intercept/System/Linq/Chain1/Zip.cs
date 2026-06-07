@@ -9,8 +9,9 @@ public sealed class Zip:LinqChain1TestBase {
 
     private static void secondImpl() {
         var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second()).ToList();
-        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second()).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<(int,int)>();
+        LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second()).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -27,8 +28,9 @@ public sealed class Zip:LinqChain1TestBase {
 
     private static void second_resultSelector_StaticImpl() {
         var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),static (a,b) => a+b).ToList();
-        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),static (a,b) => a+b).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),static (a,b) => a+b).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -36,8 +38,9 @@ public sealed class Zip:LinqChain1TestBase {
 
     private static void second_resultSelector_LambdaImpl() {
         var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),(a,b) => a+b).ToList();
-        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),(a,b) => a+b).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),(a,b) => a+b).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -46,8 +49,9 @@ public sealed class Zip:LinqChain1TestBase {
     private static void second_resultSelector_CapturedImpl() {
         var offset=0;
         var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),(a,b) => a+b+offset).ToList();
-        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),(a,b) => a+b+offset).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),(a,b) => a+b+offset).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -55,8 +59,9 @@ public sealed class Zip:LinqChain1TestBase {
 
     private static void second_resultSelector_DelegateSyntaxImpl() {
         var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),delegate(int a,int b) { return a+b; }).ToList();
-        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),delegate(int a,int b) { return a+b; }).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),delegate(int a,int b) { return a+b; }).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -65,8 +70,9 @@ public sealed class Zip:LinqChain1TestBase {
     private static void second_resultSelector_VariableImpl() {
         Func<int,int,int> resultSelector=(a,b) => a+b;
         var expected=SystemEnumerable.Zip(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),resultSelector).ToList();
-        var actual=LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),resultSelector).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Zip(LinqChain1TestBase.Second(),resultSelector).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
 }

@@ -9,8 +9,9 @@ public sealed class Union:LinqChain1TestBase {
 
     private static void secondImpl() {
         var expected=SystemEnumerable.Union(LinqChain1TestBase.Source(),LinqChain1TestBase.Second()).ToList();
-        var actual=LinqChain1TestBase.Source().Union(LinqChain1TestBase.Second()).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Union(LinqChain1TestBase.Second()).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -18,8 +19,9 @@ public sealed class Union:LinqChain1TestBase {
 
     private static void second_comparerImpl() {
         var expected=SystemEnumerable.Union(LinqChain1TestBase.Source(),LinqChain1TestBase.Second(),EqualityComparer<int>.Default).ToList();
-        var actual=LinqChain1TestBase.Source().Union(LinqChain1TestBase.Second(),EqualityComparer<int>.Default).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Union(LinqChain1TestBase.Second(),EqualityComparer<int>.Default).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
 }

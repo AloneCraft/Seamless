@@ -9,8 +9,9 @@ public sealed class Distinct:LinqChain1TestBase {
 
     private static void NoDelegateImpl() {
         var expected=SystemEnumerable.Distinct(LinqChain1TestBase.SourceWithDuplicates()).ToList();
-        var actual=LinqChain1TestBase.SourceWithDuplicates().Distinct().ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.SourceWithDuplicates().Distinct().Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -18,8 +19,9 @@ public sealed class Distinct:LinqChain1TestBase {
 
     private static void comparerImpl() {
         var expected=SystemEnumerable.Distinct(LinqChain1TestBase.SourceWithDuplicates(),EqualityComparer<int>.Default).ToList();
-        var actual=LinqChain1TestBase.SourceWithDuplicates().Distinct(EqualityComparer<int>.Default).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.SourceWithDuplicates().Distinct(EqualityComparer<int>.Default).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
 }

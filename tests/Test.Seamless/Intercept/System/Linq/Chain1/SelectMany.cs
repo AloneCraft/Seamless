@@ -9,8 +9,9 @@ public sealed class SelectMany:LinqChain1TestBase {
 
     private static void selector_StaticImpl() {
         var expected=SystemEnumerable.SelectMany(LinqChain1TestBase.Source(),static v => new[] { v,v+10 }).ToList();
-        var actual=LinqChain1TestBase.Source().SelectMany(static v => new[] { v,v+10 }).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().SelectMany(static v => new[] { v,v+10 }).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -18,8 +19,9 @@ public sealed class SelectMany:LinqChain1TestBase {
 
     private static void selector_index_StaticImpl() {
         var expected=SystemEnumerable.SelectMany(LinqChain1TestBase.Source(),static (v,i) => new[] { v,i }).ToList();
-        var actual=LinqChain1TestBase.Source().SelectMany(static (v,i) => new[] { v,i }).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().SelectMany(static (v,i) => new[] { v,i }).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -27,8 +29,9 @@ public sealed class SelectMany:LinqChain1TestBase {
 
     private static void collectionSelector_resultSelector_StaticImpl() {
         var expected=SystemEnumerable.SelectMany(LinqChain1TestBase.Source(),static v => new[] { v,v+10 },static (v,sub) => sub+v).ToList();
-        var actual=LinqChain1TestBase.Source().SelectMany(static v => new[] { v,v+10 },static (v,sub) => sub+v).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().SelectMany(static v => new[] { v,v+10 },static (v,sub) => sub+v).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -36,8 +39,9 @@ public sealed class SelectMany:LinqChain1TestBase {
 
     private static void collectionSelector_index_resultSelector_StaticImpl() {
         var expected=SystemEnumerable.SelectMany(LinqChain1TestBase.Source(),static (v,i) => new[] { v,i },static (v,sub) => sub+v).ToList();
-        var actual=LinqChain1TestBase.Source().SelectMany(static (v,i) => new[] { v,i },static (v,sub) => sub+v).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().SelectMany(static (v,i) => new[] { v,i },static (v,sub) => sub+v).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -45,8 +49,9 @@ public sealed class SelectMany:LinqChain1TestBase {
 
     private static void selector_LambdaImpl() {
         var expected=SystemEnumerable.SelectMany(LinqChain1TestBase.Source(),v => new[] { v,v+10 }).ToList();
-        var actual=LinqChain1TestBase.Source().SelectMany(v => new[] { v,v+10 }).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().SelectMany(v => new[] { v,v+10 }).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -55,8 +60,9 @@ public sealed class SelectMany:LinqChain1TestBase {
     private static void selector_CapturedImpl() {
         var offset=10;
         var expected=SystemEnumerable.SelectMany(LinqChain1TestBase.Source(),v => new[] { v,v+offset }).ToList();
-        var actual=LinqChain1TestBase.Source().SelectMany(v => new[] { v,v+offset }).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().SelectMany(v => new[] { v,v+offset }).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -64,8 +70,9 @@ public sealed class SelectMany:LinqChain1TestBase {
 
     private static void selector_DelegateSyntaxImpl() {
         var expected=SystemEnumerable.SelectMany(LinqChain1TestBase.Source(),delegate(int v) { return new[] { v,v+10 }; }).ToList();
-        var actual=LinqChain1TestBase.Source().SelectMany(delegate(int v) { return new[] { v,v+10 }; }).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().SelectMany(delegate(int v) { return new[] { v,v+10 }; }).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -74,8 +81,9 @@ public sealed class SelectMany:LinqChain1TestBase {
     private static void selector_VariableImpl() {
         Func<int,int[]> selector=v => new[] { v,v+10 };
         var expected=SystemEnumerable.SelectMany(LinqChain1TestBase.Source(),selector).ToList();
-        var actual=LinqChain1TestBase.Source().SelectMany(selector).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().SelectMany(selector).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
 }

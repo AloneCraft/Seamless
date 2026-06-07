@@ -9,8 +9,9 @@ public sealed class SkipLast:LinqChain1TestBase {
 
     private static void countImpl() {
         var expected=SystemEnumerable.SkipLast(LinqChain1TestBase.Source(),2).ToList();
-        var actual=LinqChain1TestBase.Source().SkipLast(2).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().SkipLast(2).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
 }

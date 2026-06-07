@@ -6,93 +6,93 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class SelectMany {
     [Fact,Trait("Category","Unit")]
-    public static void SelectMany_selector(){
-        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(SelectMany_selectorImpl));
+    public static void selector(){
+        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(selectorImpl));
         var expected=SystemEnumerable.SelectMany(new[]{1,2,3,4},static v => new[]{v,v+10}).ToList();
-        var actual=SelectMany_selectorImpl();
+        var actual=selectorImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> SelectMany_selectorImpl(){
+    private static List<int> selectorImpl(){
         return new[]{1,2,3,4}.SelectMany(static v => new[]{v,v+10}).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void SelectMany_indexSelector(){
-        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(SelectMany_indexSelectorImpl));
+    public static void indexSelector(){
+        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(indexSelectorImpl));
         var expected=SystemEnumerable.SelectMany(new[]{1,2,3,4},static (v,i) => new[]{v,i}).ToList();
-        var actual=SelectMany_indexSelectorImpl();
+        var actual=indexSelectorImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> SelectMany_indexSelectorImpl(){
+    private static List<int> indexSelectorImpl(){
         return new[]{1,2,3,4}.SelectMany(static (v,i) => new[]{v,i}).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void SelectMany_selector_resultSelector(){
-        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(SelectMany_selector_resultSelectorImpl));
+    public static void selector_resultSelector(){
+        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(selector_resultSelectorImpl));
         var expected=SystemEnumerable.SelectMany(new[]{1,2,3,4},static v => new[]{v,v+10},static (v,sub) => sub+v).ToList();
-        var actual=SelectMany_selector_resultSelectorImpl();
+        var actual=selector_resultSelectorImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> SelectMany_selector_resultSelectorImpl(){
+    private static List<int> selector_resultSelectorImpl(){
         return new[]{1,2,3,4}.SelectMany(static v => new[]{v,v+10},static (v,sub) => sub+v).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void SelectMany_indexSelector_resultSelector(){
-        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(SelectMany_indexSelector_resultSelectorImpl));
+    public static void indexSelector_resultSelector(){
+        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(indexSelector_resultSelectorImpl));
         var expected=SystemEnumerable.SelectMany(new[]{1,2,3,4},static (v,i) => new[]{v,i},static (v,sub) => sub+v).ToList();
-        var actual=SelectMany_indexSelector_resultSelectorImpl();
+        var actual=indexSelector_resultSelectorImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> SelectMany_indexSelector_resultSelectorImpl(){
+    private static List<int> indexSelector_resultSelectorImpl(){
         return new[]{1,2,3,4}.SelectMany(static (v,i) => new[]{v,i},static (v,sub) => sub+v).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void SelectMany_selector_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(SelectMany_selector_enumerableImpl));
+    public static void selector_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(selector_enumerableImpl));
         var expected=SystemEnumerable.SelectMany(new[]{1,2,3,4},static v => new[]{v,v+10}).ToList();
-        var actual=SelectMany_selector_enumerableImpl();
+        var actual=selector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> SelectMany_selector_enumerableImpl(){
+    private static List<int> selector_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.SelectMany(static v => new[]{v,v+10}).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void SelectMany_indexSelector_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(SelectMany_indexSelector_enumerableImpl));
+    public static void indexSelector_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(indexSelector_enumerableImpl));
         var expected=SystemEnumerable.SelectMany(new[]{1,2,3,4},static (v,i) => new[]{v,i}).ToList();
-        var actual=SelectMany_indexSelector_enumerableImpl();
+        var actual=indexSelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> SelectMany_indexSelector_enumerableImpl(){
+    private static List<int> indexSelector_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.SelectMany(static (v,i) => new[]{v,i}).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void SelectMany_selector_resultSelector_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(SelectMany_selector_resultSelector_enumerableImpl));
+    public static void selector_resultSelector_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(selector_resultSelector_enumerableImpl));
         var expected=SystemEnumerable.SelectMany(new[]{1,2,3,4},static v => new[]{v,v+10},static (v,sub) => sub+v).ToList();
-        var actual=SelectMany_selector_resultSelector_enumerableImpl();
+        var actual=selector_resultSelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> SelectMany_selector_resultSelector_enumerableImpl(){
+    private static List<int> selector_resultSelector_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.SelectMany(static v => new[]{v,v+10},static (v,sub) => sub+v).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void SelectMany_indexSelector_resultSelector_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(SelectMany_indexSelector_resultSelector_enumerableImpl));
+    public static void indexSelector_resultSelector_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<SelectMany>(nameof(indexSelector_resultSelector_enumerableImpl));
         var expected=SystemEnumerable.SelectMany(new[]{1,2,3,4},static (v,i) => new[]{v,i},static (v,sub) => sub+v).ToList();
-        var actual=SelectMany_indexSelector_resultSelector_enumerableImpl();
+        var actual=indexSelector_resultSelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> SelectMany_indexSelector_resultSelector_enumerableImpl(){
+    private static List<int> indexSelector_resultSelector_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.SelectMany(static (v,i) => new[]{v,i},static (v,sub) => sub+v).ToList();
     }

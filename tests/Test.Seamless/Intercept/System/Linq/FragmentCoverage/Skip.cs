@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class Skip {
     [Fact,Trait("Category","Unit")]
-    public static void Skip_count(){
-        GeneratedInterceptorAssert.ContainsMethod<Skip>(nameof(Skip_countImpl));
+    public static void count(){
+        GeneratedInterceptorAssert.ContainsMethod<Skip>(nameof(countImpl));
         var expected=SystemEnumerable.Skip(new[]{1,2,3,4},1).ToList();
-        var actual=Skip_countImpl();
+        var actual=countImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> Skip_countImpl(){
+    private static List<int> countImpl(){
         return new[]{1,2,3,4}.Skip(1).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Skip_count_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Skip>(nameof(Skip_count_enumerableImpl));
+    public static void count_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Skip>(nameof(count_enumerableImpl));
         var expected=SystemEnumerable.Skip(new[]{1,2,3,4},1).ToList();
-        var actual=Skip_count_enumerableImpl();
+        var actual=count_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> Skip_count_enumerableImpl(){
+    private static List<int> count_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.Skip(1).ToList();
     }

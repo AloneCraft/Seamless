@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class Single {
     [Fact,Trait("Category","Unit")]
-    public static void Single_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<Single>(nameof(Single_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<Single>(nameof(noArgImpl));
         var expected=SystemEnumerable.Single(new[]{42});
-        var actual=Single_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Single_noArgImpl(){
+    private static int noArgImpl(){
         return new[]{42}.Single();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Single_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Single>(nameof(Single_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Single>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.Single(new[]{42});
-        var actual=Single_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Single_noArg_enumerableImpl(){
+    private static int noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{42};
         return src.Single();
     }

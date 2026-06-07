@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class ToList {
     [Fact,Trait("Category","Unit")]
-    public static void ToList_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<ToList>(nameof(ToList_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<ToList>(nameof(noArgImpl));
         var expected=SystemEnumerable.ToList(new[]{1,2,3,4});
-        var actual=ToList_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> ToList_noArgImpl(){
+    private static List<int> noArgImpl(){
         return new[]{1,2,3,4}.ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void ToList_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<ToList>(nameof(ToList_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<ToList>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.ToList(new[]{1,2,3,4});
-        var actual=ToList_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> ToList_noArg_enumerableImpl(){
+    private static List<int> noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.ToList();
     }

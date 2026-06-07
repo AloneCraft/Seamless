@@ -16,16 +16,16 @@ public sealed class AnonymousType {
         GroupJoin_Static();
     }
     private static void GroupJoin_Static() {
-        var expected=SystemEnumerable.GroupJoin(Source(),Source(),o=>o+o,i=>i*i,(o,i)=>new{o,i});
-        var actual=Source().GroupJoin(Source(),o=>o+o,i=>i*i,(o,i)=>new{o,i});
+        var expected=SystemEnumerable.GroupJoin(Source(),Source(),o=>(o,o),i=>(i,i),(o,i)=>new{o,i});
+        var actual=Source().GroupJoin(Source(),o=>(o,o),i=>(i,i),(o,i)=>new{o,i});
         //Assert.Equal(expected,actual);
     }
     [Fact,Trait("Category","Unit")]public void Join() {
         Join_Static();
     }
     private static void Join_Static() {
-        var expected=SystemEnumerable.Join(Source(),Source(),o=>o+o,i=>i*i,(o,i)=>new{o,i});
-        var actual=Source().Join(Source(),o=>o+o,i=>i*i,(o,i)=>new{o,i});
+        var expected=SystemEnumerable.Join(Source(),Source(),o=>(o,o),i=>(i,i),(o,i)=>new{o,i});
+        var actual=Source().Join(Source(),o=>(o,o),i=>(i,i),(o,i)=>new{o,i});
         Assert.Equal(expected,actual);
     }
     [Fact,Trait("Category","Unit")]public void GroupBy() {
@@ -106,6 +106,82 @@ public sealed class AnonymousType {
         Func<int,int,int> func=(l,r) => l+r;
         var expected=SystemEnumerable.Select(Source(),func);
         var actual=Source().Select(func);
+        Assert.Equal(expected,actual);
+    }
+
+    // 匿名型配列をソースにして各 LINQ メソッドを対象化する。匿名型はメソッド戻り値に
+    // できないため各テスト内でインライン生成する。actual はインスタンス形（intercept）、
+    // expected は完全修飾 SystemEnumerable（参照）。
+    [Fact,Trait("Category","Unit")]public void Where() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        var expected=SystemEnumerable.Where(rows,r=>r.Value>15).ToList();
+        var actual=rows.Where(r=>r.Value>15).ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Take() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        var expected=SystemEnumerable.Take(rows,2).ToList();
+        var actual=rows.Take(2).ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Skip() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        var expected=SystemEnumerable.Skip(rows,1).ToList();
+        var actual=rows.Skip(1).ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Reverse() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        var expected=SystemEnumerable.Reverse(rows).ToList();
+        var actual=rows.Reverse().ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Distinct() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        var expected=SystemEnumerable.Distinct(rows).ToList();
+        var actual=rows.Distinct().ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void OrderBy() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        var expected=SystemEnumerable.OrderBy(rows,r=>r.Value).ToList();
+        var actual=rows.OrderBy(r=>r.Value).ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Concat() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        var expected=SystemEnumerable.Concat(rows,rows).ToList();
+        var actual=rows.Concat(rows).ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Count() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        var expected=SystemEnumerable.Count(rows,r=>r.Key==2);
+        var actual=rows.Count(r=>r.Key==2);
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Any() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        var expected=SystemEnumerable.Any(rows,r=>r.Key==3);
+        var actual=rows.Any(r=>r.Key==3);
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void All() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        var expected=SystemEnumerable.All(rows,r=>r.Value>0);
+        var actual=rows.All(r=>r.Value>0);
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void First() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        var expected=SystemEnumerable.First(rows,r=>r.Key==2);
+        var actual=rows.First(r=>r.Key==2);
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void ToArray() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        var expected=SystemEnumerable.ToArray(rows);
+        var actual=rows.ToArray();
         Assert.Equal(expected,actual);
     }
 

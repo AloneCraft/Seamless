@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class Min {
     [Fact,Trait("Category","Unit")]
-    public static void Min_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<Min>(nameof(Min_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<Min>(nameof(noArgImpl));
         var expected=SystemEnumerable.Min(new[]{1,2,3,4});
-        var actual=Min_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Min_noArgImpl(){
+    private static int noArgImpl(){
         return new[]{1,2,3,4}.Min();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Min_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Min>(nameof(Min_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Min>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.Min(new[]{1,2,3,4});
-        var actual=Min_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Min_noArg_enumerableImpl(){
+    private static int noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.Min();
     }

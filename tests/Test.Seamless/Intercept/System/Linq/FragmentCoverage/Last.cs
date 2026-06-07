@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class Last {
     [Fact,Trait("Category","Unit")]
-    public static void Last_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<Last>(nameof(Last_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<Last>(nameof(noArgImpl));
         var expected=SystemEnumerable.Last(new[]{1,2,3,4});
-        var actual=Last_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Last_noArgImpl(){
+    private static int noArgImpl(){
         return new[]{1,2,3,4}.Last();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Last_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Last>(nameof(Last_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Last>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.Last(new[]{1,2,3,4});
-        var actual=Last_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Last_noArg_enumerableImpl(){
+    private static int noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.Last();
     }

@@ -17,16 +17,16 @@ public sealed class ValueTuple{
         GroupJoin_Static();
     }
     private static void GroupJoin_Static() {
-        var expected=SystemEnumerable.GroupJoin(Source(),Source(),o=>o+o,i=>i*i,(o,i)=>(o,i));
-        var actual=Source().GroupJoin(Source(),o=>o+o,i=>i*i,(o,i)=>(o,i));
+        var expected=SystemEnumerable.GroupJoin(Source(),Source(),o=>(o,o),i=>(i,i),(o,i)=>(o,i));
+        var actual=Source().GroupJoin(Source(),o=>(o,o),i=>(i,i),(o,i)=>(o,i));
         //Assert.Equal(expected,actual);
     }
     [Fact,Trait("Category","Unit")]public void Join() {
         Join_Static();
     }
     private static void Join_Static() {
-        var expected=SystemEnumerable.Join(Source(),Source(),o=>o+o,i=>i*i,(o,i)=>(o,i));
-        var actual=Source().Join(Source(),o=>o+o,i=>i*i,(o,i)=>(o,i));
+        var expected=SystemEnumerable.Join(Source(),Source(),o=>(o,o),i=>(i,i),(o,i)=>(o,i));
+        var actual=Source().Join(Source(),o=>(o,o),i=>(i,i),(o,i)=>(o,i));
         Assert.Equal(expected,actual);
     }
     [Fact,Trait("Category","Unit")]public void GroupBy() {
@@ -107,6 +107,84 @@ public sealed class ValueTuple{
         Func<int,int,int> func=(l,r) => l+r;
         var expected=SystemEnumerable.Select(Source(),func);
         var actual=Source().Select(func);
+        Assert.Equal(expected,actual);
+    }
+
+    // ValueTuple 配列をソースにして各 LINQ メソッドを対象化する。
+    // actual はインスタンス形（intercept）、expected は完全修飾 SystemEnumerable（参照）。
+    private static (int Key,int Value)[] Tuples() =>
+        [(1,10),(2,20),(2,30),(3,40)];
+
+    [Fact,Trait("Category","Unit")]public void Where() {
+        var rows=Tuples();
+        var expected=SystemEnumerable.Where(rows,r=>r.Value>15).ToList();
+        var actual=rows.Where(r=>r.Value>15).ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Take() {
+        var rows=Tuples();
+        var expected=SystemEnumerable.Take(rows,2).ToList();
+        var actual=rows.Take(2).ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Skip() {
+        var rows=Tuples();
+        var expected=SystemEnumerable.Skip(rows,1).ToList();
+        var actual=rows.Skip(1).ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Reverse() {
+        var rows=Tuples();
+        var expected=SystemEnumerable.Reverse(rows).ToList();
+        var actual=rows.Reverse().ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Distinct() {
+        var rows=Tuples();
+        var expected=SystemEnumerable.Distinct(rows).ToList();
+        var actual=rows.Distinct().ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void OrderBy() {
+        var rows=Tuples();
+        var expected=SystemEnumerable.OrderBy(rows,r=>r.Value).ToList();
+        var actual=rows.OrderBy(r=>r.Value).ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Concat() {
+        var rows=Tuples();
+        var expected=SystemEnumerable.Concat(rows,rows).ToList();
+        var actual=rows.Concat(rows).ToList();
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Count() {
+        var rows=Tuples();
+        var expected=SystemEnumerable.Count(rows,r=>r.Key==2);
+        var actual=rows.Count(r=>r.Key==2);
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void Any() {
+        var rows=Tuples();
+        var expected=SystemEnumerable.Any(rows,r=>r.Key==3);
+        var actual=rows.Any(r=>r.Key==3);
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void All() {
+        var rows=Tuples();
+        var expected=SystemEnumerable.All(rows,r=>r.Value>0);
+        var actual=rows.All(r=>r.Value>0);
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void First() {
+        var rows=Tuples();
+        var expected=SystemEnumerable.First(rows,r=>r.Key==2);
+        var actual=rows.First(r=>r.Key==2);
+        Assert.Equal(expected,actual);
+    }
+    [Fact,Trait("Category","Unit")]public void ToArray() {
+        var rows=Tuples();
+        var expected=SystemEnumerable.ToArray(rows);
+        var actual=rows.ToArray();
         Assert.Equal(expected,actual);
     }
 

@@ -7,93 +7,93 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class ToLookup {
     [Fact,Trait("Category","Unit")]
-    public static void ToLookup_keySelector(){
-        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(ToLookup_keySelectorImpl));
+    public static void keySelector(){
+        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(keySelectorImpl));
         var expected=SystemEnumerable.ToLookup(new[]{1,1,2,2},static v => v);
-        var actual=ToLookup_keySelectorImpl();
+        var actual=keySelectorImpl();
         LinqChain1TestBase.AssertLookupEqual(expected,actual);
     }
-    private static ILookup<int,int> ToLookup_keySelectorImpl(){
+    private static ILookup<int,int> keySelectorImpl(){
         return new[]{1,1,2,2}.ToLookup(static v => v);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void ToLookup_keySelector_elementSelector(){
-        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(ToLookup_keySelector_elementSelectorImpl));
+    public static void keySelector_elementSelector(){
+        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(keySelector_elementSelectorImpl));
         var expected=SystemEnumerable.ToLookup(new[]{1,1,2,2},static v => v,static v => v*2);
-        var actual=ToLookup_keySelector_elementSelectorImpl();
+        var actual=keySelector_elementSelectorImpl();
         LinqChain1TestBase.AssertLookupEqual(expected,actual);
     }
-    private static ILookup<int,int> ToLookup_keySelector_elementSelectorImpl(){
+    private static ILookup<int,int> keySelector_elementSelectorImpl(){
         return new[]{1,1,2,2}.ToLookup(static v => v,static v => v*2);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void ToLookup_keySelector_comparer(){
-        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(ToLookup_keySelector_comparerImpl));
+    public static void keySelector_comparer(){
+        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(keySelector_comparerImpl));
         var expected=SystemEnumerable.ToLookup(new[]{1,1,2,2},static v => v,EqualityComparer<int>.Default);
-        var actual=ToLookup_keySelector_comparerImpl();
+        var actual=keySelector_comparerImpl();
         LinqChain1TestBase.AssertLookupEqual(expected,actual);
     }
-    private static ILookup<int,int> ToLookup_keySelector_comparerImpl(){
+    private static ILookup<int,int> keySelector_comparerImpl(){
         return new[]{1,1,2,2}.ToLookup(static v => v,EqualityComparer<int>.Default);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void ToLookup_keySelector_elementSelector_comparer(){
-        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(ToLookup_keySelector_elementSelector_comparerImpl));
+    public static void keySelector_elementSelector_comparer(){
+        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(keySelector_elementSelector_comparerImpl));
         var expected=SystemEnumerable.ToLookup(new[]{1,1,2,2},static v => v,static v => v*2,EqualityComparer<int>.Default);
-        var actual=ToLookup_keySelector_elementSelector_comparerImpl();
+        var actual=keySelector_elementSelector_comparerImpl();
         LinqChain1TestBase.AssertLookupEqual(expected,actual);
     }
-    private static ILookup<int,int> ToLookup_keySelector_elementSelector_comparerImpl(){
+    private static ILookup<int,int> keySelector_elementSelector_comparerImpl(){
         return new[]{1,1,2,2}.ToLookup(static v => v,static v => v*2,EqualityComparer<int>.Default);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void ToLookup_keySelector_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(ToLookup_keySelector_enumerableImpl));
+    public static void keySelector_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(keySelector_enumerableImpl));
         var expected=SystemEnumerable.ToLookup(new[]{1,1,2,2},static v => v);
-        var actual=ToLookup_keySelector_enumerableImpl();
+        var actual=keySelector_enumerableImpl();
         LinqChain1TestBase.AssertLookupEqual(expected,actual);
     }
-    private static ILookup<int,int> ToLookup_keySelector_enumerableImpl(){
+    private static ILookup<int,int> keySelector_enumerableImpl(){
         IEnumerable<int>src=new[]{1,1,2,2};
         return src.ToLookup(static v => v);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void ToLookup_keySelector_elementSelector_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(ToLookup_keySelector_elementSelector_enumerableImpl));
+    public static void keySelector_elementSelector_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(keySelector_elementSelector_enumerableImpl));
         var expected=SystemEnumerable.ToLookup(new[]{1,1,2,2},static v => v,static v => v*2);
-        var actual=ToLookup_keySelector_elementSelector_enumerableImpl();
+        var actual=keySelector_elementSelector_enumerableImpl();
         LinqChain1TestBase.AssertLookupEqual(expected,actual);
     }
-    private static ILookup<int,int> ToLookup_keySelector_elementSelector_enumerableImpl(){
+    private static ILookup<int,int> keySelector_elementSelector_enumerableImpl(){
         IEnumerable<int>src=new[]{1,1,2,2};
         return src.ToLookup(static v => v,static v => v*2);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void ToLookup_keySelector_comparer_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(ToLookup_keySelector_comparer_enumerableImpl));
+    public static void keySelector_comparer_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(keySelector_comparer_enumerableImpl));
         var expected=SystemEnumerable.ToLookup(new[]{1,1,2,2},static v => v,EqualityComparer<int>.Default);
-        var actual=ToLookup_keySelector_comparer_enumerableImpl();
+        var actual=keySelector_comparer_enumerableImpl();
         LinqChain1TestBase.AssertLookupEqual(expected,actual);
     }
-    private static ILookup<int,int> ToLookup_keySelector_comparer_enumerableImpl(){
+    private static ILookup<int,int> keySelector_comparer_enumerableImpl(){
         IEnumerable<int>src=new[]{1,1,2,2};
         return src.ToLookup(static v => v,EqualityComparer<int>.Default);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void ToLookup_keySelector_elementSelector_comparer_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(ToLookup_keySelector_elementSelector_comparer_enumerableImpl));
+    public static void keySelector_elementSelector_comparer_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<ToLookup>(nameof(keySelector_elementSelector_comparer_enumerableImpl));
         var expected=SystemEnumerable.ToLookup(new[]{1,1,2,2},static v => v,static v => v*2,EqualityComparer<int>.Default);
-        var actual=ToLookup_keySelector_elementSelector_comparer_enumerableImpl();
+        var actual=keySelector_elementSelector_comparer_enumerableImpl();
         LinqChain1TestBase.AssertLookupEqual(expected,actual);
     }
-    private static ILookup<int,int> ToLookup_keySelector_elementSelector_comparer_enumerableImpl(){
+    private static ILookup<int,int> keySelector_elementSelector_comparer_enumerableImpl(){
         IEnumerable<int>src=new[]{1,1,2,2};
         return src.ToLookup(static v => v,static v => v*2,EqualityComparer<int>.Default);
     }

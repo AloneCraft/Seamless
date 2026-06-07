@@ -6,47 +6,47 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class Sum {
     [Fact,Trait("Category","Unit")]
-    public static void Sum_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<Sum>(nameof(Sum_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<Sum>(nameof(noArgImpl));
         var expected=SystemEnumerable.Sum(new[]{1,2,3,4});
-        var actual=Sum_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Sum_noArgImpl(){
+    private static int noArgImpl(){
         return new[]{1,2,3,4}.Sum();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Sum_selector(){
-        GeneratedInterceptorAssert.ContainsMethod<Sum>(nameof(Sum_selectorImpl));
+    public static void selector(){
+        GeneratedInterceptorAssert.ContainsMethod<Sum>(nameof(selectorImpl));
         var expected=SystemEnumerable.Sum(new[]{1,2,3,4},static v => v*2);
-        var actual=Sum_selectorImpl();
+        var actual=selectorImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Sum_selectorImpl(){
+    private static int selectorImpl(){
         return new[]{1,2,3,4}.Sum(static v => v*2);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Sum_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Sum>(nameof(Sum_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Sum>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.Sum(new[]{1,2,3,4});
-        var actual=Sum_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Sum_noArg_enumerableImpl(){
+    private static int noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.Sum();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Sum_selector_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Sum>(nameof(Sum_selector_enumerableImpl));
+    public static void selector_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Sum>(nameof(selector_enumerableImpl));
         var expected=SystemEnumerable.Sum(new[]{1,2,3,4},static v => v*2);
-        var actual=Sum_selector_enumerableImpl();
+        var actual=selector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int Sum_selector_enumerableImpl(){
+    private static int selector_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.Sum(static v => v*2);
     }

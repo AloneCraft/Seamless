@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class Reverse {
     [Fact,Trait("Category","Unit")]
-    public static void Reverse_noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<Reverse>(nameof(Reverse_noArgImpl));
+    public static void noArg(){
+        GeneratedInterceptorAssert.ContainsMethod<Reverse>(nameof(noArgImpl));
         var expected=SystemEnumerable.Reverse(new[]{1,2,3,4}).ToList();
-        var actual=Reverse_noArgImpl();
+        var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> Reverse_noArgImpl(){
+    private static List<int> noArgImpl(){
         return new[]{1,2,3,4}.Reverse().ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Reverse_noArg_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Reverse>(nameof(Reverse_noArg_enumerableImpl));
+    public static void noArg_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Reverse>(nameof(noArg_enumerableImpl));
         var expected=SystemEnumerable.Reverse(new[]{1,2,3,4}).ToList();
-        var actual=Reverse_noArg_enumerableImpl();
+        var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> Reverse_noArg_enumerableImpl(){
+    private static List<int> noArg_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.Reverse().ToList();
     }

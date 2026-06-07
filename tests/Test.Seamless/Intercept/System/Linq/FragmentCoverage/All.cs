@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class All {
     [Fact,Trait("Category","Unit")]
-    public static void All_predicate(){
-        GeneratedInterceptorAssert.ContainsMethod<All>(nameof(All_predicateImpl));
+    public static void predicate(){
+        GeneratedInterceptorAssert.ContainsMethod<All>(nameof(predicateImpl));
         var expected=SystemEnumerable.All(new[]{1,2,3,4},static v => v>0);
-        var actual=All_predicateImpl();
+        var actual=predicateImpl();
         Assert.Equal(expected,actual);
     }
-    private static bool All_predicateImpl(){
+    private static bool predicateImpl(){
         return new[]{1,2,3,4}.All(static v => v>0);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void All_predicate_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<All>(nameof(All_predicate_enumerableImpl));
+    public static void predicate_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<All>(nameof(predicate_enumerableImpl));
         var expected=SystemEnumerable.All(new[]{1,2,3,4},static v => v>0);
-        var actual=All_predicate_enumerableImpl();
+        var actual=predicate_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static bool All_predicate_enumerableImpl(){
+    private static bool predicate_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.All(static v => v>0);
     }

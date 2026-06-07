@@ -6,24 +6,24 @@ namespace Test.Seamless.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class Prepend {
     [Fact,Trait("Category","Unit")]
-    public static void Prepend_element(){
-        GeneratedInterceptorAssert.ContainsMethod<Prepend>(nameof(Prepend_elementImpl));
+    public static void element(){
+        GeneratedInterceptorAssert.ContainsMethod<Prepend>(nameof(elementImpl));
         var expected=SystemEnumerable.Prepend(new[]{1,2,3,4},0).ToList();
-        var actual=Prepend_elementImpl();
+        var actual=elementImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> Prepend_elementImpl(){
+    private static List<int> elementImpl(){
         return new[]{1,2,3,4}.Prepend(0).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void Prepend_element_enumerable(){
-        GeneratedInterceptorAssert.ContainsMethod<Prepend>(nameof(Prepend_element_enumerableImpl));
+    public static void element_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<Prepend>(nameof(element_enumerableImpl));
         var expected=SystemEnumerable.Prepend(new[]{1,2,3,4},0).ToList();
-        var actual=Prepend_element_enumerableImpl();
+        var actual=element_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static List<int> Prepend_element_enumerableImpl(){
+    private static List<int> element_enumerableImpl(){
         IEnumerable<int>src=new[]{1,2,3,4};
         return src.Prepend(0).ToList();
     }

@@ -9,8 +9,9 @@ public sealed class Take:LinqChain1TestBase {
 
     private static void countImpl() {
         var expected=SystemEnumerable.Take(LinqChain1TestBase.Source(),3).ToList();
-        var actual=LinqChain1TestBase.Source().Take(3).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var actual=new Consumer<int>();
+        LinqChain1TestBase.Source().Take(3).Consume(actual);
+        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
