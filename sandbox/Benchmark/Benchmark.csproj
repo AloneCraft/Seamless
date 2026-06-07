@@ -18,6 +18,7 @@
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.2" />
     <PackageReference Include="Kokuban" Version="0.2.0" />
+    <PackageReference Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.7.37220.1" />
     <PackageReference Include="ZLinq" Version="1.5.6" />
   </ItemGroup>
 
@@ -34,17 +35,13 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Seamless\Seamless.csproj" />
     <!-- Build dependency: ensure SourceGenerator DLL is up to date -->
-    <ProjectReference Include="..\..\src\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj"
-                      ReferenceOutputAssembly="false" Private="false"
-                      Condition="'$(Configuration)' != 'SystemLinq'" />
+    <ProjectReference Include="..\..\src\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" ReferenceOutputAssembly="false" Private="false" Condition="'$(Configuration)' != 'SystemLinq'" />
   </ItemGroup>
 
   <!-- Add SourceGenerator as Analyzer directly (works only after first build of SourceGenerator) -->
   <ItemGroup Condition="'$(Configuration)' != 'SystemLinq'">
-    <Analyzer Include="$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Debug/net10.0/Seamless.SourceGenerator.dll"
-              Condition="'$(Configuration)' == 'Debug' and Exists('$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Debug/net10.0/Seamless.SourceGenerator.dll')" />
-    <Analyzer Include="$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Release/net10.0/Seamless.SourceGenerator.dll"
-              Condition="'$(Configuration)' == 'Release' and Exists('$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Release/net10.0/Seamless.SourceGenerator.dll')" />
+    <Analyzer Include="$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Debug/net10.0/Seamless.SourceGenerator.dll" Condition="'$(Configuration)' == 'Debug' and Exists('$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Debug/net10.0/Seamless.SourceGenerator.dll')" />
+    <Analyzer Include="$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Release/net10.0/Seamless.SourceGenerator.dll" Condition="'$(Configuration)' == 'Release' and Exists('$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Release/net10.0/Seamless.SourceGenerator.dll')" />
   </ItemGroup>
 
   <!-- Custom target to cleanup `bin`, and `BenchmarkDotNet.Artifacts` directories. (`obj` is retained. Because it cause intellisense error when deleted) -->

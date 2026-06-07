@@ -14,8 +14,9 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
         """;
     public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression},{comparer})";
     public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
+    public override string GetEnumeratorConstructor=>$"this.{lookup}=CreateLookup({e},comparer);";
     public override string GetEnumeratorFields=>$$"""
-        private readonly global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}}=CreateLookup({{e}},comparer);
+        private global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}};
         private static global::System.Collections.Generic.HashSet<{{source.ElementType}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
             // Distinct は列挙途中で set を更新し続けるため、ここでは root の型に応じた span 判定を入れない。
             // 生成時点で root が span 直走査できる場合は上位の consumer 専用 lowering が選ばれ、それ以外はこの enumerator 経路に落ちる。
@@ -62,8 +63,9 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
         """;
     public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression},{comparer}{ClosureArgsSuffix(keySelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{ClosurePrimaryCtorSuffix(keySelector)}";
+    public override string GetEnumeratorConstructor=>$"this.{lookup}=CreateLookup({e},comparer);";
     public override string GetEnumeratorFields=>$$"""
-        private readonly global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> {{lookup}}=CreateLookup({{e}},comparer);
+        private global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> {{lookup}};
         private static global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
             // DistinctBy も同じで、span 走査かどうかの判定はここではしない。
             // コンパイル時に root 形状が分かる場合は上位で専用生成されるため、ここは汎用経路として最小状態だけを保持する。

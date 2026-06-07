@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 public class Append_element:Base{

@@ -3,23 +3,29 @@ namespace Seamless.SourceGenerator.Linq.Fragments;
 public class TakeLast(int 番号, Enumerable source, string takeCount) : Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==1 && method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
-    protected override Enumerable PrimarySource => source;
+    private Enumerable Source => source;
+    private string TakeCountExpression => takeCount;
+    private Enumerable RootSource => Source is TakeLast takeLast ? takeLast.RootSource : Source;
+    private string EffectiveTakeCount => Source is TakeLast takeLast
+        ? $"global::System.Math.Min({takeLast.EffectiveTakeCount},{TakeCountExpression})"
+        : TakeCountExpression;
+    protected override Enumerable PrimarySource => RootSource;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""
-        {{source.GetEnumeratorStruct}}
+        {{RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {takeCount})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({RootSource.GetEnumeratorExpression}, {EffectiveTakeCount})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int count";
-    public override string GetEnumeratorFields => source.CanProvideSpan
+    public override string GetEnumeratorFields => RootSource.CanProvideSpan
         ? $$"""
             private int {{a}}=-1;
             private int {{temp}};
             """
         : $$"""
-            private global::System.Collections.Generic.Queue<{{source.ElementType}}>? {{lookup}};
+            private global::System.Collections.Generic.Queue<{{RootSource.ElementType}}>? {{lookup}};
             """;
-    public override string GetTryGetNextBody => source.CanProvideSpan
+    public override string GetTryGetNextBody => RootSource.CanProvideSpan
         ? $$"""
             {{e}}.TryGetSpan(out var __span);
             if(this.{{a}}<0) {
@@ -37,7 +43,7 @@ public class TakeLast(int 番号, Enumerable source, string takeCount) : Enumera
         : $$"""
             var __c=count<0?0:count;
             if(this.{{lookup}} is null) {
-                this.{{lookup}}=new global::System.Collections.Generic.Queue<{{source.ElementType}}>(__c);
+                this.{{lookup}}=new global::System.Collections.Generic.Queue<{{RootSource.ElementType}}>(__c);
                 if(__c==0) {
                     current=default!;
                     return false;
@@ -55,5 +61,5 @@ public class TakeLast(int 番号, Enumerable source, string takeCount) : Enumera
             return false;
             """;
     public override string GetCurrentExpression => currentValue;
-    public override string ElementType => source.ElementType;
+    public override string ElementType => RootSource.ElementType;
 }

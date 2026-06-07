@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class ToArray:Base{
     [Benchmark(Baseline=true)]

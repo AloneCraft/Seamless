@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class ToLookup_elementSelector:Base{
     [Benchmark(Baseline=true)]

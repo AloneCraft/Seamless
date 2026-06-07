@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class Chunk_size:Base{
     [Benchmark(Baseline=true)]

@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class Last:Base{
     [Benchmark(Baseline=true)]

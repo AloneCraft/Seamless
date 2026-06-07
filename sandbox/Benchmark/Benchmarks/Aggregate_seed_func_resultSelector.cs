@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class Aggregate_seed_func_resultSelector:Base{
     [Benchmark(Baseline=true)]

@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class SelectMany_selector:Base{
     [Benchmark(Baseline=true)]

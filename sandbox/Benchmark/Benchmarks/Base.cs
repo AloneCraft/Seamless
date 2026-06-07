@@ -1,6 +1,6 @@
 global using ZLinq;
 
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class Base{
     protected readonly Consumer consumer=new Consumer();

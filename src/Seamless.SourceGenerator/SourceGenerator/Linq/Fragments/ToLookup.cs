@@ -52,9 +52,9 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
                     var {{item}} = __span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
                     {{FuncAssign(keySelector, nameof(keySelector), key, item)}}
-                    ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{key}},out var __exists);
+                    ref var {{group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{key}},out var __exists);
                     if(!__exists) {
-                        __group = new global::System.Collections.Generic.List<{{source.ElementType}}>();
+                        {{group}} = new global::System.Collections.Generic.List<{{source.ElementType}}>();
                         order.Add({{key}});
                     }
                     {{group}}.Add({{item}});
@@ -108,12 +108,12 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
                     {{FuncAssign(keySelector, nameof(keySelector), key, item)}}
                     {{FuncReturnTypeName(elementSelector)}} {{temp}} = default!;
                     {{FuncAssign(elementSelector, nameof(elementSelector), temp, item)}}
-                    ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{key}},out var __exists);
+                    ref var {{group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{key}},out var __exists);
                     if(!__exists) {
-                        __group = new global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>();
+                        {{group}} = new global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>();
                         order.Add({{key}});
                     }
-                    __group.Add({{temp}});
+                    {{group}}.Add({{temp}});
                 }
                 return new SeamlessLookup(map, order);
             }
@@ -129,12 +129,12 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
                     {{FuncAssign(keySelector, nameof(keySelector), key, item)}}
                     {{FuncReturnTypeName(elementSelector)}} {{temp}} = default!;
                     {{FuncAssign(elementSelector, nameof(elementSelector), temp, item)}}
-                    ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{key}},out var __exists);
+                    ref var {{group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{key}},out var __exists);
                     if(!__exists) {
-                        __group = new global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>();
+                        {{group}} = new global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>();
                         order.Add({{key}});
                     }
-                    __group.Add({{temp}});
+                    {{group}}.Add({{temp}});
                 }
                 return new SeamlessLookup(map, order);
             }
@@ -165,12 +165,12 @@ internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFr
                     var {{item}} = __span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{key}} = default!;
                     {{FuncAssign(keySelector, nameof(keySelector), key, item)}}
-                    ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{key}},out var __exists);
+                    ref var {{group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{key}},out var __exists);
                     if(!__exists) {
-                        __group = new global::System.Collections.Generic.List<{{source.ElementType}}>();
+                        {{group}} = new global::System.Collections.Generic.List<{{source.ElementType}}>();
                         order.Add({{key}});
                     }
-                    __group.Add({{item}});
+                    {{group}}.Add({{item}});
                 }
                 return new SeamlessLookup(map, order);
             }

@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 static class ConsumerExtensions{
     public static void Consume<T>(this IEnumerable<T> source,Consumer consumer){

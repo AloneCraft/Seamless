@@ -24,12 +24,11 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({outerSource.GetEnumeratorExpression},{innerSource.GetEnumeratorExpression},{comparerExpression}{ClosureArgsSuffix(outerKey,innerKey,resultSelector)})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(innerKey)}>? comparer{ClosurePrimaryCtorSuffix(outerKey,innerKey,resultSelector)}";
+    public override string GetEnumeratorPrimaryConstructorParameters=>$"TOuterEnum {e},TInnerEnum {innerEnumerator},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(innerKey)}>? comparer{ClosurePrimaryCtorSuffix(outerKey,innerKey,resultSelector)}";
     public override string GetEnumerableExpression=>UseResultTypeParam ? $"{FactoryMethodName}({outerSource.GetEnumeratorExpression},{innerSource.GetEnumeratorExpression},{comparerExpression}{ClosureArgsSuffix(outerKey,innerKey,resultSelector)})" : base.GetEnumerableExpression;
+    public override string GetEnumeratorConstructor=>$"this.{lookup}=BuildLookup(this.{innerEnumerator},this.comparer{ClosureArgsSuffixForCtorBody(outerKey,innerKey,resultSelector)});";
     public override string GetEnumeratorFields=>$$"""
-        {{ClosureFields(outerKey,innerKey,resultSelector)}}
-        private readonly global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(innerKey)}},global::System.Collections.Generic.List<{{innerSource.ElementType}}>> {{lookup}}=BuildLookup(inner,comparer{{ClosureArgsSuffixForFactory(outerKey,innerKey,resultSelector)}});
-        private TOuterEnum {{e}}=outer;
+        private global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(innerKey)}},global::System.Collections.Generic.List<{{innerSource.ElementType}}>> {{lookup}};
         private global::System.Collections.Generic.List<{{innerSource.ElementType}}>? {{group}};
         private int {{groupIndex}};
         private int {{state}};

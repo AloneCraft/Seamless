@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class ToList:Base{
     [Benchmark(Baseline=true)]

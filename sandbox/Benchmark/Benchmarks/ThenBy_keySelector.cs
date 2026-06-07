@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class ThenBy_keySelector:Base{
     [Benchmark(Baseline=true)]

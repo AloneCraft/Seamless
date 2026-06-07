@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class Max:Base{
     [Benchmark(Baseline=true)]

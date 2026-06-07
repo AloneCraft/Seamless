@@ -18,9 +18,9 @@ public class Skip(int 番号, Enumerable source, string skipCount) : Enumerable(
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({RootSource.GetEnumeratorExpression}, {EffectiveSkipCount})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int count";
     public override string GetEnumeratorFields => $$"""
-        private readonly int count = count < 0 ? 0 : count;
         private bool skipped = false;
         """;
+    public override string GetEnumeratorConstructor => "if(this.count < 0) { this.count = 0; }";
     public override string GetTryGetNextBody => $$"""
         if(!this.skipped) {
             this.skipped = true;

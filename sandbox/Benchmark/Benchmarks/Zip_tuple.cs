@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class Zip_tuple:Base{
     [Benchmark(Baseline=true)]

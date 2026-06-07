@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace Benchmark.Benchmarks;
 
 public class OfType:Base{
     [Benchmark(Baseline=true)]
