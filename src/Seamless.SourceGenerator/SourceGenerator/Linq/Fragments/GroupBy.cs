@@ -1,45 +1,19 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
 internal static class GroupBySupport{
-    public static string ArrayBackedGroupingClass(string keyType,string elementType)=>$$"""
-        private sealed class Grouping:global::System.Linq.IGrouping<{{keyType}},{{elementType}}>{
-            private readonly {{keyType}} key;
-            private {{elementType}}[] elements;
-            private int count;
-            public Grouping({{keyType}} key,{{elementType}} value){
-                this.key=key;
-                this.elements=[value];
-                this.count=1;
-            }
-            public {{keyType}} Key=>key;
-            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-            public void Add({{elementType}} value){
-                if(this.elements.Length==this.count){
-                    global::System.Array.Resize(ref this.elements,this.count*2);
-                }
-                this.elements[this.count]=value;
-                this.count++;
-            }
-            public global::System.Collections.Generic.IEnumerator<{{elementType}}> GetEnumerator(){
-                for(var __i=0;__i<this.count;__i++){
-                    yield return this.elements[__i];
-                }
-            }
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator()=>this.GetEnumerator();
-        }
+    public static string GroupingType(string keyType,string elementType)=>
+        $"global::Seamless.Linq.Carrier.Linq.Grouping<{keyType}, {elementType}>";
+
+    public static string Fields(string keyType,string elementType,string cursorName,string firstName,string builtName)=>$$"""
+        private {{GroupingType(keyType,elementType)}}? {{cursorName}};
+        private {{GroupingType(keyType,elementType)}}? {{firstName}};
+        private bool {{builtName}};
         """;
 
-    public static string GroupingDictionaryFields(string keyType,string lookupName,string innerEnumeratorName)=>$$"""
-        private global::System.Collections.Generic.Dictionary<{{keyType}},Grouping>? {{lookupName}};
-        private global::System.Collections.Generic.Dictionary<{{keyType}},Grouping>.Enumerator {{innerEnumeratorName}};
-        """;
-
-    public static string ListDictionaryFields(string keyType,string elementType,string lookupName,string innerEnumeratorName)=>$$"""
-        private global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>>? {{lookupName}};
-        private global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>>.Enumerator {{innerEnumeratorName}};
-        """;
-
-    public static string BuildGroupingDictionaryBody(
+    // 初回 TryGetNext で Carrier の LookupBuilder により全グループを構築し、
+    // add-order の循環連結リストの先頭(cursor/first)を確定する。
+    // 続けて cursor を 1 つ進め、ローカル __cur に取り出す。末尾(first へ戻る)で cursor を null 化。
+    public static string BuildAndAdvance(
         string enumeratorName,
         bool canProvideSpan,
         string keyType,
@@ -47,99 +21,53 @@ internal static class GroupBySupport{
         string keyAssignCode,
         string elementAssignCode,
         string elementName,
-        string lookupName,
-        string innerEnumeratorName,
+        string cursorName,
+        string firstName,
+        string builtName,
         string itemName,
-        string keyName)=>canProvideSpan ? $$"""
-        if(this.{{lookupName}} is null){
-            {{enumeratorName}}.TryGetSpan(out var __span);
-            this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},Grouping>(__span.Length);
+        string keyName){
+        var addLoopSpan=$$"""
             for(var __i=0;__i<__span.Length;__i++){
                 var {{itemName}}=__span[__i];
                 {{keyType}} {{keyName}}=default!;
                 {{IndentBlock(keyAssignCode,"                ")}}
                 {{IndentBlock(elementAssignCode,"                ")}}
-                ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
-                if(!__exists){
-                    __group=new Grouping({{keyName}},{{elementName}});
-                }else{
-                    __group!.Add({{elementName}});
-                }
+                __builder.Add({{keyName}},{{elementName}});
             }
-            this.{{innerEnumeratorName}}=this.{{lookupName}}.GetEnumerator();
-        }
-        """ : $$"""
-        if(this.{{lookupName}} is null){
-            if({{enumeratorName}}.TryGetNonEnumeratedCount(out var __count)){
-                this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},Grouping>(__count);
-            }else{
-                this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},Grouping>();
-            }
+            """;
+        var addLoopWhile=$$"""
             while({{enumeratorName}}.MoveNext()){
                 var {{itemName}}={{enumeratorName}}.Current;
                 {{keyType}} {{keyName}}=default!;
                 {{IndentBlock(keyAssignCode,"                ")}}
                 {{IndentBlock(elementAssignCode,"                ")}}
-                ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
-                if(!__exists){
-                    __group=new Grouping({{keyName}},{{elementName}});
-                }else{
-                    __group!.Add({{elementName}});
-                }
+                __builder.Add({{keyName}},{{elementName}});
             }
-            this.{{innerEnumeratorName}}=this.{{lookupName}}.GetEnumerator();
-        }
-        """;
-
-    public static string BuildListDictionaryBody(
-        string enumeratorName,
-        bool canProvideSpan,
-        string keyType,
-        string elementType,
-        string keyAssignCode,
-        string elementAssignCode,
-        string elementName,
-        string lookupName,
-        string innerEnumeratorName,
-        string itemName,
-        string keyName)=>canProvideSpan ? $$"""
-        if(this.{{lookupName}} is null){
+            """;
+        var buildLoop=canProvideSpan ? $$"""
             {{enumeratorName}}.TryGetSpan(out var __span);
-            this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>>(__span.Length);
-            for(var __i=0;__i<__span.Length;__i++){
-                var {{itemName}}=__span[__i];
-                {{keyType}} {{keyName}}=default!;
-                {{IndentBlock(keyAssignCode,"                ")}}
-                {{IndentBlock(elementAssignCode,"                ")}}
-                ref var __list=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
-                if(!__exists){
-                    __list=new global::System.Collections.Generic.List<{{elementType}}>();
-                }
-                __list.Add({{elementName}});
-            }
-            this.{{innerEnumeratorName}}=this.{{lookupName}}.GetEnumerator();
+            {{addLoopSpan}}
+            """ : addLoopWhile;
+        return $$"""
+        if(!this.{{builtName}}){
+            this.{{builtName}}=true;
+            var __builder=new global::Seamless.Linq.Carrier.Linq.LookupBuilder<{{keyType}}, {{elementType}}>(global::System.Collections.Generic.EqualityComparer<{{keyType}}>.Default);
+            {{IndentBlock(buildLoop,"            ")}}
+            this.{{cursorName}}=this.{{firstName}}=__builder.GetRootGroupAndClear();
         }
-        """ : $$"""
-        if(this.{{lookupName}} is null){
-            if({{enumeratorName}}.TryGetNonEnumeratedCount(out var __count)){
-                this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>>(__count);
-            }else{
-                this.{{lookupName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>>();
-            }
-            while({{enumeratorName}}.MoveNext()){
-                var {{itemName}}={{enumeratorName}}.Current;
-                {{keyType}} {{keyName}}=default!;
-                {{IndentBlock(keyAssignCode,"                ")}}
-                {{IndentBlock(elementAssignCode,"                ")}}
-                ref var __list=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookupName}},{{keyName}},out var __exists);
-                if(!__exists){
-                    __list=new global::System.Collections.Generic.List<{{elementType}}>();
-                }
-                __list.Add({{elementName}});
-            }
-            this.{{innerEnumeratorName}}=this.{{lookupName}}.GetEnumerator();
+        if(this.{{cursorName}} is null){
+            current=default!;
+            return false;
+        }
+        var __cur=this.{{cursorName}};
+        var __next=__cur.NextGroupInAddOrder;
+        if(__next==this.{{firstName}}){
+            this.{{cursorName}}=null;
+        }else{
+            this.{{cursorName}}=__next;
         }
         """;
+    }
 
     public static string IndentBlock(string text,string indent){
         return string.Join("\n",text.Replace("\r\n","\n").Split('\n').Select(line=>line.Length==0 ? line : indent+line));
@@ -148,10 +76,11 @@ internal static class GroupBySupport{
 
 internal class GroupBy_keySelector(int 番号, Enumerable source, FuncFragment keySelector) : Enumerable(番号) {
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
+    private string KeyType => FuncReturnTypeName(keySelector);
     protected override Enumerable PrimarySource => source;
     public override string GetEnumerableExpression =>
         $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()})";
-    public override string StructMethod => JoinStaticMethods(FuncSupport(keySelector,nameof(keySelector)),GroupBySupport.ArrayBackedGroupingClass(FuncReturnTypeName(keySelector),source.ElementType));
+    public override string StructMethod => FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -161,17 +90,13 @@ internal class GroupBy_keySelector(int 番号, Enumerable source, FuncFragment k
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorFields =>
-        GroupBySupport.GroupingDictionaryFields(FuncReturnTypeName(keySelector),lookup,innerEnumerator);
-    public override string GetTryGetNextBody => GroupBySupport.BuildGroupingDictionaryBody(e,source.CanProvideSpan,FuncReturnTypeName(keySelector),source.ElementType,FuncAssign(keySelector,nameof(keySelector),key,item),"",item,lookup,innerEnumerator,item,key)+$$"""
-        if(this.{{innerEnumerator}}.MoveNext()){
-            current=this.Current=this.{{innerEnumerator}}.Current.Value;
-            return true;
-        }
-        current=default!;
-        return false;
+        GroupBySupport.Fields(KeyType,source.ElementType,group,lookup,hasValue);
+    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(e,source.CanProvideSpan,KeyType,source.ElementType,FuncAssign(keySelector,nameof(keySelector),key,item),"",item,group,lookup,hasValue,item,key)+$$"""
+        current=this.Current=__cur;
+        return true;
         """;
     public override string GetCurrentExpression => currentValue;
-    public override string ElementType => $"global::System.Linq.IGrouping<{FuncReturnTypeName(keySelector)}, {source.ElementType}>";
+    public override string ElementType => $"global::System.Linq.IGrouping<{KeyType}, {source.ElementType}>";
 }
 
 internal class GroupBy_keySelector_resultSelector(
@@ -184,6 +109,7 @@ internal class GroupBy_keySelector_resultSelector(
         method.Parameters.Length == 2
         && method.Parameters[1].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     protected override Enumerable PrimarySource => source;
+    private string KeyType => FuncReturnTypeName(keySelector);
     private bool UseResultTypeParam => resultSelector.RequiresResultTypeParameter;
     public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(resultSelector);
     protected override string StructTypeParameters =>
@@ -212,15 +138,10 @@ internal class GroupBy_keySelector_resultSelector(
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector, resultSelector)}";
     public override string GetEnumeratorFields =>
-        GroupBySupport.ListDictionaryFields(FuncReturnTypeName(keySelector),source.ElementType,lookup,innerEnumerator);
-    public override string GetTryGetNextBody => GroupBySupport.BuildListDictionaryBody(e,source.CanProvideSpan,FuncReturnTypeName(keySelector),source.ElementType,FuncAssign(keySelector,nameof(keySelector),key,item),"",item,lookup,innerEnumerator,item,key)+$$"""
-        if(this.{{innerEnumerator}}.MoveNext()){
-            var __kv=this.{{innerEnumerator}}.Current;
-            {{FuncAssignCurrent(resultSelector,nameof(resultSelector),currentValue,"__kv.Key",$"(global::System.Collections.Generic.IEnumerable<{source.ElementType}>)__kv.Value")}}
-            return true;
-        }
-        current=default!;
-        return false;
+        GroupBySupport.Fields(KeyType,source.ElementType,group,lookup,hasValue);
+    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(e,source.CanProvideSpan,KeyType,source.ElementType,FuncAssign(keySelector,nameof(keySelector),key,item),"",item,group,lookup,hasValue,item,key)+$$"""
+        {{FuncAssignCurrent(resultSelector,nameof(resultSelector),currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{source.ElementType}>)__cur")}}
+        return true;
         """;
     public override string GetCurrentExpression => currentValue;
     public override string GetEnumerableExpression =>
@@ -243,7 +164,7 @@ internal class GroupBy_keySelector_elementSelector(
     private string ElemType => FuncReturnTypeName(elementSelector);
     public override string GetEnumerableExpression =>
         $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {elementSelector.DelegateConstructorArg ?? elementSelector.RenderAsLambda()})";
-    public override string StructMethod => JoinStaticMethods(JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)), FuncSupport(elementSelector, nameof(elementSelector))),GroupBySupport.ArrayBackedGroupingClass(KeyType,ElemType));
+    public override string StructMethod => JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)), FuncSupport(elementSelector, nameof(elementSelector)));
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -253,17 +174,13 @@ internal class GroupBy_keySelector_elementSelector(
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector, elementSelector)}";
     public override string GetEnumeratorFields =>
-        GroupBySupport.GroupingDictionaryFields(KeyType,lookup,innerEnumerator);
-    public override string GetTryGetNextBody => GroupBySupport.BuildGroupingDictionaryBody(e,source.CanProvideSpan,KeyType,ElemType,FuncAssign(keySelector,nameof(keySelector),key,item),$"{ElemType} {a}=default!;\n{FuncAssign(elementSelector,nameof(elementSelector),a,item)}",a,lookup,innerEnumerator,item,key)+$$"""
-        if(this.{{innerEnumerator}}.MoveNext()){
-            current=this.Current=this.{{innerEnumerator}}.Current.Value;
-            return true;
-        }
-        current=default!;
-        return false;
+        GroupBySupport.Fields(KeyType,ElemType,group,lookup,hasValue);
+    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(e,source.CanProvideSpan,KeyType,ElemType,FuncAssign(keySelector,nameof(keySelector),key,item),$"{ElemType} {a}=default!;\n{FuncAssign(elementSelector,nameof(elementSelector),a,item)}",a,group,lookup,hasValue,item,key)+$$"""
+        current=this.Current=__cur;
+        return true;
         """;
     public override string GetCurrentExpression => currentValue;
-    public override string ElementType => $"global::System.Linq.IGrouping<{FuncReturnTypeName(keySelector)}, {FuncReturnTypeName(elementSelector)}>";
+    public override string ElementType => $"global::System.Linq.IGrouping<{KeyType}, {ElemType}>";
 }
 
 internal class GroupBy_keySelector_elementSelector_resultSelector(
@@ -307,15 +224,10 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector, elementSelector, resultSelector)}";
     public override string GetEnumeratorFields =>
-        GroupBySupport.ListDictionaryFields(KeyType,ElemType,lookup,innerEnumerator);
-    public override string GetTryGetNextBody => GroupBySupport.BuildListDictionaryBody(e,source.CanProvideSpan,KeyType,ElemType,FuncAssign(keySelector,nameof(keySelector),key,item),$"{ElemType} {a}=default!;\n{FuncAssign(elementSelector,nameof(elementSelector),a,item)}",a,lookup,innerEnumerator,item,key)+$$"""
-        if(this.{{innerEnumerator}}.MoveNext()){
-            var __kv=this.{{innerEnumerator}}.Current;
-            {{FuncAssignCurrent(resultSelector,nameof(resultSelector),currentValue,"__kv.Key",$"(global::System.Collections.Generic.IEnumerable<{ElemType}>)__kv.Value")}}
-            return true;
-        }
-        current=default!;
-        return false;
+        GroupBySupport.Fields(KeyType,ElemType,group,lookup,hasValue);
+    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(e,source.CanProvideSpan,KeyType,ElemType,FuncAssign(keySelector,nameof(keySelector),key,item),$"{ElemType} {a}=default!;\n{FuncAssign(elementSelector,nameof(elementSelector),a,item)}",a,group,lookup,hasValue,item,key)+$$"""
+        {{FuncAssignCurrent(resultSelector,nameof(resultSelector),currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{ElemType}>)__cur")}}
+        return true;
         """;
     public override string GetCurrentExpression => currentValue;
     public override string GetEnumerableExpression =>
