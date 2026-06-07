@@ -8,8 +8,13 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Benchmark.Benchmarks;
+namespace Benchmark;
 internal static class Program{
+    // ビルド時に切り替える定数（編集して再ビルドすることで実行対象を制御）
+    private const bool RUN_LINQ=true;
+    private const bool RUN_INTERCEPT = true;
+    private const bool RUN_ZLINQ = true;
+
     public static void Main(string[]args){
         // ダブルクリック起動時など CWD が不定の場合、BDN が .csproj を広範検索して
         // macOS の .Trash 等アクセス拒否ディレクトリに当たるのを防ぐ
@@ -19,7 +24,27 @@ internal static class Program{
                 break;
             }
         }
-
+#if false
+        // args が空 (= 対話選択モード) のとき、compile-time const で実行対象を決める
+        if(args==null||args.Length==0) {
+            var include = new List<string>();
+            if(RUN_LINQ) include.Add("LINQ");
+            if(RUN_INTERCEPT) include.Add("Intercept");
+            if(RUN_ZLINQ) include.Add("ZLinq");
+            if(include.Count>0) {
+                // メソッド名 LINQ / ZLinq は部分一致 (*LINQ*) だと取り違える (LINQ が ZLinq にもヒット)。
+                // 完全修飾名 Namespace.Type.Method に対し、直前のドットを含めて末尾アンカー (*.Method) で厳密一致させる。
+                // BDN の --filter はグロブ専用で "|" 等の正規表現構文は使えない（1パターンとして扱われ0件になる）。
+                // 複数パターンを OR したい場合は --filter に続けてスペース区切りで複数値を渡す
+                // （--filter を複数回指定するとパーサがエラーになり help が出る）。
+                args = [.. new[]{"--filter"}, .. include.Select(static s=>$"*.{s}"), .. new[]{"--join"}];
+            } else {
+                // 何も含めない設定なら既定で全ベンチ実行（安全措置）
+                args=new[] { "--filter","*","--join" };
+            }
+        }
+        #else
+        ////////////////////
         // 環境変数で無効化フラグを指定できるようにする
         // DISABLE_LINQ=1 / DISABLE_INTERCEPT=1 / DISABLE_ZLINQ=1
         var disableLinq = Environment.GetEnvironmentVariable("DISABLE_LINQ") == "1";
@@ -41,7 +66,8 @@ internal static class Program{
 
             args = new[] { "--filter", exclusion, "--join" };
         }
-
+        ////////////////////
+#endif
         var singleFileMode=IsSingleFileMode(args);
         if(args.Length==0){
             var selection=PromptInteractiveSelection();

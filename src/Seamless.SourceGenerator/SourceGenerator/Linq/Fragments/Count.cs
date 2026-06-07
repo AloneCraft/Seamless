@@ -37,18 +37,33 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
         $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({e}{ClosureArgsSuffix(predicate)})";
-    protected override string ComputeMembers => $$"""
-        {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
-            {{resultType}} count = 0;
-            while(source.MoveNext()) {
-                var {{item}} = source.Current;
-                bool {{temp}} = default!;
-                {{FuncAssign(predicate,nameof(predicate),temp,item)}}
-                if({{temp}}) count++;
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
+                source.TryGetSpan(out var __span);
+                {{resultType}} count = 0;
+                for(var __i = 0; __i < __span.Length; __i++) {
+                    var {{item}} = __span[__i];
+                    bool {{temp}} = default!;
+                    {{FuncAssign(predicate,nameof(predicate),temp,item)}}
+                    if({{temp}}) count++;
+                }
+                return count;
             }
-            return count;
-        }
-        """;
+            """
+        : $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
+                {{resultType}} count = 0;
+                while(source.MoveNext()) {
+                    var {{item}} = source.Current;
+                    bool {{temp}} = default!;
+                    {{FuncAssign(predicate,nameof(predicate),temp,item)}}
+                    if({{temp}}) count++;
+                }
+                return count;
+            }
+            """;
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
