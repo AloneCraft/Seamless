@@ -23,7 +23,7 @@ internal sealed class HashSetSlim<T> : IDisposable
 
     public HashSetSlim(int capacity, IEqualityComparer<T>? comparer)
     {
-        capacity = Math.Max((int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)capacity), MinimumSize);
+        capacity = Math.Max((int)BitOperations.RoundUpToPowerOf2((uint)capacity), MinimumSize);
 
         this.comparer = comparer ?? EqualityComparer<T>.Default;
         this.buckets = ArrayPool<int>.Shared.Rent(capacity);
@@ -71,7 +71,7 @@ internal sealed class HashSetSlim<T> : IDisposable
 
     void Resize()
     {
-        var newSize = System.Numerics.BitOperations.RoundUpToPowerOf2((uint)this.entries.Length * 2);
+        var newSize = BitOperations.RoundUpToPowerOf2((uint)this.entries.Length * 2);
         var newEntries = ArrayPool<Entry>.Shared.Rent((int)newSize);
         var newBuckets = ArrayPool<int>.Shared.Rent((int)newSize);
         this.bucketsLength = (int)newSize; // guarantees PowerOf2

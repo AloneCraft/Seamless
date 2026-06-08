@@ -58,24 +58,24 @@ public class DistinctBy_keySelector:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).DistinctBy(x=>x%1000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).DistinctBy(x=>x%1000).Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).DistinctBy(x=>x%1000).Consume(this.consumer);
     }
 }

@@ -13,6 +13,6 @@ public class MinBy_keySelector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).MinBy(x=>x%1000));
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).MinBy(x=>x%1000));
     }
 }

@@ -8,10 +8,10 @@ public sealed class Append:LinqChain1TestBase {
     public static void element() => elementImpl();
 
     private static void elementImpl() {
-        var expected=SystemEnumerable.Append(LinqChain1TestBase.Source(),5).ToList();
+        var expected=SystemEnumerable.Append(Source(),5).ToList();
         var actual=new Consumer<int>();
-        LinqChain1TestBase.Source().Append(5).Consume(actual);
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
+        Source().Append(5).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 
 }

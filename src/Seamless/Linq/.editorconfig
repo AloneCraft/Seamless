@@ -2,15 +2,3 @@
 
 # CA1051: 参照可能なインスタンス フィールドを宣言しません
 dotnet_diagnostic.CA1051.severity = none
-
-# 'this.' を付けるように警告します (リファクタリングで一括追加しやすくするため)
-# 両方のキーを設定して C# / .NET 両方で適用されるようにする
-dotnet_style_qualification_for_field = true:warning
-dotnet_style_qualification_for_property = true:warning
-dotnet_style_qualification_for_method = true:warning
-dotnet_style_qualification_for_event = true:warning
-
-csharp_style_qualification_for_field = true:warning
-csharp_style_qualification_for_property = true:warning
-csharp_style_qualification_for_method = true:warning
-csharp_style_qualification_for_event = true:warning

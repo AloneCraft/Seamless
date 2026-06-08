@@ -13,7 +13,7 @@ namespace Test.Seamless.Database.TPC_H {
     static partial class DatabaseGenerator;
 
     public sealed class Container:IDisposable {
-        private readonly global::System.Collections.Generic.List<IDisposable> disposables = [];
+        private readonly List<IDisposable> disposables = [];
 
         public Container() {
             this.regions=this.CreateTable<Records.region>();
@@ -465,12 +465,12 @@ namespace Test.Seamless.Database.TPC_H {
 
             // TPC-H v3.0.1 ・ｽﾌ構・ｽ・ｽ・ｽE・ｽ范ｦ・ｽﾉ搾ｿｽ・ｽ墲ｹ・ｽ・ｽB・ｽe・ｽX・ｽg・ｽﾍ趣ｿｽ・ｽs・ｽ・ｽ・ｽﾔのゑｿｽ・ｽ・ｽ 1/100 ・ｽX・ｽP・ｽ[・ｽ・ｽ・ｽﾅ撰ｿｽ・ｽ・ｽ・ｽ・ｽ・ｽ・ｽB
             const int unitScaleDivisor = 1000;
-            var supplierCount = (int)global::System.Math.Max(5,SF*10000/unitScaleDivisor);
-            var customerCount = (int)global::System.Math.Max(10,SF*150000/unitScaleDivisor);
-            var partCount = (int)global::System.Math.Max(20,SF*200000/unitScaleDivisor);
-            var orderCount = (int)global::System.Math.Max(50,SF*1500000/unitScaleDivisor);
+            var supplierCount = (int)Math.Max(5,SF*10000/unitScaleDivisor);
+            var customerCount = (int)Math.Max(10,SF*150000/unitScaleDivisor);
+            var partCount = (int)Math.Max(20,SF*200000/unitScaleDivisor);
+            var orderCount = (int)Math.Max(50,SF*1500000/unitScaleDivisor);
 
-            var random = new global::System.Random(20260502);
+            var random = new Random(20260502);
             var regions = new[] {
                 (0,"AFRICA"),
                 (1,"AMERICA"),
@@ -513,7 +513,7 @@ namespace Test.Seamless.Database.TPC_H {
                     customerKey%29==0 ? "special requests" : "tpch customer"));
             }
 
-            var partSuppliers = new global::System.Collections.Generic.Dictionary<int,int[]>(partCount);
+            var partSuppliers = new Dictionary<int,int[]>(partCount);
             for(var partKey = 1; partKey<=partCount; partKey++) {
                 var partName = partKey%7==0 ? $"forest part {partKey}" : $"part {partKey}";
                 var brand = $"Brand#{(partKey%55)+1:D2}";
@@ -533,7 +533,7 @@ namespace Test.Seamless.Database.TPC_H {
                 var suppKeys = new int[4];
                 for(var slot = 0; slot<suppKeys.Length; slot++) {
                     var suppKey = ((partKey*37)+(slot*53))%supplierCount+1;
-                    while(global::System.Array.IndexOf(suppKeys,suppKey)>=0) {
+                    while(Array.IndexOf(suppKeys,suppKey)>=0) {
                         suppKey=suppKey==supplierCount ? 1 : suppKey+1;
                     }
                     suppKeys[slot]=suppKey;
@@ -549,7 +549,7 @@ namespace Test.Seamless.Database.TPC_H {
 
             for(var orderKey = 1; orderKey<=orderCount; orderKey++) {
                 var customerKey = random.Next(1,customerCount+1);
-                var orderDate = RandomDateInt(random,new global::System.DateTime(1992,1,1),new global::System.DateTime(1998,8,2));
+                var orderDate = RandomDateInt(random,new DateTime(1992,1,1),new DateTime(1998,8,2));
                 var lineCount = random.Next(1,8);
                 decimal total = 0m;
                 for(var lineNumber = 1; lineNumber<=lineCount; lineNumber++) {
@@ -557,9 +557,9 @@ namespace Test.Seamless.Database.TPC_H {
                     var suppChoices = partSuppliers[partKey];
                     var suppKey = suppChoices[random.Next(suppChoices.Length)];
                     var quantity = random.Next(1,51);
-                    var extendedPrice = global::System.Math.Round(RetailPrice(partKey)*quantity,2,MidpointRounding.AwayFromZero);
-                    var discount = global::System.Math.Round(random.Next(0,11)/100m,2,MidpointRounding.AwayFromZero);
-                    var tax = global::System.Math.Round(random.Next(0,9)/100m,2,MidpointRounding.AwayFromZero);
+                    var extendedPrice = Math.Round(RetailPrice(partKey)*quantity,2,MidpointRounding.AwayFromZero);
+                    var discount = Math.Round(random.Next(0,11)/100m,2,MidpointRounding.AwayFromZero);
+                    var tax = Math.Round(random.Next(0,9)/100m,2,MidpointRounding.AwayFromZero);
                     var shipDate = AddDays(orderDate,random.Next(1,121));
                     var commitDate = AddDays(orderDate,random.Next(1,90));
                     var receiptDate = AddDays(shipDate,random.Next(1,31));
@@ -592,7 +592,7 @@ namespace Test.Seamless.Database.TPC_H {
                     orderKey,
                     customerKey,
                     orderStatus,
-                    global::System.Math.Round(total,2,MidpointRounding.AwayFromZero),
+                    Math.Round(total,2,MidpointRounding.AwayFromZero),
                     orderDate,
                     Priorities[random.Next(Priorities.Length)],
                     $"Clerk#{(orderKey%1000):D3}",
@@ -602,46 +602,46 @@ namespace Test.Seamless.Database.TPC_H {
             return container;
         }
 
-        private static readonly (int Key,string Name,int RegionKey)[] Nations = {
+        private static readonly (int Key,string Name,int RegionKey)[] Nations = [
             (1,"ALGERIA",0),(2,"ARGENTINA",1),(3,"BRAZIL",1),(4,"CANADA",1),(5,"EGYPT",4),
             (6,"ETHIOPIA",0),(7,"FRANCE",3),(8,"GERMANY",3),(9,"INDIA",2),(10,"INDONESIA",2),
             (11,"IRAN",4),(12,"IRAQ",4),(13,"JAPAN",2),(14,"JORDAN",4),(15,"KENYA",0),
             (16,"MOROCCO",0),(17,"MOZAMBIQUE",0),(18,"PERU",1),(19,"CHINA",2),(20,"ROMANIA",3),
-            (21,"SAUDI ARABIA",4),(22,"VIETNAM",2),(23,"RUSSIA",3),(24,"UNITED KINGDOM",3),(25,"UNITED STATES",1),
-        };
+            (21,"SAUDI ARABIA",4),(22,"VIETNAM",2),(23,"RUSSIA",3),(24,"UNITED KINGDOM",3),(25,"UNITED STATES",1)
+        ];
 
-        private static readonly string[] Segments = { "AUTOMOBILE","BUILDING","FURNITURE","HOUSEHOLD","MACHINERY" };
-        private static readonly string[] Priorities = { "1-URGENT","2-HIGH","3-MEDIUM","4-NOT SPECIFIED","5-LOW" };
-        private static readonly string[] ReturnFlags = { "R","A","N" };
-        private static readonly string[] ShipModes = { "REG AIR","AIR","RAIL","SHIP","TRUCK","MAIL","FOB" };
-        private static readonly string[] ShipInstructs = { "DELIVER IN PERSON","COLLECT COD","NONE","TAKE BACK RETURN" };
-        private static readonly string[] Containers = { "SM BOX","SM PACK","MED BOX","MED BAG","LG BOX","JUMBO PACK" };
-        private static readonly string[] PartTypes = {
+        private static readonly string[] Segments =["AUTOMOBILE","BUILDING","FURNITURE","HOUSEHOLD","MACHINERY"];
+        private static readonly string[] Priorities =["1-URGENT","2-HIGH","3-MEDIUM","4-NOT SPECIFIED","5-LOW"];
+        private static readonly string[] ReturnFlags =["R","A","N"];
+        private static readonly string[] ShipModes =["REG AIR","AIR","RAIL","SHIP","TRUCK","MAIL","FOB"];
+        private static readonly string[] ShipInstructs =["DELIVER IN PERSON","COLLECT COD","NONE","TAKE BACK RETURN"];
+        private static readonly string[] Containers =["SM BOX","SM PACK","MED BOX","MED BAG","LG BOX","JUMBO PACK"];
+        private static readonly string[] PartTypes = [
             "SMALL BRASS","MEDIUM POLISHED","LARGE ANODIZED","PROMO BURNISHED","ECONOMY BRASS","STANDARD POLISHED"
-        };
+        ];
 
-        private static string BuildAddress(global::System.Random random) {
+        private static string BuildAddress(Random random) {
             return $"Addr-{random.Next(100000,999999):D6}";
         }
 
-        private static string BuildPhone(global::System.Random random,int nationKey) {
+        private static string BuildPhone(Random random,int nationKey) {
             var country = 10+(nationKey%90);
             return $"{country:D2}-{random.Next(100,1000):D3}-{random.Next(1000,10000):D4}";
         }
 
-        private static decimal BuildAccountBalance(global::System.Random random) {
-            return global::System.Math.Round((decimal)random.NextDouble()*11000m-1000m,2,MidpointRounding.AwayFromZero);
+        private static decimal BuildAccountBalance(Random random) {
+            return Math.Round((decimal)random.NextDouble()*11000m-1000m,2,MidpointRounding.AwayFromZero);
         }
 
-        private static decimal BuildSupplyCost(global::System.Random random) {
-            return global::System.Math.Round((decimal)random.NextDouble()*999m+1m,2,MidpointRounding.AwayFromZero);
+        private static decimal BuildSupplyCost(Random random) {
+            return Math.Round((decimal)random.NextDouble()*999m+1m,2,MidpointRounding.AwayFromZero);
         }
 
         private static decimal RetailPrice(int partKey) {
-            return global::System.Math.Round(900m+(partKey*0.37m),2,MidpointRounding.AwayFromZero);
+            return Math.Round(900m+(partKey*0.37m),2,MidpointRounding.AwayFromZero);
         }
 
-        private static int RandomDateInt(global::System.Random random,global::System.DateTime start,global::System.DateTime endInclusive) {
+        private static int RandomDateInt(Random random,DateTime start,DateTime endInclusive) {
             var days = (endInclusive-start).Days;
             var offset = random.Next(0,days+1);
             var date = start.AddDays(offset);
@@ -652,7 +652,7 @@ namespace Test.Seamless.Database.TPC_H {
             var year = yyyymmdd/10000;
             var month = (yyyymmdd/100)%100;
             var day = yyyymmdd%100;
-            var date = new global::System.DateTime(year,month,day).AddDays(days);
+            var date = new DateTime(year,month,day).AddDays(days);
             return (date.Year*10000)+(date.Month*100)+date.Day;
         }
 
@@ -660,7 +660,7 @@ namespace Test.Seamless.Database.TPC_H {
             var prefix = query<10 ? "Q0" : "Q";
             var suffix = querySyntax ? "Query" : "Method";
             var methodName = $"{prefix}{query}{suffix}";
-            var method = typeof(Container).GetMethod(methodName,global::System.Reflection.BindingFlags.Instance|global::System.Reflection.BindingFlags.Public)
+            var method = typeof(Container).GetMethod(methodName,System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public)
                 ?? throw new ArgumentOutOfRangeException(nameof(query));
             var rows = (IEnumerable<string>)(method.Invoke(container,[]) ?? Array.Empty<string>());
             var result = rows.ToArray();

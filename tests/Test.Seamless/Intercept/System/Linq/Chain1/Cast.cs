@@ -8,10 +8,10 @@ public sealed class Cast:LinqChain1TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.Cast<int>(LinqChain1TestBase.CastObjects()).ToList();
+        var expected=SystemEnumerable.Cast<int>(CastObjects()).ToList();
         var actual=new Consumer<int>();
-        LinqChain1TestBase.CastObjects().Cast<int>().Consume(actual);
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
+        CastObjects().Cast<int>().Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 
 }

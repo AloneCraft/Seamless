@@ -13,6 +13,6 @@ public class ToHashSet:Base{
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).ToHashSet().Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).ToHashSet().Consume(this.consumer);
     }
 }

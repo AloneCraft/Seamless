@@ -8,9 +8,9 @@ public sealed class Skip_Take:LinqChain2TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.Take(SystemEnumerable.Skip(LinqChain2TestBase.Source(),2),3).ToList();
+        var expected=SystemEnumerable.Take(SystemEnumerable.Skip(Source(),2),3).ToList();
         var actual=new Consumer<int>();
-        LinqChain2TestBase.Source().Skip(2).Take(3).Consume(actual);
-        LinqChain2TestBase.AssertSequenceEqual(expected,actual.Items);
+        Source().Skip(2).Take(3).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 }

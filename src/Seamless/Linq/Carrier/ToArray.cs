@@ -13,7 +13,7 @@ partial class ValueEnumerableExtensions
         {
             if (count == 0)
             {
-                return Array.Empty<TSource>();
+                return [];
             }
 
             var array = GC.AllocateUninitializedArray<TSource>(count);
@@ -63,7 +63,7 @@ partial class ValueEnumerableExtensions
             count = arrayBuilder.Count;
             if (count == 0)
             {
-                return Array.Empty<TSource>();
+                return [];
             }
 
             var array = GC.AllocateUninitializedArray<TSource>(count);
@@ -85,7 +85,7 @@ partial class ValueEnumerableExtensions
         {
             if (sourceSpan.Length == 0)
             {
-                return Array.Empty<TResult>();
+                return [];
             }
 
             var array = GC.AllocateUninitializedArray<TResult>(sourceSpan.Length);
@@ -128,7 +128,7 @@ partial class ValueEnumerableExtensions
             var count = arrayBuilder.Count;
             if (count == 0)
             {
-                return Array.Empty<TResult>();
+                return [];
             }
 
             var array = GC.AllocateUninitializedArray<TResult>(count);
@@ -145,7 +145,7 @@ partial class ValueEnumerableExtensions
 
         if (count == 0)
         {
-            return Array.Empty<TResult>();
+            return [];
         }
 
         var array = GC.AllocateUninitializedArray<TResult>(count);
@@ -165,7 +165,7 @@ partial class ValueEnumerableExtensions
 
         if (sourceArray.Length == 0)
         {
-            return Array.Empty<TResult>();
+            return [];
         }
 
         var array = GC.AllocateUninitializedArray<TResult>(sourceArray.Length);
@@ -242,7 +242,7 @@ partial class ValueEnumerableExtensions
         var count = arrayBuilder.Count;
         if (count == 0)
         {
-            return Array.Empty<TSource>();
+            return [];
         }
 
         var array = GC.AllocateUninitializedArray<TSource>(count);
@@ -288,7 +288,7 @@ partial class ValueEnumerableExtensions
         var count = arrayBuilder.Count;
         if (count == 0)
         {
-            return Array.Empty<TSource>();
+            return [];
         }
 
         var array = GC.AllocateUninitializedArray<TSource>(count);
@@ -359,7 +359,7 @@ partial class ValueEnumerableExtensions
         var count = arrayBuilder.Count;
         if (count == 0)
         {
-            return Array.Empty<TResult>();
+            return [];
         }
 
         var array = GC.AllocateUninitializedArray<TResult>(count);
@@ -407,7 +407,7 @@ partial class ValueEnumerableExtensions
         var count = arrayBuilder.Count;
         if (count == 0)
         {
-            return Array.Empty<TResult>();
+            return [];
         }
 
         var array = GC.AllocateUninitializedArray<TResult>(count);
@@ -453,7 +453,7 @@ partial class ValueEnumerableExtensions
         var count = arrayBuilder.Count;
         if (count == 0)
         {
-            return Array.Empty<TSource>();
+            return [];
         }
 
         var array = GC.AllocateUninitializedArray<TSource>(count);
@@ -501,7 +501,7 @@ partial class ValueEnumerableExtensions
         var count = arrayBuilder.Count;
         if (count == 0)
         {
-            return Array.Empty<TResult>();
+            return [];
         }
 
         var array = GC.AllocateUninitializedArray<TResult>(count);
@@ -571,7 +571,7 @@ partial class ValueEnumerableExtensions
         var count = arrayBuilder.Count;
         if (count == 0)
         {
-            return Array.Empty<TResult>();
+            return [];
         }
 
         var array = GC.AllocateUninitializedArray<TResult>(count);

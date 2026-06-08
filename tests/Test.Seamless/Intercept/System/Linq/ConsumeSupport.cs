@@ -9,7 +9,7 @@ namespace Test.Seamless.Intercept.System.Linq;
 // ループへ展開する（intercept される actual 側）。expected 側は完全修飾 SystemEnumerable 呼び出しの
 // ため最適化されず、下の IEnumerable 拡張が使われる。両者の Items を比較する。
 internal sealed class Consumer<T>{
-    public List<T>Items{get;}=new();
+    public List<T>Items{get;}=[];
     public void Consume(T item){
         this.Items.Add(item);
     }

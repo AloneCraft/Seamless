@@ -1,4 +1,4 @@
-using global::Seamless.Collections;
+using Seamless.Collections;
 namespace Test.Seamless.Benchmarks;
 
 /// <summary>
@@ -10,7 +10,7 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
     protected abstract Handle CreateHandle(string listPath,FileOptions accessPattern);
 
     protected abstract class Handle:IDisposable {
-        public abstract global::Seamless.Collections.ListBase<int> List { get; }
+        public abstract ListBase<int> List { get; }
         public abstract void Dispose();
     }
 
@@ -42,8 +42,8 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
         int parallel,
         FileOptions accessPattern,
         long itemCount,
-        Action<global::Seamless.Collections.ListBase<int>> prefill,
-        Action<global::Seamless.Collections.ListBase<int>> measured,
+        Action<ListBase<int>> prefill,
+        Action<ListBase<int>> measured,
         string label
     ) {
         var tempDir = CreateTempDirectory();
@@ -72,9 +72,9 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
         }
     }
 
-    private static void PrefillNone(global::Seamless.Collections.ListBase<int> _) { }
+    private static void PrefillNone(ListBase<int> _) { }
 
-    private void PrefillAll(global::Seamless.Collections.ListBase<int> list) {
+    private void PrefillAll(ListBase<int> list) {
         var n = Scaled;
         for(var i = 0; i<n; i++) {
             list.Add(i);
@@ -97,7 +97,7 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
                     list.Add(i);
                 }
             },
-            nameof(this.List_Add_Sequential));
+            nameof(List_Add_Sequential));
 
     [Theory, MemberData(nameof(Matrix))]
     public void List_Add_RandomAccess(int parallel,double _,long __,long ___,int ____,int _____)
@@ -112,7 +112,7 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
                     list.Add(i);
                 }
             },
-            nameof(this.List_Add_RandomAccess));
+            nameof(List_Add_RandomAccess));
 
     // =============================================================
     // Sequential Read ベンチマーク
@@ -132,7 +132,7 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
                 }
                 GC.KeepAlive(sum);
             },
-            nameof(this.List_Read_Sequential));
+            nameof(List_Read_Sequential));
 
     [Theory, MemberData(nameof(Matrix))]
     public void List_Read_RandomAccess(int parallel,double _,long __,long ___,int ____,int _____)
@@ -149,7 +149,7 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
                 }
                 GC.KeepAlive(sum);
             },
-            nameof(this.List_Read_RandomAccess));
+            nameof(List_Read_RandomAccess));
 
     // =============================================================
     // Mixed Access (Sequential)
@@ -172,7 +172,7 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
                 }
                 GC.KeepAlive(sum);
             },
-            nameof(this.List_Mixed_Sequential));
+            nameof(List_Mixed_Sequential));
 
     [Theory, MemberData(nameof(Matrix))]
     public void List_Mixed_RandomAccess(int parallel,double _,long __,long ___,int ____,int _____)
@@ -192,7 +192,7 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
                 }
                 GC.KeepAlive(sum);
             },
-            nameof(this.List_Mixed_RandomAccess));
+            nameof(List_Mixed_RandomAccess));
 }
 
 /// <summary>
@@ -207,7 +207,7 @@ public class ManagedListBenchmark(ITestOutputHelper output):ListBenchmark(output
     private class ManagedListHandle:Handle {
         private readonly global::Seamless.Collections.List<int> list;
 
-        public override global::Seamless.Collections.ListBase<int> List => this.list;
+        public override ListBase<int> List => this.list;
 
         public ManagedListHandle(string listPath,FileOptions accessPattern) {
             this.list=new global::Seamless.Collections.List<int>(listPath,initialCapacity: 16,initialDataCapacity: 4096);
@@ -230,12 +230,12 @@ public class UnmanagedListBenchmark(ITestOutputHelper output):ListBenchmark(outp
     }
 
     private class UnmanagedListHandle:Handle {
-        private readonly global::Seamless.Collections.List<int,global::Seamless.Collections.BlittableSerializer<int>> list;
+        private readonly List<int,BlittableSerializer<int>> list;
 
-        public override global::Seamless.Collections.ListBase<int> List => this.list;
+        public override ListBase<int> List => this.list;
 
         public UnmanagedListHandle(string listPath,FileOptions accessPattern) {
-            this.list=new global::Seamless.Collections.List<int,global::Seamless.Collections.BlittableSerializer<int>>(listPath,initialCapacity: 16);
+            this.list=new List<int,BlittableSerializer<int>>(listPath,initialCapacity: 16);
             this.list.SetTuning(new TempListTuning(FileAccess.ReadWrite,accessPattern));
         }
 

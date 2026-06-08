@@ -4,9 +4,9 @@ public class Append(int 番号, Enumerable source, string element) : Enumerable(
     private Enumerable Source => source;
     private string ElementExpression => element;
     private Enumerable RootSource => this.Source is Append append ? append.RootSource : this.Source;
-    private global::System.Collections.Generic.IReadOnlyList<string> FlattenedElements {
+    private IReadOnlyList<string> FlattenedElements {
         get {
-            var list = new global::System.Collections.Generic.List<string>();
+            var list = new List<string>();
             CollectElements(this,list);
             return list;
         }
@@ -15,7 +15,7 @@ public class Append(int 番号, Enumerable source, string element) : Enumerable(
         string.Concat(this.FlattenedElements.Select((_,index) => $", {this.ElementType} element{index}"));
     private string EnumeratorElementArguments =>
         string.Concat(this.FlattenedElements.Select((value,index) => $", {value}"));
-    private static void CollectElements(Append append,global::System.Collections.Generic.List<string> list) {
+    private static void CollectElements(Append append,List<string> list) {
         if(append.Source is Append nested) {
             CollectElements(nested,list);
         }
@@ -35,7 +35,7 @@ public class Append(int 番号, Enumerable source, string element) : Enumerable(
         """;
     public override string GetTryGetNextBody {
         get {
-            var builder = new global::System.Text.StringBuilder();
+            var builder = new StringBuilder();
             builder.AppendLine($"if(this.{this.state}==0) {{");
             builder.AppendLine($"    if({this.e}.MoveNext()) {{");
             builder.AppendLine($"        current=this.{this.currentValue}={this.e}.Current;");

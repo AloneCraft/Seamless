@@ -6,7 +6,7 @@ namespace Test.Seamless.Collections;
 
 public class StoreCheckpoint {
     //private static string CreateFolder()=>Path.Combine(Environment.CurrentDirectory,"SeamlessTest_"+Guid.NewGuid().ToString("N"));
-    private static string CreateFolder() => global::Test.Seamless.TestPath.Directory<StoreCheckpoint>();
+    private static string CreateFolder() => TestPath.Directory<StoreCheckpoint>();
     [Fact, Trait("Category","Unit")]
     public async Task SaveAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
         var ct = TestContext.Current.CancellationToken;
@@ -296,14 +296,11 @@ public class StoreCheckpoint {
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => store.SaveAsync(ct: cts.Token).AsTask());
     }
     [SupportedOSPlatform("windows")]
-    private class SimulatedFlakyDevice:LocalStorageDevice {
+    private class SimulatedFlakyDevice(string path):LocalStorageDevice(path,false,false,false,-1,false,false,false) {
         // 失敗させるかどうかのスイッチ
         public bool ShouldFail { get; set; } = false;
         // チェックポイント進行中状態を作るための遅延(ms)
         public int WriteDelayMilliseconds { get; set; } = 0;
-
-        public SimulatedFlakyDevice(string path)
-            : base(path,false,false,false,-1,false,false,false) { }
 
         public override void WriteAsync(IntPtr srcAddress,int alignedSourceNextAddress,ulong alignedDestinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object callbackContext) {
             if(this.ShouldFail) {

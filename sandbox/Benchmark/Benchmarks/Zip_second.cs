@@ -50,24 +50,24 @@ public class Zip_second:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Zip(this.src2,(a,b)=>a+b).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).Zip(this.src2,(a,b)=>a+b).Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Zip(this.src2,(a,b)=>a+b).Zip(this.src2,(a,b)=>a+b).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).Zip(this.src2,(a,b)=>a+b).Zip(this.src2,(a,b)=>a+b).Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Zip(this.src2,(a,b)=>a+b).Zip(this.src2,(a,b)=>a+b).Zip(this.src2,(a,b)=>a+b).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).Zip(this.src2,(a,b)=>a+b).Zip(this.src2,(a,b)=>a+b).Zip(this.src2,(a,b)=>a+b).Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Zip(this.src2,(a,b)=>a+b).Zip(this.src2,(a,b)=>a+b).Zip(this.src2,(a,b)=>a+b).Zip(this.src2,(a,b)=>a+b).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).Zip(this.src2,(a,b)=>a+b).Zip(this.src2,(a,b)=>a+b).Zip(this.src2,(a,b)=>a+b).Zip(this.src2,(a,b)=>a+b).Consume(this.consumer);
     }
 }

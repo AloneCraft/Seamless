@@ -74,7 +74,7 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
         var sourceName=$"__src{番号}";
         var secondName=$"__sec{番号}";
         var setName=$"__set{番号}";
-        var builder=new System.Text.StringBuilder();
+        var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
         TraversalSupport.AppendHashSetInitialization(builder,setName,source.ElementType,operation.PreloadSecondFirst?secondName:sourceName,comparer);
@@ -214,7 +214,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
         var sourceName=$"__src{番号}";
         var secondName=$"__sec{番号}";
         var setName=$"__set{番号}";
-        var builder=new System.Text.StringBuilder();
+        var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
         TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,comparer);
@@ -247,14 +247,14 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
         this.AppendSetByConsumeLoop(builder,sourceName,consumerName,setName,operation.SourceAcceptMethod);
         return builder.ToString().TrimEnd();
     }
-    private void AppendSetByCollectLoop(System.Text.StringBuilder builder,string enumeratorName,string setName){
+    private void AppendSetByCollectLoop(StringBuilder builder,string enumeratorName,string setName){
         TraversalSupport.AppendTraversalLoop(builder,enumeratorName,second.ElementType,"value",$$"""
             {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
             {{this.FuncAssign(keySelector,nameof(keySelector),this.key,"value")}}
             {{setName}}.Add({{this.key}});
             """);
     }
-    private void AppendSetByConsumeLoop(System.Text.StringBuilder builder,string enumeratorName,string consumerName,string setName,string operationMethod){
+    private void AppendSetByConsumeLoop(StringBuilder builder,string enumeratorName,string consumerName,string setName,string operationMethod){
         TraversalSupport.AppendTraversalLoop(builder,enumeratorName,source.ElementType,"value",$$"""
             {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
             {{this.FuncAssign(keySelector,nameof(keySelector),this.key,"value")}}

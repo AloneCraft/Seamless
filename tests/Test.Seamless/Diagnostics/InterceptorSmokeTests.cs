@@ -43,7 +43,7 @@ public class InterceptorSmokeTests {
 
     [Fact]
     public void QuerySyntax_Where_With_Projection_Smoke() {
-        var filtered = (from value in global::Test.Seamless.Diagnostics.QuerySyntaxSmokeSource.Numbers
+        var filtered = (from value in QuerySyntaxSmokeSource.Numbers
                         where value>2
                         select value*10).ToArray();
 

@@ -8,18 +8,18 @@ public sealed class OrderDescending:LinqChain1TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.OrderDescending(LinqChain1TestBase.SourceWithDuplicates()).ToList();
-        var actual=LinqChain1TestBase.SourceWithDuplicates().OrderDescending().ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.OrderDescending(SourceWithDuplicates()).ToList();
+        var actual=SourceWithDuplicates().OrderDescending().ToList();
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public static void comparer() => comparerImpl();
 
     private static void comparerImpl() {
-        var expected=SystemEnumerable.OrderDescending(LinqChain1TestBase.SourceWithDuplicates(),Comparer<int>.Default).ToList();
-        var actual=LinqChain1TestBase.SourceWithDuplicates().OrderDescending(Comparer<int>.Default).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.OrderDescending(SourceWithDuplicates(),Comparer<int>.Default).ToList();
+        var actual=SourceWithDuplicates().OrderDescending(Comparer<int>.Default).ToList();
+        AssertSequenceEqual(expected,actual);
     }
 
 }

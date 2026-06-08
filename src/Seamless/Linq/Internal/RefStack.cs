@@ -48,7 +48,7 @@ internal sealed class RefStack<T> where T : IDisposable
 
     RefStack(int initialSize)
     {
-        this.array = initialSize == 0 ? Array.Empty<T>() : new T[initialSize];
+        this.array = initialSize == 0 ? [] : new T[initialSize];
         this.size = 0;
     }
 

@@ -8,7 +8,7 @@ public sealed class MaxBy {
     [Fact,Trait("Category","Unit")]
     public static void keySelector(){
         GeneratedInterceptorAssert.ContainsMethod<MaxBy>(nameof(keySelectorImpl));
-        var expected=SystemEnumerable.MaxBy(new[]{1,2,3,4},static v => v);
+        var expected=SystemEnumerable.MaxBy([1,2,3,4],static v => v);
         var actual=keySelectorImpl();
         Assert.Equal(expected,actual);
     }
@@ -19,12 +19,12 @@ public sealed class MaxBy {
     [Fact,Trait("Category","Unit")]
     public static void keySelector_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<MaxBy>(nameof(keySelector_enumerableImpl));
-        var expected=SystemEnumerable.MaxBy(new[]{1,2,3,4},static v => v);
+        var expected=SystemEnumerable.MaxBy([1,2,3,4],static v => v);
         var actual=keySelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
     private static int keySelector_enumerableImpl(){
-        IEnumerable<int>src=new[]{1,2,3,4};
+        IEnumerable<int>src=[1,2,3,4];
         return src.MaxBy(static v => v);
     }
 }

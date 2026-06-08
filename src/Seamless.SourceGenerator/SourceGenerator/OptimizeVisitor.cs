@@ -67,9 +67,6 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             var hasContinuation = bodies.Any(static b => b.Continuation is not null);
             var hasAdvancedClause = fromCount>0 || joinCount>0 || hasGroup;
 
-            if(ContainsAnonymousObject(clauses) || bodies.Any(static b => ContainsAnonymousObject(b.SelectOrGroup))) {
-                return false;
-            }
             if(hasAdvancedClause && SequenceSourcesContainThis(query)) {
                 return false;
             }
@@ -96,10 +93,6 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 body=body.Continuation.Body;
             }
         }
-        static bool ContainsAnonymousObject(IEnumerable<SyntaxNode> nodes) =>
-            nodes.Any(ContainsAnonymousObject);
-        static bool ContainsAnonymousObject(SyntaxNode node) =>
-            node.DescendantNodesAndSelf().OfType<AnonymousObjectCreationExpressionSyntax>().Any();
         static bool SequenceSourcesContainThis(QueryExpressionSyntax query) =>
             ContainsThis(query.FromClause.Expression)
             || EnumerateBodies(query.Body).SelectMany(static body => body.Clauses).Any(static clause =>

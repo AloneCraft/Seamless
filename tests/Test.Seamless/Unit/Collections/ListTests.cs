@@ -161,7 +161,7 @@ public sealed class ListTests {
     public void UnmanagedList_SetTuning_AfterConstruction_PreservesValues() {
         var path = CreatePath();
         try {
-            global::Seamless.Collections.ListBase<int> list = ListStore.Create<int>(path,initialCapacity: 1);
+            ListBase<int> list = ListStore.Create<int>(path,initialCapacity: 1);
             list.Add(1);
             list.Add(2);
 
@@ -193,7 +193,7 @@ public sealed class ListTests {
             var bravo = CreateFixedWidthUnicodeLine(1);
             var alpha = CreateFixedWidthUnicodeLine(0);
             list.Add(bravo);
-            var alphaBytes = global::Seamless.Collections.MemoryPackSerializer<string>.Serialize(ref alpha).ToArray();
+            var alphaBytes = MemoryPackSerializer<string>.Serialize(ref alpha).ToArray();
 #if TSAVORITE1_1_1
             list.Add(global::Tsavorite.core.SpanByte.FromPinnedSpan(alphaBytes));
 #else
@@ -282,7 +282,7 @@ public sealed class ListTests {
 
             using var reopened = ListStore.Create<string>(path);
             Assert.Equal(3L,reopened.Count);
-            Assert.True(reopened.ToHashSet().SetEquals(new[] { alpha,bravo,charlie }));
+            Assert.True(reopened.ToHashSet().SetEquals([alpha,bravo,charlie]));
         }
         finally {
             TryDeleteDirectory(path);

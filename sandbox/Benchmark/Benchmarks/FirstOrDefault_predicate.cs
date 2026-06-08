@@ -13,6 +13,6 @@ public class FirstOrDefault_predicate:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).FirstOrDefault(x=>x>500000));
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).FirstOrDefault(x=>x>500000));
     }
 }

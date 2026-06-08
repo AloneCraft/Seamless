@@ -9,13 +9,9 @@ namespace Test.Seamless.Integrate;
 /// MutableFractionを最小化（0.05）、SegmentSizeも最小化（PageSize）して、
 /// セグメントファイルがどんどん作成される様子をテストする。
 /// </summary>
-public abstract class HashSetIntegrateBase<TKey>
+public abstract class HashSetIntegrateBase<TKey>(ITestOutputHelper output)
     where TKey : IEquatable<TKey> {
-    private readonly ITestOutputHelper output;
-
-    protected HashSetIntegrateBase(ITestOutputHelper output) {
-        this.output=output;
-    }
+    private readonly ITestOutputHelper output = output;
 
     protected abstract string TestClassName { get; }
     protected abstract TKey MakeKey(int i);
@@ -34,7 +30,7 @@ public abstract class HashSetIntegrateBase<TKey>
     protected virtual int RefreshWorkingSetSize => 128;
 
     private string TestDir(string methodName) =>
-        global::Test.Seamless.TestPath.Directory(this.TestClassName,methodName);
+        TestPath.Directory(this.TestClassName,methodName);
 
     protected abstract class Handle:IDisposable {
         protected readonly string rootDir;
@@ -79,7 +75,7 @@ public abstract class HashSetIntegrateBase<TKey>
 
     [Fact]
     public void データ追加中にセグメントファイルが増加することを確認する() {
-        var storeDir = this.TestDir(nameof(this.データ追加中にセグメントファイルが増加することを確認する));
+        var storeDir = this.TestDir(nameof(データ追加中にセグメントファイルが増加することを確認する));
         using var handle = this.CreateHandle(storeDir);
         using var hashset = handle.Create();
 
@@ -108,7 +104,7 @@ public abstract class HashSetIntegrateBase<TKey>
 
     [Fact]
     public void セグメント数がデータ追加に伴い単調増加することを確認する() {
-        var storeDir = this.TestDir(nameof(this.セグメント数がデータ追加に伴い単調増加することを確認する));
+        var storeDir = this.TestDir(nameof(セグメント数がデータ追加に伴い単調増加することを確認する));
         using var handle = this.CreateHandle(storeDir);
         using var hashset = handle.Create();
 
@@ -142,7 +138,7 @@ public abstract class HashSetIntegrateBase<TKey>
             $"Expected SegmentSteadyStateDataSize ({this.SegmentSteadyStateDataSize}) to exceed working set size ({this.SegmentSteadyStateWorkingSetSize})");
 
         (int SegmentFiles,int ActiveSegments,long BeginAddress,int Count) RunScenario(string scenarioName,bool compact) {
-            var storeDir = this.TestDir($"{nameof(this.追加と削除を繰り返すとコンパクションで利用セグメント範囲の増え方を抑えられることを確認する)}_{scenarioName}");
+            var storeDir = this.TestDir($"{nameof(追加と削除を繰り返すとコンパクションで利用セグメント範囲の増え方を抑えられることを確認する)}_{scenarioName}");
             using var handle = this.CreateHandle(storeDir);
             using var hashset = handle.Create();
 
@@ -182,7 +178,7 @@ public abstract class HashSetIntegrateBase<TKey>
 
     [Fact]
     public void 複数HashSetで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される() {
-        var storeDir = this.TestDir(nameof(this.複数HashSetで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される));
+        var storeDir = this.TestDir(nameof(複数HashSetで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される));
         try {
             using var handle = this.CreateHandle(storeDir);
             using var owner = handle.Create();
@@ -239,7 +235,7 @@ public abstract class HashSetIntegrateBase<TKey>
 
     [Fact]
     public void 複数HashSetでRefresh後も共有ストアのデータを継続参照できる() {
-        var storeDir = this.TestDir(nameof(this.複数HashSetでRefresh後も共有ストアのデータを継続参照できる));
+        var storeDir = this.TestDir(nameof(複数HashSetでRefresh後も共有ストアのデータを継続参照できる));
         using var handle = this.CreateHandle(storeDir);
         using var owner = handle.Create();
         using var sibling1 = handle.Create();
@@ -274,7 +270,7 @@ public abstract class HashSetIntegrateBase<TKey>
 
     [Fact]
     public void チェックポイントと復元() {
-        var storeDir = this.TestDir(nameof(this.チェックポイントと復元));
+        var storeDir = this.TestDir(nameof(チェックポイントと復元));
         var checkpointDir = Path.Combine(storeDir,"checkpoint");
         Directory.CreateDirectory(storeDir);
         Directory.CreateDirectory(checkpointDir);

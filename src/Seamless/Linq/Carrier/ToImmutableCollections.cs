@@ -20,7 +20,7 @@ partial class ValueEnumerableExtensions
 
         if (e.TryGetSpan(out var span))
         {
-            return ImmutableArray.Create(span);
+            return [..span];
         }
         else
         {
@@ -62,7 +62,7 @@ partial class ValueEnumerableExtensions
 
         if (e.TryGetSpan(out var span))
         {
-            return ImmutableList.Create(span);
+            return [..span];
         }
         else
         {

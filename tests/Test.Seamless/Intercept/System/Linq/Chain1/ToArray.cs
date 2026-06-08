@@ -8,9 +8,9 @@ public sealed class ToArray:LinqChain1TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.ToArray(LinqChain1TestBase.Source());
-        var actual=LinqChain1TestBase.Source().ToArray();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.ToArray(Source());
+        var actual=Source().ToArray();
+        AssertSequenceEqual(expected,actual);
     }
 
 }

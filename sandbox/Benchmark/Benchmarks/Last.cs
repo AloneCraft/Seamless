@@ -13,6 +13,6 @@ public class Last:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Last());
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).Last());
     }
 }

@@ -21,9 +21,9 @@ internal static class TestPath {
             try {
                 System.IO.Directory.Delete(path,recursive: true);
             }
-            catch(System.IO.IOException) {
+            catch(IOException) {
             }
-            catch(System.UnauthorizedAccessException) {
+            catch(UnauthorizedAccessException) {
             }
         }
 

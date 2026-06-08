@@ -8,7 +8,7 @@ public sealed class Average {
     [Fact,Trait("Category","Unit")]
     public static void noArg(){
         GeneratedInterceptorAssert.ContainsMethod<Average>(nameof(noArgImpl));
-        var expected=SystemEnumerable.Average(new[]{1,2,3,4});
+        var expected=SystemEnumerable.Average([1,2,3,4]);
         var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
@@ -19,7 +19,7 @@ public sealed class Average {
     [Fact,Trait("Category","Unit")]
     public static void selector(){
         GeneratedInterceptorAssert.ContainsMethod<Average>(nameof(selectorImpl));
-        var expected=SystemEnumerable.Average(new[]{1,2,3,4},static v => v*2);
+        var expected=SystemEnumerable.Average([1,2,3,4],static v => v*2);
         var actual=selectorImpl();
         Assert.Equal(expected,actual);
     }
@@ -30,24 +30,24 @@ public sealed class Average {
     [Fact,Trait("Category","Unit")]
     public static void noArg_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Average>(nameof(noArg_enumerableImpl));
-        var expected=SystemEnumerable.Average(new[]{1,2,3,4});
+        var expected=SystemEnumerable.Average([1,2,3,4]);
         var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
     private static double noArg_enumerableImpl(){
-        IEnumerable<int>src=new[]{1,2,3,4};
+        IEnumerable<int>src=[1,2,3,4];
         return src.Average();
     }
 
     [Fact,Trait("Category","Unit")]
     public static void selector_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Average>(nameof(selector_enumerableImpl));
-        var expected=SystemEnumerable.Average(new[]{1,2,3,4},static v => v*2);
+        var expected=SystemEnumerable.Average([1,2,3,4],static v => v*2);
         var actual=selector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
     private static double selector_enumerableImpl(){
-        IEnumerable<int>src=new[]{1,2,3,4};
+        IEnumerable<int>src=[1,2,3,4];
         return src.Average(static v => v*2);
     }
 }

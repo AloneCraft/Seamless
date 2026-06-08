@@ -50,24 +50,24 @@ public class Take_count:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Take(750000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).Take(750000).Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Take(750000).Take(750000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).Take(750000).Take(750000).Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Take(750000).Take(750000).Take(750000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).Take(750000).Take(750000).Take(750000).Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Take(750000).Take(750000).Take(750000).Take(750000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).Take(750000).Take(750000).Take(750000).Take(750000).Consume(this.consumer);
     }
 }

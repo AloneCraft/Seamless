@@ -13,7 +13,7 @@ public abstract class DeleteTests<TKey, TValue>
     protected abstract (IDictionary<TKey,TValue> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice);
     protected abstract void FlushAndEvict(IDisposable store);
 
-    protected string CreateDiskFolder() => global::Test.Seamless.TestPath.Directory(this);
+    protected string CreateDiskFolder() => TestPath.Directory(this);
     private const long TestMemorySize = Const.MinObjectLogCapacity;
 
     private void InMemory() {

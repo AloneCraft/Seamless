@@ -132,7 +132,7 @@ public abstract class RecordSetBenchmark<TRecord>(ITestOutputHelper output):Benc
                 for(var i = 0; i<n; i++)
                     handle.Set.Add(this.CreateRecord(i));
             },
-            nameof(this.Set_Add));
+            nameof(Set_Add));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Set_TryGetValue(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -142,7 +142,7 @@ public abstract class RecordSetBenchmark<TRecord>(ITestOutputHelper output):Benc
                 for(var i = 0; i<n; i++)
                     _=handle.Set.TryGetValue(i,out _);
             },
-            nameof(this.Set_TryGetValue));
+            nameof(Set_TryGetValue));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Set_Remove(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -152,13 +152,13 @@ public abstract class RecordSetBenchmark<TRecord>(ITestOutputHelper output):Benc
                 for(var i = 0; i<n; i++)
                     handle.Set.Remove(i);
             },
-            nameof(this.Set_Remove));
+            nameof(Set_Remove));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void Set_UnionWith(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive2(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,prefillPrimary: true,prefillSibling: true,
             (handle,other) => handle.Set.UnionWith(other.Set),
-            nameof(this.Set_UnionWith));
+            nameof(Set_UnionWith));
 }
 
 [Collection("Benchmark")]

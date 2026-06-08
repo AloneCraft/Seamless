@@ -20,8 +20,8 @@ public partial class KindDictionarySize {
             $"UnmanagedManaged({umBytes}) > ManagedManaged({mmBytes})");
     }
 
-    private static partial System.Collections.Generic.Dictionary<string,long> GetExpectedSizes() {
-        return new System.Collections.Generic.Dictionary<string,long> {
+    private static partial Dictionary<string,long> GetExpectedSizes() {
+        return new Dictionary<string,long> {
             ["UnmanagedUnmanaged"]=24320,
             ["UnmanagedManaged"]=24320,
             ["ManagedUnmanaged"]=24320,

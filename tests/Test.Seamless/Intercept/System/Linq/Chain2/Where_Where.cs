@@ -8,19 +8,29 @@ public sealed class Where_Where:LinqChain2TestBase {
     public static void Static() => StaticImpl();
 
     private static void StaticImpl() {
-        var expected=SystemEnumerable.Where(SystemEnumerable.Where(LinqChain2TestBase.Source(),static v => v>1),static v => v<6).ToList();
+        var expected=SystemEnumerable.Where(SystemEnumerable.Where(Source(),static v => v>1),static v => v<6).ToList();
         var actual=new Consumer<int>();
-        LinqChain2TestBase.Source().Where(static v => v>1).Where(static v => v<6).Consume(actual);
-        LinqChain2TestBase.AssertSequenceEqual(expected,actual.Items);
+        Source().Where(static v => v>1).Where(static v => v<6).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
     public static void Lambda() => LambdaImpl();
 
     private static void LambdaImpl() {
-        var expected=SystemEnumerable.Where(SystemEnumerable.Where(LinqChain2TestBase.Source(),v => v>1),v => v<6).ToList();
+        var expected=SystemEnumerable.Where(SystemEnumerable.Where(Source(),v => v>1),v => v<6).ToList();
         var actual=new Consumer<int>();
-        LinqChain2TestBase.Source().Where(v => v>1).Where(v => v<6).Consume(actual);
-        LinqChain2TestBase.AssertSequenceEqual(expected,actual.Items);
+        Source().Where(v => v>1).Where(v => v<6).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public static void Query() => QueryImpl();
+
+    private static void QueryImpl() {
+        var expected=SystemEnumerable.Where(SystemEnumerable.Where(Source(),v => v>1),v => v<6).ToList();
+        var actual=new Consumer<int>();
+        (from v in Source() where v>1 where v<6 select v).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 }

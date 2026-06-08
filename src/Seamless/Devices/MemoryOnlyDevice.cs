@@ -2,10 +2,10 @@
 /// <summary>
 /// ディスクI/Oを行わず、退避ページをヒープ上のバイト配列に保持するデバイス。
 /// </summary>
-public sealed class MemoryOnlyDevice:StorageDeviceBase {
+public sealed class MemoryOnlyDevice(long Capacity):StorageDeviceBase(DeviceName,DefaultSectorSize,Capacity) {
     private const string DeviceName = "memory-only";
     private const uint DefaultSectorSize = 512;
-    public MemoryOnlyDevice(long Capacity) : base(DeviceName,DefaultSectorSize,Capacity) { }
+
     public override void ReadAsync(int segmentId,ulong sourceAddress,IntPtr destinationAddress,uint readLength,DeviceIOCompletionCallback callback,object context) {
         throw new IOException(nameof(ReadAsync));
     }
@@ -33,6 +33,6 @@ public sealed class MemoryOnlyDevice:StorageDeviceBase {
     /// <param name="callback"></param>
     /// <param name="result"></param>
     public override void RemoveSegmentAsync(int segment,AsyncCallback callback,IAsyncResult result) {
-        Trace.WriteLine(nameof(this.RemoveSegmentAsync));
+        Trace.WriteLine(nameof(RemoveSegmentAsync));
     }
 }

@@ -8,7 +8,7 @@ public sealed class SkipLast {
     [Fact,Trait("Category","Unit")]
     public static void count(){
         GeneratedInterceptorAssert.ContainsMethod<SkipLast>(nameof(countImpl));
-        var expected=SystemEnumerable.SkipLast(new[]{1,2,3,4},1).ToList();
+        var expected=SystemEnumerable.SkipLast([1,2,3,4],1).ToList();
         var actual=countImpl();
         Assert.Equal(expected,actual);
     }
@@ -19,12 +19,12 @@ public sealed class SkipLast {
     [Fact,Trait("Category","Unit")]
     public static void count_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<SkipLast>(nameof(count_enumerableImpl));
-        var expected=SystemEnumerable.SkipLast(new[]{1,2,3,4},1).ToList();
+        var expected=SystemEnumerable.SkipLast([1,2,3,4],1).ToList();
         var actual=count_enumerableImpl();
         Assert.Equal(expected,actual);
     }
     private static List<int> count_enumerableImpl(){
-        IEnumerable<int>src=new[]{1,2,3,4};
+        IEnumerable<int>src=[1,2,3,4];
         return src.SkipLast(1).ToList();
     }
 }

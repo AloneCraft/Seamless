@@ -8,9 +8,9 @@ public sealed class ToList:LinqChain1TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.ToList(LinqChain1TestBase.Source());
-        var actual=LinqChain1TestBase.Source().ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.ToList(Source());
+        var actual=Source().ToList();
+        AssertSequenceEqual(expected,actual);
     }
 
 }

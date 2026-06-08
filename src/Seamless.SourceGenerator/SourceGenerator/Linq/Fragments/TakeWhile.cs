@@ -22,7 +22,7 @@ public class TakeWhile_predicate(int 番号, Enumerable source, FuncFragment pre
             var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
-                : $"{preCode}\n        if(!{condExpr})";
+                : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
 
             return $$"""
                 if(this.done || !{{this.e}}.MoveNext()) {
@@ -61,7 +61,7 @@ public class TakeWhile_indexPredicate(int 番号, Enumerable source, FuncFragmen
             var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item,this.a);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
-                : $"{preCode}\n        if(!{condExpr})";
+                : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
 
             return $$"""
                 if(this.done || !{{this.e}}.MoveNext()) {

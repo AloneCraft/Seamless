@@ -6,7 +6,7 @@ namespace Test.Seamless.Unit.Collections;
 
 public class Enumerator {
     private static string CreateDiskFolder() =>
-        global::Test.Seamless.TestPath.Directory<Enumerator>();
+        TestPath.Directory<Enumerator>();
 
     // Enumerator.MoveNext: コレクション 空 false
     [Fact, Trait("Category","Unit")]
@@ -107,7 +107,7 @@ public class Enumerator {
             for(var i = 0; i<Count; i++)
                 Assert.True(set.Contains(i));
 
-            var enumerated = new global::System.Collections.Generic.HashSet<int>();
+            var enumerated = new HashSet<int>();
             using var e = set.GetEnumerator();
             var steps = 0;
             while(e.MoveNext()) {
@@ -152,7 +152,7 @@ public class Enumerator {
             store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
 
             var count1 = set.Count;
-            var enumerated = new global::System.Collections.Generic.HashSet<int>();
+            var enumerated = new HashSet<int>();
             foreach(var value in set)
                 enumerated.Add(value);
             Assert.Equal(expected.Length,enumerated.Count);
@@ -201,7 +201,7 @@ public class Enumerator {
             store.Store.Log.FlushAndEvict(wait:true);
 #endif
 
-            var enumerated = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+            var enumerated = new HashSet<string>(StringComparer.Ordinal);
             foreach(var value in set)
                 enumerated.Add(value);
             Assert.Equal(expected.Length,enumerated.Count);
@@ -249,7 +249,7 @@ public class Enumerator {
                     set.Add(value);
                 store.Store.Log.FlushAndEvict(wait: true);
                 //Const.Chunk_Length
-                var enumerated = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+                var enumerated = new HashSet<string>(StringComparer.Ordinal);
                 var e = set.GetEnumerator();
                 while(e.MoveNext())
                     enumerated.Add(e.Current);

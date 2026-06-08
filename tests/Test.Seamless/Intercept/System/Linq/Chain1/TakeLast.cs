@@ -8,10 +8,10 @@ public sealed class TakeLast:LinqChain1TestBase {
     public static void count() => countImpl();
 
     private static void countImpl() {
-        var expected=SystemEnumerable.TakeLast(LinqChain1TestBase.Source(),2).ToList();
+        var expected=SystemEnumerable.TakeLast(Source(),2).ToList();
         var actual=new Consumer<int>();
-        LinqChain1TestBase.Source().TakeLast(2).Consume(actual);
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
+        Source().TakeLast(2).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 
 }

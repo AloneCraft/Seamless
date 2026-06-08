@@ -10,7 +10,7 @@ public sealed class Range:LinqChain1TestBase {
     private static void start_countImpl() {
         var expected=SystemEnumerable.Range(1,4).ToList();
         var actual=Enumerable.Range(1,4).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
 }

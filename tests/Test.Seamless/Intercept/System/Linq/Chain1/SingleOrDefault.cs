@@ -8,7 +8,7 @@ public sealed class SingleOrDefault:LinqChain1TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.SingleOrDefault(new[] { 1 });
+        var expected=SystemEnumerable.SingleOrDefault([1]);
         var actual=new[] { 1 }.SingleOrDefault();
         Assert.Equal(expected,actual);
     }
@@ -17,8 +17,8 @@ public sealed class SingleOrDefault:LinqChain1TestBase {
     public static void defaultValue() => defaultValueImpl();
 
     private static void defaultValueImpl() {
-        var expected=SystemEnumerable.SingleOrDefault(LinqChain1TestBase.EmptySource(),42);
-        var actual=LinqChain1TestBase.EmptySource().SingleOrDefault(42);
+        var expected=SystemEnumerable.SingleOrDefault(EmptySource(),42);
+        var actual=EmptySource().SingleOrDefault(42);
         Assert.Equal(expected,actual);
     }
 
@@ -26,8 +26,8 @@ public sealed class SingleOrDefault:LinqChain1TestBase {
     public static void predicate_Static() => predicate_StaticImpl();
 
     private static void predicate_StaticImpl() {
-        var expected=SystemEnumerable.SingleOrDefault(LinqChain1TestBase.Source(),static v => v==3);
-        var actual=LinqChain1TestBase.Source().SingleOrDefault(static v => v==3);
+        var expected=SystemEnumerable.SingleOrDefault(Source(),static v => v==3);
+        var actual=Source().SingleOrDefault(static v => v==3);
         Assert.Equal(expected,actual);
     }
 
@@ -35,8 +35,8 @@ public sealed class SingleOrDefault:LinqChain1TestBase {
     public static void predicate_Lambda() => predicate_LambdaImpl();
 
     private static void predicate_LambdaImpl() {
-        var expected=SystemEnumerable.SingleOrDefault(LinqChain1TestBase.Source(),v => v==3);
-        var actual=LinqChain1TestBase.Source().SingleOrDefault(v => v==3);
+        var expected=SystemEnumerable.SingleOrDefault(Source(),v => v==3);
+        var actual=Source().SingleOrDefault(v => v==3);
         Assert.Equal(expected,actual);
     }
 
@@ -45,8 +45,8 @@ public sealed class SingleOrDefault:LinqChain1TestBase {
 
     private static void predicate_CapturedImpl() {
         var threshold=3;
-        var expected=SystemEnumerable.SingleOrDefault(LinqChain1TestBase.Source(),v => v>threshold);
-        var actual=LinqChain1TestBase.Source().SingleOrDefault(v => v>threshold);
+        var expected=SystemEnumerable.SingleOrDefault(Source(),v => v>threshold);
+        var actual=Source().SingleOrDefault(v => v>threshold);
         Assert.Equal(expected,actual);
     }
 
@@ -54,8 +54,8 @@ public sealed class SingleOrDefault:LinqChain1TestBase {
     public static void predicate_DelegateSyntax() => predicate_DelegateSyntaxImpl();
 
     private static void predicate_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.SingleOrDefault(LinqChain1TestBase.Source(),delegate(int v) { return v==3; });
-        var actual=LinqChain1TestBase.Source().SingleOrDefault(delegate(int v) { return v==3; });
+        var expected=SystemEnumerable.SingleOrDefault(Source(),delegate(int v) { return v==3; });
+        var actual=Source().SingleOrDefault(delegate(int v) { return v==3; });
         Assert.Equal(expected,actual);
     }
 
@@ -64,8 +64,8 @@ public sealed class SingleOrDefault:LinqChain1TestBase {
 
     private static void predicate_VariableImpl() {
         Func<int,bool> predicate=v => v==3;
-        var expected=SystemEnumerable.SingleOrDefault(LinqChain1TestBase.Source(),predicate);
-        var actual=LinqChain1TestBase.Source().SingleOrDefault(predicate);
+        var expected=SystemEnumerable.SingleOrDefault(Source(),predicate);
+        var actual=Source().SingleOrDefault(predicate);
         Assert.Equal(expected,actual);
     }
 

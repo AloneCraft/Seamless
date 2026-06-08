@@ -8,10 +8,10 @@ public sealed class Skip:LinqChain1TestBase {
     public static void count() => countImpl();
 
     private static void countImpl() {
-        var expected=SystemEnumerable.Skip(LinqChain1TestBase.Source(),2).ToList();
+        var expected=SystemEnumerable.Skip(Source(),2).ToList();
         var actual=new Consumer<int>();
-        LinqChain1TestBase.Source().Skip(2).Consume(actual);
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
+        Source().Skip(2).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 
 }

@@ -13,6 +13,6 @@ public class Contains_value:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Contains(500000));
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).Contains(500000));
     }
 }

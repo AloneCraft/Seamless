@@ -154,7 +154,7 @@ public sealed class HashSetQuery1 {
     private static IEnumerable<string> NormalizeStringSequence(IEnumerable<string> values) =>
         SystemEnumerable.OrderBy(values,static value => value,StringComparer.Ordinal);
 
-    private static IEnumerable<string> FormatGroups(IEnumerable<global::System.Linq.IGrouping<int,int>> groups) =>
+    private static IEnumerable<string> FormatGroups(IEnumerable<IGrouping<int,int>> groups) =>
         SystemEnumerable.Select(groups,static group => group.Key+":"+string.Join(",",SystemEnumerable.OrderBy(group,static value => value)));
 
     private static IEnumerable<string> FormatGroupJoin(IEnumerable<(int outerValue,IEnumerable<int> innerValues)> rows) =>

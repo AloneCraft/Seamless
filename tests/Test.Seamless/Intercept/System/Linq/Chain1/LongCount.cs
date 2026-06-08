@@ -8,8 +8,8 @@ public sealed class LongCount:LinqChain1TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.LongCount(LinqChain1TestBase.Source());
-        var actual=LinqChain1TestBase.Source().LongCount();
+        var expected=SystemEnumerable.LongCount(Source());
+        var actual=Source().LongCount();
         Assert.Equal(expected,actual);
     }
 
@@ -17,8 +17,8 @@ public sealed class LongCount:LinqChain1TestBase {
     public static void predicate_Static() => predicate_StaticImpl();
 
     private static void predicate_StaticImpl() {
-        var expected=SystemEnumerable.LongCount(LinqChain1TestBase.Source(),static v => v>2);
-        var actual=LinqChain1TestBase.Source().LongCount(static v => v>2);
+        var expected=SystemEnumerable.LongCount(Source(),static v => v>2);
+        var actual=Source().LongCount(static v => v>2);
         Assert.Equal(expected,actual);
     }
 
@@ -26,8 +26,8 @@ public sealed class LongCount:LinqChain1TestBase {
     public static void predicate_Lambda() => predicate_LambdaImpl();
 
     private static void predicate_LambdaImpl() {
-        var expected=SystemEnumerable.LongCount(LinqChain1TestBase.Source(),v => v>2);
-        var actual=LinqChain1TestBase.Source().LongCount(v => v>2);
+        var expected=SystemEnumerable.LongCount(Source(),v => v>2);
+        var actual=Source().LongCount(v => v>2);
         Assert.Equal(expected,actual);
     }
 
@@ -36,8 +36,8 @@ public sealed class LongCount:LinqChain1TestBase {
 
     private static void predicate_CapturedImpl() {
         var threshold=2;
-        var expected=SystemEnumerable.LongCount(LinqChain1TestBase.Source(),v => v>threshold);
-        var actual=LinqChain1TestBase.Source().LongCount(v => v>threshold);
+        var expected=SystemEnumerable.LongCount(Source(),v => v>threshold);
+        var actual=Source().LongCount(v => v>threshold);
         Assert.Equal(expected,actual);
     }
 
@@ -45,8 +45,8 @@ public sealed class LongCount:LinqChain1TestBase {
     public static void predicate_DelegateSyntax() => predicate_DelegateSyntaxImpl();
 
     private static void predicate_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.LongCount(LinqChain1TestBase.Source(),delegate(int v) { return v>2; });
-        var actual=LinqChain1TestBase.Source().LongCount(delegate(int v) { return v>2; });
+        var expected=SystemEnumerable.LongCount(Source(),delegate(int v) { return v>2; });
+        var actual=Source().LongCount(delegate(int v) { return v>2; });
         Assert.Equal(expected,actual);
     }
 
@@ -55,8 +55,8 @@ public sealed class LongCount:LinqChain1TestBase {
 
     private static void predicate_VariableImpl() {
         Func<int,bool> predicate=v => v>2;
-        var expected=SystemEnumerable.LongCount(LinqChain1TestBase.Source(),predicate);
-        var actual=LinqChain1TestBase.Source().LongCount(predicate);
+        var expected=SystemEnumerable.LongCount(Source(),predicate);
+        var actual=Source().LongCount(predicate);
         Assert.Equal(expected,actual);
     }
 

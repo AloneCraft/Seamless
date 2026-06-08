@@ -8,7 +8,7 @@ public sealed class ElementAt {
     [Fact,Trait("Category","Unit")]
     public static void index(){
         GeneratedInterceptorAssert.ContainsMethod<ElementAt>(nameof(indexImpl));
-        var expected=SystemEnumerable.ElementAt(new[]{1,2,3,4},1);
+        var expected=SystemEnumerable.ElementAt([1,2,3,4],1);
         var actual=indexImpl();
         Assert.Equal(expected,actual);
     }
@@ -19,12 +19,12 @@ public sealed class ElementAt {
     [Fact,Trait("Category","Unit")]
     public static void index_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<ElementAt>(nameof(index_enumerableImpl));
-        var expected=SystemEnumerable.ElementAt(new[]{1,2,3,4},1);
+        var expected=SystemEnumerable.ElementAt([1,2,3,4],1);
         var actual=index_enumerableImpl();
         Assert.Equal(expected,actual);
     }
     private static int index_enumerableImpl(){
-        IEnumerable<int>src=new[]{1,2,3,4};
+        IEnumerable<int>src=[1,2,3,4];
         return src.ElementAt(1);
     }
 }

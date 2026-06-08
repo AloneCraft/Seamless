@@ -8,10 +8,10 @@ public sealed class Concat:LinqChain1TestBase {
     public static void second() => secondImpl();
 
     private static void secondImpl() {
-        var expected=SystemEnumerable.Concat(LinqChain1TestBase.Source(),LinqChain1TestBase.Second()).ToList();
+        var expected=SystemEnumerable.Concat(Source(),Second()).ToList();
         var actual=new Consumer<int>();
-        LinqChain1TestBase.Source().Concat(LinqChain1TestBase.Second()).Consume(actual);
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
+        Source().Concat(Second()).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 
 }

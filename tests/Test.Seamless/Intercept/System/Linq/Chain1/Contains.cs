@@ -7,8 +7,8 @@ public sealed class Contains:LinqChain1TestBase {
     public static void value() => valueImpl();
 
     private static void valueImpl() {
-        var expected=SystemEnumerable.Contains(LinqChain1TestBase.Source(),3);
-        var actual=LinqChain1TestBase.Source().Contains(3);
+        var expected=SystemEnumerable.Contains(Source(),3);
+        var actual=Source().Contains(3);
         Assert.Equal(expected,actual);
     }
 
@@ -16,8 +16,8 @@ public sealed class Contains:LinqChain1TestBase {
     public static void value_comparer() => value_comparerImpl();
 
     private static void value_comparerImpl() {
-        var expected=SystemEnumerable.Contains(LinqChain1TestBase.Source(),3,EqualityComparer<int>.Default);
-        var actual=LinqChain1TestBase.Source().Contains(3,EqualityComparer<int>.Default);
+        var expected=SystemEnumerable.Contains(Source(),3,EqualityComparer<int>.Default);
+        var actual=Source().Contains(3,EqualityComparer<int>.Default);
         Assert.Equal(expected,actual);
     }
 

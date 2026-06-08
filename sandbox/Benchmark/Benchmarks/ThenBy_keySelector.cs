@@ -13,6 +13,6 @@ public class ThenBy_keySelector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).OrderBy(x=>x%1000).ThenBy(x=>x).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).OrderBy(x=>x%1000).ThenBy(x=>x).Consume(this.consumer);
     }
 }

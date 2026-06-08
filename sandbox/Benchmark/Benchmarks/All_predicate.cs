@@ -13,6 +13,6 @@ public class All_predicate:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).All(x=>x>0));
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).All(x=>x>0));
     }
 }

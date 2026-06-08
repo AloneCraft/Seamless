@@ -18,7 +18,7 @@ public class LightEpochLimitTests {
     /// </summary>
     [Fact]
     public void MaxInstances_1024Stores_AllSucceed() {
-        var stores = new global::System.Collections.Generic.List<DictionaryStore<int,int>>();
+        var stores = new List<DictionaryStore<int,int>>();
         try {
             const int Count=1024;
             for(var i = 0; i<Count; i++) {
@@ -33,7 +33,7 @@ public class LightEpochLimitTests {
     [Theory]
     [InlineData(16)]
     public void MaxInstances_Stores_AllSucceed(int Count) {
-        var stores = new global::System.Collections.Generic.List<DictionaryStore<int,int>>();
+        var stores = new List<DictionaryStore<int,int>>();
         try {
             for(var i = 0; i<Count; i++) {
                 stores.Add(HashStore.Create().Create<int,int>());
@@ -47,7 +47,7 @@ public class LightEpochLimitTests {
 
     [Fact]
     public void MaxInstances_1025Stores_ThrowsException() {
-        var stores = new global::System.Collections.Generic.List<DictionaryStore<int,int>>();
+        var stores = new List<DictionaryStore<int,int>>();
         try {
             for(var i = 0; i<1024; i++) {
                 stores.Add(HashStore.Create().Create<int,int>());
@@ -106,7 +106,7 @@ public class LightEpochLimitTests {
     [Fact]
     public void SessionCount_25Dicts_AllSucceed() {
         using var store = HashStore.Create().Create<int,int>();
-        var dicts = new global::System.Collections.Generic.List<IDisposable>();
+        var dicts = new List<IDisposable>();
         try {
             for(var i = 0; i<25; i++) {
                 dicts.Add(store.Create());
@@ -126,7 +126,7 @@ public class LightEpochLimitTests {
         // kTableSize = 128 縺ｯ繧ｻ繝・す繝ｧ繝ｳ逕滓・謨ｰ縺ｮ荳企剞縺ｧ縺ｯ縺ｪ縺上・
         // 蜷梧凾 epoch 菫晄戟繧ｹ繝ｬ繝・ラ謨ｰ縺ｮ荳企剞縲・6 dict (130 session) 縺ｧ繧ゆｽ懈・縺ｯ謌仙粥縺吶ｋ縲・
         using var store = HashStore.Create().Create<int,int>();
-        var dicts = new global::System.Collections.Generic.List<IDisposable>();
+        var dicts = new List<IDisposable>();
         try {
             for(var i = 0; i<26; i++) {
                 dicts.Add(store.Create());
@@ -146,7 +146,7 @@ public class LightEpochLimitTests {
         using var store = HashStore.Create().Create<int,int>();
         // 25 蛟倶ｽ懈・ 竊・蜈ｨ Dispose 竊・蜀阪・ 25 蛟倶ｽ懈・縺ｧ縺阪ｋ
         for(var round = 0; round<2; round++) {
-            var dicts = new global::System.Collections.Generic.List<IDisposable>();
+            var dicts = new List<IDisposable>();
             try {
                 for(var i = 0; i<25; i++) {
                     dicts.Add(store.Create());

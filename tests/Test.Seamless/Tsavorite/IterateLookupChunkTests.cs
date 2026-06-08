@@ -79,7 +79,11 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         }
 
         public bool NeedInitialUpdate<TKey>(TKey key,ref int input,ref int output,ref RMWInfo rmwInfo)
+#if NET10_0_OR_GREATER
             where TKey : IKey, allows ref struct => true;
+#else
+            where TKey : IKey => true;
+#endif
 
         public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref int input,ref int output,ref RMWInfo rmwInfo) {
             output=input;
@@ -112,7 +116,11 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         }
 
         public void PostRMWOperation<TKey, TEpochAccessor>(TKey key,ref int input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
+#if NET10_0_OR_GREATER
             where TKey : IKey, allows ref struct
+#else
+            where TKey : IKey
+#endif
             where TEpochAccessor : IEpochAccessor {
         }
 
@@ -125,7 +133,11 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         }
 
         public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref int input)
+#if NET10_0_OR_GREATER
             where TKey : IKey, allows ref struct {
+#else
+            where TKey : IKey {
+#endif
             return new() { KeySize=key.KeyBytes.Length,ValueSize=Unsafe.SizeOf<int>() };
         }
 
@@ -148,13 +160,21 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
             where TSourceLogRecord : ISourceLogRecord => ThrowRmwOnlyEntryPoint<bool>();
 
         public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref int input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+#if NET10_0_OR_GREATER
             where TKey : IKey, allows ref struct
+#else
+            where TKey : IKey
+#endif
             where TEpochAccessor : IEpochAccessor {
             ThrowRmwOnlyEntryPoint();
         }
 
         public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref int input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
+#if NET10_0_OR_GREATER
             where TKey : IKey, allows ref struct
+#else
+            where TKey : IKey
+#endif
             where TEpochAccessor : IEpochAccessor {
             ThrowRmwOnlyEntryPoint();
         }
@@ -178,21 +198,37 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
             ThrowRmwOnlyEntryPoint<bool>();
 
         public void PostDeleteOperation<TKey, TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
+#if NET10_0_OR_GREATER
             where TKey : IKey, allows ref struct
+#else
+            where TKey : IKey
+#endif
             where TEpochAccessor : IEpochAccessor => ThrowRmwOnlyEntryPoint();
 
         public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref int input)
+#if NET10_0_OR_GREATER
             where TKey : IKey, allows ref struct {
+#else
+            where TKey : IKey {
+#endif
             return new() { KeySize=key.KeyBytes.Length,ValueSize=value.Length };
         }
 
         public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,IHeapObject value,ref int input)
+#if NET10_0_OR_GREATER
             where TKey : IKey, allows ref struct {
+#else
+            where TKey : IKey {
+#endif
             return new() { KeySize=key.KeyBytes.Length,ValueSize=Unsafe.SizeOf<int>(),ValueIsObject=true };
         }
 
         public RecordFieldInfo GetUpsertFieldInfo<TKey, TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref int input)
+#if NET10_0_OR_GREATER
             where TKey : IKey, allows ref struct
+#else
+            where TKey : IKey
+#endif
             where TSourceLogRecord : ISourceLogRecord {
             return new() { KeySize=key.KeyBytes.Length,ValueSize=inputLogRecord.ValueSpan.Length,ValueIsObject=inputLogRecord.DataHeader.ValueIsObject };
         }
@@ -511,7 +547,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
     [InlineData(2048)]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void DiskSpill_UpsertFromChunk_PendingHandled(int Count) {
-        var folder = Path.Combine(Environment.CurrentDirectory,nameof(this.DiskSpill_UpsertFromChunk_PendingHandled));
+        var folder = Path.Combine(Environment.CurrentDirectory,nameof(DiskSpill_UpsertFromChunk_PendingHandled));
         using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: false,preallocateFile: true);
         using var settings = new KVSettings {
             IndexSize=64,

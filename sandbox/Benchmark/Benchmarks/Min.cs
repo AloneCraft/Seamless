@@ -13,6 +13,6 @@ public class Min:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Min());
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).Min());
     }
 }

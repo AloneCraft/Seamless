@@ -83,13 +83,13 @@ public sealed class Enumerable2 {
             optimized.FusedSelectManyWhereSum(outer,inner));
         Assert.Equal(
             this.Invoke<int>(container,"FusedDistinctSkipWhileTakeWhileSum",new[] { -2,-1,1,2,2,3,5,4 }),
-            optimized.FusedDistinctSkipWhileTakeWhileSum(new[] { -2,-1,1,2,2,3,5,4 }));
+            optimized.FusedDistinctSkipWhileTakeWhileSum([-2,-1,1,2,2,3,5,4]));
         Assert.Equal(
             this.Invoke<int>(container,"FusedCastSum",(object)new object[] { 1,2,3 }),
-            optimized.FusedCastSum(new object[] { 1,2,3 }));
+            optimized.FusedCastSum([1,2,3]));
         Assert.Equal(
             this.Invoke<int>(container,"FusedOfTypeSum",(object)new object[] { 1,"skip",2,3.0,4 }),
-            optimized.FusedOfTypeSum(new object[] { 1,"skip",2,3.0,4 }));
+            optimized.FusedOfTypeSum([1,"skip",2,3.0,4]));
         Assert.Equal(
             this.Invoke<IEnumerable<int>>(container,"FusedJoinSelectSequence"),
             optimized.FusedJoinSelectSequence());
@@ -105,7 +105,7 @@ public sealed class Enumerable2 {
         Assert.Equal(
             this.Invoke<IEnumerable<int>>(container,"WhereAfterTupleSelect",20),
             optimized.WhereAfterTupleSelect(20));
-        Assert.Equal(new[] { 20,30 },optimized.WhereAfterJoin(20));
+        Assert.Equal([20,30],optimized.WhereAfterJoin(20));
         Assert.Equal(
             this.Invoke<IEnumerable<int>>(container,"WhereAfterExcept",20),
             optimized.WhereAfterExcept(20));

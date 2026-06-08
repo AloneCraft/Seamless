@@ -1,9 +1,7 @@
 using System.IO.MemoryMappedFiles;
 namespace Seamless.Collections;
 
-public class List<T>:List<T,MemoryPackSerializer<T>> {
-    public List(string path,long initialCapacity = 16,long initialDataCapacity = 4096) :
-        base(path,initialCapacity,initialDataCapacity) { }
+public class List<T>(string path,long initialCapacity = 16,long initialDataCapacity = 4096):List<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity) {
 }
 
 public class List<T, TSerializer>:ListBase<T>

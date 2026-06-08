@@ -265,18 +265,23 @@ public abstract class Fragment(
     // 単純ラムダなら直接式として展開（一時変数なし）。
     // RequiresStatementInlining=true（InlinedScalarFuncなど）なら一時変数経由にフォールバック。
     private protected (string preCode, string conditionExpr) FuncInvokeCondition(FuncFragment func,string methodName,string tempVar,params string[] arguments) {
+        // @this をキャプチャしたstruct closureでは、入れ子ラムダから@thisフィールド経由で
+        // インスタンスメンバーへアクセスするとCS1673（構造体のthisをラムダがキャプチャできない）になる。
+        // 同名のローカル変数でシャドウしてコピーを参照させることで回避する。
+        var thisShadow = func.CapturedLocals.Any(c => c.Name == "@this") ? "var @this = this.@this;" : string.Empty;
         if(func.RequiresStatementInlining) {
             // InlinedScalarFunc など複数文が必要な場合は一時変数経由
             var declaration = $"{func.ReturnTypeName} {tempVar} = default!;";
             var assignStatement = func.RenderInlineAssign(tempVar,番号,arguments);
-            return ($"{declaration}\n{assignStatement}", tempVar);
+            var pre = thisShadow.Length > 0 ? $"{thisShadow}\n{declaration}\n{assignStatement}" : $"{declaration}\n{assignStatement}";
+            return (pre, tempVar);
         }
         if(func.CanInvokeAsDelegate) {
             return (string.Empty, $"this.{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})");
         }
         if(func.CanInlineAssign) {
             // 単純ラムダなら直接式として展開
-            return (string.Empty, func.RenderInlineExpression(arguments));
+            return (thisShadow, func.RenderInlineExpression(arguments));
         }
         throw LambdaInlineUnsupported(func,methodName);
     }
@@ -364,7 +369,7 @@ public abstract class Fragment(
         if (string.IsNullOrWhiteSpace(text)) return string.Empty;
 
         var lines = text.Replace("\r\n", "\n").Split('\n');
-        var result = new System.Text.StringBuilder();
+        var result = new StringBuilder();
 
         for (int i = 0; i < lines.Length; i++) {
             var line = lines[i];

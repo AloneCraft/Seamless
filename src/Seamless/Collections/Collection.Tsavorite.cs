@@ -332,21 +332,21 @@ public abstract class Collection<
         }
     }
     private protected static string CreateTemporaryWorkListPath(string operationName) {
-        var directoryPath = global::System.IO.Path.Combine(
-            global::System.IO.Path.GetTempPath(),
+        var directoryPath = Path.Combine(
+            Path.GetTempPath(),
             "Seamless",
             "worklists",
             operationName,
             Guid.NewGuid().ToString("N"));
-        global::System.IO.Directory.CreateDirectory(directoryPath);
-        return global::System.IO.Path.Combine(directoryPath,"items.dat");
+        Directory.CreateDirectory(directoryPath);
+        return Path.Combine(directoryPath,"items.dat");
     }
     private protected static void DeleteTemporaryWorkListPath(string path) {
-        var directoryPath = global::System.IO.Path.GetDirectoryName(path);
+        var directoryPath = Path.GetDirectoryName(path);
         if(string.IsNullOrEmpty(directoryPath))
             return;
         try {
-            global::System.IO.Directory.Delete(directoryPath,recursive: true);
+            Directory.Delete(directoryPath,recursive: true);
         }
         catch {
         }
@@ -395,7 +395,16 @@ public abstract class Collection<
         readSession.BasicContext.CompletePending(wait: true);
         strategy=iterator.Strategy;
     }
-    private protected readonly struct DeleteSessionForEachStrategy<TSessionFunctions>:IForEachStrategy<DeleteSessionForEachStrategy<TSessionFunctions>>
+    private protected readonly struct DeleteSessionForEachStrategy<TSessionFunctions>(
+        ClientSession<
+                FixedSpanByteKey,
+                EqualityEmpty,
+                EqualityEmpty,
+                EqualityEmpty,
+                TSessionFunctions,
+                TStoreFunctions,
+                TAllocator
+            > session):IForEachStrategy<DeleteSessionForEachStrategy<TSessionFunctions>>
         where TSessionFunctions : struct, ISessionFunctions<
             EqualityEmpty,
             EqualityEmpty,
@@ -409,19 +418,8 @@ public abstract class Collection<
             TSessionFunctions,
             TStoreFunctions,
             TAllocator
-        > _session;
-        public DeleteSessionForEachStrategy(
-            ClientSession<
-                FixedSpanByteKey,
-                EqualityEmpty,
-                EqualityEmpty,
-                EqualityEmpty,
-                TSessionFunctions,
-                TStoreFunctions,
-                TAllocator
-            > session) {
-            this._session=session;
-        }
+        > _session = session;
+
         public static unsafe bool Reader<TSourceLogRecord>(
             ref DeleteSessionForEachStrategy<TSessionFunctions> self,
             in TSourceLogRecord logRecord,
@@ -437,7 +435,16 @@ public abstract class Collection<
             return true;
         }
     }
-    private protected readonly struct RmwSessionForEachStrategy<TSessionFunctions>:IForEachStrategy<RmwSessionForEachStrategy<TSessionFunctions>>
+    private protected readonly struct RmwSessionForEachStrategy<TSessionFunctions>(
+        ClientSession<
+                FixedSpanByteKey,
+                EqualityEmpty,
+                EqualityEmpty,
+                EqualityEmpty,
+                TSessionFunctions,
+                TStoreFunctions,
+                TAllocator
+            > session):IForEachStrategy<RmwSessionForEachStrategy<TSessionFunctions>>
         where TSessionFunctions : struct, ISessionFunctions<
             EqualityEmpty,
             EqualityEmpty,
@@ -451,19 +458,8 @@ public abstract class Collection<
             TSessionFunctions,
             TStoreFunctions,
             TAllocator
-        > _session;
-        public RmwSessionForEachStrategy(
-            ClientSession<
-                FixedSpanByteKey,
-                EqualityEmpty,
-                EqualityEmpty,
-                EqualityEmpty,
-                TSessionFunctions,
-                TStoreFunctions,
-                TAllocator
-            > session) {
-            this._session=session;
-        }
+        > _session = session;
+
         public static unsafe bool Reader<TSourceLogRecord>(
             ref RmwSessionForEachStrategy<TSessionFunctions> self,
             in TSourceLogRecord logRecord,
@@ -484,7 +480,16 @@ public abstract class Collection<
             return true;
         }
     }
-    private protected readonly struct UpsertLogRecordForEachStrategy<TSessionFunctions>:IForEachStrategy<UpsertLogRecordForEachStrategy<TSessionFunctions>>
+    private protected readonly struct UpsertLogRecordForEachStrategy<TSessionFunctions>(
+        ClientSession<
+                FixedSpanByteKey,
+                TAddInput,
+                bool,
+                EqualityEmpty,
+                TSessionFunctions,
+                TStoreFunctions,
+                TAllocator
+            > session):IForEachStrategy<UpsertLogRecordForEachStrategy<TSessionFunctions>>
         where TSessionFunctions : struct, ISessionFunctions<
             TAddInput,
             bool,
@@ -498,19 +503,8 @@ public abstract class Collection<
             TSessionFunctions,
             TStoreFunctions,
             TAllocator
-        > _session;
-        public UpsertLogRecordForEachStrategy(
-            ClientSession<
-                FixedSpanByteKey,
-                TAddInput,
-                bool,
-                EqualityEmpty,
-                TSessionFunctions,
-                TStoreFunctions,
-                TAllocator
-            > session) {
-            this._session=session;
-        }
+        > _session = session;
+
         public static unsafe bool Reader<TSourceLogRecord>(
             ref UpsertLogRecordForEachStrategy<TSessionFunctions> self,
             in TSourceLogRecord logRecord,
@@ -772,7 +766,7 @@ public abstract class Collection<
         var ReadSession = self.ReadSession;
         var workListPath = CreateTemporaryWorkListPath("intersect-with");
         try {
-            using var keysToExpire = new global::Seamless.Collections.List<byte[],RawByteArraySerializer>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            using var keysToExpire = new List<byte[],RawByteArraySerializer>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
             var Iterator = new ScanIteratorFunctions_IntersectWith<TCollection>(other,keysToExpire);
             // IntersectWith 縺ｯ襍ｰ譟ｻ縺励↑縺後ｉ RMW 縺ｧ tombstone 繧定ｿｽ險倥☆繧九◆繧√・
             // 襍ｰ譟ｻ髢句ｧ区凾縺ｮ TailAddress 繧剃ｸ企剞縺ｫ蝗ｺ螳壹＠縺ｦ譁ｰ隕剰ｿｽ險伜・繧貞・襍ｰ譟ｻ縺励↑縺・・
@@ -892,7 +886,7 @@ public abstract class Collection<
     }
     private readonly struct ScanIteratorFunctions_IntersectWith<TCollection>(
         TCollection other,
-        global::Seamless.Collections.List<byte[],RawByteArraySerializer> keysToExpire
+        List<byte[],RawByteArraySerializer> keysToExpire
     ):IScanIteratorFunctions
         where TCollection : Collection<
             TKey,

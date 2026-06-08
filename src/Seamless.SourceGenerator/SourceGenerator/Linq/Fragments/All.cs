@@ -19,7 +19,7 @@ public class All_predicate(int 番号, Enumerable source, FuncFragment predicate
             var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
-                : $"{preCode}\n            if(!{condExpr})";
+                : $"{preCode}\n            if(!{WrapConditionExpression(condExpr)})";
 
             return source.CanProvideSpan
                 ? $$"""

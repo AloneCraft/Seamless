@@ -1,21 +1,13 @@
 ﻿namespace Seamless.Linq.Carrier.Internal;
 
-internal struct ValueQueue<T> : IDisposable
+internal struct ValueQueue<T>(int capacity): IDisposable
 {
-    private T[] items;
-    private int head;
-    private int tail;
-    private int size;
+    private T[] items = ArrayPool<T>.Shared.Rent(capacity);
+    private int head = 0;
+    private int tail = 0;
+    private int size = 0;
 
     public int Count => this.size;
-
-    public ValueQueue(int capacity)
-    {
-        this.items = ArrayPool<T>.Shared.Rent(capacity);
-        this.head = 0;
-        this.tail = 0;
-        this.size = 0;
-    }
 
     public void Enqueue(T item)
     {

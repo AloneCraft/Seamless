@@ -165,8 +165,8 @@ namespace Test.Seamless.Database.Example {
 #endif
 
 #if TSAVORITE2_0BETA3
-        private static byte[] RoundTrip_Tsavorite2_0BETA3(Keys.Key0 key,byte[] valueBytes) {
-            using var store = HashStore.Create().Create<Keys.Key0,byte[]>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+        private static byte[] RoundTrip_Tsavorite2_0BETA3(Key0 key,byte[] valueBytes) {
+            using var store = HashStore.Create().Create<Key0,byte[]>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
             using var dict = store.Create();
 
             dict[key]=valueBytes;
@@ -180,24 +180,19 @@ namespace Test.Seamless.Database.Example {
     static class DatabaseGenerator;
     namespace Keys {
         public partial struct Key0 {
-            public int Column0 { get; private init; }
-            public string Column1 { get; private init; }
+            public int Column0 { get; private init; } = Column0;
+            public string Column1 { get; private init; } = Column1;
         }
     }
     namespace Records {
         public partial struct Type0 {
-            public int Column2 { get; }
-            public string Column3 { get; }
+            public int Column2 { get; } = Column2;
+            public string Column3 { get; } = Column3;
         }
     }
 
     namespace Keys {
-        public readonly partial struct Key0:IMemoryPackable<Key0> {
-
-            public Key0(int Column0,string Column1) {
-                this.Column0=Column0;
-                this.Column1=Column1;
-            }
+        public readonly partial struct Key0(int Column0,string Column1):IMemoryPackable<Key0> {
             public static void RegisterFormatter() {
                 if(!MemoryPackFormatterProvider.IsRegistered<Key0>()) {
                     MemoryPackFormatterProvider.Register(new MemoryPack.Formatters.MemoryPackableFormatter<Key0>());
@@ -226,13 +221,9 @@ namespace Test.Seamless.Database.Example {
     }
 
     namespace Records {
-        public readonly partial struct Type0:IMemoryPackable<Type0> {
-            public Keys.Key0 Key { get; }
-            public Type0(Keys.Key0 Key,int Column2,string Column3) {
-                this.Key=Key;
-                this.Column2=Column2;
-                this.Column3=Column3;
-            }
+        public readonly partial struct Type0(Key0 Key,int Column2,string Column3):IMemoryPackable<Type0> {
+            public Key0 Key { get; } = Key;
+
             public Type0(int Column0,string Column1,int Column2,string Column3) : this(new Key0(Column0,Column1),Column2,Column3) {
             }
 

@@ -13,6 +13,6 @@ public class Average_selector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Average(x=>(double)x));
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).Average(x=>(double)x));
     }
 }

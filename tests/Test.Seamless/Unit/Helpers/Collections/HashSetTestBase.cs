@@ -328,7 +328,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             using var h = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
             h.Set.Add(TStrategy.Elem(2));
-            var list = new global::System.Collections.Generic.List<T>();
+            var list = new List<T>();
             foreach(var item in h.Set)
                 list.Add(item);
             Assert.Equal(2,list.Count);

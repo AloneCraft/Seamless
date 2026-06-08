@@ -14,7 +14,7 @@ public sealed class ManagedViewSetBenchmark(ITestOutputHelper output):Benchmark(
                 for(var i = 0; i<n; i++)
                     set.Add("value-"+i);
             },
-            nameof(this.Set_Add_Sequential));
+            nameof(Set_Add_Sequential));
     }
 
     [Theory, MemberData(nameof(Matrix))]
@@ -27,7 +27,7 @@ public sealed class ManagedViewSetBenchmark(ITestOutputHelper output):Benchmark(
                     set.Add("value-"+(i%32));
             },
             measured: set => set.Distinct(),
-            nameof(this.Set_Distinct));
+            nameof(Set_Distinct));
     }
 
     [Theory, MemberData(nameof(Matrix))]
@@ -46,17 +46,17 @@ public sealed class ManagedViewSetBenchmark(ITestOutputHelper output):Benchmark(
                     total+=set[i].Length;
                 GC.KeepAlive(total);
             },
-            nameof(this.Set_Read_Sequential));
+            nameof(Set_Read_Sequential));
     }
 
-    private void Drive(int parallel,FileOptions accessPattern,Action<global::Seamless.Collections.Set<string>> prefill,Action<global::Seamless.Collections.Set<string>> measured,string label) {
+    private void Drive(int parallel,FileOptions accessPattern,Action<Set<string>> prefill,Action<Set<string>> measured,string label) {
         var tempDir = CreateTempDirectory();
-        var sets = new global::Seamless.Collections.Set<string>?[parallel];
+        var sets = new Set<string>?[parallel];
         try {
             this.RunMeasured(parallel,0,0,0,0,0,Scaled,
                 setup: id => {
                     var path = Path.Combine(tempDir,$"managed_set_{id}.dat");
-                    var set = new global::Seamless.Collections.Set<string>(path,initialCapacity: 16,initialDataCapacity: 4096);
+                    var set = new Set<string>(path,initialCapacity: 16,initialDataCapacity: 4096);
                     set.SetTuning(new TempListTuning(FileAccess.ReadWrite,accessPattern));
                     sets[id]=set;
                     prefill(set);
@@ -102,7 +102,7 @@ public sealed class UnmanagedViewSetBenchmark(ITestOutputHelper output):Benchmar
                 for(var i = 0; i<n; i++)
                     set.Add(i);
             },
-            nameof(this.Set_Add_Sequential));
+            nameof(Set_Add_Sequential));
     }
 
     [Theory, MemberData(nameof(Matrix))]
@@ -115,7 +115,7 @@ public sealed class UnmanagedViewSetBenchmark(ITestOutputHelper output):Benchmar
                     set.Add(i%32);
             },
             measured: set => set.Distinct(),
-            nameof(this.Set_Distinct));
+            nameof(Set_Distinct));
     }
 
     [Theory, MemberData(nameof(Matrix))]
@@ -134,17 +134,17 @@ public sealed class UnmanagedViewSetBenchmark(ITestOutputHelper output):Benchmar
                     total+=set[i];
                 GC.KeepAlive(total);
             },
-            nameof(this.Set_Read_Sequential));
+            nameof(Set_Read_Sequential));
     }
 
-    private void Drive(int parallel,FileOptions accessPattern,Action<global::Seamless.Collections.Set<int>> prefill,Action<global::Seamless.Collections.Set<int>> measured,string label) {
+    private void Drive(int parallel,FileOptions accessPattern,Action<Set<int>> prefill,Action<Set<int>> measured,string label) {
         var tempDir = CreateTempDirectory();
-        var sets = new global::Seamless.Collections.Set<int>?[parallel];
+        var sets = new Set<int>?[parallel];
         try {
             this.RunMeasured(parallel,0,0,0,0,0,Scaled,
                 setup: id => {
                     var path = Path.Combine(tempDir,$"unmanaged_set_{id}.dat");
-                    var set = new global::Seamless.Collections.Set<int>(path,initialCapacity: 16);
+                    var set = new Set<int>(path,initialCapacity: 16);
                     set.SetTuning(new TempListTuning(FileAccess.ReadWrite,accessPattern));
                     sets[id]=set;
                     prefill(set);

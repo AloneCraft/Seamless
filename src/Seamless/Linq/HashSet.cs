@@ -157,7 +157,7 @@ public static partial class HashSet {
             }
         }
         if(count==0)
-            throw global::Seamless.GeneratedCodeHelpers.NoElements();
+            throw GeneratedCodeHelpers.NoElements();
         return sum/count;
     }
 
@@ -177,7 +177,7 @@ public static partial class HashSet {
             }
         }
         if(count==0)
-            throw global::Seamless.GeneratedCodeHelpers.NoElements();
+            throw GeneratedCodeHelpers.NoElements();
         return sum/count;
     }
 
@@ -3042,14 +3042,10 @@ public static partial class HashSet {
         return new InvalidOperationException("Sequence contains more than one matching element.");
     }
 
-    private sealed class GroupingImpl<TKey, TElement>:IGrouping<TKey,TElement> {
-        private readonly global::System.Collections.Generic.List<TElement> elements = new();
+    private sealed class GroupingImpl<TKey, TElement>(TKey key):IGrouping<TKey,TElement> {
+        private readonly global::System.Collections.Generic.List<TElement> elements =[];
 
-        public GroupingImpl(TKey key) {
-            this.Key=key;
-        }
-
-        public TKey Key { get; }
+        public TKey Key { get; } = key;
 
         public void Add(TElement element) {
             this.elements.Add(element);
@@ -3064,22 +3060,17 @@ public static partial class HashSet {
         }
     }
 
-    private sealed class LookupImpl<TKey, TElement>:ILookup<TKey,TElement> {
-        private readonly IEqualityComparer<TKey> comparer;
+    private sealed class LookupImpl<TKey, TElement>(IEqualityComparer<TKey>? comparer):ILookup<TKey,TElement> {
+        private readonly IEqualityComparer<TKey> comparer = comparer??EqualityComparer<TKey>.Default;
 
-        public LookupImpl(IEqualityComparer<TKey>? comparer) {
-            this.comparer=comparer??EqualityComparer<TKey>.Default;
-            this.Groups=new global::System.Collections.Generic.List<GroupingImpl<TKey,TElement>>();
-        }
-
-        public global::System.Collections.Generic.List<GroupingImpl<TKey,TElement>> Groups { get; }
+        public global::System.Collections.Generic.List<GroupingImpl<TKey,TElement>> Groups { get; } = [];
 
         public int Count => this.Groups.Count;
 
         public IEnumerable<TElement> this[TKey key] {
             get {
                 var group = this.Find(key);
-                return group is null ? global::System.Array.Empty<TElement>() : group;
+                return group is null ? Array.Empty<TElement>() : group;
             }
         }
 
@@ -3116,15 +3107,10 @@ public static partial class HashSet {
         }
     }
 
-    private sealed class InfiniteSequenceEnumerable<T>:IEnumerable<T>
+    private sealed class InfiniteSequenceEnumerable<T>(T start,T step):IEnumerable<T>
         where T : IAdditionOperators<T,T,T> {
-        private readonly T start;
-        private readonly T step;
-
-        public InfiniteSequenceEnumerable(T start,T step) {
-            this.start=start;
-            this.step=step;
-        }
+        private readonly T start = start;
+        private readonly T step = step;
 
         public IEnumerator<T> GetEnumerator() {
             return new InfiniteSequenceEnumerator<T>(this.start,this.step);
@@ -3135,17 +3121,12 @@ public static partial class HashSet {
         }
     }
 
-    private sealed class InfiniteSequenceEnumerator<T>:IEnumerator<T>
+    private sealed class InfiniteSequenceEnumerator<T>(T start,T step):IEnumerator<T>
         where T : IAdditionOperators<T,T,T> {
-        private readonly T start;
-        private readonly T step;
+        private readonly T start = start;
+        private readonly T step = step;
         private bool started;
         private T current = default!;
-
-        public InfiniteSequenceEnumerator(T start,T step) {
-            this.start=start;
-            this.step=step;
-        }
 
         public T Current => this.current;
 
@@ -3177,7 +3158,7 @@ public static partial class HashSet {
 
         public OrderedEnumerableImpl(IEnumerable<T> source) {
             this.source=source;
-            this.comparisons=new global::System.Collections.Generic.List<Comparison<T>>();
+            this.comparisons=[];
         }
 
         private OrderedEnumerableImpl(IEnumerable<T> source,global::System.Collections.Generic.List<Comparison<T>> comparisons) {
@@ -3229,13 +3210,8 @@ public static partial class HashSet {
         }
     }
 
-    private readonly struct OrderedItem<T> {
-        public OrderedItem(T value,int index) {
-            this.Value=value;
-            this.Index=index;
-        }
-
-        public T Value { get; }
-        public int Index { get; }
+    private readonly struct OrderedItem<T>(T value,int index) {
+        public T Value { get; } = value;
+        public int Index { get; } = index;
     }
 }

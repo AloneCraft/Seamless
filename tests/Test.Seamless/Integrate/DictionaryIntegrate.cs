@@ -8,14 +8,10 @@ namespace Test.Seamless.Integrate;
 /// MutableFractionを最小化（0.05）、SegmentSizeも最小化（PageSize）して、
 /// セグメントファイルがどんどん作成される様子をテストする。
 /// </summary>
-public abstract class DictionaryIntegrateBase<TKey, TValue>
+public abstract class DictionaryIntegrateBase<TKey, TValue>(ITestOutputHelper output)
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
-    private readonly ITestOutputHelper output;
-
-    protected DictionaryIntegrateBase(ITestOutputHelper output) {
-        this.output=output;
-    }
+    private readonly ITestOutputHelper output = output;
 
     protected abstract string TestClassName { get; }
     protected abstract TKey MakeKey(int i);
@@ -33,7 +29,7 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
     protected virtual int RefreshWorkingSetSize => 128;
 
     private string TestDir(string methodName) =>
-        global::Test.Seamless.TestPath.Directory(this.TestClassName,methodName);
+        TestPath.Directory(this.TestClassName,methodName);
 
     protected abstract class Handle:IDisposable {
         protected readonly string rootDir;
@@ -70,7 +66,7 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
 
     [Fact]
     public void データ挿入中にセグメントファイルが増加することを確認する() {
-        var storeDir = this.TestDir(nameof(this.データ挿入中にセグメントファイルが増加することを確認する));
+        var storeDir = this.TestDir(nameof(データ挿入中にセグメントファイルが増加することを確認する));
         using var handle = this.CreateHandle(storeDir);
         using var dict = handle.Create();
 
@@ -107,12 +103,12 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
 
     [Fact]
     public void セグメント数がデータ挿入に伴い単調増加することを確認する() {
-        var storeDir = this.TestDir(nameof(this.セグメント数がデータ挿入に伴い単調増加することを確認する));
+        var storeDir = this.TestDir(nameof(セグメント数がデータ挿入に伴い単調増加することを確認する));
         using var handle = this.CreateHandle(storeDir);
         using var dict = handle.Create();
 
-        var segmentCounts = new global::System.Collections.Generic.List<int>();
-        var insertCountAtSnapshots = new global::System.Collections.Generic.List<int>();
+        var segmentCounts = new List<int>();
+        var insertCountAtSnapshots = new List<int>();
 
         try {
             for(int i = 0; i<this.SegmentGrowthDataSize; i++) {
@@ -137,7 +133,7 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
 
     [Fact(Skip = "Long-running Tsavorite truncation observation test. Run manually when investigating Refresh/truncation behavior.")]
     public void 複数Dictionaryで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される() {
-        var storeDir = this.TestDir(nameof(this.複数Dictionaryで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される));
+        var storeDir = this.TestDir(nameof(複数Dictionaryで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される));
         try {
             using var handle = this.CreateHandle(storeDir);
             using var owner = handle.Create();
@@ -194,7 +190,7 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
 
     [Fact]
     public void 複数DictionaryでRefresh後も共有ストアのデータを継続参照できる() {
-        var storeDir = this.TestDir(nameof(this.複数DictionaryでRefresh後も共有ストアのデータを継続参照できる));
+        var storeDir = this.TestDir(nameof(複数DictionaryでRefresh後も共有ストアのデータを継続参照できる));
         using var handle = this.CreateHandle(storeDir);
         using var owner = handle.Create();
         using var sibling1 = handle.Create();
@@ -236,7 +232,7 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>
 
     [Fact]
     public void チェックポイントと復元() {
-        var storeDir = this.TestDir(nameof(this.チェックポイントと復元));
+        var storeDir = this.TestDir(nameof(チェックポイントと復元));
         var checkpointDir = Path.Combine(storeDir,"checkpoint");
         Directory.CreateDirectory(storeDir);
         Directory.CreateDirectory(checkpointDir);
