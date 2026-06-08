@@ -131,7 +131,7 @@ public abstract class DictionaryIntegrateBase<TKey, TValue>(ITestOutputHelper ou
         finally { }
     }
 
-    [Fact(Skip = "Long-running Tsavorite truncation observation test. Run manually when investigating Refresh/truncation behavior.")]
+    [Fact]
     public void 複数Dictionaryで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される() {
         var storeDir = this.TestDir(nameof(複数Dictionaryで未Refreshセッションが残る間は古いログセグメントが削除されず全てRefreshすると削除される));
         try {
