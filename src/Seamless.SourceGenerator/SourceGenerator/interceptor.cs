@@ -1529,7 +1529,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
     /// </summary>
     private static bool 単独列挙フラグメント生成10(SemanticModel semanticModel,ExpressionSyntax expression,INamedTypeSymbol containingType,ref int uniqueNumber,out Enumerable fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null) {
         staticMethods=string.Empty;
-        var expressionType = semanticModel.GetTypeInfo(expression).Type;
+        var typeInfo = semanticModel.GetTypeInfo(expression);
+        var expressionType = typeInfo.Type ?? typeInfo.ConvertedType;
         if(!列挙要素型取得11(expressionType,out var elementType,out var useEnumerableInterface)) {
             if(IsNonGenericIEnumerableType(expressionType)) {
                 fragment=new NonGenericRoot(

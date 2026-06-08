@@ -3,7 +3,11 @@
     <File Path="20260430内部設計書.txt" />
     <File Path="20260430外部設計書.txt" />
     <File Path="20260430要件定義書.txt" />
+    <File Path="AGENTS.md" />
+    <File Path="AI_SYNTAX_RULES.md" />
+    <File Path="CLAUDE.md" />
     <File Path="copilot-instructions.md" />
+    <File Path="DEEPSEEK.md" />
     <File Path="TextFile1.txt" />
   </Folder>
   <Folder Name="/src/">
