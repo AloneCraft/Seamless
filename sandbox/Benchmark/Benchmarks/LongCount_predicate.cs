@@ -13,6 +13,6 @@ public class LongCount_predicate:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).LongCount(x=>(x&1)==0));
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).LongCount(x=>(x&1)==0));
     }
 }

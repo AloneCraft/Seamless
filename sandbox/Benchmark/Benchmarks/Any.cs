@@ -13,6 +13,6 @@ public class Any:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Any());
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).Any());
     }
 }

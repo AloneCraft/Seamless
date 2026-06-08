@@ -12,7 +12,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
     private string CreateDiskFolder() =>
-        global::Test.Seamless.TestPath.Directory(this);
+        TestPath.Directory(this);
     [Fact, Trait("Category","Unit")]
     public void TryAdd() {
         {

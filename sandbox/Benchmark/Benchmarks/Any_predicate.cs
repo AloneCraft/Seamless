@@ -13,6 +13,6 @@ public class Any_predicate:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Any(x=>x>999999));
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).Any(x=>x>999999));
     }
 }

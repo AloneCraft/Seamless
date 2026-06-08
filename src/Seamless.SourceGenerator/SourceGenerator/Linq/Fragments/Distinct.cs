@@ -41,7 +41,7 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
     public override string ElementType=>source.ElementType;
     public string GetConsumeExecutionStatement(string consumerName){
         var sourceName=$"__src{番号}";
-        var builder=new System.Text.StringBuilder();
+        var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         TraversalSupport.AppendHashSetInitialization(builder,this.lookup,source.ElementType,sourceName,comparer);
         TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
@@ -93,7 +93,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
     public string GetConsumeExecutionStatement(string consumerName){
         var sourceName=$"__src{番号}";
         var keyName=$"__key{番号}";
-        var builder=new System.Text.StringBuilder();
+        var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         TraversalSupport.AppendHashSetInitialization(builder,this.lookup,FuncReturnTypeName(keySelector),sourceName,comparer);
         TraversalSupport.AppendTraversalLoop(

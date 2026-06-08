@@ -20,9 +20,4 @@
       <_Parameter2>$([System.IO.Path]::GetFileName('$(PkgMicrosoft_Garnet)'))</_Parameter2>
     </AssemblyAttribute>
   </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" />
-  </ItemGroup>
-
 </Project>

@@ -8,10 +8,10 @@ public sealed class Prepend:LinqChain1TestBase {
     public static void element() => elementImpl();
 
     private static void elementImpl() {
-        var expected=SystemEnumerable.Prepend(LinqChain1TestBase.Source(),0).ToList();
+        var expected=SystemEnumerable.Prepend(Source(),0).ToList();
         var actual=new Consumer<int>();
-        LinqChain1TestBase.Source().Prepend(0).Consume(actual);
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
+        Source().Prepend(0).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 
 }

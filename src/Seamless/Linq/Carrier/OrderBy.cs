@@ -259,13 +259,13 @@ namespace Seamless.Linq.Carrier.Linq
         public OrderBy<TEnumerator, TSource, TSecondKey> ThenBy<TSecondKey>(Func<TSource, TSecondKey> keySelector, IComparer<TSecondKey>? comparer = null)
         {
             ArgumentNullException.ThrowIfNull(keySelector);
-            return new OrderBy<TEnumerator, TSource, TSecondKey>(this.source, keySelector, comparer, this.comparable, descending: false);
+            return new OrderBy<TEnumerator, TSource, TSecondKey>(this.source, keySelector, comparer,this.comparable, descending: false);
         }
 
         public OrderBy<TEnumerator, TSource, TSecondKey> ThenByDescending<TSecondKey>(Func<TSource, TSecondKey> keySelector, IComparer<TSecondKey>? comparer = null)
         {
             ArgumentNullException.ThrowIfNull(keySelector);
-            return new OrderBy<TEnumerator, TSource, TSecondKey>(this.source, keySelector, comparer, this.comparable, descending: true);
+            return new OrderBy<TEnumerator, TSource, TSecondKey>(this.source, keySelector, comparer,this.comparable, descending: true);
         }
 
         bool IsAllowDirectSort()

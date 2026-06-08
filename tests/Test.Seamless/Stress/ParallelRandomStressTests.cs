@@ -18,7 +18,7 @@ public class ParallelRandomStressTests {
     private const int StressCountLarge = 1024;
 
     private static string CreateTempDir(string tag) {
-        var dir = global::Test.Seamless.TestPath.Directory<ParallelRandomStressTests>(tag);
+        var dir = TestPath.Directory<ParallelRandomStressTests>(tag);
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -29,8 +29,8 @@ public class ParallelRandomStressTests {
 
     /// <summary>キーをスレッド数で mod 分割する。</summary>
     private static int[][] Partition(int[] keys,int threads) {
-        var buckets = new global::System.Collections.Generic.List<int>[threads];
-        for(var t = 0; t<threads; t++) buckets[t]=new global::System.Collections.Generic.List<int>();
+        var buckets = new List<int>[threads];
+        for(var t = 0; t<threads; t++) buckets[t]=[];
         for(var i = 0; i<keys.Length; i++)
             buckets[((uint)keys[i].GetHashCode())%(uint)threads].Add(keys[i]);
         var result = new int[threads][];
@@ -193,8 +193,8 @@ public class ParallelRandomStressTests {
             var keyToRemove = new Dictionary<int,bool>(count);
             for(var i = 0; i<keys.Length; i++) keyToRemove[keys[i]]=removeMaskFlat[i];
             var partitions = Partition(keys,ThreadCount);
-            var expected = new global::System.Collections.Generic.HashSet<int>(keys);
-            var expectedAfterRemove = new global::System.Collections.Generic.HashSet<int>(expected);
+            var expected = new HashSet<int>(keys);
+            var expectedAfterRemove = new HashSet<int>(expected);
             for(var i = 0; i<keys.Length; i++) {
                 if(removeMaskFlat[i])
                     expectedAfterRemove.Remove(keys[i]);
@@ -246,8 +246,8 @@ public class ParallelRandomStressTests {
             for(var i = 0; i<keys.Length; i++) keyToRemove[keys[i]]=removeMaskFlat[i];
             var partitions = Partition([.. Enumerable.Range(0,keys.Length)],ThreadCount)
                 .Select(idxs => idxs.Select(i => keys[i]).ToArray()).ToArray();
-            var expected = new global::System.Collections.Generic.HashSet<string>(keys,StringComparer.Ordinal);
-            var expectedAfterRemove = new global::System.Collections.Generic.HashSet<string>(expected,StringComparer.Ordinal);
+            var expected = new HashSet<string>(keys,StringComparer.Ordinal);
+            var expectedAfterRemove = new HashSet<string>(expected,StringComparer.Ordinal);
             for(var i = 0; i<keys.Length; i++) {
                 if(removeMaskFlat[i])
                     expectedAfterRemove.Remove(keys[i]);

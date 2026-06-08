@@ -13,6 +13,6 @@ public class Count_predicate:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Count(x=>(x&1)==0));
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).Count(x=>(x&1)==0));
     }
 }

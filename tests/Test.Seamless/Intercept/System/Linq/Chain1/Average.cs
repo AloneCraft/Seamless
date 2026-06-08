@@ -8,8 +8,17 @@ public sealed class Average:LinqChain1TestBase {
     public static void int_NoDelegate() => int_NoDelegateImpl();
 
     private static void int_NoDelegateImpl() {
-        var expected=SystemEnumerable.Average(LinqChain1TestBase.Source());
-        var actual=LinqChain1TestBase.Source().Average();
+        var expected=SystemEnumerable.Average(Source());
+        var actual=Source().Average();
+        Assert.Equal(expected,actual);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public static void selector_Nested() => selector_NestedImpl();
+
+    private static void selector_NestedImpl() {
+        var expected=SystemEnumerable.Average<int>(Source(),p => SystemEnumerable.Average(Source(),int (q) => q+p));
+        var actual=Source().Average(p => Source().Average(q => q+p));
         Assert.Equal(expected,actual);
     }
 
@@ -17,8 +26,8 @@ public sealed class Average:LinqChain1TestBase {
     public static void selector_Static() => selector_StaticImpl();
 
     private static void selector_StaticImpl() {
-        var expected=SystemEnumerable.Average(LinqChain1TestBase.Rows(),static row => row.Value);
-        var actual=LinqChain1TestBase.Rows().Average(static row => row.Value);
+        var expected=SystemEnumerable.Average(Rows(),static row => row.Value);
+        var actual=Rows().Average(static row => row.Value);
         Assert.Equal(expected,actual);
     }
 
@@ -26,8 +35,8 @@ public sealed class Average:LinqChain1TestBase {
     public static void selector_Lambda() => selector_LambdaImpl();
 
     private static void selector_LambdaImpl() {
-        var expected=SystemEnumerable.Average(LinqChain1TestBase.Rows(),row => row.Value);
-        var actual=LinqChain1TestBase.Rows().Average(row => row.Value);
+        var expected=SystemEnumerable.Average(Rows(),row => row.Value);
+        var actual=Rows().Average(row => row.Value);
         Assert.Equal(expected,actual);
     }
 
@@ -36,8 +45,8 @@ public sealed class Average:LinqChain1TestBase {
 
     private static void selector_CapturedImpl() {
         var offset=0;
-        var expected=SystemEnumerable.Average(LinqChain1TestBase.Rows(),row => row.Value+offset);
-        var actual=LinqChain1TestBase.Rows().Average(row => row.Value+offset);
+        var expected=SystemEnumerable.Average(Rows(),row => row.Value+offset);
+        var actual=Rows().Average(row => row.Value+offset);
         Assert.Equal(expected,actual);
     }
 
@@ -45,8 +54,8 @@ public sealed class Average:LinqChain1TestBase {
     public static void selector_DelegateSyntax() => selector_DelegateSyntaxImpl();
 
     private static void selector_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.Average(LinqChain1TestBase.Rows(),delegate(Chain1Row row) { return row.Value; });
-        var actual=LinqChain1TestBase.Rows().Average(delegate(Chain1Row row) { return row.Value; });
+        var expected=SystemEnumerable.Average(Rows(),delegate(Chain1Row row) { return row.Value; });
+        var actual=Rows().Average(delegate(Chain1Row row) { return row.Value; });
         Assert.Equal(expected,actual);
     }
 
@@ -55,8 +64,8 @@ public sealed class Average:LinqChain1TestBase {
 
     private static void selector_VariableImpl() {
         Func<Chain1Row,int> selector=row => row.Value;
-        var expected=SystemEnumerable.Average(LinqChain1TestBase.Rows(),selector);
-        var actual=LinqChain1TestBase.Rows().Average(selector);
+        var expected=SystemEnumerable.Average(Rows(),selector);
+        var actual=Rows().Average(selector);
         Assert.Equal(expected,actual);
     }
 

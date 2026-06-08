@@ -41,16 +41,12 @@ public abstract class DebugView<TKey, TValue>:DebugView<KeyValuePair<TKey,TValue
     private protected DebugView(IMemoryCollection<KeyValuePair<TKey,TValue>> collection) : base(collection) {
     }
 }
-public class HashSetDebugView<TKey>:DebugView<TKey> {
-    public HashSetDebugView(IMemoryCollection<TKey> collection) : base(collection) {
-    }
+public class HashSetDebugView<TKey>(IMemoryCollection<TKey> collection):DebugView<TKey>(collection) {
 }
 /// <summary>
 /// DebuggerTypeProxy の型引数数を Dictionary の 4 型引数に合わせるためのラッパー。
 /// デバッガーはオープンジェネリック型を使う際に型引数数が一致している必要がある。
 /// </summary>
-public class DictionaryDebugView<TKey, TValue, TKeySerializer, TValueSerializer>:DebugView<TKey,TValue>    where TKeySerializer : ISerializer<TKey>
+public class DictionaryDebugView<TKey, TValue, TKeySerializer, TValueSerializer>(IMemoryCollection<KeyValuePair<TKey,TValue>> collection):DebugView<TKey,TValue>(collection)    where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-    public DictionaryDebugView(IMemoryCollection<KeyValuePair<TKey,TValue>> collection) : base(collection) {
-    }
 }

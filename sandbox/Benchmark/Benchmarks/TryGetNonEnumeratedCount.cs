@@ -1,4 +1,4 @@
-using SystemEnumerable=global::System.Linq.Enumerable;
+using SystemEnumerable=System.Linq.Enumerable;
 
 namespace Benchmark.Benchmarks;
 
@@ -24,6 +24,6 @@ public class TryGetNonEnumeratedCount:Base{
 
     [Benchmark]
     public void ZLinq(){
-        ConsumeResult(this.consumer,global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).TryGetNonEnumeratedCount(out var count),count);
+        ConsumeResult(this.consumer,ValueEnumerable.AsValueEnumerable(this.src).TryGetNonEnumeratedCount(out var count),count);
     }
 }

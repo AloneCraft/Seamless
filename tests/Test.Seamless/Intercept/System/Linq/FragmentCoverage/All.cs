@@ -8,7 +8,7 @@ public sealed class All {
     [Fact,Trait("Category","Unit")]
     public static void predicate(){
         GeneratedInterceptorAssert.ContainsMethod<All>(nameof(predicateImpl));
-        var expected=SystemEnumerable.All(new[]{1,2,3,4},static v => v>0);
+        var expected=SystemEnumerable.All([1,2,3,4],static v => v>0);
         var actual=predicateImpl();
         Assert.Equal(expected,actual);
     }
@@ -19,12 +19,12 @@ public sealed class All {
     [Fact,Trait("Category","Unit")]
     public static void predicate_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<All>(nameof(predicate_enumerableImpl));
-        var expected=SystemEnumerable.All(new[]{1,2,3,4},static v => v>0);
+        var expected=SystemEnumerable.All([1,2,3,4],static v => v>0);
         var actual=predicate_enumerableImpl();
         Assert.Equal(expected,actual);
     }
     private static bool predicate_enumerableImpl(){
-        IEnumerable<int>src=new[]{1,2,3,4};
+        IEnumerable<int>src=[1,2,3,4];
         return src.All(static v => v>0);
     }
 }

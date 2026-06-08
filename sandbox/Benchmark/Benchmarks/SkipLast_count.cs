@@ -50,24 +50,24 @@ public class SkipLast_count:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).SkipLast(250000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).SkipLast(250000).Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).SkipLast(250000).SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).SkipLast(250000).SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
     }
 }

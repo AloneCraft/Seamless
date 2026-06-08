@@ -7,9 +7,9 @@ public sealed class AsQueryable:LinqChain1TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=global::System.Linq.Queryable.AsQueryable(LinqChain1TestBase.Source());
-        var actual=LinqChain1TestBase.Source().AsQueryable();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var expected=Queryable.AsQueryable(Source());
+        var actual=Source().AsQueryable();
+        AssertSequenceEqual(expected,actual);
     }
 
 }

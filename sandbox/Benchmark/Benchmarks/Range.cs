@@ -1,4 +1,4 @@
-using SystemEnumerable=global::System.Linq.Enumerable;
+using SystemEnumerable=System.Linq.Enumerable;
 
 namespace Benchmark.Benchmarks;
 
@@ -15,6 +15,6 @@ public class Range:Base{
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.Range(1,1000000).Consume(this.consumer);
+        ValueEnumerable.Range(1,1000000).Consume(this.consumer);
     }
 }

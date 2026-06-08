@@ -53,7 +53,7 @@ public class Select_selector:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src)
+        ValueEnumerable.AsValueEnumerable(this.src)
            .Select(x=>x+x)
            .Consume(this.consumer);
     }
@@ -61,7 +61,7 @@ public class Select_selector:Base{
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src)
+        ValueEnumerable.AsValueEnumerable(this.src)
            .Select(x=>x+x)
            .Select(x=>x+x)
            .Consume(this.consumer);
@@ -70,7 +70,7 @@ public class Select_selector:Base{
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src)
+        ValueEnumerable.AsValueEnumerable(this.src)
            .Select(x=>x+x)
            .Select(x=>x+x)
            .Select(x=>x+x)
@@ -80,7 +80,7 @@ public class Select_selector:Base{
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src)
+        ValueEnumerable.AsValueEnumerable(this.src)
            .Select(x=>x+x)
            .Select(x=>x+x)
            .Select(x=>x+x)

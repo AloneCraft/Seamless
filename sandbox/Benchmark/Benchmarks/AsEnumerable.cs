@@ -1,4 +1,4 @@
-using SystemEnumerable=global::System.Linq.Enumerable;
+using SystemEnumerable=System.Linq.Enumerable;
 
 namespace Benchmark.Benchmarks;
 

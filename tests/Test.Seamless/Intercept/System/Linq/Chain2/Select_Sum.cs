@@ -9,8 +9,8 @@ public sealed class Select_Sum:LinqChain2TestBase {
     public static void Static() => StaticImpl();
 
     private static void StaticImpl() {
-        var expected=SystemEnumerable.Sum(SystemEnumerable.Select(LinqChain2TestBase.Source(),static v => v*2));
-        var actual=LinqChain2TestBase.Source().Select(static v => v*2).Sum();
+        var expected=SystemEnumerable.Sum(SystemEnumerable.Select(Source(),static v => v*2));
+        var actual=Source().Select(static v => v*2).Sum();
         Assert.Equal(expected,actual);
     }
 }

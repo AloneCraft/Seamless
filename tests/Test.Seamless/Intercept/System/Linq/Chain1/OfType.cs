@@ -8,20 +8,20 @@ public sealed class OfType:LinqChain1TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.OfType<int>(LinqChain1TestBase.CastObjects()).ToList();
+        var expected=SystemEnumerable.OfType<int>(CastObjects()).ToList();
         var actual=new Consumer<int>();
-        LinqChain1TestBase.CastObjects().OfType<int>().Consume(actual);
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
+        CastObjects().OfType<int>().Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
     public static void mixedTypes() => mixedTypesImpl();
 
     private static void mixedTypesImpl() {
-        var expected=SystemEnumerable.OfType<int>(LinqChain1TestBase.MixedObjects()).ToList();
+        var expected=SystemEnumerable.OfType<int>(MixedObjects()).ToList();
         var actual=new Consumer<int>();
-        LinqChain1TestBase.MixedObjects().OfType<int>().Consume(actual);
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
+        MixedObjects().OfType<int>().Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 
 }

@@ -167,16 +167,11 @@ internal static class ValueEnumerableDebuggerDisplayHelper // avoid <T> for asse
     }
 }
 
-internal struct ValueEnumerableDebugView<TEnumerator, T>
+internal struct ValueEnumerableDebugView<TEnumerator, T>(ValueEnumerable<TEnumerator,T> source)
     where TEnumerator : struct, IValueEnumerator<T>
 {
-    readonly ValueEnumerable<TEnumerator, T> source;
+    readonly ValueEnumerable<TEnumerator, T> source = source;
     T[]? items;
-
-    public ValueEnumerableDebugView(ValueEnumerable<TEnumerator, T> source)
-    {
-        this.source = source;
-    }
 
     // avoiding side-effects so only run when opened.
     [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]

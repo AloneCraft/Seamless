@@ -33,14 +33,14 @@ public sealed class LambdaStrategySourceTests {
     }
 
     private static List<int> ExplicitStaticDelegateProbe() =>
-        new(new[] { 1,2,3 }.Select(static p => p+1));
+        [..new[] { 1,2,3 }.Select(static p => p+1)];
 
     private static List<int> CapturelessNonstaticDelegateProbe() =>
-        new(new[] { 1,2,3 }.Select(p => p+1));
+        [..new[] { 1,2,3 }.Select(p => p+1)];
 
     private static List<int> CapturingDelegateProbe() {
         var offset = 3;
-        return new(new[] { 1,2,3 }.Select(p => p+offset));
+        return [..new[] { 1,2,3 }.Select(p => p+offset)];
     }
 
     private static void AssertStaticSelectStrategy(string section,string expressionText) {

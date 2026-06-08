@@ -13,6 +13,6 @@ public class Zip_tuple:Base{
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Zip(this.src2).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).Zip(this.src2).Consume(this.consumer);
     }
 }

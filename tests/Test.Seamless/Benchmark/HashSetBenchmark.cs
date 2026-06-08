@@ -144,79 +144,79 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
     public void HashSet_Add(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,prefill: false,
             h => { var n = Scaled; for(var i = 0; i<n; i++) h.Set.Add(this.CreateKey(i)); },
-            nameof(this.HashSet_Add));
+            nameof(HashSet_Add));
 
     [Theory, MemberData(nameof(Matrix))]
     public void HashSet_Remove(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,prefill: true,
             h => { var n = Scaled; for(var i = 0; i<n; i++) h.Set.Remove(this.CreateKey(i)); },
-            nameof(this.HashSet_Remove));
+            nameof(HashSet_Remove));
 
     [Theory, MemberData(nameof(Matrix))]
     public void HashSet_Contains(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,prefill: true,
             h => { var n = Scaled; for(var i = 0; i<n; i++) _=h.Set.Contains(this.CreateKey(i)); },
-            nameof(this.HashSet_Contains));
+            nameof(HashSet_Contains));
 
     [Theory, MemberData(nameof(Matrix))]
     public void HashSet_CopyTo(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,prefill: true,
             h => { var buf = new TKey[(int)Scaled]; h.Set.CopyTo(buf,0); },
-            nameof(this.HashSet_CopyTo));
+            nameof(HashSet_CopyTo));
 
     [Theory, MemberData(nameof(Matrix))]
     public void HashSet_Foreach(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,prefill: true,
             h => { foreach(var _ in h.Set) { } },
-            nameof(this.HashSet_Foreach));
+            nameof(HashSet_Foreach));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_IntersectWith(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive2(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => h.IntersectWith(other),
-            nameof(this.HashSet_IntersectWith));
+            nameof(HashSet_IntersectWith));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_SymmetricExceptWith(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive2(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => h.SymmetricExceptWith(other),
-            nameof(this.HashSet_SymmetricExceptWith));
+            nameof(HashSet_SymmetricExceptWith));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_IsProperSubsetOf(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive2(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => { _=h.IsProperSubsetOf(other); },
-            nameof(this.HashSet_IsProperSubsetOf));
+            nameof(HashSet_IsProperSubsetOf));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_IsProperSupersetOf(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive2(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => { _=h.IsProperSupersetOf(other); },
-            nameof(this.HashSet_IsProperSupersetOf));
+            nameof(HashSet_IsProperSupersetOf));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_IsSubsetOf(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive2(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => { _=h.IsSubsetOf(other); },
-            nameof(this.HashSet_IsSubsetOf));
+            nameof(HashSet_IsSubsetOf));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_IsSupersetOf(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive2(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => { _=h.IsSupersetOf(other); },
-            nameof(this.HashSet_IsSupersetOf));
+            nameof(HashSet_IsSupersetOf));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_Overlaps(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive2(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => { _=h.Overlaps(other); },
-            nameof(this.HashSet_Overlaps));
+            nameof(HashSet_Overlaps));
 
     [Theory, MemberData(nameof(MatrixPairs))]
     public void HashSet_SetEquals(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive2(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,prefillPrimary: true,prefillSibling: true,
             (h,other) => { _=h.SetEquals(other); },
-            nameof(this.HashSet_SetEquals));
+            nameof(HashSet_SetEquals));
 
     // =============================================================
     // ICollection<T>
@@ -229,13 +229,13 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
                 var n = Scaled;
                 for(var i = 0; i<n; i++) c.Add(this.CreateKey(i));
             },
-            nameof(this.ICollection_Add));
+            nameof(ICollection_Add));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_Clear(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,prefill: true,
             h => ((ICollection<TKey>)h.Set).Clear(),
-            nameof(this.ICollection_Clear));
+            nameof(ICollection_Clear));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_Contains(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -245,7 +245,7 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=c.Contains(this.CreateKey(i));
             },
-            nameof(this.ICollection_Contains));
+            nameof(ICollection_Contains));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_CopyTo(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -254,7 +254,7 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
                 var buf = new TKey[(int)Scaled];
                 ((ICollection<TKey>)h.Set).CopyTo(buf,0);
             },
-            nameof(this.ICollection_CopyTo));
+            nameof(ICollection_CopyTo));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_Remove(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -264,13 +264,13 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=c.Remove(this.CreateKey(i));
             },
-            nameof(this.ICollection_Remove));
+            nameof(ICollection_Remove));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_Count(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,prefill: true,
             h => { _=((ICollection<TKey>)h.Set).Count; },
-            nameof(this.ICollection_Count));
+            nameof(ICollection_Count));
 
     // =============================================================
     // IReadOnlyCollection<T>
@@ -282,7 +282,7 @@ public abstract class HashSetBenchmark<TKey>(ITestOutputHelper output):Benchmark
                 if(h.Set is IReadOnlyCollection<TKey> ro) _=ro.Count;
                 else _=((ICollection<TKey>)h.Set).Count;
             },
-            nameof(this.IReadOnlyCollection_Count));
+            nameof(IReadOnlyCollection_Count));
 }
 
 // ============================================================================
@@ -313,8 +313,8 @@ public sealed class ManagedHashSetBenchmark(ITestOutputHelper output):HashSetBen
             this.segmentSize=segmentSize;
             this.memorySizeBits=memorySizeBits;
             this.pageSizeBits=pageSizeBits;
-            var directoryId = System.Threading.Interlocked.Increment(ref directorySequence);
-            this.rootDir=global::Test.Seamless.TestPath.Directory<ManagedHashSetBenchmark>($"h{directoryId:D4}");
+            var directoryId = Interlocked.Increment(ref directorySequence);
+            this.rootDir=TestPath.Directory<ManagedHashSetBenchmark>($"h{directoryId:D4}");
             var checkpointDir = Path.Combine(this.rootDir,"checkpoint");
             var logPath = Path.Combine(this.rootDir,"log");
             var objPath = Path.Combine(this.rootDir,"obj");
@@ -397,8 +397,8 @@ public sealed class UnmanagedHashSetBenchmark(ITestOutputHelper output):HashSetB
             this.segmentSize=segmentSize;
             this.memorySizeBits=memorySizeBits;
             this.pageSizeBits=pageSizeBits;
-            var directoryId = System.Threading.Interlocked.Increment(ref directorySequence);
-            this.rootDir=global::Test.Seamless.TestPath.Directory<UnmanagedHashSetBenchmark>($"h{directoryId:D4}");
+            var directoryId = Interlocked.Increment(ref directorySequence);
+            this.rootDir=TestPath.Directory<UnmanagedHashSetBenchmark>($"h{directoryId:D4}");
             var checkpointDir = Path.Combine(this.rootDir,"checkpoint");
             var logPath = Path.Combine(this.rootDir,"log");
             var objPath = Path.Combine(this.rootDir,"obj");

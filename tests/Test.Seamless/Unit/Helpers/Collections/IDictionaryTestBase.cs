@@ -13,12 +13,12 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
     private string CreateDiskFolder() =>
-        global::Test.Seamless.TestPath.Directory(this);
+        TestPath.Directory(this);
     [Fact, Trait("Category","Unit")]
     public void IsReadOnly() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
-        System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+        IDictionary<TKey,TValue> dict = rawDict;
         {
             // 読み取り専用ではないこと
             Assert.False(dict.IsReadOnly);
@@ -30,7 +30,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // 追加できること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             Assert.True(dict.ContainsKey(TStrategy.K(1)));
         }
@@ -38,7 +38,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // 重複キーでは例外になること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             Assert.Throws<ArgumentException>(() => dict.Add(TStrategy.K(1),TStrategy.V(2)));
         }
@@ -46,7 +46,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // ログが満杯になると例外になること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<OutOfMemoryException>((Action)(() => {
                 for(var i = 0; ; i++) dict.Add(TStrategy.K(i),TStrategy.V(i));
             }));
@@ -58,7 +58,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // KeyValuePair で追加できること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(new KeyValuePair<TKey,TValue>(TStrategy.K(5),TStrategy.V(5)));
             Assert.True(dict.ContainsKey(TStrategy.K(5)));
         }
@@ -69,7 +69,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // キーと値が一致する要素は true
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             Assert.True(dict.Contains(new KeyValuePair<TKey,TValue>(TStrategy.K(1),TStrategy.V(1))));
         }
@@ -77,7 +77,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // 不一致要素は false
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             Assert.False(dict.Contains(new KeyValuePair<TKey,TValue>(TStrategy.K(99),TStrategy.VWrong())));
         }
     }
@@ -87,7 +87,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // 全要素を配列にコピーできること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             dict.Add(TStrategy.K(10),TStrategy.V(10));
             var array = new KeyValuePair<TKey,TValue>[2];
@@ -98,21 +98,21 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // null 配列は例外
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<ArgumentNullException>(() => dict.CopyTo(null!,0));
         }
         {
             // 負のインデックスは例外
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<ArgumentOutOfRangeException>(() => dict.CopyTo(new KeyValuePair<TKey,TValue>[2],-1));
         }
         {
             // 配列が小さすぎると例外
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             dict.Add(TStrategy.K(2),TStrategy.V(2));
             Assert.Throws<ArgumentException>(() => dict.CopyTo(new KeyValuePair<TKey,TValue>[1],0));
@@ -122,7 +122,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     public void ToList() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
-        System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+        IDictionary<TKey,TValue> dict = rawDict;
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         var list = dict.ToList();
@@ -135,7 +135,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     public void Keys() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
-        System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+        IDictionary<TKey,TValue> dict = rawDict;
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
@@ -145,7 +145,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         {
             // キー一覧は全件コピー済みの標準Listではなく読み取り専用viewであること
             Assert.True(dict.Keys.IsReadOnly);
-            Assert.IsNotType<global::System.Collections.Generic.List<TKey>>(dict.Keys);
+            Assert.IsNotType<List<TKey>>(dict.Keys);
             Assert.Throws<NotSupportedException>(() => dict.Keys.Add(TStrategy.K(3)));
         }
     }
@@ -153,7 +153,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     public void Values() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
-        System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+        IDictionary<TKey,TValue> dict = rawDict;
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
@@ -163,7 +163,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         {
             // 値一覧は全件コピー済みの標準Listではなく読み取り専用viewであること
             Assert.True(dict.Values.IsReadOnly);
-            Assert.IsNotType<global::System.Collections.Generic.List<TValue>>(dict.Values);
+            Assert.IsNotType<List<TValue>>(dict.Values);
             Assert.Throws<NotSupportedException>(() => dict.Values.Add(TStrategy.V(3)));
         }
     }
@@ -173,7 +173,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // 存在するキーは true
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             Assert.True(dict.ContainsKey(TStrategy.K(1)));
         }
@@ -181,7 +181,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // 存在しないキーは false
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             Assert.False(dict.ContainsKey(TStrategy.K(999)));
         }
     }
@@ -191,7 +191,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // キーが存在する時のテスト
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(3),TStrategy.V(3));
             Assert.True(dict.TryGetValue(TStrategy.K(3),out var val));
             Assert.Equal(TStrategy.V(3),val);
@@ -200,7 +200,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // キーが存在しない時のテスト
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             Assert.False(dict.TryGetValue(TStrategy.K(0),out var val));
             Assert.Equal(default,val);
         }
@@ -208,7 +208,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // 追加直後でも読み出せること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             Assert.True(dict.TryGetValue(TStrategy.K(1),out var v));
             Assert.Equal(TStrategy.V(1),v);
@@ -220,7 +220,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var sh = TStrategy.CreateStorageStore(logDevice,objDevice);
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(0),TStrategy.V(0));
             sh.FlushAndEvict(true);
             Assert.True(dict.TryGetValue(TStrategy.K(0),out var v));
@@ -233,7 +233,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // setter で値を設定できること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict[TStrategy.K(10)]=TStrategy.V(10);
             Assert.True(dict.TryGetValue(TStrategy.K(10),out var v));
             Assert.Equal(TStrategy.V(10),v);
@@ -242,7 +242,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // getter で不存在キー参照時は例外
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<KeyNotFoundException>(() => {
                 var _ = dict[TStrategy.K(999)];
             });
@@ -251,7 +251,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // ログ満杯時の setter は例外
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<OutOfMemoryException>((Action)(() => {
                 for(var i = 0; ; i++) dict[TStrategy.K(i)]=TStrategy.V(i);
             }));
@@ -263,7 +263,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // 存在キーの削除に成功すること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             Assert.True(dict.Remove(TStrategy.K(1)));
             Assert.False(dict.ContainsKey(TStrategy.K(1)));
@@ -272,14 +272,14 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // 存在しないキーは false
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             Assert.False(dict.Remove(TStrategy.K(99)));
         }
         {
             // Write パスの削除に成功すること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             Assert.True(dict.Remove(TStrategy.K(1)));
         }
@@ -290,7 +290,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // キーと値が一致すると削除される
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             var removed = dict.Remove(new KeyValuePair<TKey,TValue>(TStrategy.K(1),TStrategy.V(1)));
             foreach(var _ in dict) { }
@@ -301,7 +301,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // 値が不一致なら削除されない
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             var removed = dict.Remove(new KeyValuePair<TKey,TValue>(TStrategy.K(1),TStrategy.VWrong()));
             Assert.False(removed);
@@ -311,7 +311,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // キーが存在しなければ false
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             var removed = dict.Remove(new KeyValuePair<TKey,TValue>(TStrategy.K(99),TStrategy.VWrong()));
             Assert.False(removed);
         }
@@ -320,7 +320,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     public void Clear() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
-        System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+        IDictionary<TKey,TValue> dict = rawDict;
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
@@ -333,7 +333,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     public void Count() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
-        System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+        IDictionary<TKey,TValue> dict = rawDict;
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
@@ -347,7 +347,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // IEnumerable<T> 経由で列挙できること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             IEnumerable<KeyValuePair<TKey,TValue>> e = dict;
             Assert.Single(e);
@@ -356,7 +356,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // IEnumerable 経由で列挙できること
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             IEnumerable e = dict;
             var count = 0;
@@ -375,7 +375,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
             using var sh = TStrategy.CreateStorageStore(logDevice,objDevice,memorySize: Const.MinObjectLogCapacity,mutableFraction: 0);
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
             Assert.Equal(TStrategy.V(1),dict[TStrategy.K(1)]);
         }
@@ -383,7 +383,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             // mutable 領域を使い切ると OutOfMemoryException
             using var sh = TStrategy.CreateMemoryStore(memorySize: Const.LogMemorySize,mutableFraction: 0.5);
             using var rawDict = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
+            IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<OutOfMemoryException>((Action)(() => {
                 for(var i = 0; ; i++) dict.Add(TStrategy.K(i),TStrategy.V(i));
             }));
@@ -400,7 +400,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             using var logObjDevice = new ManagedLocalStorageDevice(folder+"_obj");
             using var sh = TStrategy.CreateStorageStore(logDevice,logObjDevice,checkpointDir: checkpointDir);
             using var rawSet = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> set = rawSet;
+            IDictionary<TKey,TValue> set = rawSet;
             set[TStrategy.K(1)]=TStrategy.V(1);
             set[TStrategy.K(2)]=TStrategy.V(2);
             set[TStrategy.K(3)]=TStrategy.V(3);
@@ -416,7 +416,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             sh.Load(token);
             var (begin2,head2,ro2,tail2)=sh.Address;
             using var rawSet = sh.NewDict();
-            System.Collections.Generic.IDictionary<TKey,TValue> set = rawSet;
+            IDictionary<TKey,TValue> set = rawSet;
             Assert.True(set.ContainsKey(TStrategy.K(1)),$"ContainsKey(K(1)) failed. Count(iter)={set.Count}, Addr=({begin2},{head2},{ro2},{tail2})");
             Assert.True(set.ContainsKey(TStrategy.K(2)));
             Assert.True(set.ContainsKey(TStrategy.K(3)));

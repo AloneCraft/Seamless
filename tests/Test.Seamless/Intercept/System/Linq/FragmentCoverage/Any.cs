@@ -8,7 +8,7 @@ public sealed class Any {
     [Fact,Trait("Category","Unit")]
     public static void noArg(){
         GeneratedInterceptorAssert.ContainsMethod<Any>(nameof(noArgImpl));
-        var expected=SystemEnumerable.Any(new[]{1,2,3,4});
+        var expected=SystemEnumerable.Any([1,2,3,4]);
         var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
@@ -19,7 +19,7 @@ public sealed class Any {
     [Fact,Trait("Category","Unit")]
     public static void predicate(){
         GeneratedInterceptorAssert.ContainsMethod<Any>(nameof(predicateImpl));
-        var expected=SystemEnumerable.Any(new[]{1,2,3,4},static v => v>2);
+        var expected=SystemEnumerable.Any([1,2,3,4],static v => v>2);
         var actual=predicateImpl();
         Assert.Equal(expected,actual);
     }
@@ -30,24 +30,24 @@ public sealed class Any {
     [Fact,Trait("Category","Unit")]
     public static void noArg_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Any>(nameof(noArg_enumerableImpl));
-        var expected=SystemEnumerable.Any(new[]{1,2,3,4});
+        var expected=SystemEnumerable.Any([1,2,3,4]);
         var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
     private static bool noArg_enumerableImpl(){
-        IEnumerable<int>src=new[]{1,2,3,4};
+        IEnumerable<int>src=[1,2,3,4];
         return src.Any();
     }
 
     [Fact,Trait("Category","Unit")]
     public static void predicate_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Any>(nameof(predicate_enumerableImpl));
-        var expected=SystemEnumerable.Any(new[]{1,2,3,4},static v => v>2);
+        var expected=SystemEnumerable.Any([1,2,3,4],static v => v>2);
         var actual=predicate_enumerableImpl();
         Assert.Equal(expected,actual);
     }
     private static bool predicate_enumerableImpl(){
-        IEnumerable<int>src=new[]{1,2,3,4};
+        IEnumerable<int>src=[1,2,3,4];
         return src.Any(static v => v>2);
     }
 }

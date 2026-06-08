@@ -15,7 +15,7 @@ public class SerialRandomStressTests {
     private const int StressCountLarge = 1024;
 
     private static string CreateTempDir(string tag) {
-        var dir = global::Test.Seamless.TestPath.Directory<SerialRandomStressTests>(tag);
+        var dir = TestPath.Directory<SerialRandomStressTests>(tag);
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -161,8 +161,8 @@ public class SerialRandomStressTests {
             var objPath = Path.Combine(temp,"obj");
             var keys = StressScript.SampleKeys(Seed,count*4,count);
             var removeMask = StressScript.RemoveMask(Seed^0x5a5a,count,RemoveRate);
-            var expected = new global::System.Collections.Generic.HashSet<int>(keys);
-            var expectedAfterRemove = new global::System.Collections.Generic.HashSet<int>(expected);
+            var expected = new HashSet<int>(keys);
+            var expectedAfterRemove = new HashSet<int>(expected);
             for(var i = 0; i<keys.Length; i++) {
                 if(removeMask[i])
                     expectedAfterRemove.Remove(keys[i]);
@@ -216,8 +216,8 @@ public class SerialRandomStressTests {
             var rawKeys = StressScript.SampleKeys(Seed,count*4,count);
             var removeMask = StressScript.RemoveMask(Seed^0x5a5a,count,RemoveRate);
             var keys = rawKeys.Select(k => "s"+k).ToArray();
-            var expected = new global::System.Collections.Generic.HashSet<string>(keys,StringComparer.Ordinal);
-            var expectedAfterRemove = new global::System.Collections.Generic.HashSet<string>(expected,StringComparer.Ordinal);
+            var expected = new HashSet<string>(keys,StringComparer.Ordinal);
+            var expectedAfterRemove = new HashSet<string>(expected,StringComparer.Ordinal);
             for(var i = 0; i<keys.Length; i++) {
                 if(removeMask[i])
                     expectedAfterRemove.Remove(keys[i]);

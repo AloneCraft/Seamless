@@ -23,7 +23,7 @@ public abstract class AddTests<TKey, TValue>
     protected abstract void DoConcurrentReaderEmpty();
 
     protected string CreateDiskFolder() =>
-        global::Test.Seamless.TestPath.Directory(this);
+        TestPath.Directory(this);
 
     private void AddAndGet() {
         var (dict,store)=this.CreateMemory();

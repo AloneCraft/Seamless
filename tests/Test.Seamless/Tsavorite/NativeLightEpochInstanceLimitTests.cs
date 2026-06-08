@@ -12,7 +12,7 @@ namespace Test.Seamless.Tsavorite;
 [Collection("TsavoriteTests")]
 public class NativeLightEpochInstanceLimitTests(ITestOutputHelper output) {
     private static string TempDir(string name) =>
-        global::Test.Seamless.TestPath.Directory<NativeLightEpochInstanceLimitTests>(name);
+        TestPath.Directory<NativeLightEpochInstanceLimitTests>(name);
 
     private sealed class NativeStoreHandle:IDisposable {
         private readonly string rootDir;
@@ -64,7 +64,7 @@ public class NativeLightEpochInstanceLimitTests(ITestOutputHelper output) {
 
     [Fact]
     public void Can_Create_16_Stores() {
-        var stores = new global::System.Collections.Generic.List<NativeStoreHandle>();
+        var stores = new List<NativeStoreHandle>();
         try {
             for(int i = 0; i<16; i++) {
                 var store = CreateNativeStore($"store-{i}");
@@ -82,7 +82,7 @@ public class NativeLightEpochInstanceLimitTests(ITestOutputHelper output) {
 
     [Fact]
     public void Cannot_Create_1025_Stores_Simultaneously() {
-        var stores = new global::System.Collections.Generic.List<NativeStoreHandle>();
+        var stores = new List<NativeStoreHandle>();
 
         try {
             for(int i = 0; i<1025; i++) {
@@ -112,7 +112,7 @@ public class NativeLightEpochInstanceLimitTests(ITestOutputHelper output) {
 
     [Fact]
     public void Can_Reuse_Slots_After_Dispose() {
-        var stores = new global::System.Collections.Generic.List<NativeStoreHandle>();
+        var stores = new List<NativeStoreHandle>();
 
         try {
             // バッチ 1: 16 ストアを作成

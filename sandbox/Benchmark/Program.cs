@@ -340,7 +340,7 @@ internal static class Program {
             TrimWhiteSpace=false
         };
         while(!parser.EndOfData) {
-            rows.Add(parser.ReadFields()??Array.Empty<string>());
+            rows.Add(parser.ReadFields()??[]);
         }
         return rows;
     }

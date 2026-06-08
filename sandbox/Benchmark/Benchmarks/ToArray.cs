@@ -13,6 +13,6 @@ public class ToArray:Base{
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).ToArray().Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).ToArray().Consume(this.consumer);
     }
 }

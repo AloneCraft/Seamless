@@ -1,7 +1,7 @@
 namespace Seamless.SourceGenerator.Linq.Fragments;
 
 internal static class TraversalSupport{
-    public static void AppendTraversalLoop(System.Text.StringBuilder builder,string enumeratorName,string elementType,string valueName,string statement){
+    public static void AppendTraversalLoop(StringBuilder builder,string enumeratorName,string elementType,string valueName,string statement){
         var spanName=$"__sp_{enumeratorName}";
         builder.AppendLine($"if({enumeratorName}.TryGetSpan(out var {spanName})){{");
         builder.AppendLine($"    for(var __i_{enumeratorName}=0;__i_{enumeratorName}<{spanName}.Length;__i_{enumeratorName}++){{");
@@ -15,7 +15,7 @@ internal static class TraversalSupport{
         builder.AppendLine("}");
     }
 
-    public static void AppendHashSetInitialization(System.Text.StringBuilder builder,string setName,string elementType,string enumeratorName,string comparer){
+    public static void AppendHashSetInitialization(StringBuilder builder,string setName,string elementType,string enumeratorName,string comparer){
         var countName=$"__count_{setName}";
         builder.AppendLine($"global::System.Collections.Generic.HashSet<{elementType}> {setName};");
         builder.AppendLine($"if({enumeratorName}.TryGetNonEnumeratedCount(out var {countName})){{");

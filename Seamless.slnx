@@ -4,6 +4,7 @@
     <File Path="20260430外部設計書.txt" />
     <File Path="20260430要件定義書.txt" />
     <File Path="copilot-instructions.md" />
+    <File Path="TextFile1.txt" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Seamless/Seamless.csproj" />

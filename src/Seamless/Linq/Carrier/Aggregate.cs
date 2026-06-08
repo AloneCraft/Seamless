@@ -13,7 +13,7 @@ partial class ValueEnumerableExtensions
             {
                 if (span.Length == 0)
                 {
-                    Internal.Throws.NoElements<TSource>();
+                    Throws.NoElements<TSource>();
                 }
 
                 var result = span[0];
@@ -28,7 +28,7 @@ partial class ValueEnumerableExtensions
             {
                 if (!enumerator.TryGetNext(out var result))
                 {
-                    Internal.Throws.NoElements<TSource>();
+                    Throws.NoElements<TSource>();
                 }
 
                 while (enumerator.TryGetNext(out var current))

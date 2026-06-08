@@ -53,24 +53,24 @@ public class OrderDescending:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).OrderDescending().Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).OrderDescending().Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).OrderDescending().OrderDescending().Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).OrderDescending().OrderDescending().Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).OrderDescending().OrderDescending().OrderDescending().Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).OrderDescending().OrderDescending().OrderDescending().Consume(this.consumer);
     }
 
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).OrderDescending().OrderDescending().OrderDescending().OrderDescending().Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).OrderDescending().OrderDescending().OrderDescending().OrderDescending().Consume(this.consumer);
     }
 }

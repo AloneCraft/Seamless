@@ -67,7 +67,7 @@ internal sealed class DictionarySlim<TKey, TValue> : IDisposable // allows TKey 
 
     void Resize()
     {
-        var newSize = System.Numerics.BitOperations.RoundUpToPowerOf2((uint)this.entries.Length * 2);
+        var newSize = BitOperations.RoundUpToPowerOf2((uint)this.entries.Length * 2);
         var newEntries = ArrayPool<Entry>.Shared.Rent((int)newSize);
         var newBuckets = ArrayPool<int>.Shared.Rent((int)newSize);
         this.bucketsLength = (int)newSize; // guarantees PowerOf2

@@ -48,7 +48,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     }
     public struct Enumerator<TIterator, T>:IEnumerator<T>
         where TIterator : ScanIteratorFunctions_List<T,ListBase<T>> {
-        private global::Seamless.Collections.ListBase<T>? Items;
+        private ListBase<T>? Items;
         private long Index = -1;
         private T CurrentValue = default!;
         private readonly ClientSession<

@@ -65,7 +65,7 @@ public partial class KindDictionarySize(ITestOutputHelper output) {
 
     [Fact, Trait("Category","Unit")]
     public void OutputsLogSizesForAllFourKinds() {
-        var sizes = new System.Collections.Generic.Dictionary<string,long>();
+        var sizes = new Dictionary<string,long>();
 
         {
             using var store = HashStore.Create(MemorySize: MemorySize).Create<int,int>();
@@ -100,5 +100,5 @@ public partial class KindDictionarySize(ITestOutputHelper output) {
     private static partial void AssertUnmanagedUnmanagedVsManagedManaged(long uuBytes,long mmBytes);
     private static partial void AssertManagedUnmanagedVsManagedManaged(long muBytes,long mmBytes);
     private static partial void AssertUnmanagedManagedVsManagedManaged(long umBytes,long mmBytes);
-    private static partial System.Collections.Generic.Dictionary<string,long> GetExpectedSizes();
+    private static partial Dictionary<string,long> GetExpectedSizes();
 }

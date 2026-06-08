@@ -8,8 +8,8 @@ public sealed class Count:LinqChain1TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.Count(LinqChain1TestBase.Source());
-        var actual=LinqChain1TestBase.Source().Count();
+        var expected=SystemEnumerable.Count(Source());
+        var actual=Source().Count();
         Assert.Equal(expected,actual);
     }
 
@@ -17,8 +17,17 @@ public sealed class Count:LinqChain1TestBase {
     public static void predicate_Static() => predicate_StaticImpl();
 
     private static void predicate_StaticImpl() {
-        var expected=SystemEnumerable.Count(LinqChain1TestBase.Source(),static v => v>2);
-        var actual=LinqChain1TestBase.Source().Count(static v => v>2);
+        var expected=SystemEnumerable.Count(Source(),static v => v>2);
+        var actual=Source().Count(static v => v>2);
+        Assert.Equal(expected,actual);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public static void predicate_Nested() => predicate_NestedImpl();
+
+    private static void predicate_NestedImpl() {
+        var expected=SystemEnumerable.Count(Source(),p => SystemEnumerable.Count(Source(),q => q==p)>0);
+        var actual=Source().Count(p => Source().Count(q => q==p)>0);
         Assert.Equal(expected,actual);
     }
 
@@ -26,8 +35,8 @@ public sealed class Count:LinqChain1TestBase {
     public static void predicate_Lambda() => predicate_LambdaImpl();
 
     private static void predicate_LambdaImpl() {
-        var expected=SystemEnumerable.Count(LinqChain1TestBase.Source(),v => v>2);
-        var actual=LinqChain1TestBase.Source().Count(v => v>2);
+        var expected=SystemEnumerable.Count(Source(),v => v>2);
+        var actual=Source().Count(v => v>2);
         Assert.Equal(expected,actual);
     }
 
@@ -36,8 +45,8 @@ public sealed class Count:LinqChain1TestBase {
 
     private static void predicate_CapturedImpl() {
         var threshold=2;
-        var expected=SystemEnumerable.Count(LinqChain1TestBase.Source(),v => v>threshold);
-        var actual=LinqChain1TestBase.Source().Count(v => v>threshold);
+        var expected=SystemEnumerable.Count(Source(),v => v>threshold);
+        var actual=Source().Count(v => v>threshold);
         Assert.Equal(expected,actual);
     }
 
@@ -45,8 +54,8 @@ public sealed class Count:LinqChain1TestBase {
     public static void predicate_DelegateSyntax() => predicate_DelegateSyntaxImpl();
 
     private static void predicate_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.Count(LinqChain1TestBase.Source(),delegate(int v) { return v>2; });
-        var actual=LinqChain1TestBase.Source().Count(delegate(int v) { return v>2; });
+        var expected=SystemEnumerable.Count(Source(),delegate(int v) { return v>2; });
+        var actual=Source().Count(delegate(int v) { return v>2; });
         Assert.Equal(expected,actual);
     }
 
@@ -55,8 +64,8 @@ public sealed class Count:LinqChain1TestBase {
 
     private static void predicate_VariableImpl() {
         Func<int,bool> predicate=v => v>2;
-        var expected=SystemEnumerable.Count(LinqChain1TestBase.Source(),predicate);
-        var actual=LinqChain1TestBase.Source().Count(predicate);
+        var expected=SystemEnumerable.Count(Source(),predicate);
+        var actual=Source().Count(predicate);
         Assert.Equal(expected,actual);
     }
 

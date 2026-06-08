@@ -13,6 +13,6 @@ public class Min_selector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Min(x=>x*2));
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).Min(x=>x*2));
     }
 }

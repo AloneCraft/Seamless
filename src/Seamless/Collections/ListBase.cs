@@ -140,7 +140,7 @@ public abstract class ListBase<T>:IReadOnlyList<T>, IDisposable {
     protected abstract void OnCountChanged();
     protected abstract void DisposeCore();
 
-    public struct Enumerator(ListBase<T> list,bool ownsList = false,global::System.Action? disposeAction = null):IEnumerator<T> {
+    public struct Enumerator(ListBase<T> list,bool ownsList = false,Action? disposeAction = null):IEnumerator<T> {
         private long index = -1;
         public T Current => list[this.index];
         object IEnumerator.Current => this.Current!;
@@ -174,14 +174,9 @@ internal static class MemoryMappedListTuning {
     private const int MadvWillNeed = 3;
 
     [StructLayout(LayoutKind.Sequential)]
-    private readonly struct Win32MemoryRangeEntry {
-        public readonly nuint VirtualAddress;
-        public readonly nuint NumberOfBytes;
-
-        public Win32MemoryRangeEntry(nuint virtualAddress,nuint numberOfBytes) {
-            this.VirtualAddress=virtualAddress;
-            this.NumberOfBytes=numberOfBytes;
-        }
+    private readonly struct Win32MemoryRangeEntry(nuint virtualAddress,nuint numberOfBytes) {
+        public readonly nuint VirtualAddress = virtualAddress;
+        public readonly nuint NumberOfBytes = numberOfBytes;
     }
     public static long AlignBytes(long byteLength) {
         if(byteLength<1)

@@ -13,6 +13,6 @@ public class Chunk_size:Base{
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).Chunk(1000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).Chunk(1000).Consume(this.consumer);
     }
 }

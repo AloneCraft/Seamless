@@ -73,7 +73,7 @@ public abstract class Benchmark(ITestOutputHelper output) {
         var barrier = new Barrier(parallel);
         long maxMs = 0;
         var sync = new object();
-        System.Exception? err = null;
+        Exception? err = null;
         var threads = new Thread[parallel];
         for(var i = 0; i<parallel; i++) {
             var id = i;
@@ -86,7 +86,7 @@ public abstract class Benchmark(ITestOutputHelper output) {
                     local.Stop();
                     lock(sync) { if(local.ElapsedMilliseconds>maxMs) maxMs=local.ElapsedMilliseconds; }
                 }
-                catch(System.Exception e) {
+                catch(Exception e) {
                     lock(sync) { err??=e; }
                     try { barrier.RemoveParticipant(); } catch { }
                 }

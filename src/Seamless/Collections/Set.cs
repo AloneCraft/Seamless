@@ -2,12 +2,7 @@ using Seamless.Stores;
 
 namespace Seamless.Collections;
 
-public class Set<TRecord>:List<TRecord>, ISet<TRecord> {
-
-    public Set(string path,long initialCapacity = 16,long initialDataCapacity = 4096) :
-        base(path,initialCapacity,initialDataCapacity) {
-    }
-
+public class Set<TRecord>(string path,long initialCapacity = 16,long initialDataCapacity = 4096):List<TRecord>(path,initialCapacity,initialDataCapacity), ISet<TRecord> {
     public Set<TRecord> Distinct() {
         this.DuplicateRemoval();
         return this;

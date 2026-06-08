@@ -136,11 +136,11 @@ public sealed class Upsert:AddTests<int,string> {
     }
 #endif
 #if TSAVORITE2_0BETA3
-    [Fact,Trait("Category","Unit")]public void GetUpsertFieldInfo_TKey_IHeapObject_PInnedSpanByte()=>this.UpsertHeapObject();
-    [Fact,Trait("Category","Unit")]public void InitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
-    [Fact,Trait("Category","Unit")]public void PostUpsertOperation_TKey_PinnedSpanByte_IHeapObject_UpsertInfo_TEpochAccessor()=>this.UpsertHeapObject();
-    [Fact,Trait("Category","Unit")]public void InPlaceWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
-    [Fact,Trait("Category","Unit")]public void PostInitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=>this.UpsertHeapObject();
+    [Fact,Trait("Category","Unit")]public void GetUpsertFieldInfo_TKey_IHeapObject_PInnedSpanByte()=> this.UpsertHeapObject();
+    [Fact,Trait("Category","Unit")]public void InitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=> this.UpsertHeapObject();
+    [Fact,Trait("Category","Unit")]public void PostUpsertOperation_TKey_PinnedSpanByte_IHeapObject_UpsertInfo_TEpochAccessor()=> this.UpsertHeapObject();
+    [Fact,Trait("Category","Unit")]public void InPlaceWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=> this.UpsertHeapObject();
+    [Fact,Trait("Category","Unit")]public void PostInitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_IHeapObject_SpanByteAndMemory_UpsertInfo()=> this.UpsertHeapObject();
 
     private sealed class ScanAndUpsertFunctions(
         ClientSession<
@@ -200,9 +200,9 @@ public sealed class Upsert:AddTests<int,string> {
         var inplaceFuncs=new ScanAndUpsertFunctions(session,null);
         store.Store.Log.Scan(ref inplaceFuncs,addr1,addr2,DiskScanBufferingMode.NoBuffering);
     }
-    [Fact,Trait("Category","Unit")]public void GetUpsertFieldInfo_TKey_TSourceLogRecord_PinnedSpanByte()=>this.TSourceLogRecord();
-    [Fact,Trait("Category","Unit")]public void InitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_TSourceLogRecord_SpanByteAndMemory_UpsertInfo()=>this.TSourceLogRecord();
-    [Fact,Trait("Category","Unit")]public void InPlaceWrit2er_LogRecord_RecordSizeInfo_PinnedSpanByte_TSourceLogRecord_SpanByteAndMemory_UpsertInfo()=>this.TSourceLogRecord();
+    [Fact,Trait("Category","Unit")]public void GetUpsertFieldInfo_TKey_TSourceLogRecord_PinnedSpanByte()=> this.TSourceLogRecord();
+    [Fact,Trait("Category","Unit")]public void InitialWriter_LogRecord_RecordSizeInfo_PinnedSpanByte_TSourceLogRecord_SpanByteAndMemory_UpsertInfo()=> this.TSourceLogRecord();
+    [Fact,Trait("Category","Unit")]public void InPlaceWrit2er_LogRecord_RecordSizeInfo_PinnedSpanByte_TSourceLogRecord_SpanByteAndMemory_UpsertInfo()=> this.TSourceLogRecord();
 #endif
 
     protected override void DoRMW(){

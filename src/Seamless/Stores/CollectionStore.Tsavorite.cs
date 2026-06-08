@@ -107,7 +107,7 @@ public abstract partial class CollectionStore<
                 this.WriteRecoveryIndexMetadata(token);
                 return token;
             }
-            throw new InvalidOperationException($"{nameof(this.Save)}Checkpoint failed.");
+            throw new InvalidOperationException($"{nameof(Save)}Checkpoint failed.");
         }
         finally {
             this.ReleaseCheckpoint();
@@ -126,7 +126,7 @@ public abstract partial class CollectionStore<
                 this.WriteRecoveryIndexMetadata(token);
                 return token;
             }
-            throw new InvalidOperationException($"{nameof(this.SaveLogOnly)}Checkpoint failed.");
+            throw new InvalidOperationException($"{nameof(SaveLogOnly)}Checkpoint failed.");
         }
         finally {
             this.ReleaseCheckpoint();
@@ -134,12 +134,12 @@ public abstract partial class CollectionStore<
     }
 
     private void ThrowIfCheckpointInProgress() {
-        if(System.Threading.Interlocked.CompareExchange(ref this.CheckpointInProgress,1,0)!=0)
+        if(Interlocked.CompareExchange(ref this.CheckpointInProgress,1,0)!=0)
             throw new InvalidOperationException("Checkpoint already in progress.");
     }
 
     private void ReleaseCheckpoint() {
-        System.Threading.Volatile.Write(ref this.CheckpointInProgress,0);
+        Volatile.Write(ref this.CheckpointInProgress,0);
     }
 
     private void WriteRecoveryIndexMetadata(Guid token) {

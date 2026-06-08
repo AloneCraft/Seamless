@@ -8,8 +8,8 @@ public sealed class TryGetNonEnumeratedCount:LinqChain1TestBase {
     public static void count() => countImpl();
 
     private static void countImpl() {
-        var expectedResult=SystemEnumerable.TryGetNonEnumeratedCount(LinqChain1TestBase.Source(),out var expected);
-        var actualResult=LinqChain1TestBase.Source().TryGetNonEnumeratedCount(out var actual);
+        var expectedResult=SystemEnumerable.TryGetNonEnumeratedCount(Source(),out var expected);
+        var actualResult=Source().TryGetNonEnumeratedCount(out var actual);
         Assert.Equal(expectedResult,actualResult);
         Assert.Equal(expected,actual);
     }

@@ -19,7 +19,7 @@ internal ref struct SegmentedArrayProvider<T>
 
     public SegmentedArrayProvider(Span<T> initialBuffer)
     {
-        this.initialBuffer = this.currentSegment = initialBuffer;
+        this.initialBuffer =this.currentSegment = initialBuffer;
     }
 
     public Span<T> GetSpan()

@@ -36,13 +36,13 @@ internal static class Throws
     public static void NotSupportedType(Type type) => throw new NotSupportedException(type.Name);
 
     [DoesNotReturn]
-    public static void VectorSmallOverlap<T>() where T : struct => throw new ArgumentException($"Span length must be at least {System.Numerics.Vector<T>.Count} for OverlapOrThrow mode");
+    public static void VectorSmallOverlap<T>() where T : struct => throw new ArgumentException($"Span length must be at least {Vector<T>.Count} for OverlapOrThrow mode");
 
     [DoesNotReturn]
     public static void IsFromEnd(string paramName) => throw new ArgumentOutOfRangeException(paramName, "IsFromEnd is not allowed.");
 
     [DoesNotReturn]
-    public static void Null(string paramName) => throw new System.ArgumentNullException(paramName);
+    public static void Null(string paramName) => throw new ArgumentNullException(paramName);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static T IfNull<T>(T? argument, [CallerArgumentExpression(nameof(argument))] string? paramName = null)

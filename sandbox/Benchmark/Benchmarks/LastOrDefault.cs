@@ -13,6 +13,6 @@ public class LastOrDefault:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).LastOrDefault());
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).LastOrDefault());
     }
 }

@@ -8,7 +8,7 @@ public sealed class First {
     [Fact,Trait("Category","Unit")]
     public static void noArg(){
         GeneratedInterceptorAssert.ContainsMethod<First>(nameof(noArgImpl));
-        var expected=SystemEnumerable.First(new[]{1,2,3,4});
+        var expected=SystemEnumerable.First([1,2,3,4]);
         var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
@@ -19,12 +19,12 @@ public sealed class First {
     [Fact,Trait("Category","Unit")]
     public static void noArg_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<First>(nameof(noArg_enumerableImpl));
-        var expected=SystemEnumerable.First(new[]{1,2,3,4});
+        var expected=SystemEnumerable.First([1,2,3,4]);
         var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
     private static int noArg_enumerableImpl(){
-        IEnumerable<int>src=new[]{1,2,3,4};
+        IEnumerable<int>src=[1,2,3,4];
         return src.First();
     }
 }

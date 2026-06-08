@@ -133,7 +133,7 @@ internal class GroupBy_keySelector_resultSelector(
         """;
     public override string GetEnumeratorExpression =>
         this.UseResultTypeParam
-            ? throw new global::System.NotSupportedException($"{this.GetType().Name} does not support direct GetEnumeratorExpression for anonymous result type; use GetEnumerableExpression.")
+            ? throw new NotSupportedException($"{this.GetType().Name} does not support direct GetEnumeratorExpression for anonymous result type; use GetEnumerableExpression.")
             : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector, resultSelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector, resultSelector)}";
@@ -219,7 +219,7 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
         """;
     public override string GetEnumeratorExpression =>
         this.UseResultTypeParam
-            ? throw new global::System.NotSupportedException($"{this.GetType().Name} does not support direct GetEnumeratorExpression for anonymous result type; use GetEnumerableExpression.")
+            ? throw new NotSupportedException($"{this.GetType().Name} does not support direct GetEnumeratorExpression for anonymous result type; use GetEnumerableExpression.")
             : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector, elementSelector, resultSelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector, elementSelector, resultSelector)}";

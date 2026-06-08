@@ -83,8 +83,8 @@ public sealed class EnumerableIntercept {
                 throw global::Seamless.GeneratedCodeHelpers.NoElements();
             return sum/count;
         });
-        AssertSameValue(() => new int?[] { 1,null,2,2 }.Average(),    () => SystemEnumerable.Average(new int?[] { 1,null,2,2 }));
-        AssertSameValue(() => new long?[] { 1L,null,4L,4L }.Average(),() => SystemEnumerable.Average(new long?[] { 1L,null,4L,4L }));
+        AssertSameValue(() => new int?[] { 1,null,2,2 }.Average(),    () => SystemEnumerable.Average([1,null,2,2]));
+        AssertSameValue(() => new long?[] { 1L,null,4L,4L }.Average(),() => SystemEnumerable.Average([1L,null,4L,4L]));
         AssertSameValue(() => new float?[] { 1.5f,null,2.5f,2.5f }.Average(),   () =>{
             var sum=0D;
             var count=0L;
@@ -98,8 +98,10 @@ public sealed class EnumerableIntercept {
             }
             return count==0?null:(float)(sum/count);
         });
-        AssertSameValue(() => new double?[] { 1.5d,null,2.5d,2.5d }.Average(),                  () => SystemEnumerable.Average(new double?[] { 1.5d,null,2.5d,2.5d }));
-        AssertSameValue(() => new decimal?[] { 1.5m,null,2.5m,2.5m }.Average(),                 () => SystemEnumerable.Average(new decimal?[] { 1.5m,null,2.5m,2.5m }));
+        AssertSameValue(() => new double?[] { 1.5d,null,2.5d,2.5d }.Average(),                  () => SystemEnumerable.Average(
+            [1.5d,null,2.5d,2.5d]));
+        AssertSameValue(() => new decimal?[] { 1.5m,null,2.5m,2.5m }.Average(),                 () => SystemEnumerable.Average(
+            [1.5m,null,2.5m,2.5m]));
         AssertSameValue(() => rows.Average(static row => row.Amount),          () => SystemEnumerable.Average(rows,static row => row.Amount));
         AssertSameValue(() => rows.Average(static row => (double)row.Amount),  () => SystemEnumerable.Average(rows,static row => (double)row.Amount));
         AssertSameValue(() => rows.Average(static row => row.Score),           () => SystemEnumerable.Average(rows,static row => row.Score));
@@ -156,14 +158,15 @@ public sealed class EnumerableIntercept {
     public void CountBy() {
         var rows = RowsWithDuplicates();
         AssertSameSequence(() => rows.CountBy(static row => row.Category),() => SystemEnumerable.CountBy(rows,static row => row.Category));
-        AssertSameSequence(() => new[] { "A","a","B","b","b" }.CountBy(static value => value,StringComparer.OrdinalIgnoreCase),() => SystemEnumerable.CountBy(new[] { "A","a","B","b","b" },static value => value,StringComparer.OrdinalIgnoreCase));
+        AssertSameSequence(() => new[] { "A","a","B","b","b" }.CountBy(static value => value,StringComparer.OrdinalIgnoreCase),() => SystemEnumerable.CountBy(
+            ["A","a","B","b","b"],static value => value,StringComparer.OrdinalIgnoreCase));
     }
 
     [Fact, Trait("Category","Unit")]
     public void DefaultIfEmpty() {
         AssertSameSequence(() => DuplicateNumbers().DefaultIfEmpty(),                   () => SystemEnumerable.DefaultIfEmpty(DuplicateNumbers()));
         AssertSameSequence(() => Array.Empty<int>().DefaultIfEmpty(),                   () => SystemEnumerable.DefaultIfEmpty(Array.Empty<int>()));
-        AssertSameSequence(() => Array.Empty<int>().DefaultIfEmpty(42),() => SystemEnumerable.DefaultIfEmpty(Array.Empty<int>(),42));
+        AssertSameSequence(() => Array.Empty<int>().DefaultIfEmpty(42),() => SystemEnumerable.DefaultIfEmpty([],42));
     }
 
     [Fact, Trait("Category","Unit")]
@@ -203,15 +206,15 @@ public sealed class EnumerableIntercept {
 
     [Fact, Trait("Category","Unit")]
     public void Empty() {
-        AssertSameSequence(() => SystemEnumerable.Empty<Row>(),() => SystemEnumerable.Empty<Row>());
+        AssertSameSequence(() => [],() => SystemEnumerable.Empty<Row>());
     }
 
     [Fact, Trait("Category","Unit")]
     public void ExceptBy() {
         var rows = RowsWithDuplicates();
-        AssertSameSequence(() => rows.ExceptBy(new[] { 1,4 },static row => row.Id),() => SystemEnumerable.ExceptBy(rows,new[] { 1,4 },static row => row.Id));
-        AssertSameSequence(() => rows.ExceptBy(new[] { "ALPHA" },static row => row.Category,StringComparer.OrdinalIgnoreCase),() =>{
-            IEnumerable<string> second     =new[] { "ALPHA" };
+        AssertSameSequence(() => rows.ExceptBy([1,4],static row => row.Id),() => SystemEnumerable.ExceptBy(rows,[1,4],static row => row.Id));
+        AssertSameSequence(() => rows.ExceptBy(["ALPHA"],static row => row.Category,StringComparer.OrdinalIgnoreCase),() =>{
+            IEnumerable<string> second     =["ALPHA"];
             Func<Row,string>    keySelector=static row => row.Category;
             return rows.ExceptBy(second,keySelector,StringComparer.OrdinalIgnoreCase);
         });
@@ -219,9 +222,10 @@ public sealed class EnumerableIntercept {
 
     [Fact, Trait("Category","Unit")]
     public void Except() {
-        AssertSameSequence(() => DuplicateNumbers().Except(new[] { 1,6 }),() => SystemEnumerable.Except(DuplicateNumbers(),new[] { 1,6 }));
-        AssertSameSequence(() => DuplicateNumbers().Except(new[] { 7 },new ModuloComparer(3)),() =>{
-            IEnumerable<int>        second  =new[] { 7 };
+        AssertSameSequence(() => DuplicateNumbers().Except([1,6]),() => SystemEnumerable.Except(DuplicateNumbers(),[1,6
+        ]));
+        AssertSameSequence(() => DuplicateNumbers().Except([7],new ModuloComparer(3)),() =>{
+            IEnumerable<int>        second  =[7];
             IEqualityComparer<int>? comparer=new ModuloComparer(3);
             return DuplicateNumbers().Except(second,comparer);
         });
@@ -231,7 +235,7 @@ public sealed class EnumerableIntercept {
     public void FirstOrDefault() {
         var values = DuplicateNumbers();
         AssertSameValue(() => values.FirstOrDefault(),() => SystemEnumerable.FirstOrDefault(values));
-        AssertSameValue(() => Array.Empty<int>().FirstOrDefault(42),() => SystemEnumerable.FirstOrDefault(Array.Empty<int>(),42));
+        AssertSameValue(() => Array.Empty<int>().FirstOrDefault(42),() => SystemEnumerable.FirstOrDefault([],42));
         AssertSameValue(() => values.FirstOrDefault(static value => value>3),() => SystemEnumerable.FirstOrDefault(values,static value => value>3));
         AssertSameValue(() => values.FirstOrDefault(static value => value>20,42),() => SystemEnumerable.FirstOrDefault(values,static value => value>20,42));
     }
@@ -304,14 +308,18 @@ public sealed class EnumerableIntercept {
     [Fact, Trait("Category","Unit")]
     public void IntersectBy() {
         var rows = RowsWithDuplicates();
-        AssertSameSequence(() => rows.IntersectBy(new[] { 1,4,9 },static row => row.Id),() => SystemEnumerable.IntersectBy(rows,new[] { 1,4,9 },static row => row.Id));
-        AssertSameSequence(() => rows.IntersectBy(new[] { "ALPHA","missing" },static row => row.Category,StringComparer.OrdinalIgnoreCase),() => SystemEnumerable.IntersectBy(rows,new[] { "ALPHA","missing" },static row => row.Category,StringComparer.OrdinalIgnoreCase));
+        AssertSameSequence(() => rows.IntersectBy([1,4,9],static row => row.Id),() => SystemEnumerable.IntersectBy(rows,
+            [1,4,9],static row => row.Id));
+        AssertSameSequence(() => rows.IntersectBy(["ALPHA","missing"],static row => row.Category,StringComparer.OrdinalIgnoreCase),() => SystemEnumerable.IntersectBy(rows,
+            ["ALPHA","missing"],static row => row.Category,StringComparer.OrdinalIgnoreCase));
     }
 
     [Fact, Trait("Category","Unit")]
     public void Intersect() {
-        AssertSameSequence(() => DuplicateNumbers().Intersect(new[] { 1,4,9 }),() => SystemEnumerable.Intersect(DuplicateNumbers(),new[] { 1,4,9 }));
-        AssertSameSequence(() => DuplicateNumbers().Intersect(new[] { 7,8 },new ModuloComparer(3)),() => SystemEnumerable.Intersect(DuplicateNumbers(),new[] { 7,8 },new ModuloComparer(3)));
+        AssertSameSequence(() => DuplicateNumbers().Intersect([1,4,9]),() => SystemEnumerable.Intersect(DuplicateNumbers(),
+            [1,4,9]));
+        AssertSameSequence(() => DuplicateNumbers().Intersect([7,8],new ModuloComparer(3)),() => SystemEnumerable.Intersect(DuplicateNumbers(),
+            [7,8],new ModuloComparer(3)));
     }
 
     [Fact, Trait("Category","Unit")]
@@ -344,7 +352,7 @@ public sealed class EnumerableIntercept {
     public void LastOrDefault() {
         var values = DuplicateNumbers();
         AssertSameValue(() => values.LastOrDefault(),() => SystemEnumerable.LastOrDefault(values));
-        AssertSameValue(() => Array.Empty<int>().LastOrDefault(42),() => SystemEnumerable.LastOrDefault(Array.Empty<int>(),42));
+        AssertSameValue(() => Array.Empty<int>().LastOrDefault(42),() => SystemEnumerable.LastOrDefault([],42));
         AssertSameValue(() => values.LastOrDefault(static value => value<3),() => SystemEnumerable.LastOrDefault(values,static value => value<3));
         AssertSameValue(() => values.LastOrDefault(static value => value>20,42),() => SystemEnumerable.LastOrDefault(values,static value => value>20,42));
     }
@@ -483,7 +491,8 @@ public sealed class EnumerableIntercept {
         AssertSameSequence(() => rows.Select(static row => $"{row.Category}:{row.Score}"),() => SystemEnumerable.Select(rows,static row => $"{row.Category}:{row.Score}"));
         AssertSameSequence(() => rows.Select(static (row,index) => $"{index}:{row.Id}:{row.Score}"),() => SystemEnumerable.Select(rows,static (row,index) => $"{index}:{row.Id}:{row.Score}"));
         AssertSameException<ArgumentNullException>(() => { _=((IEnumerable<int>)null!).Select(static value => value); },() => { _=SystemEnumerable.Select((IEnumerable<int>)null!,static value => value); });
-        AssertSameException<ArgumentNullException>(() => { _=new[] { 1 }.Select((Func<int,int>)null!); },() => { _=SystemEnumerable.Select(new[] { 1 },(Func<int,int>)null!); });
+        AssertSameException<ArgumentNullException>(() => { _=new[] { 1 }.Select((Func<int,int>)null!); },() => { _=SystemEnumerable.Select(
+            [1],(Func<int,int>)null!); });
     }
 
     [Fact, Trait("Category","Unit")]
@@ -497,7 +506,8 @@ public sealed class EnumerableIntercept {
     public void SequenceEqual() {
         AssertSameValue(() => SystemEnumerable.SequenceEqual(DuplicateNumbers(),DuplicateNumbers()),() => SystemEnumerable.SequenceEqual(DuplicateNumbers(),DuplicateNumbers()));
         AssertSameValue(() => SystemEnumerable.SequenceEqual(DuplicateNumbers(),UniqueNumbers()),() => SystemEnumerable.SequenceEqual(DuplicateNumbers(),UniqueNumbers()));
-        AssertSameValue(() => SystemEnumerable.SequenceEqual(new[] { 1,4,7 },new[] { 7,10,13 },new ModuloComparer(3)),() => SystemEnumerable.SequenceEqual(new[] { 1,4,7 },new[] { 7,10,13 },new ModuloComparer(3)));
+        AssertSameValue(() => SystemEnumerable.SequenceEqual([1,4,7],[7,10,13],new ModuloComparer(3)),() => SystemEnumerable.SequenceEqual(
+            [1,4,7],[7,10,13],new ModuloComparer(3)));
     }
 
     [Fact, Trait("Category","Unit")]
@@ -508,15 +518,15 @@ public sealed class EnumerableIntercept {
 
     [Fact, Trait("Category","Unit")]
     public void SingleOrDefault() {
-        AssertSameValue(() => new[] { 7 }.SingleOrDefault(),() => SystemEnumerable.SingleOrDefault(new[] { 7 }));
-        AssertSameValue(() => Array.Empty<int>().SingleOrDefault(42),() => SystemEnumerable.SingleOrDefault(Array.Empty<int>(),42));
+        AssertSameValue(() => new[] { 7 }.SingleOrDefault(),() => SystemEnumerable.SingleOrDefault([7]));
+        AssertSameValue(() => Array.Empty<int>().SingleOrDefault(42),() => SystemEnumerable.SingleOrDefault([],42));
         AssertSameValue(() => DuplicateNumbers().SingleOrDefault(static value => value==6),() => SystemEnumerable.SingleOrDefault(DuplicateNumbers(),static value => value==6));
         AssertSameValue(() => DuplicateNumbers().SingleOrDefault(static value => value==99,42),() => SystemEnumerable.SingleOrDefault(DuplicateNumbers(),static value => value==99,42));
     }
 
     [Fact, Trait("Category","Unit")]
     public void Single() {
-        AssertSameValue(() => new[] { 7 }.Single(),() => SystemEnumerable.Single(new[] { 7 }));
+        AssertSameValue(() => new[] { 7 }.Single(),() => SystemEnumerable.Single([7]));
         AssertSameValue(() => DuplicateNumbers().Single(static value => value==6),() => SystemEnumerable.Single(DuplicateNumbers(),static value => value==6));
     }
 
@@ -581,10 +591,14 @@ public sealed class EnumerableIntercept {
     [Fact, Trait("Category","Unit")]
     public void ToDictionary() {
         var rows = RowsWithoutDuplicateKeys();
-        AssertSameSequence(() => NormalizeDictionary(new[] { new KeyValuePair<string,int>("a",1),new KeyValuePair<string,int>("b",2) }.ToDictionary()),                                () => NormalizeDictionary(SystemEnumerable.ToDictionary(new[] { new KeyValuePair<string,int>("a",1),new KeyValuePair<string,int>("b",2) })));
-        AssertSameSequence(() => NormalizeDictionary(new[] { new KeyValuePair<string,int>("a",1),new KeyValuePair<string,int>("B",2) }.ToDictionary(StringComparer.OrdinalIgnoreCase)),() => NormalizeDictionary(SystemEnumerable.ToDictionary(new[] { new KeyValuePair<string,int>("a",1),new KeyValuePair<string,int>("B",2) },StringComparer.OrdinalIgnoreCase)));
-        AssertSameSequence(() => NormalizeDictionary(new[] { ("a",1),("b",2) }.ToDictionary()),                                                                                        () => NormalizeDictionary(SystemEnumerable.ToDictionary(new[] { ("a",1),("b",2) })));
-        AssertSameSequence(() => NormalizeDictionary(new[] { ("a",1),("B",2) }.ToDictionary(StringComparer.OrdinalIgnoreCase)),                                                        () => NormalizeDictionary(SystemEnumerable.ToDictionary(new[] { ("a",1),("B",2) },StringComparer.OrdinalIgnoreCase)));
+        AssertSameSequence(() => NormalizeDictionary(new[] { new KeyValuePair<string,int>("a",1),new KeyValuePair<string,int>("b",2) }.ToDictionary()),                                () => NormalizeDictionary(SystemEnumerable.ToDictionary(
+            [new KeyValuePair<string,int>("a",1),new KeyValuePair<string,int>("b",2)])));
+        AssertSameSequence(() => NormalizeDictionary(new[] { new KeyValuePair<string,int>("a",1),new KeyValuePair<string,int>("B",2) }.ToDictionary(StringComparer.OrdinalIgnoreCase)),() => NormalizeDictionary(SystemEnumerable.ToDictionary(
+            [new KeyValuePair<string,int>("a",1),new KeyValuePair<string,int>("B",2)],StringComparer.OrdinalIgnoreCase)));
+        AssertSameSequence(() => NormalizeDictionary(new[] { ("a",1),("b",2) }.ToDictionary()),                                                                                        () => NormalizeDictionary(SystemEnumerable.ToDictionary(
+            [("a",1),("b",2)])));
+        AssertSameSequence(() => NormalizeDictionary(new[] { ("a",1),("B",2) }.ToDictionary(StringComparer.OrdinalIgnoreCase)),                                                        () => NormalizeDictionary(SystemEnumerable.ToDictionary(
+            [("a",1),("B",2)],StringComparer.OrdinalIgnoreCase)));
         AssertSameSequence(() => NormalizeDictionary(rows.ToDictionary(static row => row.Id)),                                                                                         () => NormalizeDictionary(SystemEnumerable.ToDictionary(rows,                     static row => row.Id)));
         AssertSameSequence(() => NormalizeDictionary(rows.ToDictionary(static row => row.Category,StringComparer.OrdinalIgnoreCase)),                                                  () => NormalizeDictionary(SystemEnumerable.ToDictionary(rows,                     static row => row.Category,StringComparer.OrdinalIgnoreCase)));
         AssertSameSequence(() => NormalizeDictionary(rows.ToDictionary(static row => row.Id,      static row => row.Score)),                                                           () => NormalizeDictionary(SystemEnumerable.ToDictionary(rows,                     static row => row.Id,      static row => row.Score)));
@@ -597,7 +611,7 @@ public sealed class EnumerableIntercept {
         AssertSameSequence(() => DuplicateNumbers().ToHashSet().Order(),() => SystemEnumerable.ToHashSet(DuplicateNumbers()).Order());
         AssertSameSequence(() => DuplicateNumbers().ToHashSet(new ModuloComparer(3)).Order(),() =>{
             IEnumerable<int> source=DuplicateNumbers();
-            var set=new global::System.Collections.Generic.HashSet<int>(new ModuloComparer(3));
+            var set=new HashSet<int>(new ModuloComparer(3));
             foreach(var item in source) {
                 set.Add(item);
             }
@@ -658,8 +672,10 @@ public sealed class EnumerableIntercept {
 
     [Fact, Trait("Category","Unit")]
     public void Union() {
-        AssertSameSequence(() => DuplicateNumbers().Union(new[] { 1,7,8 }),() => SystemEnumerable.Union(DuplicateNumbers(),new[] { 1,7,8 }));
-        AssertSameSequence(() => DuplicateNumbers().Union(new[] { 7,8 },new ModuloComparer(3)),() => SystemEnumerable.Union(DuplicateNumbers(),new[] { 7,8 },new ModuloComparer(3)));
+        AssertSameSequence(() => DuplicateNumbers().Union([1,7,8]),() => SystemEnumerable.Union(DuplicateNumbers(),[1,7,8
+        ]));
+        AssertSameSequence(() => DuplicateNumbers().Union([7,8],new ModuloComparer(3)),() => SystemEnumerable.Union(DuplicateNumbers(),
+            [7,8],new ModuloComparer(3)));
     }
 
     [Fact, Trait("Category","Unit")]
@@ -670,32 +686,34 @@ public sealed class EnumerableIntercept {
 
     [Fact, Trait("Category","Unit")]
     public void Zip() {
-        AssertSameSequence(() => new[] { 1,2,3 }.Zip(new[] { "a","b" }),() => SystemEnumerable.Zip(new[] { 1,2,3 },new[] { "a","b" }));
-        AssertSameSequence(() => new[] { 1,2,3 }.Zip(new[] { "a","b","c" },new[] { 10m,20m }),() => SystemEnumerable.Zip(new[] { 1,2,3 },new[] { "a","b","c" },new[] { 10m,20m }));
-        AssertSameSequence(() => new[] { 1,2,3 }.Zip(new[] { 10,20 },static (left,right) => left+right),() => SystemEnumerable.Zip(new[] { 1,2,3 },new[] { 10,20 },static (left,right) => left+right));
+        AssertSameSequence(() => new[] { 1,2,3 }.Zip(["a","b"]),() => SystemEnumerable.Zip([1,2,3],["a","b"]));
+        AssertSameSequence(() => new[] { 1,2,3 }.Zip(["a","b","c"],[10m,20m]),() => SystemEnumerable.Zip([1,2,3],["a","b","c"
+        ],[10m,20m]));
+        AssertSameSequence(() => new[] { 1,2,3 }.Zip([10,20],static (left,right) => left+right),() => SystemEnumerable.Zip(
+            [1,2,3],[10,20],static (left,right) => left+right));
     }
 
     [Fact, Trait("Category","Unit")]
     public void SequenceOperatorsCoverRepresentativeTypes() {
-        AssertCoreSequenceOperators(new[] { "beta","alpha","beta","gamma" },"omega",static value => value.Length>4,static value => value.ToUpperInvariant());
-        AssertCoreSequenceOperators(new[] { 2.5m,1.5m,2.5m,4.5m },9.5m,static value => value>2m,static value => $"{value:0.0}");
-        AssertCoreSequenceOperators(new[] { 2.5d,1.5d,2.5d,4.5d },9.5d,static value => value>2d,static value => $"{value:0.0}");
+        AssertCoreSequenceOperators(["beta","alpha","beta","gamma"],"omega",static value => value.Length>4,static value => value.ToUpperInvariant());
+        AssertCoreSequenceOperators([2.5m,1.5m,2.5m,4.5m],9.5m,static value => value>2m,static value => $"{value:0.0}");
+        AssertCoreSequenceOperators([2.5d,1.5d,2.5d,4.5d],9.5d,static value => value>2d,static value => $"{value:0.0}");
         AssertCoreSequenceOperators(
-            new[] {
+            [
                 Guid.Parse("11111111-1111-1111-1111-111111111111"),
                 Guid.Parse("22222222-2222-2222-2222-222222222222"),
                 Guid.Parse("11111111-1111-1111-1111-111111111111")
-            },
+            ],
             Guid.Parse("33333333-3333-3333-3333-333333333333"),
             static value => value.ToString("N")[0]=='1',
             static value => value.ToString("N"));
         AssertCoreSequenceOperators(
-            new[] { new DateTime(2026,4,1),new DateTime(2026,4,2),new DateTime(2026,4,1) },
+            [new DateTime(2026,4,1),new DateTime(2026,4,2),new DateTime(2026,4,1)],
             new DateTime(2026,4,30),
             static value => value.Day>1,
             static value => value.ToString("yyyyMMdd"));
         AssertCoreSequenceOperators(
-            new[] { new Row(1,"alpha",10,1.5m,"one"),new Row(2,"beta",20,2.5m,null),new Row(1,"alpha",10,1.5m,"one") },
+            [new Row(1,"alpha",10,1.5m,"one"),new Row(2,"beta",20,2.5m,null),new Row(1,"alpha",10,1.5m,"one")],
             new Row(3,"gamma",30,3.5m,"three"),
             static value => value.Score>=10,
             static value => $"{value.Category}:{value.Amount}");
@@ -716,13 +734,14 @@ public sealed class EnumerableIntercept {
         AssertSameSequence(() => values.Where(predicate),                                                  () => SystemEnumerable.Where(values,predicate));
         AssertSameSequence(() => values.Select(selector),                                                  () => SystemEnumerable.Select(values,selector));
         AssertSameSequence(() => values.SelectMany(value => new[] { value,extra }),                        () => SystemEnumerable.SelectMany(values,value => new[] { value,extra }));
-        AssertSameSequence(() => values.Concat(new[] { extra }),                                           () => SystemEnumerable.Concat(values,new[] { extra }));
+        AssertSameSequence(() => values.Concat([extra]),                                           () => SystemEnumerable.Concat(values,
+            [extra]));
         AssertSameSequence(() => values.Append(extra),                                                     () => SystemEnumerable.Append(values,extra));
         AssertSameSequence(() => values.Prepend(extra),                                                    () => SystemEnumerable.Prepend(values,extra));
         AssertSameSequence(() => values.Distinct(),                                                        () => SystemEnumerable.Distinct(values));
         AssertSameSequence(() => values.Skip(1),                                          () => SystemEnumerable.Skip(values,1));
         AssertSameSequence(() => values.Take(3),                                          () => SystemEnumerable.Take(values,3));
-        AssertSameSequence(() => Array.Empty<T>().DefaultIfEmpty(extra),                  () => SystemEnumerable.DefaultIfEmpty(Array.Empty<T>(),extra));
+        AssertSameSequence(() => Array.Empty<T>().DefaultIfEmpty(extra),                  () => SystemEnumerable.DefaultIfEmpty([],extra));
         AssertSameSequence(() => values.Zip(SystemEnumerable.Repeat(extra,values.Length)),() => SystemEnumerable.Zip(values,SystemEnumerable.Repeat(extra,values.Length)));
     }
 
@@ -736,16 +755,36 @@ public sealed class EnumerableIntercept {
     }
 
     private static void AssertNumericMax(Row[] rows) {
-        AssertSameValue(() => new[] { 1.5m,2.5m,2.5m }.Max(),                               () => SystemEnumerable.Max(new[] { 1.5m,2.5m,2.5m }));
-        AssertSameValue(() => new[] { 1.5d,2.5d,2.5d }.Max(),                               () => SystemEnumerable.Max(new[] { 1.5d,2.5d,2.5d }));
-        AssertSameValue(() => new[] { 1,2,2 }.Max(),                                        () => SystemEnumerable.Max(new[] { 1,2,2 }));
-        AssertSameValue(() => new[] { 1L,2L,2L }.Max(),                                     () => SystemEnumerable.Max(new[] { 1L,2L,2L }));
-        AssertSameValue(() => new[] { 1.5f,2.5f,2.5f }.Max(),                               () => SystemEnumerable.Max(new[] { 1.5f,2.5f,2.5f }));
-        AssertSameValue(() => new decimal?[] { 1.5m,null,2.5m }.Max(),                      () => SystemEnumerable.Max(new decimal?[] { 1.5m,null,2.5m }));
-        AssertSameValue(() => new double?[] { 1.5d,null,2.5d }.Max(),                       () => SystemEnumerable.Max(new double?[] { 1.5d,null,2.5d }));
-        AssertSameValue(() => new int?[] { 1,null,2 }.Max(),                                () => SystemEnumerable.Max(new int?[] { 1,null,2 }));
-        AssertSameValue(() => new long?[] { 1L,null,2L }.Max(),                             () => SystemEnumerable.Max(new long?[] { 1L,null,2L }));
-        AssertSameValue(() => new float?[] { 1.5f,null,2.5f }.Max(),                        () => SystemEnumerable.Max(new float?[] { 1.5f,null,2.5f }));
+        AssertSameValue(() => new[] { 1.5m,2.5m,2.5m }.Max(),                               () => SystemEnumerable.Max([
+            1.5m,2.5m,2.5m
+        ]));
+        AssertSameValue(() => new[] { 1.5d,2.5d,2.5d }.Max(),                               () => SystemEnumerable.Max([
+            1.5d,2.5d,2.5d
+        ]));
+        AssertSameValue(() => new[] { 1,2,2 }.Max(),                                        () => SystemEnumerable.Max([
+            1,2,2
+        ]));
+        AssertSameValue(() => new[] { 1L,2L,2L }.Max(),                                     () => SystemEnumerable.Max([
+            1L,2L,2L
+        ]));
+        AssertSameValue(() => new[] { 1.5f,2.5f,2.5f }.Max(),                               () => SystemEnumerable.Max([
+            1.5f,2.5f,2.5f
+        ]));
+        AssertSameValue(() => new decimal?[] { 1.5m,null,2.5m }.Max(),                      () => SystemEnumerable.Max([
+            1.5m,null,2.5m
+        ]));
+        AssertSameValue(() => new double?[] { 1.5d,null,2.5d }.Max(),                       () => SystemEnumerable.Max([
+            1.5d,null,2.5d
+        ]));
+        AssertSameValue(() => new int?[] { 1,null,2 }.Max(),                                () => SystemEnumerable.Max([
+            1,null,2
+        ]));
+        AssertSameValue(() => new long?[] { 1L,null,2L }.Max(),                             () => SystemEnumerable.Max([
+            1L,null,2L
+        ]));
+        AssertSameValue(() => new float?[] { 1.5f,null,2.5f }.Max(),                        () => SystemEnumerable.Max([
+            1.5f,null,2.5f
+        ]));
         AssertSameValue(() => rows.Max(static row => row.Amount),          () => SystemEnumerable.Max(rows,static row => row.Amount));
         AssertSameValue(() => rows.Max(static row => (double)row.Score),   () => SystemEnumerable.Max(rows,static row => (double)row.Score));
         AssertSameValue(() => rows.Max(static row => row.Score),           () => SystemEnumerable.Max(rows,static row => row.Score));
@@ -759,16 +798,36 @@ public sealed class EnumerableIntercept {
     }
 
     private static void AssertNumericMin(Row[] rows) {
-        AssertSameValue(() => new[] { 1.5m,2.5m,2.5m }.Min(),                               () => SystemEnumerable.Min(new[] { 1.5m,2.5m,2.5m }));
-        AssertSameValue(() => new[] { 1.5d,2.5d,2.5d }.Min(),                               () => SystemEnumerable.Min(new[] { 1.5d,2.5d,2.5d }));
-        AssertSameValue(() => new[] { 1,2,2 }.Min(),                                        () => SystemEnumerable.Min(new[] { 1,2,2 }));
-        AssertSameValue(() => new[] { 1L,2L,2L }.Min(),                                     () => SystemEnumerable.Min(new[] { 1L,2L,2L }));
-        AssertSameValue(() => new[] { 1.5f,2.5f,2.5f }.Min(),                               () => SystemEnumerable.Min(new[] { 1.5f,2.5f,2.5f }));
-        AssertSameValue(() => new decimal?[] { 1.5m,null,2.5m }.Min(),                      () => SystemEnumerable.Min(new decimal?[] { 1.5m,null,2.5m }));
-        AssertSameValue(() => new double?[] { 1.5d,null,2.5d }.Min(),                       () => SystemEnumerable.Min(new double?[] { 1.5d,null,2.5d }));
-        AssertSameValue(() => new int?[] { 1,null,2 }.Min(),                                () => SystemEnumerable.Min(new int?[] { 1,null,2 }));
-        AssertSameValue(() => new long?[] { 1L,null,2L }.Min(),                             () => SystemEnumerable.Min(new long?[] { 1L,null,2L }));
-        AssertSameValue(() => new float?[] { 1.5f,null,2.5f }.Min(),                        () => SystemEnumerable.Min(new float?[] { 1.5f,null,2.5f }));
+        AssertSameValue(() => new[] { 1.5m,2.5m,2.5m }.Min(),                               () => SystemEnumerable.Min([
+            1.5m,2.5m,2.5m
+        ]));
+        AssertSameValue(() => new[] { 1.5d,2.5d,2.5d }.Min(),                               () => SystemEnumerable.Min([
+            1.5d,2.5d,2.5d
+        ]));
+        AssertSameValue(() => new[] { 1,2,2 }.Min(),                                        () => SystemEnumerable.Min([
+            1,2,2
+        ]));
+        AssertSameValue(() => new[] { 1L,2L,2L }.Min(),                                     () => SystemEnumerable.Min([
+            1L,2L,2L
+        ]));
+        AssertSameValue(() => new[] { 1.5f,2.5f,2.5f }.Min(),                               () => SystemEnumerable.Min([
+            1.5f,2.5f,2.5f
+        ]));
+        AssertSameValue(() => new decimal?[] { 1.5m,null,2.5m }.Min(),                      () => SystemEnumerable.Min([
+            1.5m,null,2.5m
+        ]));
+        AssertSameValue(() => new double?[] { 1.5d,null,2.5d }.Min(),                       () => SystemEnumerable.Min([
+            1.5d,null,2.5d
+        ]));
+        AssertSameValue(() => new int?[] { 1,null,2 }.Min(),                                () => SystemEnumerable.Min([
+            1,null,2
+        ]));
+        AssertSameValue(() => new long?[] { 1L,null,2L }.Min(),                             () => SystemEnumerable.Min([
+            1L,null,2L
+        ]));
+        AssertSameValue(() => new float?[] { 1.5f,null,2.5f }.Min(),                        () => SystemEnumerable.Min([
+            1.5f,null,2.5f
+        ]));
         AssertSameValue(() => rows.Min(static row => row.Amount),          () => SystemEnumerable.Min(rows,static row => row.Amount));
         AssertSameValue(() => rows.Min(static row => (double)row.Score),   () => SystemEnumerable.Min(rows,static row => (double)row.Score));
         AssertSameValue(() => rows.Min(static row => row.Score),           () => SystemEnumerable.Min(rows,static row => row.Score));
@@ -782,16 +841,36 @@ public sealed class EnumerableIntercept {
     }
 
     private static void AssertNumericSum(Row[] rows) {
-        AssertSameValue(() => new[] { 1.5m,2.5m,2.5m }.Sum(),                               () => SystemEnumerable.Sum(new[] { 1.5m,2.5m,2.5m }));
-        AssertSameValue(() => new[] { 1.5d,2.5d,2.5d }.Sum(),                               () => SystemEnumerable.Sum(new[] { 1.5d,2.5d,2.5d }));
-        AssertSameValue(() => new[] { 1,2,2 }.Sum(),                                        () => SystemEnumerable.Sum(new[] { 1,2,2 }));
-        AssertSameValue(() => new[] { 1L,2L,2L }.Sum(),                                     () => SystemEnumerable.Sum(new[] { 1L,2L,2L }));
-        AssertSameValue(() => new[] { 1.5f,2.5f,2.5f }.Sum(),                               () => SystemEnumerable.Sum(new[] { 1.5f,2.5f,2.5f }));
-        AssertSameValue(() => new decimal?[] { 1.5m,null,2.5m }.Sum(),                      () => SystemEnumerable.Sum(new decimal?[] { 1.5m,null,2.5m }));
-        AssertSameValue(() => new double?[] { 1.5d,null,2.5d }.Sum(),                       () => SystemEnumerable.Sum(new double?[] { 1.5d,null,2.5d }));
-        AssertSameValue(() => new int?[] { 1,null,2 }.Sum(),                                () => SystemEnumerable.Sum(new int?[] { 1,null,2 }));
-        AssertSameValue(() => new long?[] { 1L,null,2L }.Sum(),                             () => SystemEnumerable.Sum(new long?[] { 1L,null,2L }));
-        AssertSameValue(() => new float?[] { 1.5f,null,2.5f }.Sum(),                        () => SystemEnumerable.Sum(new float?[] { 1.5f,null,2.5f }));
+        AssertSameValue(() => new[] { 1.5m,2.5m,2.5m }.Sum(),                               () => SystemEnumerable.Sum([
+            1.5m,2.5m,2.5m
+        ]));
+        AssertSameValue(() => new[] { 1.5d,2.5d,2.5d }.Sum(),                               () => SystemEnumerable.Sum([
+            1.5d,2.5d,2.5d
+        ]));
+        AssertSameValue(() => new[] { 1,2,2 }.Sum(),                                        () => SystemEnumerable.Sum([
+            1,2,2
+        ]));
+        AssertSameValue(() => new[] { 1L,2L,2L }.Sum(),                                     () => SystemEnumerable.Sum([
+            1L,2L,2L
+        ]));
+        AssertSameValue(() => new[] { 1.5f,2.5f,2.5f }.Sum(),                               () => SystemEnumerable.Sum([
+            1.5f,2.5f,2.5f
+        ]));
+        AssertSameValue(() => new decimal?[] { 1.5m,null,2.5m }.Sum(),                      () => SystemEnumerable.Sum([
+            1.5m,null,2.5m
+        ]));
+        AssertSameValue(() => new double?[] { 1.5d,null,2.5d }.Sum(),                       () => SystemEnumerable.Sum([
+            1.5d,null,2.5d
+        ]));
+        AssertSameValue(() => new int?[] { 1,null,2 }.Sum(),                                () => SystemEnumerable.Sum([
+            1,null,2
+        ]));
+        AssertSameValue(() => new long?[] { 1L,null,2L }.Sum(),                             () => SystemEnumerable.Sum([
+            1L,null,2L
+        ]));
+        AssertSameValue(() => new float?[] { 1.5f,null,2.5f }.Sum(),                        () => SystemEnumerable.Sum([
+            1.5f,null,2.5f
+        ]));
         AssertSameValue(() => rows.Sum(static row => row.Amount),          () => SystemEnumerable.Sum(rows,static row => row.Amount));
         AssertSameValue(() => rows.Sum(static row => (double)row.Score),   () => SystemEnumerable.Sum(rows,static row => (double)row.Score));
         AssertSameValue(() => rows.Sum(static row => row.Score),           () => SystemEnumerable.Sum(rows,static row => row.Score));
@@ -841,32 +920,32 @@ public sealed class EnumerableIntercept {
         where TKey : notnull =>
         dictionary.OrderBy(static pair => pair.Key.ToString()).Select(static pair => $"{pair.Key}:{pair.Value}");
 
-    private static int[] DuplicateNumbers() => new[] { 4,1,2,4,3,2,5,1,6 };
+    private static int[] DuplicateNumbers() => [4,1,2,4,3,2,5,1,6];
 
-    private static int[] UniqueNumbers() => new[] { -3,-1,0,2,5,8 };
+    private static int[] UniqueNumbers() => [-3,-1,0,2,5,8];
 
-    private static Row[] RowsWithDuplicates() => new[]{
+    private static Row[] RowsWithDuplicates() => [
         new Row(1,"alpha",10,1.5m,"one"),
         new Row(2,"beta",20,2.5m,null),
         new Row(1,"alpha",15,1.5m,"duplicate-id"),
         new Row(2,"beta",20,2.5m,null),
         new Row(3,"gamma",-5,3.5m,"three"),
         new Row(4,"gamma",0,4.5m,"four")
-    };
+    ];
 
-    private static Row[] RowsWithoutDuplicateKeys() => new[]{
+    private static Row[] RowsWithoutDuplicateKeys() => [
         new Row(1,"alpha",10,1.5m,"one"),
         new Row(2,"beta",20,2.5m,null),
         new Row(3,"gamma",-5,3.5m,"three"),
         new Row(4,"delta",0,4.5m,"four")
-    };
+    ];
 
-    private static TestOrder[] Orders() => new[]{
+    private static TestOrder[] Orders() => [
         new TestOrder(1,"A",2),
         new TestOrder(1,"B",3),
         new TestOrder(2,"C",5),
         new TestOrder(5,"missing",7)
-    };
+    ];
 
     private sealed record Row(int Id,string Category,int Score,decimal Amount,string? Note);
 

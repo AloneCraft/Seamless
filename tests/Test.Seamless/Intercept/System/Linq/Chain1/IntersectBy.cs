@@ -8,18 +8,18 @@ public sealed class IntersectBy:LinqChain1TestBase {
     public static void keySelector_Static() => keySelector_StaticImpl();
 
     private static void keySelector_StaticImpl() {
-        var expected=SystemEnumerable.IntersectBy(LinqChain1TestBase.Rows(),LinqChain1TestBase.Second(),static row => row.Key).ToList();
-        var actual=LinqChain1TestBase.Rows().IntersectBy(LinqChain1TestBase.Second(),static row => row.Key).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.IntersectBy(Rows(),Second(),static row => row.Key).ToList();
+        var actual=Rows().IntersectBy(Second(),static row => row.Key).ToList();
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public static void keySelector_Lambda() => keySelector_LambdaImpl();
 
     private static void keySelector_LambdaImpl() {
-        var expected=SystemEnumerable.IntersectBy(LinqChain1TestBase.Rows(),LinqChain1TestBase.Second(),row => row.Key).ToList();
-        var actual=LinqChain1TestBase.Rows().IntersectBy(LinqChain1TestBase.Second(),row => row.Key).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.IntersectBy(Rows(),Second(),row => row.Key).ToList();
+        var actual=Rows().IntersectBy(Second(),row => row.Key).ToList();
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -27,18 +27,18 @@ public sealed class IntersectBy:LinqChain1TestBase {
 
     private static void keySelector_CapturedImpl() {
         var offset=0;
-        var expected=SystemEnumerable.IntersectBy(LinqChain1TestBase.Rows(),LinqChain1TestBase.Second(),row => row.Key+offset).ToList();
-        var actual=LinqChain1TestBase.Rows().IntersectBy(LinqChain1TestBase.Second(),row => row.Key+offset).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.IntersectBy(Rows(),Second(),row => row.Key+offset).ToList();
+        var actual=Rows().IntersectBy(Second(),row => row.Key+offset).ToList();
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public static void keySelector_DelegateSyntax() => keySelector_DelegateSyntaxImpl();
 
     private static void keySelector_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.IntersectBy(LinqChain1TestBase.Rows(),LinqChain1TestBase.Second(),delegate(Chain1Row row) { return row.Key; }).ToList();
-        var actual=LinqChain1TestBase.Rows().IntersectBy(LinqChain1TestBase.Second(),delegate(Chain1Row row) { return row.Key; }).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.IntersectBy(Rows(),Second(),delegate(Chain1Row row) { return row.Key; }).ToList();
+        var actual=Rows().IntersectBy(Second(),delegate(Chain1Row row) { return row.Key; }).ToList();
+        AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -46,9 +46,9 @@ public sealed class IntersectBy:LinqChain1TestBase {
 
     private static void keySelector_VariableImpl() {
         Func<Chain1Row,int> keySelector=row => row.Key;
-        var expected=SystemEnumerable.IntersectBy(LinqChain1TestBase.Rows(),LinqChain1TestBase.Second(),keySelector).ToList();
-        var actual=LinqChain1TestBase.Rows().IntersectBy(LinqChain1TestBase.Second(),keySelector).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.IntersectBy(Rows(),Second(),keySelector).ToList();
+        var actual=Rows().IntersectBy(Second(),keySelector).ToList();
+        AssertSequenceEqual(expected,actual);
     }
 
 }

@@ -2,13 +2,9 @@
 namespace Seamless.Common
 {
     [AttributeUsage(AttributeTargets.Method)]
-    public sealed class PipelineAttribute : Attribute
+    public sealed class PipelineAttribute(string Code): Attribute
     {
-        public readonly string Code;
-        public PipelineAttribute(string Code)
-        {
-            this.Code = Code;
-        }
+        public readonly string Code = Code;
     }
     /// <summary>
     /// 例,Whereの$はSelect.selectorに置換する
@@ -52,73 +48,54 @@ namespace Seamless.Common
         AllMatches
     }
     [AttributeUsage(AttributeTargets.Method)]
-    public sealed class CollectionAttribute : Attribute {
-        public readonly string 初期化;
-        public readonly string ループ前処理0;
-        public readonly string ループ文0;
-        public readonly string ループ内部先頭0;
-        public readonly string ループ内部Add0;
-        public readonly string ループ内部末尾0;
-        public readonly string ループ前処理1;
-        public readonly string ループ文1;
-        public readonly string ループ内部先頭1;
-        public readonly string ループ内部Add1;
-        public readonly string ループ内部末尾1;
-        public readonly string ループ前処理2;
-        public readonly string ループ文2;
-        public readonly string ループ内部先頭2;
-        public readonly string ループ内部Add2;
-        public readonly string ループ内部末尾2;
-        public readonly string 出力要素式;
-        public readonly string 評価式;
+    public sealed class CollectionAttribute(
+        string 初期化,
+        string ループ前処理0,
+        string ループ文0,
+        string ループ内部先頭0,
+        string ループ内部Add0,
+        string ループ内部末尾0,
+        string ループ前処理1,
+        string ループ文1,
+        string ループ内部先頭1,
+        string ループ内部Add1,
+        string ループ内部末尾1,
+        string ループ前処理2,
+        string ループ文2,
+        string ループ内部先頭2,
+        string ループ内部Add2,
+        string ループ内部末尾2,
+        string 出力要素式,
+        string 評価式
+        ): Attribute {
+        public readonly string 初期化 = 初期化;
+        public readonly string ループ前処理0 = ループ前処理0;
+        public readonly string ループ文0 = ループ文0;
+        public readonly string ループ内部先頭0 = ループ内部先頭0;
+        public readonly string ループ内部Add0 = ループ内部Add0;
+        public readonly string ループ内部末尾0 = ループ内部末尾0;
+        public readonly string ループ前処理1 = ループ前処理1;
+        public readonly string ループ文1 = ループ文1;
+        public readonly string ループ内部先頭1 = ループ内部先頭1;
+        public readonly string ループ内部Add1 = ループ内部Add1;
+        public readonly string ループ内部末尾1 = ループ内部末尾1;
+        public readonly string ループ前処理2 = ループ前処理2;
+        public readonly string ループ文2 = ループ文2;
+        public readonly string ループ内部先頭2 = ループ内部先頭2;
+        public readonly string ループ内部Add2 = ループ内部Add2;
+        public readonly string ループ内部末尾2 = ループ内部末尾2;
+        public readonly string 出力要素式 = 出力要素式;
+        public readonly string 評価式 = 評価式;
         public CollectionLoopKind LoopKind { get; set; }=CollectionLoopKind.Single;
-        public string[] Sources { get; set; }=Array.Empty<string>();
-        public string[] EnumeratorNames { get; set; }=Array.Empty<string>();
-        public string[] CurrentNames { get; set; }=Array.Empty<string>();
+        public string[] Sources { get; set; }=[];
+        public string[] EnumeratorNames { get; set; }=[];
+        public string[] CurrentNames { get; set; }=[];
         public string MoveNextCondition { get; set; }="";
         public string Build { get; set; }="";
         public string Emit { get; set; }="";
         public string EmitValue { get; set; }="";
         public CollectionStopMode StopMode { get; set; }=CollectionStopMode.None;
-        public CollectionAttribute(
-            string 初期化,
-            string ループ前処理0,
-            string ループ文0,
-            string ループ内部先頭0,
-            string ループ内部Add0,
-            string ループ内部末尾0,
-            string ループ前処理1,
-            string ループ文1,
-            string ループ内部先頭1,
-            string ループ内部Add1,
-            string ループ内部末尾1,
-            string ループ前処理2,
-            string ループ文2,
-            string ループ内部先頭2,
-            string ループ内部Add2,
-            string ループ内部末尾2,
-            string 出力要素式,
-            string 評価式
-        ) {
-            this.初期化=初期化;
-            this.ループ前処理0=ループ前処理0;
-            this.ループ文0=ループ文0;
-            this.ループ内部先頭0=ループ内部先頭0;
-            this.ループ内部Add0=ループ内部Add0;
-            this.ループ内部末尾0=ループ内部末尾0;
-            this.ループ前処理1=ループ前処理1;
-            this.ループ文1=ループ文1;
-            this.ループ内部先頭1=ループ内部先頭1;
-            this.ループ内部Add1=ループ内部Add1;
-            this.ループ内部末尾1=ループ内部末尾1;
-            this.ループ前処理2=ループ前処理2;
-            this.ループ文2=ループ文2;
-            this.ループ内部先頭2=ループ内部先頭2;
-            this.ループ内部Add2=ループ内部Add2;
-            this.ループ内部末尾2=ループ内部末尾2;
-            this.出力要素式=出力要素式;
-            this.評価式=評価式;
-        }
+
         public CollectionAttribute(
             string  初期化,
             string ループ前処理,
@@ -138,20 +115,13 @@ namespace Seamless.Common
         }
     }
     [AttributeUsage(AttributeTargets.Method)]
-    public sealed class AggregateAttribute : Attribute{
-        public readonly string 初期化;
-        public readonly string foreach前処理;
-        public readonly string foreach文;
-        public readonly string foreach内部;
-        public readonly string 評価式;
+    public sealed class AggregateAttribute(string 初期化,string foreach前処理,string foreach文,string foreach内部,string 評価式): Attribute{
+        public readonly string 初期化 = 初期化;
+        public readonly string foreach前処理 = foreach前処理;
+        public readonly string foreach文 = foreach文;
+        public readonly string foreach内部 = foreach内部;
+        public readonly string 評価式 = 評価式;
         public AggregateAttribute(string foreach前処理,string foreach文,string foreach内部,string 評価式):this("",foreach前処理,foreach文,foreach内部,評価式){
-        }
-        public AggregateAttribute(string 初期化,string foreach前処理,string foreach文,string foreach内部,string 評価式){
-            this.初期化       =初期化;
-            this.foreach前処理=foreach前処理;
-            this.foreach文  =foreach文;
-            this.foreach内部 =foreach内部;
-            this.評価式       =評価式;
         }
     }
     /// <summary>

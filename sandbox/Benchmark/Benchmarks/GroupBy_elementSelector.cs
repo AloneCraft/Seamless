@@ -13,6 +13,6 @@ public class GroupBy_elementSelector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).GroupBy(x=>x%1000,x=>x*2).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).GroupBy(x=>x%1000,x=>x*2).Consume(this.consumer);
     }
 }

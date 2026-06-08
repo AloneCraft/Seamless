@@ -9,8 +9,8 @@ public sealed class Where_ToArray:LinqChain2TestBase {
     public static void Static() => StaticImpl();
 
     private static void StaticImpl() {
-        var expected=SystemEnumerable.ToArray(SystemEnumerable.Where(LinqChain2TestBase.Source(),static v => v>2));
-        var actual=LinqChain2TestBase.Source().Where(static v => v>2).ToArray();
-        LinqChain2TestBase.AssertSequenceEqual(expected,actual);
+        var expected=SystemEnumerable.ToArray(SystemEnumerable.Where(Source(),static v => v>2));
+        var actual=Source().Where(static v => v>2).ToArray();
+        AssertSequenceEqual(expected,actual);
     }
 }

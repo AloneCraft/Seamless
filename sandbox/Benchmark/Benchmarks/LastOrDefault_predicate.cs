@@ -13,6 +13,6 @@ public class LastOrDefault_predicate:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).LastOrDefault(x=>x>500000));
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).LastOrDefault(x=>x>500000));
     }
 }

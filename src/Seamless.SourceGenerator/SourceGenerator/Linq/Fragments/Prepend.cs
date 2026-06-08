@@ -3,9 +3,9 @@ public class Prepend(int 番号, Enumerable source, string element) : Enumerable
     private Enumerable Source => source;
     private string ElementExpression => element;
     private Enumerable RootSource => this.Source is Prepend prepend ? prepend.RootSource : this.Source;
-    private global::System.Collections.Generic.IReadOnlyList<string> FlattenedElements {
+    private IReadOnlyList<string> FlattenedElements {
         get {
-            var list = new global::System.Collections.Generic.List<string>();
+            var list = new List<string>();
             CollectElements(this,list);
             return list;
         }
@@ -14,7 +14,7 @@ public class Prepend(int 番号, Enumerable source, string element) : Enumerable
         string.Concat(this.FlattenedElements.Select((_,index) => $", {this.ElementType} element{index}"));
     private string EnumeratorElementArguments =>
         string.Concat(this.FlattenedElements.Select((value,index) => $", {value}"));
-    private static void CollectElements(Prepend prepend,global::System.Collections.Generic.List<string> list) {
+    private static void CollectElements(Prepend prepend,List<string> list) {
         list.Add(prepend.ElementExpression);
         if(prepend.Source is Prepend nested) {
             CollectElements(nested,list);
@@ -34,7 +34,7 @@ public class Prepend(int 番号, Enumerable source, string element) : Enumerable
         """;
     public override string GetTryGetNextBody {
         get {
-            var builder = new global::System.Text.StringBuilder();
+            var builder = new StringBuilder();
             for(var i = 0; i <this.FlattenedElements.Count; i++) {
                 builder.AppendLine($"if(this.{this.state}=={i}) {{");
                 builder.AppendLine($"    this.{this.state}={i+1};");

@@ -1,4 +1,4 @@
-using SystemEnumerable=global::System.Linq.Enumerable;
+using SystemEnumerable=System.Linq.Enumerable;
 
 namespace Benchmark.Benchmarks;
 
@@ -15,6 +15,6 @@ public class Repeat:Base{
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.Repeat(7,1000000).Consume(this.consumer);
+        ValueEnumerable.Repeat(7,1000000).Consume(this.consumer);
     }
 }

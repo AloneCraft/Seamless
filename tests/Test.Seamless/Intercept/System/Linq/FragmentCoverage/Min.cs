@@ -8,7 +8,7 @@ public sealed class Min {
     [Fact,Trait("Category","Unit")]
     public static void noArg(){
         GeneratedInterceptorAssert.ContainsMethod<Min>(nameof(noArgImpl));
-        var expected=SystemEnumerable.Min(new[]{1,2,3,4});
+        var expected=SystemEnumerable.Min([1,2,3,4]);
         var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
@@ -19,12 +19,12 @@ public sealed class Min {
     [Fact,Trait("Category","Unit")]
     public static void noArg_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Min>(nameof(noArg_enumerableImpl));
-        var expected=SystemEnumerable.Min(new[]{1,2,3,4});
+        var expected=SystemEnumerable.Min([1,2,3,4]);
         var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
     private static int noArg_enumerableImpl(){
-        IEnumerable<int>src=new[]{1,2,3,4};
+        IEnumerable<int>src=[1,2,3,4];
         return src.Min();
     }
 }

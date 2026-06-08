@@ -8,9 +8,9 @@ public sealed class Concat_Select:LinqChain2TestBase {
     public static void Static() => StaticImpl();
 
     private static void StaticImpl() {
-        var expected=SystemEnumerable.Select(SystemEnumerable.Concat(LinqChain2TestBase.Source(),LinqChain2TestBase.Second()),static v => v+100).ToList();
+        var expected=SystemEnumerable.Select(SystemEnumerable.Concat(Source(),Second()),static v => v+100).ToList();
         var actual=new Consumer<int>();
-        LinqChain2TestBase.Source().Concat(LinqChain2TestBase.Second()).Select(static v => v+100).Consume(actual);
-        LinqChain2TestBase.AssertSequenceEqual(expected,actual.Items);
+        Source().Concat(Second()).Select(static v => v+100).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 }

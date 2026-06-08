@@ -7,8 +7,8 @@ public sealed class SequenceEqual:LinqChain1TestBase {
     public static void second() => secondImpl();
 
     private static void secondImpl() {
-        var expected=SystemEnumerable.SequenceEqual(LinqChain1TestBase.Source(),LinqChain1TestBase.EqualSource());
-        var actual=LinqChain1TestBase.Source().SequenceEqual(LinqChain1TestBase.EqualSource());
+        var expected=SystemEnumerable.SequenceEqual(Source(),EqualSource());
+        var actual=Source().SequenceEqual(EqualSource());
         Assert.Equal(expected,actual);
     }
 
@@ -16,8 +16,8 @@ public sealed class SequenceEqual:LinqChain1TestBase {
     public static void second_comparer() => second_comparerImpl();
 
     private static void second_comparerImpl() {
-        var expected=SystemEnumerable.SequenceEqual(LinqChain1TestBase.Source(),LinqChain1TestBase.EqualSource(),EqualityComparer<int>.Default);
-        var actual=LinqChain1TestBase.Source().SequenceEqual(LinqChain1TestBase.EqualSource(),EqualityComparer<int>.Default);
+        var expected=SystemEnumerable.SequenceEqual(Source(),EqualSource(),EqualityComparer<int>.Default);
+        var actual=Source().SequenceEqual(EqualSource(),EqualityComparer<int>.Default);
         Assert.Equal(expected,actual);
     }
 

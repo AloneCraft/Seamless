@@ -10,7 +10,7 @@ public sealed class Repeat:LinqChain1TestBase {
     private static void element_countImpl() {
         var expected=SystemEnumerable.Repeat(7,3).ToList();
         var actual=Enumerable.Repeat(7,3).ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
 }

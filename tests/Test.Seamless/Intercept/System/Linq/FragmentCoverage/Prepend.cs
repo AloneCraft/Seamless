@@ -8,7 +8,7 @@ public sealed class Prepend {
     [Fact,Trait("Category","Unit")]
     public static void element(){
         GeneratedInterceptorAssert.ContainsMethod<Prepend>(nameof(elementImpl));
-        var expected=SystemEnumerable.Prepend(new[]{1,2,3,4},0).ToList();
+        var expected=SystemEnumerable.Prepend([1,2,3,4],0).ToList();
         var actual=elementImpl();
         Assert.Equal(expected,actual);
     }
@@ -19,12 +19,12 @@ public sealed class Prepend {
     [Fact,Trait("Category","Unit")]
     public static void element_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Prepend>(nameof(element_enumerableImpl));
-        var expected=SystemEnumerable.Prepend(new[]{1,2,3,4},0).ToList();
+        var expected=SystemEnumerable.Prepend([1,2,3,4],0).ToList();
         var actual=element_enumerableImpl();
         Assert.Equal(expected,actual);
     }
     private static List<int> element_enumerableImpl(){
-        IEnumerable<int>src=new[]{1,2,3,4};
+        IEnumerable<int>src=[1,2,3,4];
         return src.Prepend(0).ToList();
     }
 }

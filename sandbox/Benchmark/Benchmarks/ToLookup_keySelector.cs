@@ -13,6 +13,6 @@ public class ToLookup_keySelector:Base{
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).ToLookup(x=>x%1000).Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).ToLookup(x=>x%1000).Consume(this.consumer);
     }
 }

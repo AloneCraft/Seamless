@@ -13,6 +13,6 @@ public class OfType:Base{
 
     [Benchmark]
     public void ZLinq(){
-        global::ZLinq.ValueEnumerable.AsValueEnumerable(this.src).OfType<int>().Consume(this.consumer);
+        ValueEnumerable.AsValueEnumerable(this.src).OfType<int>().Consume(this.consumer);
     }
 }

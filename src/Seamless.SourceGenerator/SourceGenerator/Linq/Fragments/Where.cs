@@ -19,7 +19,7 @@ public class Where_predicate(int 番号, Enumerable source, FuncFragment predica
             var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
-                : $"{preCode}\n        if(!{condExpr})";
+                : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
 
             return $$"""
                 {{this.Start}}:
@@ -133,7 +133,7 @@ public class Where_indexPredicate(int 番号, Enumerable source, FuncFragment pr
             var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item,this.a);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
-                : $"{preCode}\n        if(!{condExpr})";
+                : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
 
             return $$"""
                 {{this.Start}}:

@@ -13,6 +13,6 @@ public class SingleOrDefault:Base{
 
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(global::ZLinq.ValueEnumerable.AsValueEnumerable(this.srcOne).SingleOrDefault());
+        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.srcOne).SingleOrDefault());
     }
 }

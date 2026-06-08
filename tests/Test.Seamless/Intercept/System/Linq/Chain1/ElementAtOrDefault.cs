@@ -8,8 +8,8 @@ public sealed class ElementAtOrDefault:LinqChain1TestBase {
     public static void index() => indexImpl();
 
     private static void indexImpl() {
-        var expected=SystemEnumerable.ElementAtOrDefault(LinqChain1TestBase.Source(),2);
-        var actual=LinqChain1TestBase.Source().ElementAtOrDefault(2);
+        var expected=SystemEnumerable.ElementAtOrDefault(Source(),2);
+        var actual=Source().ElementAtOrDefault(2);
         Assert.Equal(expected,actual);
     }
 
@@ -17,8 +17,8 @@ public sealed class ElementAtOrDefault:LinqChain1TestBase {
     public static void indexFromEnd() => indexFromEndImpl();
 
     private static void indexFromEndImpl() {
-        var expected=SystemEnumerable.ElementAtOrDefault(LinqChain1TestBase.Source(),^1);
-        var actual=LinqChain1TestBase.Source().ElementAtOrDefault(^1);
+        var expected=SystemEnumerable.ElementAtOrDefault(Source(),^1);
+        var actual=Source().ElementAtOrDefault(^1);
         Assert.Equal(expected,actual);
     }
 

@@ -10,7 +10,7 @@ public sealed class Empty:LinqChain1TestBase {
     private static void NoDelegateImpl() {
         var expected=SystemEnumerable.Empty<int>().ToList();
         var actual=Enumerable.Empty<int>().ToList();
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual);
+        AssertSequenceEqual(expected,actual);
     }
 
 }

@@ -1,12 +1,12 @@
 namespace Seamless.Linq;
 public sealed class LookupImpl<TKey,TElement>(IEqualityComparer<TKey>? Comparer):ILookup<TKey,TElement> {
     public LookupImpl():this(Comparer: EqualityComparer<TKey>.Default) { }
-    public List<GroupingImpl<TKey,TElement>> Groups { get; }=new();
+    public List<GroupingImpl<TKey,TElement>> Groups { get; }=[];
     public int Count => this.Groups.Count;
     public IEnumerable<TElement> this[TKey key] {
         get {
             var group= this.Find(key: key);
-            return group is null ? System.Array.Empty<TElement>() : group;
+            return group is null ? Array.Empty<TElement>() : group;
         }
     }
     public bool Contains(TKey key) => this.Find(key: key) is not null;

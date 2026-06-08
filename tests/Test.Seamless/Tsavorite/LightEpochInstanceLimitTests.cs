@@ -10,11 +10,11 @@ namespace Test.Seamless.Tsavorite;
 /// </summary>
 public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
     private static string TempDir(string name) =>
-        global::Test.Seamless.TestPath.Directory<LightEpochInstanceLimitTests>(name);
+        TestPath.Directory<LightEpochInstanceLimitTests>(name);
 
     [Fact]
     public void Can_Create_16_Stores() {
-        var stores = new global::System.Collections.Generic.List<HashSetStore<int>>();
+        var stores = new List<HashSetStore<int>>();
         try {
             for(int i = 0; i<16; i++) {
                 var dir = TempDir($"store-{i}");
@@ -79,7 +79,7 @@ public class LightEpochInstanceLimitTests(ITestOutputHelper output) {
 
     [Fact]
     public void Can_Reuse_Slots_After_Dispose() {
-        var stores = new global::System.Collections.Generic.List<HashSetStore<int>>();
+        var stores = new List<HashSetStore<int>>();
 
         try {
             // バッチ 1: 16 ストアを作成

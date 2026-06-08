@@ -26,8 +26,8 @@ public sealed class ManagedIntersectWith:IntersectWith<string,global::Seamless.C
     [Fact, Trait("Category","Unit")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification="Storage-backed Tsavorite test path is Windows-only in this workspace")]
     public void FlushAndEvict後もIntersectWithで共通要素だけ残る() {
-        var folderA = global::Test.Seamless.TestPath.Directory(this,"A");
-        var folderB = global::Test.Seamless.TestPath.Directory(this,"B");
+        var folderA = TestPath.Directory(this,"A");
+        var folderB = TestPath.Directory(this,"B");
         using var logDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var objDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var logDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
@@ -73,8 +73,8 @@ public sealed class UnmanagedIntersectWith:IntersectWith<int,global::Seamless.Co
     [Fact, Trait("Category","Unit")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification="Storage-backed Tsavorite test path is Windows-only in this workspace")]
     public void FlushAndEvict後もIntersectWithで共通要素だけ残る() {
-        var folderA = global::Test.Seamless.TestPath.Directory(this,"A");
-        var folderB = global::Test.Seamless.TestPath.Directory(this,"B");
+        var folderA = TestPath.Directory(this,"A");
+        var folderB = TestPath.Directory(this,"B");
         using var logDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var objDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var logDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);

@@ -78,35 +78,35 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,
             PrefillNone,
             dict => { var n = Scaled; for(var i = 0; i<n; i++) dict.Add(this.CreateKey(i),this.CreateValue(i)); },
-            nameof(this.Dictionary_Add));
+            nameof(Dictionary_Add));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Dictionary_Remove_Key(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,
             this.PrefillAll,
             dict => { var n = Scaled; for(var i = 0; i<n; i++) dict.Remove(this.CreateKey(i)); },
-            nameof(this.Dictionary_Remove_Key));
+            nameof(Dictionary_Remove_Key));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Dictionary_Remove_Key_Value(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,
             this.PrefillAll,
             dict => { var n = Scaled; for(var i = 0; i<n; i++) dict.Remove(this.CreateKey(i),out _); },
-            nameof(this.Dictionary_Remove_Key_Value));
+            nameof(Dictionary_Remove_Key_Value));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Dictionary_Clear(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
             dict => dict.Clear(),
-            nameof(this.Dictionary_Clear));
+            nameof(Dictionary_Clear));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Dictionary_TryGetValue(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,
             this.PrefillAll,
             dict => { var n = Scaled; for(var i = 0; i<n; i++) _=dict.TryGetValue(this.CreateKey(i),out _); },
-            nameof(this.Dictionary_TryGetValue));
+            nameof(Dictionary_TryGetValue));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Dictionary_Contains_KeyValuePair(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -117,66 +117,66 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=c.Contains(new KeyValuePair<TKey,TValue>(this.CreateKey(i),this.CreateValue(i)));
             },
-            nameof(this.Dictionary_Contains_KeyValuePair));
+            nameof(Dictionary_Contains_KeyValuePair));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Dictionary_ContainsKey(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,
             this.PrefillAll,
             dict => { var n = Scaled; for(var i = 0; i<n; i++) _=dict.ContainsKey(this.CreateKey(i)); },
-            nameof(this.Dictionary_ContainsKey));
+            nameof(Dictionary_ContainsKey));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Dictionary_Foreach(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,
             this.PrefillAll,
             dict => { foreach(var _ in dict) { } },
-            nameof(this.Dictionary_Foreach));
+            nameof(Dictionary_Foreach));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Dictionary_Count(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
             dict => { _=dict.Count; },
-            nameof(this.Dictionary_Count));
+            nameof(Dictionary_Count));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Dictionary_Keys(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
             dict => { _=dict.Keys; },
-            nameof(this.Dictionary_Keys));
+            nameof(Dictionary_Keys));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Dictionary_Values(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
             dict => { _=dict.Values; },
-            nameof(this.Dictionary_Values));
+            nameof(Dictionary_Values));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Dictionary_ToList(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
             dict => {
-                var list = new global::System.Collections.Generic.List<KeyValuePair<TKey,TValue>>((int)Scaled);
+                var list = new List<KeyValuePair<TKey,TValue>>((int)Scaled);
                 foreach(var kv in dict) list.Add(kv);
             },
-            nameof(this.Dictionary_ToList));
+            nameof(Dictionary_ToList));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Dictionary_Indexer_Get(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,
             this.PrefillAll,
             dict => { var n = Scaled; for(var i = 0; i<n; i++) _=dict[this.CreateKey(i)]; },
-            nameof(this.Dictionary_Indexer_Get));
+            nameof(Dictionary_Indexer_Get));
 
     [Theory, MemberData(nameof(Matrix))]
     public void Dictionary_Indexer_Set(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,
             this.PrefillAll,
             dict => { var n = Scaled; for(var i = 0; i<n; i++) dict[this.CreateKey(i)]=this.CreateValue(i); },
-            nameof(this.Dictionary_Indexer_Set));
+            nameof(Dictionary_Indexer_Set));
 
     // =============================================================
     // IDictionary<TKey,TValue> 明示実装経由
@@ -190,7 +190,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
                 var n = Scaled;
                 for(var i = 0; i<n; i++) id.Add(this.CreateKey(i),this.CreateValue(i));
             },
-            nameof(this.IDictionary_Add));
+            nameof(IDictionary_Add));
 
     [Theory, MemberData(nameof(Matrix))]
     public void IDictionary_ContainsKey(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -201,7 +201,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=id.ContainsKey(this.CreateKey(i));
             },
-            nameof(this.IDictionary_ContainsKey));
+            nameof(IDictionary_ContainsKey));
 
     [Theory, MemberData(nameof(Matrix))]
     public void IDictionary_Remove(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -212,32 +212,32 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=id.Remove(this.CreateKey(i));
             },
-            nameof(this.IDictionary_Remove));
+            nameof(IDictionary_Remove));
 
     [Theory, MemberData(nameof(Matrix))]
     public void IDictionary_TryGetValue(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,Scaled,
             this.PrefillAll,
             dict => {
-                var id = (global::System.Collections.Generic.IDictionary<TKey,TValue>)dict;
+                var id = (IDictionary<TKey,TValue>)dict;
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=id.TryGetValue(this.CreateKey(i),out _);
             },
-            nameof(this.IDictionary_TryGetValue));
+            nameof(IDictionary_TryGetValue));
 
     [Theory, MemberData(nameof(Matrix))]
     public void IDictionary_Keys(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
             dict => { _=((global::Seamless.Collections.IDictionary<TKey,TValue>)dict).Keys; },
-            nameof(this.IDictionary_Keys));
+            nameof(IDictionary_Keys));
 
     [Theory, MemberData(nameof(Matrix))]
     public void IDictionary_Values(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
             dict => { _=((global::Seamless.Collections.IDictionary<TKey,TValue>)dict).Values; },
-            nameof(this.IDictionary_Values));
+            nameof(IDictionary_Values));
 
     // =============================================================
     // ICollection<KeyValuePair<TKey,TValue>> 経由
@@ -251,14 +251,14 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
                 var n = Scaled;
                 for(var i = 0; i<n; i++) c.Add(new KeyValuePair<TKey,TValue>(this.CreateKey(i),this.CreateValue(i)));
             },
-            nameof(this.ICollection_Add));
+            nameof(ICollection_Add));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_Clear(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
             dict => ((ICollection<KeyValuePair<TKey,TValue>>)dict).Clear(),
-            nameof(this.ICollection_Clear));
+            nameof(ICollection_Clear));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_Contains(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -269,7 +269,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=c.Contains(new KeyValuePair<TKey,TValue>(this.CreateKey(i),this.CreateValue(i)));
             },
-            nameof(this.ICollection_Contains));
+            nameof(ICollection_Contains));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_CopyTo(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -280,7 +280,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
                 var buf = new KeyValuePair<TKey,TValue>[(int)Scaled];
                 c.CopyTo(buf,0);
             },
-            nameof(this.ICollection_CopyTo));
+            nameof(ICollection_CopyTo));
 
     [Theory, MemberData(nameof(Matrix))]
     public void ICollection_Remove(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -291,7 +291,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=c.Remove(new KeyValuePair<TKey,TValue>(this.CreateKey(i),this.CreateValue(i)));
             },
-            nameof(this.ICollection_Remove));
+            nameof(ICollection_Remove));
 
     // =============================================================
     // IReadOnlyCollection / IReadOnlyDictionary
@@ -301,7 +301,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
             dict => { _=((IReadOnlyCollection<KeyValuePair<TKey,TValue>>)dict).Count; },
-            nameof(this.IReadOnlyCollection_Count));
+            nameof(IReadOnlyCollection_Count));
 
     [Theory, MemberData(nameof(Matrix))]
     public void IReadOnlyDictionary_ContainsKey(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -312,7 +312,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=ro.ContainsKey(this.CreateKey(i));
             },
-            nameof(this.IReadOnlyDictionary_ContainsKey));
+            nameof(IReadOnlyDictionary_ContainsKey));
 
     [Theory, MemberData(nameof(Matrix))]
     public void IReadOnlyDictionary_TryGetValue(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -323,7 +323,7 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=ro.TryGetValue(this.CreateKey(i),out _);
             },
-            nameof(this.IReadOnlyDictionary_TryGetValue));
+            nameof(IReadOnlyDictionary_TryGetValue));
 
     [Theory, MemberData(nameof(Matrix))]
     public void IReadOnlyDictionary_Indexer(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
@@ -334,28 +334,28 @@ public abstract class DictionaryBenchmark<TKey, TValue>(ITestOutputHelper output
                 var n = Scaled;
                 for(var i = 0; i<n; i++) _=ro[this.CreateKey(i)];
             },
-            nameof(this.IReadOnlyDictionary_Indexer));
+            nameof(IReadOnlyDictionary_Indexer));
 
     [Theory, MemberData(nameof(Matrix))]
     public void IReadOnlyDictionary_Keys(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
             dict => { _=((IReadOnlyDictionary<TKey,TValue>)dict).Keys; },
-            nameof(this.IReadOnlyDictionary_Keys));
+            nameof(IReadOnlyDictionary_Keys));
 
     [Theory, MemberData(nameof(Matrix))]
     public void IReadOnlyDictionary_Values(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
             dict => { _=((IReadOnlyDictionary<TKey,TValue>)dict).Values; },
-            nameof(this.IReadOnlyDictionary_Values));
+            nameof(IReadOnlyDictionary_Values));
 
     [Theory, MemberData(nameof(Matrix))]
     public void IReadOnlyDictionary_Count(int parallel,double mutableFraction,long indexSize,long segmentSize,int memorySizeBits,int pageSizeBits)
         => this.Drive(parallel,mutableFraction,indexSize,segmentSize,memorySizeBits,pageSizeBits,1,
             this.PrefillAll,
             dict => { _=((IReadOnlyDictionary<TKey,TValue>)dict).Count; },
-            nameof(this.IReadOnlyDictionary_Count));
+            nameof(IReadOnlyDictionary_Count));
 }
 
 // ============================================================================
@@ -385,8 +385,8 @@ public sealed class ManagedDictionaryBenchmark(ITestOutputHelper output):Diction
             this.segmentSize=segmentSize;
             this.memorySizeBits=memorySizeBits;
             this.pageSizeBits=pageSizeBits;
-            var directoryId = System.Threading.Interlocked.Increment(ref directorySequence);
-            this.rootDir=global::Test.Seamless.TestPath.Directory<ManagedDictionaryBenchmark>($"h{directoryId:D4}");
+            var directoryId = Interlocked.Increment(ref directorySequence);
+            this.rootDir=TestPath.Directory<ManagedDictionaryBenchmark>($"h{directoryId:D4}");
             var checkpointDir = Path.Combine(this.rootDir,"checkpoint");
             var logPath = Path.Combine(this.rootDir,"log");
             var objPath = Path.Combine(this.rootDir,"obj");
@@ -458,8 +458,8 @@ public sealed class UnmanagedDictionaryBenchmark(ITestOutputHelper output):Dicti
             this.segmentSize=segmentSize;
             this.memorySizeBits=memorySizeBits;
             this.pageSizeBits=pageSizeBits;
-            var directoryId = System.Threading.Interlocked.Increment(ref directorySequence);
-            this.rootDir=global::Test.Seamless.TestPath.Directory<UnmanagedDictionaryBenchmark>($"h{directoryId:D4}");
+            var directoryId = Interlocked.Increment(ref directorySequence);
+            this.rootDir=TestPath.Directory<UnmanagedDictionaryBenchmark>($"h{directoryId:D4}");
             var checkpointDir = Path.Combine(this.rootDir,"checkpoint");
             var logPath = Path.Combine(this.rootDir,"log");
             var objPath = Path.Combine(this.rootDir,"obj");

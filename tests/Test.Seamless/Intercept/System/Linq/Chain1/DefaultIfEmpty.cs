@@ -8,20 +8,20 @@ public sealed class DefaultIfEmpty:LinqChain1TestBase {
     public static void NoDelegate() => NoDelegateImpl();
 
     private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.DefaultIfEmpty(LinqChain1TestBase.EmptySource()).ToList();
+        var expected=SystemEnumerable.DefaultIfEmpty(EmptySource()).ToList();
         var actual=new Consumer<int>();
-        LinqChain1TestBase.EmptySource().DefaultIfEmpty().Consume(actual);
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
+        EmptySource().DefaultIfEmpty().Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
     public static void defaultValue() => defaultValueImpl();
 
     private static void defaultValueImpl() {
-        var expected=SystemEnumerable.DefaultIfEmpty(LinqChain1TestBase.EmptySource(),42).ToList();
+        var expected=SystemEnumerable.DefaultIfEmpty(EmptySource(),42).ToList();
         var actual=new Consumer<int>();
-        LinqChain1TestBase.EmptySource().DefaultIfEmpty(42).Consume(actual);
-        LinqChain1TestBase.AssertSequenceEqual(expected,actual.Items);
+        EmptySource().DefaultIfEmpty(42).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
     }
 
 }
