@@ -56,50 +56,11 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             }
             return body.Continuation is null || CanLowerQueryBody(body.Continuation.Body);
         }
-        static bool CanLowerAdvancedShape(QueryExpressionSyntax query) {
-            var body = query.Body;
-            var bodies = EnumerateBodies(body).ToArray();
-            var clauses = bodies.SelectMany(static b => b.Clauses).ToArray();
-            var fromCount = clauses.OfType<FromClauseSyntax>().Count();
-            var joinCount = clauses.OfType<JoinClauseSyntax>().Count();
-            var hasLet = clauses.Any(static clause => clause is LetClauseSyntax);
-            var hasGroup = bodies.Any(static b => b.SelectOrGroup is GroupClauseSyntax);
-            var hasContinuation = bodies.Any(static b => b.Continuation is not null);
-            var hasAdvancedClause = fromCount>0 || joinCount>0 || hasGroup;
-
-            if(hasAdvancedClause && SequenceSourcesContainThis(query)) {
-                return false;
-            }
-            if(fromCount>1 || joinCount>1) {
-                return false;
-            }
-            if(fromCount==1) {
-                return joinCount==0 && !hasLet && !hasGroup && !hasContinuation;
-            }
-            if(joinCount==1) {
-                return !hasLet && !hasGroup && !hasContinuation;
-            }
-            if(hasGroup) {
-                return !hasLet;
-            }
-            return true;
-        }
-        static IEnumerable<QueryBodySyntax> EnumerateBodies(QueryBodySyntax body) {
-            while(true) {
-                yield return body;
-                if(body.Continuation is null) {
-                    yield break;
-                }
-                body=body.Continuation.Body;
-            }
-        }
-        static bool SequenceSourcesContainThis(QueryExpressionSyntax query) =>
-            ContainsThis(query.FromClause.Expression)
-            || EnumerateBodies(query.Body).SelectMany(static body => body.Clauses).Any(static clause =>
-                clause is FromClauseSyntax fromClause && ContainsThis(fromClause.Expression)
-                || clause is JoinClauseSyntax joinClause && ContainsThis(joinClause.InExpression));
-        static bool ContainsThis(SyntaxNode node) =>
-            node.DescendantNodesAndSelf().OfType<ThisExpressionSyntax>().Any();
+        // 以前は多段 join / 複数 from / group+継続 / let / this ソースを封印していたが、
+        // 各 Lower* は state.Bindings をフラット再射影する作りで原理的に多段連鎖可能であり、
+        // 匿名型は record struct registry で名指し可能化されるため、サポート節種別の検査
+        //（CanLowerQueryBody）が通れば lowering を試みる。
+        static bool CanLowerAdvancedShape(QueryExpressionSyntax query) => true;
         ExpressionSyntax LowerQueryExpression(QueryExpressionSyntax query) {
             var from = query.FromClause;
             var source = (ExpressionSyntax)this.Visit(from.Expression)!;

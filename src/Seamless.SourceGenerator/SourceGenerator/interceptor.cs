@@ -1840,7 +1840,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                         out var scalarFragment,
                         out var scalarStaticMethods,
                         null)
-                    && scalarFragment is Scalar) {
+                    && scalarFragment is Scalar
+                    && ScalarFragmentSupportsInlineEnumeration(scalarFragment)) {
                     uniqueNumber = snapshot;
                     fragment = new InlinedScalarFunc(scalarFragment) {
                         ReturnTypeName = lambdaSpec.ReturnTypeName,
@@ -2089,6 +2090,18 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         return new InvalidOperationException($"ラムダ式をインライン展開できませんでした。LINQ: '{linqText}'。理由: {reason}");
     }
 
+    // スカラー subquery を InlinedScalarFunc（using-enumerator 文インライン）で展開できるかを判定する。
+    // Sum/ToList/ToArray/ToDictionary など直接実行のみの PipelineTerminal は enumerator 式を作れず
+    // GetEnumeratorExpression が NotSupportedException を投げるため、その場合は InlinedScalarFunc 化を諦め、
+    // 呼び出し元で生のラムダ本体テキスト（実行時 LINQ-to-objects）として残す（Method 版と同じ挙動）。
+    private static bool ScalarFragmentSupportsInlineEnumeration(Fragment scalarFragment) {
+        try {
+            _=scalarFragment.GetEnumeratorExpression;
+            return true;
+        } catch(NotSupportedException) {
+            return false;
+        }
+    }
     private static bool TryFindSystemLinqInvocation(
         SyntaxNode node,
         SemanticModel semanticModel,
