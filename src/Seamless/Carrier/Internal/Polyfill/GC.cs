@@ -1,4 +1,4 @@
-﻿namespace Seamless.Carrier.Internal; // first priority
+﻿namespace Seamless.Carrier.Internal.Polyfill; // first priority
 
 internal static class GC
 {
