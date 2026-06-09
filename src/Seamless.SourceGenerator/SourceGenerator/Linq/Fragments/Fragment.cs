@@ -332,7 +332,7 @@ public abstract class Fragment(
         var currentPropDecl = this.GetCurrentPropertyDeclaration(currentType);
 
         return $$"""
-            {{this.GetEnumeratorStructDeclaration($"global::Seamless.Linq.Carrier.IValueEnumerator<{currentType}>, global::System.Collections.Generic.IEnumerator<{currentType}>")}}
+            {{this.GetEnumeratorStructDeclaration($"global::Seamless.Carrier.IValueEnumerator<{currentType}>, global::System.Collections.Generic.IEnumerator<{currentType}>")}}
             {{fieldsFromParams}}
             {{fields}}
             {{ctor}}
@@ -393,7 +393,7 @@ public abstract class Fragment(
     // 生成 struct に付ける where 制約。PrimarySource が設定されると struct 制約付きの where 句になる。
     protected virtual string StructTypeConstraints =>
         this.PrimarySource is { } src
-            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{src.ElementType}>, global::Seamless.Linq.Carrier.IValueEnumerator<{src.ElementType}>"
+            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{src.ElementType}>, global::Seamless.Carrier.IValueEnumerator<{src.ElementType}>"
             : string.Empty;
 
     private protected string GetEnumeratorStructDeclaration(string interfaceType) {

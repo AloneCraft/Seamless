@@ -1,4 +1,4 @@
-﻿namespace Seamless.Linq.Carrier.Internal;
+﻿namespace Seamless.Carrier.Internal;
 
 internal static class SingleSpan
 {

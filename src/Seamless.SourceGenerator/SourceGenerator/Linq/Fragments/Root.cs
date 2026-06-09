@@ -18,7 +18,7 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
     }
     // TEnum でパラメータ化された struct を手動で出力する（where 制約が struct 宣言の opening brace より前に来る必要があるため）。
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}}<TEnum> : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}}<TEnum> : global::Seamless.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
             where TEnum : {{(useEnumerableInterface ? "" : "struct, ")}}global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private TEnum {{this.e}};
@@ -91,7 +91,7 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
     public override string GetCurrentExpression => $"source[{this.e}]";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private {{elementType}}[] source;
             private int {{this.e}} = -1;
@@ -156,7 +156,7 @@ public class ListRoot(int 番号, string sourceExpression, string elementType) :
     public override string GetCurrentExpression => "Current";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private global::System.Collections.Generic.List<{{elementType}}> source;
             private int {{this.e}} = -1;
@@ -222,7 +222,7 @@ public class DuckTypingRoot(int 番号, string sourceExpression, string elementT
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Seamless.Linq.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private {{concreteEnumeratorType}} {{this.e}};
             public {{this.Struct}}({{concreteEnumeratorType}} {{this.e}}) { this.{{this.e}} = {{this.e}}; }

@@ -1,4 +1,4 @@
-﻿namespace Seamless.Linq.Carrier.Internal;
+﻿namespace Seamless.Carrier.Internal;
 
 // store struct to heap
 internal sealed class RefBox<T>(T value): IDisposable

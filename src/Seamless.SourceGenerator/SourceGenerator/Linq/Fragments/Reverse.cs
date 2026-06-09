@@ -9,7 +9,7 @@ public class Reverse(int 番号, Enumerable source) : Enumerable(番号) {
     public override string GetEnumerableExpression =>
         this.IsIdentity
             ? this.RootSource.GetEnumerableExpression
-            : $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.Reverse({this.RootSource.GetEnumerableExpression})";
+            : $"global::Seamless.Carrier.ValueEnumerableExtensions.Reverse({this.RootSource.GetEnumerableExpression})";
     public override string GetEnumeratorStruct => $$"""
         {{this.RootSource.GetEnumeratorStruct}}
         {{(this.IsIdentity ? string.Empty : base.GetEnumeratorStruct)}}

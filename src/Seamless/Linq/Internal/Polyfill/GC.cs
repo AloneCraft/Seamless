@@ -1,4 +1,4 @@
-﻿namespace Seamless.Linq.Carrier.Internal; // first priority
+﻿namespace Seamless.Carrier.Internal; // first priority
 
 internal static class GC
 {
