@@ -1,4 +1,4 @@
-﻿namespace Seamless.Linq.Carrier.Internal;
+﻿namespace Seamless.Carrier.Internal;
 
 // similar as IBufferWriter style to avoid Add frequently.
 internal ref struct SegmentedArrayProvider<T>

@@ -1,3 +1,31 @@
+Seamless/Linq/Carrierフォルダ
+	Aggregate.cs 
+		partial class Seamless.Carrier.ValueEnumerableExtensions
+	AggregateBy.cs
+		partial class Seamless.Carrier.ValueEnumerableExtensions
+		struct Seamless.Carrier.Linq.AggregateBy
+		struct Seamless.Carrier.Linq.AggregateBy2
+		...
+	All.cs
+		struct Seamless.Carrier.Linq.All
+	Cast.cs
+		struct Seamless.Carrier.Linq.Cast
+	Count.cs
+		partial class Seamless.Carrier.ValueEnumerableExtensions
+			Count
+	Select.cs
+		partial class Seamless.Carrier.ValueEnumerableExtensions
+			Select
+		struct Seamless.Carrier.Linq.Select
+		...
+この構造は、Seamless.Carrierという名前空間に、様々なLINQの拡張メソッドや構造体が定義されていることを示しています。
+各ファイルには特定のLINQ操作に関連するコードが含まれており、例えばAggregate.csにはAggregateに関連するコードが、Select.csにはSelectに関連するコードが含まれています。
+All,Countのような集約関数はValueEnumerableExtensionsクラスメソッドはない。
+Cast,SelectのようなIEnumerableを返す関数は、ValueEnumerableExtensionsクラスメソッドと構造体で定義されている。
+なのになぜAggregateByはValueEnumerableExtensionsクラスメソッドと構造体で定義されているのか？
+
+
+
 AsValueEnumerableは必要ないのでは？
 	必要なかったら
 		Seamless.Collection.Generic.IEnumerable.csも不要では？
@@ -14,7 +42,7 @@ ListBase.cs
 			であるなら不要である。Listを使えばよい。そしてListを使うならListBaseは不要である。
 		でないなら何に使うのか？
 	Seamless.Collections.Listはディスク上にあることがあるListこれは必要である。
-Seamless.Linq.Carrier
+Seamless.Carrier
 	各クラスがどういうlinqコードを書いたらどの中間メソッドでつかわれるかコメント書いて
 Seamless.Linq.GroupingImplはSeamless.Linq.LookupImplで使われているがこれはTest以外では使われていない。削除していいのでは？
 以下に当てはまらないクラスは削除してよい

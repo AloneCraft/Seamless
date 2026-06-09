@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Seamless.Linq.Carrier;
+using Seamless.Carrier;
 
 namespace Test.Seamless.Intercept.System.Linq;
 

@@ -7,7 +7,7 @@ internal class Distinct_comparer(int 番号,Enumerable source,string comparer):D
 internal abstract class DistinctBase(int 番号,Enumerable source,string comparer):Enumerable(番号),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=>string.Empty;
-    public override string GetEnumerableExpression=>$"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.Distinct({source.GetEnumerableExpression},{comparer})";
+    public override string GetEnumerableExpression=>$"global::Seamless.Carrier.ValueEnumerableExtensions.Distinct({source.GetEnumerableExpression},{comparer})";
     public override string GetEnumeratorStruct=>$$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -56,7 +56,7 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
 internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer):Enumerable(番号),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumerableExpression=>$"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.DistinctBy({source.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
+    public override string GetEnumerableExpression=>$"global::Seamless.Carrier.ValueEnumerableExtensions.DistinctBy({source.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
     public override string GetEnumeratorStruct=>$$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}

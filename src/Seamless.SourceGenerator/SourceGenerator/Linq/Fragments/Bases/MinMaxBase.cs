@@ -6,7 +6,7 @@ public abstract class MinMaxBase(int 番号, Enumerable source, string resultTyp
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => direction=="greater"
-        ? $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.Max(new global::Seamless.Linq.Carrier.ValueEnumerable<TEnum, {source.ElementType}>({this.e}))"
-        : $"global::Seamless.Linq.Carrier.ValueEnumerableExtensions.Min(new global::Seamless.Linq.Carrier.ValueEnumerable<TEnum, {source.ElementType}>({this.e}))";
+        ? $"global::Seamless.Carrier.ValueEnumerableExtensions.Max(new global::Seamless.Carrier.ValueEnumerable<TEnum, {source.ElementType}>({this.e}))"
+        : $"global::Seamless.Carrier.ValueEnumerableExtensions.Min(new global::Seamless.Carrier.ValueEnumerable<TEnum, {source.ElementType}>({this.e}))";
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

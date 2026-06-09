@@ -1,5 +1,5 @@
 ﻿#pragma warning disable 0436
-namespace Seamless.Linq.Carrier.Internal;
+namespace Seamless.Carrier.Internal;
 
 // Lightweight dictionary implementation optimized for performance
 // with minimal API surface focused on the specific use case

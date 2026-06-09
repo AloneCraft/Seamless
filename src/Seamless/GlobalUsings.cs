@@ -19,9 +19,9 @@ global using System.Text;
 global using System.Threading;
 global using System.Threading.Tasks;
 
-global using Seamless.Linq.Carrier;
-global using Seamless.Linq.Carrier.Internal;
-global using Seamless.Linq.Carrier.Linq;
+global using Seamless.Carrier;
+global using Seamless.Carrier.Internal;
+global using Seamless.Carrier.Linq;
 #if NET9_0_OR_GREATER
 #endif
 

@@ -1,5 +1,5 @@
 ﻿#pragma warning disable 0436
-namespace Seamless.Linq.Carrier.Internal;
+namespace Seamless.Carrier.Internal;
 
 // Most of the time we use class instead of struct because objects are kept in the heap.
 // Since we're only using it for duplicate checking in set operations, having `bool Add` is sufficient.

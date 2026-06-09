@@ -1,4 +1,4 @@
-﻿namespace Seamless.Linq.Carrier.Internal;
+﻿namespace Seamless.Carrier.Internal;
 
 // storing struct enumerator, with pooling(stack itself is node)
 internal sealed class RefStack<T> where T : IDisposable

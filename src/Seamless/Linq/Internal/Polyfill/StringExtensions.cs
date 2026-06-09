@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Seamless.Linq.Carrier.Internal;
+namespace Seamless.Carrier.Internal;
 
 public static class StringExtensions
 {

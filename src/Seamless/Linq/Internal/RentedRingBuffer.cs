@@ -1,4 +1,4 @@
-﻿namespace Seamless.Linq.Carrier.Internal;
+﻿namespace Seamless.Carrier.Internal;
 
 [StructLayout(LayoutKind.Auto)]
 internal class RentedRingBuffer<T>(int capacity) : IDisposable
