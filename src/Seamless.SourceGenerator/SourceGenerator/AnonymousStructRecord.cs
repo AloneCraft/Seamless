@@ -137,6 +137,48 @@ public sealed partial class SeamlessIncrementalGenerator {
             return builder.ToString();
         }
 
+        /// <summary>
+        /// struct record 式から元の匿名型を再構成する C# 式文字列を返す。
+        /// 例: structRecordExpr が "rec"、originalAnonType が {p:int} → "new{p=rec.p}"
+        /// 入れ子の匿名型も再帰的に再構成する。
+        /// </summary>
+        public string ReconstructAnonymousCreation(ITypeSymbol originalAnonType,string structRecordExpr) {
+            if(!originalAnonType.IsAnonymousType || originalAnonType is not INamedTypeSymbol anon) {
+                return structRecordExpr;
+            }
+            var members = AnonymousMembers(anon);
+            var parts = members.Select(m => {
+                var memberAccess = $"{structRecordExpr}.{EscapeIdentifier(m.Name)}";
+                return $"{EscapeIdentifier(m.Name)}={ReconstructAnonymousCreation(m.Type,memberAccess)}";
+            });
+            return $"new{{{string.Join(",",parts)}}}";
+        }
+
+        /// <summary>
+        /// <c>new {{ a = e0, b = e1 }}</c> を struct record ファクトリ呼び出しではなく
+        /// 生の匿名型生成式 <c>new {{ a = renderLeaf(e0), b = renderLeaf(e1) }}</c> として展開する。
+        /// 出口ステップ（最終的に匿名型を返す必要がある箇所）で使用する。
+        /// 入れ子の <c>new {{ ... }}</c> は再帰的に処理する。
+        /// </summary>
+        public string RenderAnonymousCreationRaw(
+            AnonymousObjectCreationExpressionSyntax node,
+            SemanticModel semanticModel,
+            Func<ExpressionSyntax,string> renderLeaf) {
+            if(semanticModel.GetTypeInfo(node).Type is not INamedTypeSymbol sym) {
+                return "default!";
+            }
+            var members = AnonymousMembers(sym);
+            var parts = node.Initializers.Select((init,i) => {
+                var memberName = members[i].Name;
+                var value = StripParentheses(init.Expression);
+                var rendered = value is AnonymousObjectCreationExpressionSyntax inner
+                    ? RenderAnonymousCreationRaw(inner,semanticModel,renderLeaf)
+                    : renderLeaf(init.Expression);
+                return $"{EscapeIdentifier(memberName)}={rendered}";
+            });
+            return $"new{{{string.Join(",",parts)}}}";
+        }
+
         private Shape RegisterShape(string[] memberNames) {
             var key = string.Join("|",memberNames);
             if(this._shapes.TryGetValue(key,out var existing)) {

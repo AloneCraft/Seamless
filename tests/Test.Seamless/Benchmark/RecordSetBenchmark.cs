@@ -28,7 +28,7 @@ public abstract class RecordSetBenchmark<TRecord>(ITestOutputHelper output):Benc
     protected abstract TRecord CreateRecord(int seed);
 
     protected abstract class Handle:IDisposable {
-        public abstract ISeamlessSet<int,TRecord> Set { get; }
+        public abstract ISet<int,TRecord> Set { get; }
         public abstract Handle CreateSibling();
         public abstract void Dispose();
     }
@@ -193,7 +193,7 @@ public sealed class ManagedRecordSetBenchmark(ITestOutputHelper output):RecordSe
             this.set=this.store.Create();
         }
 
-        public override ISeamlessSet<int,ManagedBenchmarkSetRecord> Set => this.set;
+        public override ISet<int,ManagedBenchmarkSetRecord> Set => this.set;
 
         public override Handle CreateSibling() => new ManagedHandle(this.mutableFraction,this.indexSize,this.segmentSize,this.memorySizeBits,this.pageSizeBits);
 
@@ -236,7 +236,7 @@ public sealed class UnmanagedRecordSetBenchmark(ITestOutputHelper output):Record
             this.set=this.store.Create();
         }
 
-        public override ISeamlessSet<int,UnmanagedBenchmarkSetRecord> Set => this.set;
+        public override ISet<int,UnmanagedBenchmarkSetRecord> Set => this.set;
 
         public override Handle CreateSibling() => new UnmanagedHandle(this.mutableFraction,this.indexSize,this.segmentSize,this.memorySizeBits,this.pageSizeBits);
 

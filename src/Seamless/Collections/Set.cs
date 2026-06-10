@@ -27,10 +27,7 @@ public class Set<TRecord>(string path,long initialCapacity = 16,long initialData
     public long EntryCount => this.GetLongCount();
     IEnumerator<TRecord> IMemoryCollection<TRecord>.GetEnumerator() => ((IEnumerable<TRecord>)this).GetEnumerator();
 }
-public partial class Set<TKey, TRecord>:
-    Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>>,
-    ISeamlessSet<TKey,TRecord>
-    where TRecord : IRecord<TKey> {
+public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>>,ISet<TKey,TRecord>where TRecord:IRecord<TKey>{
     private readonly IDisposable? ownedStore;
     internal Set(CollectionStore<TKey,TRecord> collectionStore,IDisposable? ownedStore = null) : base(collectionStore) {
         this.ownedStore=ownedStore;
@@ -70,29 +67,29 @@ public partial class Set<TKey, TRecord>:
         foreach(var item in this)
             array[arrayIndex++]=item;
     }
-    public void ExceptWith(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.ExceptWith(this,other);
-    public void ExceptWith(Set<TKey,TRecord> other) => this.ExceptWith((ISeamlessSet<TKey,TRecord>)other);
-    public void IntersectWith(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IntersectWith(this,other);
-    public void IntersectWith(Set<TKey,TRecord> other) => this.IntersectWith((ISeamlessSet<TKey,TRecord>)other);
-    public bool IsSubsetOf(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IsSubsetOf(this,other);
-    public bool IsSubsetOf(Set<TKey,TRecord> other) => this.IsSubsetOf((ISeamlessSet<TKey,TRecord>)other);
-    public bool IsSupersetOf(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IsSupersetOf(this,other);
-    public bool IsSupersetOf(Set<TKey,TRecord> other) => this.IsSupersetOf((ISeamlessSet<TKey,TRecord>)other);
-    public bool IsProperSubsetOf(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IsProperSubsetOf(this,other);
-    public bool IsProperSubsetOf(Set<TKey,TRecord> other) => this.IsProperSubsetOf((ISeamlessSet<TKey,TRecord>)other);
-    public bool IsProperSupersetOf(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.IsProperSupersetOf(this,other);
-    public bool IsProperSupersetOf(Set<TKey,TRecord> other) => this.IsProperSupersetOf((ISeamlessSet<TKey,TRecord>)other);
-    public bool Overlaps(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.Overlaps(this,other);
-    public bool Overlaps(Set<TKey,TRecord> other) => this.Overlaps((ISeamlessSet<TKey,TRecord>)other);
-    public bool SetEquals(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.SetEquals(this,other);
-    public bool SetEquals(Set<TKey,TRecord> other) => this.SetEquals((ISeamlessSet<TKey,TRecord>)other);
-    public void SymmetricExceptWith(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.SymmetricExceptWith(this,other);
-    public void SymmetricExceptWith(Set<TKey,TRecord> other) => this.SymmetricExceptWith((ISeamlessSet<TKey,TRecord>)other);
-    public void UnionWith(ISeamlessSet<TKey,TRecord> other) => SeamlessSetOperations.UnionWith(this,other);
-    public void UnionWith(Set<TKey,TRecord> other) => this.UnionWith((ISeamlessSet<TKey,TRecord>)other);
+    public void ExceptWith(ISet<TKey,TRecord> other) => SeamlessSetOperations.ExceptWith(this,other);
+    public void ExceptWith(Set<TKey,TRecord> other) => this.ExceptWith((ISet<TKey,TRecord>)other);
+    public void IntersectWith(ISet<TKey,TRecord> other) => SeamlessSetOperations.IntersectWith(this,other);
+    public void IntersectWith(Set<TKey,TRecord> other) => this.IntersectWith((ISet<TKey,TRecord>)other);
+    public bool IsSubsetOf(ISet<TKey,TRecord> other) => SeamlessSetOperations.IsSubsetOf(this,other);
+    public bool IsSubsetOf(Set<TKey,TRecord> other) => this.IsSubsetOf((ISet<TKey,TRecord>)other);
+    public bool IsSupersetOf(ISet<TKey,TRecord> other) => SeamlessSetOperations.IsSupersetOf(this,other);
+    public bool IsSupersetOf(Set<TKey,TRecord> other) => this.IsSupersetOf((ISet<TKey,TRecord>)other);
+    public bool IsProperSubsetOf(ISet<TKey,TRecord> other) => SeamlessSetOperations.IsProperSubsetOf(this,other);
+    public bool IsProperSubsetOf(Set<TKey,TRecord> other) => this.IsProperSubsetOf((ISet<TKey,TRecord>)other);
+    public bool IsProperSupersetOf(ISet<TKey,TRecord> other) => SeamlessSetOperations.IsProperSupersetOf(this,other);
+    public bool IsProperSupersetOf(Set<TKey,TRecord> other) => this.IsProperSupersetOf((ISet<TKey,TRecord>)other);
+    public bool Overlaps(ISet<TKey,TRecord> other) => SeamlessSetOperations.Overlaps(this,other);
+    public bool Overlaps(Set<TKey,TRecord> other) => this.Overlaps((ISet<TKey,TRecord>)other);
+    public bool SetEquals(ISet<TKey,TRecord> other) => SeamlessSetOperations.SetEquals(this,other);
+    public bool SetEquals(Set<TKey,TRecord> other) => this.SetEquals((ISet<TKey,TRecord>)other);
+    public void SymmetricExceptWith(ISet<TKey,TRecord> other) => SeamlessSetOperations.SymmetricExceptWith(this,other);
+    public void SymmetricExceptWith(Set<TKey,TRecord> other) => this.SymmetricExceptWith((ISet<TKey,TRecord>)other);
+    public void UnionWith(ISet<TKey,TRecord> other) => SeamlessSetOperations.UnionWith(this,other);
+    public void UnionWith(Set<TKey,TRecord> other) => this.UnionWith((ISet<TKey,TRecord>)other);
 
-    public Set<TKey,TRecord> Except(Set<TKey,TRecord> other) => (Set<TKey,TRecord>)this.Except((ISeamlessSet<TKey,TRecord>)other);
-    public ISeamlessSet<TKey,TRecord> Except(ISeamlessSet<TKey,TRecord> other) {
+    public Set<TKey,TRecord> Except(Set<TKey,TRecord> other) => (Set<TKey,TRecord>)this.Except((ISet<TKey,TRecord>)other);
+    public ISet<TKey,TRecord> Except(ISet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this) {
@@ -112,8 +109,8 @@ public partial class Set<TKey, TRecord>:
         return result;
     }
 
-    public Set<TKey,TRecord> Intersect(Set<TKey,TRecord> other) => (Set<TKey,TRecord>)this.Intersect((ISeamlessSet<TKey,TRecord>)other);
-    public ISeamlessSet<TKey,TRecord> Intersect(ISeamlessSet<TKey,TRecord> other) {
+    public Set<TKey,TRecord> Intersect(Set<TKey,TRecord> other) => (Set<TKey,TRecord>)this.Intersect((ISet<TKey,TRecord>)other);
+    public ISet<TKey,TRecord> Intersect(ISet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this) {
@@ -133,8 +130,8 @@ public partial class Set<TKey, TRecord>:
         return result;
     }
 
-    public Set<TKey,TRecord> SymmetricExcept(Set<TKey,TRecord> other) => (Set<TKey,TRecord>)this.SymmetricExcept((ISeamlessSet<TKey,TRecord>)other);
-    public ISeamlessSet<TKey,TRecord> SymmetricExcept(ISeamlessSet<TKey,TRecord> other) {
+    public Set<TKey,TRecord> SymmetricExcept(Set<TKey,TRecord> other) => (Set<TKey,TRecord>)this.SymmetricExcept((ISet<TKey,TRecord>)other);
+    public ISet<TKey,TRecord> SymmetricExcept(ISet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this) {
@@ -162,8 +159,8 @@ public partial class Set<TKey, TRecord>:
         return result;
     }
 
-    public Set<TKey,TRecord> Union(Set<TKey,TRecord> other) => (Set<TKey,TRecord>)this.Union((ISeamlessSet<TKey,TRecord>)other);
-    public ISeamlessSet<TKey,TRecord> Union(ISeamlessSet<TKey,TRecord> other) {
+    public Set<TKey,TRecord> Union(Set<TKey,TRecord> other) => (Set<TKey,TRecord>)this.Union((ISet<TKey,TRecord>)other);
+    public ISet<TKey,TRecord> Union(ISet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this)
@@ -203,4 +200,8 @@ public partial class Set<TKey, TRecord>:
         if(disposing)
             this.ownedStore?.Dispose();
     }
+    public IEnumerator<TRecord> GetEnumerator() => new Enumerator<ValueIterator,TRecord>(this.ReadSession,new());
+    IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator() => this.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    IEnumerator<TRecord> IMemoryCollection<TRecord>.GetEnumerator() => new Enumerator<MemoryValueIterator,TRecord>(this.ReadSession,new());
 }

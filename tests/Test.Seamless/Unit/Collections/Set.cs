@@ -9,7 +9,7 @@ public partial record struct ManagedSetRecord(int Key,string Name):IRecord<int>;
 
 public readonly record struct UnmanagedSetRecord(int Key,long Value):IRecord<int>;
 
-public class SetTests {
+public class Set {
     [Fact, Trait("Category","Unit")]
     public void ManagedSet_AddTryGetRemove_UsesRecordKey() {
         using var store = HashStore.Create().CreateSet<int,ManagedSetRecord>();
@@ -95,7 +95,7 @@ public class SetTests {
         Assert.True(union.TryGetValue(3,out var foundCharlie));
         Assert.Equal(charlie,foundCharlie);
 
-        using ISeamlessSet<int,ManagedSetRecord> intersect = set.Intersect((ISeamlessSet<int,ManagedSetRecord>)other);
+        using ISet<int,ManagedSetRecord> intersect = set.Intersect((ISet<int,ManagedSetRecord>)other);
         Assert.Single(intersect);
         Assert.True(intersect.TryGetValue(2,out var intersected));
         Assert.Equal(bravo,intersected);
@@ -174,7 +174,7 @@ public class SetTests {
         Assert.True(union.TryGetValue(3,out var foundCharlie));
         Assert.Equal(charlie,foundCharlie);
 
-        using ISeamlessSet<int,UnmanagedSetRecord> intersect = set.Intersect((ISeamlessSet<int,UnmanagedSetRecord>)other);
+        using ISet<int,UnmanagedSetRecord> intersect = set.Intersect((ISet<int,UnmanagedSetRecord>)other);
         Assert.Single(intersect);
         Assert.True(intersect.TryGetValue(2,out var intersected));
         Assert.Equal(bravo,intersected);
@@ -271,7 +271,7 @@ public class SetTests {
     }
 
     private static string CreatePath(string tag) {
-        var directoryPath = TestPath.Directory<SetTests>(tag);
+        var directoryPath = TestPath.Directory<Set>(tag);
         return Path.Combine(directoryPath,"items.dat");
     }
 

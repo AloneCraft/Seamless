@@ -8,8 +8,8 @@ public sealed class AnonymousType {
         SelectMany_Static();
     }
     private static void SelectMany_Static() {
-        var expected=SystemEnumerable.SelectMany(Source(),p=>Source().Select(q=>new{p,q}));
-        var actual=Source().SelectMany(p=>Source().Select(q=>new{p,q}));
+        var expected=SystemEnumerable.SelectMany(Source(),p=>Source().Select(q=>new{p,q})).ToList();
+        var actual=Source().SelectMany(p=>Source().Select(q=>new{p,q})).ToList();
         Assert.Equal(expected,actual);
     }
     [Fact,Trait("Category","Unit")]public void GroupJoin() {
@@ -34,6 +34,14 @@ public sealed class AnonymousType {
         GroupBy_Captured();
         GroupBy_Delegate();
         GroupBy_Variable();
+        GroupBy_Identity();
+    }
+    private static void GroupBy_Identity() {
+        var expected=SystemEnumerable.GroupBy(SystemEnumerable.Select(Source(),p=>new{p}),p=>p,p=>new{x=p});
+        var actual=Source().Select(p=>new{p}).GroupBy(p=>p,p=>new{x=p});
+        Assert.Equal(
+            expected.Select(static g=>$"{g.Key.p}:{string.Join(",",g.Select(static e=>e.x.p))}"),
+            actual.Select(static g=>$"{g.Key.p}:{string.Join(",",g.Select(static e=>e.x.p))}"));
     }
     private static void GroupBy_Static() {
         var expected=SystemEnumerable.GroupBy(Source(),p=>p/2,static (l,r) =>new{l,r});

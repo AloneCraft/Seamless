@@ -4,6 +4,26 @@ using SystemEnumerable = System.Linq.Enumerable;
 namespace Test.Seamless.Intercept.System.Linq.Chain1;
 
 public sealed class SelectMany:LinqChain1TestBase {
+    //[Fact,Trait("Category","Unit")]
+    //public void 外だし先行評価Anchor() => this.外だし先行評価AnchorImpl();
+
+    //private void 外だし先行評価AnchorImpl() {
+    //    var expected=SystemEnumerable.SelectMany(Source(),v => new[] { v,this.Func() }).ToList();
+    //    var actual=new Consumer<int>();
+    //    Source().SelectMany(v => new[] { v,this.Func()}).Consume(actual);
+    //    AssertSequenceEqual(expected,actual.Items);
+    //}
+    int Func() => 0;
+    [Fact,Trait("Category","Unit")]
+    public static void Static外だし先行評価Anchor() => Static外だし先行評価AnchorImpl();
+
+    private static void Static外だし先行評価AnchorImpl() {
+        var expected=SystemEnumerable.SelectMany(Source(),static v => new[] { v,StaticFunc() }).ToList();
+        var actual=new Consumer<int>();
+        Source().SelectMany(static v => new[] { v,StaticFunc()}).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+    static int StaticFunc() => 0;
     [Fact,Trait("Category","Unit")]
     public static void selector_Static() => selector_StaticImpl();
 
