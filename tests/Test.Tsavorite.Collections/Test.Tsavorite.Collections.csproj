@@ -19,11 +19,8 @@
     <None Remove="Garnet\**" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="CheckpointRecoveryTests.cs" />
     <Compile Remove="TestKeyComparer.cs" />
     <Compile Remove="TestRelation.cs" />
-    <Compile Remove="Database\Sample.cs" />
-    <Compile Remove="Database\Simple.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="8.0.1">
@@ -50,23 +47,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="CheckpointRecoveryTests.cs" />
-    <Compile Remove="TestKeyComparer.cs" />
-    <Compile Remove="TestRelation.cs" />
-    <Compile Remove="SessionFunctions\Upsert.cs" />
-    <Compile Remove="SessionFunctions\BlittableUpsert.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Remove="C:\Users\kazuh\.nuget\packages\microsoft.testplatform.testhost\18.3.0\build\net8.0\x64\testhost.dll" />
-    <Content Remove="C:\Users\kazuh\.nuget\packages\microsoft.testplatform.testhost\18.3.0\build\net8.0\x64\testhost.exe" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Remove="C:\Users\kazuh\.nuget\packages\xunit.runner.visualstudio\3.1.5\build\net8.0\xunit.abstractions.dll" />
-    <None Remove="C:\Users\kazuh\.nuget\packages\xunit.runner.visualstudio\3.1.5\build\net8.0\xunit.runner.visualstudio.testadapter.dll" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\..\src\Tsavorite.Collections\Tsavorite.Collections.csproj" />
     <ProjectReference Include="..\..\src\FLinq\FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
-    <ProjectReference Include="..\..\src\TsavoriteDB\TsavoriteDB.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
 </Project>

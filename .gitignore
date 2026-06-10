@@ -40,8 +40,6 @@ bld/
 
 # Visual Studio 2017 auto generated files
 Generated\ Files/
-tests/Test.Seamless1/Generated/
-tests/Test.Seamless2/Generated/
 
 # MSTest test Results
 [Tt]est[Rr]esult*/
