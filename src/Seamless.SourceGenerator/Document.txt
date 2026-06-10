@@ -13,9 +13,54 @@ generator 自体は runtime ロジックを直接実行しない。コンパイ�
 2. プロジェクト構成
 
 - Seamless.SourceGenerator.csproj
-  Roslyn component として読み込まれる analyzer project。
+  Roslyn component として読み込まれる analyzer project。以下の設定を持つ。
+
+  TargetFramework: net10.0
+    Roslyn source generator は analyzer として動作するため、実行時に踏む runtime は host 次第。
+    ここでは .NET 10 をビルドターゲットにする。
+
+  LangVersion: latest
+    C# の最新言語機能を常に有効にする。
+
+  Nullable: enable
+    nullable annotation を有効化し、generator 内部の null 安全性を高める。
+
+  AllowUnsafeBlocks: true
+    _u / _m フィールド分離や generated struct の内部実装で unsafe が必要なため。
+
+  RootNamespace: Seamless
+    生成される attribute や interceptor の名前空間を Seamless で統一する。
+
+  IsRoslynComponent: true
+    このプロジェクトが Roslyn component であることを示す。ビルド時に analyzer として読み込まれるために必須。
+
+  EnforceExtendedAnalyzerRules: true
+    analyzer としての厳格な規則を適用し、誤った API 使用を防ぐ。
+
+  NoWarn: RS1041; RS2008
+    RS1041 は Compilation.EndEdit 関連、RS2008 は診断 ID のルール違反を抑制する。
+    generator 独自の警告を出さないために必要。
+
+  PackageReference (すべて PrivateAssets="all"):
+
+    Microsoft.CodeAnalysis.CSharp 4.13.0
+      Roslyn Syntax API / Symbol API / Incremental Generator infrastructure。
+      generator 本体の実装に必須。
+
+    Microsoft.CodeAnalysis.Analyzers 3.11.0
+      analyzer 開発用のアナライザーと code fix。generator の品質維持に使う。
+
+  StaticSources の取扱い:
+
+    Compile Remove "StaticSources\**\*.cs"
+      StaticSources 以下の .cs は通常のコンパイル対象から外す。
+
+    None Include "StaticSources\**\*.cs" (Pack=true, PackagePath=buildTransitive\StaticSources\)
+      ビルド時に nuget パッケージ経由で参照元プロジェクトへ自動追加するためのファイル群。
+
 - SourceGenerator/SeamlessIncrementalGenerator.cs
   generator 本体。syntax 収集、source 組み立て、schema 生成、container method interceptor 生成、Where interceptor 生成を担当する。
+
 - SourceGenerator/OptimizeVisitor.cs
   container method を翻訳する前に invocation chain を正規化する syntax rewriter。Where を可能な範囲で source 側へ押し下げる。
 
