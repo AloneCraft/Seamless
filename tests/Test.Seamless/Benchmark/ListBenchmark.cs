@@ -20,7 +20,7 @@ public abstract class ListBenchmark(ITestOutputHelper output):Benchmark(output) 
         Directory.CreateDirectory(dir);
         return dir;
     }
-    //static ISeamlessSet<TResult> Select<T,TResult>(this ISeamlessSet<T> source,Func<T,TResult> selector){
+    //static ISet<TResult> Select<T,TResult>(this ISet<T> source,Func<T,TResult> selector){
     //    var result=HashStore.Create().Create<TResult>();
     //    foreach(var x1 in source){
             

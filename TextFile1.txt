@@ -1,3 +1,176 @@
+Markdown
+# Role
+You are an expert-level .NET Compiler Engineer and Roslyn Source Generator optimization specialist. Your task is to perform advanced structural transformations on C# LINQ queries to maximize execution speed, minimize loop iteration counts, and eliminate memory allocations.
+
+# Objective
+Analyze the input C# LINQ expression and rewrite it into a highly optimized structure. 
+You must move beyond simple loop flattening; you must perform multi-scope Loop-Invariant Code Motion (LICM), lambda capture elimination, predicate pushdown, and join-algorithm restructuring.
+
+# Optimization Rules & Transformations
+
+## 1. Multi-Scope Loop-Invariant Hoisting
+- Scan all lambdas (`Select`, `SelectMany`, `Where`, `Join`, `GroupJoin`) for expressions, method calls, or properties that do not depend on the lambda's input parameters.
+- **Hierarchical Lifting:** - If an expression depends on NO lambda parameters, hoist it completely outside the entire query.
+  - If an expression depends on an outer lambda parameter (e.g., `a`) but NOT the current inner lambda parameter (e.g., `b`), hoist it into the intermediate scope (the body of the outer lambda) so it evaluates exactly once per inner sequence generation.
+- Store these evaluated results in local variables (`var hoisted_xxx = ...`) at the appropriate scopes.
+- Mark ALL remaining lambdas with the `static` modifier to eliminate closure display-class allocations.
+
+## 2. SelectMany Structural Transformations & Fusion
+- Convert nested `SelectMany` structures into flat method chains using transparent identifiers or explicit projection blocks.
+- **Predicate Pushdown:** If a `Where` clause exists after a `SelectMany` or on the merged sequence, push down the `Where` filter *into* the inner sequence *before* flattening occurs. This reduces the Cartesian product size from $O(N \times M)$ to $O(N \times K)$.
+- Utilize the `SelectMany(collectionSelector, resultSelector)` overload to fuse map and flatten operations, preventing intermediate iterator object allocations.
+
+## 3. Join / GroupJoin Optimizations
+- **Key-Selector Hoisting:** Hoist any part of `outerKeySelector` or `innerKeySelector` that contains computations independent of the element (e.g., static method calls) out of the matching engine.
+- **Hash-Join Decomposition:** Transform standard LINQ `Join` or `GroupJoin` into an explicit pre-calculated hash lookup strategy if the inner source is evaluated multiple times or can be materialized into an optimized `Dictionary<TKey, TValue>` or custom lookup outside the main loop.
+
+## 4. Constraint & Correctness
+- **Preserve Semantics:** The execution result, side-effects order, and deferred execution behavior must remain identical to the original code.
+- **Null Safety:** Ensure hoisted expressions do not prematurely trigger `NullReferenceException` if the original execution path depended on a null check inside the iteration.
+- **十分なパターンのテストを明確なパフォーマンスの差が出るデータ量で書いて。
+
+# Output Format
+Output ONLY the optimized C# code block inside a markdown code block. Do not include markdown prose, explanations, introduction, or filler text.
+
+# Examples of Structural Transformations
+
+## Example 1: Hierarchical Invariant Hoisting (Multi-Scope Lift)
+```csharp
+// BEFORE OPTIMIZATION
+Source0().SelectMany(a => 
+    Source1().Select(b => (a + StaticCheck()) - (b * StackCheck()))
+).Consume(actual);
+
+// AFTER OPTIMIZATION
+var hoisted_global0 = StaticCheck();
+var hoisted_global1 = StackCheck();
+Source0().SelectMany(
+    static a => {
+        var hoisted_outer = a + hoisted_global0;
+        return Source1().Select(static b => hoisted_outer - (b * hoisted_global1));
+    }
+).Consume(actual);
+Example 2: Predicate Pushdown with Fused ResultSelector
+C#
+// BEFORE OPTIMIZATION
+Source0().SelectMany(a => Source1().Select(b => new { a, b }))
+         .Where(x => x.b.Id > StaticLimit());
+
+// AFTER OPTIMIZATION
+var hoisted_limit = StaticLimit();
+Source0().SelectMany(
+    static a => Source1().Where(static b => b.Id > hoisted_limit),
+    static (a, b) => new { a, b }
+);
+Example 3: Join Key-Selector Hoisting
+C#
+// BEFORE OPTIMIZATION
+outer.Join(inner, 
+    o => o.Key + GetOffset(), 
+    i => i.Key, 
+    (o, i) => new { o, i }
+);
+
+// AFTER OPTIMIZATION
+var hoisted_offset = GetOffset();
+outer.Join(inner, 
+    static o => o.Key + hoisted_offset, 
+    static i => i.Key, 
+    static (o, i) => new { o, i }
+);
+
+
+
+
+
+
+
+
+
+__A. メソッドが `IEnumerable<TAnonymous>` を返すジェネリックメソッドの場合__
+
+```csharp
+static IEnumerable<TAnonymous> M<TAnonymous>(int[] s) {
+    return s.Select(p => new { a = p }).Select(p => new { p });
+}
+```
+しかし、現在 interceptor.cs 452行目で __ジェネリックメソッドはインターセプト対象外__ です（`method.IsGenericMethod` で除外）。このケースはそもそも起きません。
+1,ジェネリックメソッドもインターセプト対象にして
+2,匿名型を返せるように最終メソッドで結果に匿名型が含まれる場合、それを構築できるようにして
+	var result=source.Select(p=>new{p}).GroupBy(p=>p,p=>new{x=p});
+	var result = source
+    .Select(p => new struct_record<int>(p))
+    .GroupBy(
+        // KeySelector: 元の「new { p }」と同じ匿名型の構造を復元
+        rec => new { rec.p }, 
+        // ElementSelector: 元の「new { x = { p } }」と同じネスト構造を復元
+        rec => new { x = new { rec.p } }
+    );
+これを展開するようにして。もう一つの展開例は以下のようになる
+	IEnumerable<TAnonymous> インライン対象メソッド<TAnonymous>(int[]source){
+		return source.Select(p=>new{a=p}).Select(p=>new{p});
+	}
+	これを書き換えると
+	struct record struct_record<T0>(T0 a);
+	IEnumerable<TAnonymous> インライン対象メソッド<TAnonymous>(int[]source){
+		return source.Select(p=>new struct_record<int>{a=p}).Select(p=>new{p=new{p.a}});
+	}
+
+
+
+
+AIによる調査結果
+	## 調査結果：中間メソッドのrecord struct変換と最終メソッドの匿名型復元の現状
+	__結論：現在の設計では、中間メソッドの匿名型→record struct変換と、最終メソッドでのrecord struct→匿名型への逆変換（デリゲート呼び出し経由）は、統一された1つの仕組みとしては実装されていません。__
+	コードベースには以下の2つの独立した戦略が併存しています：
+	### 1. OptimizeVisitor（構文木レベル）— 往復変換あり
+	`OptimizeVisitor.FullOptimize()` は __AnonymousToRecordRewriter → QueryToExtensionMethodRewriter → ExtensionToStaticRewriter → OptimizeVisitor → RecordToAnonymousRewriter__ という完全な往復変換を持っています。しかし、この `FullOptimize` は __インターセプターのコード生成パイプラインからは一切呼び出されていません__。
+	interceptor.cs では `RewriteQueriesToExtensionMethods` のみが使われています。
+	### 2. AnonymousStructRecordRegistry（コード生成パイプライン）— 片道置换のみ、フォールバックで退避
+	インターセプターのコード生成パイプラインは以下の2経路に分かれます：
+	__成功パス（PipelineBuilder.TryBuild = true）→ `TryBuildRegistryMappedLambdaFunc` 経路：__
+	- 匿名型を含むラムダを検出すると、引数型・戻り値型を `registry.ResolveClosedName()` で __record struct 型名へ永久置換__
+	- `new { a = e0, b = e1 }` 本体を `registry.RenderAnonymousCreation()` で __record struct ファクトリ呼び出しへ変換__
+	- __record struct に変換したまま出力し、匿名型へ戻す処理はありません__
+		最終メソッドで匿名型に変換するべきだが実装できるか？
+	__フォールバックパス（PipelineBuilder.TryBuild = false）→ `SuspendAnonRegistry()` 経路：__
+	- コメントに明記：__「record struct へ置換すると呼び出し元が期待する匿名型と型が合わなくなるため、フォールバック経路では匿名型置换を抑止し、従来どおり匿名型を維持する」__
+	- レジストリを退避し、`AnonymousDelegateFuncFragment`（デリゲートフィールド + TResult 推論）で従来の delegate 経由を維持
+	__つまり：__ 中間メソッドでrecord structに変換したものを最終メソッドで匿名型に戻す「逆変換パス」は実装されていません。成功パスではrecord structのまま出力され、フォールバックパスではレジストリを停止して匿名型を維持する、とい&#x3046;__&#x4E8C;者択&#x4E00;__&#x306E;設計になっています。`FullOptimize`の往復変換パスはコード生成パイプラインと統合されていないため、現在は事実上デッドコードです。
+		であるならば削除してよいか？
+		
+[Fact,Trait("Category","Unit")]
+    public static void Anchor() => AnchorImpl();
+
+    private static void AnchorImpl() {
+        var expected=SystemEnumerable.SelectMany(Source(),static v => new[] { v,AnchorFunc() }).ToList();
+        var actual=new Consumer<int>();
+        Source().SelectMany(static v => new[] { v,AnchorFunc()}).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+    static int AnchorFunc() => 0;
+AnchorImplは以下のメソッドにインターセプトされる
+            public bool TryGetNext(out int current) {
+                Start0:
+                if(this.__hv0) {
+                    if(this.innerEnumerator.TryGetNext(out var __it0)) {
+                        current = this.Current = __it0;
+                        return true;
+                    }
+                    this.innerEnumerator.Dispose();
+                    this.__hv0 = false;
+                }
+                if(!__e0.MoveNext()) {
+                    current = default!;
+                    return false;
+                }
+                this.__ov0 = __e0.Current;
+                this.innerEnumerator = new OptimizedLinq_AnchorImpl_SelectMany_Anchor_8_36_補助0_Struct2(new[] { __ov0,__StaticMethod_SelectMany_AnchorFunc(null)});
+                this.__hv0 = true;
+                goto Start0;
+            }
+this.innerEnumerator = new OptimizedLinq_AnchorImpl_SelectMany_Anchor_8_36_補助0_Struct2(new[] { __ov0,__StaticMethod_SelectMany_AnchorFunc(null)});
+
 Seamless/Linq/Carrierフォルダ
 	Aggregate.cs 
 		partial class Seamless.Carrier.ValueEnumerableExtensions

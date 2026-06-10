@@ -449,10 +449,13 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             // Partial method/ctor/operator などは現在のローカルメソッド再構成対象外。
             || method.ContainingType is null
             // 所属型がないと interceptor 側で this/型名を再現できない。
-            || method.IsGenericMethod
-            // ジェネリックメソッドは型引数再構成と private アクセス経路の組み合わせが未整備。
             || method.ContainingType.IsGenericType
             // ジェネリック型メンバーは生成メソッド側へ型パラメータを漏らしやすいので除外。
+            // （メソッド自身の型パラメーターのみ持つジェネリックメソッドは通過させる）
+            || (method.IsGenericMethod && !SymbolEqualityComparer.Default.Equals(method,method.OriginalDefinition))
+            // 呼び出し側で型引数が確定済み（構築済みジェネリックメソッド）の場合、
+            // メソッド自身の型パラメーターは既に具体型へ置換済みで「メソッド自身の型パラメーター」
+            // として扱えない（補助 struct がその型を宣言できない）。定義そのもの（未構築）のみ許可する。
             || (!method.IsStatic && (method.IsAbstract || method.IsVirtual || method.IsOverride))
             // 仮想呼び出しを intercept すると動的ディスパッチを壊すのでそのまま残す。
             || ContainsGeneratedTypeAccessibilityRisk(method.ContainingType)
@@ -471,8 +474,9 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             // 非公開戻り値型も生成コードから見えない。
             || method.ReturnType.IsRefLikeType
             // ref-like 戻り値の forward/inline は寿命制約を満たしにくい。
-            || ContainsTypeParameter(method.ReturnType)
-            // 戻り値に型パラメータが残ると、生成側の静的メソッドで閉じられない。
+            || ContainsExternalTypeParameter(method.ReturnType,method.TypeParameters)
+            // 戻り値にメソッド外の型パラメータが残ると生成側の静的メソッドで閉じられない。
+            // メソッド自身の型パラメーター（TAnonymous 等）は許可する。
             || method.Parameters.Any(static parameter=>parameter.RefKind!=RefKind.None)
             // ref/out/in は aliasing を壊しやすいのでいったん除外。
             || method.Parameters.Any(static parameter=>ContainsAnonymousType(parameter.Type))
@@ -482,7 +486,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             || method.Parameters.Any(static parameter=>parameter.Type.IsRefLikeType)
             // ref struct 引数は寿命制約を再現しにくい。
             || method.Parameters.Any(static parameter=>ContainsTypeParameter(parameter.Type))) {
-            // 開いた型パラメータを含む引数も現在の再生成対象外。
+            // 引数にメソッド自身のものも含め型パラメータが残ると、生成される補助 struct が
+            // その型パラメータを宣言できず再生成対象外になる。引数は非ジェネリックのみ許可する。
             return false;
         }
 
@@ -518,6 +523,10 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             .Select(static parameter=>new InterceptParameterSpec(parameter.Name,parameter.Type.ToDisplayString(完全修飾形式),parameter.RefKind))
             .ToArray();
 
+        var methodTypeParameterNames = method.TypeParameters.IsDefaultOrEmpty
+            ? null
+            : method.TypeParameters.Select(static t=>t.Name).ToArray();
+
         target = new Linq傍受対象型(
             identifier,
             containingMethod.Name,
@@ -529,6 +538,7 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             context.SemanticModel,
             parameterSpecs,
             linqAnalysis,
+            methodTypeParameterNames: methodTypeParameterNames,
             isLocalMethodInterception: true);
         return true;
     }
@@ -1735,6 +1745,13 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
                 return true;
             }
 
+            // 出口パス: 引数・戻り値の両方に匿名型がある場合（struct record → 匿名型への変換が必要）。
+            // TryBuildRegistryMappedLambdaFunc がこのケースを除外するため、ここで専用フラグメントを生成する。
+            if(TryBuildAnonExitDelegateFuncFragment(lambda,delegateType,ref uniqueNumber,out var anonExitFragment,semanticModel,containingType)) {
+                fragment = anonExitFragment;
+                return true;
+            }
+
             // ラムダが匿名型（または匿名型を含む型）を「返す」場合 → AnonymousDelegateFuncFragment を生成。
             // 引数型のみ匿名型の場合（ソースが匿名型）は対象外：TryCreateLambdaFuncFragment 失敗で return false。
             // TryCreateLambdaFuncFragment より先にチェック（匿名型は delegate 型解決に失敗するため）。
@@ -1994,10 +2011,14 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         }
         var returnTypeSym = funcType.TypeArguments[^1];
 
-        // 戻り値に匿名型を含むのに本体ルートが匿名生成式でない場合は record struct を構築できないため見送る。
         var strippedBody = StripParentheses(body);
         if(ContainsAnonymousType(returnTypeSym) && strippedBody is not AnonymousObjectCreationExpressionSyntax) {
-            return false;
+            // identity lambda (p=>p) は引数の struct record をそのまま返せるため通過させる。
+            // それ以外（本体ルートが匿名生成式でも identity でもない）は struct record
+            // ファクトリへ変換できないため、呼び出し元の TryBuildAnonExitDelegateFuncFragment へ委ねる。
+            if(strippedBody is not IdentifierNameSyntax identityId || !parameters.Contains(identityId.Identifier.ValueText)) {
+                return false;
+            }
         }
 
         var parameterTypeNames = paramTypeSyms.Select(registry.ResolveClosedName).ToArray();
@@ -2043,6 +2064,81 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             InlineBody = bodyText,
             CapturedLocals = capturedLocals,
             BodyUnsafeAccessorCodes = bodyCollector.ToArray(),
+        };
+        return true;
+    }
+
+    /// <summary>
+    /// 引数型・戻り値型の両方に匿名型が含まれるラムダを、struct record → 元の匿名型への再構成で
+    /// <see cref="AnonymousDelegateFuncFragment"/> として構築する。
+    /// <br/>対象: 引数が struct record に置換済みで、戻り値は実際の匿名型を返す必要がある「出口ステップ」。
+    /// <br/>例1: GroupBy key selector <c>p=&gt;p</c> (identity) → <c>(struct_rec p)=&gt;new{p.field,...}</c>
+    /// <br/>例2: GroupBy element selector <c>p=&gt;new{{x=p}}</c> → <c>(struct_rec p)=&gt;new{{x=new{{p.field,...}}}}</c>
+    /// </summary>
+    private static bool TryBuildAnonExitDelegateFuncFragment(
+        LambdaExpressionSyntax lambda,
+        ITypeSymbol delegateType,
+        ref int uniqueNumber,
+        out FuncFragment fragment,
+        SemanticModel? semanticModel,
+        INamedTypeSymbol? containingType) {
+        fragment=null!;
+        var registry=_anonRegistry;
+        if(registry is null || semanticModel is null || containingType is null) {
+            return false;
+        }
+        if(delegateType is not INamedTypeSymbol funcType
+            || funcType.TypeArguments.Length==0
+            || !IsInlineDelegateType(funcType)) {
+            return false;
+        }
+        var paramTypeSyms=funcType.TypeArguments.Take(funcType.TypeArguments.Length-1).ToArray();
+        var returnTypeSym=funcType.TypeArguments[^1];
+        // このパスは: 戻り値が匿名型の identity lambda (p=>p) など、
+        // TryBuildRegistryMappedLambdaFunc が struct record ファクトリへ変換できなかった場合に限定する。
+        if(!ContainsAnonymousType(returnTypeSym)) {
+            return false;
+        }
+        if(!TryGetLambdaExpressionBody(lambda,out var body)) {
+            return false;
+        }
+        var parameters=GetLambdaParameters(lambda);
+        if(parameters.Count!=paramTypeSyms.Length) {
+            return false;
+        }
+        var strippedBody=StripParentheses(body);
+        // identity: p=>p → 戻り値の匿名型全体を struct record のメンバーから再構成する。
+        if(strippedBody is not IdentifierNameSyntax identId || !parameters.Contains(identId.Identifier.ValueText)) {
+            return false;
+        }
+        var bodyCollector=new List<string>();
+        var bodyText=registry.ReconstructAnonymousCreation(returnTypeSym,identId.Identifier.ValueText);
+        var paramTypeNames=paramTypeSyms.Select(registry.ResolveClosedName).ToArray();
+        // キャプチャローカルを収集する。
+        var capturedLocals=Array.Empty<(string Name,string TypeName)>();
+        var dataFlow=semanticModel.AnalyzeDataFlow(body);
+        if(dataFlow?.Succeeded==true) {
+            var paramSet=new HashSet<string>(parameters,StringComparer.Ordinal);
+            capturedLocals=dataFlow.DataFlowsIn
+                .Where(sym=>(sym is ILocalSymbol || sym is IParameterSymbol) && !paramSet.Contains(sym.Name) && sym.Name!="this")
+                .Select(sym=>(sym.Name, sym is ILocalSymbol loc
+                    ? loc.Type.ToDisplayString(完全修飾形式)
+                    : ((IParameterSymbol)sym).Type.ToDisplayString(完全修飾形式)))
+                .ToArray();
+        }
+        // 引数を struct record 型で明示したラムダ式を組み立てて、デリゲートとして格納する。
+        var paramDecls=parameters.Zip(paramTypeNames,static (n,t) => $"{t} {n}");
+        var delegateLambda=$"({string.Join(",",paramDecls)})=>{bodyText}";
+        var allTypeNames=paramTypeNames.Append("TResult");
+        var delegateTypeName2=$"global::System.Func<{string.Join(",",allTypeNames)}>";
+        var delegateFieldName=$"_anonExitDel{uniqueNumber++}";
+        fragment=new AnonymousDelegateFuncFragment(delegateTypeName2,delegateFieldName,delegateLambda) {
+            ReturnTypeName="TResult",
+            ParameterTypeNames=paramTypeNames,
+            ParameterNames=parameters.ToArray(),
+            CanGenerateMethod=false,
+            CapturedLocals=capturedLocals,
+            BodyUnsafeAccessorCodes=bodyCollector.ToArray(),
         };
         return true;
     }
@@ -4233,6 +4329,23 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             _=>false,
         };
     }
+
+    // メソッド自身の型パラメーター（ownParams）以外の開いた型パラメーターが型に含まれるか検査する。
+    // メソッドレベルのジェネリックパラメーターのみを持つ型は生成シグネチャに出せるため通過させる。
+    private static bool ContainsExternalTypeParameter(ITypeSymbol type,ImmutableArray<ITypeParameterSymbol> ownParams) {
+        if(ownParams.IsDefaultOrEmpty) {
+            return ContainsTypeParameter(type);
+        }
+        var ownNames = new HashSet<string>(ownParams.Select(static p=>p.Name),StringComparer.Ordinal);
+        return ContainsExternalTypeParameterCore(type,ownNames);
+    }
+
+    private static bool ContainsExternalTypeParameterCore(ITypeSymbol type,HashSet<string> ownNames) => type switch {
+        ITypeParameterSymbol tp=>!ownNames.Contains(tp.Name),
+        IArrayTypeSymbol arr=>ContainsExternalTypeParameterCore(arr.ElementType,ownNames),
+        INamedTypeSymbol named=>named.TypeArguments.Any(a=>ContainsExternalTypeParameterCore(a,ownNames)),
+        _=>false,
+    };
 
     private static bool ContainsGeneratedTypeAccessibilityRisk(ITypeSymbol type) {
         // 生成クラスから見えない型がどこかに混ざると署名生成時点でコンパイル不能になる。
