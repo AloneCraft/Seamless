@@ -432,6 +432,14 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
         out Linq傍受対象型? target) {
         target=null;
 
+        // 呼び出し側で型引数が確定済みのジェネリックメソッド呼び出し（例: Foo<int>(...)）も、
+        // 未構築の定義（OriginalDefinition）に正規化してから以降の判定・生成を行う。
+        // 生成される補助メソッドは元の型パラメーター名（例: TAnonymous）を持つジェネリックメソッドとして
+        // 宣言され、呼び出し側の型引数はインターセプター経由でコンパイラが解決する。
+        if(method.IsGenericMethod) {
+            method=method.OriginalDefinition;
+        }
+
         // インターセプト対象にする主条件は 2 つ:
         // 1. その場所が
         // 1-1.通常の関数呼び出し
@@ -451,11 +459,8 @@ public sealed partial class SeamlessIncrementalGenerator : IIncrementalGenerator
             // 所属型がないと interceptor 側で this/型名を再現できない。
             || method.ContainingType.IsGenericType
             // ジェネリック型メンバーは生成メソッド側へ型パラメータを漏らしやすいので除外。
-            // （メソッド自身の型パラメーターのみ持つジェネリックメソッドは通過させる）
-            || (method.IsGenericMethod && !SymbolEqualityComparer.Default.Equals(method,method.OriginalDefinition))
-            // 呼び出し側で型引数が確定済み（構築済みジェネリックメソッド）の場合、
-            // メソッド自身の型パラメーターは既に具体型へ置換済みで「メソッド自身の型パラメーター」
-            // として扱えない（補助 struct がその型を宣言できない）。定義そのもの（未構築）のみ許可する。
+            // （メソッド自身の型パラメーターのみ持つジェネリックメソッドは、冒頭で OriginalDefinition
+            // に正規化済みなので通過する。呼び出し側で確定した型引数はインターセプター経由で解決される）
             || (!method.IsStatic && (method.IsAbstract || method.IsVirtual || method.IsOverride))
             // 仮想呼び出しを intercept すると動的ディスパッチを壊すのでそのまま残す。
             || ContainsGeneratedTypeAccessibilityRisk(method.ContainingType)

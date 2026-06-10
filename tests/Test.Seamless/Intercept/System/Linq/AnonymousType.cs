@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using NonGenericEnumerable = System.Collections.IEnumerable;
 using SystemEnumerable = System.Linq.Enumerable;
@@ -42,6 +43,23 @@ public sealed class AnonymousType {
         Assert.Equal(
             expected.Select(static g=>$"{g.Key.p}:{string.Join(",",g.Select(static e=>e.x.p))}"),
             actual.Select(static g=>$"{g.Key.p}:{string.Join(",",g.Select(static e=>e.x.p))}"));
+    }
+    // ジェネリックローカルメソッド内の匿名型 LINQ も struct_record 展開でインターセプトされることを検証する。
+    // ジェネリックメソッド呼び出しは Fact 本体から直接行う（Fact は呼び出し元が無く whole-method
+    // インライン対象にならないため、内部のジェネリックメソッド呼び出しだけがクリーンに intercept される）。
+    [Fact,Trait("Category","Unit")]public void GenericMethod() {
+        var expectedNested=SystemEnumerable.Select(SystemEnumerable.Select(Source(),p=>new{a=p}),p=>new{p}).Select(r=>r.p.a).ToList();
+        Assert.Equal(expectedNested,GenericNestedAnonymousLocal<int>(Source()).ToList());
+        var expectedGroup=SystemEnumerable.GroupBy(SystemEnumerable.Select(Source(),p=>new{p}),p=>p,p=>new{x=p})
+            .Select(static g=>$"{g.Key.p}:{string.Join(",",g.Select(static e=>e.x.p))}").ToList();
+        Assert.Equal(expectedGroup,GenericGroupByIdentityLocal<int>(Source()).ToList());
+    }
+    private static IEnumerable<int> GenericNestedAnonymousLocal<TAnonymous>(int[]source) {
+        return source.Select(p=>new{a=p}).Select(p=>new{p}).Select(r=>r.p.a);
+    }
+    private static IEnumerable<string> GenericGroupByIdentityLocal<TAnonymous>(int[]source) {
+        return source.Select(p=>new{p}).GroupBy(p=>p,p=>new{x=p})
+            .Select(g=>$"{g.Key.p}:{string.Join(",",g.Select(e=>e.x.p))}");
     }
     private static void GroupBy_Static() {
         var expected=SystemEnumerable.GroupBy(Source(),p=>p/2,static (l,r) =>new{l,r});
