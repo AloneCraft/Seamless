@@ -20,9 +20,4 @@
     <None Include="StaticSources\**\*.cs" Pack="true" PackagePath="buildTransitive\StaticSources\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <EmbeddedResource Include="..\Seamless\Linq\LookupImpl.cs" LogicalName="Seamless.Linq.LookupImpl.cs" />
-    <EmbeddedResource Include="..\Seamless\Linq\HashSet.cs" LogicalName="Seamless.Linq.HashSet.cs" />
-  </ItemGroup>
-
 </Project>
