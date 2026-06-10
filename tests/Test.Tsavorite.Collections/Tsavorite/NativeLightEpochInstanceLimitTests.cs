@@ -1,0 +1,191 @@
+#if TSAVORITE2_0BETA3
+using Tsavorite;
+using Tsavorite.core;
+
+namespace Test.Tsavorite.Tsavorite;
+
+/// <summary>
+/// Tsavorite 2.0.0-beta3 の LightEpoch MaxInstances = 1024 の制限をテストする。
+/// TsavoriteKV インスタンスを作成するたびに LightEpoch インスタンスが 1 つ確保される。
+/// MaxInstances=1024 の静的上限により、1025 個同時作成はエラーになる。
+/// </summary>
+[Collection("TsavoriteTests")]
+public class NativeLightEpochInstanceLimitTests(ITestOutputHelper output) {
+    private static string TempDir(string name) =>
+        TestPath.Directory<NativeLightEpochInstanceLimitTests>(name);
+
+    private sealed class NativeStoreHandle:IDisposable {
+        private readonly string rootDir;
+        private readonly IDevice logDevice;
+        private readonly IDevice objDevice;
+        private readonly KVSettings settings;
+        private readonly TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordTriggers>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordTriggers>>> Store;
+
+        public NativeStoreHandle(string rootDir) {
+            this.rootDir=rootDir;
+            this.logDevice=Devices.CreateLogDevice(Path.Combine(rootDir,"log"));
+            this.objDevice=Devices.CreateLogDevice(Path.Combine(rootDir,"obj"));
+            this.settings=new KVSettings {
+                IndexSize=64,
+                MutableFraction=0.1,
+                LogMemorySize=1024*1024,
+                PageSize=1L<<12,
+                SegmentSize=1L<<20,
+                LogDevice=this.logDevice,
+                ObjectLogDevice=this.objDevice,
+                ObjectLogSegmentSize=Const.MinObjectLogCapacity,
+                CheckpointDir=Path.Combine(rootDir,"checkpoint")
+            };
+
+            var storeFunctions = new StoreFunctions<SpanByteComparer,DefaultRecordTriggers>(
+                new SpanByteComparer(),
+                static () => null,
+                DefaultRecordTriggers.Instance
+            );
+
+            this.Store=new TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordTriggers>,SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordTriggers>>>(
+                this.settings,
+                storeFunctions,
+                static (allocSettings,funcs) => new SpanByteAllocator<StoreFunctions<SpanByteComparer,DefaultRecordTriggers>>(allocSettings,funcs)
+            );
+        }
+
+        public void Dispose() {
+            this.Store.Log.FlushAndEvict(wait: true);
+            this.Store.Dispose();
+            this.settings.Dispose();
+            this.logDevice.Dispose();
+            this.objDevice.Dispose();
+            try { Directory.Delete(this.rootDir,true); } catch { }
+        }
+    }
+
+    private static NativeStoreHandle CreateNativeStore(string name) => new(TempDir(name));
+
+    [Fact]
+    public void Can_Create_16_Stores() {
+        var stores = new List<NativeStoreHandle>();
+        try {
+            for(int i = 0; i<16; i++) {
+                var store = CreateNativeStore($"store-{i}");
+                stores.Add(store);
+            }
+            Assert.Equal(16,stores.Count);
+            output.WriteLine($"✓ Successfully created 16 stores (each uses 1 LightEpoch instance)");
+        }
+        finally {
+            foreach(var store in stores) {
+                store.Dispose();
+            }
+        }
+    }
+
+    [Fact]
+    public void Cannot_Create_1025_Stores_Simultaneously() {
+        var stores = new List<NativeStoreHandle>();
+
+        try {
+            for(int i = 0; i<1025; i++) {
+                try {
+                    var store = CreateNativeStore($"store-{i}");
+                    stores.Add(store);
+                }
+                catch(InvalidOperationException ex) when(ex.Message.Contains("Exceeded maximum number of active LightEpoch instances")) {
+                    output.WriteLine($"✓ 1025th store creation failed at iteration {i} with expected error:");
+                    output.WriteLine($"  {ex.Message}");
+
+                    // 1025個目でエラーが発生したことを確認
+                    Assert.Equal(1024,stores.Count);
+                    return; // テスト成功
+                }
+            }
+
+            // 1025個すべて作成できたら失敗（元々限界に達しているはず）
+            Assert.Fail("Expected InvalidOperationException when creating 1025th store, but all 1025 were created");
+        }
+        finally {
+            foreach(var store in stores) {
+                store.Dispose();
+            }
+        }
+    }
+
+    [Fact]
+    public void Can_Reuse_Slots_After_Dispose() {
+        var stores = new List<NativeStoreHandle>();
+
+        try {
+            // バッチ 1: 16 ストアを作成
+            for(int i = 0; i<16; i++) {
+                var store = CreateNativeStore($"batch1-store-{i}");
+                stores.Add(store);
+            }
+            output.WriteLine($"[Batch 1] Created {stores.Count} stores (all 16 slots used)");
+
+            // バッチ 1 を Dispose してスロットを解放
+            foreach(var store in stores) {
+                store.Dispose();
+            }
+            stores.Clear();
+            output.WriteLine($"[Batch 1] Disposed all stores (slots now available for reuse)");
+
+            // バッチ 2: 再度 16 ストアを作成 → スロットが解放されたので成功するはず
+            for(int i = 0; i<16; i++) {
+                var store = CreateNativeStore($"batch2-store-{i}");
+                stores.Add(store);
+            }
+            Assert.Equal(16,stores.Count);
+            output.WriteLine($"[Batch 2] ✓ Successfully reused slots to create 16 more stores");
+        }
+        finally {
+            foreach(var store in stores) {
+                store.Dispose();
+            }
+        }
+    }
+
+    [Fact]
+    public void Interleaved_Create_And_Dispose_Respects_Limit() {
+        // スロットが 1024 に満たないうちに新規作成はできるが、1024 を超えるとエラー
+        const int Half = 512;
+        var slots = new Stack<NativeStoreHandle>();
+
+        try {
+            // Half 個作成
+            for(int i = 0; i<Half; i++) {
+                var store = CreateNativeStore($"interleaved-{i}");
+                slots.Push(store);
+            }
+            output.WriteLine($"Step 1: Created {Half} stores ({Half}/1024 slots used)");
+
+            // さらに Half 個作成 → 合計 1024 個
+            for(int i = 0; i<Half; i++) {
+                var store = CreateNativeStore($"interleaved-{Half+i}");
+                slots.Push(store);
+            }
+            output.WriteLine($"Step 2: Created {Half} more stores (1024/1024 slots used)");
+
+            // 1 個 Dispose してスロット開放
+            var released = slots.Pop();
+            released.Dispose();
+            output.WriteLine($"Step 3: Disposed 1 store (1023/1024 slots used)");
+
+            // 1 個作成 → スロット復帰
+            var store9 = CreateNativeStore("interleaved-reuse");
+            slots.Push(store9);
+            output.WriteLine($"Step 4: ✓ Successfully created 1 more store in released slot (1024/1024 slots used again)");
+
+            // もう 1 個作成しようとするとエラー
+            var ex = Assert.Throws<InvalidOperationException>(() => {
+                using var overflow = CreateNativeStore("interleaved-overflow");
+            });
+            output.WriteLine($"Step 5: ✓ Attempt to create 1025th store correctly failed: {ex.Message}");
+        }
+        finally {
+            while(slots.Count>0) {
+                slots.Pop().Dispose();
+            }
+        }
+    }
+}
+#endif
