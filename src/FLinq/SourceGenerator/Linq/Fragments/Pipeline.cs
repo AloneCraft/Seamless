@@ -755,6 +755,11 @@ public static class PipelineBuilder {
         ref int uniqueNumber,
         List<PipelineStage> stages,
         ref string currentElementType) {
+        // 匿名型要素は型名を生成コードに書けず ToList 等の終端で破綻するため、
+        // SelectMany インライン化（record struct 置換 + 出口 Select）のフォールバック経路へ委ねる。
+        if(method.TypeArguments.Any(services.ContainsAnonymousType)) {
+            return false;
+        }
         if(invocation.ArgumentList.Arguments.Count is not (1 or 2)
             || method.Parameters.Length!=invocation.ArgumentList.Arguments.Count
             || method.Parameters[0].Type is not INamedTypeSymbol collectionSelectorType) {
