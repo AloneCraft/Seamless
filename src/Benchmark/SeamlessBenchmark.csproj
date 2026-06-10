@@ -68,6 +68,10 @@
     <Compile Include="HashSetApiSurfaceBenchmark.cs" />
     <Compile Include="ListApiSurfaceBenchmark.cs" />
     <Compile Include="LinqSequenceFusionBenchmark.cs" />
+    <Compile Include="OptimizationBenchmarkSupport.cs" />
+    <Compile Include="InvariantHoistingBenchmark.cs" />
+    <Compile Include="SelectManyFusionBenchmark.cs" />
+    <Compile Include="JoinHashingBenchmark.cs" />
     <Compile Include="SetOperationCapacityBenchmark.cs" />
   </ItemGroup>
 

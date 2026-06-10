@@ -52,6 +52,10 @@ internal static class Program {
         }
         var config = ManualConfig.Create(DefaultConfig.Instance)
             .AddJob(job);
+#if DEBUG
+        // Debug構成でも実行できるように最適化必須バリデータを無効化する
+        config=config.WithOptions(ConfigOptions.DisableOptimizationsValidator);
+#endif
         if(includeMethods.Count>0&&includeMethods.Count<3) {
             config=config.AddFilter(new MethodNameFilter(includeMethods));
         }
@@ -375,18 +379,29 @@ internal static class Program {
         var selected = new List<string>();
         var indices = input.Split(',');
         foreach(var idx in indices) {
-            if(int.TryParse(idx.Trim(),out var n)&&n>=1&&n<=benchmarkTypes.Count) {
+            var token = idx.Trim();
+            var dashIndex = token.IndexOf('-');
+            if(dashIndex>0) {
+                if(int.TryParse(token[..dashIndex],out var start)&&int.TryParse(token[(dashIndex+1)..],out var end)&&start<=end) {
+                    for(var n = start; n<=end; n++) {
+                        if(n>=1&&n<=benchmarkTypes.Count) {
+                            selected.Add(benchmarkTypes[n-1].Name);
+                        }
+                    }
+                }
+            }else if(int.TryParse(token,out var n)&&n>=1&&n<=benchmarkTypes.Count) {
                 selected.Add(benchmarkTypes[n-1].Name);
             }
         }
+        selected=selected.Distinct().ToList();
         if(selected.Count==0) {
             return ["--filter","*","--join"];
         }
-        var pattern = string.Join("|",selected.Select(s => $"*{s}*"));
+        var patterns = selected.Select(s => $"*{s}*").ToArray();
         if(selected.Count>1) {
-            return ["--filter",pattern,"--join"];
+            return ["--filter",..patterns,"--join"];
         }
-        return ["--filter",pattern];
+        return ["--filter",patterns[0]];
     }
 }
 sealed class MethodNameFilter(IReadOnlyCollection<string> methodNames):IFilter {

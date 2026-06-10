@@ -773,6 +773,8 @@ public static class PipelineBuilder {
         if(!TryGetSequenceElementType(collectionSelector.ReturnTypeName,out var innerElementType)) {
             return false;
         }
+        var innerIsArray = invocation.ArgumentList.Arguments[0].Expression is LambdaExpressionSyntax { Body: ExpressionSyntax collectionSelectorBodyExpr }
+            && semanticModel.GetTypeInfo(collectionSelectorBodyExpr).Type is IArrayTypeSymbol;
 
         FuncFragment? resultSelector = null;
         var outputType = innerElementType;
@@ -796,7 +798,8 @@ public static class PipelineBuilder {
             secondFunc: resultSelector,
             innerElementType: innerElementType,
             keyType: null,
-            usesIndex: usesIndex));
+            usesIndex: usesIndex,
+            innerIsArray: innerIsArray));
         currentElementType=outputType;
         return true;
     }
@@ -1332,7 +1335,8 @@ public sealed class PipelineStage(
     string? innerElementType = null,
     string? keyType = null,
     bool usesIndex = false,
-    bool descending = false) {
+    bool descending = false,
+    bool innerIsArray = false) {
     public PipelineStageKind Kind { get; } = kind;
     public FuncFragment? Func { get; } = func;
     public FuncFragment? SecondFunc { get; } = secondFunc;
@@ -1342,6 +1346,9 @@ public sealed class PipelineStage(
     public string OutputType { get; } = outputType;
     public Enumerable? SecondSource { get; } = secondSource;
     public string? InnerElementType { get; } = innerElementType;
+    // SelectMany の collection selector が配列 (T[]) を返す場合、IEnumerator<T> を介さず
+    // インデックスベースで直接走査する specialize パスを使う。
+    public bool InnerIsArray { get; } = innerIsArray;
     public string? KeyType { get; } = keyType;
     public bool UsesIndex { get; } = usesIndex;
     public bool Descending { get; } = descending;
@@ -1461,7 +1468,13 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
                     builder.AppendLine($"private int {countName}Value;");
                     builder.AppendLine($"private int {this.StateName(index)} = 0;");
                 } else if(stage.Kind==PipelineStageKind.SelectMany) {
-                    builder.AppendLine($"private global::System.Collections.Generic.IEnumerator<{stage.InnerElementType}>? {this.InnerEnumeratorName(index)} = null;");
+                    if(stage.InnerIsArray) {
+                        builder.AppendLine($"private {stage.InnerElementType}[] {this.InnerArrayName(index)} = global::System.Array.Empty<{stage.InnerElementType}>();");
+                        builder.AppendLine($"private int {this.InnerIndexName(index)} = 0;");
+                        builder.AppendLine($"private bool {this.InnerHasValueName(index)} = false;");
+                    } else {
+                        builder.AppendLine($"private global::System.Collections.Generic.IEnumerator<{stage.InnerElementType}>? {this.InnerEnumeratorName(index)} = null;");
+                    }
                     builder.AppendLine($"private {stage.InputType} {this.OuterName(index)} = default!;");
                     if(stage.UsesIndex) {
                         builder.AppendLine($"private int {this.StateName(index)} = -1;");
@@ -1541,7 +1554,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         get {
             var builder = new StringBuilder();
             for(var index = 0; index<stages.Count; index++) {
-                if(stages[index].Kind==PipelineStageKind.SelectMany) {
+                if(stages[index].Kind==PipelineStageKind.SelectMany && !stages[index].InnerIsArray) {
                     builder.AppendLine($"if(this.{this.InnerEnumeratorName(index)} is not null) {{");
                     builder.AppendLine($"    this.{this.InnerEnumeratorName(index)}.Dispose();");
                     builder.AppendLine("}");
@@ -2206,38 +2219,87 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
     private string BuildSelectManyLoop(string enumeratorName,string successStatement,string endStatement,int selectManyIndex) {
         var builder = new StringBuilder();
         var selectManyStage = stages[selectManyIndex];
-        var innerEnumeratorName = this.InnerEnumeratorName(selectManyIndex);
         var endLabel = this.EndLabel(selectManyIndex);
         var needsEndLabel = this.StagesAfterNeedEndLabel(selectManyIndex);
         var breakStatement = "break;";
         if(needsEndLabel) {
             breakStatement=$"goto {endLabel};";
         }
-        builder.AppendLine("while(true) {");
-        builder.AppendLine($"    if(this.{innerEnumeratorName} is not null) {{");
-        builder.AppendLine($"        if(this.{innerEnumeratorName}.MoveNext()) {{");
         var innerItemName = this.ItemName(selectManyIndex+1);
-        builder.AppendLine($"            var {innerItemName}=this.{innerEnumeratorName}.Current;");
+        builder.AppendLine("while(true) {");
+        if(selectManyStage.InnerIsArray) {
+            // 内側シーケンスが配列の場合は IEnumerator<T> を介さず、インデックスで直接走査する。
+            var arrayName = this.InnerArrayName(selectManyIndex);
+            var indexName = this.InnerIndexName(selectManyIndex);
+            var hasValueName = this.InnerHasValueName(selectManyIndex);
+            builder.AppendLine($"    if(this.{hasValueName}) {{");
+            builder.AppendLine($"        if(this.{indexName} < this.{arrayName}.Length) {{");
+            builder.AppendLine($"            var {innerItemName}=this.{arrayName}[this.{indexName}];");
+            builder.AppendLine($"            this.{indexName}++;");
+            this.AppendSelectManyTail(builder,selectManyStage,selectManyIndex,innerItemName,breakStatement,successStatement,"            ");
+            builder.AppendLine("        }");
+            builder.AppendLine($"        this.{hasValueName}=false;");
+            builder.AppendLine("    }");
+            builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+            var outerCurrentName0 = this.AppendSelectManyHead(builder,selectManyStage,selectManyIndex,this.ItemName(0));
+            var collectionExpression0 = this.SelectManyCollectionExpression(selectManyStage,selectManyIndex,outerCurrentName0);
+            builder.AppendLine($"        this.{arrayName}={collectionExpression0};");
+            builder.AppendLine($"        this.{indexName}=0;");
+            builder.AppendLine($"        this.{hasValueName}=true;");
+            builder.AppendLine("        break;");
+            builder.AppendLine("    }");
+            builder.AppendLine($"    if(!this.{hasValueName}) {{");
+            builder.AppendLine(IndentBlock(endStatement,"        "));
+            builder.AppendLine("    }");
+        } else {
+            var innerEnumeratorName = this.InnerEnumeratorName(selectManyIndex);
+            builder.AppendLine($"    if(this.{innerEnumeratorName} is not null) {{");
+            builder.AppendLine($"        if(this.{innerEnumeratorName}.MoveNext()) {{");
+            builder.AppendLine($"            var {innerItemName}=this.{innerEnumeratorName}.Current;");
+            this.AppendSelectManyTail(builder,selectManyStage,selectManyIndex,innerItemName,breakStatement,successStatement,"            ");
+            builder.AppendLine("        }");
+            builder.AppendLine($"        this.{innerEnumeratorName}.Dispose();");
+            builder.AppendLine($"        this.{innerEnumeratorName}=null;");
+            builder.AppendLine("    }");
+            builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+            var outerCurrentName = this.AppendSelectManyHead(builder,selectManyStage,selectManyIndex,this.ItemName(0));
+            var collectionExpression = this.SelectManyCollectionExpression(selectManyStage,selectManyIndex,outerCurrentName);
+            builder.AppendLine($"        this.{innerEnumeratorName}=((global::System.Collections.Generic.IEnumerable<{selectManyStage.InnerElementType}>){collectionExpression}).GetEnumerator();");
+            builder.AppendLine("        break;");
+            builder.AppendLine("    }");
+            builder.AppendLine($"    if(this.{innerEnumeratorName} is null) {{");
+            builder.AppendLine(IndentBlock(endStatement,"        "));
+            builder.AppendLine("    }");
+        }
+        builder.AppendLine("}");
+        if(needsEndLabel) {
+            builder.AppendLine($"{endLabel}:");
+            builder.AppendLine(endStatement);
+        }
+        return builder.ToString().TrimEnd();
+    }
+
+    // SelectMany の内側要素を取得した後、resultSelector の適用と後続ステージの処理・成功文の出力までを行う。
+    private string AppendSelectManyTail(StringBuilder builder,PipelineStage selectManyStage,int selectManyIndex,string innerItemName,string breakStatement,string successStatement,string indent) {
         var currentName = innerItemName;
         if(selectManyStage.SecondFunc is { } resultSelector) {
             // resultSelector の出力は専用名にする。後続 Select 段は配列 index(=selectManyIndex+1)から
             // ItemName(selectManyIndex+2) を出力に使うため、ItemName(selectManyIndex+2) を流用すると衝突する。
             currentName=this.SelectManyResultName(selectManyIndex);
-            builder.AppendLine($"            {selectManyStage.OutputType} {currentName}=default!;");
-            builder.AppendLine(IndentBlock(this.FuncAssign(resultSelector,nameof(PipelineStageKind.SelectMany),currentName,this.OuterName(selectManyIndex),innerItemName),"            "));
+            builder.AppendLine(IndentBlock($"{selectManyStage.OutputType} {currentName}=default!;",indent));
+            builder.AppendLine(IndentBlock(this.FuncAssign(resultSelector,nameof(PipelineStageKind.SelectMany),currentName,this.OuterName(selectManyIndex),innerItemName),indent));
         }
         for(var index = selectManyIndex+1; index<stages.Count; index++) {
             var stage = stages[index];
             currentName=this.AppendStage(builder,stage,currentName,index,breakStatement);
         }
-        builder.AppendLine(IndentBlock(string.Format(successStatement,currentName),"            "));
-        builder.AppendLine("        }");
-        builder.AppendLine($"        this.{innerEnumeratorName}.Dispose();");
-        builder.AppendLine($"        this.{innerEnumeratorName}=null;");
-        builder.AppendLine("    }");
-        builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
-        var outerCurrentName = this.ItemName(0);
-        currentName=outerCurrentName;
+        builder.AppendLine(IndentBlock(string.Format(successStatement,currentName),indent));
+        return currentName;
+    }
+
+    // SelectMany より前段のステージを適用し、outerValue フィールドへの代入とインデックス更新までを行う。
+    private string AppendSelectManyHead(StringBuilder builder,PipelineStage selectManyStage,int selectManyIndex,string outerCurrentName) {
+        var currentName = outerCurrentName;
         for(var index = 0; index<selectManyIndex; index++) {
             var stage = stages[index];
             currentName=this.AppendStage(builder,stage,currentName,index);
@@ -2247,25 +2309,17 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         if(selectManyStage.UsesIndex) {
             builder.AppendLine($"        this.{this.StateName(selectManyIndex)}++;");
         }
+        return currentName;
+    }
+
+    private string SelectManyCollectionExpression(PipelineStage selectManyStage,int selectManyIndex,string currentName) {
         string[] selectorArguments;
         if(selectManyStage.UsesIndex) {
             selectorArguments=[currentName,$"this.{this.StateName(selectManyIndex)}"];
         } else {
             selectorArguments=[currentName];
         }
-        var collectionExpression = this.FuncInvoke(selectManyStage.Func!,nameof(PipelineStageKind.SelectMany),selectorArguments);
-        builder.AppendLine($"        this.{innerEnumeratorName}=((global::System.Collections.Generic.IEnumerable<{selectManyStage.InnerElementType}>){collectionExpression}).GetEnumerator();");
-        builder.AppendLine("        break;");
-        builder.AppendLine("    }");
-        builder.AppendLine($"    if(this.{innerEnumeratorName} is null) {{");
-        builder.AppendLine(IndentBlock(endStatement,"        "));
-        builder.AppendLine("    }");
-        builder.AppendLine("}");
-        if(needsEndLabel) {
-            builder.AppendLine($"{endLabel}:");
-            builder.AppendLine(endStatement);
-        }
-        return builder.ToString().TrimEnd();
+        return this.FuncInvoke(selectManyStage.Func!,nameof(PipelineStageKind.SelectMany),selectorArguments);
     }
 
     private string AppendStage(StringBuilder builder,PipelineStage stage,string currentName,int index,string breakStatement = "break;") {
@@ -2474,6 +2528,9 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
     private static string SecondTypeParameterName(int index) => $"TSecond{index}";
     private string SecondEnumeratorName(int index) => $"__second{this.item}_{index}";
     private string InnerEnumeratorName(int index) => $"__inner{this.item}_{index}";
+    private string InnerArrayName(int index) => $"__innerArr{this.item}_{index}";
+    private string InnerIndexName(int index) => $"__innerIdx{this.item}_{index}";
+    private string InnerHasValueName(int index) => $"__innerHas{this.item}_{index}";
     private string OuterName(int index) => $"{this.outerValue}_{index}";
     private string SetName(int index) => $"__set{this.item}_{index}";
     private string SecondSetName(int index) => $"__set2{this.item}_{index}";
