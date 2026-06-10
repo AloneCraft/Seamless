@@ -1,4 +1,4 @@
-using Seamless.Stores;
+using Tsavorite.Stores;
 
 namespace BenchmarkExe.Benchmarks;
 

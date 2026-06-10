@@ -134,13 +134,13 @@ internal static class BenchmarkOutputLayout {
 
     private static string? GetResolvedGarnetPackageVersion(Assembly benchmarkAssembly) {
         foreach(var reference in benchmarkAssembly.GetReferencedAssemblies()) {
-            if(reference.Name is null||!reference.Name.StartsWith("Seamless",StringComparison.OrdinalIgnoreCase)) {
+            if(reference.Name is null||!reference.Name.StartsWith("Tsavorite",StringComparison.OrdinalIgnoreCase)) {
                 continue;
             }
 
             try {
                 var referencedAssembly = Assembly.Load(reference);
-                var packageVersion = GetAssemblyMetadata(referencedAssembly,"SeamlessGarnetPackageVersion");
+                var packageVersion = GetAssemblyMetadata(referencedAssembly,"TsavoriteGarnetPackageVersion");
                 if(!string.IsNullOrWhiteSpace(packageVersion)) {
                     return packageVersion;
                 }

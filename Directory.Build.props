@@ -1,42 +1,42 @@
 <Project>
   <PropertyGroup>
-    <SeamlessConfigurationName Condition="'$(SeamlessConfigurationName)' == ''">$(Configuration)</SeamlessConfigurationName>
+    <TsavoriteConfigurationName Condition="'$(TsavoriteConfigurationName)' == ''">$(Configuration)</TsavoriteConfigurationName>
 
-    <SeamlessTargetFramework Condition="'$(SeamlessTargetFramework)' == '' and $([System.String]::Copy('$(SeamlessConfigurationName)').EndsWith('Net8'))">net8.0</SeamlessTargetFramework>
-    <SeamlessTargetFramework Condition="'$(SeamlessTargetFramework)' == '' and $([System.String]::Copy('$(SeamlessConfigurationName)').EndsWith('Net9'))">net9.0</SeamlessTargetFramework>
-    <SeamlessTargetFramework Condition="'$(SeamlessTargetFramework)' == '' and $([System.String]::Copy('$(SeamlessConfigurationName)').EndsWith('Net10'))">net10.0</SeamlessTargetFramework>
-    <SeamlessTargetFramework Condition="'$(SeamlessTargetFramework)' == ''">net10.0</SeamlessTargetFramework>
+    <TsavoriteTargetFramework Condition="'$(TsavoriteTargetFramework)' == '' and $([System.String]::Copy('$(TsavoriteConfigurationName)').EndsWith('Net8'))">net8.0</TsavoriteTargetFramework>
+    <TsavoriteTargetFramework Condition="'$(TsavoriteTargetFramework)' == '' and $([System.String]::Copy('$(TsavoriteConfigurationName)').EndsWith('Net9'))">net9.0</TsavoriteTargetFramework>
+    <TsavoriteTargetFramework Condition="'$(TsavoriteTargetFramework)' == '' and $([System.String]::Copy('$(TsavoriteConfigurationName)').EndsWith('Net10'))">net10.0</TsavoriteTargetFramework>
+    <TsavoriteTargetFramework Condition="'$(TsavoriteTargetFramework)' == ''">net10.0</TsavoriteTargetFramework>
 
-    <SeamlessBaseConfiguration Condition="'$(SeamlessBaseConfiguration)' == '' and $([System.String]::Copy('$(SeamlessConfigurationName)').EndsWith('Net8'))">$([System.String]::Copy('$(SeamlessConfigurationName)').Replace('Net8',''))</SeamlessBaseConfiguration>
-    <SeamlessBaseConfiguration Condition="'$(SeamlessBaseConfiguration)' == '' and $([System.String]::Copy('$(SeamlessConfigurationName)').EndsWith('Net9'))">$([System.String]::Copy('$(SeamlessConfigurationName)').Replace('Net9',''))</SeamlessBaseConfiguration>
-    <SeamlessBaseConfiguration Condition="'$(SeamlessBaseConfiguration)' == '' and $([System.String]::Copy('$(SeamlessConfigurationName)').EndsWith('Net10'))">$([System.String]::Copy('$(SeamlessConfigurationName)').Replace('Net10',''))</SeamlessBaseConfiguration>
-    <SeamlessBaseConfiguration Condition="'$(SeamlessBaseConfiguration)' == ''">$(SeamlessConfigurationName)</SeamlessBaseConfiguration>
+    <TsavoriteBaseConfiguration Condition="'$(TsavoriteBaseConfiguration)' == '' and $([System.String]::Copy('$(TsavoriteConfigurationName)').EndsWith('Net8'))">$([System.String]::Copy('$(TsavoriteConfigurationName)').Replace('Net8',''))</TsavoriteBaseConfiguration>
+    <TsavoriteBaseConfiguration Condition="'$(TsavoriteBaseConfiguration)' == '' and $([System.String]::Copy('$(TsavoriteConfigurationName)').EndsWith('Net9'))">$([System.String]::Copy('$(TsavoriteConfigurationName)').Replace('Net9',''))</TsavoriteBaseConfiguration>
+    <TsavoriteBaseConfiguration Condition="'$(TsavoriteBaseConfiguration)' == '' and $([System.String]::Copy('$(TsavoriteConfigurationName)').EndsWith('Net10'))">$([System.String]::Copy('$(TsavoriteConfigurationName)').Replace('Net10',''))</TsavoriteBaseConfiguration>
+    <TsavoriteBaseConfiguration Condition="'$(TsavoriteBaseConfiguration)' == ''">$(TsavoriteConfigurationName)</TsavoriteBaseConfiguration>
 
-    <LangVersion Condition="'$(LangVersion)' == '' and '$(SeamlessTargetFramework)' != 'net10.0'">13.0</LangVersion>
+    <LangVersion Condition="'$(LangVersion)' == '' and '$(TsavoriteTargetFramework)' != 'net10.0'">13.0</LangVersion>
     <NoWarn>CS9107</NoWarn>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(SeamlessBaseConfiguration)' == 'Debug'">
+  <PropertyGroup Condition="'$(TsavoriteBaseConfiguration)' == 'Debug'">
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <Optimize>false</Optimize>
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
-  <PropertyGroup Condition="$([System.String]::Copy('$(SeamlessBaseConfiguration)').StartsWith('Debug')) and '$(SeamlessBaseConfiguration)' != 'Debug'">
+  <PropertyGroup Condition="$([System.String]::Copy('$(TsavoriteBaseConfiguration)').StartsWith('Debug')) and '$(TsavoriteBaseConfiguration)' != 'Debug'">
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <Optimize>false</Optimize>
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(SeamlessBaseConfiguration)' == 'Release'">
+  <PropertyGroup Condition="'$(TsavoriteBaseConfiguration)' == 'Release'">
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
     <DebugType>portable</DebugType>
   </PropertyGroup>
 
-  <PropertyGroup Condition="$([System.String]::Copy('$(SeamlessBaseConfiguration)').StartsWith('Release')) and '$(SeamlessBaseConfiguration)' != 'Release'">
+  <PropertyGroup Condition="$([System.String]::Copy('$(TsavoriteBaseConfiguration)').StartsWith('Release')) and '$(TsavoriteBaseConfiguration)' != 'Release'">
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
     <DebugType>portable</DebugType>

@@ -33,15 +33,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Seamless\Seamless.csproj" />
+    <ProjectReference Include="..\..\src\Tsavorite.Collections\Tsavorite.Collections.csproj" />
     <!-- Build dependency: ensure SourceGenerator DLL is up to date -->
-    <ProjectReference Include="..\..\src\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" ReferenceOutputAssembly="false" Private="false" Condition="'$(Configuration)' != 'SystemLinq'" />
+    <ProjectReference Include="..\..\src\FLinq\FLinq.csproj" ReferenceOutputAssembly="false" Private="false" Condition="'$(Configuration)' != 'SystemLinq'" />
   </ItemGroup>
 
   <!-- Add SourceGenerator as Analyzer directly (works only after first build of SourceGenerator) -->
   <ItemGroup Condition="'$(Configuration)' != 'SystemLinq'">
-    <Analyzer Include="$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Debug/net10.0/Seamless.SourceGenerator.dll" Condition="'$(Configuration)' == 'Debug' and Exists('$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Debug/net10.0/Seamless.SourceGenerator.dll')" />
-    <Analyzer Include="$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Release/net10.0/Seamless.SourceGenerator.dll" Condition="'$(Configuration)' == 'Release' and Exists('$(MSBuildThisFileDirectory)../../src/Seamless.SourceGenerator/bin/Release/net10.0/Seamless.SourceGenerator.dll')" />
+    <Analyzer Include="$(MSBuildThisFileDirectory)../../src/FLinq/bin/Debug/net10.0/FLinq.dll" Condition="'$(Configuration)' == 'Debug' and Exists('$(MSBuildThisFileDirectory)../../src/FLinq/bin/Debug/net10.0/FLinq.dll')" />
+    <Analyzer Include="$(MSBuildThisFileDirectory)../../src/FLinq/bin/Release/net10.0/FLinq.dll" Condition="'$(Configuration)' == 'Release' and Exists('$(MSBuildThisFileDirectory)../../src/FLinq/bin/Release/net10.0/FLinq.dll')" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Benchmarks\Helpers\" />

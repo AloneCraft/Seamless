@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
-using Seamless.Collections;
-using Seamless.Stores;
+using Tsavorite.Collections;
+using Tsavorite.Stores;
 using Tsavorite.core;
 
 namespace BenchmarkExe.Benchmarks;

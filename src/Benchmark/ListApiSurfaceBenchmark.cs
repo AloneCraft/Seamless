@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
-using Seamless.Collections;
-using Seamless.Stores;
+using Tsavorite.Collections;
+using Tsavorite.Stores;
 
 namespace BenchmarkExe.Benchmarks;
 
@@ -21,7 +21,7 @@ public enum ListAccessPattern {
 [SimpleJob(warmupCount: 1,iterationCount: 5)]
 public class ListApiSurfaceBenchmark {
     private string iterationDir = null!;
-    private global::Seamless.Collections.ListBase<int>? list;
+    private global::Tsavorite.Collections.ListBase<int>? list;
 
     [Params(10_000)]
     public int CountValue { get; set; }
@@ -73,14 +73,14 @@ public class ListApiSurfaceBenchmark {
         };
     }
 
-    private long RunAdd(global::Seamless.Collections.ListBase<int> target) {
+    private long RunAdd(global::Tsavorite.Collections.ListBase<int> target) {
         for(var i = 0; i<this.CountValue; i++) {
             target.Add(i);
         }
         return target.Count;
     }
 
-    private long RunRead(global::Seamless.Collections.ListBase<int> target) {
+    private long RunRead(global::Tsavorite.Collections.ListBase<int> target) {
         long sum = 0;
         for(var i = 0; i<this.CountValue; i++) {
             sum+=target[i];
@@ -88,7 +88,7 @@ public class ListApiSurfaceBenchmark {
         return sum;
     }
 
-    private long RunMixed(global::Seamless.Collections.ListBase<int> target) {
+    private long RunMixed(global::Tsavorite.Collections.ListBase<int> target) {
         var n = this.CountValue/2;
         for(var i = 0; i<n; i++) {
             target.Add(i);

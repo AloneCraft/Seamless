@@ -11,13 +11,13 @@
     <File Path="TextFile1.txt" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/Seamless.SourceGenerator/Seamless.SourceGenerator.csproj" />
-    <Project Path="src/Seamless/Seamless.csproj" />
+    <Project Path="src/SourceGenerator.Shared/SourceGenerator.Shared.csproj" />
+    <Project Path="src/FLinq/FLinq.csproj" />
+    <Project Path="src/Tsavorite.Collections/Tsavorite.Collections.csproj" />
+    <Project Path="src/TsavoriteDB/TsavoriteDB.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Test.Seamless/Test.Seamless.csproj" />
+    <Project Path="tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj" />
+    <Project Path="tests/Test.Tsavorite/Test.Tsavorite.csproj" />
   </Folder>
-  <Project Path="sandbox/Benchmark/Benchmark.csproj">
-    <Build Solution="Debug|*" Project="false" />
-  </Project>
 </Solution>

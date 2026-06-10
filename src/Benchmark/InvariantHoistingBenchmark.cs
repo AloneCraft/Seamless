@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
-using Seamless.Carrier;
+using Tsavorite.Carrier;
 using SystemEnumerable = System.Linq.Enumerable;
 
 namespace BenchmarkExe.Benchmarks;

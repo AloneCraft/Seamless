@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
-using Seamless.Collections;
-using Seamless.Stores;
+using Tsavorite.Collections;
+using Tsavorite.Stores;
 using Tsavorite.core;
 
 namespace BenchmarkExe.Benchmarks;
@@ -47,8 +47,8 @@ public class DictionaryApiSurfaceBenchmark {
     private string[] stringValues = null!;
     private string checkpointRoot = null!;
 
-    private Seamless.Collections.IDictionary<int,int>? blittableDict;
-    private Seamless.Collections.IDictionary<string,string>? managedDict;
+    private Tsavorite.Collections.IDictionary<int,int>? blittableDict;
+    private Tsavorite.Collections.IDictionary<string,string>? managedDict;
     private DictionaryStore<int,int>? blittableStore;
     private DictionaryStore<string,string>? managedStore;
     private IDevice? logDevice;
