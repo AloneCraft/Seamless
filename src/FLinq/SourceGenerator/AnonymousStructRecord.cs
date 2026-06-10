@@ -25,11 +25,24 @@ public sealed partial class TsavoriteIncrementalGenerator {
     [ThreadStatic]
     private static AnonymousStructRecordRegistry? _anonRegistry;
 
+    // SuspendAnonRegistry を無効化する入れ子カウンタ。
+    // SelectMany インライン化など「内側サブチェーンの匿名型は record struct 置換したい」文脈で、
+    // 再帰先のフォールバック経路が呼ぶ Suspend にレジストリを止めさせないために使う。
+    [ThreadStatic]
+    private static int _anonRegistryPinCount;
+
+    internal static void PinAnonRegistry() => _anonRegistryPinCount++;
+
+    internal static void UnpinAnonRegistry() => _anonRegistryPinCount--;
+
     // 結果が匿名型のまま外へ逃げる（エスケープする）箇所では record struct 置換を行わないよう、
     // レジストリを一時的に退避する。単発オペレーション（チェーンの最終結果が匿名型）などで使う。
+    // ピン留め中は退避せずレジストリを維持する（Restore は同じ値を書き戻すだけになる）。
     internal static object? SuspendAnonRegistry() {
         var saved = _anonRegistry;
-        _anonRegistry = null;
+        if(_anonRegistryPinCount==0) {
+            _anonRegistry = null;
+        }
         return saved;
     }
 

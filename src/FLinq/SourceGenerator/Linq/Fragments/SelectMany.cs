@@ -45,8 +45,10 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
             return false;
         if(!buildEnumerable(semanticModel, lambdaBody, containingType, ref snapshot, out var innerFrag, out var innerStaticMethods, unsafeAccessorCollector))
             return false;
-        // 匿名型の要素型は TResult ジェネリックパラメータで表現され、SelectMany_WithInlinedInner のアウタ struct で
-        // TResult が未解決のままになるため、通常の SelectMany デリゲートパスへフォールバックする。
+        // 要素型が TResult ジェネリックパラメータのままだと SelectMany_WithInlinedInner のアウタ struct で
+        // 型解決できないため、通常の SelectMany デリゲートパスへフォールバックする。
+        // 匿名型レジストリ有効時は内側ラムダが record struct 置換されて具象型名になるため通常ここは通らず、
+        // registry-mapped できないラムダ形（本体ルートが匿名生成式でない等）の安全網として残している。
         if(innerFrag.ElementType == "TResult")
             return false;
         var smFrag = new SelectMany_WithInlinedInner(smNumber, outerSource, innerFrag, outerParamName);

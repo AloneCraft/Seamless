@@ -1090,6 +1090,31 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
             return true;
         }
 
+        // SelectMany selector の内部チェーンを struct にインライン化できる場合は専用パスへ。
+        // レジストリ有効のまま試行することで内側チェーンの匿名型を record struct 化し、
+        // 結果要素が匿名型なら SelectManyインライン化試行50 内の出口 Select で元の匿名型へ復元する。
+        if(methodName=="SelectMany"
+            && SelectManyインライン化試行50(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector)) {
+            return true;
+        }
+
+        // 匿名型要素チェーン（TResult ファクトリ形）の ToList は要素型名を生成コードに書けないため、
+        // Carrier の汎用 ToList へ型推論で委譲する直接実行文として生成する。
+        // ソース構築はレジストリ有効のまま行い、内部の匿名型を record struct 置換できるようにする。
+        if(methodName=="ToList"
+            && invocation.ArgumentList.Arguments.Count==0
+            && invocation.Expression is MemberAccessExpressionSyntax { Expression: var anonListSourceExpr }
+            && ContainsAnonymousType(method.ReturnType)) {
+            var anonListSnapshot = uniqueNumber;
+            if(列挙フラグメント生成9(semanticModel,anonListSourceExpr,containingType,ref uniqueNumber,out var anonListSource,out var anonListStatics,unsafeAccessorCollector)
+                && anonListSource.ElementType=="TResult") {
+                fragment=new AnonymousExitToList(uniqueNumber++,anonListSource);
+                staticMethods=anonListStatics;
+                return true;
+            }
+            uniqueNumber=anonListSnapshot;
+        }
+
         // ここから先は単発オペレーション等で「結果の匿名型がそのまま外へ逃げる」ケースが多い。
         // それらを record struct へ置換すると呼び出し元が期待する匿名型と型が合わなくなるため、
         // フォールバック経路では匿名型置換を抑止し、従来どおり匿名型を維持する。
@@ -1097,12 +1122,6 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         try {
             if(methodName=="Any") {
                 return Anyフラグメント生成3(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
-            }
-
-            // SelectMany selector の内部チェーンを struct にインライン化できる場合は専用パスへ。
-            if(methodName=="SelectMany"
-                && SelectManyインライン化試行50(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector)) {
-                return true;
             }
 
             return 登録済みフラグメント生成24(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
@@ -1313,13 +1332,56 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         ref int uniqueNumber,
         out Fragment fragment,
         out string staticMethods,
-        List<string>? unsafeAccessorCollector = null)
-       =>SelectManyBase.TryBuildInlined(
-            semanticModel,invocation,containingType,ref uniqueNumber,
-            out fragment,out staticMethods,unsafeAccessorCollector,
-            列挙フラグメント生成9,
-            TryGetLambdaExpressionBody,
-            GetLambdaParameters);
+        List<string>? unsafeAccessorCollector = null) {
+        // 内側チェーンの構築は再帰的に呼び出し式フラグメント生成1 のフォールバック経路
+        // （SuspendAnonRegistry 付き）を通るため、ピン留めして匿名型の record struct 置換を維持する。
+        PinAnonRegistry();
+        try {
+            if(!SelectManyBase.TryBuildInlined(
+                semanticModel,invocation,containingType,ref uniqueNumber,
+                out fragment,out staticMethods,unsafeAccessorCollector,
+                列挙フラグメント生成9,
+                TryGetLambdaExpressionBody,
+                GetLambdaParameters)) {
+                return false;
+            }
+        } finally {
+            UnpinAnonRegistry();
+        }
+        // 結果要素が匿名型でなければ struct インライン化結果をそのまま使う。
+        if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
+            || method.TypeArguments.Length==0) {
+            return true;
+        }
+        var resultElementType=method.TypeArguments[^1];
+        if(!ContainsAnonymousType(resultElementType)) {
+            return true;
+        }
+        // 内側チェーンは record struct 置換で構築済みのため、要素を元の匿名型へ復元する
+        // 出口 Select を被せる（トップレベル匿名型 Select と同じ TResult 推論形）。
+        var registry=_anonRegistry;
+        if(registry is null || fragment is not Enumerable selectManyFragment) {
+            // レジストリ無効時は record struct 置換が行われず TryBuildInlined がここまで
+            // 来ないはずだが、保険としてフォールバック経路へ委ねる。
+            return false;
+        }
+        var recordTypeName=registry.ResolveClosedName(resultElementType);
+        var exitParamName=$"__anonExit{uniqueNumber}";
+        var exitBody=registry.ReconstructAnonymousCreation(resultElementType,exitParamName);
+        var exitFragment=new AnonymousDelegateFuncFragment(
+            $"global::System.Func<{recordTypeName},TResult>",
+            $"_anonExitDel{uniqueNumber++}",
+            $"({recordTypeName} {exitParamName})=>{exitBody}") {
+            ReturnTypeName="TResult",
+            ParameterTypeNames=[recordTypeName],
+            ParameterNames=[exitParamName],
+            CanGenerateMethod=false,
+        };
+        var exitSelect=new Select_selector(uniqueNumber++,selectManyFragment,exitFragment);
+        fragment=exitSelect;
+        staticMethods=静的メソッド連結14(staticMethods,exitSelect.StructMethod);
+        return true;
+    }
 
     private static bool フラグメント候補選択25(string methodName,string variantName,out フラグメント候補 candidate) {
         candidate=null!;
