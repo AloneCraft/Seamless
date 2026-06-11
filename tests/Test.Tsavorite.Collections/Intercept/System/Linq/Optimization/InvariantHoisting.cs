@@ -1,7 +1,10 @@
 using System.Linq;
+
+using Test.Tsavorite.Collections.Intercept.System.Linq;
+
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace Test.Tsavorite.Intercept.System.Linq.Optimization;
+namespace Test.Tsavorite.Collections.Intercept.System.Linq.Optimization;
 
 // ルール §1: 多階層ループ不変式ホイスト + static ラムダのキャプチャ除去。
 // どの階層へ持ち上げられても結果は System.Linq と一致しなければならない。

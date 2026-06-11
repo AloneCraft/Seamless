@@ -1,7 +1,8 @@
 using Tsavorite.Stores;
 using System.Linq;
 using Tsavorite.core;
-namespace Test.Tsavorite.Stress;
+using Test.Tsavorite.Collections;
+namespace Test.Tsavorite.Collections.Stress;
 
 /// <summary>
 /// シングルスレッドの決定論的 Add/Save/Load/Contains/Remove 連続実行テスト。

@@ -2,9 +2,10 @@ using Tsavorite;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Tsavorite.core;
-namespace Test.Tsavorite.Unit.Helpers.Collections;
+using Test.Tsavorite.Collections;
+namespace Test.Tsavorite.Collections.Unit.Helpers.Collections;
 /// <summary>
-/// <see cref="System.Collections.Generic.IDictionary{TKey,TValue}"/> インターフェース経由のテスト基底クラス。
+/// <see cref="IDictionary{TKey,TValue}"/> インターフェース経由のテスト基底クラス。
 /// <see cref="DictionaryTestBase{TStrategy,TKey,TValue}"/> はこのクラスを利用し、
 /// <see cref="global::Tsavorite.Collections.IDictionary{TKey,TValue}"/> 固有のテストを追加する。
 /// </summary>

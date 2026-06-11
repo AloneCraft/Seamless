@@ -1,7 +1,8 @@
 using System.Linq;
+
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace Test.Tsavorite.Intercept.System.Linq.Chain1;
+namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed class ElementAtOrDefault:LinqChain1TestBase {
     [Fact, Trait("Category","Unit")]

@@ -1,5 +1,5 @@
 using Tsavorite.Stores;
-namespace Test.Tsavorite.Unit.ScanIteratorFunctions;
+namespace Test.Tsavorite.Collections.Unit.ScanIteratorFunctions;
 
 public class CounterIterator{
     private static void Common(){

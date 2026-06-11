@@ -1,8 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
-using SystemEnumerable=System.Linq.Enumerable;
 
-namespace Test.Tsavorite.Intercept.System.Linq.FragmentCoverage;
+using Test.Tsavorite.Collections.Intercept.System.Linq;
+
+using SystemEnumerable = System.Linq.Enumerable;
+
+namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class All {
     [Fact,Trait("Category","Unit")]

@@ -1,7 +1,10 @@
 using System.Linq;
+
+using Test.Tsavorite.Collections.Intercept.System.Linq;
+
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace Test.Tsavorite.Intercept.System.Linq.Optimization;
+namespace Test.Tsavorite.Collections.Intercept.System.Linq.Optimization;
 
 // ルール §3: Join/GroupJoin のキーセレクタ・ホイストとハッシュ結合分解。
 public sealed class JoinHashing:OptimizationTestBase{

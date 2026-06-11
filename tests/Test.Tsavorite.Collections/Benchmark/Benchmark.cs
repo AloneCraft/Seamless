@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Test.Tsavorite.Benchmarks;
+namespace Test.Tsavorite.Collections.Benchmark;
 
 internal static class BenchmarkRunSettings {
     private const string FullMatrixEnvironmentVariable = "Tsavorite_BENCHMARK_FULL_MATRIX";

@@ -1,7 +1,7 @@
 using Tsavorite.Collections;
 using Tsavorite.Stores;
 
-namespace Test.Tsavorite.Unit.Helpers.Collections;
+namespace Test.Tsavorite.Collections.Unit.Helpers.Collections;
 
 public sealed class ListHandle<T>(string path,ListBase<T> list):IDisposable {
     public ListBase<T> List => list;

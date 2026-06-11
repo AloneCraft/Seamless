@@ -1,7 +1,8 @@
 using Tsavorite.Carrier;
+
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace Test.Tsavorite.Unit.Linq;
+namespace Test.Tsavorite.Collections.Unit.Linq;
 
 // float/double の Min/Max は SIMD 化されている。NaN/±Inf/±0/長さ境界を含めて
 // System.Linq.Min/Max と一致することを検証する。

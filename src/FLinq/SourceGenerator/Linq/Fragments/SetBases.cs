@@ -70,7 +70,7 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
     public override string GetCurrentExpression=> this.currentValue;
     public override string ElementType=>source.ElementType;
     protected override string GetEnumeratorDisposeBody=>"source.Dispose();\nsecond.Dispose();";
-    public string GetConsumeExecutionStatement(string consumerName){
+    public override string GetConsumeExecutionStatement(string consumerName){
         var sourceName=$"__src{番号}";
         var secondName=$"__sec{番号}";
         var setName=$"__set{番号}";
@@ -210,7 +210,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
     public override string GetCurrentExpression=> this.currentValue;
     public override string ElementType=>source.ElementType;
     protected override string GetEnumeratorDisposeBody=>"source.Dispose();\nsecond.Dispose();";
-    public string GetConsumeExecutionStatement(string consumerName){
+    public override string GetConsumeExecutionStatement(string consumerName){
         var sourceName=$"__src{番号}";
         var secondName=$"__sec{番号}";
         var setName=$"__set{番号}";

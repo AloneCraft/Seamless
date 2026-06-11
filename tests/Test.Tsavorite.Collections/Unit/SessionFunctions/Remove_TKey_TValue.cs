@@ -1,7 +1,7 @@
 using Tsavorite;
 using Tsavorite.Stores;
 using Tsavorite.core;
-namespace Test.Tsavorite.Unit.SessionFunctions;
+namespace Test.Tsavorite.Collections.Unit.SessionFunctions;
 
 public abstract class RemoveTKeyTValueTests<TKey, TValue>
     where TKey : IEquatable<TKey>

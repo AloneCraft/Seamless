@@ -1,6 +1,6 @@
 using System.Linq;
 
-namespace Test.Tsavorite.Intercept.System.Linq.Chain2;
+namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain2;
 
 public sealed record Chain2Row(int Key,int Value,string Name);
 

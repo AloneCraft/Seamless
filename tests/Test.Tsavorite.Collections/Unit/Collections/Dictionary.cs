@@ -1,5 +1,6 @@
-using Test.Tsavorite.Unit.Helpers.Collections;
-namespace Test.Tsavorite.Unit.Collections;
+using Test.Tsavorite.Collections.Unit.Helpers.Collections;
+
+namespace Test.Tsavorite.Collections.Unit.Collections;
 
 public class DictionaryStringString : DictionaryTestBase<ManagedStoreDictionaryStrategy<StringDictTypeProvider, StringDictTypeProvider, string, string>, string, string>;
 public class DictionaryStringInt32 : DictionaryTestBase<UnmanagedValueDictionaryStrategy<StringDictTypeProvider, IntDictTypeProvider, string, int>, string, int>;

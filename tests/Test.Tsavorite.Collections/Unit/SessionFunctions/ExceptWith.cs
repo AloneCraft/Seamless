@@ -1,7 +1,7 @@
 using Tsavorite.Collections;
 using Tsavorite.Stores;
 
-namespace Test.Tsavorite.Unit.SessionFunctions;
+namespace Test.Tsavorite.Collections.Unit.SessionFunctions;
 
 public abstract class ExceptWith<TKey, TSet>:CommonWith<TKey,TSet>
     where TKey : IEquatable<TKey>
@@ -24,7 +24,7 @@ public sealed class ManagedExceptWith:ExceptWith<string,global::Tsavorite.Collec
         return (store.Create(),store);
     }
     protected override void With(global::Tsavorite.Collections.HashSet<string> set,global::Tsavorite.Collections.HashSet<string> other) => set.ExceptWith(other);
-    protected override void ExpectedWith(global::System.Collections.Generic.HashSet<string> set,global::System.Collections.Generic.HashSet<string> other) => set.ExceptWith(other);
+    protected override void ExpectedWith(System.Collections.Generic.HashSet<string> set,System.Collections.Generic.HashSet<string> other) => set.ExceptWith(other);
 }
 
 public sealed class UnmanagedExceptWith:ExceptWith<int,global::Tsavorite.Collections.HashSet<int>> {
@@ -34,5 +34,5 @@ public sealed class UnmanagedExceptWith:ExceptWith<int,global::Tsavorite.Collect
         return (store.Create(),store);
     }
     protected override void With(global::Tsavorite.Collections.HashSet<int> set,global::Tsavorite.Collections.HashSet<int> other) => set.ExceptWith(other);
-    protected override void ExpectedWith(global::System.Collections.Generic.HashSet<int> set,global::System.Collections.Generic.HashSet<int> other) => set.ExceptWith(other);
+    protected override void ExpectedWith(System.Collections.Generic.HashSet<int> set,System.Collections.Generic.HashSet<int> other) => set.ExceptWith(other);
 }

@@ -19,14 +19,20 @@ public class Reverse(int 番号, Enumerable source) : Enumerable(番号) {
         : $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string GetEnumeratorFields => $$"""
-        private int {{this.a}}=-1;
+        private int {{this.a}}=int.MinValue;
         private global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>? {{this.group}};
         """;
     public override string GetTryGetNextBody => this.RootSource.CanProvideSpan
         ? $$"""
-            {{this.e}}.TryGetSpan(out var __span);
-            if(this.{{this.a}}<0) this.{{this.a}}=__span.Length-1;
+            // {{this.a}} は int.MinValue=未初期化 / -1=列挙完了 を区別する。
+            // -1 を未初期化扱いにすると、TryGetNext を完了後も呼ぶ消費側（TraversalSupport の while ループ等）で
+            // 末尾到達ごとに Length-1 へ再初期化して無限ループになる。
+            if(this.{{this.a}}==int.MinValue) {
+                {{this.e}}.TryGetSpan(out var __span0);
+                this.{{this.a}}=__span0.Length-1;
+            }
             if(this.{{this.a}}>=0) {
+                {{this.e}}.TryGetSpan(out var __span);
                 current=this.{{this.currentValue}}=__span[this.{{this.a}}--];
                 return true;
             }

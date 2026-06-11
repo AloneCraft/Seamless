@@ -1,9 +1,10 @@
 using System.Linq;
 using System.Runtime.CompilerServices;
+
 using Tsavorite.Collections;
 using Tsavorite.Stores;
 
-namespace Test.Tsavorite.Unit.Helpers.Collections;
+namespace Test.Tsavorite.Collections.Unit.Helpers.Collections;
 
 public abstract class ListTestBase<TStrategy, T>
     where TStrategy : IListTestStrategy<T> {

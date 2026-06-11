@@ -1,7 +1,8 @@
 using System.Collections.Generic;
+
 using Tsavorite.Carrier;
 
-namespace Test.Tsavorite.Intercept.System.Linq;
+namespace Test.Tsavorite.Collections.Intercept.System.Linq;
 
 // Chain1/Chain2 用の記録 Consumer。`.ToList()` だと LINQ メソッドが 1 個増えてしまうため、
 // System.Linq ではない `Consume(consumer)` で列挙を駆動する（= チェーンは LINQ メソッド単体）。

@@ -2,7 +2,7 @@
 using Tsavorite;
 using Tsavorite.core;
 
-namespace Test.Tsavorite.Tsavorite;
+namespace Test.Tsavorite.Collections.Tsavorite;
 
 /// <summary>
 /// Tsavorite 2.0.0-beta3 の LightEpoch MaxInstances = 1024 の制限をテストする。

@@ -1,4 +1,4 @@
-namespace Test.Tsavorite.Unit.Helpers.Collections;
+namespace Test.Tsavorite.Collections.Unit.Helpers.Collections;
 /// <summary>
 /// HashSet �e�X�g�̋��ʊ��N���X�B
 /// Dictionary �� DictionaryTestBase �Ɠ��l�ɁA

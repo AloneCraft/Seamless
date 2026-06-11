@@ -1,6 +1,6 @@
 using Tsavorite.Collections;
 
-namespace Test.Tsavorite.Benchmarks;
+namespace Test.Tsavorite.Collections.Benchmark;
 
 [Collection("Benchmark")]
 public sealed class ManagedViewSetBenchmark(ITestOutputHelper output):Benchmark(output) {

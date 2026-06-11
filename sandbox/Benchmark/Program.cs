@@ -16,8 +16,8 @@ internal static class Program {
     private const bool RUN_INTERCEPT = true;
     private const bool RUN_ZLINQ = true;
     private const int IterationTime=1000;
-    private const int IterationCount=16;
-    private const int WarmupCount=2;
+    private const int IterationCount=1;
+    private const int WarmupCount=3;
 
     public static void Main(string[] args) {
         // ダブルクリック起動時など CWD が不定の場合、BDN が .csproj を広範検索して
@@ -103,6 +103,9 @@ internal static class Program {
     }
     // ピボット列の並び。0=LINQ,1=Intercept,2=ZLinq に対応。
     static readonly string[] MethodKinds = ["LINQ","Intercept","ZLinq"];
+    // 表示順: LINQ, ZLinq, FLinq(=Intercept)。MethodKinds のインデックスへの対応。
+    static readonly int[] DisplayOrder = [0,2,1];
+    static readonly string[] DisplayLabels = ["LINQ","ZLinq","FLinq"];
     static void WriteSingleFileReport() {
         var resultsDir = FindResultsDirectory();
         if(!Directory.Exists(resultsDir)) {
@@ -121,7 +124,7 @@ internal static class Program {
         var byNamePath = Path.Combine(resultsDir,"Summary-byName.csv");
         WriteSummaryCsv(rows.OrderBy(static r => r.RowKey,StringComparer.Ordinal),byNamePath);
         var byRatioPath = Path.Combine(resultsDir,"Summary-byRatio.csv");
-        WriteSummaryCsv(rows.OrderBy(static r => r.MaxRatio),byRatioPath);
+        WriteSummaryCsv(rows.OrderBy(static r => r.SlowestNs),byRatioPath);
         Console.WriteLine($"Single file summary written to {htmlPath}");
         Console.WriteLine($"Pivot CSV written to {byNamePath}");
         Console.WriteLine($"Pivot CSV written to {byRatioPath}");
@@ -214,7 +217,8 @@ internal static class Program {
         writer.AppendLine("    table{border-collapse:collapse;width:100%;}");
         writer.AppendLine("    th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top;}");
         writer.AppendLine("    th{background:#f5f5f5;}");
-        writer.AppendLine("    td.num{text-align:right;white-space:nowrap;}");
+        writer.AppendLine("    thead th{position:sticky;top:0;z-index:1;}");
+        writer.AppendLine("    td.num,th.num{text-align:right;white-space:nowrap;}");
         writer.AppendLine("  </style>");
         writer.AppendLine("</head>");
         writer.AppendLine("<body>");
@@ -226,21 +230,28 @@ internal static class Program {
         writer.AppendLine("  </div>");
         writer.AppendLine("  <table id=\"summary\">");
         writer.AppendLine("    <thead>");
-        writer.AppendLine("      <tr><th>Type</th><th>Method</th><th>LinqTime</th><th>InterceptTime</th><th>ZLinqTime</th><th>LinqRatio</th><th>InterceptRatio</th><th>ZLinqRatio</th></tr>");
+        writer.Append("      <tr><th>Type</th><th>Method</th>");
+        foreach(var label in DisplayLabels) {
+            writer.Append($"<th class=\"num\">{label}Time</th>");
+        }
+        foreach(var label in DisplayLabels) {
+            writer.Append($"<th class=\"num\">{label}Ratio</th>");
+        }
+        writer.AppendLine("</tr>");
         writer.AppendLine("    </thead>");
         writer.AppendLine("    <tbody>");
         foreach(var summary in rows.OrderBy(static r => r.RowKey,StringComparer.Ordinal)) {
-            writer.Append($"      <tr data-name=\"{EscapeHtml(summary.RowKey)}\" data-maxratio=\"{summary.MaxRatio.ToString(CultureInfo.InvariantCulture)}\"><td>");
+            writer.Append($"      <tr data-name=\"{EscapeHtml(summary.RowKey)}\" data-maxratio=\"{summary.SlowestNs.ToString(CultureInfo.InvariantCulture)}\"><td>");
             writer.Append(EscapeHtml(summary.Type));
             writer.Append("</td><td>");
             writer.Append(EscapeHtml(summary.Method));
             writer.Append("</td>");
-            for(var i = 0; i<3; i++) {
+            foreach(var i in DisplayOrder) {
                 writer.Append("<td class=\"num\">");
                 writer.Append(EscapeHtml(summary.MeanText[i]??string.Empty));
                 writer.Append("</td>");
             }
-            for(var i = 0; i<3; i++) {
+            foreach(var i in DisplayOrder) {
                 writer.Append("<td class=\"num\">");
                 writer.Append(summary.Ratio[i] is { } ratio ? ratio.ToString("0.00",CultureInfo.InvariantCulture) : string.Empty);
                 writer.Append("</td>");
@@ -265,16 +276,23 @@ internal static class Program {
     }
     static void WriteSummaryCsv(IEnumerable<SummaryRow> rows,string path) {
         var writer = new StringBuilder();
-        writer.AppendLine("Type,Method,LinqTime,InterceptTime,ZLinqTime,LinqRatio,InterceptRatio,ZLinqRatio");
+        writer.Append("Type,Method");
+        foreach(var label in DisplayLabels) {
+            writer.Append(',').Append(label).Append("Time");
+        }
+        foreach(var label in DisplayLabels) {
+            writer.Append(',').Append(label).Append("Ratio");
+        }
+        writer.AppendLine();
         foreach(var summary in rows) {
             writer.Append(CsvField(summary.Type));
             writer.Append(',');
             writer.Append(CsvField(summary.Method));
-            for(var i = 0; i<3; i++) {
+            foreach(var i in DisplayOrder) {
                 writer.Append(',');
                 writer.Append(CsvField(summary.MeanText[i]??string.Empty));
             }
-            for(var i = 0; i<3; i++) {
+            foreach(var i in DisplayOrder) {
                 writer.Append(',');
                 writer.Append(summary.Ratio[i] is { } ratio ? ratio.ToString("0.00",CultureInfo.InvariantCulture) : string.Empty);
             }
@@ -296,28 +314,25 @@ internal static class Program {
         public string?[] MeanText { get; } = new string?[3];
         public double?[] MeanNs { get; } = new double?[3];
         public double?[] Ratio { get; } = new double?[3];
-        public double MaxRatio { get; private set; }
+        // 最も遅い手法の絶対時間(ns)。Ratioの基準値であり、byRatio出力のソートキーにも使う。
+        public double SlowestNs { get; private set; }
+        // Ratioは最遅手法を1.0とした相対値（他は1.0以下）。
         public void ComputeRatios() {
-            var min = double.MaxValue;
+            var max = 0.0;
             foreach(var value in this.MeanNs) {
-                if(value is { } v&&v>0&&v<min) {
-                    min=v;
+                if(value is { } v&&v>max) {
+                    max=v;
                 }
             }
-            if(min==double.MaxValue) {
+            if(max<=0) {
                 return;
             }
-            var max = 0.0;
             for(var i = 0; i<3; i++) {
                 if(this.MeanNs[i] is { } v&&v>0) {
-                    var ratio = v/min;
-                    this.Ratio[i]=ratio;
-                    if(ratio>max) {
-                        max=ratio;
-                    }
+                    this.Ratio[i]=v/max;
                 }
             }
-            this.MaxRatio=max;
+            this.SlowestNs=max;
         }
     }
     static string FindResultsDirectory() {

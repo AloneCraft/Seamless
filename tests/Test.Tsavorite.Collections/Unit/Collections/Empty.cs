@@ -1,5 +1,5 @@
 using EqualityEmpty = Tsavorite.Collections.EqualityEmpty;
-namespace Test.Tsavorite.Unit.Collections;
+namespace Test.Tsavorite.Collections.Unit.Collections;
 
 
 public class TestEqualityEmpty {

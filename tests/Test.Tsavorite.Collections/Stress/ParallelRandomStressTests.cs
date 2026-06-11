@@ -1,7 +1,7 @@
 using Tsavorite.Stores;
 using System.Linq;
 using Tsavorite.core;
-namespace Test.Tsavorite.Stress;
+namespace Test.Tsavorite.Collections.Stress;
 
 /// <summary>
 /// マルチスレッド Stress テスト。

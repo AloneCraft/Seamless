@@ -1,4 +1,7 @@
 using MemoryPack;
+
+using Test.Tsavorite.Collections;
+
 using Tsavorite.Collections;
 using Tsavorite.Stores;
 

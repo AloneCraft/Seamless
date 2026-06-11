@@ -1,7 +1,8 @@
 using System.Linq;
+
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace Test.Tsavorite.Unit.Linq;
+namespace Test.Tsavorite.Collections.Unit.Linq;
 
 public sealed class EnumerableIntercept {
     [Fact, Trait("Category","Unit")]

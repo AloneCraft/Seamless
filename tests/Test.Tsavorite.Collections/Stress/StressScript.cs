@@ -1,4 +1,4 @@
-namespace Test.Tsavorite.Stress;
+namespace Test.Tsavorite.Collections.Stress;
 
 /// <summary>
 /// 豎ｺ螳夊ｫ也噪 Stress 繧ｹ繧ｯ繝ｪ繝励ヨ逕滓・蝎ｨ縲・

@@ -2,7 +2,7 @@ using Tsavorite.Collections;
 using Tsavorite.Stores;
 using Tsavorite.core;
 
-namespace Test.Tsavorite.Benchmarks;
+namespace Test.Tsavorite.Collections.Benchmark;
 
 /// <summary>
 /// HashSet ベンチマークの共通土台。

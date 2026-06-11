@@ -1,5 +1,5 @@
 using Tsavorite.Collections;
-namespace Test.Tsavorite.Benchmarks;
+namespace Test.Tsavorite.Collections.Benchmark;
 
 /// <summary>
 /// List ベンチマークの共通土台。

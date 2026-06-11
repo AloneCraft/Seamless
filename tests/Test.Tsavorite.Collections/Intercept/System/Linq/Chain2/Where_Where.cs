@@ -1,7 +1,10 @@
 using System.Linq;
+
+using Test.Tsavorite.Collections.Intercept.System.Linq;
+
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace Test.Tsavorite.Intercept.System.Linq.Chain2;
+namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain2;
 
 public sealed class Where_Where:LinqChain2TestBase {
     [Fact, Trait("Category","Unit")]

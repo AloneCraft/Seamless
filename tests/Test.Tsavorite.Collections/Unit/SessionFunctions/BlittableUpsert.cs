@@ -3,7 +3,7 @@ using Tsavorite.Collections;
 using Tsavorite.Stores;
 using Tsavorite.core;
 
-namespace Test.Tsavorite.Unit.SessionFunctions;
+namespace Test.Tsavorite.Collections.Unit.SessionFunctions;
 
 public sealed class BlittableUpsert:AddTests<int,long>{
     protected override int Key(int seed)=>seed;
