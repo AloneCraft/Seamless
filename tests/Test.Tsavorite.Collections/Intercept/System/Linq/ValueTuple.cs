@@ -1,8 +1,9 @@
 using System.Linq;
+
 using NonGenericEnumerable = System.Collections.IEnumerable;
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace Test.Tsavorite.Intercept.System.Linq;
+namespace Test.Tsavorite.Collections.Intercept.System.Linq;
 
 public sealed class ValueTuple{
     [Fact,Trait("Category","Unit")]public void SelectMany() {

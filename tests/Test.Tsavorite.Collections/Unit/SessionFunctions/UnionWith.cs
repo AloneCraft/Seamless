@@ -1,6 +1,6 @@
 using Tsavorite.Collections;
 using Tsavorite.Stores;
-namespace Test.Tsavorite.Unit.SessionFunctions;
+namespace Test.Tsavorite.Collections.Unit.SessionFunctions;
 
 //public abstract class UnionWithTests<TKey>
 //    where TKey : IEquatable<TKey> {
@@ -154,7 +154,7 @@ public sealed class ManagedUnionWith:UnionWith<string,global::Tsavorite.Collecti
         return (store.Create(),store);
     }
     protected override void With(global::Tsavorite.Collections.HashSet<string> set,global::Tsavorite.Collections.HashSet<string> other) => set.UnionWith(other);
-    protected override void ExpectedWith(global::System.Collections.Generic.HashSet<string> set,global::System.Collections.Generic.HashSet<string> other) => set.UnionWith(other);
+    protected override void ExpectedWith(System.Collections.Generic.HashSet<string> set,System.Collections.Generic.HashSet<string> other) => set.UnionWith(other);
 }
 
 public sealed class UnmanagedUnionWith:UnionWith<int,global::Tsavorite.Collections.HashSet<int>> {
@@ -164,5 +164,5 @@ public sealed class UnmanagedUnionWith:UnionWith<int,global::Tsavorite.Collectio
         return (store.Create(),store);
     }
     protected override void With(global::Tsavorite.Collections.HashSet<int> set,global::Tsavorite.Collections.HashSet<int> other) => set.UnionWith(other);
-    protected override void ExpectedWith(global::System.Collections.Generic.HashSet<int> set,global::System.Collections.Generic.HashSet<int> other) => set.UnionWith(other);
+    protected override void ExpectedWith(System.Collections.Generic.HashSet<int> set,System.Collections.Generic.HashSet<int> other) => set.UnionWith(other);
 }

@@ -15,7 +15,7 @@ using TAlloc = Tsavorite.core.SpanByteAllocator<
         Tsavorite.core.SpanByteComparer,
         Tsavorite.core.DefaultRecordTriggers>>;
 
-namespace Test.Tsavorite.Tsavorite;
+namespace Test.Tsavorite.Collections.Tsavorite;
 
 /// <summary>
 /// IterateLookup で Tsavorite API のみを使ったチャンク 10 件単位のスキャンと

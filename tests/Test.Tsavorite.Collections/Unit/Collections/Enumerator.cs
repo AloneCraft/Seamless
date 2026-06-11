@@ -1,7 +1,8 @@
 using System.Linq;
+
 using Tsavorite;
 using Tsavorite.Stores;
-namespace Test.Tsavorite.Unit.Collections;
+namespace Test.Tsavorite.Collections.Unit.Collections;
 
 
 public class Enumerator {

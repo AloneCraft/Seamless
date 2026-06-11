@@ -1,5 +1,6 @@
-using Test.Tsavorite.Unit.Helpers.Collections;
-namespace Test.Tsavorite.Unit.Collections;
+using Test.Tsavorite.Collections.Unit.Helpers.Collections;
+
+namespace Test.Tsavorite.Collections.Unit.Collections;
 
 public abstract class HashSet<TStrategy, T> : HashSetTestBase<TStrategy, T>
     where TStrategy : IHashSetTestStrategy<T>

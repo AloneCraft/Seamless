@@ -1,7 +1,7 @@
 using Tsavorite.core;
 using System.Diagnostics.CodeAnalysis;
 using Tsavorite.Stores;
-namespace Test.Tsavorite;
+namespace Test.Tsavorite.Collections;
 
 /// <summary>
 /// indexCheckpointToken=Guid.EqualityEmpty によるリカバリーのテスト。

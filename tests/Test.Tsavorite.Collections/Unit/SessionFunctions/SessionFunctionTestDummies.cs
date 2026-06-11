@@ -1,3 +1,3 @@
-namespace Test.Tsavorite.Unit.SessionFunctions;
+namespace Test.Tsavorite.Collections.Unit.SessionFunctions;
 
 

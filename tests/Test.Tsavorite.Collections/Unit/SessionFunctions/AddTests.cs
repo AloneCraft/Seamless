@@ -1,8 +1,10 @@
+using Test.Tsavorite.Collections;
+
 using Tsavorite;
 using Tsavorite.Collections;
 using Tsavorite.core;
 
-namespace Test.Tsavorite.Unit.SessionFunctions;
+namespace Test.Tsavorite.Collections.Unit.SessionFunctions;
 
 public abstract class AddTests<TKey, TValue>
     where TKey : IEquatable<TKey>
@@ -10,10 +12,10 @@ public abstract class AddTests<TKey, TValue>
 
     protected abstract TKey Key(int seed);
     protected abstract TValue Value(int seed);
-    protected abstract (global::System.Collections.Generic.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateMemory();
-    protected abstract (global::System.Collections.Generic.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice);
+    protected abstract (System.Collections.Generic.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateMemory();
+    protected abstract (System.Collections.Generic.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice);
     protected abstract void FlushAndEvict(IDisposable store);
-    protected abstract TryAddResult TryAdd(global::System.Collections.Generic.IDictionary<TKey,TValue> dict,TKey key,TValue value);
+    protected abstract TryAddResult TryAdd(System.Collections.Generic.IDictionary<TKey,TValue> dict,TKey key,TValue value);
 
     protected abstract void DoUpsert();
     protected abstract void DoInPlaceWriter();

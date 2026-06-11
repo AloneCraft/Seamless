@@ -1,12 +1,12 @@
 using Tsavorite.Stores;
 using Tsavorite.core;
 
-namespace Test.Tsavorite.Benchmarks;
+namespace Test.Tsavorite.Collections.Benchmark;
 
 /// <summary>
 /// Dictionary ベンチマークの共通土台。
 /// <see cref="global::Tsavorite.Collections.IDictionary{TKey,TValue}"/> /
-/// <see cref="System.Collections.Generic.IDictionary{TKey,TValue}"/> /
+/// <see cref="IDictionary{TKey,TValue}"/> /
 /// <see cref="ICollection{T}"/> (KeyValuePair) /
 /// <see cref="IReadOnlyCollection{T}"/> /
 /// <see cref="IReadOnlyDictionary{TKey,TValue}"/> のメソッドを計測する。

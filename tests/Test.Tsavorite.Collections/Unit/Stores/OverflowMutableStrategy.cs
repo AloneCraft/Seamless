@@ -1,6 +1,6 @@
 using Tsavorite.Stores;
 
-namespace Test.Tsavorite.Unit.Stores;
+namespace Test.Tsavorite.Collections.Unit.Stores;
 
 public class OverflowMutableStrategy {
     [Fact, Trait("Category","Unit")]

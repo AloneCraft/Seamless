@@ -1,7 +1,8 @@
 using Tsavorite.Stores;
 using System.Linq;
 using Tsavorite.core;
-namespace Test.Tsavorite.Stress;
+using Test.Tsavorite.Collections;
+namespace Test.Tsavorite.Collections.Stress;
 
 /// <summary>
 /// HashSet 縺ｮ髮・粋貍皮ｮ・(IntersectWith / SymmetricExceptWith / UnionWith / ExceptWith)

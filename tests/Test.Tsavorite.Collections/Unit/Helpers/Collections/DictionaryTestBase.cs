@@ -1,7 +1,7 @@
 using Tsavorite;
 using Tsavorite.Collections;
 using Tsavorite.core;
-namespace Test.Tsavorite.Unit.Helpers.Collections;
+namespace Test.Tsavorite.Collections.Unit.Helpers.Collections;
 /// <summary>
 /// <see cref="global::Tsavorite.Collections.IDictionary{TKey,TValue}"/> 固有のテスト基底クラス。
 /// <see cref="System.Collections.Generic.IDictionary{TKey,TValue}"/> 共通テストは <see cref="IDictionaryTestBase{TStrategy,TKey,TValue}"/> に集約されており、

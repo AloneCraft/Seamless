@@ -1,6 +1,6 @@
 using System.Linq;
 
-namespace Test.Tsavorite.Intercept.System.Linq;
+namespace Test.Tsavorite.Collections.Intercept.System.Linq;
 
 public sealed class EnumerableComparisonCatalogTests {
     public static IEnumerable<object[]> BenchmarkMethodNames() {

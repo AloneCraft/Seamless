@@ -20,4 +20,5 @@
     <Project Path="tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj" />
     <Project Path="tests/Test.Tsavorite/Test.Tsavorite.csproj" />
   </Folder>
+  <Project Path="sandbox/Benchmark/Benchmark.csproj" />
 </Solution>

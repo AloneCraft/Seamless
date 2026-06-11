@@ -1,3 +1,79 @@
+Type	Method	Mean	Error	Ratio	RatioSD
+ではなく
+┌──┬────┬─────┬─────┬─────┬─────┬─────┐
+│Type│LINQTime│ZLinqTime │FLinqTime │LINQRatio │ZLinqRatio│FLinqRatio│
+├──┼────┼─────┼─────┼─────┼─────┼─────┤
+...
+というようにして
+ブラウザーをスクロールしてもヘッダーを固定するようにして
+
+
+Type LINQTime
+
+opus4.8 xhigh
+# 役割
+あなたはRoslyn（Microsoft.CodeAnalysis）およびC#コンパイラアーキテクチャに精通した、エキスパートレベルのコンパイラエンジニアです。
+
+# タスク
+C# 12のインターセプター（Interceptors）の仕組み、またはIncremental Source Generatorを利用して、特定のLINQ式をコンパイル時に静的ループや効率的な構文へ置換・最適化する「LINQ最適化ソースジェネレーター」の実装コードを生成してください。
+
+# 必須条件（最優先）
+生成するソースジェネレーターのソースコード内（クラスファイルのヘッダー、または最適化ロジックの直前）に、以下の【LINQ最適化仕様一覧】を、開発ドキュメントとしてのコメント（XMLコメントまたは通常のコメントブロック）として**1つ残らずすべて完全に記述**してください。省略（「など」「以下同様」等）は一切許可しません。
+interseptor.csにはFragmentに書くべき処理が入っているのではないか？
+
+
+
+# 技術要件
+1. .NET 8 / .NET 9 および C# 12 / C# 13 の仕様に準拠すること。
+2. 可能な限りヒープアロケーションを発生させない、静的解析およびコード生成ロジックにすること。
+3. 構文（Syntax）のみの判定が困難なケースを想定し、SemanticModel を用いて型安全に対象を識別する基本構造を含めること。
+
+---
+
+### 【LINQ最適化仕様一覧】（※コード内にコメントとして埋め込む内容）
+
+1. 構文結合・アルゴリズムレベルの最適化（置換パターン）
+   - Where(p).Count() -> Count(p)
+   - Where(p).Any() -> Any(p)
+   - Where(p).FirstOrDefault() -> FirstOrDefault(p)
+   - Where(p).SingleOrDefault() -> SingleOrDefault(p)
+   - Count() > 0 -> Any()
+   - Count() == 0 -> !Any()
+   - OrderBy(k).FirstOrDefault() -> MinBy(k) / MaxBy(k)
+   - 選択比率が低くコストが低いWhereを前段に配置する順序入れ替え
+   - Select(p=>p+1).Select(q=>q*q) -> Select(x =>(x+1)*(x+1))
+   - Select(f).Select(g) -> Select(x => g(f(x)))
+   - source().Select(p=>p) -> source()
+   - Where(a=>a==0).Where(b=>b%2==0) -> Where(x => a==0 && b%2==0)
+   - Where(f).Where(g) -> Where(x => f(x) && g(x))
+   - Cast<T>() と OfType<T>() の厳密な使い分けによる型チェックコスト最適化
+   - 冗長な AsEnumerable() の排除
+
+2. ソースジェネレーター / コンパイル時最適化（インライン展開）
+   - インターセプター（[InterceptsLocation]）を用いたコールサイトの静的ループ（foreach等）への置換
+   - stackalloc,ref structを使えてパフォーマンス改善できるところがあればやって
+
+
+5. 特殊なデータ構造と Span 連携の最適化
+   - ReadOnlySpan<T> に対する System.MemoryExtensions（Contains, SequenceEqual等）のネイティブ呼び出しへの置換
+   - ArrayPool<T>.Shared.Rent を用いた最終出力バッファの再利用によるGC負荷の阻止
+
+---
+
+# 出力フォーマット
+コードはまだ出力しないでください。
+提示したすべての【LINQ最適化仕様一覧】を網羅するソースジェネレーターの「詳細なアーキテクチャ設計書（どの構文ノードをトリガーにし、SemanticModelで何を判定し、どう書き換えるかのロジック）」のみをマークダウンで出力してください。
+
+sonnet low
+あなたはシニアC#エンジニアです。以下の詳細設計書を元に、Incremental Source Generatorの実装コードを生成してください。
+# 必須制約
+1. 設計書に含まれる【LINQ最適化仕様一覧】の全項目を、生成コードのクラスヘッダーコメントとして1つ残らず完全に埋め込んでください。
+2. 思考プロセス（Thinking）の出力は最小限（または省略）にし、利用可能な出力トークンのすべてをコードの完走に割り当ててください。
+
+# 元となる詳細設計書
+（ここにステップ1の出力を貼り付ける）
+
+
 Markdown
 # Role
 You are an expert-level .NET Compiler Engineer and Roslyn Source Generator optimization specialist. Your task is to perform advanced structural transformations on C# LINQ queries to maximize execution speed, minimize loop iteration counts, and eliminate memory allocations.

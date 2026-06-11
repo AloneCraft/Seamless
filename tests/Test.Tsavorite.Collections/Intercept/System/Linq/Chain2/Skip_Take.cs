@@ -1,7 +1,8 @@
 using System.Linq;
+
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace Test.Tsavorite.Intercept.System.Linq.Chain2;
+namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain2;
 
 public sealed class Skip_Take:LinqChain2TestBase {
     [Fact, Trait("Category","Unit")]

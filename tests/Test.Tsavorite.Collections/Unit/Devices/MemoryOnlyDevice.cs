@@ -1,4 +1,4 @@
-namespace Test.Tsavorite.Unit.Devices;
+namespace Test.Tsavorite.Collections.Unit.Devices;
 
 
 public class MemoryOnlyDevice {

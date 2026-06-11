@@ -1,10 +1,13 @@
 using SystemEnumerable = System.Linq.Enumerable;
+
 using Test.Tsavorite.Collections;
+
 using Tsavorite.Collections;
 using Tsavorite.Stores;
+
 using System.Linq;
 
-namespace Test.Tsavorite.Intercept.Tsavorite.Linq.HashSetSample;
+namespace Test.Tsavorite.Collections.Intercept.Tsavorite.Linq;
 
 [Collection("HashSetIntercept")]
 public sealed class HashSetMethod2 {

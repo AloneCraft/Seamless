@@ -1,5 +1,6 @@
-using Test.Tsavorite.Unit.Helpers.Collections;
-namespace Test.Tsavorite.Unit.Collections;
+using Test.Tsavorite.Collections.Unit.Helpers.Collections;
+
+namespace Test.Tsavorite.Collections.Unit.Collections;
 
 public abstract class ListBase<TStrategy, T>:ListTestBase<TStrategy,T>
     where TStrategy : IListTestStrategy<T>;

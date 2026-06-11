@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 
-namespace Test.Tsavorite;
+namespace Test.Tsavorite.Collections;
 
 internal static class TestPath {
     public static string Directory(object owner,params string[] segments) =>

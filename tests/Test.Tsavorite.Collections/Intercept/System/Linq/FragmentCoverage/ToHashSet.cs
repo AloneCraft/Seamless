@@ -1,8 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
-using SystemEnumerable=System.Linq.Enumerable;
 
-namespace Test.Tsavorite.Intercept.System.Linq.FragmentCoverage;
+using SystemEnumerable = System.Linq.Enumerable;
+
+namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class ToHashSet {
     [Fact,Trait("Category","Unit")]

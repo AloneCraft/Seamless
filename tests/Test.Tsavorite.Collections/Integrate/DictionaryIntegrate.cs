@@ -1,7 +1,9 @@
 using Tsavorite.Stores;
 using Tsavorite.core;
 
-namespace Test.Tsavorite.Integrate;
+using Test.Tsavorite.Collections;
+
+namespace Test.Tsavorite.Collections.Integrate;
 
 /// <summary>
 /// Dictionary (Key × Value) のセグメント管理・チェックポイントテストの基底クラス。

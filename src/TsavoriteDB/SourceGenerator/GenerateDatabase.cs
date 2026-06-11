@@ -1,13 +1,10 @@
 ﻿using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
-using static Tsavorite.SourceGenerator.GeneratorHelpers;
 
-namespace Tsavorite.SourceGenerator;
+namespace TsavoriteDB.SourceGenerator;
 
 [Generator]
 public sealed class TsavoriteSchemaGenerator : IIncrementalGenerator {
-    private const string InterceptsLocationAttributeSource = "";
-
     private static readonly SymbolDisplayFormat 完全修飾形式 = new(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,

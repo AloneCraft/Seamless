@@ -39,7 +39,7 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
         """;
     public override string GetCurrentExpression=> this.currentValue;
     public override string ElementType=>source.ElementType;
-    public string GetConsumeExecutionStatement(string consumerName){
+    public override string GetConsumeExecutionStatement(string consumerName){
         var sourceName=$"__src{番号}";
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
@@ -90,7 +90,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
         """;
     public override string GetCurrentExpression=> this.currentValue;
     public override string ElementType=>source.ElementType;
-    public string GetConsumeExecutionStatement(string consumerName){
+    public override string GetConsumeExecutionStatement(string consumerName){
         var sourceName=$"__src{番号}";
         var keyName=$"__key{番号}";
         var builder=new StringBuilder();

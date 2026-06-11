@@ -1,9 +1,9 @@
 using Tsavorite;
-using Test.Tsavorite.Unit.Collections;
 using Test.Tsavorite.Collections;
 using Tsavorite.Stores;
 using Tsavorite.core;
-namespace Test.Tsavorite.Unit.Helpers.Collections;
+using Test.Tsavorite.Collections.Unit.Collections;
+namespace Test.Tsavorite.Collections.Unit.Helpers.Collections;
 
 public interface IDictTypeProvider<T>
     where T : IEquatable<T> {

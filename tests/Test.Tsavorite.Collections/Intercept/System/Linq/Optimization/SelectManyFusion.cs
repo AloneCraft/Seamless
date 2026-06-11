@@ -1,7 +1,8 @@
 using System.Linq;
+
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace Test.Tsavorite.Intercept.System.Linq.Optimization;
+namespace Test.Tsavorite.Collections.Intercept.System.Linq.Optimization;
 
 // ルール §2: SelectMany の平坦化・融合と Where の述語プッシュダウン。
 public sealed class SelectManyFusion:OptimizationTestBase{

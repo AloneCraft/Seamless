@@ -1,6 +1,7 @@
 using Tsavorite.Stores;
+
 using System.Linq;
-namespace Test.Tsavorite.Tsavorite;
+namespace Test.Tsavorite.Collections.Tsavorite;
 
 /// <summary>
 /// LightEpoch 縺ｮ蛻ｶ髯舌ｒ遒ｺ隱阪☆繧九ユ繧ｹ繝医・

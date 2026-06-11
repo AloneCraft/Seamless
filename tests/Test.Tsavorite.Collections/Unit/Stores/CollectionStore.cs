@@ -1,5 +1,5 @@
 using Tsavorite.Stores;
-namespace Test.Tsavorite.Unit.Stores;
+namespace Test.Tsavorite.Collections.Unit.Stores;
 /// <summary>
 /// src/Tsavorite.Collections/Store/CollectionStore`2.cs �̑S�����J�o�[����B
 /// �����e�X�g(CoverInternals��)�ŃJ�o�[���Ă��Ȃ�����ɒ��͂���B

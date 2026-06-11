@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Test.Tsavorite.Intercept.System.Linq;
+namespace Test.Tsavorite.Collections.Intercept.System.Linq;
 
 internal static class GeneratedInterceptorAssert {
     internal static string SourceFor<TMarker>(string methodName) {

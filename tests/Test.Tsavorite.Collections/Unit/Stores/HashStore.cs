@@ -1,7 +1,8 @@
 using Tsavorite.Collections;
 using Tsavorite.Stores;
+
 using Test.Tsavorite.Collections;
-namespace Test.Tsavorite.Unit.Stores;
+namespace Test.Tsavorite.Collections.Unit.Stores;
 
 public class HashStoreTests {
     [Fact, Trait("Category","Unit")]

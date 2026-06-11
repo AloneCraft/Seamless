@@ -2,7 +2,7 @@ using Tsavorite.Collections;
 using Tsavorite.Stores;
 using Tsavorite.core;
 
-namespace Test.Tsavorite.Integrate;
+namespace Test.Tsavorite.Collections.Integrate;
 
 /// <summary>
 /// HashSet (Key) のセグメント管理・チェックポイントテストの基底クラス。
@@ -108,8 +108,8 @@ public abstract class HashSetIntegrateBase<TKey>(ITestOutputHelper output)
         using var handle = this.CreateHandle(storeDir);
         using var hashset = handle.Create();
 
-        var segmentCounts = new global::System.Collections.Generic.List<int>();
-        var addCountAtSnapshots = new global::System.Collections.Generic.List<int>();
+        var segmentCounts = new System.Collections.Generic.List<int>();
+        var addCountAtSnapshots = new System.Collections.Generic.List<int>();
 
         try {
             for(int i = 0; i<this.SegmentGrowthDataSize; i++) {

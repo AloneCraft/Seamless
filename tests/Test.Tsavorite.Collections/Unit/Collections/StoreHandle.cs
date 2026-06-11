@@ -1,4 +1,4 @@
-namespace Test.Tsavorite.Unit.Collections;
+namespace Test.Tsavorite.Collections.Unit.Collections;
 
 /// <summary>
 /// �e�X�g�p�X�g�A���색�b�p�[�B

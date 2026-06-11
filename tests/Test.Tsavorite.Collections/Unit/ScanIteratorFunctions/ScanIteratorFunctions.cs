@@ -1,6 +1,6 @@
 using Tsavorite.Collections;
 using Tsavorite.Stores;
-namespace Test.Tsavorite.Unit.ScanIteratorFunctions;
+namespace Test.Tsavorite.Collections.Unit.ScanIteratorFunctions;
 
 public class ScanIteratorFunctions{
     private static void Common(){

@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
-using SystemEnumerable=System.Linq.Enumerable;
-using Test.Tsavorite.Intercept.System.Linq.Chain1;
 
-namespace Test.Tsavorite.Intercept.System.Linq.FragmentCoverage;
+using SystemEnumerable = System.Linq.Enumerable;
+
+using Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
+
+namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
 public sealed class GroupBy {
     [Fact,Trait("Category","Unit")]

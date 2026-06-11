@@ -1,4 +1,4 @@
-namespace Test.Tsavorite.Intercept.System.Linq.Optimization;
+namespace Test.Tsavorite.Collections.Intercept.System.Linq.Optimization;
 
 // 最適化変換（不変式ホイスト/キャプチャ除去/SelectMany 融合・述語プッシュダウン/ハッシュ結合）の
 // 意味保存を検証するテスト群の共通基底。Chain1 と同じ「expected=完全修飾 SystemEnumerable（非 intercept）/
@@ -20,6 +20,21 @@ public abstract class OptimizationTestBase{
     public static int StackCheck() => 2;
     public static int GetOffset() => 1;
     public static int Limit() => 20;
+
+    // §1 代数的書換テスト用のソース。
+    public static int[] Numbers() => [5,3,8,1,9,2,7];
+    public static int[] EmptyNumbers() => [];
+
+    // 値型（struct）。X に重複（1,3）を含め、MinBy の先頭一致や struct メンバアクセスの順入替を通す。
+    public readonly record struct Point(int X,int Y);
+    public static Point[] Points() => [new(3,1),new(1,9),new(3,5),new(2,4),new(1,2)];
+
+    // 参照型ソース（OrderBy(k).FirstOrDefault()→MinBy の null 既定パス用）。
+    public static string[] Words() => ["pear","apple","kiwi","fig","banana"];
+    public static string[] EmptyWords() => [];
+
+    // null 混在（Where 順入替の安全ゲート抑止ケース用）。
+    public static string?[] WithNulls() => ["abc",null,"de",null,"fghi"];
 
     public static void AssertSequenceEqual<T>(IEnumerable<T> expected,IEnumerable<T> actual){
         Assert.Equal(expected,actual);

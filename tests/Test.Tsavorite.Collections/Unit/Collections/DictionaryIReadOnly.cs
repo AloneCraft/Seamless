@@ -1,6 +1,7 @@
 using Tsavorite.Stores;
+
 using System.Linq;
-namespace Test.Tsavorite.Unit.Collections;
+namespace Test.Tsavorite.Collections.Unit.Collections;
 
 public class DictionaryIReadOnly {
     [Fact, Trait("Category","Unit")]

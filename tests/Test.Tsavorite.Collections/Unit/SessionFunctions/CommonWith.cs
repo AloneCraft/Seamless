@@ -1,6 +1,6 @@
 using Tsavorite.Collections;
 
-namespace Test.Tsavorite.Unit.SessionFunctions;
+namespace Test.Tsavorite.Collections.Unit.SessionFunctions;
 
 public abstract class CommonWith<TKey,TSet>
     where TKey : IEquatable<TKey>
@@ -8,7 +8,7 @@ public abstract class CommonWith<TKey,TSet>
     protected abstract TKey CreateKey(int seed);
     protected abstract (TSet Set,IDisposable Store) CreateSet();
     protected abstract void With(TSet set,TSet other);
-    protected abstract void ExpectedWith(global::System.Collections.Generic.HashSet<TKey> set,global::System.Collections.Generic.HashSet<TKey> other);
+    protected abstract void ExpectedWith(System.Collections.Generic.HashSet<TKey> set,System.Collections.Generic.HashSet<TKey> other);
 
     protected void RunWithAB(int iterations = 10) {
         var (setA,storeA)=this.CreateSet();
@@ -17,8 +17,8 @@ public abstract class CommonWith<TKey,TSet>
         using var _storeB = storeB;
         using var _setA = setA;
         using var _setB = setB;
-        var hashSetA = new global::System.Collections.Generic.HashSet<TKey>();
-        var hashSetB = new global::System.Collections.Generic.HashSet<TKey>();
+        var hashSetA = new System.Collections.Generic.HashSet<TKey>();
+        var hashSetB = new System.Collections.Generic.HashSet<TKey>();
         for(var b = 0; b<iterations; b++) {
             this.ResetWithRange(hashSetA,setA,0);
             this.ResetWithRange(hashSetB,setB,b);
@@ -33,7 +33,7 @@ public abstract class CommonWith<TKey,TSet>
         var (setA,storeA)=this.CreateSet();
         using var _storeA = storeA;
         using var _setA = setA;
-        var hashSetA = new global::System.Collections.Generic.HashSet<TKey>();
+        var hashSetA = new System.Collections.Generic.HashSet<TKey>();
         for(var b = 0; b<iterations; b++) {
             this.ResetWithRange(hashSetA,setA,b);
             this.With(setA,setA);
@@ -42,7 +42,7 @@ public abstract class CommonWith<TKey,TSet>
         }
     }
 
-    private void ResetWithRange(global::System.Collections.Generic.HashSet<TKey> hashSet,TSet set,int offset) {
+    private void ResetWithRange(System.Collections.Generic.HashSet<TKey> hashSet,TSet set,int offset) {
         hashSet.Clear();
         set.Clear();
         for(var a = 0; a<8; a++) {

@@ -1,6 +1,6 @@
 using System.Linq;
 
-namespace Test.Tsavorite.Intercept.System.Linq.Chain1;
+namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed class AsQueryable:LinqChain1TestBase {
     [Fact, Trait("Category","Unit")]
