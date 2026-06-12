@@ -1,13 +1,13 @@
 namespace Test.Tsavorite.SourceGenerator;
 
 public class LinqRewriteAttributeTests {
-    // メソッドに [NoLinqRewrite] を付けると、LINQ を含んでいてもインターセプターが生成されない。
+    // メソッドに [LinqIntercept(false)] を付けると、LINQ を含んでいてもインターセプターが生成されない。
     private const string NoRewriteOnMethod = """
         using System.Linq;
         using Tsavorite.SourceGenerator;
         namespace Sample;
         public class Container {
-            [NoLinqRewrite]
+            [LinqIntercept(false)]
             private static int SumPositive(int[] src) => src.Where(x => x>0).Sum();
             public int Run(int[] src) => SumPositive(src);
         }
@@ -23,38 +23,38 @@ public class LinqRewriteAttributeTests {
         }
         """;
 
-    // クラスに [NoLinqRewrite] を付けると、配下のメソッドは展開されない。
+    // クラスに [LinqIntercept(false)] を付けると、配下のメソッドは展開されない。
     private const string NoRewriteOnClass = """
         using System.Linq;
         using Tsavorite.SourceGenerator;
         namespace Sample;
-        [NoLinqRewrite]
+        [LinqIntercept(false)]
         public class Container {
             private static int SumPositive(int[] src) => src.Where(x => x>0).Sum();
             public int Run(int[] src) => SumPositive(src);
         }
         """;
 
-    // クラスに [NoLinqRewrite] を付けても、メソッドの [LinqRewrite] が優先され展開される。
+    // クラスに [LinqIntercept(false)] を付けても、メソッドの [LinqIntercept(true)] が優先され展開される。
     private const string MethodOverridesClass = """
         using System.Linq;
         using Tsavorite.SourceGenerator;
         namespace Sample;
-        [NoLinqRewrite]
+        [LinqIntercept(false)]
         public class Container {
-            [LinqRewrite]
+            [LinqIntercept(true)]
             private static int SumPositive(int[] src) => src.Where(x => x>0).Sum();
             public int Run(int[] src) => SumPositive(src);
         }
         """;
 
-    // アセンブリ全体に [NoLinqRewrite] を付けても、クラスの [LinqRewrite] が優先され展開される。
+    // アセンブリ全体に [LinqIntercept(false)] を付けても、クラスの [LinqIntercept(true)] が優先され展開される。
     private const string ClassOverridesAssembly = """
         using System.Linq;
         using Tsavorite.SourceGenerator;
-        [assembly: NoLinqRewrite]
+        [assembly: LinqIntercept(false)]
         namespace Sample;
-        [LinqRewrite]
+        [LinqIntercept(true)]
         public class Container {
             private static int SumPositive(int[] src) => src.Where(x => x>0).Sum();
             public int Run(int[] src) => SumPositive(src);
@@ -66,9 +66,9 @@ public class LinqRewriteAttributeTests {
         using System.Linq;
         using Tsavorite.SourceGenerator;
         namespace Sample;
-        [NoLinqRewrite]
+        [LinqIntercept(false)]
         public class Outer {
-            [LinqRewrite]
+            [LinqIntercept(true)]
             public class Inner {
                 private static int SumPositive(int[] src) => src.Where(x => x>0).Sum();
                 public int Run(int[] src) => SumPositive(src);

@@ -3,7 +3,6 @@ namespace Seamless.Benchmarks;
 public class Join_inner:Base{
     [BenchFact]
     [Benchmark(Baseline=true)]
-    [NoLinqRewrite]
     public void LINQ(){
         src(1).Join(src2(1),x=>x,x=>x,(a,b)=>a).Consume(this.consumer);
     }
@@ -12,7 +11,7 @@ public class Join_inner:Base{
 
     [BenchFact]
     [Benchmark]
-    public void Intercept(){ this.JoinCore(); }
+    public void FLinq(){ this.LINQ(); }
 
     [BenchFact]
     [Benchmark]

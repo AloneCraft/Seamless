@@ -65,7 +65,7 @@
     <!-- Enable implicit usings for Immutable/Frozen Collections to use System.Linq extension methods -->
     <Using Include="System.Collections.Immutable" />
     <Using Include="System.Collections.Frozen" />
-    <!-- 共有ベンチ各ファイルの ZLinq / [NoLinqRewrite] を暗黙で解決 -->
+    <!-- 共有ベンチ各ファイルの ZLinq / [LinqIntercept] を暗黙で解決 -->
     <Using Include="ZLinq" />
     <Using Include="Tsavorite.SourceGenerator" />
   </ItemGroup>

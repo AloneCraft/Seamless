@@ -7,18 +7,13 @@ public class SelectMany_Hoisting_PredicatePushdown:Base{
 
     [BenchFact]
     [Benchmark(Baseline=true)]
-    [NoLinqRewrite]
     public void LINQ(){
         this.outer.SelectMany(_=>this.inner).Where(x=>x>Threshold&&HoistInvariant.Value()==0).Consume(this.consumer);
     }
 
-    void InterceptCore(){ this.outer.SelectMany(_=>this.inner).Where(x=>x>Threshold&&HoistInvariant.Value()==0).Consume(this.consumer); }
-
     [BenchFact]
     [Benchmark]
-    public void Intercept() {
-        this.InterceptCore();
-    }
+    public void FLinq(){ this.LINQ(); }
 
     [BenchFact]
     [Benchmark]

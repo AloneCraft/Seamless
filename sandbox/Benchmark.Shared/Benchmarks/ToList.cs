@@ -3,16 +3,13 @@ namespace Seamless.Benchmarks;
 public class ToList:Base{
     [BenchFact]
     [Benchmark(Baseline=true)]
-    [NoLinqRewrite]
     public void LINQ(){
         src(1).ToList().Consume(this.consumer);
     }
 
     [BenchFact]
     [Benchmark]
-    public void Intercept(){
-        src(1).ToList().Consume(this.consumer);
-    }
+    public void FLinq(){ this.LINQ(); }
 
     [BenchFact]
     [Benchmark]

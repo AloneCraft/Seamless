@@ -2,40 +2,32 @@ namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 public class Concat_second:Base{
-    // System.Linq baseline: インスタンス記法のまま [NoLinqRewrite] で傍受抑止（FLinq と同一連鎖）
+    // System.Linq baseline: リフレクション直呼びのため傍受されず生のまま（FLinq と同一連鎖）
     [BenchFact,Benchmark(Baseline=true),BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ1(){ src(1).Concat(src2(1)).Consume(this.consumer); }
 
     [BenchFact,Benchmark,BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ2(){ src(1).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
 
     [BenchFact,Benchmark,BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ3(){ src(1).Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
 
     [BenchFact,Benchmark,BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ4(){ src(1).Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
 
-    // FLinq: LINQ と同一連鎖。Core 経由で whole-method interception
-    void Intercept1Core(){ src(1).Concat(src2(1)).Consume(this.consumer); }
-    void Intercept2Core(){ src(1).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
-    void Intercept3Core(){ src(1).Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
-    void Intercept4Core(){ src(1).Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
+    // FLinq: this.LINQ() 呼び出しが whole-method interception で展開される
 
-    [BenchFact,Benchmark(Baseline=true),BenchmarkCategory(Categories.Intercept)]
-    public void Intercept1(){ this.Intercept1Core(); }
+    [BenchFact,Benchmark(Baseline=true),BenchmarkCategory(Categories.FLinq)]
+    public void FLinq1(){ this.LINQ1(); }
 
-    [BenchFact,Benchmark,BenchmarkCategory(Categories.Intercept)]
-    public void Intercept2(){ this.Intercept2Core(); }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.FLinq)]
+    public void FLinq2(){ this.LINQ2(); }
 
-    [BenchFact,Benchmark,BenchmarkCategory(Categories.Intercept)]
-    public void Intercept3(){ this.Intercept3Core(); }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.FLinq)]
+    public void FLinq3(){ this.LINQ3(); }
 
-    [BenchFact,Benchmark,BenchmarkCategory(Categories.Intercept)]
-    public void Intercept4(){ this.Intercept4Core(); }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.FLinq)]
+    public void FLinq4(){ this.LINQ4(); }
 
     // ZLinq: 同一連鎖 + .AsValueEnumerable() の頭差分のみ
     [BenchFact,Benchmark(Baseline=true),BenchmarkCategory(Categories.ZLinq)]

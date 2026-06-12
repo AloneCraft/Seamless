@@ -85,8 +85,19 @@ public static class PipelineBuilder {
         if(!TryExtract(semanticModel,invocation,out var sourceExpression,out var invocations)) {
             return false;
         }
-        if(invocations.Count<2) {
+        if(invocations.Count<1) {
             return false;
+        }
+        if(invocations.Count==1) {
+            // 単段は Fragment 辞書に無い Order/OrderDescending（恒等キー順序）のみ Pipeline で受ける。
+            // 単段 Where/Select 等は従来どおり Fragment 辞書経路に委ねる。
+            if(semanticModel.GetSymbolInfo(invocations[0]).Symbol is not IMethodSymbol m0) {
+                return false;
+            }
+            var n0=(m0.ReducedFrom ?? m0).Name;
+            if(n0 is not ("Order" or "OrderDescending")) {
+                return false;
+            }
         }
 
         var snapshot = uniqueNumber;
@@ -1289,7 +1300,8 @@ public static class PipelineBuilder {
                 if(orderIndexes[i]!=orderIndexes[i-1]+1) return false;
             }
         }
-        if(stages.Count<2 && terminalKind is null) return false;
+        // 単段でも順序ステージ（Order/OrderDescending）は実バッファ＋ソートを伴うので許可する。
+        if(stages.Count<2 && terminalKind is null && orderStageCount==0) return false;
         return true;
     }
 
@@ -1835,7 +1847,8 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         var primaryKeyName = this.KeyName(orderIndex);
         builder.AppendLine($"        {ComparerKeyType(primaryOrder)} {primaryKeyName}=default!;");
         if(primaryOrder.Func is null) {
-            builder.AppendLine($"        {primaryKeyName}=({ComparerKeyType(primaryOrder)})(object?){currentName}!;");
+            // 恒等キー（Order/OrderDescending）はキー型＝要素型なので、ボクシングを挟まず直接代入する。
+            builder.AppendLine($"        {primaryKeyName}={currentName};");
         } else {
             builder.AppendLine(IndentBlock(this.FuncAssign(primaryOrder.Func,primaryOrder.Kind.ToString(),primaryKeyName,currentName),"        "));
         }
@@ -1843,7 +1856,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             var secondaryKeyName = this.KeyName(orderIndex+1);
             builder.AppendLine($"        {ComparerKeyType(secondaryOrder)} {secondaryKeyName}=default!;");
             if(secondaryOrder.Func is null) {
-                builder.AppendLine($"        {secondaryKeyName}=({ComparerKeyType(secondaryOrder)})(object?){currentName}!;");
+                builder.AppendLine($"        {secondaryKeyName}={currentName};");
             } else {
                 builder.AppendLine(IndentBlock(this.FuncAssign(secondaryOrder.Func,secondaryOrder.Kind.ToString(),secondaryKeyName,currentName),"        "));
             }
@@ -1949,13 +1962,13 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             var rightPrimKey=$"__rpk{orderAfterGroup}";
             builder.AppendLine($"        {ComparerKeyType(primaryOrder)} {leftPrimKey}=default!;");
             if(primaryOrder.Func is null) {
-                builder.AppendLine($"        {leftPrimKey}=({ComparerKeyType(primaryOrder)})(object?)left!;");
+                builder.AppendLine($"        {leftPrimKey}=left;");
             } else {
                 builder.AppendLine(IndentBlock(this.FuncAssign(primaryOrder.Func,primaryOrder.Kind.ToString(),leftPrimKey,"left"),"        "));
             }
             builder.AppendLine($"        {ComparerKeyType(primaryOrder)} {rightPrimKey}=default!;");
             if(primaryOrder.Func is null) {
-                builder.AppendLine($"        {rightPrimKey}=({ComparerKeyType(primaryOrder)})(object?)right!;");
+                builder.AppendLine($"        {rightPrimKey}=right;");
             } else {
                 builder.AppendLine(IndentBlock(this.FuncAssign(primaryOrder.Func,primaryOrder.Kind.ToString(),rightPrimKey,"right"),"        "));
             }

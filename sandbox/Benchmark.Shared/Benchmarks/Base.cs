@@ -29,7 +29,7 @@ public class Base {
     protected static IEnumerable<int> src(int scale) => Enumerable.Range(1,count*scale);
     protected static IEnumerable<int> src2(int scale) => Enumerable.Range(count*scale/2+1,count*scale/2);
     protected static IEnumerable<int> srcOne(int scale) => [0];
-    [NoLinqRewrite]
+    [LinqIntercept(false)]
     protected static IEnumerable<IEnumerable<int>> srcNested(int scale) {
         var side = (int)Math.Sqrt(count*scale);
         return Enumerable.Range(1,side).Select(_ => Enumerable.Range(1,side));
