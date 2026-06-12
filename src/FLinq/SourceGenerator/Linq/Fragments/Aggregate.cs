@@ -1,5 +1,42 @@
 ﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
 public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : Scalar(番号) {
+    public override string InlineSupportingMembers => source.GetEnumeratorStruct;
+    public override string? RenderInlineComputation(string destVar,string destType){
+        if(func.CanInvokeAsDelegate) return null; // デリゲートは struct インスタンスフィールド経由のため非インライン
+        string srcExpr;
+        try { srcExpr = source.GetEnumeratorExpression; }
+        catch(System.NotSupportedException) { return null; }
+        var srcVar = $"__s{番号}";
+        var fold = source.CanProvideSpan
+            ? $$"""
+                {{srcVar}}.TryGetSpan(out var __span);
+                if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                {{source.ElementType}} {{this.result}}=default!;
+                var __first=true;
+                foreach(var __item in __span){
+                    if(__first){
+                        {{this.result}}=__item;
+                        __first=false;
+                    }else{
+                        {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+                    }
+                }
+                """
+            : $$"""
+                if(!{{srcVar}}.MoveNext()) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                var {{this.result}}={{srcVar}}.Current;
+                while({{srcVar}}.MoveNext()){
+                    {{this.FuncAssign(func,nameof(func),this.result,this.result,$"{srcVar}.Current")}}
+                }
+                """;
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{srcVar}}={{srcExpr}}){
+                {{fold}}
+                {{destVar}}={{this.result}};
+            }
+            """;
+    }
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(func,nameof(func));
     public override string GetEnumeratorExpression =>
@@ -56,6 +93,34 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
 }
 
 public class Aggregate_seed_func(int 番号, Enumerable source,string seed, FuncFragment func) : Scalar(番号) {
+    public override string InlineSupportingMembers => source.GetEnumeratorStruct;
+    public override string? RenderInlineComputation(string destVar,string destType){
+        if(func.CanInvokeAsDelegate) return null;
+        string srcExpr;
+        try { srcExpr = source.GetEnumeratorExpression; }
+        catch(System.NotSupportedException) { return null; }
+        var srcVar = $"__s{番号}";
+        var fold = source.CanProvideSpan
+            ? $$"""
+                {{srcVar}}.TryGetSpan(out var __span);
+                foreach(var __item in __span){
+                    {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+                }
+                """
+            : $$"""
+                while({{srcVar}}.MoveNext()){
+                    {{this.FuncAssign(func,nameof(func),this.result,this.result,$"{srcVar}.Current")}}
+                }
+                """;
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{srcVar}}={{srcExpr}}){
+                var {{this.result}} = {{seed}};
+                {{fold}}
+                {{destVar}}={{this.result}};
+            }
+            """;
+    }
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(func,nameof(func));
     public override string GetEnumeratorExpression =>
@@ -104,6 +169,34 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
 }
 
 public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,string seed, FuncFragment func,FuncFragment resultSelector) : Scalar(番号) {
+    public override string InlineSupportingMembers => source.GetEnumeratorStruct;
+    public override string? RenderInlineComputation(string destVar,string destType){
+        if(func.CanInvokeAsDelegate || resultSelector.CanInvokeAsDelegate) return null;
+        string srcExpr;
+        try { srcExpr = source.GetEnumeratorExpression; }
+        catch(System.NotSupportedException) { return null; }
+        var srcVar = $"__s{番号}";
+        var fold = source.CanProvideSpan
+            ? $$"""
+                {{srcVar}}.TryGetSpan(out var __span);
+                foreach(var __item in __span){
+                    {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+                }
+                """
+            : $$"""
+                while({{srcVar}}.MoveNext()){
+                    {{this.FuncAssign(func,nameof(func),this.result,this.result,$"{srcVar}.Current")}}
+                }
+                """;
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{srcVar}}={{srcExpr}}){
+                var {{this.result}} = {{seed}};
+                {{fold}}
+                {{this.FuncAssign(resultSelector,nameof(resultSelector),destVar,this.result)}}
+            }
+            """;
+    }
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => $$"""
         {{this.FuncSupport(func,nameof(func))}}

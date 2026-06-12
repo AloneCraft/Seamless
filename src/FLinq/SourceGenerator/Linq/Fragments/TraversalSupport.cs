@@ -1,7 +1,15 @@
 ﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
 
 internal static class TraversalSupport{
-    public static void AppendTraversalLoop(StringBuilder builder,string enumeratorName,string elementType,string valueName,string statement){
+    public static void AppendTraversalLoop(StringBuilder builder,string enumeratorName,string elementType,string valueName,string statement,bool canProvideSpan){
+        // span を提供できない断片（PipelineEnumerable など TryGetSpan が常に false を返す）では
+        // span 分岐は到達不能なので while(TryGetNext) だけを生成する。
+        if(!canProvideSpan){
+            builder.AppendLine($"while({enumeratorName}.TryGetNext(out {elementType} {valueName})){{");
+            builder.AppendLine(IndentBlock(statement,"    "));
+            builder.AppendLine("}");
+            return;
+        }
         var spanName=$"__sp_{enumeratorName}";
         builder.AppendLine($"if({enumeratorName}.TryGetSpan(out var {spanName})){{");
         builder.AppendLine($"    for(var __i_{enumeratorName}=0;__i_{enumeratorName}<{spanName}.Length;__i_{enumeratorName}++){{");

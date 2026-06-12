@@ -7,6 +7,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
     public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
     protected override string ComputeExpression=>$"Compute({this.e}{this.ClosureArgsSuffix(keySelector)})";
+    public override string? RenderInlineComputation(string destVar,string destType)=>this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers=>source.CanProvideSpan
         ? this.BuildSpanCompute()
         : this.BuildEnumeratorCompute();

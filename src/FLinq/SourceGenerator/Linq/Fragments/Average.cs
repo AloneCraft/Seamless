@@ -13,6 +13,7 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
+    public override string? RenderInlineComputation(string destVar,string destType) => this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => this.BuildComputeMembers(source.ElementType,"item","source.Current");
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 
@@ -126,6 +127,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(selector)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(selector)})";
+    public override string? RenderInlineComputation(string destVar,string destType) => this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => this.BuildComputeMembers();
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 
