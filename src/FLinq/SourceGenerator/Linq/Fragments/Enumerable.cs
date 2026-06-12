@@ -23,7 +23,7 @@ public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecu
         var enumeratorName=$"__ce{番号}";
         var valueName=$"__cv{番号}";
         builder.AppendLine($"using var {enumeratorName}={this.GetEnumeratorExpression};");
-        TraversalSupport.AppendTraversalLoop(builder,enumeratorName,this.ElementType,valueName,$"{consumerName}.Consume({valueName});");
+        TraversalSupport.AppendTraversalLoop(builder,enumeratorName,this.ElementType,valueName,$"{consumerName}.Consume({valueName});",this.CanProvideSpan);
         return builder.ToString().TrimEnd();
     }
 }

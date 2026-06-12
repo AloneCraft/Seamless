@@ -48,7 +48,7 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
             if({{this.lookup}}.Add(value)){
                 {{consumerName}}.Consume(value);
             }
-            """);
+            """,source.CanProvideSpan);
         return builder.ToString().TrimEnd();
     }
 }
@@ -107,7 +107,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
             if({{this.lookup}}.Add({{keyName}})){
                 {{consumerName}}.Consume(value);
             }
-            """);
+            """,source.CanProvideSpan);
         return builder.ToString().TrimEnd();
     }
 }

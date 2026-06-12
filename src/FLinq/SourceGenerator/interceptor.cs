@@ -2363,6 +2363,14 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
             return true;
         }
 
+        // スカラー終端は単一要素 enumerator struct（Struct{番号}）を生成せず、畳み込みを destVar へ直書きできる。
+        // RenderInlineComputation が非 null を返すなら Struct{番号}+TryGetNext を丸ごと省く。
+        if(fragment is Scalar scalarFragment
+            && scalarFragment.RenderInlineComputation(actualVariableName,actualTypeName) is { } inlineComputation) {
+            builder.AppendLine(inlineComputation);
+            return true;
+        }
+
         string scalarEnumeratorExpression;
         try {
             scalarEnumeratorExpression=fragment.GetEnumeratorExpression;
@@ -2374,6 +2382,16 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         builder.AppendLine($"{enumeratorName}.TryGetNext(out {actualVariableName});");
         return true;
     }
+
+    /// <summary>
+    /// スカラー断片が <see cref="Scalar.RenderInlineComputation"/> を返す場合は Struct{番号}（単一要素 enumerator）を
+    /// 含まない <see cref="Scalar.InlineSupportingMembers"/> を、そうでなければ従来の <c>GetEnumeratorStruct</c> を返す。
+    /// <see cref="フラグメントEnumerator実行文追加37"/> のインライン判定と一致させて補助メンバの過不足を防ぐ。
+    /// </summary>
+    private static string スカラー対応補助メンバ44(Fragment fragment,string varName,string typeName) =>
+        fragment is Scalar sc && sc.RenderInlineComputation(varName,typeName) is not null
+            ? sc.InlineSupportingMembers
+            : fragment.GetEnumeratorStruct;
 
     /// <summary>
     /// <c>expr.Consume(consumer)</c>（引数1個・文形）を直接消費ループへ展開する。
@@ -2831,10 +2849,10 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
             generatedFragments.Add(fragment);
 
             staticMethods=静的メソッド連結14(staticMethods,invocationStaticMethods);
-            staticMethods=静的メソッド連結14(staticMethods,fragment.GetEnumeratorStruct);
             var resultTypeName = semanticModel.GetTypeInfo(invocation).Type?.ToDisplayString(完全修飾形式)
                 ?? semanticModel.GetTypeInfo(invocation).ConvertedType?.ToDisplayString(完全修飾形式)
                 ?? "object";
+            staticMethods=静的メソッド連結14(staticMethods,スカラー対応補助メンバ44(fragment,tempName,resultTypeName));
             if(!フラグメントEnumerator実行文追加37(builder,fragment,tempName,resultTypeName,usedNames)) {
                 return false;
             }
@@ -2923,10 +2941,10 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
             }
             generatedFragments.Add(fragment);
             staticMethods=静的メソッド連結14(staticMethods,invocationStaticMethods);
-            staticMethods=静的メソッド連結14(staticMethods,fragment.GetEnumeratorStruct);
             var resultTypeName = semanticModel.GetTypeInfo(invocation).Type?.ToDisplayString(完全修飾形式)
                 ?? semanticModel.GetTypeInfo(invocation).ConvertedType?.ToDisplayString(完全修飾形式)
                 ?? "object";
+            staticMethods=静的メソッド連結14(staticMethods,スカラー対応補助メンバ44(fragment,tempName,resultTypeName));
             if(!フラグメントEnumerator実行文追加37(builder,fragment,tempName,resultTypeName,usedNames)) {
                 return false;
             }

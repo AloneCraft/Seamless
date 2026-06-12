@@ -83,22 +83,22 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
                 if({{setName}}.Add(value)){
                     {{consumerName}}.Consume(value);
                 }
-                """);
+                """,source.CanProvideSpan);
             TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
                 if({{setName}}.Add({{this.SecondValueExpression("value")}})){
                     {{consumerName}}.Consume({{this.SecondValueExpression("value")}});
                 }
-                """);
+                """,second.CanProvideSpan);
             return builder.ToString().TrimEnd();
         }
         TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
             {{setName}}.Add({{this.SecondValueExpression("value")}});
-            """);
+            """,second.CanProvideSpan);
         TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
             if({{setName}}.{{operation.SourceAcceptMethod}}(value)){
                 {{consumerName}}.Consume(value);
             }
-            """);
+            """,source.CanProvideSpan);
         return builder.ToString().TrimEnd();
     }
     private string SecondValueExpression(string valueName){
@@ -224,23 +224,23 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
                     if({{setName}}.Add(value)){
                         {{consumerName}}.Consume(value);
                     }
-                    """);
+                    """,source.CanProvideSpan);
                 TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
                     if({{setName}}.Add(value)){
                         {{consumerName}}.Consume(value);
                     }
-                    """);
+                    """,second.CanProvideSpan);
                 return builder.ToString().TrimEnd();
             }
             TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
                 {{setName}}.Add(value);
-                """);
+                """,second.CanProvideSpan);
             TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
                 if(!{{setName}}.{{operation.SourceAcceptMethod}}(value)){
                     continue;
                 }
                 {{consumerName}}.Consume(value);
-                """);
+                """,source.CanProvideSpan);
             return builder.ToString().TrimEnd();
         }
         this.AppendSetByCollectLoop(builder,secondName,setName);
@@ -252,7 +252,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
             {{this.FuncAssign(keySelector,nameof(keySelector),this.key,"value")}}
             {{setName}}.Add({{this.key}});
-            """);
+            """,second.CanProvideSpan);
     }
     private void AppendSetByConsumeLoop(StringBuilder builder,string enumeratorName,string consumerName,string setName,string operationMethod){
         TraversalSupport.AppendTraversalLoop(builder,enumeratorName,source.ElementType,"value",$$"""
@@ -262,7 +262,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
                 continue;
             }
             {{consumerName}}.Consume(value);
-            """);
+            """,source.CanProvideSpan);
     }
     private string SecondKeyExpression(string valueName){
         if(FuncReturnTypeName(keySelector)==second.ElementType){
