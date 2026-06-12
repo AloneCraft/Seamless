@@ -1,18 +1,22 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class ThenByDescending_keySelector:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        Enumerable.ThenByDescending(Enumerable.OrderBy(this.src,x=>x%1000),x=>x).Consume(this.consumer);
+        src(1).OrderBy(x=>x%1000).ThenByDescending(x=>x).Consume(this.consumer);
     }
 
-    void InterceptCore(){ this.src.OrderBy(x=>x%1000).ThenByDescending(x=>x).Consume(this.consumer); }
+    void InterceptCore(){ src(1).OrderBy(x=>x%1000).ThenByDescending(x=>x).Consume(this.consumer); }
 
+    [BenchFact]
     [Benchmark]
     public void Intercept(){ this.InterceptCore(); }
 
+    [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.AsValueEnumerable(this.src).OrderBy(x=>x%1000).ThenByDescending(x=>x).Consume(this.consumer);
+        src(1).AsValueEnumerable().OrderBy(x=>x%1000).ThenByDescending(x=>x).Consume(this.consumer);
     }
 }

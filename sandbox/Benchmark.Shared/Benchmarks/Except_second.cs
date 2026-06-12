@@ -1,73 +1,89 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 public class Except_second:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ1(){
-        Enumerable.Except(this.src,this.src2).Consume(this.consumer);
+        src(1).Except(src2(1)).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ2(){
-        Enumerable.Except(Enumerable.Except(this.src,this.src2),this.src2).Consume(this.consumer);
+        src(1).Except(src2(1)).Except(src2(1)).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ3(){
-        Enumerable.Except(Enumerable.Except(Enumerable.Except(this.src,this.src2),this.src2),this.src2).Consume(this.consumer);
+        src(1).Except(src2(1)).Except(src2(1)).Except(src2(1)).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ4(){
-        Enumerable.Except(Enumerable.Except(Enumerable.Except(Enumerable.Except(this.src,this.src2),this.src2),this.src2),this.src2).Consume(this.consumer);
+        src(1).Except(src2(1)).Except(src2(1)).Except(src2(1)).Except(src2(1)).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept1(){ this.Intercept1Core(); }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept2(){ this.Intercept2Core(); }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept3(){ this.Intercept3Core(); }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept4(){ this.Intercept4Core(); }
 
-    void Intercept1Core(){ this.src.Except(this.src2).Consume(this.consumer); }
-    void Intercept2Core(){ this.src.Except(this.src2).Except(this.src2).Consume(this.consumer); }
-    void Intercept3Core(){ this.src.Except(this.src2).Except(this.src2).Except(this.src2).Consume(this.consumer); }
-    void Intercept4Core(){ this.src.Except(this.src2).Except(this.src2).Except(this.src2).Except(this.src2).Consume(this.consumer); }
+    void Intercept1Core(){ src(1).Except(src2(1)).Consume(this.consumer); }
+    void Intercept2Core(){ src(1).Except(src2(1)).Except(src2(1)).Consume(this.consumer); }
+    void Intercept3Core(){ src(1).Except(src2(1)).Except(src2(1)).Except(src2(1)).Consume(this.consumer); }
+    void Intercept4Core(){ src(1).Except(src2(1)).Except(src2(1)).Except(src2(1)).Except(src2(1)).Consume(this.consumer); }
 
+    [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        ValueEnumerable.AsValueEnumerable(this.src).Except(this.src2).Consume(this.consumer);
+        src(1).AsValueEnumerable().Except(src2(1)).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        ValueEnumerable.AsValueEnumerable(this.src).Except(this.src2).Except(this.src2).Consume(this.consumer);
+        src(1).AsValueEnumerable().Except(src2(1)).Except(src2(1)).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        ValueEnumerable.AsValueEnumerable(this.src).Except(this.src2).Except(this.src2).Except(this.src2).Consume(this.consumer);
+        src(1).AsValueEnumerable().Except(src2(1)).Except(src2(1)).Except(src2(1)).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        ValueEnumerable.AsValueEnumerable(this.src).Except(this.src2).Except(this.src2).Except(this.src2).Except(this.src2).Consume(this.consumer);
+        src(1).AsValueEnumerable().Except(src2(1)).Except(src2(1)).Except(src2(1)).Except(src2(1)).Consume(this.consumer);
     }
 }

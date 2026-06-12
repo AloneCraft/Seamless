@@ -291,6 +291,17 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         }
         """;
 
+    private const string LinqRewriteAttributesSource = """
+        #nullable enable
+        namespace Tsavorite.SourceGenerator {
+            [global::System.AttributeUsage(global::System.AttributeTargets.Assembly|global::System.AttributeTargets.Class|global::System.AttributeTargets.Method,AllowMultiple=false)]
+            internal sealed class NoLinqRewriteAttribute : global::System.Attribute { }
+
+            [global::System.AttributeUsage(global::System.AttributeTargets.Assembly|global::System.AttributeTargets.Class|global::System.AttributeTargets.Method,AllowMultiple=false)]
+            internal sealed class LinqRewriteAttribute : global::System.Attribute { }
+        }
+        """;
+
     private sealed class フラグメント候補 {
         public required Type FragmentType { get; init; }
         public required ConstructorInfo Constructor { get; init; }
@@ -356,6 +367,7 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
 
         context.RegisterPostInitializationOutput(static productionContext=>{
             productionContext.AddSource("InterceptsLocationAttribute.g.cs",SourceText.From(InterceptsLocationAttributeSource,Encoding.UTF8));
+            productionContext.AddSource("LinqRewriteAttributes.g.cs",SourceText.From(LinqRewriteAttributesSource,Encoding.UTF8));
         });
 
         // Tsavorite001 警告: グローバルな重複除去が必要なため Collect で一括処理（軽量）
@@ -501,6 +513,10 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
             return false;
         }
 
+        if(!LinqRewrite判定(method,context.SemanticModel.Compilation)) {
+            return false;
+        }
+
         var interceptableLocation = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptableLocation(context.SemanticModel,invocation,cancellationToken);
         if(interceptableLocation is null) {
             return false;
@@ -537,6 +553,43 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
             methodTypeParameterNames: methodTypeParameterNames,
             isLocalMethodInterception: true);
         return true;
+    }
+
+    // [NoLinqRewrite]/[LinqRewrite] によるLINQ展開可否の判定。
+    // メソッド > 入れ子クラス(内側から外側) > アセンブリ の順で最初に見つかった指定を採用し、
+    // どこにも無ければ展開する(従来どおりのデフォルト挙動)。
+    private static bool LinqRewrite判定(IMethodSymbol method,Compilation compilation) {
+        if(TryGetLinqRewriteOverride(method.GetAttributes(),out var methodOverride)) {
+            return methodOverride;
+        }
+
+        for(var type=method.ContainingType;type is not null;type=type.ContainingType) {
+            if(TryGetLinqRewriteOverride(type.GetAttributes(),out var typeOverride)) {
+                return typeOverride;
+            }
+        }
+
+        if(TryGetLinqRewriteOverride(compilation.Assembly.GetAttributes(),out var assemblyOverride)) {
+            return assemblyOverride;
+        }
+
+        return true;
+    }
+
+    private static bool TryGetLinqRewriteOverride(ImmutableArray<AttributeData> attributes,out bool shouldRewrite) {
+        foreach(var attribute in attributes) {
+            var name=attribute.AttributeClass?.Name;
+            if(name=="NoLinqRewriteAttribute") {
+                shouldRewrite=false;
+                return true;
+            }
+            if(name=="LinqRewriteAttribute") {
+                shouldRewrite=true;
+                return true;
+            }
+        }
+        shouldRewrite=default;
+        return false;
     }
 
     /// <summary>
@@ -3860,6 +3913,17 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         _=>Convert.ToString(value,System.Globalization.CultureInfo.InvariantCulture) ?? "default!",
     };
 
+    /// <summary>
+    /// <paramref name="type"/> 自身、またはその基底クラスチェーン上に <paramref name="target"/> が存在するかを判定する。
+    /// 基底クラスで宣言された static const フィールドの参照をインライン展開するために使用する。
+    /// </summary>
+    private static bool IsSameOrBaseType(INamedTypeSymbol type,INamedTypeSymbol target) {
+        for(var t=type;t is not null;t=t.BaseType) {
+            if(SymbolEqualityComparer.Default.Equals(t,target)) return true;
+        }
+        return false;
+    }
+
     private static string RefKind接頭辞取得35(SyntaxKind syntaxKind)=>syntaxKind switch {
         SyntaxKind.RefKeyword=>"ref ",
         SyntaxKind.OutKeyword=>"out ",
@@ -3992,7 +4056,7 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
 
             if(semanticModel.GetSymbolInfo(identifier).Symbol is not IFieldSymbol field
                 || !field.IsStatic
-                || !SymbolEqualityComparer.Default.Equals(field.ContainingType,containingType)
+                || !IsSameOrBaseType(containingType,field.ContainingType)
                 || field.DeclaredAccessibility==Accessibility.Public) {
                 continue;
             }

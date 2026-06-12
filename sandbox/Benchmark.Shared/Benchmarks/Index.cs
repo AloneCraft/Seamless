@@ -1,18 +1,22 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class Index:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        Enumerable.Index(this.src).Consume(this.consumer);
+        src(1).Index().Consume(this.consumer);
     }
 
-    void InterceptCore(){ this.src.Index().Consume(this.consumer); }
+    void InterceptCore(){ src(1).Index().Consume(this.consumer); }
 
+    [BenchFact]
     [Benchmark]
     public void Intercept(){ this.InterceptCore(); }
 
+    [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.AsValueEnumerable(this.src).Index().Consume(this.consumer);
+        src(1).AsValueEnumerable().Index().Consume(this.consumer);
     }
 }

@@ -1,73 +1,52 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 public class Concat_second:Base{
-    [Benchmark(Baseline=true)]
-    [BenchmarkCategory(Categories.LINQ)]
-    public void LINQ1(){
-        Enumerable.Concat(this.src,this.src2).Consume(this.consumer);
-    }
+    // System.Linq baseline: インスタンス記法のまま [NoLinqRewrite] で傍受抑止（FLinq と同一連鎖）
+    [BenchFact,Benchmark(Baseline=true),BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
+    public void LINQ1(){ src(1).Concat(src2(1)).Consume(this.consumer); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.LINQ)]
-    public void LINQ2(){
-        Enumerable.Concat(Enumerable.Concat(this.src,this.src2),this.src2).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
+    public void LINQ2(){ src(1).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.LINQ)]
-    public void LINQ3(){
-        Enumerable.Concat(Enumerable.Concat(Enumerable.Concat(this.src,this.src2),this.src2),this.src2).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
+    public void LINQ3(){ src(1).Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.LINQ)]
-    public void LINQ4(){
-        Enumerable.Concat(Enumerable.Concat(Enumerable.Concat(Enumerable.Concat(this.src,this.src2),this.src2),this.src2),this.src2).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
+    public void LINQ4(){ src(1).Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
 
-    [Benchmark(Baseline=true)]
-    [BenchmarkCategory(Categories.Intercept)]
+    // FLinq: LINQ と同一連鎖。Core 経由で whole-method interception
+    void Intercept1Core(){ src(1).Concat(src2(1)).Consume(this.consumer); }
+    void Intercept2Core(){ src(1).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
+    void Intercept3Core(){ src(1).Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
+    void Intercept4Core(){ src(1).Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
+
+    [BenchFact,Benchmark(Baseline=true),BenchmarkCategory(Categories.Intercept)]
     public void Intercept1(){ this.Intercept1Core(); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.Intercept)]
     public void Intercept2(){ this.Intercept2Core(); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.Intercept)]
     public void Intercept3(){ this.Intercept3Core(); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.Intercept)]
     public void Intercept4(){ this.Intercept4Core(); }
 
-    void Intercept1Core(){ this.src.Concat(this.src2).Consume(this.consumer); }
-    void Intercept2Core(){ this.src.Concat(this.src2).Concat(this.src2).Consume(this.consumer); }
-    void Intercept3Core(){ this.src.Concat(this.src2).Concat(this.src2).Concat(this.src2).Consume(this.consumer); }
-    void Intercept4Core(){ this.src.Concat(this.src2).Concat(this.src2).Concat(this.src2).Concat(this.src2).Consume(this.consumer); }
+    // ZLinq: 同一連鎖 + .AsValueEnumerable() の頭差分のみ
+    [BenchFact,Benchmark(Baseline=true),BenchmarkCategory(Categories.ZLinq)]
+    public void ZLinq1(){ src(1).AsValueEnumerable().Concat(src2(1)).Consume(this.consumer); }
 
-    [Benchmark(Baseline=true)]
-    [BenchmarkCategory(Categories.ZLinq)]
-    public void ZLinq1(){
-        ValueEnumerable.AsValueEnumerable(this.src).Concat(this.src2).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.ZLinq)]
+    public void ZLinq2(){ src(1).AsValueEnumerable().Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.ZLinq)]
-    public void ZLinq2(){
-        ValueEnumerable.AsValueEnumerable(this.src).Concat(this.src2).Concat(this.src2).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.ZLinq)]
+    public void ZLinq3(){ src(1).AsValueEnumerable().Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.ZLinq)]
-    public void ZLinq3(){
-        ValueEnumerable.AsValueEnumerable(this.src).Concat(this.src2).Concat(this.src2).Concat(this.src2).Consume(this.consumer);
-    }
-
-    [Benchmark]
-    [BenchmarkCategory(Categories.ZLinq)]
-    public void ZLinq4(){
-        ValueEnumerable.AsValueEnumerable(this.src).Concat(this.src2).Concat(this.src2).Concat(this.src2).Concat(this.src2).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.ZLinq)]
+    public void ZLinq4(){ src(1).AsValueEnumerable().Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Concat(src2(1)).Consume(this.consumer); }
 }

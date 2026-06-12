@@ -1,76 +1,92 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 public class OrderByDescending_keySelector:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ1(){
-        Enumerable.OrderByDescending(this.src,x=>x).Consume(this.consumer);
+        src(1).OrderByDescending(x=>x).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ2(){
-        Enumerable.OrderByDescending(Enumerable.OrderByDescending(this.src,x=>x),x=>x).Consume(this.consumer);
+        src(1).OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ3(){
-        Enumerable.OrderByDescending(Enumerable.OrderByDescending(Enumerable.OrderByDescending(this.src,x=>x),x=>x),x=>x).Consume(this.consumer);
+        src(1).OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ4(){
-        Enumerable.OrderByDescending(Enumerable.OrderByDescending(Enumerable.OrderByDescending(Enumerable.OrderByDescending(this.src,x=>x),x=>x),x=>x),x=>x).Consume(this.consumer);
+        src(1).OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept1(){
-        this.src.OrderByDescending(x=>x).Consume(this.consumer);
+        src(1).OrderByDescending(x=>x).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept2(){
-        this.src.OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
+        src(1).OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept3(){
-        this.src.OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
+        src(1).OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept4(){
-        this.src.OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
+        src(1).OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        ValueEnumerable.AsValueEnumerable(this.src).OrderByDescending(x=>x).Consume(this.consumer);
+        src(1).AsValueEnumerable().OrderByDescending(x=>x).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        ValueEnumerable.AsValueEnumerable(this.src).OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
+        src(1).AsValueEnumerable().OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        ValueEnumerable.AsValueEnumerable(this.src).OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
+        src(1).AsValueEnumerable().OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        ValueEnumerable.AsValueEnumerable(this.src).OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
+        src(1).AsValueEnumerable().OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).OrderByDescending(x=>x).Consume(this.consumer);
     }
 }

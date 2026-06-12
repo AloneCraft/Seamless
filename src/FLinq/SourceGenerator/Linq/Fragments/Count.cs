@@ -19,7 +19,9 @@ public class Count(int 番号, Enumerable source, string resultType) : BufferedS
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source) {
                 {{resultType}} count=0;
-                while(source.MoveNext()) count++;
+                checked{
+                    while(source.MoveNext()) count++;
+                }
                 return count;
             }
             """;
@@ -43,11 +45,13 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                 source.TryGetSpan(out var __span);
                 {{resultType}} count = 0;
-                for(var __i = 0; __i < __span.Length; __i++) {
-                    var {{this.item}} = __span[__i];
-                    bool {{this.temp}} = default!;
-                    {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
-                    if({{this.temp}}) count++;
+                checked{
+                    for(var __i = 0; __i < __span.Length; __i++) {
+                        var {{this.item}} = __span[__i];
+                        bool {{this.temp}} = default!;
+                        {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
+                        if({{this.temp}}) count++;
+                    }
                 }
                 return count;
             }
@@ -56,11 +60,13 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                 {{resultType}} count = 0;
-                while(source.MoveNext()) {
-                    var {{this.item}} = source.Current;
-                    bool {{this.temp}} = default!;
-                    {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
-                    if({{this.temp}}) count++;
+                checked{
+                    while(source.MoveNext()) {
+                        var {{this.item}} = source.Current;
+                        bool {{this.temp}} = default!;
+                        {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
+                        if({{this.temp}}) count++;
+                    }
                 }
                 return count;
             }

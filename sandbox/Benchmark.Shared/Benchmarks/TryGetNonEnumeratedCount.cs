@@ -1,6 +1,6 @@
 using SystemEnumerable=System.Linq.Enumerable;
 
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class TryGetNonEnumeratedCount:Base{
     static void ConsumeResult(Consumer consumer,bool result,int count){
@@ -12,18 +12,22 @@ public class TryGetNonEnumeratedCount:Base{
         }
     }
 
+    [BenchFact]
     [Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        ConsumeResult(this.consumer,SystemEnumerable.TryGetNonEnumeratedCount(this.src,out var count),count);
+        ConsumeResult(this.consumer,SystemEnumerable.TryGetNonEnumeratedCount(src(1),out var count),count);
     }
 
-    void InterceptCore(){ ConsumeResult(this.consumer,this.src.TryGetNonEnumeratedCount(out var count),count); }
+    void InterceptCore(){ ConsumeResult(this.consumer,src(1).TryGetNonEnumeratedCount(out var count),count); }
 
+    [BenchFact]
     [Benchmark]
     public void Intercept(){ this.InterceptCore(); }
 
+    [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ConsumeResult(this.consumer,ValueEnumerable.AsValueEnumerable(this.src).TryGetNonEnumeratedCount(out var count),count);
+        ConsumeResult(this.consumer,src(1).AsValueEnumerable().TryGetNonEnumeratedCount(out var count),count);
     }
 }

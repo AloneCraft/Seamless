@@ -1,18 +1,22 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class Zip_tuple:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        Enumerable.Zip(this.src,this.src2).Consume(this.consumer);
+        src(1).Zip(src2(1)).Consume(this.consumer);
     }
 
-    void InterceptCore(){ this.src.Zip(this.src2).Consume(this.consumer); }
+    void InterceptCore(){ src(1).Zip(src2(1)).Consume(this.consumer); }
 
+    [BenchFact]
     [Benchmark]
     public void Intercept(){ this.InterceptCore(); }
 
+    [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.AsValueEnumerable(this.src).Zip(this.src2).Consume(this.consumer);
+        src(1).AsValueEnumerable().Zip(src2(1)).Consume(this.consumer);
     }
 }

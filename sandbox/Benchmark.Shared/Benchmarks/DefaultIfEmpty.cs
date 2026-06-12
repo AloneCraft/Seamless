@@ -1,76 +1,92 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 public class DefaultIfEmpty:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ1(){
-        Enumerable.DefaultIfEmpty(this.src,0).Consume(this.consumer);
+        src(1).DefaultIfEmpty(0).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ2(){
-        Enumerable.DefaultIfEmpty(Enumerable.DefaultIfEmpty(this.src,0),0).Consume(this.consumer);
+        src(1).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ3(){
-        Enumerable.DefaultIfEmpty(Enumerable.DefaultIfEmpty(Enumerable.DefaultIfEmpty(this.src,0),0),0).Consume(this.consumer);
+        src(1).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ4(){
-        Enumerable.DefaultIfEmpty(Enumerable.DefaultIfEmpty(Enumerable.DefaultIfEmpty(Enumerable.DefaultIfEmpty(this.src,0),0),0),0).Consume(this.consumer);
+        src(1).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept1(){
-        this.src.DefaultIfEmpty(0).Consume(this.consumer);
+        src(1).DefaultIfEmpty(0).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept2(){
-        this.src.DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
+        src(1).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept3(){
-        this.src.DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
+        src(1).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept4(){
-        this.src.DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
+        src(1).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        ValueEnumerable.AsValueEnumerable(this.src).DefaultIfEmpty(0).Consume(this.consumer);
+        src(1).AsValueEnumerable().DefaultIfEmpty(0).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        ValueEnumerable.AsValueEnumerable(this.src).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
+        src(1).AsValueEnumerable().DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        ValueEnumerable.AsValueEnumerable(this.src).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
+        src(1).AsValueEnumerable().DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        ValueEnumerable.AsValueEnumerable(this.src).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
+        src(1).AsValueEnumerable().DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).DefaultIfEmpty(0).Consume(this.consumer);
     }
 }

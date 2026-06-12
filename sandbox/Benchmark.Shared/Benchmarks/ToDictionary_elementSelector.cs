@@ -1,18 +1,22 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class ToDictionary_elementSelector:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        Enumerable.ToDictionary(this.src,x=>x,x=>x*2).Consume(this.consumer);
+        src(1).ToDictionary(x=>x,x=>x*2).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     public void Intercept(){
-        this.src.ToDictionary(x=>x,x=>x*2).Consume(this.consumer);
+        src(1).ToDictionary(x=>x,x=>x*2).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.AsValueEnumerable(this.src).ToDictionary(x=>x,x=>x*2).Consume(this.consumer);
+        src(1).AsValueEnumerable().ToDictionary(x=>x,x=>x*2).Consume(this.consumer);
     }
 }

@@ -1,7 +1,4 @@
-using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Tsavorite.SourceGenerator;
 
 namespace Test.Tsavorite.SourceGenerator;
 
@@ -33,8 +30,8 @@ public class IncrementalCacheTests {
 
     [Fact]
     public void NoChange_AllStepsCached() {
-        var comp = CreateCompilation([("FileA.cs",FileA),("FileB.cs",FileB)]);
-        var driver = CreateDriver().RunGenerators(comp);
+        var comp = GeneratorTestHelpers.CreateCompilation([("FileA.cs",FileA),("FileB.cs",FileB)]);
+        var driver = GeneratorTestHelpers.CreateDriver().RunGenerators(comp);
 
         // 変更なしで再実行 → 全ステップがキャッシュ
         var driver2 = driver.RunGenerators(comp);
@@ -57,11 +54,11 @@ public class IncrementalCacheTests {
 
     [Fact]
     public void OnlyFileAChanged_FileBSourceOutputCached() {
-        var comp = CreateCompilation([("FileA.cs",FileA),("FileB.cs",FileB)]);
-        var driver = CreateDriver().RunGenerators(comp);
+        var comp = GeneratorTestHelpers.CreateCompilation([("FileA.cs",FileA),("FileB.cs",FileB)]);
+        var driver = GeneratorTestHelpers.CreateDriver().RunGenerators(comp);
 
         // FileA だけ変更した compilation で再実行
-        var compWithA2 = CreateCompilation([("FileA.cs",FileA2),("FileB.cs",FileB)]);
+        var compWithA2 = GeneratorTestHelpers.CreateCompilation([("FileA.cs",FileA2),("FileB.cs",FileB)]);
         var driver2 = driver.RunGenerators(compWithA2);
         var result = driver2.GetRunResult();
 
@@ -99,39 +96,4 @@ public class IncrementalCacheTests {
         }
     }
 
-    private static readonly CSharpParseOptions ParseOptions = new CSharpParseOptions(LanguageVersion.Preview);
-
-    private static CSharpGeneratorDriver CreateDriver() {
-        return CSharpGeneratorDriver.Create(
-            generators: [new TsavoriteIncrementalGenerator().AsSourceGenerator()],
-            parseOptions: ParseOptions,
-            driverOptions: new GeneratorDriverOptions(
-                disabledOutputs: IncrementalGeneratorOutputKind.None,
-                trackIncrementalGeneratorSteps: true));
-    }
-
-    private static CSharpCompilation CreateCompilation(IEnumerable<(string fileName,string source)> sources) {
-        var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-            .WithNullableContextOptions(NullableContextOptions.Enable);
-        var references = GetNetCoreReferences();
-        var syntaxTrees = sources
-            .Select(s => CSharpSyntaxTree.ParseText(s.source,ParseOptions,path: s.fileName))
-            .ToArray();
-
-        return CSharpCompilation.Create(
-            assemblyName: "TestAssembly",
-            syntaxTrees: syntaxTrees,
-            references: references,
-            options: options);
-    }
-
-    private static ImmutableArray<MetadataReference> GetNetCoreReferences() {
-        var trustedAssemblies = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string ?? string.Empty;
-        var refs = trustedAssemblies
-            .Split(Path.PathSeparator)
-            .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p))
-            .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
-            .ToImmutableArray();
-        return refs;
-    }
 }

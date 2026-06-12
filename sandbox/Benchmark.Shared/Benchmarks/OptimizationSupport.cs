@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 internal static class HoistInvariant{
     private static int seed=3;

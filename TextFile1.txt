@@ -1,14 +1,106 @@
-Type	Method	Mean	Error	Ratio	RatioSD
-ではなく
-┌──┬────┬─────┬─────┬─────┬─────┬─────┐
-│Type│LINQTime│ZLinqTime │FLinqTime │LINQRatio │ZLinqRatio│FLinqRatio│
-├──┼────┼─────┼─────┼─────┼─────┼─────┤
-...
-というようにして
-ブラウザーをスクロールしてもヘッダーを固定するようにして
+SGで生成されたコードをみてインデントが崩れていたらそれを直して
+メンバーをアクセスするときはthis.をつけてプライマリコンストラクタにすることでthisとあえて区別つけないことでコード生成を楽にするならば現状のままで
 
+## 統合プロンプト案
 
-Type LINQTime
+以下がClaudeに渡すプロンプトです。コードベースの現状と統合すべきギャップをすべて記述しています。
+
+---
+
+```
+# タスク
+FLinqソースジェネレーターの3つの最適化パス（AlgebraicRewriter, PipelineBuilder, OptimizeVisitor）を統合し、未実装のパターンを補完してください。
+
+## コードベース構成（g:/GitHub/Seamless/src/FLinq/SourceGenerator/）
+- AlgebraicRewriter.cs — 構文木レベルの代数書き換え（interceptor.csのコード生成直前で使用）
+- OptimizeVisitor.cs — 5段階パイプライン（AnonymousToRecord → QueryToExtension → ExtensionToStatic → OptimizeVisitor → RecordToAnonymous）※現在はFullOptimizeがどこからも呼ばれていないデッドコード
+- interceptor.cs — エントリポイント。AlgebraicRewriter.Rewrite を呼んだ後、PipelineBuilder.TryBuild → 成功/フォールバック の2経路
+- Linq/Fragments/Pipeline.cs — PipelineBuilder（Chain IR：LINQチェーンをステージ配列に変換し、一つのstructとしてコード生成）
+
+## 現状のギャップ
+
+### 1. AlgebraicRewriter（構文木書き換え）の不足
+**現在できること：**
+- `Where(p).Count()/Any()/FirstOrDefault()/SingleOrDefault()` → 対応する条件付きメソッドに融合
+- `Count()>0 → Any()`, `Count()==0 → !Any()`
+- `OrderBy(k).First() → MinBy(k)`  ※ただし `FirstOrDefault→MinBy/MaxBy` は「空列でthrowするため意味が異なる」と明示的に対象外
+- `Select(p=>p)`除去, `AsEnumerable()`除去
+- Whereの順序入れ替え（選択率・コストで安定整列）
+
+**不足しているが実装すべきパターン：**
+- `Select(f).Select(g) → Select(x=>g(f(x)))` — 関数合成
+  - ラムダ本文の式木を構文木レベルで合成するロジックが必要
+  - パラメータ名の整合性を取る（gのパラメータ名をf(x)の式で置換）
+- `Where(f).Where(g) → Where(x=>f(x)&&g(x))` — 構文木レベルでの&&結合
+  - 現在はPipelineBuilder（Chain IR内）でのみ実装済み。AlgebraicRewriterにも追加して一貫性を持たせる
+- `OrderBy(k).FirstOrDefault() → MinBy(k)` / `OrderByDescending(k).FirstOrDefault() → MaxBy(k)`
+  - 現在は「空列でthrowするから」と対象外になっている
+  - 参照型/nullable値型の場合はdefaultが返るのでFirstOrDefaultと等価 → 型を判定して安全な場合のみ実行する
+
+### 2. PipelineBuilder（Chain IR）の不足
+**現在できること：**
+- `NormalizeStages` → `MergeWhereStages` → `TryMergeWhereFunc`: 連続Whereを && 結合
+- 各ステージを配列で持ち、ループ1回転で全ステージを順次適用するEnumerator struct生成
+- Fragment単位ではなく一つのstructに統合するのでGCゼロ
+
+**不足しているが実装すべきパターン：**
+- `PipelineStageKind.Select` が連続した場合、2つのSelectを1つに融合する
+  - 前段のSelectのFuncFragmentの出力型 = 後段のSelectのFuncFragmentの入力型
+  - `TryMergeSelectFunc` を新設：第1のFuncFragmentの出力を第2のFuncFragmentのパラメータで置換インライン化
+  - `MergeSelectStages` として `NormalizeStages` 内に追加
+  - `FuncFragment.RenderInlineExpression()` が既に存在するのでこれを利用する
+- LICM（ループ不変式ホイスティング）はパラメータ依存解析が必要で、Chain IRの各FuncFragmentに対して
+  - 「ラムダパラメータに依存しない式」をステージ外にリフト → 構造体のフィールドに事前計算として保持
+  - これは実装が複雑なので、優先度を低くしてもよい
+
+### 3. OptimizeVisitor — 復活 or 削除の判断が必要
+**現状：** `FullOptimize()` がどこからも呼ばれていないデッドコード
+**内容：** 匿名型→record struct の往復変換 + クエリ式→拡張メソッド変換 + 静的メソッド化 + Where押し下げ
+**問題点：**
+- 匿名型→record struct置換は `AnonymousStructRecordRegistry`（interceptor.cs内）が別途行っており、そちらがメインで使われている
+- OptimizeVisitorの `QueryToExtensionMethodRewriter`（クエリ式→拡張メソッドチェーン）は、interceptor.csでも同様の処理（`RewriteQueriesToExtensionMethods`）がある → 統合対象
+- `ExtensionToStaticRewriter` は不要（global::二重化は別の仕組みで対応済み）
+- `RecordToAnonymousRewriter`（record struct→匿名型の戻し）は実装されていない（現状はrecord structのまま出力 or フォールバックで匿名型維持の二者択一）
+
+**推奨対応：**
+- `QueryToExtensionMethodRewriter` を AlgebraicRewriter に統合（または interceptor.cs 内の既存クエリ式変換を AlgebraicRewriter と統一）
+- 他の4段階（AnonymousToRecord, ExtensionToStatic, OptimizeVisitor本体, RecordToAnonymous）は削除してよい
+- AlgebraicRewriter を拡張して、record struct展開後の式にも適用できるようにする（現在は匿名型を展開する前の生の構文木に適用）
+
+## 実装指針
+
+### AlgebraicRewriter 拡張手順
+1. `TryFuseSelectChain()` を追加：連続する `Select` 呼び出しを検出
+   - 内側のラムダ本文式 `innerBody` を取得
+   - 外側のラムダ本文式 `outerBody` を取得
+   - `outerBody` 内のパラメータ参照を `innerBody` で置換
+   - 新しい `SimpleLambdaExpressionSyntax` を生成
+2. `TryFuseWherePredicate()` と同様に `TryFuseWhereWhere()` を追加：連続Whereの&&結合
+   - `TryMergeWhereFunc`（PipelineBuilder側）と同様のロジックを構文木レベルで
+3. `TryFuseOrderByFirstOrDefault()`：FirstOrDefault版の実装
+   - 型検査：戻り値型が参照型またはNullable<T>の場合のみ実行
+
+### PipelineBuilder 拡張手順
+1. `MergeSelectStages()`：`NormalizeStages` 内で連続Selectを結合
+   - 前段のFuncFragmentの `RenderInlineExpression()` で出力式を取得
+   - 後段のFuncFragmentのパラメータを前段の出力式で置換
+   - 新しい `LambdaFunc` を生成（`TryMergeWhereFunc` と同様のパターン）
+
+### OptimizeVisitor 対応
+- `QueryToExtensionMethodRewriter` のみを AlgebraicRewriter に統合
+- 他は削除（またはコメントアウト）
+
+## 制約
+1. AlgebraicRewriter は構文木→構文木の書き換えなので、`SyntaxFactory` のみを使ってノード生成すること（SemanticModelの再計算は不要）
+2. PipelineBuilder の段階では `FuncFragment` を使ったインライン式合成が可能（`RenderInlineExpression()` と `LambdaFunc` を利用）
+3. **必ず元の意味論を維持すること**（空列時の挙動、遅延評価のタイミング、例外の種類など）
+4. 各変更後にビルドが通り、既存テストがパスすることを確認すること
+5. テストを追加する場合、`tests/` 配下に該当パターンのテストを追加すること
+6. 今回の改善によりパフォーマンス改善されることを確認するBenchmarkを書いて
+```
+
+---
+
 
 opus4.8 xhigh
 # 役割
@@ -79,7 +171,7 @@ Markdown
 You are an expert-level .NET Compiler Engineer and Roslyn Source Generator optimization specialist. Your task is to perform advanced structural transformations on C# LINQ queries to maximize execution speed, minimize loop iteration counts, and eliminate memory allocations.
 
 # Objective
-Analyze the input C# LINQ expression and rewrite it into a highly optimized structure. 
+Analyze the input C# LINQ expression and rewrite it into a highly optimized structure.
 You must move beyond simple loop flattening; you must perform multi-scope Loop-Invariant Code Motion (LICM), lambda capture elimination, predicate pushdown, and join-algorithm restructuring.
 
 # Optimization Rules & Transformations
@@ -113,7 +205,7 @@ Output ONLY the optimized C# code block inside a markdown code block. Do not inc
 ## Example 1: Hierarchical Invariant Hoisting (Multi-Scope Lift)
 ```csharp
 // BEFORE OPTIMIZATION
-Source0().SelectMany(a => 
+Source0().SelectMany(a =>
     Source1().Select(b => (a + StaticCheck()) - (b * StackCheck()))
 ).Consume(actual);
 
@@ -141,17 +233,17 @@ Source0().SelectMany(
 Example 3: Join Key-Selector Hoisting
 C#
 // BEFORE OPTIMIZATION
-outer.Join(inner, 
-    o => o.Key + GetOffset(), 
-    i => i.Key, 
+outer.Join(inner,
+    o => o.Key + GetOffset(),
+    i => i.Key,
     (o, i) => new { o, i }
 );
 
 // AFTER OPTIMIZATION
 var hoisted_offset = GetOffset();
-outer.Join(inner, 
-    static o => o.Key + hoisted_offset, 
-    static i => i.Key, 
+outer.Join(inner,
+    static o => o.Key + hoisted_offset,
+    static i => i.Key,
     static (o, i) => new { o, i }
 );
 
@@ -178,7 +270,7 @@ static IEnumerable<TAnonymous> M<TAnonymous>(int[] s) {
     .Select(p => new struct_record<int>(p))
     .GroupBy(
         // KeySelector: 元の「new { p }」と同じ匿名型の構造を復元
-        rec => new { rec.p }, 
+        rec => new { rec.p },
         // ElementSelector: 元の「new { x = { p } }」と同じネスト構造を復元
         rec => new { x = new { rec.p } }
     );
@@ -214,7 +306,7 @@ AIによる調査結果
 	- レジストリを退避し、`AnonymousDelegateFuncFragment`（デリゲートフィールド + TResult 推論）で従来の delegate 経由を維持
 	__つまり：__ 中間メソッドでrecord structに変換したものを最終メソッドで匿名型に戻す「逆変換パス」は実装されていません。成功パスではrecord structのまま出力され、フォールバックパスではレジストリを停止して匿名型を維持する、とい&#x3046;__&#x4E8C;者択&#x4E00;__&#x306E;設計になっています。`FullOptimize`の往復変換パスはコード生成パイプラインと統合されていないため、現在は事実上デッドコードです。
 		であるならば削除してよいか？
-		
+
 [Fact,Trait("Category","Unit")]
     public static void Anchor() => AnchorImpl();
 
@@ -248,7 +340,7 @@ AnchorImplは以下のメソッドにインターセプトされる
 this.innerEnumerator = new OptimizedLinq_AnchorImpl_SelectMany_Anchor_8_36_補助0_Struct2(new[] { __ov0,__StaticMethod_SelectMany_AnchorFunc(null)});
 
 Seamless/Linq/Carrierフォルダ
-	Aggregate.cs 
+	Aggregate.cs
 		partial class Seamless.Carrier.ValueEnumerableExtensions
 	AggregateBy.cs
 		partial class Seamless.Carrier.ValueEnumerableExtensions
@@ -320,7 +412,7 @@ Seamlessフォルダ
 Tsavoriteフォルダ
 	Tsavorite.csproj
 	Collectionsフォルダ
-		
+
 FLinqフォルダ
 	FLinq.csproj
 Test.Seamlessフォルダ
