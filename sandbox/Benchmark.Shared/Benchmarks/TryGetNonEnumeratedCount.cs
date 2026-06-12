@@ -14,16 +14,13 @@ public class TryGetNonEnumeratedCount:Base{
 
     [BenchFact]
     [Benchmark(Baseline=true)]
-    [NoLinqRewrite]
     public void LINQ(){
         ConsumeResult(this.consumer,SystemEnumerable.TryGetNonEnumeratedCount(src(1),out var count),count);
     }
 
-    void InterceptCore(){ ConsumeResult(this.consumer,src(1).TryGetNonEnumeratedCount(out var count),count); }
-
     [BenchFact]
     [Benchmark]
-    public void Intercept(){ this.InterceptCore(); }
+    public void FLinq(){ this.LINQ(); }
 
     [BenchFact]
     [Benchmark]

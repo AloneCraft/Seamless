@@ -3,16 +3,13 @@ namespace Seamless.Benchmarks;
 public class Max:Base{
     [BenchFact]
     [Benchmark(Baseline=true)]
-    [NoLinqRewrite]
     public void LINQ(){
         this.consumer.Consume(src(1).Max());
     }
 
-    void InterceptCore(){ this.consumer.Consume(src(1).Max()); }
-
     [BenchFact]
     [Benchmark]
-    public void Intercept(){ this.InterceptCore(); }
+    public void FLinq(){ this.LINQ(); }
 
     [BenchFact]
     [Benchmark]

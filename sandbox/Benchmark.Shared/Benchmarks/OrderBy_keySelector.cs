@@ -5,7 +5,6 @@ public class OrderBy_keySelector:Base{
     [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ1(){
         src(1).OrderBy(x=>x).Consume(this.consumer);
     }
@@ -13,7 +12,6 @@ public class OrderBy_keySelector:Base{
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ2(){
         src(1).OrderBy(x=>x).OrderBy(x=>x).Consume(this.consumer);
     }
@@ -21,7 +19,6 @@ public class OrderBy_keySelector:Base{
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ3(){
         src(1).OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).Consume(this.consumer);
     }
@@ -29,7 +26,6 @@ public class OrderBy_keySelector:Base{
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ4(){
         src(1).OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).OrderBy(x=>x).Consume(this.consumer);
     }
@@ -41,23 +37,23 @@ public class OrderBy_keySelector:Base{
 
     [BenchFact]
     [Benchmark(Baseline=true)]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept1(){ this.OrderBy1Core(); }
+    [BenchmarkCategory(Categories.FLinq)]
+    public void FLinq1(){ this.LINQ1(); }
 
     [BenchFact]
     [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept2(){ this.OrderBy2Core(); }
+    [BenchmarkCategory(Categories.FLinq)]
+    public void FLinq2(){ this.LINQ2(); }
 
     [BenchFact]
     [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept3(){ this.OrderBy3Core(); }
+    [BenchmarkCategory(Categories.FLinq)]
+    public void FLinq3(){ this.LINQ3(); }
 
     [BenchFact]
     [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept4(){ this.OrderBy4Core(); }
+    [BenchmarkCategory(Categories.FLinq)]
+    public void FLinq4(){ this.LINQ4(); }
 
     [BenchFact]
     [Benchmark(Baseline=true)]

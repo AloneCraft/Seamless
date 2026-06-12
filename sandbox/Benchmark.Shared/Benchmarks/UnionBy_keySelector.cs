@@ -5,7 +5,6 @@ public class UnionBy_keySelector:Base{
     [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ1(){
         src(1).UnionBy(src2(1),x=>x).Consume(this.consumer);
     }
@@ -13,7 +12,6 @@ public class UnionBy_keySelector:Base{
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ2(){
         src(1).UnionBy(src2(1),x=>x).UnionBy(src2(1),x=>x).Consume(this.consumer);
     }
@@ -21,7 +19,6 @@ public class UnionBy_keySelector:Base{
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ3(){
         src(1).UnionBy(src2(1),x=>x).UnionBy(src2(1),x=>x).UnionBy(src2(1),x=>x).Consume(this.consumer);
     }
@@ -29,35 +26,29 @@ public class UnionBy_keySelector:Base{
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ4(){
         src(1).UnionBy(src2(1),x=>x).UnionBy(src2(1),x=>x).UnionBy(src2(1),x=>x).UnionBy(src2(1),x=>x).Consume(this.consumer);
     }
 
     [BenchFact]
     [Benchmark(Baseline=true)]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept1(){ this.Intercept1Core(); }
+    [BenchmarkCategory(Categories.FLinq)]
+    public void FLinq1(){ this.LINQ1(); }
 
     [BenchFact]
     [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept2(){ this.Intercept2Core(); }
+    [BenchmarkCategory(Categories.FLinq)]
+    public void FLinq2(){ this.LINQ2(); }
 
     [BenchFact]
     [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept3(){ this.Intercept3Core(); }
+    [BenchmarkCategory(Categories.FLinq)]
+    public void FLinq3(){ this.LINQ3(); }
 
     [BenchFact]
     [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept4(){ this.Intercept4Core(); }
-
-    void Intercept1Core(){ src(1).UnionBy(src2(1),x=>x).Consume(this.consumer); }
-    void Intercept2Core(){ src(1).UnionBy(src2(1),x=>x).UnionBy(src2(1),x=>x).Consume(this.consumer); }
-    void Intercept3Core(){ src(1).UnionBy(src2(1),x=>x).UnionBy(src2(1),x=>x).UnionBy(src2(1),x=>x).Consume(this.consumer); }
-    void Intercept4Core(){ src(1).UnionBy(src2(1),x=>x).UnionBy(src2(1),x=>x).UnionBy(src2(1),x=>x).UnionBy(src2(1),x=>x).Consume(this.consumer); }
+    [BenchmarkCategory(Categories.FLinq)]
+    public void FLinq4(){ this.LINQ4(); }
 
     [BenchFact]
     [Benchmark(Baseline=true)]

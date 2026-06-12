@@ -295,10 +295,10 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         #nullable enable
         namespace Tsavorite.SourceGenerator {
             [global::System.AttributeUsage(global::System.AttributeTargets.Assembly|global::System.AttributeTargets.Class|global::System.AttributeTargets.Method,AllowMultiple=false)]
-            internal sealed class NoLinqRewriteAttribute : global::System.Attribute { }
-
-            [global::System.AttributeUsage(global::System.AttributeTargets.Assembly|global::System.AttributeTargets.Class|global::System.AttributeTargets.Method,AllowMultiple=false)]
-            internal sealed class LinqRewriteAttribute : global::System.Attribute { }
+            internal sealed class LinqInterceptAttribute : global::System.Attribute {
+                public LinqInterceptAttribute(bool intercept) { this.Intercept=intercept; }
+                public bool Intercept { get; }
+            }
         }
         """;
 
@@ -555,7 +555,7 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         return true;
     }
 
-    // [NoLinqRewrite]/[LinqRewrite] によるLINQ展開可否の判定。
+    // [LinqIntercept(true/false)] によるLINQ展開可否の判定。
     // メソッド > 入れ子クラス(内側から外側) > アセンブリ の順で最初に見つかった指定を採用し、
     // どこにも無ければ展開する(従来どおりのデフォルト挙動)。
     private static bool LinqRewrite判定(IMethodSymbol method,Compilation compilation) {
@@ -578,13 +578,10 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
 
     private static bool TryGetLinqRewriteOverride(ImmutableArray<AttributeData> attributes,out bool shouldRewrite) {
         foreach(var attribute in attributes) {
-            var name=attribute.AttributeClass?.Name;
-            if(name=="NoLinqRewriteAttribute") {
-                shouldRewrite=false;
-                return true;
-            }
-            if(name=="LinqRewriteAttribute") {
-                shouldRewrite=true;
+            if(attribute.AttributeClass?.Name=="LinqInterceptAttribute") {
+                // [LinqIntercept(true)]=展開、[LinqIntercept(false)]=非展開。
+                shouldRewrite=attribute.ConstructorArguments.Length>0
+                    && attribute.ConstructorArguments[0].Value is bool intercept && intercept;
                 return true;
             }
         }

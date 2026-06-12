@@ -13,7 +13,7 @@ namespace Benchmark;
 internal static class Program {
     // ビルド時に切り替える定数（編集して再ビルドすることで実行対象を制御）
     private const bool RUN_LINQ = true;
-    private const bool RUN_INTERCEPT = true;
+    private const bool RUN_FLINQ = true;
     private const bool RUN_ZLINQ = true;
     private const int IterationTime=1000;
     private const int IterationCount=1;
@@ -34,7 +34,7 @@ internal static class Program {
         // メニュー（型選択・single-file モード選択）は常に表示されるようにする。
         var includeMethods = new List<string>();
         if(RUN_LINQ) includeMethods.Add("LINQ");
-        if(RUN_INTERCEPT) includeMethods.Add("Intercept");
+        if(RUN_FLINQ) includeMethods.Add("FLinq");
         if(RUN_ZLINQ) includeMethods.Add("ZLinq");
         var singleFileMode = IsSingleFileMode(args);
         if(args.Length==0) {
@@ -101,9 +101,9 @@ internal static class Program {
         }
         return filtered.ToArray();
     }
-    // ピボット列の並び。0=LINQ,1=Intercept,2=ZLinq に対応。
-    static readonly string[] MethodKinds = ["LINQ","Intercept","ZLinq"];
-    // 表示順: LINQ, ZLinq, FLinq(=Intercept)。MethodKinds のインデックスへの対応。
+    // ピボット列の並び。0=LINQ,1=FLinq,2=ZLinq に対応。
+    static readonly string[] MethodKinds = ["LINQ","FLinq","ZLinq"];
+    // 表示順: LINQ, ZLinq, FLinq。MethodKinds のインデックスへの対応。
     static readonly int[] DisplayOrder = [0,2,1];
     static readonly string[] DisplayLabels = ["LINQ","ZLinq","FLinq"];
     static void WriteSingleFileReport() {
@@ -129,7 +129,7 @@ internal static class Program {
         Console.WriteLine($"Pivot CSV written to {byNamePath}");
         Console.WriteLine($"Pivot CSV written to {byRatioPath}");
     }
-    // クラス(Type)＋末尾番号を行キーに、LINQ/Intercept/ZLinq の Mean を横に集約する。
+    // クラス(Type)＋末尾番号を行キーに、LINQ/FLinq/ZLinq の Mean を横に集約する。
     static List<SummaryRow> BuildSummary(IEnumerable<string> csvFiles) {
         var map = new Dictionary<string,SummaryRow>(StringComparer.Ordinal);
         foreach(var csvFile in csvFiles) {
@@ -170,7 +170,7 @@ internal static class Program {
         }
         return rows;
     }
-    // "LINQ3" → (0,"3"), "Intercept" → (1,""), 不一致 → -1。
+    // "LINQ3" → (0,"3"), "FLinq" → (1,""), 不一致 → -1。
     static int SplitMethod(string method,out string suffix) {
         var end = method.Length;
         while(end>0&&char.IsDigit(method[end-1])) {

@@ -3,16 +3,13 @@ namespace Seamless.Benchmarks;
 public class GroupBy_resultSelector:Base{
     [BenchFact]
     [Benchmark(Baseline=true)]
-    [NoLinqRewrite]
     public void LINQ(){
         src(1).GroupBy(x=>x%1000,(key,g)=>key).Consume(this.consumer);
     }
 
-    void InterceptCore(){ src(1).GroupBy(x=>x%1000,(key,g)=>key).Consume(this.consumer); }
-
     [BenchFact]
     [Benchmark]
-    public void Intercept(){ this.InterceptCore(); }
+    public void FLinq(){ this.LINQ(); }
 
     [BenchFact]
     [Benchmark]

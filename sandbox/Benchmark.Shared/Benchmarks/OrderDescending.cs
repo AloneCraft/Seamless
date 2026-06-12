@@ -5,7 +5,7 @@ public class OrderDescending:Base{
     [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
+    // 単独 OrderDescending() も Pipeline 経路（恒等キー順序）で展開されるため、FLinq1 は最適化される。
     public void LINQ1(){
         src(1).OrderDescending().Consume(this.consumer);
     }
@@ -13,7 +13,6 @@ public class OrderDescending:Base{
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ2(){
         src(1).OrderDescending().OrderDescending().Consume(this.consumer);
     }
@@ -21,7 +20,6 @@ public class OrderDescending:Base{
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ3(){
         src(1).OrderDescending().OrderDescending().OrderDescending().Consume(this.consumer);
     }
@@ -29,38 +27,29 @@ public class OrderDescending:Base{
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
-    [NoLinqRewrite]
     public void LINQ4(){
         src(1).OrderDescending().OrderDescending().OrderDescending().OrderDescending().Consume(this.consumer);
     }
 
     [BenchFact]
     [Benchmark(Baseline=true)]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept1(){
-        src(1).OrderDescending().Consume(this.consumer);
-    }
+    [BenchmarkCategory(Categories.FLinq)]
+    public void FLinq1(){ this.LINQ1(); }
 
     [BenchFact]
     [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept2(){
-        src(1).OrderDescending().OrderDescending().Consume(this.consumer);
-    }
+    [BenchmarkCategory(Categories.FLinq)]
+    public void FLinq2(){ this.LINQ2(); }
 
     [BenchFact]
     [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept3(){
-        src(1).OrderDescending().OrderDescending().OrderDescending().Consume(this.consumer);
-    }
+    [BenchmarkCategory(Categories.FLinq)]
+    public void FLinq3(){ this.LINQ3(); }
 
     [BenchFact]
     [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept4(){
-        src(1).OrderDescending().OrderDescending().OrderDescending().OrderDescending().Consume(this.consumer);
-    }
+    [BenchmarkCategory(Categories.FLinq)]
+    public void FLinq4(){ this.LINQ4(); }
 
     [BenchFact]
     [Benchmark(Baseline=true)]

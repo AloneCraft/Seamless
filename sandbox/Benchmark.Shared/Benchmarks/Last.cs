@@ -3,16 +3,13 @@ namespace Seamless.Benchmarks;
 public class Last:Base{
     [BenchFact]
     [Benchmark(Baseline=true)]
-    [NoLinqRewrite]
     public void LINQ(){
         this.consumer.Consume(src(1).Last());
     }
 
-    void InterceptCore(){ this.consumer.Consume(src(1).Last()); }
-
     [BenchFact]
     [Benchmark]
-    public void Intercept(){ this.InterceptCore(); }
+    public void FLinq(){ this.LINQ(); }
 
     [BenchFact]
     [Benchmark]
