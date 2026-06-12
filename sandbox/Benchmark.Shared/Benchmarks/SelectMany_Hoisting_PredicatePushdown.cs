@@ -1,24 +1,28 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class SelectMany_Hoisting_PredicatePushdown:Base{
     private readonly int[] outer=Enumerable.Range(0,100_000).ToArray();
     private readonly int[] inner=Enumerable.Range(0,128).ToArray();
     private const int Threshold=120;
 
+    [BenchFact]
     [Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        Enumerable.Where(Enumerable.SelectMany(this.outer,_=>this.inner),x=>x>Threshold&&HoistInvariant.Value()==0).Consume(this.consumer);
+        this.outer.SelectMany(_=>this.inner).Where(x=>x>Threshold&&HoistInvariant.Value()==0).Consume(this.consumer);
     }
 
     void InterceptCore(){ this.outer.SelectMany(_=>this.inner).Where(x=>x>Threshold&&HoistInvariant.Value()==0).Consume(this.consumer); }
 
+    [BenchFact]
     [Benchmark]
     public void Intercept() {
         this.InterceptCore();
     }
 
+    [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.AsValueEnumerable(this.outer).SelectMany(_=>ValueEnumerable.AsValueEnumerable(this.inner)).Where(x=>x>Threshold&&HoistInvariant.Value()==0).Consume(this.consumer);
+        this.outer.AsValueEnumerable().SelectMany(_=>this.inner.AsValueEnumerable()).Where(x=>x>Threshold&&HoistInvariant.Value()==0).Consume(this.consumer);
     }
 }

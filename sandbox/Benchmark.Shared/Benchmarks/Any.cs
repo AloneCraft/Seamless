@@ -1,18 +1,22 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class Any:Base{
-    [Benchmark(Baseline=true)]
+    // System.Linq baseline: インスタンス記法のまま [NoLinqRewrite] で傍受抑止
+    [BenchFact,Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        this.consumer.Consume(Enumerable.Any(this.src));
+        this.consumer.Consume(src(1).Any());
     }
 
-    void InterceptCore(){ this.consumer.Consume(this.src.Any()); }
+    // FLinq: LINQ と同一連鎖。Core 経由で whole-method interception
+    void InterceptCore(){ this.consumer.Consume(src(1).Any()); }
 
-    [Benchmark]
+    [BenchFact,Benchmark]
     public void Intercept(){ this.InterceptCore(); }
 
-    [Benchmark]
+    // ZLinq: 同一連鎖 + .AsValueEnumerable() の頭差分のみ
+    [BenchFact,Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).Any());
+        this.consumer.Consume(src(1).AsValueEnumerable().Any());
     }
 }

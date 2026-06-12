@@ -1,18 +1,22 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class Join_inner:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        Enumerable.Join(this.src,this.src2,x=>x,x=>x,(a,b)=>a).Consume(this.consumer);
+        src(1).Join(src2(1),x=>x,x=>x,(a,b)=>a).Consume(this.consumer);
     }
 
-    void JoinCore(){ this.src.Join(this.src2,x=>x,x=>x,(a,b)=>a).Consume(this.consumer); }
+    void JoinCore(){ src(1).Join(src2(1),x=>x,x=>x,(a,b)=>a).Consume(this.consumer); }
 
+    [BenchFact]
     [Benchmark]
     public void Intercept(){ this.JoinCore(); }
 
+    [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.AsValueEnumerable(this.src).Join(this.src2,x=>x,x=>x,(a,b)=>a).Consume(this.consumer);
+        src(1).AsValueEnumerable().Join(src2(1),x=>x,x=>x,(a,b)=>a).Consume(this.consumer);
     }
 }

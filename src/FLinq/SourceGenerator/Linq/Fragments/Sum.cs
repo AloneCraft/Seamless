@@ -13,7 +13,9 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
             private static {{resultType}} Compute(TEnum source) {
                 {{resultType}} sum = default!;
                 source.TryGetSpan(out var __span);
-                foreach(var item in __span) sum+=item;
+                checked{
+                    foreach(var item in __span) sum+=item;
+                }
                 return sum;
             }
             """
@@ -21,7 +23,9 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source) {
                 {{resultType}} sum = default!;
-                while(source.MoveNext()) sum+=source.Current;
+                checked{
+                    while(source.MoveNext()) sum+=source.Current;
+                }
                 return sum;
             }
             """;
@@ -45,10 +49,12 @@ public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, 
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                 {{resultType}} sum = default!;
                 source.TryGetSpan(out var __span);
-                foreach(var {{this.item}} in __span){
-                    {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
-                    {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
-                    sum+={{this.temp}};
+                checked{
+                    foreach(var {{this.item}} in __span){
+                        {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                        {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                        sum+={{this.temp}};
+                    }
                 }
                 return sum;
             }
@@ -57,11 +63,13 @@ public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, 
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                 {{resultType}} sum = default!;
-                while(source.MoveNext()){
-                    var {{this.item}}=source.Current;
-                    {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
-                    {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
-                    sum+={{this.temp}};
+                checked{
+                    while(source.MoveNext()){
+                        var {{this.item}}=source.Current;
+                        {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                        {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                        sum+={{this.temp}};
+                    }
                 }
                 return sum;
             }

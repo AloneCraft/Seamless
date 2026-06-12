@@ -1,4 +1,5 @@
-namespace Benchmark.Benchmarks;
+using ZLinq;
+namespace Seamless.Benchmarks;
 
 static class ConsumerExtensions{
     public static void Consume<T>(this IEnumerable<T> source,Consumer consumer){

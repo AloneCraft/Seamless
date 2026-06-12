@@ -1,4 +1,4 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 static class Categories{
     public const string LINQ="LINQ";

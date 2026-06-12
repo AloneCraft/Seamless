@@ -1,90 +1,52 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 public class Where_predicate:Base{
-    [Benchmark(Baseline=true)]
-    [BenchmarkCategory(Categories.LINQ)]
-    public void LINQ1(){
-        Enumerable.Where(this.src,x=>(x&1)==0).Consume(this.consumer);
-    }
+    // System.Linq baseline: インスタンス記法のまま [NoLinqRewrite] で傍受抑止（FLinq と同一連鎖）
+    [BenchFact,Benchmark(Baseline=true),BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
+    public void LINQ1(){ src(1).Where(x=>(x&1)==0).Consume(this.consumer); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.LINQ)]
-    public void LINQ2(){
-        Enumerable.Where(Enumerable.Where(this.src,x=>(x&1)==0),x=>(x&1)==0)
-           .Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
+    public void LINQ2(){ src(1).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.LINQ)]
-    public void LINQ3(){
-        Enumerable.Where(Enumerable.Where(Enumerable.Where(this.src,x=>(x&1)==0),x=>(x&1)==0),x=>(x&1)==0)
-           .Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
+    public void LINQ3(){ src(1).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.LINQ)]
-    public void LINQ4(){
-        Enumerable.Where(Enumerable.Where(Enumerable.Where(Enumerable.Where(this.src,x=>(x&1)==0),x=>(x&1)==0),x=>(x&1)==0),x=>(x&1)==0)
-           .Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
+    public void LINQ4(){ src(1).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
 
-    void Where1Core(){ this.src.Where(x=>(x&1)==0).Consume(this.consumer); }
-    void Where2Core(){ this.src.Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
-    void Where3Core(){ this.src.Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
-    void Where4Core(){ this.src.Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
+    // FLinq: LINQ と同一連鎖。Core 経由で whole-method interception
+    void Intercept1Core(){ src(1).Where(x=>(x&1)==0).Consume(this.consumer); }
+    void Intercept2Core(){ src(1).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
+    void Intercept3Core(){ src(1).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
+    void Intercept4Core(){ src(1).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
 
-    [Benchmark(Baseline=true)]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept1(){ this.Where1Core(); }
+    [BenchFact,Benchmark(Baseline=true),BenchmarkCategory(Categories.Intercept)]
+    public void Intercept1(){ this.Intercept1Core(); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept2(){ this.Where2Core(); }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.Intercept)]
+    public void Intercept2(){ this.Intercept2Core(); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept3(){ this.Where3Core(); }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.Intercept)]
+    public void Intercept3(){ this.Intercept3Core(); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.Intercept)]
-    public void Intercept4(){ this.Where4Core(); }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.Intercept)]
+    public void Intercept4(){ this.Intercept4Core(); }
 
-    [Benchmark(Baseline=true)]
-    [BenchmarkCategory(Categories.ZLinq)]
-    public void ZLinq1(){
-        ValueEnumerable.AsValueEnumerable(this.src)
-           .Where(x=>(x&1)==0)
-           .Consume(this.consumer);
-    }
+    // ZLinq: 同一連鎖 + .AsValueEnumerable() の頭差分のみ
+    [BenchFact,Benchmark(Baseline=true),BenchmarkCategory(Categories.ZLinq)]
+    public void ZLinq1(){ src(1).AsValueEnumerable().Where(x=>(x&1)==0).Consume(this.consumer); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.ZLinq)]
-    public void ZLinq2(){
-        ValueEnumerable.AsValueEnumerable(this.src)
-           .Where(x=>(x&1)==0)
-           .Where(x=>(x&1)==0)
-           .Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.ZLinq)]
+    public void ZLinq2(){ src(1).AsValueEnumerable().Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.ZLinq)]
-    public void ZLinq3(){
-        ValueEnumerable.AsValueEnumerable(this.src)
-           .Where(x=>(x&1)==0)
-           .Where(x=>(x&1)==0)
-           .Where(x=>(x&1)==0)
-           .Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.ZLinq)]
+    public void ZLinq3(){ src(1).AsValueEnumerable().Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
 
-    [Benchmark]
-    [BenchmarkCategory(Categories.ZLinq)]
-    public void ZLinq4(){
-        ValueEnumerable.AsValueEnumerable(this.src)
-           .Where(x=>(x&1)==0)
-           .Where(x=>(x&1)==0)
-           .Where(x=>(x&1)==0)
-           .Where(x=>(x&1)==0)
-           .Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.ZLinq)]
+    public void ZLinq4(){ src(1).AsValueEnumerable().Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Where(x=>(x&1)==0).Consume(this.consumer); }
 }

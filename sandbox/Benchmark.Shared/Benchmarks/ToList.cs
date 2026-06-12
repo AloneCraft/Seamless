@@ -1,18 +1,22 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class ToList:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        Enumerable.ToList(this.src).Consume(this.consumer);
+        src(1).ToList().Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     public void Intercept(){
-        this.src.ToList().Consume(this.consumer);
+        src(1).ToList().Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.AsValueEnumerable(this.src).ToList().Consume(this.consumer);
+        src(1).AsValueEnumerable().ToList().Consume(this.consumer);
     }
 }

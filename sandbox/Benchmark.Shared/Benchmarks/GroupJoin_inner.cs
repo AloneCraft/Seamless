@@ -1,18 +1,22 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class GroupJoin_inner:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        Enumerable.GroupJoin(this.src,this.src2,x=>x,x=>x,(outer,inner)=>outer).Consume(this.consumer);
+        src(1).GroupJoin(src2(1),x=>x,x=>x,(outer,inner)=>outer).Consume(this.consumer);
     }
 
-    void InterceptCore(){ this.src.GroupJoin(this.src2,x=>x,x=>x,(outer,inner)=>outer).Consume(this.consumer); }
+    void InterceptCore(){ src(1).GroupJoin(src2(1),x=>x,x=>x,(outer,inner)=>outer).Consume(this.consumer); }
 
+    [BenchFact]
     [Benchmark]
     public void Intercept(){ this.InterceptCore(); }
 
+    [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.AsValueEnumerable(this.src).GroupJoin(this.src2,x=>x,x=>x,(outer,inner)=>outer).Consume(this.consumer);
+        src(1).AsValueEnumerable().GroupJoin(src2(1),x=>x,x=>x,(outer,inner)=>outer).Consume(this.consumer);
     }
 }

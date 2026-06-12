@@ -1,73 +1,89 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 public class SkipLast_count:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ1(){
-        Enumerable.SkipLast(this.src,250000).Consume(this.consumer);
+        src(1).SkipLast(250000).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ2(){
-        Enumerable.SkipLast(Enumerable.SkipLast(this.src,250000),250000).Consume(this.consumer);
+        src(1).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ3(){
-        Enumerable.SkipLast(Enumerable.SkipLast(Enumerable.SkipLast(this.src,250000),250000),250000).Consume(this.consumer);
+        src(1).SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
+    [NoLinqRewrite]
     public void LINQ4(){
-        Enumerable.SkipLast(Enumerable.SkipLast(Enumerable.SkipLast(Enumerable.SkipLast(this.src,250000),250000),250000),250000).Consume(this.consumer);
+        src(1).SkipLast(250000).SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
     }
 
-    void Intercept1Core(){ this.src.SkipLast(250000).Consume(this.consumer); }
-    void Intercept2Core(){ this.src.SkipLast(250000).SkipLast(250000).Consume(this.consumer); }
-    void Intercept3Core(){ this.src.SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer); }
-    void Intercept4Core(){ this.src.SkipLast(250000).SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer); }
+    void Intercept1Core(){ src(1).SkipLast(250000).Consume(this.consumer); }
+    void Intercept2Core(){ src(1).SkipLast(250000).SkipLast(250000).Consume(this.consumer); }
+    void Intercept3Core(){ src(1).SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer); }
+    void Intercept4Core(){ src(1).SkipLast(250000).SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer); }
 
+    [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept1(){ this.Intercept1Core(); }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept2(){ this.Intercept2Core(); }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept3(){ this.Intercept3Core(); }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.Intercept)]
     public void Intercept4(){ this.Intercept4Core(); }
 
+    [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        ValueEnumerable.AsValueEnumerable(this.src).SkipLast(250000).Consume(this.consumer);
+        src(1).AsValueEnumerable().SkipLast(250000).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        ValueEnumerable.AsValueEnumerable(this.src).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
+        src(1).AsValueEnumerable().SkipLast(250000).SkipLast(250000).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        ValueEnumerable.AsValueEnumerable(this.src).SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
+        src(1).AsValueEnumerable().SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        ValueEnumerable.AsValueEnumerable(this.src).SkipLast(250000).SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
+        src(1).AsValueEnumerable().SkipLast(250000).SkipLast(250000).SkipLast(250000).SkipLast(250000).Consume(this.consumer);
     }
 }

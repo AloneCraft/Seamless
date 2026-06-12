@@ -1,18 +1,22 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
-public class Sum:Base{
-    [Benchmark(Baseline=true)]
-    public void LINQ(){
-        this.consumer.Consume(Enumerable.Sum(this.src));
+public class Sum:Base {
+    [BenchFact]
+    [Benchmark(Baseline = true)]
+    [NoLinqRewrite]
+    public void LINQ() {
+        this.consumer.Consume(srcMinusPlus(1).Sum());
     }
 
-    void InterceptCore(){ this.consumer.Consume(this.src.Sum()); }
+    void InterceptCore() { this.consumer.Consume(srcMinusPlus(1).Sum()); }
 
+    [BenchFact]
     [Benchmark]
-    public void Intercept(){ this.InterceptCore(); }
+    public void Intercept() { this.InterceptCore(); }
 
+    [BenchFact]
     [Benchmark]
-    public void ZLinq(){
-        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).Sum());
+    public void ZLinq() {
+        this.consumer.Consume(srcMinusPlus(1).AsValueEnumerable().Sum());
     }
 }

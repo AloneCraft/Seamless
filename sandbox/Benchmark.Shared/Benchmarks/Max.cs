@@ -1,18 +1,22 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class Max:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        this.consumer.Consume(Enumerable.Max(this.src));
+        this.consumer.Consume(src(1).Max());
     }
 
-    void InterceptCore(){ this.consumer.Consume(this.src.Max()); }
+    void InterceptCore(){ this.consumer.Consume(src(1).Max()); }
 
+    [BenchFact]
     [Benchmark]
     public void Intercept(){ this.InterceptCore(); }
 
+    [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).Max());
+        this.consumer.Consume(src(1).AsValueEnumerable().Max());
     }
 }

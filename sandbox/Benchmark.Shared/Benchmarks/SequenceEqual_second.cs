@@ -1,18 +1,22 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class SequenceEqual_second:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        this.consumer.Consume(Enumerable.SequenceEqual(this.src,this.src));
+        this.consumer.Consume(src(1).SequenceEqual(src(1)));
     }
 
-    void InterceptCore(){ this.consumer.Consume(this.src.SequenceEqual(this.src)); }
+    void InterceptCore(){ this.consumer.Consume(src(1).SequenceEqual(src(1))); }
 
+    [BenchFact]
     [Benchmark]
     public void Intercept(){ this.InterceptCore(); }
 
+    [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(ValueEnumerable.AsValueEnumerable(this.src).SequenceEqual(this.src));
+        this.consumer.Consume(src(1).AsValueEnumerable().SequenceEqual(src(1)));
     }
 }

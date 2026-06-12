@@ -1,18 +1,22 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class ToHashSet:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        Enumerable.ToHashSet(this.src).Consume(this.consumer);
+        src(1).ToHashSet().Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     public void Intercept(){
-        this.src.ToHashSet().Consume(this.consumer);
+        src(1).ToHashSet().Consume(this.consumer);
     }
 
+    [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.AsValueEnumerable(this.src).ToHashSet().Consume(this.consumer);
+        src(1).AsValueEnumerable().ToHashSet().Consume(this.consumer);
     }
 }

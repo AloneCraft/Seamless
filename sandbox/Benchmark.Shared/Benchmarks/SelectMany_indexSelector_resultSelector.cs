@@ -1,18 +1,22 @@
-namespace Benchmark.Benchmarks;
+namespace Seamless.Benchmarks;
 
 public class SelectMany_indexSelector_resultSelector:Base{
+    [BenchFact]
     [Benchmark(Baseline=true)]
+    [NoLinqRewrite]
     public void LINQ(){
-        Enumerable.SelectMany(this.srcNested,(x,i)=>x,(outer,inner)=>inner+1).Consume(this.consumer);
+        srcNested(1).SelectMany((x,i)=>x,(outer,inner)=>inner+1).Consume(this.consumer);
     }
 
-    void InterceptCore(){ this.srcNested.SelectMany((x,i)=>x,(outer,inner)=>inner+1).Consume(this.consumer); }
+    void InterceptCore(){ srcNested(1).SelectMany((x,i)=>x,(outer,inner)=>inner+1).Consume(this.consumer); }
 
+    [BenchFact]
     [Benchmark]
     public void Intercept(){ this.InterceptCore(); }
 
+    [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.AsValueEnumerable(this.srcNested).SelectMany((x,i)=>ValueEnumerable.AsValueEnumerable(x),(outer,inner)=>inner+1).Consume(this.consumer);
+        srcNested(1).AsValueEnumerable().SelectMany((x,i)=>x.AsValueEnumerable(),(outer,inner)=>inner+1).Consume(this.consumer);
     }
 }
