@@ -6,7 +6,8 @@ public class Single_predicate:Base{
     public void LINQ() {
         var y=srcOne(1).ToArray();
         var x=y.Single(x => x==0);
-        this.consumer.Consume(src(1).Single(x=>x==count/2));
+        // 要素数に依存しない定数(先頭要素=1)で一意一致させる。count は instance なのでラムダ内では使えない。
+        this.consumer.Consume(src(1).Single(x=>x==1));
     }
 
     [BenchFact]
@@ -16,6 +17,6 @@ public class Single_predicate:Base{
     [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(src(1).AsValueEnumerable().Single(x=>x==count/2));
+        this.consumer.Consume(src(1).AsValueEnumerable().Single(x=>x==1));
     }
 }

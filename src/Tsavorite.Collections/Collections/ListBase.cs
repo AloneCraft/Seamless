@@ -32,6 +32,13 @@ public abstract class ListBase<T>:IReadOnlyList<T>, IDisposable {
     int IReadOnlyCollection<T>.Count => checked((int)this.Count);
     T IReadOnlyList<T>.this[int index] => this[index];
 
+    // out 引数を持つため FLinq の傍受対象外。System.Linq.Enumerable は IReadOnlyCollection<T> を
+    // 高速 count として認識しないため、インスタンスメソッドで拡張メソッドを上書きして O(1) で返す。
+    public bool TryGetNonEnumeratedCount(out int count){
+        count=checked((int)this.Count);
+        return true;
+    }
+
     public T this[int index] => this[(long)index];
 
     public T this[long index] {

@@ -15,25 +15,51 @@ namespace Test.Tsavorite.Collections.Tsavorite;
 [Collection("LightEpochLimit")]
 public class LightEpochLimitTests {
     /// <summary>
-    /// 1024 蛟九・ Store 繧貞酔譎ゅ↓菴懈・繝ｻ菫晄戟縺ｧ縺阪ｋ縺薙→繧堤｢ｺ隱阪☆繧・(MaxInstances = 1024 縺ｮ豁｣蟶ｸ邉ｻ)縲・
+    /// LightEpoch のインスタンスプールはプロセス全体で共有される静的 1024 スロットである。
+    /// 同一プロセスで先に走った他テストが残したファイナライザ待ちのインスタンスを回収し、
+    /// プールを空にしてから上限ちょうどの検証を行えるようにする。
+    /// </summary>
+    private static void ReclaimEpochPool() {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+    }
+
+    /// <summary>
+    /// MaxInstances = 1024 の正常系・異常系を 1 本で検証する。
+    /// ちょうど 1024 個まで作成でき、1025 個目で
+    /// "Exceeded maximum number of active LightEpoch instances" が投げられる。
     /// </summary>
     [Fact]
-    public void MaxInstances_1024Stores_AllSucceed() {
+    public void MaxInstances_Exactly1024_ThenThrows() {
+        ReclaimEpochPool();
         var stores = new List<DictionaryStore<int,int>>();
         try {
-            const int Count=1024;
-            for(var i = 0; i<Count; i++) {
-                stores.Add(HashStore.Create().Create<int,int>());
+            InvalidOperationException? overflow = null;
+            for(var i = 0; i<1025; i++) {
+                try {
+                    stores.Add(HashStore.Create().Create<int,int>());
+                }
+                catch(InvalidOperationException ex) when(ex.Message.Contains("Exceeded maximum number of active LightEpoch instances",StringComparison.Ordinal)) {
+                    overflow=ex;
+                    break;
+                }
             }
-            Assert.Equal(Count,stores.Count);
+            Assert.NotNull(overflow);          // 上限が機能している
+            Assert.Equal(1024,stores.Count);   // ちょうど 1024 成功
         }
         finally {
             foreach(var s in stores) s.Dispose();
         }
     }
+
+    /// <summary>
+    /// MaxInstances 未満であれば普通に複数 Store を同時保持できる (正常系)。
+    /// </summary>
     [Theory]
     [InlineData(16)]
     public void MaxInstances_Stores_AllSucceed(int Count) {
+        ReclaimEpochPool();
         var stores = new List<DictionaryStore<int,int>>();
         try {
             for(var i = 0; i<Count; i++) {
@@ -46,19 +72,62 @@ public class LightEpochLimitTests {
         }
     }
 
+    /// <summary>
+    /// Dispose でスロットが解放され、再利用できることを確認する。
+    /// 16 作成 → 全 Dispose → 再度 16 作成が成功する。
+    /// </summary>
     [Fact]
-    public void MaxInstances_1025Stores_ThrowsException() {
+    public void Can_Reuse_Slots_After_Dispose() {
+        ReclaimEpochPool();
         var stores = new List<DictionaryStore<int,int>>();
         try {
-            for(var i = 0; i<1024; i++) {
+            for(var i = 0; i<16; i++) {
                 stores.Add(HashStore.Create().Create<int,int>());
             }
-            Assert.Throws<InvalidOperationException>(() => {
-                using var extra = HashStore.Create().Create<int,int>();
-            });
+            foreach(var s in stores) {
+                s.Dispose();
+            }
+            stores.Clear();
+
+            for(var i = 0; i<16; i++) {
+                stores.Add(HashStore.Create().Create<int,int>());
+            }
+            Assert.Equal(16,stores.Count);
         }
         finally {
             foreach(var s in stores) s.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// スロットの解放と確保が境界 (1024) で正しく振る舞うことを確認する。
+    /// 1024 充填 → 1 Dispose → 1 作成成功 (1024/1024) → 1025 個目で throw。
+    /// </summary>
+    [Fact]
+    public void Interleaved_Create_And_Dispose_Respects_Limit() {
+        ReclaimEpochPool();
+        var slots = new Stack<DictionaryStore<int,int>>();
+        try {
+            for(var i = 0; i<1024; i++) {
+                slots.Push(HashStore.Create().Create<int,int>());
+            }
+
+            // 1 個 Dispose してスロットを解放
+            slots.Pop().Dispose();
+
+            // 解放したスロットへ 1 個作成 → 成功 (1024/1024)
+            slots.Push(HashStore.Create().Create<int,int>());
+            Assert.Equal(1024,slots.Count);
+
+            // もう 1 個作成しようとすると上限超過で throw
+            Assert.Throws<InvalidOperationException>(() => {
+                using var overflow = HashStore.Create().Create<int,int>();
+            });
+        }
+        finally {
+            while(slots.Count>0) {
+                slots.Pop().Dispose();
+            }
         }
     }
 
