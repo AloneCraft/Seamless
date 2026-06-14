@@ -2,11 +2,13 @@
 public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : Scalar(番号) {
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType){
-        if(func.CanInvokeAsDelegate) return null; // デリゲートは struct インスタンスフィールド経由のため非インライン
         string srcExpr;
         try { srcExpr = source.GetEnumeratorExpression; }
         catch(System.NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
+        var funcVar = $"__aggFunc{番号}";
+        var funcSetup = this.DelegateLocal(func,funcVar);
+        if(funcSetup is null) return null;
         var fold = source.CanProvideSpan
             ? $$"""
                 {{srcVar}}.TryGetSpan(out var __span);
@@ -18,19 +20,20 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
                         {{this.result}}=__item;
                         __first=false;
                     }else{
-                        {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+                        {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
                     }
                 }
                 """
             : $$"""
-                if(!{{srcVar}}.MoveNext()) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
-                var {{this.result}}={{srcVar}}.Current;
-                while({{srcVar}}.MoveNext()){
-                    {{this.FuncAssign(func,nameof(func),this.result,this.result,$"{srcVar}.Current")}}
+                if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                var {{this.result}}=__item;
+                while({{srcVar}}.TryGetNext(out __item)){
+                    {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
                 }
                 """;
         return $$"""
             {{destType}} {{destVar}};
+            {{funcSetup}}
             using(var {{srcVar}}={{srcExpr}}){
                 {{fold}}
                 {{destVar}}={{this.result}};
@@ -79,10 +82,10 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
                 return false;
             }
             this.{{this.yielded}} = true;
-            if(!{{this.e}}.MoveNext()) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
-            var {{this.result}}={{this.e}}.Current;
-            while({{this.e}}.MoveNext()){
-                {{this.FuncAssign(func,nameof(func),this.result,this.result,$"{this.e}.Current")}}
+            if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+            var {{this.result}}={{this.item}};
+            while({{this.e}}.TryGetNext(out {{this.item}})){
+                {{this.FuncAssign(func,nameof(func),this.result,this.result,this.item)}}
             }
             this.{{this.currentValue}}={{this.result}};
             current=this.{{this.currentValue}};
@@ -95,25 +98,28 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
 public class Aggregate_seed_func(int 番号, Enumerable source,string seed, FuncFragment func) : Scalar(番号) {
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType){
-        if(func.CanInvokeAsDelegate) return null;
         string srcExpr;
         try { srcExpr = source.GetEnumeratorExpression; }
         catch(System.NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
+        var funcVar = $"__aggFunc{番号}";
+        var funcSetup = this.DelegateLocal(func,funcVar);
+        if(funcSetup is null) return null;
         var fold = source.CanProvideSpan
             ? $$"""
                 {{srcVar}}.TryGetSpan(out var __span);
                 foreach(var __item in __span){
-                    {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+                    {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
                 }
                 """
             : $$"""
-                while({{srcVar}}.MoveNext()){
-                    {{this.FuncAssign(func,nameof(func),this.result,this.result,$"{srcVar}.Current")}}
+                while({{srcVar}}.TryGetNext(out var __item)){
+                    {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
                 }
                 """;
         return $$"""
             {{destType}} {{destVar}};
+            {{funcSetup}}
             using(var {{srcVar}}={{srcExpr}}){
                 var {{this.result}} = {{seed}};
                 {{fold}}
@@ -157,8 +163,8 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
             }
             this.{{this.yielded}} = true;
             var {{this.result}} = {{seed}};
-            while({{this.e}}.MoveNext()){
-                {{this.FuncAssign(func,nameof(func),this.result,this.result,$"{this.e}.Current")}}
+            while({{this.e}}.TryGetNext(out var {{this.item}})){
+                {{this.FuncAssign(func,nameof(func),this.result,this.result,this.item)}}
             }
             this.{{this.currentValue}}={{this.result}};
             current=this.{{this.currentValue}};
@@ -171,29 +177,35 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
 public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,string seed, FuncFragment func,FuncFragment resultSelector) : Scalar(番号) {
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType){
-        if(func.CanInvokeAsDelegate || resultSelector.CanInvokeAsDelegate) return null;
         string srcExpr;
         try { srcExpr = source.GetEnumeratorExpression; }
         catch(System.NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
+        var funcVar = $"__aggFunc{番号}";
+        var resultSelectorVar = $"__aggResultSelector{番号}";
+        var funcSetup = this.DelegateLocal(func,funcVar);
+        var resultSelectorSetup = this.DelegateLocal(resultSelector,resultSelectorVar);
+        if(funcSetup is null || resultSelectorSetup is null) return null;
         var fold = source.CanProvideSpan
             ? $$"""
                 {{srcVar}}.TryGetSpan(out var __span);
                 foreach(var __item in __span){
-                    {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+                    {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
                 }
                 """
             : $$"""
-                while({{srcVar}}.MoveNext()){
-                    {{this.FuncAssign(func,nameof(func),this.result,this.result,$"{srcVar}.Current")}}
+                while({{srcVar}}.TryGetNext(out var __item)){
+                    {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
                 }
                 """;
         return $$"""
             {{destType}} {{destVar}};
+            {{funcSetup}}
+            {{resultSelectorSetup}}
             using(var {{srcVar}}={{srcExpr}}){
                 var {{this.result}} = {{seed}};
                 {{fold}}
-                {{this.FuncAssign(resultSelector,nameof(resultSelector),destVar,this.result)}}
+                {{this.FuncAssignInline(resultSelector,nameof(resultSelector),resultSelectorVar,destVar,this.result)}}
             }
             """;
     }
@@ -236,8 +248,8 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
             }
             this.{{this.yielded}} = true;
             var {{this.result}} = {{seed}};
-            while({{this.e}}.MoveNext()){
-                {{this.FuncAssign(func,nameof(func),this.result,this.result,$"{this.e}.Current")}}
+            while({{this.e}}.TryGetNext(out var {{this.item}})){
+                {{this.FuncAssign(func,nameof(func),this.result,this.result,this.item)}}
             }
             {{this.FuncAssign(resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.result)}}
             current=this.{{this.currentValue}};
@@ -245,4 +257,27 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
             """;
     public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+}
+
+file static class AggregateInlineDelegateSupport {
+    public static string? DelegateLocal(this Fragment _,FuncFragment func,string localName) {
+        if(!func.CanInvokeAsDelegate) {
+            return string.Empty;
+        }
+
+        if(func.DelegateTypeName is not { Length: > 0 } delegateTypeName
+            || func.DelegateConstructorArg is not { Length: > 0 } delegateConstructorArg) {
+            return null;
+        }
+
+        return $"{delegateTypeName} {localName} = {delegateConstructorArg};";
+    }
+
+    public static string FuncAssignInline(this Fragment fragment,FuncFragment func,string methodName,string delegateLocalName,string destination,params string[] arguments) {
+        if(func.CanInvokeAsDelegate) {
+            return $"{destination}={delegateLocalName}.Invoke({string.Join(", ", arguments)});";
+        }
+
+        return fragment.FuncAssignForAggregateInline(func,methodName,destination,arguments);
+    }
 }

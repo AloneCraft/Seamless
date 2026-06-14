@@ -223,6 +223,9 @@ public abstract class Fragment(
         return $"{destination}={this.FuncInvoke(func,methodName,arguments)};";
     }
 
+    internal string FuncAssignForAggregateInline(FuncFragment func,string methodName,string destination,params string[] arguments) =>
+        this.FuncAssign(func,methodName,destination,arguments);
+
     // TryGetNext 内で destination フィールドと out current の両方を設定する複合代入を生成する。
     // 単純ラムダなら current = destination = expr; の一行に。
     // RequiresStatementInlining またはデリゲート呼び出しの場合は FuncAssign の後に current = destination; を付加する。

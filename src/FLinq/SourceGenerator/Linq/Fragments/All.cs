@@ -1,65 +1,44 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
-public class All_predicate(int 番号, Enumerable source, FuncFragment predicate) : Scalar(番号) {
+namespace Tsavorite.SourceGenerator.Linq.Fragments;
+public class All_predicate(int 番号, Enumerable source, FuncFragment predicate) : BufferedScalar(番号, "bool") {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
+    protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
         $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
-    public override string GetEnumeratorStruct => $$"""
-        {{source.GetEnumeratorStruct}}
-        {{this.DefineScalarEnumeratorStruct("bool")}}
-        """;
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
-    protected override string GetCurrentPropertyDefaultExpression => "true";
-    public override string GetEnumeratorFields => $$"""
-        private bool {{this.yielded}} = false;
-        """;
-    public override string GetTryGetNextBody {
+    protected override string ComputeExpression =>
+        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string? RenderInlineComputation(string destVar,string destType) => this.RenderComputeInline(destVar,destType);
+    protected override string ComputeMembers {
         get {
-            var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item);
+            var (preCode, condExpr) = this.FuncInvokeCondition(predicate, nameof(predicate), this.temp, this.item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
-                : $"{preCode}\n            if(!{WrapConditionExpression(condExpr)})";
+                : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
 
             return source.CanProvideSpan
                 ? $$"""
-                    if(this.{{this.yielded}}) {
-                        current = default;
-                        return false;
-                    }
-                    this.{{this.yielded}} = true;
-                    {{this.e}}.TryGetSpan(out var __span);
-                    foreach(var {{this.item}} in __span){
-                        {{predicateCheck}} {
-                            this.{{this.currentValue}}=false;
-                            current=this.{{this.currentValue}};
-                            return true;
+                    {{AggressiveInliningAttribute}}
+                    private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+                        source.TryGetSpan(out var __span);
+                        foreach(var {{this.item}} in __span){
+                            {{predicateCheck}} return false;
                         }
+                        return true;
                     }
-                    this.{{this.currentValue}}=true;
-                    current=this.{{this.currentValue}};
-                    return true;
                     """
                 : $$"""
-                    if(this.{{this.yielded}}) {
-                        current = default;
-                        return false;
-                    }
-                    this.{{this.yielded}} = true;
-                    while({{this.e}}.MoveNext()) {
-                        var {{this.item}} = {{this.e}}.Current;
-                        {{predicateCheck}} {
-                            this.{{this.currentValue}} = false;
-                            current = this.{{this.currentValue}};
-                            return true;
+                    {{AggressiveInliningAttribute}}
+                    private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+                        while(source.MoveNext()) {
+                            var {{this.item}}=source.Current;
+                            {{predicateCheck}} return false;
                         }
+                        return true;
                     }
-                    this.{{this.currentValue}} = true;
-                    current = this.{{this.currentValue}};
-                    return true;
                     """;
         }
     }
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

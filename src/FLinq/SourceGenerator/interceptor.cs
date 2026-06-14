@@ -2517,6 +2517,37 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
     }
 
     /// <summary>
+    /// for/while/do/foreach/if/using などの本体文を生成する。
+    /// <c>statement</c> が <see cref="BlockSyntax"/> でない場合、複数文への展開時に
+    /// 親構文（for等）のヘッダ直後に裸の文が並んで構文エラーになるのを防ぐため、
+    /// <c>{ }</c> で囲んでから <see cref="文生成16"/> に委譲する。
+    /// 既に <see cref="BlockSyntax"/> の場合は <see cref="文生成16"/> 自身が <c>{ }</c> を出力するため、
+    /// そのまま委譲する（二重 <c>{ }</c> を避ける）。
+    /// </summary>
+    private static bool 本体文生成(
+        StatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount,
+        HashSet<string> usedNames) {
+        if(statement is BlockSyntax) {
+            return 文生成16(statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
+        }
+        builder.AppendLine("{");
+        if(!文生成16(statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) {
+            return false;
+        }
+        builder.AppendLine("}");
+        return true;
+    }
+
+    /// <summary>
     /// <c>try { … } catch(…) { … } finally { … }</c> 文を生成する。
     /// try ブロック・各 catch ブロック・finally ブロックをそれぞれ <see cref="文生成16"/> で再帰処理する。
     /// catch 宣言・catch フィルター (<c>when</c>) はソーステキストをそのまま出力する。
@@ -2586,7 +2617,7 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         } else {
             return false;
         }
-        return 文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
+        return 本体文生成(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
     }
 
     /// <summary>
@@ -2615,7 +2646,7 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
             : string.Empty;
         var incr = string.Join(", ",statement.Incrementors.Select(e=>RenderExpressionForGeneratedMethod(e,semanticModel,containingType,unsafeAccessorCollector)));
         builder.AppendLine($"for({init}; {cond}; {incr})");
-        return 文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
+        return 本体文生成(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
     }
 
     /// <summary>
@@ -2642,7 +2673,7 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
             : (statement.Type is IdentifierNameSyntax { IsVar: true } ? "var" : NormalizeExpressionText(statement.Type.ToString()));
         var exprText = RenderExpressionForGeneratedMethod(statement.Expression,semanticModel,containingType,unsafeAccessorCollector);
         builder.AppendLine($"foreach({typeName} {statement.Identifier} in {exprText})");
-        return 文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
+        return 本体文生成(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
     }
 
     /// <summary>
@@ -2664,7 +2695,7 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         HashSet<string> usedNames) {
         var condText = RenderExpressionForGeneratedMethod(statement.Condition,semanticModel,containingType,unsafeAccessorCollector);
         builder.AppendLine($"while({condText})");
-        return 文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
+        return 本体文生成(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
     }
 
     /// <summary>
@@ -2684,7 +2715,7 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         ref int linqInvocationCount,
         HashSet<string> usedNames) {
         builder.AppendLine("do");
-        if(!文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) return false;
+        if(!本体文生成(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) return false;
         var condText = RenderExpressionForGeneratedMethod(statement.Condition,semanticModel,containingType,unsafeAccessorCollector);
         builder.AppendLine($"while({condText});");
         return true;
@@ -2709,10 +2740,10 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         HashSet<string> usedNames) {
         var condText = RenderExpressionForGeneratedMethod(statement.Condition,semanticModel,containingType,unsafeAccessorCollector);
         builder.AppendLine($"if({condText})");
-        if(!文生成16(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) return false;
+        if(!本体文生成(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) return false;
         if(statement.Else is not null) {
             builder.AppendLine("else");
-            if(!文生成16(statement.Else.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) return false;
+            if(!本体文生成(statement.Else.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) return false;
         }
         return true;
     }
