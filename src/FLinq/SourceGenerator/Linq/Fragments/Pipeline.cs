@@ -266,14 +266,6 @@ public static class PipelineBuilder {
                 continue;
             }
 
-            if(current is RangeRoot currentRange
-                && TryCreateRangeDistinctByModulo(stage,currentRange,uniqueNumber,out var distinctByModulo)) {
-                uniqueNumber++;
-                current=distinctByModulo;
-                changed=true;
-                continue;
-            }
-
             if(current is RangeRoot unionRange
                 && IsRangeUnionNoOp(stage,unionRange)) {
                 changed=true;
@@ -308,23 +300,6 @@ public static class PipelineBuilder {
             || (stage.Kind==PipelineStageKind.DistinctBy
                 && stage.Func is { IsIdentity: true }
                 && stage.KeyType==current.ElementType));
-
-    private static bool TryCreateRangeDistinctByModulo(PipelineStage stage,RangeRoot current,int number,out RangeRoot range) {
-        range=null!;
-        if(stage.Kind!=PipelineStageKind.DistinctBy
-            || stage.Value!="null"
-            || current.ElementType!="int"
-            || stage.KeyType!="int"
-            || stage.Func is not { } keySelector
-            || !RangePredicateOptimizer.TryExtractModuloByParameter(keySelector,out var divisor)
-            || !RangePredicateOptimizer.IsNonNegativeIntegerLiteral(current.StartExpression)) {
-            return false;
-        }
-
-        var count=$"global::System.Math.Min(global::System.Math.Max(0,{current.CountExpression}),{divisor})";
-        range=new RangeRoot(number,current.StartExpression,count);
-        return true;
-    }
 
     private static bool IsRangeIntersect(PipelineStage stage,RangeRoot current,out RangeRoot second) {
         second=null!;
@@ -1700,70 +1675,58 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         }
     }
     public override string GetConsumeExecutionStatement(string consumerName) =>
-        this.RenderRangeModuloThenByConsume(consumerName)
+        this.RenderPureOrderingDirectConsume(consumerName)
         ?? base.GetConsumeExecutionStatement(consumerName);
 
-    private string? RenderRangeModuloThenByConsume(string consumerName) {
-        if(source is not RangeRoot range
-            || range.ElementType!="int"
-            || stages.Count!=2
-            || stages[0] is not { Kind: PipelineStageKind.OrderBy, Value: "null", Func: { } primaryKey }
-            || stages[1] is not { Value: "null", Func: { IsIdentity: true } secondaryKey }
-            || stages[1].Kind is not (PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending)
-            || stages[0].KeyType!="int"
-            || stages[1].KeyType!="int"
-            || !RangePredicateOptimizer.TryExtractModuloByParameter(primaryKey,out var divisor)
-            || !RangePredicateOptimizer.IsNonNegativeIntegerLiteral(range.StartExpression)) {
+    private string? RenderPureOrderingDirectConsume(string consumerName) {
+        if(stages.Count==0
+            || !stages.All(static stage => stage.Kind is PipelineStageKind.OrderBy
+                or PipelineStageKind.OrderByDescending
+                or PipelineStageKind.ThenBy
+                or PipelineStageKind.ThenByDescending)
+            || stages[0].Kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending
+            || source.DirectEnumerableExpression is not { } sourceExpression) {
             return null;
         }
 
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var last=$"__last{番号}";
-        var startMod=$"__startMod{番号}";
-        var key=$"__key{番号}";
-        var offset=$"__offset{番号}";
-        var first=$"__first{番号}";
-        var value=$"__value{番号}";
-        if(stages[1].Descending) {
-            var tail=$"__tail{番号}";
-            return $$"""
-                {
-                    var {{start}}={{range.StartExpression}};
-                    var {{count}}={{range.CountExpression}};
-                    var {{last}}={{start}} + {{count}} - 1;
-                    var {{startMod}}={{start}} % {{divisor}};
-                    for(var {{key}}=0;{{key}}<{{divisor}};{{key}}++) {
-                        var {{offset}}={{key}} - {{startMod}};
-                        if({{offset}}<0) {{offset}} += {{divisor}};
-                        if({{offset}}>={{count}}) continue;
-                        var {{first}}={{start}} + {{offset}};
-                        var {{tail}}=(({{last}} - {{first}}) / {{divisor}}) * {{divisor}};
-                        for(var {{value}}={{first}} + {{tail}};{{value}}>={{first}};{{value}}-={{divisor}}) {
-                            {{consumerName}}.Consume({{value}});
-                        }
-                    }
+        var expression=sourceExpression;
+        foreach(var stage in stages) {
+            var methodName=stage.Kind.ToString();
+            string argumentList;
+            if(stage.Func is { } func) {
+                if(TryRenderDirectLambda(func) is not { } lambda) {
+                    return null;
                 }
-                """;
+                argumentList=stage.Value=="null"
+                    ? lambda
+                    : $"{lambda}, {stage.Value}";
+            } else {
+                argumentList=stage.Value=="null"
+                    ? string.Empty
+                    : stage.Value!;
+            }
+            expression=string.IsNullOrEmpty(argumentList)
+                ? $"global::System.Linq.Enumerable.{methodName}({expression})"
+                : $"global::System.Linq.Enumerable.{methodName}({expression}, {argumentList})";
         }
 
+        var itemName=$"__orderedItem{番号}";
         return $$"""
-            {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
-                var {{last}}={{start}} + {{count}} - 1;
-                var {{startMod}}={{start}} % {{divisor}};
-                for(var {{key}}=0;{{key}}<{{divisor}};{{key}}++) {
-                    var {{offset}}={{key}} - {{startMod}};
-                    if({{offset}}<0) {{offset}} += {{divisor}};
-                    if({{offset}}>={{count}}) continue;
-                    var {{first}}={{start}} + {{offset}};
-                    for(var {{value}}={{first}};{{value}}<={{last}};{{value}}+={{divisor}}) {
-                        {{consumerName}}.Consume({{value}});
-                    }
-                }
+            foreach(var {{itemName}} in {{expression}}) {
+                {{consumerName}}.Consume({{itemName}});
             }
             """;
+    }
+
+    private static string? TryRenderDirectLambda(FuncFragment func) {
+        if(func.CapturedLocals.Length!=0 || func.RequiresStatementInlining) {
+            return null;
+        }
+        try {
+            return func.RenderAsLambda();
+        } catch(InvalidOperationException) {
+            return null;
+        }
     }
     public override string GetEnumeratorPrimaryConstructorParameters {
         get {
@@ -2152,7 +2115,12 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         var lastOrderIndex = orderIndex+orderStages.Length-1;
         var builder = new StringBuilder();
         builder.AppendLine($"if(this.{this.SortedItemsName(orderIndex)} is null) {{");
-        builder.AppendLine($"    var {this.SortedItemsName(orderIndex)}=new global::System.Collections.Generic.List<{this.SortItemName(orderIndex)}>();");
+        builder.AppendLine($"    global::System.Collections.Generic.List<{this.SortItemName(orderIndex)}> {this.SortedItemsName(orderIndex)};");
+        builder.AppendLine($"    if({enumeratorName}.TryGetNonEnumeratedCount(out var __sortCount{orderIndex})) {{");
+        builder.AppendLine($"        {this.SortedItemsName(orderIndex)}=new global::System.Collections.Generic.List<{this.SortItemName(orderIndex)}>(__sortCount{orderIndex});");
+        builder.AppendLine("    }else{");
+        builder.AppendLine($"        {this.SortedItemsName(orderIndex)}=new global::System.Collections.Generic.List<{this.SortItemName(orderIndex)}>();");
+        builder.AppendLine("    }");
         builder.AppendLine("    var __sortIndex=0;");
         builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
         var currentName = this.ItemName(0);
@@ -2181,17 +2149,21 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         }
         builder.AppendLine("    }");
         var primaryComparerName = this.OrderComparerLocalName(orderIndex);
-        builder.AppendLine($"    var {primaryComparerName}={this.OrderComparerName(this.OrderComparerOrdinal(orderIndex))} ?? global::System.Collections.Generic.Comparer<{ComparerKeyType(primaryOrder)}>.Default;");
+        if(!CanUseDirectDefaultOrderCompare(primaryOrder)) {
+            builder.AppendLine($"    var {primaryComparerName}={this.OrderComparerName(this.OrderComparerOrdinal(orderIndex))} ?? global::System.Collections.Generic.Comparer<{ComparerKeyType(primaryOrder)}>.Default;");
+        }
         string? secondaryComparerName = null;
         if(secondaryOrder is { }) {
             secondaryComparerName=this.OrderComparerLocalName(orderIndex+1);
-            builder.AppendLine($"    var {secondaryComparerName}={this.OrderComparerName(this.OrderComparerOrdinal(orderIndex+1))} ?? global::System.Collections.Generic.Comparer<{ComparerKeyType(secondaryOrder)}>.Default;");
+            if(!CanUseDirectDefaultOrderCompare(secondaryOrder)) {
+                builder.AppendLine($"    var {secondaryComparerName}={this.OrderComparerName(this.OrderComparerOrdinal(orderIndex+1))} ?? global::System.Collections.Generic.Comparer<{ComparerKeyType(secondaryOrder)}>.Default;");
+            }
         }
         builder.AppendLine($"    {this.SortedItemsName(orderIndex)}.Sort((left,right) => {{");
-        builder.AppendLine($"        var compare={primaryComparerName}.Compare(left.Key,right.Key);");
+        builder.AppendLine($"        var compare={this.OrderCompareCall(primaryOrder,"left.Key","right.Key",primaryComparerName)};");
         builder.AppendLine($"        if(compare!=0) return {this.OrderCompareExpression(primaryOrder,"compare")};");
         if(secondaryOrder is { }) {
-            builder.AppendLine($"        var compare2={secondaryComparerName}.Compare(left.SecondKey,right.SecondKey);");
+            builder.AppendLine($"        var compare2={this.OrderCompareCall(secondaryOrder,"left.SecondKey","right.SecondKey",secondaryComparerName!)};");
             builder.AppendLine($"        if(compare2!=0) return {this.OrderCompareExpression(secondaryOrder,"compare2")};");
         }
         builder.AppendLine("        return left.Index.CompareTo(right.Index);");
@@ -2899,6 +2871,24 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         }
         return compareName;
     }
+    private string OrderCompareCall(PipelineStage stage,string left,string right,string comparerName) =>
+        CanUseDirectDefaultOrderCompare(stage)
+            ? $"{left}.CompareTo({right})"
+            : $"{comparerName}.Compare({left},{right})";
+    private static bool CanUseDirectDefaultOrderCompare(PipelineStage stage) =>
+        stage.Value=="null"
+        && (ComparerKeyType(stage) is "byte" or "sbyte"
+            or "short" or "ushort"
+            or "int" or "uint"
+            or "long" or "ulong"
+            or "float" or "double" or "decimal"
+            or "char" or "string"
+            or "global::System.Byte" or "global::System.SByte"
+            or "global::System.Int16" or "global::System.UInt16"
+            or "global::System.Int32" or "global::System.UInt32"
+            or "global::System.Int64" or "global::System.UInt64"
+            or "global::System.Single" or "global::System.Double" or "global::System.Decimal"
+            or "global::System.Char" or "global::System.String");
 
     private string OrderSortItemType(int orderIndex) {
         var orderStages = this.OrderStages(orderIndex).ToArray();

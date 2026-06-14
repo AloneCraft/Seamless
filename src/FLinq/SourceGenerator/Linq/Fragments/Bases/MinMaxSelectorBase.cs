@@ -12,9 +12,10 @@ public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFrag
         $"Compute({this.e}{this.ClosureArgsSuffix(selector)})";
     public override string? RenderInlineComputation(string destVar,string destType) {
         var methodName = direction=="greater" ? "Max" : "Min";
-        return TryRenderDirectLambda(selector) is { } lambda
-            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda)
-            : this.RenderComputeInline(destVar,destType);
+        return this.RenderComputeInline(destVar,destType)
+            ?? (TryRenderDirectLambda(selector) is { } lambda
+                ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda)
+                : null);
     }
     private string CompareCond => direction=="greater" ? "comparer.Compare(value,result)>0" : "comparer.Compare(value,result)<0";
     protected override string ComputeMembers => source.CanProvideSpan
