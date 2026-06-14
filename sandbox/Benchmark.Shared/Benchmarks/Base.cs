@@ -24,17 +24,17 @@ public class Base {
     private protected int CountForTestTiming(int benchmarkCount)=>benchmarkCount;
 #endif
     protected IEnumerable<int> srcMinusPlus(int scale) {
-        for(var a = 0; a<count*scale; a+=2) {
+        for(var a = 0; a<this.count*scale; a+=2) {
             yield return -a;
             yield return +a;
         }
     }
-    protected IEnumerable<int> src(int scale) => Enumerable.Range(1,count*scale);
-    protected IEnumerable<int> src2(int scale) => Enumerable.Range(count*scale/2+1,count*scale/2);
+    protected IEnumerable<int> src(int scale) => Enumerable.Range(1,this.count*scale);
+    protected IEnumerable<int> src2(int scale) => Enumerable.Range(this.count*scale/2+1,this.count*scale/2);
     protected IEnumerable<int> srcOne(int scale) => [0];
     [LinqIntercept(false)]
     protected IEnumerable<IEnumerable<int>> srcNested(int scale) {
-        var side = (int)Math.Sqrt(count*scale);
+        var side = (int)Math.Sqrt(this.count*scale);
         return Enumerable.Range(1,side).Select(_ => Enumerable.Range(1,side));
     }
 }
