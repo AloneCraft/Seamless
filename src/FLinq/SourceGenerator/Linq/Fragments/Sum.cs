@@ -7,7 +7,9 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
-    public override string? RenderInlineComputation(string destVar,string destType) => this.RenderComputeInline(destVar,destType);
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
+        ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -44,7 +46,34 @@ public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, 
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(selector)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(selector)})";
-    public override string? RenderInlineComputation(string destVar,string destType) => this.RenderComputeInline(destVar,destType);
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        this.RenderRangeLongSumSelectorInline(destVar,destType)
+        ?? (TryRenderDirectLambda(selector) is { } lambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum",lambda)
+            : this.RenderComputeInline(destVar,destType));
+    private string? RenderRangeLongSumSelectorInline(string destVar,string destType) {
+        if(source is not RangeRoot range
+            || source.ElementType!="int"
+            || !IsLongType(resultType)
+            || !RangePredicateOptimizer.IsParameterCast(selector,"long")) {
+            return null;
+        }
+
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var sum=$"__sum{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                var {{sum}}=((long){{count}} * (2L * (long){{start}} + (long){{count}} - 1L)) / 2L;
+                {{destVar}}=({{destType}}){{sum}};
+            }
+            """;
+    }
+    private static bool IsLongType(string typeName) =>
+        typeName is "long" or "global::System.Int64" or "System.Int64";
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

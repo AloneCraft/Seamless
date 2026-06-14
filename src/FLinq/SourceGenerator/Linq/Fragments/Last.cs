@@ -8,8 +8,25 @@ public class Last(int 番号, Enumerable source, string resultType) : BufferedSc
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"Last")
+        this.RenderRangeLastInline(destVar,destType)
+        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Last")
         ?? this.RenderComputeInline(destVar,destType);
+    private string? RenderRangeLastInline(string destVar,string destType) {
+        if(source is not RangeRoot range || source.ElementType!="int") {
+            return null;
+        }
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                if({{count}}==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                {{destVar}}={{start}} + {{count}} - 1;
+            }
+            """;
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -49,9 +66,41 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        TryRenderDirectLambda(predicate) is { } lambda
+        this.RenderRangeLastPredicateInline(destVar,destType)
+        ?? (TryRenderDirectLambda(predicate) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Last",lambda)
-            : this.RenderComputeInline(destVar,destType);
+            : this.RenderComputeInline(destVar,destType));
+    private string? RenderRangeLastPredicateInline(string destVar,string destType) {
+        if(source is not RangeRoot range
+            || source.ElementType!="int"
+            || !predicate.CanInlineAssign
+            || predicate.RequiresStatementInlining) {
+            return null;
+        }
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var index=$"__i{番号}";
+        var found=$"__found{番号}";
+        return $$"""
+            {{destType}} {{destVar}}=default!;
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                var {{found}}=false;
+                for(var {{index}}={{count}}-1;{{index}}>=0;{{index}}--) {
+                    var {{this.item}}={{start}} + {{index}};
+                    bool {{this.temp}}=default!;
+            {{IndentLines(this.FuncAssign(predicate,nameof(predicate),this.temp,this.item),"        ")}}
+                    if({{this.temp}}) {
+                        {{destVar}}={{this.item}};
+                        {{found}}=true;
+                        break;
+                    }
+                }
+                if(!{{found}}) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+            }
+            """;
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

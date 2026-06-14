@@ -21,8 +21,32 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToList")
+        this.RenderRangeToListInline(destVar,destType)
+        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToList")
         ?? this.RenderComputeInline(destVar,destType);
+    private string? RenderRangeToListInline(string destVar,string destType) {
+        if(source is not RangeRoot range || source.ElementType!="int") {
+            return null;
+        }
+
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var span=$"__span{番号}";
+        var index=$"__i{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                {{destVar}}=new({{count}});
+                global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{count}});
+                var {{span}}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}});
+                for(var {{index}}=0;{{index}}<{{span}}.Length;{{index}}++) {
+                    {{span}}[{{index}}]={{start}} + {{index}};
+                }
+            }
+            """;
+    }
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {

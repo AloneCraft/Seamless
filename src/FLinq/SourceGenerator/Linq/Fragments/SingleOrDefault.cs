@@ -8,6 +8,13 @@ public class SingleOrDefault(int 番号, Enumerable source, string resultType) :
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        source is RangeRoot range
+            ? RangePredicateOptimizer.RenderSingleOrDefault(range,番号,destVar,destType)
+        : source is RepeatRoot repeat
+            ? RangePredicateOptimizer.RenderSingleOrDefault(repeat,番号,destVar,destType)
+            : this.RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault")
+        ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -39,6 +46,13 @@ public class SingleOrDefault_defaultValue(int 番号, Enumerable source, string 
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {defaultValue})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {resultType} defaultValue";
     protected override string ComputeExpression => $"Compute({this.e}, defaultValue)";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        source is RangeRoot range
+            ? RangePredicateOptimizer.RenderSingleOrDefault(range,番号,destVar,destType,defaultValue)
+        : source is RepeatRoot repeat
+            ? RangePredicateOptimizer.RenderSingleOrDefault(repeat,番号,destVar,destType,defaultValue)
+            : this.RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",defaultValue)
+        ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -73,6 +87,15 @@ public class SingleOrDefault_predicate(int 番号, Enumerable source, FuncFragme
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        source is RangeRoot range
+            ? RangePredicateOptimizer.RenderSingleOrDefault(range,predicate,番号,destVar,destType)
+                ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
+                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",rangeLambda)
+                    : this.RenderComputeInline(destVar,destType))
+        : TryRenderDirectLambda(predicate) is { } lambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",lambda)
+            : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

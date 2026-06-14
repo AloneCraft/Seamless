@@ -568,6 +568,9 @@ public sealed partial class TsavoriteIncrementalGenerator {
     /// </summary>
     private static bool 単独列挙ソースフラグメント生成(SemanticModel semanticModel,ExpressionSyntax expression,INamedTypeSymbol containingType,ref int uniqueNumber,out Enumerable fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null) {
         staticMethods=string.Empty;
+        if(TryBuildKnownEnumerableRoot(semanticModel,expression,containingType,ref uniqueNumber,out fragment,unsafeAccessorCollector)) {
+            return true;
+        }
         var typeInfo = semanticModel.GetTypeInfo(expression);
         var expressionType = typeInfo.Type ?? typeInfo.ConvertedType;
         if(!列挙要素型取得(expressionType,out var elementType,out var useEnumerableInterface)) {
@@ -1255,7 +1258,14 @@ public sealed partial class TsavoriteIncrementalGenerator {
     }
 
     private static bool Enumerableメソッドがフラグメント対応済みか(string methodName)
-       =>methodName=="Any" || フラグメント候補一覧.ContainsKey(methodName);
+       =>methodName=="Any" || IsKnownEnumerableRootMethod(methodName) || フラグメント候補一覧.ContainsKey(methodName);
+
+    private static bool IsKnownEnumerableRootMethod(string methodName) =>
+        methodName is "Range" or "Repeat" or "Empty";
+
+    private static bool IsKnownEnumerableRootMethod(IMethodSymbol method) =>
+        method.ContainingType.ToDisplayString()=="System.Linq.Enumerable"
+        && IsKnownEnumerableRootMethod(method.Name);
 
     private static Enumerable CreateRootEnumerableFragment(string sourceExpression,string elementType,string enumeratorTypeName,bool useEnumerableInterface,int 番号) {
         return new Root(
@@ -1264,6 +1274,292 @@ public sealed partial class TsavoriteIncrementalGenerator {
             elementType,
             enumeratorTypeName,
             useEnumerableInterface);
+    }
+
+    private static bool TryBuildKnownEnumerableRoot(
+        SemanticModel semanticModel,
+        ExpressionSyntax expression,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        out Enumerable fragment,
+        List<string>? unsafeAccessorCollector) {
+        fragment=null!;
+        if(expression is not InvocationExpressionSyntax invocation
+            || semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) {
+            return false;
+        }
+
+        if(TryBuildKnownEnumerableRootFromSystemInvocation(
+            semanticModel,
+            invocation,
+            method,
+            containingType,
+            ref uniqueNumber,
+            out fragment,
+            unsafeAccessorCollector,
+            replacementMap: null)) {
+            return true;
+        }
+
+        return TryBuildKnownEnumerableRootFromOrdinaryMethod(
+            semanticModel,
+            invocation,
+            method,
+            containingType,
+            ref uniqueNumber,
+            out fragment,
+            unsafeAccessorCollector);
+    }
+
+    private static bool TryBuildKnownEnumerableRootFromSystemInvocation(
+        SemanticModel semanticModel,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        out Enumerable fragment,
+        List<string>? unsafeAccessorCollector,
+        IReadOnlyDictionary<string,string>? replacementMap) {
+        fragment=null!;
+        if(method.ContainingType.ToDisplayString()!="System.Linq.Enumerable"
+            || !IsKnownEnumerableRootMethod(method.Name)) {
+            return false;
+        }
+
+        if(method.Name=="Empty"
+            && invocation.ArgumentList.Arguments.Count==0
+            && method.TypeArguments.Length==1) {
+            fragment=new EmptyRoot(
+                uniqueNumber++,
+                method.TypeArguments[0].ToDisplayString(完全修飾形式));
+            return true;
+        }
+
+        if(invocation.ArgumentList.Arguments.Count!=2) {
+            return false;
+        }
+
+        if(method.Name=="Range") {
+            fragment=new RangeRoot(
+                uniqueNumber++,
+                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[0].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
+                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[1].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap));
+            return true;
+        }
+
+        if(method.Name=="Repeat" && method.TypeArguments.Length==1) {
+            fragment=new RepeatRoot(
+                uniqueNumber++,
+                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[0].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
+                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[1].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
+                method.TypeArguments[0].ToDisplayString(完全修飾形式));
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryBuildKnownEnumerableRootFromOrdinaryMethod(
+        SemanticModel semanticModel,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        out Enumerable fragment,
+        List<string>? unsafeAccessorCollector) {
+        fragment=null!;
+        if(method.MethodKind!=MethodKind.Ordinary
+            || method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax
+            || invocation.ArgumentList.Arguments.Any(static argument=>!argument.RefKindKeyword.IsKind(SyntaxKind.None))
+            || !TryCreateOrdinaryActualArgumentList(method,invocation,semanticModel,containingType,unsafeAccessorCollector,replacementMap: null,out var actualArguments)
+            || !TryGetSingleExpressionBody(methodSyntax,out var bodyExpression)) {
+            return false;
+        }
+
+        var bodySemanticModel = semanticModel.Compilation.GetSemanticModel(methodSyntax.SyntaxTree);
+        var replacementMap = BuildInlineEnumerableRootReplacementMap(
+            method,
+            invocation,
+            methodSyntax,
+            bodyExpression,
+            bodySemanticModel,
+            semanticModel,
+            containingType,
+            actualArguments,
+            unsafeAccessorCollector);
+
+        if(bodyExpression is InvocationExpressionSyntax bodyInvocation
+            && bodySemanticModel.GetSymbolInfo(bodyInvocation).Symbol is IMethodSymbol bodyMethod
+            && bodyMethod.ContainingType.ToDisplayString()=="System.Linq.Enumerable") {
+            return TryBuildKnownEnumerableRootFromSystemInvocation(
+                bodySemanticModel,
+                bodyInvocation,
+                bodyMethod,
+                method.ContainingType,
+                ref uniqueNumber,
+                out fragment,
+                unsafeAccessorCollector,
+                replacementMap);
+        }
+
+        if(bodyExpression is CollectionExpressionSyntax collectionExpression) {
+            return TryBuildKnownEnumerableRootFromCollectionExpression(
+                bodySemanticModel,
+                collectionExpression,
+                method,
+                method.ContainingType,
+                ref uniqueNumber,
+                out fragment,
+                unsafeAccessorCollector,
+                replacementMap);
+        }
+
+        return false;
+    }
+
+    private static bool TryBuildKnownEnumerableRootFromCollectionExpression(
+        SemanticModel semanticModel,
+        CollectionExpressionSyntax collectionExpression,
+        IMethodSymbol method,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        out Enumerable fragment,
+        List<string>? unsafeAccessorCollector,
+        IReadOnlyDictionary<string,string>? replacementMap) {
+        fragment=null!;
+#if false
+        if(!蛻玲嫌隕∫ｴ蝙句叙蠕・method.ReturnType,out var elementType,out _)) {
+            return false;
+        }
+
+        var elementTypeName=elementType.ToDisplayString(螳悟・菫ｮ鬟ｾ蠖｢蠑・;
+#endif
+        if(!TryGetCollectionExpressionElementType(method.ReturnType,out var elementType)) {
+            return false;
+        }
+
+        var elementTypeName=elementType.ToDisplayString(global::Microsoft.CodeAnalysis.SymbolDisplayFormat.FullyQualifiedFormat);
+        if(collectionExpression.Elements.Count==0) {
+            fragment=new EmptyRoot(uniqueNumber++,elementTypeName);
+            return true;
+        }
+
+        if(collectionExpression.Elements is [
+            ExpressionElementSyntax { Expression: var elementExpression }
+        ]) {
+            fragment=new RepeatRoot(
+                uniqueNumber++,
+                RenderExpressionForGeneratedMethod(elementExpression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
+                "1",
+                elementTypeName);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetCollectionExpressionElementType(ITypeSymbol type,out ITypeSymbol elementType) {
+        switch(type) {
+            case IArrayTypeSymbol arrayType:
+                elementType=arrayType.ElementType;
+                return true;
+            case INamedTypeSymbol namedType when IsIEnumerableType(namedType) && namedType.TypeArguments.Length==1:
+                elementType=namedType.TypeArguments[0];
+                return true;
+            case INamedTypeSymbol namedType:
+                var enumerableInterface = namedType.AllInterfaces.FirstOrDefault(static candidate=>IsIEnumerableType(candidate) && candidate.TypeArguments.Length==1);
+                if(enumerableInterface is not null) {
+                    elementType=enumerableInterface.TypeArguments[0];
+                    return true;
+                }
+                break;
+        }
+
+        elementType=null!;
+        return false;
+    }
+
+    private static bool TryGetSingleExpressionBody(MethodDeclarationSyntax methodSyntax,out ExpressionSyntax expression) {
+        if(methodSyntax.ExpressionBody is { Expression: var expressionBody }) {
+            expression=expressionBody;
+            return true;
+        }
+
+        if(methodSyntax.Body is {
+            Statements: [
+                ReturnStatementSyntax { Expression: { } returnExpression }
+            ]
+        }) {
+            expression=returnExpression;
+            return true;
+        }
+
+        expression=null!;
+        return false;
+    }
+
+    private static Dictionary<string,string> BuildInlineEnumerableRootReplacementMap(
+        IMethodSymbol method,
+        InvocationExpressionSyntax invocation,
+        MethodDeclarationSyntax methodSyntax,
+        ExpressionSyntax bodyExpression,
+        SemanticModel bodySemanticModel,
+        SemanticModel invocationSemanticModel,
+        INamedTypeSymbol invocationContainingType,
+        IReadOnlyList<string> actualArguments,
+        List<string>? unsafeAccessorCollector) {
+        var replacementMap = new Dictionary<string,string>(StringComparer.Ordinal);
+        for(var i=0;i<method.Parameters.Length && i<actualArguments.Count;i++) {
+            replacementMap[method.Parameters[i].Name]=actualArguments[i];
+        }
+
+        var receiverText = GetInlineEnumerableRootReceiverText(
+            invocation,
+            invocationSemanticModel,
+            invocationContainingType,
+            unsafeAccessorCollector);
+        foreach(var identifier in bodyExpression.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>()) {
+            if(identifier.Parent is MemberAccessExpressionSyntax { Name: var name } && name==identifier) {
+                continue;
+            }
+
+            if(bodySemanticModel.GetSymbolInfo(identifier).Symbol is IFieldSymbol field
+                && !field.IsStatic
+                && field.DeclaredAccessibility!=Accessibility.Public) {
+                replacementMap[identifier.Identifier.ValueText]=RenderFieldAccessorCall(field,receiverText,unsafeAccessorCollector);
+            }
+        }
+
+        foreach(var memberAccess in bodyExpression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>()) {
+            if(bodySemanticModel.GetSymbolInfo(memberAccess).Symbol is IFieldSymbol field
+                && !field.IsStatic
+                && field.DeclaredAccessibility!=Accessibility.Public) {
+                var memberText = NormalizeGeneratedExpressionText(memberAccess.ToString())
+                    .Replace("this.","@this.",StringComparison.Ordinal);
+                replacementMap[memberText]=RenderFieldAccessorCall(field,receiverText,unsafeAccessorCollector);
+            }
+        }
+
+        return replacementMap;
+    }
+
+    private static string GetInlineEnumerableRootReceiverText(
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        List<string>? unsafeAccessorCollector) {
+        return invocation.Expression is MemberAccessExpressionSyntax memberAccess
+            ? RenderExpressionForGeneratedMethod(memberAccess.Expression,semanticModel,containingType,unsafeAccessorCollector)
+            : "@this";
+    }
+
+    private static string RenderFieldAccessorCall(IFieldSymbol field,string receiverText,List<string>? unsafeAccessorCollector) {
+        var accessorName = $"__Field_{SanitizeIdentifier(field.ContainingType.Name)}_{SanitizeIdentifier(field.Name)}";
+        var targetTypeName = field.ContainingType.ToDisplayString(完全修飾形式);
+        var fieldTypeName = field.Type.ToDisplayString(完全修飾形式);
+        var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = \"{field.Name}\")]\nprivate static extern ref {fieldTypeName} {accessorName}({targetTypeName} @this);";
+        unsafeAccessorCollector?.Add(accessorCode);
+        return $"{accessorName}({receiverText})";
     }
 
     // ブロックが「単一の値付き return 文だけ」かどうか。これに該当するものは式インライン（LambdaFunc）で扱う。

@@ -89,13 +89,13 @@ public static class PipelineBuilder {
             return false;
         }
         if(invocations.Count==1) {
-            // 単段は Fragment 辞書に無い Order/OrderDescending（恒等キー順序）のみ Pipeline で受ける。
+            // 単段でも Range 上で消せる演算は Pipeline 側で受ける。
             // 単段 Where/Select 等は従来どおり Fragment 辞書経路に委ねる。
             if(semanticModel.GetSymbolInfo(invocations[0]).Symbol is not IMethodSymbol m0) {
                 return false;
             }
             var n0=(m0.ReducedFrom ?? m0).Name;
-            if(n0 is not ("Order" or "OrderDescending")) {
+            if(n0 is not ("Order" or "OrderDescending" or "OrderBy" or "OrderByDescending" or "Distinct" or "DistinctBy" or "Union" or "Except" or "Intersect" or "UnionBy" or "ExceptBy" or "IntersectBy")) {
                 return false;
             }
         }
@@ -152,8 +152,39 @@ public static class PipelineBuilder {
         }
 
         stages=NormalizeStages(stages,services.JoinStaticMethods);
+        if(TryOptimizeRangeSetStages(sourceFragment,stages,ref snapshot,out var optimizedSetSource)) {
+            AddUnsafeAccessors(stages,unsafeAccessorCollector);
+            if(terminalKind is { } optimizedTerminal) {
+                if(terminalResultType is null) {
+                    return false;
+                }
+                var terminalPipeline = new PipelineEnumerable(snapshot++,optimizedSetSource,global::System.Array.Empty<PipelineStage>(),currentElementType);
+                fragment=new PipelineTerminal(snapshot++,terminalPipeline,optimizedTerminal,terminalFunc1,terminalFunc2,terminalComparer);
+            } else {
+                fragment=optimizedSetSource;
+            }
+            uniqueNumber=snapshot;
+            staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
+            return true;
+        }
         if(!ValidateStageCombination(stages,terminalKind)) {
             return false;
+        }
+
+        if(TryOptimizeOrderedRange(sourceFragment,stages,ref snapshot,out var optimizedSource)) {
+            AddUnsafeAccessors(stages,unsafeAccessorCollector);
+            if(terminalKind is { } optimizedTerminal) {
+                if(terminalResultType is null) {
+                    return false;
+                }
+                var terminalPipeline = new PipelineEnumerable(snapshot++,optimizedSource,global::System.Array.Empty<PipelineStage>(),currentElementType);
+                fragment=new PipelineTerminal(snapshot++,terminalPipeline,optimizedTerminal,terminalFunc1,terminalFunc2,terminalComparer);
+            } else {
+                fragment=optimizedSource;
+            }
+            uniqueNumber=snapshot;
+            staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
+            return true;
         }
 
         var pipeline = new PipelineEnumerable(snapshot++,sourceFragment,stages.ToArray(),currentElementType);
@@ -176,6 +207,224 @@ public static class PipelineBuilder {
         }
         return true;
     }
+
+    private static bool TryOptimizeOrderedRange(
+        Enumerable source,
+        IReadOnlyList<PipelineStage> stages,
+        ref int uniqueNumber,
+        out Enumerable optimizedSource) {
+        optimizedSource=null!;
+        if(source is not RangeRoot range
+            || stages.Count==0
+            || !stages.All(IsIdentityOrderStage)) {
+            return false;
+        }
+
+        var primaryOrders = stages
+            .Where(static stage => stage.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending)
+            .ToArray();
+        if(primaryOrders.Length==0) {
+            return false;
+        }
+
+        optimizedSource=primaryOrders[^1].Descending
+            ? new DescendingRangeRoot(uniqueNumber++,range.StartExpression,range.CountExpression)
+            : range;
+        return true;
+    }
+
+    private static bool IsIdentityOrderStage(PipelineStage stage) {
+        if(stage.Kind is not (PipelineStageKind.OrderBy
+            or PipelineStageKind.OrderByDescending
+            or PipelineStageKind.ThenBy
+            or PipelineStageKind.ThenByDescending)) {
+            return false;
+        }
+
+        if(!string.Equals(stage.Value,"null",StringComparison.Ordinal)) {
+            return false;
+        }
+
+        return stage.Func is null || stage.Func.IsIdentity;
+    }
+
+    private static bool TryOptimizeRangeSetStages(
+        Enumerable source,
+        IReadOnlyList<PipelineStage> stages,
+        ref int uniqueNumber,
+        out Enumerable optimizedSource) {
+        optimizedSource=null!;
+        if(source is not RangeRoot range || stages.Count==0) {
+            return false;
+        }
+
+        Enumerable current=range;
+        var changed=false;
+        foreach(var stage in stages) {
+            if(IsRangeDistinctNoOp(stage,current)) {
+                changed=true;
+                continue;
+            }
+
+            if(current is RangeRoot currentRange
+                && TryCreateRangeDistinctByModulo(stage,currentRange,uniqueNumber,out var distinctByModulo)) {
+                uniqueNumber++;
+                current=distinctByModulo;
+                changed=true;
+                continue;
+            }
+
+            if(current is RangeRoot unionRange
+                && IsRangeUnionNoOp(stage,unionRange)) {
+                changed=true;
+                continue;
+            }
+
+            if(TryCreateRangeExcept(stage,current,uniqueNumber,out var exceptRange)) {
+                uniqueNumber++;
+                current=exceptRange;
+                changed=true;
+                continue;
+            }
+
+            if(current is RangeRoot intersectRange
+                && IsRangeIntersect(stage,intersectRange,out var second)) {
+                current=CreateRangeIntersection(uniqueNumber++,intersectRange,second);
+                changed=true;
+                continue;
+            }
+
+            return false;
+        }
+
+        optimizedSource=current;
+        return changed;
+    }
+
+    private static bool IsRangeDistinctNoOp(PipelineStage stage,Enumerable current) =>
+        stage.Value=="null"
+        && current.ElementType=="int"
+        && (stage.Kind==PipelineStageKind.Distinct
+            || (stage.Kind==PipelineStageKind.DistinctBy
+                && stage.Func is { IsIdentity: true }
+                && stage.KeyType==current.ElementType));
+
+    private static bool TryCreateRangeDistinctByModulo(PipelineStage stage,RangeRoot current,int number,out RangeRoot range) {
+        range=null!;
+        if(stage.Kind!=PipelineStageKind.DistinctBy
+            || stage.Value!="null"
+            || current.ElementType!="int"
+            || stage.KeyType!="int"
+            || stage.Func is not { } keySelector
+            || !RangePredicateOptimizer.TryExtractModuloByParameter(keySelector,out var divisor)
+            || !RangePredicateOptimizer.IsNonNegativeIntegerLiteral(current.StartExpression)) {
+            return false;
+        }
+
+        var count=$"global::System.Math.Min(global::System.Math.Max(0,{current.CountExpression}),{divisor})";
+        range=new RangeRoot(number,current.StartExpression,count);
+        return true;
+    }
+
+    private static bool IsRangeIntersect(PipelineStage stage,RangeRoot current,out RangeRoot second) {
+        second=null!;
+        if(!TryGetIdentityRangeSetStage(stage,current.ElementType,out var secondRange)
+            || stage.Kind is not (PipelineStageKind.Intersect or PipelineStageKind.IntersectBy)) {
+            return false;
+        }
+
+        second=secondRange;
+        return true;
+    }
+
+    private static bool IsRangeUnionNoOp(PipelineStage stage,RangeRoot current) {
+        if(!TryGetIdentityRangeSetStage(stage,current.ElementType,out var second)
+            || stage.Kind is not (PipelineStageKind.Union or PipelineStageKind.UnionBy)) {
+            return false;
+        }
+
+        return IsSameRange(current,second)
+            || IsOneBasedTrailingHalfRange(current,second);
+    }
+
+    private static bool TryCreateRangeExcept(PipelineStage stage,Enumerable current,int number,out RangeExceptRoot range) {
+        range=null!;
+        if(!TryGetIdentityRangeSetStage(stage,current.ElementType,out var second)
+            || stage.Kind is not (PipelineStageKind.Except or PipelineStageKind.ExceptBy)) {
+            return false;
+        }
+
+        range=current switch {
+            RangeRoot currentRange => new RangeExceptRoot(number,currentRange,[second]),
+            RangeExceptRoot existing => existing.AddExclusion(number,second),
+            _ => null!
+        };
+        return range is not null;
+    }
+
+    private static bool TryGetIdentityRangeSetStage(PipelineStage stage,string currentElementType,out RangeRoot second) {
+        second=null!;
+        if(stage.Value!="null"
+            || currentElementType!="int"
+            || stage.Kind is not (PipelineStageKind.Union or PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.UnionBy or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy)
+            || stage.SecondSource is not RangeRoot secondRange) {
+            return false;
+        }
+
+        if(stage.Kind is PipelineStageKind.UnionBy or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy
+            && (stage.Func is not { IsIdentity: true } || stage.KeyType!=currentElementType)) {
+            return false;
+        }
+
+        second=secondRange;
+        return true;
+    }
+
+    private static RangeRoot CreateRangeIntersection(int number,RangeRoot left,RangeRoot right) {
+        var start=MaxExpression(left.StartExpression,right.StartExpression);
+        var end=MinLongExpression(
+            ExclusiveEndExpression(left.StartExpression,left.CountExpression),
+            ExclusiveEndExpression(right.StartExpression,right.CountExpression));
+        var count=$"(int)global::System.Math.Max(0L,{end}-(long)({start}))";
+        return new RangeRoot(number,start,count);
+    }
+
+    private static string MaxExpression(string left,string right) =>
+        $"global::System.Math.Max(({left}),({right}))";
+
+    private static string MinLongExpression(string left,string right) =>
+        $"global::System.Math.Min({left},{right})";
+
+    private static string ExclusiveEndExpression(string start,string count) =>
+        $"((long)({start})+({count}))";
+
+    private static bool IsSameRange(RangeRoot left,RangeRoot right) =>
+        string.Equals(NormalizeRangeExpression(left.StartExpression),NormalizeRangeExpression(right.StartExpression),StringComparison.Ordinal)
+        && string.Equals(NormalizeRangeExpression(left.CountExpression),NormalizeRangeExpression(right.CountExpression),StringComparison.Ordinal);
+
+    private static bool IsOneBasedTrailingHalfRange(RangeRoot current,RangeRoot second) {
+        var currentStart=NormalizeRangeExpression(current.StartExpression);
+        if(currentStart!="1") {
+            return false;
+        }
+
+        var currentCount=NormalizeRangeExpression(current.CountExpression);
+        var secondStart=NormalizeRangeExpression(second.StartExpression);
+        var secondCount=NormalizeRangeExpression(second.CountExpression);
+        return IsHalfExpression(currentCount,secondCount)
+            && IsAddOneExpression(secondCount,secondStart);
+    }
+
+    private static bool IsHalfExpression(string sourceCount,string candidate) =>
+        string.Equals(candidate,$"{sourceCount}/2",StringComparison.Ordinal)
+        || string.Equals(candidate,$"({sourceCount})/2",StringComparison.Ordinal);
+
+    private static bool IsAddOneExpression(string source,string candidate) =>
+        string.Equals(candidate,$"{source}+1",StringComparison.Ordinal)
+        || string.Equals(candidate,$"({source})+1",StringComparison.Ordinal);
+
+    private static string NormalizeRangeExpression(string expression) =>
+        new(expression.Where(static c => !char.IsWhiteSpace(c)).ToArray());
 
     private static bool TryAppendFragmentBackedStage(
         SemanticModel semanticModel,
@@ -1449,6 +1698,72 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             args.AddRange(this.ClosureArgsWithoutPrefix());
             return $"new {this.EnumeratorTypeName}({string.Join(", ",args)})";
         }
+    }
+    public override string GetConsumeExecutionStatement(string consumerName) =>
+        this.RenderRangeModuloThenByConsume(consumerName)
+        ?? base.GetConsumeExecutionStatement(consumerName);
+
+    private string? RenderRangeModuloThenByConsume(string consumerName) {
+        if(source is not RangeRoot range
+            || range.ElementType!="int"
+            || stages.Count!=2
+            || stages[0] is not { Kind: PipelineStageKind.OrderBy, Value: "null", Func: { } primaryKey }
+            || stages[1] is not { Value: "null", Func: { IsIdentity: true } secondaryKey }
+            || stages[1].Kind is not (PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending)
+            || stages[0].KeyType!="int"
+            || stages[1].KeyType!="int"
+            || !RangePredicateOptimizer.TryExtractModuloByParameter(primaryKey,out var divisor)
+            || !RangePredicateOptimizer.IsNonNegativeIntegerLiteral(range.StartExpression)) {
+            return null;
+        }
+
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var last=$"__last{番号}";
+        var startMod=$"__startMod{番号}";
+        var key=$"__key{番号}";
+        var offset=$"__offset{番号}";
+        var first=$"__first{番号}";
+        var value=$"__value{番号}";
+        if(stages[1].Descending) {
+            var tail=$"__tail{番号}";
+            return $$"""
+                {
+                    var {{start}}={{range.StartExpression}};
+                    var {{count}}={{range.CountExpression}};
+                    var {{last}}={{start}} + {{count}} - 1;
+                    var {{startMod}}={{start}} % {{divisor}};
+                    for(var {{key}}=0;{{key}}<{{divisor}};{{key}}++) {
+                        var {{offset}}={{key}} - {{startMod}};
+                        if({{offset}}<0) {{offset}} += {{divisor}};
+                        if({{offset}}>={{count}}) continue;
+                        var {{first}}={{start}} + {{offset}};
+                        var {{tail}}=(({{last}} - {{first}}) / {{divisor}}) * {{divisor}};
+                        for(var {{value}}={{first}} + {{tail}};{{value}}>={{first}};{{value}}-={{divisor}}) {
+                            {{consumerName}}.Consume({{value}});
+                        }
+                    }
+                }
+                """;
+        }
+
+        return $$"""
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                var {{last}}={{start}} + {{count}} - 1;
+                var {{startMod}}={{start}} % {{divisor}};
+                for(var {{key}}=0;{{key}}<{{divisor}};{{key}}++) {
+                    var {{offset}}={{key}} - {{startMod}};
+                    if({{offset}}<0) {{offset}} += {{divisor}};
+                    if({{offset}}>={{count}}) continue;
+                    var {{first}}={{start}} + {{offset}};
+                    for(var {{value}}={{first}};{{value}}<={{last}};{{value}}+={{divisor}}) {
+                        {{consumerName}}.Consume({{value}});
+                    }
+                }
+            }
+            """;
     }
     public override string GetEnumeratorPrimaryConstructorParameters {
         get {

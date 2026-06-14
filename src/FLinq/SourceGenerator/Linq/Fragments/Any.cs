@@ -56,7 +56,11 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any");
+        source is RangeRoot range
+            ? RangePredicateOptimizer.RenderAny(range,番号,destVar,destType)
+        : source is RepeatRoot repeat
+            ? RangePredicateOptimizer.RenderAny(repeat,番号,destVar,destType)
+            : this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any");
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{this.DefineScalarEnumeratorStruct("bool")}}
@@ -95,7 +99,12 @@ public class Any_predicate(int 番号, Enumerable source, FuncFragment predicate
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        TryRenderDirectLambda(predicate) is { } lambda
+        source is RangeRoot range
+            ? RangePredicateOptimizer.RenderAny(range,predicate,番号,destVar,destType)
+                ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
+                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any",rangeLambda)
+                    : this.RenderComputeInline(destVar,destType))
+        : TryRenderDirectLambda(predicate) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any",lambda)
             : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan

@@ -9,8 +9,26 @@ public class ElementAtOrDefault(int 番号, Enumerable source, string index, str
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int index";
     protected override string ComputeExpression => $"Compute({this.e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAtOrDefault",index)
+        this.RenderRangeElementAtOrDefaultInline(destVar,destType)
+        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAtOrDefault",index)
         ?? this.RenderComputeInline(destVar,destType);
+    private string? RenderRangeElementAtOrDefaultInline(string destVar,string destType) {
+        if(source is not RangeRoot range || source.ElementType!="int") {
+            return null;
+        }
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var idx=$"__idx{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                var {{idx}}={{index}};
+                {{destVar}}=(uint){{idx}}<(uint){{count}} ? {{start}} + {{idx}} : default!;
+            }
+            """;
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -50,8 +68,26 @@ public class ElementAtOrDefault_index(int 番号, Enumerable source, string inde
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, global::System.Index index";
     protected override string ComputeExpression => $"Compute({this.e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAtOrDefault",index)
+        this.RenderRangeElementAtOrDefaultIndexInline(destVar,destType)
+        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAtOrDefault",index)
         ?? this.RenderComputeInline(destVar,destType);
+    private string? RenderRangeElementAtOrDefaultIndexInline(string destVar,string destType) {
+        if(source is not RangeRoot range || source.ElementType!="int") {
+            return null;
+        }
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var idx=$"__idx{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                var {{idx}}=({{index}}).GetOffset({{count}});
+                {{destVar}}=(uint){{idx}}<(uint){{count}} ? {{start}} + {{idx}} : default!;
+            }
+            """;
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

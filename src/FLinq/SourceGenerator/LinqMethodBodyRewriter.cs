@@ -212,8 +212,11 @@ public sealed partial class TsavoriteIncrementalGenerator {
         var snapshot = uniqueNumber;
         var tempName = GetUniqueIdentifier($"__linq{linqInvocationCount++}", usedNames);
         if(!呼び出し式からフラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector)) {
-            uniqueNumber=snapshot;
-            return false;
+            if(!列挙式フラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var enumerableFragmentFallback,out invocationStaticMethods,unsafeAccessorCollector)) {
+                uniqueNumber=snapshot;
+                return false;
+            }
+            fragment=enumerableFragmentFallback;
         }
         if(fragment is not Enumerable enumerableFragment) {
             uniqueNumber=snapshot;
@@ -229,6 +232,62 @@ public sealed partial class TsavoriteIncrementalGenerator {
         var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
         builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
         // 演算子別の Consume 展開は Fragment（Enumerable.GetConsumeExecutionStatement）が担う。
+        builder.AppendLine(enumerableFragment.GetConsumeExecutionStatement(consumerName));
+        return true;
+    }
+
+    private static bool 直接Consume式生成(
+        InvocationExpressionSyntax consumeInvocation,
+        InvocationExpressionSyntax linqInvocation,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount,
+        HashSet<string> usedNames) {
+        if(consumeInvocation.Expression is not MemberAccessExpressionSyntax memberAccess
+            || memberAccess.Name.Identifier.ValueText!="Consume"
+            || consumeInvocation.ArgumentList.Arguments.Count!=1) {
+            return false;
+        }
+
+        ExpressionSyntax? consumerExpression = null;
+        var normalizedLinqInvocation = NormalizeExpressionText(linqInvocation.ToString());
+        if(NormalizeExpressionText(memberAccess.Expression.ToString())==normalizedLinqInvocation) {
+            consumerExpression=consumeInvocation.ArgumentList.Arguments[0].Expression;
+        } else if(NormalizeExpressionText(consumeInvocation.ArgumentList.Arguments[0].Expression.ToString())==normalizedLinqInvocation) {
+            consumerExpression=memberAccess.Expression;
+        }
+        if(consumerExpression is null) {
+            return false;
+        }
+
+        var snapshot = uniqueNumber;
+        var tempName = GetUniqueIdentifier($"__linq{linqInvocationCount++}", usedNames);
+        if(!呼び出し式からフラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector)) {
+            if(!列挙式フラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var enumerableFragmentFallback,out invocationStaticMethods,unsafeAccessorCollector)) {
+                uniqueNumber=snapshot;
+                return false;
+            }
+            fragment=enumerableFragmentFallback;
+        }
+        if(fragment is not Enumerable enumerableFragment) {
+            uniqueNumber=snapshot;
+            return false;
+        }
+        if(!methodIsStatic) {
+            fragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式));
+        }
+        generatedFragments.Add(fragment);
+        staticMethods=静的メソッドコード連結(staticMethods,invocationStaticMethods);
+        staticMethods=静的メソッドコード連結(staticMethods,fragment.GetEnumeratorStruct);
+
+        var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
+        builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
         builder.AppendLine(enumerableFragment.GetConsumeExecutionStatement(consumerName));
         return true;
     }
@@ -723,6 +782,35 @@ public sealed partial class TsavoriteIncrementalGenerator {
         }
 
         var outerLinqInvocations = 外側LINQ呼び出し取得_式(expression,semanticModel);
+        if(methodReturnsVoid
+            && expression is InvocationExpressionSyntax consumeExpression
+            && consumeExpression.Expression is MemberAccessExpressionSyntax consumeMember
+            && consumeMember.Name.Identifier.ValueText=="Consume") {
+            InvocationExpressionSyntax? consumeSourceInvocation = null;
+            if(括弧除去(consumeMember.Expression) is InvocationExpressionSyntax targetInvocation) {
+                consumeSourceInvocation=targetInvocation;
+            } else if(consumeExpression.ArgumentList.Arguments.Count==1
+                && 括弧除去(consumeExpression.ArgumentList.Arguments[0].Expression) is InvocationExpressionSyntax argumentInvocation) {
+                consumeSourceInvocation=argumentInvocation;
+            }
+
+            if(consumeSourceInvocation is not null
+                && 直接Consume式生成(
+                    consumeExpression,
+                    consumeSourceInvocation,
+                    semanticModel,
+                    containingType,
+                    ref uniqueNumber,
+                    methodIsStatic,
+                    ref staticMethods,
+                    unsafeAccessorCollector,
+                    generatedFragments,
+                    builder,
+                    ref linqInvocationCount,
+                    usedNames)) {
+                return true;
+            }
+        }
         var replacementMap = new Dictionary<string,string>(StringComparer.Ordinal);
         foreach(var invocation in outerLinqInvocations) {
             var snapshot = uniqueNumber;
@@ -1053,9 +1141,10 @@ public sealed partial class TsavoriteIncrementalGenerator {
     private static List<InvocationExpressionSyntax> 外側LINQ呼び出し取得(StatementSyntax statement,SemanticModel semanticModel) {
         return statement.DescendantNodes()
             .OfType<InvocationExpressionSyntax>()
-            // 拡張メソッド呼び出しのみを対象とし、out/ref パラメータ持ちは除外する
+            // 拡張メソッド呼び出し、または Range/Repeat/Empty root を対象とし、out/ref パラメータ持ちは除外する
             .Where(invocation=>SystemLinqEnumerable呼び出し判定(invocation,semanticModel)
-                && semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol { ReducedFrom: not null } method
+                && semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol method
+                && (method.ReducedFrom is not null || IsKnownEnumerableRootMethod(method))
                 && !(method.ReducedFrom ?? method).Parameters.Any(static p=>p.RefKind != RefKind.None))
             .Where(invocation=>!invocation.Ancestors()
                 .TakeWhile(ancestor=>ancestor!=statement)
@@ -1096,7 +1185,8 @@ public sealed partial class TsavoriteIncrementalGenerator {
         return expression.DescendantNodesAndSelf()
             .OfType<InvocationExpressionSyntax>()
             .Where(invocation=>SystemLinqEnumerable呼び出し判定(invocation,semanticModel)
-                && semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol { ReducedFrom: not null } method
+                && semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol method
+                && (method.ReducedFrom is not null || IsKnownEnumerableRootMethod(method))
                 && !(method.ReducedFrom ?? method).Parameters.Any(static p=>p.RefKind != RefKind.None))
             .Where(invocation=>!invocation.Ancestors()
                 .TakeWhile(ancestor=>ancestor!=boundary)

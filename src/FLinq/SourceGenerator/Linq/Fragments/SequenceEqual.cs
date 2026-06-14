@@ -13,6 +13,39 @@ public class SequenceEqual_comparer(int 番号, Enumerable source, Enumerable se
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression}, {comparer})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string ComputeExpression => "Compute(source, second, comparer)";
+    public override string? RenderInlineComputation(string destVar,string destType) {
+        if(comparer=="null"
+            && source is RangeRoot leftRange
+            && second is RangeRoot rightRange
+            && source.ElementType=="int"
+            && second.ElementType=="int") {
+            return $$"""
+                {{destType}} {{destVar}};
+                {
+                    var __startL{{番号}}={{leftRange.StartExpression}};
+                    var __countL{{番号}}={{leftRange.CountExpression}};
+                    var __startR{{番号}}={{rightRange.StartExpression}};
+                    var __countR{{番号}}={{rightRange.CountExpression}};
+                    {{destVar}}=__startL{{番号}}==__startR{{番号}} && __countL{{番号}}==__countR{{番号}};
+                }
+                """;
+        }
+        if(source.DirectEnumerableExpression is not { } sourceExpression
+            || second.DirectEnumerableExpression is not { } secondExpression) {
+            return null;
+        }
+        var leftVar=$"__srcL{this.result}";
+        var rightVar=$"__srcR{this.result}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{leftVar}}={{sourceExpression}};
+                var {{rightVar}}={{secondExpression}};
+                {{destVar}}=global::System.Linq.Enumerable.SequenceEqual({{leftVar}}, {{rightVar}}, {{comparer}});
+            }
+            """;
+    }
+    public override string InlineSupportingMembers => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
     protected override string ComputeMembers => source.CanProvideSpan && second.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

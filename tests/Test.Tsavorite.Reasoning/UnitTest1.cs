@@ -12,9 +12,9 @@ public class UnitTest1{
     }
 
     [Fact]
-    public async void Test1(){
+    public async Task Test1(){
         var 使いまわしバッファ=new 使いまわしバッファ(29);
-        var Arrayコア_Length=2;
+        var Arrayコア_Length=1;
         var Arrayコア=new コア[Arrayコア_Length];
         for(var a=0;a<Arrayコア.Length;a++){
             Trace.WriteLine(a.ToString());
@@ -26,10 +26,7 @@ public class UnitTest1{
                 this.WriteLine($"コア{a},{b.ToString()}");
             }
             var コア0=new コア(OS上のID);
-            var EnumerableRam=コア0.ArrayRam;
-            foreach(var b in List全部Ram){
-                EnumerableRam.Add(b);
-            }
+            コア0.ArrayRam=List全部Ram.ToArray();
             if(List一部Ram.Count>0){
                 コア0.L1=List一部Ram[0];
                 if(List一部Ram.Count>1){
