@@ -4001,6 +4001,10 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         INamedTypeSymbol containingType,
         List<string>? unsafeAccessorCollector = null,
         IReadOnlyDictionary<string,string>? replacementMap = null) {
+        if(expression is ThisExpressionSyntax) {
+            return "@this";
+        }
+
         var text = NormalizeGeneratedExpressionText(expression.ToString());
 
         if(replacementMap is not null) {
