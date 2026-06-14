@@ -7,6 +7,9 @@ public class FirstOrDefault(int 番号, Enumerable source, string resultType) : 
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        this.RenderDirectEnumerableCallInline(source,destVar,destType,"FirstOrDefault")
+        ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
@@ -25,6 +28,9 @@ public class FirstOrDefault_defaultValue(int 番号, Enumerable source, string d
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {defaultValue})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {resultType} defaultValue";
     protected override string ComputeExpression => $"Compute({this.e}, defaultValue)";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        this.RenderDirectEnumerableCallInline(source,destVar,destType,"FirstOrDefault",defaultValue)
+        ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue) {
@@ -47,6 +53,10 @@ public class FirstOrDefault_predicate(int 番号, Enumerable source, FuncFragmen
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        TryRenderDirectLambda(predicate) is { } lambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"FirstOrDefault",lambda)
+            : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {

@@ -30,6 +30,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Tsavorite.Collections\Tsavorite.Collections.csproj" />
+    <ProjectReference Include="..\..\src\SourceGenerator.Shared\SourceGenerator.Shared.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\..\src\FLinq\FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\..\src\TsavoriteDB\TsavoriteDB.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>

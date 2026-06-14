@@ -8,6 +8,9 @@ public class First(int 番号, Enumerable source, string resultType) : BufferedS
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        this.RenderDirectEnumerableCallInline(source,destVar,destType,"First")
+        ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
@@ -31,6 +34,10 @@ public class First_predicate(int 番号, Enumerable source, FuncFragment predica
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        TryRenderDirectLambda(predicate) is { } lambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"First",lambda)
+            : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {

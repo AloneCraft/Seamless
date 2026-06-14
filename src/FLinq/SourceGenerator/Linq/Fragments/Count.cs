@@ -7,7 +7,26 @@ public class Count(int 番号, Enumerable source, string resultType) : BufferedS
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
-    public override string? RenderInlineComputation(string destVar,string destType) => this.RenderComputeInline(destVar,destType);
+    public override string? RenderInlineComputation(string destVar,string destType) {
+        if(source.DirectEnumerableExpression is not { } sourceExpression) {
+            return this.RenderComputeInline(destVar,destType);
+        }
+        if(resultType is not ("long" or "global::System.Int64")) {
+            return this.RenderDirectEnumerableCallInline(source,destVar,destType,"Count");
+        }
+        var sourceVar=$"__src{this.result}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{sourceVar}}={{sourceExpression}};
+                if(global::System.Linq.Enumerable.TryGetNonEnumeratedCount({{sourceVar}}, out var __count)) {
+                    {{destVar}}=({{resultType}})__count;
+                }else{
+                    {{destVar}}=global::System.Linq.Enumerable.LongCount({{sourceVar}});
+                }
+            }
+            """;
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -19,6 +38,9 @@ public class Count(int 番号, Enumerable source, string resultType) : BufferedS
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source) {
+                if(source.TryGetNonEnumeratedCount(out var __count)) {
+                    return ({{resultType}})__count;
+                }
                 {{resultType}} count=0;
                 checked{
                     while(source.MoveNext()) count++;
@@ -40,7 +62,12 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
-    public override string? RenderInlineComputation(string destVar,string destType) => this.RenderComputeInline(destVar,destType);
+    public override string? RenderInlineComputation(string destVar,string destType) {
+        var methodName = resultType is "long" or "global::System.Int64" ? "LongCount" : "Count";
+        return TryRenderDirectLambda(predicate) is { } lambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda)
+            : this.RenderComputeInline(destVar,destType);
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

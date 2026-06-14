@@ -55,6 +55,8 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any");
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{this.DefineScalarEnumeratorStruct("bool")}}
@@ -69,7 +71,11 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
             return false;
         }
         this.{{this.yielded}} = true;
-        this.{{this.currentValue}} = {{this.e}}.MoveNext();
+        if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+            this.{{this.currentValue}} = __count != 0;
+        }else{
+            this.{{this.currentValue}} = {{this.e}}.MoveNext();
+        }
         current = this.{{this.currentValue}};
         return true;
         """;
@@ -88,6 +94,10 @@ public class Any_predicate(int 番号, Enumerable source, FuncFragment predicate
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        TryRenderDirectLambda(predicate) is { } lambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any",lambda)
+            : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

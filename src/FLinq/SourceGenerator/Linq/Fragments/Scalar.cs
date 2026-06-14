@@ -13,4 +13,28 @@ public abstract class Scalar(int 番号):Fragment(番号){
     // RenderInlineComputation がインライン展開を返すとき、補助クラスへ積む補助メンバ群。
     // Struct{番号}（単一要素 enumerator）を含まない点が GetEnumeratorStruct と異なる。
     public virtual string InlineSupportingMembers => this.GetEnumeratorStruct;
+
+    protected string? RenderDirectEnumerableCallInline(Enumerable source,string destVar,string destType,string methodName,params string[] arguments) {
+        if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
+        var sourceVar=$"__src{this.result}";
+        var argumentList=arguments.Length==0 ? string.Empty : ", "+string.Join(", ",arguments);
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{sourceVar}}={{sourceExpression}};
+                {{destVar}}=global::System.Linq.Enumerable.{{methodName}}({{sourceVar}}{{argumentList}});
+            }
+            """;
+    }
+
+    protected static string? TryRenderDirectLambda(FuncFragment func) {
+        if(func.CapturedLocals.Length!=0 || func.RequiresStatementInlining) {
+            return null;
+        }
+        try {
+            return func.RenderAsLambda();
+        } catch(InvalidOperationException) {
+            return null;
+        }
+    }
 }
