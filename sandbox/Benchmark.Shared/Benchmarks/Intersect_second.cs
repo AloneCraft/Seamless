@@ -2,79 +2,27 @@ namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 public class Intersect_second():Base(800_000){
-    [BenchFact]
-    [Benchmark(Baseline=true)]
-    [BenchmarkCategory(Categories.LINQ)]
-    public void LINQ1(){
-        src(1).Intersect(src2(1)).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark(Baseline=true),BenchmarkCategory(Categories.Linq)]public void Linq1()=> this.src(1).Intersect(this.src2(1)).Consume(this.consumer);
 
-    [BenchFact]
-    [Benchmark]
-    [BenchmarkCategory(Categories.LINQ)]
-    public void LINQ2(){
-        src(1).Intersect(src2(1)).Intersect(src2(1)).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.Linq)]public void Linq2()=> this.src(1).Intersect(this.src2(1)).Intersect(this.src2(1)).Consume(this.consumer);
 
-    [BenchFact]
-    [Benchmark]
-    [BenchmarkCategory(Categories.LINQ)]
-    public void LINQ3(){
-        src(1).Intersect(src2(1)).Intersect(src2(1)).Intersect(src2(1)).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.Linq)]public void Linq3()=> this.src(1).Intersect(this.src2(1)).Intersect(this.src2(1)).Intersect(this.src2(1)).Consume(this.consumer);
 
-    [BenchFact]
-    [Benchmark]
-    [BenchmarkCategory(Categories.LINQ)]
-    public void LINQ4(){
-        src(1).Intersect(src2(1)).Intersect(src2(1)).Intersect(src2(1)).Intersect(src2(1)).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.Linq)]public void Linq4()=> this.src(1).Intersect(this.src2(1)).Intersect(this.src2(1)).Intersect(this.src2(1)).Intersect(this.src2(1)).Consume(this.consumer);
 
-    [BenchFact]
-    [Benchmark(Baseline=true)]
-    [BenchmarkCategory(Categories.FLinq)]
-    public void FLinq1(){ this.LINQ1(); }
+    [BenchFact,Benchmark(Baseline=true),BenchmarkCategory(Categories.FLinq)]public void FLinq1()=>this.Linq1();
 
-    [BenchFact]
-    [Benchmark]
-    [BenchmarkCategory(Categories.FLinq)]
-    public void FLinq2(){ this.LINQ2(); }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.FLinq)]public void FLinq2()=>this.Linq2();
 
-    [BenchFact]
-    [Benchmark]
-    [BenchmarkCategory(Categories.FLinq)]
-    public void FLinq3(){ this.LINQ3(); }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.FLinq)]public void FLinq3()=>this.Linq3();
 
-    [BenchFact]
-    [Benchmark]
-    [BenchmarkCategory(Categories.FLinq)]
-    public void FLinq4(){ this.LINQ4(); }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.FLinq)]public void FLinq4()=>this.Linq4();
 
-    [BenchFact]
-    [Benchmark(Baseline=true)]
-    [BenchmarkCategory(Categories.ZLinq)]
-    public void ZLinq1(){
-        src(1).AsValueEnumerable().Intersect(src2(1)).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark(Baseline=true),BenchmarkCategory(Categories.ZLinq)]public void ZLinq1()=> this.src(1).AsValueEnumerable().Intersect(this.src2(1)).Consume(this.consumer);
 
-    [BenchFact]
-    [Benchmark]
-    [BenchmarkCategory(Categories.ZLinq)]
-    public void ZLinq2(){
-        src(1).AsValueEnumerable().Intersect(src2(1)).Intersect(src2(1)).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.ZLinq)]public void ZLinq2()=> this.src(1).AsValueEnumerable().Intersect(this.src2(1)).Intersect(this.src2(1)).Consume(this.consumer);
 
-    [BenchFact]
-    [Benchmark]
-    [BenchmarkCategory(Categories.ZLinq)]
-    public void ZLinq3(){
-        src(1).AsValueEnumerable().Intersect(src2(1)).Intersect(src2(1)).Intersect(src2(1)).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.ZLinq)]public void ZLinq3()=> this.src(1).AsValueEnumerable().Intersect(this.src2(1)).Intersect(this.src2(1)).Intersect(this.src2(1)).Consume(this.consumer);
 
-    [BenchFact]
-    [Benchmark]
-    [BenchmarkCategory(Categories.ZLinq)]
-    public void ZLinq4(){
-        src(1).AsValueEnumerable().Intersect(src2(1)).Intersect(src2(1)).Intersect(src2(1)).Intersect(src2(1)).Consume(this.consumer);
-    }
+    [BenchFact,Benchmark,BenchmarkCategory(Categories.ZLinq)]public void ZLinq4()=> this.src(1).AsValueEnumerable().Intersect(this.src2(1)).Intersect(this.src2(1)).Intersect(this.src2(1)).Intersect(this.src2(1)).Consume(this.consumer);
 }

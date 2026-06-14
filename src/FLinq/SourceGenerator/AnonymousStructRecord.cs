@@ -162,7 +162,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
             var members = AnonymousMembers(anon);
             var parts = members.Select(m => {
                 var memberAccess = $"{structRecordExpr}.{EscapeIdentifier(m.Name)}";
-                return $"{EscapeIdentifier(m.Name)}={ReconstructAnonymousCreation(m.Type,memberAccess)}";
+                return $"{EscapeIdentifier(m.Name)}={this.ReconstructAnonymousCreation(m.Type,memberAccess)}";
             });
             return $"new{{{string.Join(",",parts)}}}";
         }
@@ -185,7 +185,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 var memberName = members[i].Name;
                 var value = StripParentheses(init.Expression);
                 var rendered = value is AnonymousObjectCreationExpressionSyntax inner
-                    ? RenderAnonymousCreationRaw(inner,semanticModel,renderLeaf)
+                    ? this.RenderAnonymousCreationRaw(inner,semanticModel,renderLeaf)
                     : renderLeaf(init.Expression);
                 return $"{EscapeIdentifier(memberName)}={rendered}";
             });

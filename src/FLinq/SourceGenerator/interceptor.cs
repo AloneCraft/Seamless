@@ -1042,7 +1042,7 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         }
 
         if(式本体式 is not null) {
-            if(!LINQ呼び出し差し替え文生成38_式本体(式本体式,セマンティックモデル,対象.EnclosingType,ref フラグメント番号,対象.Method.IsStatic,ref 静的メソッド群,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref linq呼び出し数,usedNames)) {
+            if(!LINQ呼び出し差し替え文生成38_式本体(式本体式,セマンティックモデル,対象.EnclosingType,ref フラグメント番号,対象.Method.IsStatic,対象.Method.ReturnsVoid,ref 静的メソッド群,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref linq呼び出し数,usedNames)) {
                 return false;
             }
         }
@@ -2900,7 +2900,7 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
     }
 
     /// <summary>
-    /// 式本体メソッド（<c>=> expr</c>）の LINQ 呼び出しを置き換え、<c>return <em>result</em>;</c> を出力する。
+    /// 式本体メソッド（<c>=> expr</c>）の LINQ 呼び出しを置き換え、値を返すメソッドでは <c>return <em>result</em>;</c>、<c>void</c> では式文を出力する。
     /// <br/><see cref="LINQ呼び出し差し替え文生成38"/> の式専用版。
     /// <c>SyntaxFactory.ReturnStatement()</c> で合成ノードを作ると <c>SyntaxTree</c> が null になり
     /// <c>SemanticModel.GetSymbolInfo()</c> が失敗するため、元ツリーのノードをそのまま使う。
@@ -2913,6 +2913,7 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         INamedTypeSymbol containingType,
         ref int uniqueNumber,
         bool methodIsStatic,
+        bool methodReturnsVoid,
         ref string staticMethods,
         List<string> unsafeAccessorCollector,
         List<Fragment> generatedFragments,
@@ -2988,7 +2989,7 @@ public sealed partial class TsavoriteIncrementalGenerator : IIncrementalGenerato
         rendered=rendered
             .Replace("SystemEnumerable.","global::System.Linq.Enumerable.",StringComparison.Ordinal)
             .Replace("this.","@this.",StringComparison.Ordinal);
-        builder.AppendLine($"return {rendered};");
+        builder.AppendLine(methodReturnsVoid ? $"{rendered};" : $"return {rendered};");
         return true;
     }
 
