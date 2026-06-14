@@ -13,6 +13,9 @@
     <RootNamespace>Seamless.Benchmarks</RootNamespace>
     <!-- 各[Benchmark]を[BenchFact]としてテストエクスプローラで実行する -->
     <DefineConstants>$(DefineConstants);BENCH_AS_TEST</DefineConstants>
+    <!-- 共有プロジェクト(.projitems)のベンチ本体を編集しても確実に再ビルドさせる
+         （fast up-to-date check が共有項目の変更を取りこぼし、古いバイナリで計測されるのを防ぐ）。 -->
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CompilerGeneratedFilesOutputPath>obj/Generated</CompilerGeneratedFilesOutputPath>
     <!-- CS8002: Referenced assembly does not have a strong name.-->

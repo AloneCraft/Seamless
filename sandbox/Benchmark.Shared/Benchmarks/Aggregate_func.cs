@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class Aggregate_func():Base(10_000_000){
+public class Aggregate_func():Base(80_000_001){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){
