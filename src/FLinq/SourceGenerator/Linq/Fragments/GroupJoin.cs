@@ -32,6 +32,10 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         private int {{this.state}};
         {{this.BuildLookupBody(false)}}
         """;
+    public override string GetConsumeExecutionStatement(string consumerName) =>
+        this.CanBypassLookupForConsume()
+            ? this.outerSource.GetConsumeExecutionStatement(consumerName)
+            : base.GetConsumeExecutionStatement(consumerName);
     public override string GetTryGetNextBody=>$$"""
         if({{this.state}}==1){
             current=default!;
@@ -55,4 +59,28 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         """;
     public override string GetCurrentExpression=> this.currentValue;
     protected override string GetEnumeratorDisposeBody=>$"{this.e}.Dispose();";
+
+    private bool CanBypassLookupForConsume() =>
+        this.comparerExpression=="null"
+        && this.outerSource is RangeRoot
+        && this.innerSource is RangeRoot
+        && this.outerKey.IsIdentity
+        && this.innerKey.IsIdentity
+        && this.ResultSelectorReturnsOuter();
+
+    private bool ResultSelectorReturnsOuter() {
+        if(this.resultSelector.RequiresStatementInlining
+            || !this.resultSelector.CanInlineAssign
+            || this.resultSelector.ParameterNames.Length<2
+            || this.resultSelector.ReturnTypeName!=this.outerSource.ElementType) {
+            return false;
+        }
+
+        var expression=this.resultSelector.InlineBody.Trim();
+        while(expression.Length>=2 && expression[0]=='(' && expression[^1]==')') {
+            expression=expression[1..^1].Trim();
+        }
+
+        return string.Equals(expression,this.resultSelector.ParameterNames[0],StringComparison.Ordinal);
+    }
 }

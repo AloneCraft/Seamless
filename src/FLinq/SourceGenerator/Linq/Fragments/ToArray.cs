@@ -17,8 +17,29 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToArray")
+        this.RenderRangeToArrayInline(destVar,destType)
+        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToArray")
         ?? this.RenderComputeInline(destVar,destType);
+    private string? RenderRangeToArrayInline(string destVar,string destType) {
+        if(source is not RangeRoot range || source.ElementType!="int") {
+            return null;
+        }
+
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var index=$"__i{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                {{destVar}}=new int[{{count}}];
+                for(var {{index}}=0;{{index}}<{{count}};{{index}}++) {
+                    {{destVar}}[{{index}}]={{start}} + {{index}};
+                }
+            }
+            """;
+    }
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {

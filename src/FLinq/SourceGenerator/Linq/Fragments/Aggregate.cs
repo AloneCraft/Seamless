@@ -2,6 +2,15 @@
 public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : Scalar(番号) {
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType){
+        if(source is RangeRoot range
+            && source.ElementType=="int"
+            && RangePredicateOptimizer.IsAccumulatorAddition(func)) {
+            return this.RenderRangeSumInline(range,destVar,destType);
+        }
+        if(TryRenderDirectLambda(func) is { } lambda
+            && this.RenderDirectEnumerableCallInline(source,destVar,destType,"Aggregate",lambda) is { } direct) {
+            return direct;
+        }
         string srcExpr;
         try { srcExpr = source.GetEnumeratorExpression; }
         catch(System.NotSupportedException) { return null; }
@@ -37,6 +46,21 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
             using(var {{srcVar}}={{srcExpr}}){
                 {{fold}}
                 {{destVar}}={{this.result}};
+            }
+            """;
+    }
+    private string RenderRangeSumInline(RangeRoot range,string destVar,string destType) {
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var sum=$"__sum{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                if({{count}}==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                var {{sum}}={{RangeAggregateSupport.LongRangeSumExpression(start,count)}};
+                {{destVar}}=({{destType}})(int){{sum}};
             }
             """;
     }
@@ -98,6 +122,15 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
 public class Aggregate_seed_func(int 番号, Enumerable source,string seed, FuncFragment func) : Scalar(番号) {
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType){
+        if(source is RangeRoot range
+            && source.ElementType=="int"
+            && RangePredicateOptimizer.IsAccumulatorAddition(func)) {
+            return this.RenderRangeSeedSumInline(range,destVar,destType);
+        }
+        if(TryRenderDirectLambda(func) is { } lambda
+            && this.RenderDirectEnumerableCallInline(source,destVar,destType,"Aggregate",seed,lambda) is { } direct) {
+            return direct;
+        }
         string srcExpr;
         try { srcExpr = source.GetEnumeratorExpression; }
         catch(System.NotSupportedException) { return null; }
@@ -123,6 +156,20 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
             using(var {{srcVar}}={{srcExpr}}){
                 var {{this.result}} = {{seed}};
                 {{fold}}
+                {{destVar}}={{this.result}};
+            }
+            """;
+    }
+    private string RenderRangeSeedSumInline(RangeRoot range,string destVar,string destType) {
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                var {{this.result}}={{seed}};
+                {{this.result}} += {{RangeAggregateSupport.RangeSumExpression(start,count,FuncParameterTypeName(func,0))}};
                 {{destVar}}={{this.result}};
             }
             """;
@@ -177,6 +224,19 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
 public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,string seed, FuncFragment func,FuncFragment resultSelector) : Scalar(番号) {
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType){
+        if(source is RangeRoot range
+            && source.ElementType=="int"
+            && RangePredicateOptimizer.IsAccumulatorAddition(func)
+            && resultSelector.CanInlineAssign
+            && !resultSelector.RequiresStatementInlining
+            && !resultSelector.CanInvokeAsDelegate) {
+            return this.RenderRangeSeedSumResultSelectorInline(range,destVar,destType);
+        }
+        if(TryRenderDirectLambda(func) is { } lambda
+            && TryRenderDirectLambda(resultSelector) is { } resultLambda
+            && this.RenderDirectEnumerableCallInline(source,destVar,destType,"Aggregate",seed,lambda,resultLambda) is { } direct) {
+            return direct;
+        }
         string srcExpr;
         try { srcExpr = source.GetEnumeratorExpression; }
         catch(System.NotSupportedException) { return null; }
@@ -206,6 +266,20 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
                 var {{this.result}} = {{seed}};
                 {{fold}}
                 {{this.FuncAssignInline(resultSelector,nameof(resultSelector),resultSelectorVar,destVar,this.result)}}
+            }
+            """;
+    }
+    private string RenderRangeSeedSumResultSelectorInline(RangeRoot range,string destVar,string destType) {
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                var {{this.result}}={{seed}};
+                {{this.result}} += {{RangeAggregateSupport.RangeSumExpression(start,count,FuncParameterTypeName(func,0))}};
+                {{this.FuncAssign(resultSelector,nameof(resultSelector),destVar,this.result)}}
             }
             """;
     }
@@ -279,5 +353,17 @@ file static class AggregateInlineDelegateSupport {
         }
 
         return fragment.FuncAssignForAggregateInline(func,methodName,destination,arguments);
+    }
+}
+
+file static class RangeAggregateSupport {
+    public static string LongRangeSumExpression(string start,string count) =>
+        $"((long)({count}) * (2L * (long)({start}) + (long)({count}) - 1L) / 2L)";
+
+    public static string RangeSumExpression(string start,string count,string accumulatorType) {
+        var sum=LongRangeSumExpression(start,count);
+        return accumulatorType is "long" or "global::System.Int64"
+            ? sum
+            : $"({accumulatorType})({sum})";
     }
 }

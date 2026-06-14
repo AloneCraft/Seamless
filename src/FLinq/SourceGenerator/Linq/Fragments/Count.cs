@@ -8,6 +8,12 @@ public class Count(int 番号, Enumerable source, string resultType) : BufferedS
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) {
+        if(source is RangeRoot range) {
+            return $"{destType} {destVar}=({destType})({range.CountExpression});";
+        }
+        if(source is RepeatRoot repeat) {
+            return $"{destType} {destVar}=({destType})({repeat.CountExpression});";
+        }
         if(source.DirectEnumerableExpression is not { } sourceExpression) {
             return this.RenderComputeInline(destVar,destType);
         }
@@ -64,7 +70,12 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string? RenderInlineComputation(string destVar,string destType) {
         var methodName = resultType is "long" or "global::System.Int64" ? "LongCount" : "Count";
-        return TryRenderDirectLambda(predicate) is { } lambda
+        return source is RangeRoot range
+            ? RangePredicateOptimizer.RenderCount(range,predicate,番号,destVar,destType)
+                ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
+                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,rangeLambda)
+                    : this.RenderComputeInline(destVar,destType))
+        : TryRenderDirectLambda(predicate) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda)
             : this.RenderComputeInline(destVar,destType);
     }

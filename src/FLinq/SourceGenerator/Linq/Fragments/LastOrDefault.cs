@@ -8,8 +8,24 @@ public class LastOrDefault(int 番号, Enumerable source, string resultType) : B
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault")
+        this.RenderRangeLastOrDefaultInline(destVar,destType)
+        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault")
         ?? this.RenderComputeInline(destVar,destType);
+    private string? RenderRangeLastOrDefaultInline(string destVar,string destType) {
+        if(source is not RangeRoot range || source.ElementType!="int") {
+            return null;
+        }
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                {{destVar}}={{count}}>0 ? {{start}} + {{count}} - 1 : default!;
+            }
+            """;
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -39,8 +55,24 @@ public class LastOrDefault_defaultValue(int 番号, Enumerable source, string de
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {resultType} defaultValue";
     protected override string ComputeExpression => $"Compute({this.e}, defaultValue)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault",defaultValue)
+        this.RenderRangeLastOrDefaultDefaultValueInline(destVar,destType)
+        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault",defaultValue)
         ?? this.RenderComputeInline(destVar,destType);
+    private string? RenderRangeLastOrDefaultDefaultValueInline(string destVar,string destType) {
+        if(source is not RangeRoot range || source.ElementType!="int") {
+            return null;
+        }
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                {{destVar}}={{count}}>0 ? {{start}} + {{count}} - 1 : {{defaultValue}};
+            }
+            """;
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -73,9 +105,37 @@ public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        TryRenderDirectLambda(predicate) is { } lambda
+        this.RenderRangeLastOrDefaultPredicateInline(destVar,destType)
+        ?? (TryRenderDirectLambda(predicate) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault",lambda)
-            : this.RenderComputeInline(destVar,destType);
+            : this.RenderComputeInline(destVar,destType));
+    private string? RenderRangeLastOrDefaultPredicateInline(string destVar,string destType) {
+        if(source is not RangeRoot range
+            || source.ElementType!="int"
+            || !predicate.CanInlineAssign
+            || predicate.RequiresStatementInlining) {
+            return null;
+        }
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var index=$"__i{番号}";
+        return $$"""
+            {{destType}} {{destVar}}=default!;
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                for(var {{index}}={{count}}-1;{{index}}>=0;{{index}}--) {
+                    var {{this.item}}={{start}} + {{index}};
+                    bool {{this.temp}}=default!;
+            {{IndentLines(this.FuncAssign(predicate,nameof(predicate),this.temp,this.item),"        ")}}
+                    if({{this.temp}}) {
+                        {{destVar}}={{this.item}};
+                        break;
+                    }
+                }
+            }
+            """;
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

@@ -10,7 +10,12 @@ public class All_predicate(int 番号, Enumerable source, FuncFragment predicate
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        TryRenderDirectLambda(predicate) is { } lambda
+        source is RangeRoot range
+            ? RangePredicateOptimizer.RenderAll(range,predicate,番号,destVar,destType)
+                ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
+                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"All",rangeLambda)
+                    : this.RenderComputeInline(destVar,destType))
+        : TryRenderDirectLambda(predicate) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"All",lambda)
             : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers {

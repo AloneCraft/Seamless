@@ -10,8 +10,27 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int index";
     protected override string ComputeExpression => $"Compute({this.e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
+        this.RenderRangeElementAtInline(destVar,destType)
+        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
         ?? this.RenderComputeInline(destVar,destType);
+    private string? RenderRangeElementAtInline(string destVar,string destType) {
+        if(source is not RangeRoot range || source.ElementType!="int") {
+            return null;
+        }
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var idx=$"__idx{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                var {{idx}}={{index}};
+                if((uint){{idx}}>=(uint){{count}}) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                {{destVar}}={{start}} + {{idx}};
+            }
+            """;
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -51,8 +70,27 @@ public class ElementAt_index(int 番号, Enumerable source, string index, string
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, global::System.Index index";
     protected override string ComputeExpression => $"Compute({this.e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
+        this.RenderRangeElementAtIndexInline(destVar,destType)
+        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
         ?? this.RenderComputeInline(destVar,destType);
+    private string? RenderRangeElementAtIndexInline(string destVar,string destType) {
+        if(source is not RangeRoot range || source.ElementType!="int") {
+            return null;
+        }
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var idx=$"__idx{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                var {{idx}}=({{index}}).GetOffset({{count}});
+                if((uint){{idx}}>=(uint){{count}}) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                {{destVar}}={{start}} + {{idx}};
+            }
+            """;
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

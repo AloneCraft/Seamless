@@ -13,8 +13,31 @@ public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSet
     public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e}";
     protected override string ComputeExpression=>$"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType)=>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToHashSet")
+        this.RenderRangeToHashSetInline(destVar,destType)
+        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToHashSet")
         ?? this.RenderComputeInline(destVar,destType);
+    private string? RenderRangeToHashSetInline(string destVar,string destType) {
+        if(source is not RangeRoot range || source.ElementType!="int") {
+            return null;
+        }
+
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var index=$"__i{番号}";
+        var value=$"__value{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                {{destVar}}=new({{count}});
+                for(var {{index}}=0;{{index}}<{{count}};{{index}}++) {
+                    var {{value}}={{start}} + {{index}};
+                    {{destVar}}.Add({{value}});
+                }
+            }
+            """;
+    }
     protected override string ComputeMembers=>$$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source){
@@ -38,8 +61,33 @@ public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,str
         $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string ComputeExpression=>$"Compute({this.e},comparer)";
     public override string? RenderInlineComputation(string destVar,string destType)=>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToHashSet","comparer")
+        this.RenderRangeToHashSetInline(destVar,destType)
+        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToHashSet","comparer")
         ?? this.RenderComputeInline(destVar,destType);
+    private string? RenderRangeToHashSetInline(string destVar,string destType) {
+        if(source is not RangeRoot range || source.ElementType!="int") {
+            return null;
+        }
+
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var comparerVar=$"__comparer{番号}";
+        var index=$"__i{番号}";
+        var value=$"__value{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                var {{comparerVar}}={{comparer}};
+                {{destVar}}=new({{count}},{{comparerVar}});
+                for(var {{index}}=0;{{index}}<{{count}};{{index}}++) {
+                    var {{value}}={{start}} + {{index}};
+                    {{destVar}}.Add({{value}});
+                }
+            }
+            """;
+    }
     protected override string ComputeMembers=>$$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){

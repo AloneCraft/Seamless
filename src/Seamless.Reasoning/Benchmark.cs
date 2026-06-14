@@ -341,7 +341,7 @@ public class Benchmark:IBenchmark {
         //var 使いまわしバッファ=new 使いまわしバッファ(29);
         //var List=await Task.Run(() =>
         var Bits数 = Const.最大Bits-Const.最小Bits;
-        var Arrayコア_Length = Environment.ProcessorCount;
+        var Arrayコア_Length = 1;
         var Arrayコア = this.Arrayコア=new コア[Arrayコア_Length];
         ThreadPool.QueueUserWorkItem(async st => {
             for(var a = 0; a<Arrayコア.Length; a++){

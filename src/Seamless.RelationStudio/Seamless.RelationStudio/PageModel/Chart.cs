@@ -32,16 +32,18 @@ public partial class Chart:ObservableObject{
             var Benchmark=this.Benchmark;
             //GC.Collect(2,GCCollectionMode.Forced,true);
             //GC.WaitForPendingFinalizers();
-            var ProcessorCount=Environment.ProcessorCount;
+            var ProcessorCount=1;
             for(var a=0;a<ProcessorCount;a++){
                 var OS上のID=new nint(1L<<a);
                 実行環境.SetThreadAffinityMask(実行環境.GetCurrentThread(),OS上のID);
                 Thread.Sleep(0);
                 var コア=new コア(OS上のID);
+                var ListRam=new List<Ram>();
                 //コア.
                 await foreach(var b in Benchmark.GetRamsEnumerable()){
-                    コア.ArrayRam.Add(new(b.Bytes,b.レイテンシsecond,b.BytesSecond));
+                    ListRam.Add(new(b.Bytes,b.レイテンシsecond,b.BytesSecond));
                 }
+                コア.ArrayRam=ListRam.ToArray();
                 SfGrid.Add(コア);
             }
         });

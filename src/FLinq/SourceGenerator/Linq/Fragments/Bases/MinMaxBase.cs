@@ -13,6 +13,13 @@ public abstract class MinMaxBase(int 番号, Enumerable source, string resultTyp
     // 素の Min/Max は Compute メソッドを持たず、ライブラリ拡張＋ジェネリック TEnum を使うため独自インライン。
     // TEnum を具体的なソース列挙子型へ、this.e をその場のローカルへ差し替える。
     public override string? RenderInlineComputation(string destVar,string destType){
+        var methodName = direction=="greater" ? "Max" : "Min";
+        if(source is RangeRoot range && source.ElementType=="int") {
+            return RangePredicateOptimizer.RenderMinMax(range,番号,destVar,destType,direction=="greater");
+        }
+        if(this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName) is { } direct) {
+            return direct;
+        }
         string srcExpr;
         try { srcExpr = source.GetEnumeratorExpression; }
         catch(NotSupportedException) { return null; }

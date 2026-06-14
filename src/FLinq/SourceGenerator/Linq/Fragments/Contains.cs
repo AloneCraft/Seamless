@@ -9,8 +9,26 @@ public class Contains(int 番号, Enumerable source, string value, string result
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {source.ElementType} value";
     protected override string ComputeExpression => $"Compute({this.e}, value)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"Contains",value)
+        this.RenderRangeContainsInline(destVar,destType)
+        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Contains",value)
         ?? this.RenderComputeInline(destVar,destType);
+    private string? RenderRangeContainsInline(string destVar,string destType) {
+        if(source is not RangeRoot range || source.ElementType!="int") {
+            return null;
+        }
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var target=$"__value{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                var {{target}}={{value}};
+                {{destVar}}=(uint)({{target}} - {{start}}) < (uint){{count}};
+            }
+            """;
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

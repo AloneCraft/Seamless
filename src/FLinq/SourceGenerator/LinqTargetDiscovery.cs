@@ -246,9 +246,15 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 continue;
             }
 
-            // 静的呼び出し（SystemEnumerable.Method(source, ...)）は最適化対象外。
-            // 拡張メソッド呼び出し（source.Method(...)）のみを intercept 対象とする。
-            if(invokedMethod.ReducedFrom is null) {
+            // 静的呼び出し（SystemEnumerable.Method(source, ...)）は基本的に最適化対象外。
+            // ただし Range/Repeat/Empty は「ソース生成 root」なので、Consume 直ループ等へ落とせる。
+            if(invokedMethod.ReducedFrom is null
+                && !method.ReturnsVoid
+                && IsKnownEnumerableRootMethod(definition)) {
+                continue;
+            }
+            if(invokedMethod.ReducedFrom is null
+                && !IsKnownEnumerableRootMethod(definition)) {
                 continue;
             }
 

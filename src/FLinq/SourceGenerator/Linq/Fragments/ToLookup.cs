@@ -41,6 +41,10 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(keySelector)})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        TryRenderDirectLambda(keySelector) is { } keyLambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToLookup",keyLambda)
+            : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{LookupImpl(source.ElementType,FuncReturnTypeName(keySelector))}}
@@ -95,6 +99,11 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector, elementSelector)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(keySelector, elementSelector)})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        TryRenderDirectLambda(keySelector) is { } keyLambda
+        && TryRenderDirectLambda(elementSelector) is { } elementLambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToLookup",keyLambda,elementLambda)
+            : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{LookupImpl(FuncReturnTypeName(elementSelector),FuncReturnTypeName(keySelector))}}
@@ -154,6 +163,10 @@ internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFr
         $"TEnum {this.e}, global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}, comparer{this.ClosureArgsSuffix(keySelector)})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        TryRenderDirectLambda(keySelector) is { } keyLambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToLookup",keyLambda,comparer)
+            : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{LookupImpl(source.ElementType,FuncReturnTypeName(keySelector))}}
@@ -209,6 +222,11 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
         $"TEnum {this.e}, global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector, elementSelector)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}, comparer{this.ClosureArgsSuffix(keySelector, elementSelector)})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        TryRenderDirectLambda(keySelector) is { } keyLambda
+        && TryRenderDirectLambda(elementSelector) is { } elementLambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToLookup",keyLambda,elementLambda,comparer)
+            : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{LookupImpl(FuncReturnTypeName(elementSelector),FuncReturnTypeName(keySelector))}}

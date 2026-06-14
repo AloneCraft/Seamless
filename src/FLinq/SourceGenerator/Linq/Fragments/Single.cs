@@ -8,6 +8,13 @@ public class Single(int 番号, Enumerable source, string resultType) : Buffered
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        source is RangeRoot range
+            ? RangePredicateOptimizer.RenderSingle(range,番号,destVar,destType)
+        : source is RepeatRoot repeat
+            ? RangePredicateOptimizer.RenderSingle(repeat,番号,destVar,destType)
+            : this.RenderDirectEnumerableCallInline(source,destVar,destType,"Single")
+        ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -42,6 +49,15 @@ public class Single_predicate(int 番号, Enumerable source, FuncFragment predic
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        source is RangeRoot range
+            ? RangePredicateOptimizer.RenderSingle(range,predicate,番号,destVar,destType)
+                ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
+                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Single",rangeLambda)
+                    : this.RenderComputeInline(destVar,destType))
+        : TryRenderDirectLambda(predicate) is { } lambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Single",lambda)
+            : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

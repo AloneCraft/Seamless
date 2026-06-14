@@ -9,7 +9,9 @@ public class First(int 番号, Enumerable source, string resultType) : BufferedS
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectEnumerableCallInline(source,destVar,destType,"First")
+        source is RangeRoot range
+            ? RangePredicateOptimizer.RenderFirst(range,番号,destVar,destType)
+        : this.RenderDirectEnumerableCallInline(source,destVar,destType,"First")
         ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}

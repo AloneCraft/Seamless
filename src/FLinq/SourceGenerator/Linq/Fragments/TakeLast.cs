@@ -62,4 +62,28 @@ public class TakeLast(int 番号, Enumerable source, string takeCount) : Enumera
             """;
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.RootSource.ElementType;
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.RootSource is not RangeRoot range || this.RootSource.ElementType!="int") {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+
+        var start=$"__start{番号}";
+        var count=$"__count{番号}";
+        var take=$"__take{番号}";
+        var actual=$"__actual{番号}";
+        var skip=$"__skip{番号}";
+        var index=$"__i{番号}";
+        return $$"""
+            {
+                var {{start}}={{range.StartExpression}};
+                var {{count}}={{range.CountExpression}};
+                var {{take}}={{this.EffectiveTakeCount}};
+                var {{actual}}=global::System.Math.Min({{count}},global::System.Math.Max(0,{{take}}));
+                var {{skip}}={{count}} - {{actual}};
+                for(var {{index}}=0;{{index}}<{{actual}};{{index}}++) {
+                    {{consumerName}}.Consume({{start}} + {{skip}} + {{index}});
+                }
+            }
+            """;
+    }
 }
