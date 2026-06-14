@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class ToDictionary_elementSelector:Base{
+public class ToDictionary_elementSelector():Base(1_600_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

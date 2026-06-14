@@ -1,10 +1,16 @@
 namespace Seamless.Benchmarks;
 
-public class Contains_value:Base{
+[BenchmarkTestIterations(7)]
+public class Contains_value():Base(10_630_000){
+    private const int iterationCount=3;
+
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        this.consumer.Consume(src(1).Contains(500000));
+        const int value=500_000;
+        for(var i=0;i<iterationCount;i++){
+            this.consumer.Consume(src(1).Contains(value));
+        }
     }
 
     [BenchFact]
@@ -14,6 +20,9 @@ public class Contains_value:Base{
     [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(src(1).AsValueEnumerable().Contains(500000));
+        const int value=500_000;
+        for(var i=0;i<iterationCount;i++){
+            this.consumer.Consume(src(1).AsValueEnumerable().Contains(value));
+        }
     }
 }

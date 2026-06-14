@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class ToList:Base{
+public class ToList():Base(3_760_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

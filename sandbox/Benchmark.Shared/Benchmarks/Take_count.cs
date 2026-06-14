@@ -1,33 +1,38 @@
 namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-public class Take_count:Base{
+[BenchmarkTestIterations(6)]
+public class Take_count():Base(5_950_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]
     public void LINQ1(){
-        src(1).Take(750000).Consume(this.consumer);
+        const int takeCount=750_000;
+        src(1).Take(takeCount).Consume(this.consumer);
     }
 
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
     public void LINQ2(){
-        src(1).Take(750000).Take(750000).Consume(this.consumer);
+        const int takeCount=750_000;
+        src(1).Take(takeCount).Take(takeCount).Consume(this.consumer);
     }
 
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
     public void LINQ3(){
-        src(1).Take(750000).Take(750000).Take(750000).Consume(this.consumer);
+        const int takeCount=750_000;
+        src(1).Take(takeCount).Take(takeCount).Take(takeCount).Consume(this.consumer);
     }
 
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.LINQ)]
     public void LINQ4(){
-        src(1).Take(750000).Take(750000).Take(750000).Take(750000).Consume(this.consumer);
+        const int takeCount=750_000;
+        src(1).Take(takeCount).Take(takeCount).Take(takeCount).Take(takeCount).Consume(this.consumer);
     }
 
     [BenchFact]
@@ -54,27 +59,31 @@ public class Take_count:Base{
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq1(){
-        src(1).AsValueEnumerable().Take(750000).Consume(this.consumer);
+        const int takeCount=750_000;
+        src(1).AsValueEnumerable().Take(takeCount).Consume(this.consumer);
     }
 
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq2(){
-        src(1).AsValueEnumerable().Take(750000).Take(750000).Consume(this.consumer);
+        const int takeCount=750_000;
+        src(1).AsValueEnumerable().Take(takeCount).Take(takeCount).Consume(this.consumer);
     }
 
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq3(){
-        src(1).AsValueEnumerable().Take(750000).Take(750000).Take(750000).Consume(this.consumer);
+        const int takeCount=750_000;
+        src(1).AsValueEnumerable().Take(takeCount).Take(takeCount).Take(takeCount).Consume(this.consumer);
     }
 
     [BenchFact]
     [Benchmark]
     [BenchmarkCategory(Categories.ZLinq)]
     public void ZLinq4(){
-        src(1).AsValueEnumerable().Take(750000).Take(750000).Take(750000).Take(750000).Consume(this.consumer);
+        const int takeCount=750_000;
+        src(1).AsValueEnumerable().Take(takeCount).Take(takeCount).Take(takeCount).Take(takeCount).Consume(this.consumer);
     }
 }

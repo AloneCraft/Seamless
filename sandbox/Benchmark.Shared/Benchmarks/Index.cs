@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class Index:Base{
+public class Index():Base(3_000_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

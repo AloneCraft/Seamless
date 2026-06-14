@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class GroupBy_elementSelector:Base{
+public class GroupBy_elementSelector():Base(2_800_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

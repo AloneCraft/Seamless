@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class SelectMany_resultSelector:Base{
+public class SelectMany_resultSelector():Base(2_000_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

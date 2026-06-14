@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class Count:Base{
+public class Count():Base(8_000_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

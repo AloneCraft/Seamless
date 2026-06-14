@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class ToLookup_elementSelector:Base{
+public class ToLookup_elementSelector():Base(1_200_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class Zip_tuple:Base{
+public class Zip_tuple():Base(3_790_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

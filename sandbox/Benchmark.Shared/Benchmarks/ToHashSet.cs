@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class ToHashSet:Base{
+public class ToHashSet():Base(3_000_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

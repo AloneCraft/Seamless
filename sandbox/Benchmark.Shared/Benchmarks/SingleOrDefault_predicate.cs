@@ -1,10 +1,10 @@
 namespace Seamless.Benchmarks;
 
-public class SingleOrDefault_predicate:Base{
+public class SingleOrDefault_predicate():Base(4_690_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        // 要素数に依存しない定数(先頭要素=1)で一意一致させる。count は instance なのでラムダ内では使えない。
+        // 要素数に依存しなぁE��数(先頭要素=1)で一意一致させる。count は instance なのでラムダ冁E��は使えなぁE��E
         this.consumer.Consume(src(1).SingleOrDefault(x=>x==1));
     }
 

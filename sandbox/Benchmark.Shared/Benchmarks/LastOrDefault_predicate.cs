@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class LastOrDefault_predicate:Base{
+public class LastOrDefault_predicate():Base(6_130_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

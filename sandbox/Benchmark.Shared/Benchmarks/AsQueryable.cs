@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class AsQueryable:Base{
+public class AsQueryable():Base(14_590_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

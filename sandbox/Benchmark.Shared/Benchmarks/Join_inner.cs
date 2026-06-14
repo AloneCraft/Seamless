@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class Join_inner:Base{
+public class Join_inner():Base(580_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

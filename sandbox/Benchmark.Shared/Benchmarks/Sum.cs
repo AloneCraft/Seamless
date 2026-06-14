@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class Sum:Base {
+public class Sum():Base(5_300_000){
     [BenchFact]
     [Benchmark(Baseline = true)]
     public void LINQ() {

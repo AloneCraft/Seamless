@@ -1,11 +1,11 @@
 namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-public class Order:Base {
+public class Order():Base(280_000){
     [BenchFact]
     [Benchmark(Baseline = true)]
     [BenchmarkCategory(Categories.LINQ)]
-    // 単独 Order() も Pipeline 経路（恒等キー順序）で展開されるため、FLinq1 は最適化される。
+    // 単独 Order() めEPipeline 経路�E�恒等キー頁E��）で展開されるため、FLinq1 は最適化される、E
     public void LINQ1() {
         src(1).Order().Consume(this.consumer);
     }

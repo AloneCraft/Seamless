@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class Min_selector:Base{
+public class Min_selector():Base(4_000_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

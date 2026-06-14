@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class Average_selector:Base{
+public class Average_selector():Base(4_650_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

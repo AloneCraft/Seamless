@@ -1,7 +1,7 @@
 namespace Seamless.Benchmarks;
 
 public class SelectManyPredicatePushdown:Base{
-    private readonly int[] outer=Enumerable.Range(0,100_000).ToArray();
+    private readonly int[] outer=Enumerable.Range(0,30_000).ToArray();
     private readonly int[] inner=Enumerable.Range(0,128).ToArray();
     private const int Threshold=120;
 

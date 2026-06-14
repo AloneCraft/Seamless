@@ -1,11 +1,11 @@
 namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-public class OrderDescending:Base{
+public class OrderDescending():Base(190_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]
-    // 単独 OrderDescending() も Pipeline 経路（恒等キー順序）で展開されるため、FLinq1 は最適化される。
+    // 単独 OrderDescending() も Piueline 経路（恒等キー順序）で展開されるため、FLinq1 は最適化される。
     public void LINQ1(){
         src(1).OrderDescending().Consume(this.consumer);
     }

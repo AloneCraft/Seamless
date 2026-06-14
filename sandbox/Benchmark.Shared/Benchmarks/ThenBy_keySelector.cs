@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class ThenBy_keySelector:Base{
+public class ThenBy_keySelector():Base(190_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

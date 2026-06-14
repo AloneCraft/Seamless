@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class CountBy_keySelector:Base{
+public class CountBy_keySelector():Base(1_600_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){
