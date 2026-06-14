@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class OfType:Base{
+public class OfType():Base(1_800_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

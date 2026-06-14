@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class SelectMany_indexSelector_resultSelector:Base{
+public class SelectMany_indexSelector_resultSelector():Base(2_290_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

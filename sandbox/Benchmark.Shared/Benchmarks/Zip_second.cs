@@ -1,7 +1,7 @@
 namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-public class Zip_second:Base{
+public class Zip_second():Base(1_120_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]

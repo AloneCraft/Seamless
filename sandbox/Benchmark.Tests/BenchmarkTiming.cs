@@ -21,7 +21,8 @@ sealed class BenchmarkTimingAttribute:BeforeAfterTestAttribute{
         for(var i=0;i<BenchmarkParameters.WarmupCount;i++){
             methodUnderTest.Invoke(instance,null);
         }
-        var runCount=BenchmarkParameters.RunCount;
+        var testIterations=declaringType.GetCustomAttribute<BenchmarkTestIterationsAttribute>()?.Count??1;
+        var runCount=BenchmarkParameters.RunCount*testIterations;
         var sw=Stopwatch.StartNew();
         for(var i=0;i<runCount;i++){
             methodUnderTest.Invoke(instance,null);

@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class LongCount_predicate:Base{
+public class LongCount_predicate():Base(4_780_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

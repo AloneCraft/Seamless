@@ -1,7 +1,7 @@
 namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-public class Intersect_second:Base{
+public class Intersect_second():Base(800_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]

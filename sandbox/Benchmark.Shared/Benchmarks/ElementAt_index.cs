@@ -1,10 +1,16 @@
 namespace Seamless.Benchmarks;
 
-public class ElementAt_index:Base{
+[BenchmarkTestIterations(8)]
+public class ElementAt_index():Base(15_430_000){
+    private const int iterationCount=3;
+
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        this.consumer.Consume(src(1).ElementAt(500000));
+        const int index=500_000;
+        for(var i=0;i<iterationCount;i++){
+            this.consumer.Consume(src(1).ElementAt(index));
+        }
     }
 
     [BenchFact]
@@ -14,6 +20,9 @@ public class ElementAt_index:Base{
     [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(src(1).AsValueEnumerable().ElementAt(500000));
+        const int index=500_000;
+        for(var i=0;i<iterationCount;i++){
+            this.consumer.Consume(src(1).AsValueEnumerable().ElementAt(index));
+        }
     }
 }

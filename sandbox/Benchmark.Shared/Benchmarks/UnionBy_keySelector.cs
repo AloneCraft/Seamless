@@ -1,7 +1,7 @@
 namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-public class UnionBy_keySelector:Base{
+public class UnionBy_keySelector():Base(400_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]

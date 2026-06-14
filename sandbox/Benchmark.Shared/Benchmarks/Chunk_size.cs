@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class Chunk_size:Base{
+public class Chunk_size():Base(3_950_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

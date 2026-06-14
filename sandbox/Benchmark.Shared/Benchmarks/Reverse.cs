@@ -1,7 +1,7 @@
 namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-public class Reverse:Base{
+public class Reverse():Base(1_800_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]

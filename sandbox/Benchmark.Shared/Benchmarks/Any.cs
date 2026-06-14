@@ -1,11 +1,11 @@
 namespace Seamless.Benchmarks;
 
 public class Any():Base() {
-    private const int count=1000;
+    private const int iterationCount=800_000;
     // System.Linq baseline: リフレクション直呼びのため傍受されず生のまま
     [BenchFact,Benchmark(Baseline=true)]
     public void LINQ(){
-        for(var a=0;a<count;a++)
+        for(var a=0;a<iterationCount;a++)
         this.consumer.Consume(src(1).Any());
     }
 
@@ -17,7 +17,7 @@ public class Any():Base() {
     // ZLinq: 同一連鎖 + .AsValueEnumerable() の頭差分のみ
     [BenchFact,Benchmark]
     public void ZLinq(){
-        for(var a=0;a<count;a++)
+        for(var a=0;a<iterationCount;a++)
         this.consumer.Consume(src(1).AsValueEnumerable().Any());
     }
 }

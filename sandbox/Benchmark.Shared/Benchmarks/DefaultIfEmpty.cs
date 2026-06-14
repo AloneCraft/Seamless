@@ -1,7 +1,7 @@
 namespace Seamless.Benchmarks;
 
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-public class DefaultIfEmpty:Base{
+public class DefaultIfEmpty():Base(1_600_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     [BenchmarkCategory(Categories.LINQ)]

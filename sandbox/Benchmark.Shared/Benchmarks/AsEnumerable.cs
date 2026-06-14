@@ -2,7 +2,7 @@ using SystemEnumerable=System.Linq.Enumerable;
 
 namespace Seamless.Benchmarks;
 
-public class AsEnumerable:Base{
+public class AsEnumerable():Base(16_030_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

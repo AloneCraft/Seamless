@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class All_predicate:Base{
+public class All_predicate():Base(5_330_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

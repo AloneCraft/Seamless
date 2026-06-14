@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class MaxBy_keySelector:Base{
+public class MaxBy_keySelector():Base(6_130_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

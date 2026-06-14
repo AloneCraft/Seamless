@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class InvariantHoisting:Base{
+public class InvariantHoisting():Base(5_720_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

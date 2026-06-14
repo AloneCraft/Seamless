@@ -2,11 +2,13 @@ using SystemEnumerable=System.Linq.Enumerable;
 
 namespace Seamless.Benchmarks;
 
-public class Range:Base{
+[BenchmarkTestIterations(17)]
+public class Range():Base(11_200_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        SystemEnumerable.Range(1,1000000).Consume(this.consumer);
+        const int rangeCount=1_000_000;
+        SystemEnumerable.Range(1,rangeCount).Consume(this.consumer);
     }
 
     [BenchFact]
@@ -16,6 +18,7 @@ public class Range:Base{
     [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.Range(1,1000000).Consume(this.consumer);
+        const int rangeCount=1_000_000;
+        ValueEnumerable.Range(1,rangeCount).Consume(this.consumer);
     }
 }

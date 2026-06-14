@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class Average:Base{
+public class Average():Base(7_110_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

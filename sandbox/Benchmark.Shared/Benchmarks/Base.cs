@@ -2,6 +2,11 @@ using Tsavorite.SourceGenerator;
 
 namespace Seamless.Benchmarks;
 
+[AttributeUsage(AttributeTargets.Class)]
+public sealed class BenchmarkTestIterationsAttribute(int count):Attribute{
+    public int Count{get;}=count;
+}
+
 public class Base {
     protected readonly Consumer consumer = new();
 #if BENCH_AS_TEST
@@ -9,12 +14,14 @@ public class Base {
     // ベンチクラス毎に変更できる。既定1000万。変えたいクラスは
     // public Xxx():base(要素数){} で指定する。
     private protected readonly int count;
-    protected Base(int count=10_000_000)=>this.count=count;
+    protected Base(int count=80_000)=>this.count=count;
+    private protected int CountForTestTiming(int benchmarkCount)=>this.count;
 #else
     // BDN 実ベンチは一律1000万（派生の :Base(N) 指定は無視）。
     // const にすることで生成器のラムダ定数畳み込みが効く。
     private protected const int count=10_000_000;
     protected Base(int count=10_000_000){}
+    private protected int CountForTestTiming(int benchmarkCount)=>benchmarkCount;
 #endif
     protected IEnumerable<int> srcMinusPlus(int scale) {
         for(var a = 0; a<count*scale; a+=2) {

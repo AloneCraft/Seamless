@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class SequenceEqual_second:Base{
+public class SequenceEqual_second():Base(1_600_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

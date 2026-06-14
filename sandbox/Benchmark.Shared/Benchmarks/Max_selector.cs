@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class Max_selector:Base{
+public class Max_selector():Base(5_850_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

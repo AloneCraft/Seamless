@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class AggregateBy_keySelector:Base{
+public class AggregateBy_keySelector():Base(3_310_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

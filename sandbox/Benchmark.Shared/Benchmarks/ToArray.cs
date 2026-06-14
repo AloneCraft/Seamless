@@ -1,6 +1,6 @@
 namespace Seamless.Benchmarks;
 
-public class ToArray:Base{
+public class ToArray():Base(4_100_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){

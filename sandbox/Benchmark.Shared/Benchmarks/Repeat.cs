@@ -2,11 +2,13 @@ using SystemEnumerable=System.Linq.Enumerable;
 
 namespace Seamless.Benchmarks;
 
-public class Repeat:Base{
+[BenchmarkTestIterations(16)]
+public class Repeat():Base(20_000_000){
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        SystemEnumerable.Repeat(7,1000000).Consume(this.consumer);
+        const int repeatCount=1_000_000;
+        SystemEnumerable.Repeat(7,repeatCount).Consume(this.consumer);
     }
 
     [BenchFact]
@@ -16,6 +18,7 @@ public class Repeat:Base{
     [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.Repeat(7,1000000).Consume(this.consumer);
+        const int repeatCount=1_000_000;
+        ValueEnumerable.Repeat(7,repeatCount).Consume(this.consumer);
     }
 }

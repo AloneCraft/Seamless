@@ -1,10 +1,15 @@
 namespace Seamless.Benchmarks;
 
-public class FirstOrDefault:Base{
+[BenchmarkTestIterations(320)]
+public class FirstOrDefault():Base(20_000_000){
+    private const int iterationCount=4_000;
+
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        this.consumer.Consume(src(1).FirstOrDefault());
+        for(var i=0;i<iterationCount;i++){
+            this.consumer.Consume(src(1).FirstOrDefault());
+        }
     }
 
     [BenchFact]
@@ -14,6 +19,8 @@ public class FirstOrDefault:Base{
     [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        this.consumer.Consume(src(1).AsValueEnumerable().FirstOrDefault());
+        for(var i=0;i<iterationCount;i++){
+            this.consumer.Consume(src(1).AsValueEnumerable().FirstOrDefault());
+        }
     }
 }

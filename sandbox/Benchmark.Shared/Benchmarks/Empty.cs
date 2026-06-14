@@ -2,11 +2,16 @@ using SystemEnumerable=System.Linq.Enumerable;
 
 namespace Seamless.Benchmarks;
 
-public class Empty:Base{
+[BenchmarkTestIterations(650)]
+public class Empty():Base(20_000_000){
+    private const int iterationCount=25_000;
+
     [BenchFact]
     [Benchmark(Baseline=true)]
     public void LINQ(){
-        SystemEnumerable.Empty<int>().Consume(this.consumer);
+        for(var i=0;i<iterationCount;i++){
+            SystemEnumerable.Empty<int>().Consume(this.consumer);
+        }
     }
 
     [BenchFact]
@@ -16,6 +21,8 @@ public class Empty:Base{
     [BenchFact]
     [Benchmark]
     public void ZLinq(){
-        ValueEnumerable.Empty<int>().Consume(this.consumer);
+        for(var i=0;i<iterationCount;i++){
+            ValueEnumerable.Empty<int>().Consume(this.consumer);
+        }
     }
 }
