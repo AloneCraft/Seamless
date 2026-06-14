@@ -15,7 +15,7 @@
 
 | パス | 使用箇所 | 問題 |
 |------|---------|------|
-| **Enumerator** | `フラグメントEnumerator実行文追加37` → `TryGetNext` 状態機械 | 全Fragmentの基本パス |
+| **Enumerator** | `フラグメント実行文追加` → `TryGetNext` 状態機械 | 全Fragmentの基本パス |
 | **FlatLoop** | `GetFlatLoopCode()` → foreach/for 直接ループ展開 | 一部Fragmentのみ（`SupportsFlatLoop=true`）|
 
 これらは同一ロジック（Whereならフィルタ、Selectなら射影）を異なる方法で実装しており、**DRY違反**かつメンテナンスコスト増大の原因。
@@ -69,13 +69,13 @@ internal sealed class AnonymousDelegateFuncFragment : LambdaFunc {
 }
 ```
 
-### 3. 関数フラグメント生成12() に匿名型検出分岐追加（interceptor.cs）
+### 3. 関数式フラグメント生成() に匿名型検出分岐追加（interceptor.cs）
 
 ラムダが匿名型を返す場合、AnonymousDelegateFuncFragment を生成する。
 判定は「ラムダ本体が new { ... } を含む」または「delegateType に匿名型が含まれる」。
 
 ```csharp
-// 関数フラグメント生成12() 内での分岐
+// 関数式フラグメント生成() 内での分岐
 if (ラムダが匿名型を生成する) {
     // デリゲート保持モードの FuncFragment を生成
     // ラムダ本体をインライン展開せず、Func<TSource, TResult> として保持
@@ -151,7 +151,7 @@ $"this.{func.DelegateFieldName} = {func.DelegateFieldName};"
 | `FuncAssignFlat()` メソッド | Fragment.cs | FlatLoop専用。`FuncAssign` で代用可能 |
 | `FuncInvokeFlat()` メソッド | Fragment.cs | 同上 |
 | `GetFlatLoopCode()` の実装 | Join.cs, GroupJoin.cs（各SupportsFlatLoop=trueなFragment） | 同上 |
-| フラグメントEnumerator実行文追加37 の SupportsFlatLoop 分岐 | interceptor.cs | FlatLoop 削除により常に Enumerator パス |
+| フラグメント実行文追加 の SupportsFlatLoop 分岐 | interceptor.cs | FlatLoop 削除により常に Enumerator パス |
 
 これによりコード生成パスが単一になる。
 
@@ -164,7 +164,7 @@ $"this.{func.DelegateFieldName} = {func.DelegateFieldName};"
 | `匿名型Select生成53` 全体 | Fragment 側で delegate保持 + Select Fragment が対応 |
 | `匿名型GroupBy生成54` 全体 | Fragment 側で delegate保持 + GroupBy Fragment（BufferedSequence）が対応 |
 | `匿名型LINQ実行文追加52` 全体 | 上記削除により不要に。匿名型検出は Fragment 生成時に自動的に対応 |
-| `フラグメントEnumerator実行文追加37` の FlatLoop分岐 | SupportsFlatLoop 削除により常に Enumerator パス |
+| `フラグメント実行文追加` の FlatLoop分岐 | SupportsFlatLoop 削除により常に Enumerator パス |
 
 維持するメソッド：
 
@@ -225,7 +225,7 @@ internal sealed class InlinedSequenceFunc : LambdaFunc {
 }
 ```
 
-### 実装の流れ（関数フラグメント生成12() の拡張）
+### 実装の流れ（関数式フラグメント生成() の拡張）
 
 ```csharp
 // 匿名型ラムダの検出時、ラムダ本体にシーケンスLINQ呼び出しがある場合
@@ -268,7 +268,7 @@ if (ラムダが匿名型を生成する) {
 
 1. FuncFragment / Func.cs に `CanInvokeAsDelegate` 系プロパティを追加
 2. `AnonymousDelegateFuncFragment` クラスを追加
-3. `関数フラグメント生成12()` に匿名型検出分岐を追加
+3. `関数式フラグメント生成()` に匿名型検出分岐を追加
 4. Fragment.cs の `FuncInvoke`, `FuncAssign`, `FuncAssignCurrent`, `FuncInvokeCondition`, `FuncAssignFlat` に `CanInvokeAsDelegate` チェックを追加
 5. Fragment.cs の `ClosureXxx` メソッド群にデリゲートフィールド/コンストラクタの自動収集を追加
 6. Fragment.cs の `DefineEnumeratorStructCore` がデリゲートフィールドを出力するよう修正

@@ -1,7 +1,7 @@
 ﻿namespace Tsavorite.SourceGenerator;
 
 public static class GeneratorHelpers {
-    internal static readonly SymbolDisplayFormat 完全修飾形式 = new(
+    public static readonly SymbolDisplayFormat 完全修飾形式 = new(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
         genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
@@ -9,14 +9,14 @@ public static class GeneratorHelpers {
             | SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
             | SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
 
-    internal static readonly SymbolDisplayFormat cref形式 = new(
+    public static readonly SymbolDisplayFormat cref形式 = new(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
         genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
 
     /// <summary>グローバル名前空間は空文字列、それ以外は表示文字列を返す。</summary>
-    internal static string 名前空間テキスト取得(INamespaceSymbol namespaceSymbol) {
+    public static string 名前空間テキスト取得(INamespaceSymbol namespaceSymbol) {
         return namespaceSymbol.IsGlobalNamespace ? string.Empty : namespaceSymbol.ToDisplayString();
     }
 
@@ -25,7 +25,7 @@ public static class GeneratorHelpers {
     /// <paramref name="builder"/> に追記する。空行はインデントなしで出力する。
     /// CRLF・LF のどちらにも対応する。
     /// </summary>
-    internal static void インデント付き追記(StringBuilder builder, string value, string indent) {
+    public static void インデント付き追記(StringBuilder builder, string value, string indent) {
         foreach(var line in value.Replace("\r\n", "\n").Split('\n')) {
             if(line.Length==0) {
                 builder.AppendLine();
@@ -41,7 +41,7 @@ public static class GeneratorHelpers {
     /// 文字列から空白のみの行を除去して返す。
     /// データベーススキーマの生成ソース出力でコンパクト化のために使う。
     /// </summary>
-    internal static string 空行除去(string source) {
+    public static string 空行除去(string source) {
         var lines = source.Replace("\r\n", "\n").Split('\n');
         var builder = new StringBuilder(source.Length);
         var firstWritten = true;
