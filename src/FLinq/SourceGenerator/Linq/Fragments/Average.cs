@@ -130,33 +130,12 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(selector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderRangeAverageSelectorInline(destVar,destType)
+        this.RenderComputeInline(destVar,destType)
         ?? (TryRenderDirectLambda(selector) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Average",lambda)
-            : this.RenderComputeInline(destVar,destType));
+            : null);
     protected override string ComputeMembers => this.BuildComputeMembers();
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
-
-    private string? RenderRangeAverageSelectorInline(string destVar,string destType) {
-        if(source is not RangeRoot range
-            || source.ElementType!="int"
-            || resultType!="double"
-            || !RangePredicateOptimizer.IsParameterCast(selector,"double")) {
-            return null;
-        }
-
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        return $$"""
-            {{destType}} {{destVar}};
-            {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
-                if({{count}}==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
-                {{destVar}}=({{destType}})(((double){{start}} + ((double){{start}} + {{count}} - 1d)) / 2d);
-            }
-            """;
-    }
 
     private string BuildComputeMembers() {
         if(this.UseDecimalAccumulator) {

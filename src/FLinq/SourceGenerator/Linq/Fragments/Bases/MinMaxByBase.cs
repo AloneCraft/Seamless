@@ -9,9 +9,10 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
     protected override string ComputeExpression=>$"Compute({this.e}{this.ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) {
         var methodName=direction=="greater" ? "MaxBy" : "MinBy";
-        return TryRenderDirectLambda(keySelector) is { } lambda
-            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda)
-            : this.RenderComputeInline(destVar,destType);
+        return this.RenderComputeInline(destVar,destType)
+            ?? (TryRenderDirectLambda(keySelector) is { } lambda
+                ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda)
+                : null);
     }
     protected override string ComputeMembers=>source.CanProvideSpan
         ? this.BuildSpanCompute()

@@ -256,51 +256,6 @@ internal static class RangePredicateOptimizer {
         return null;
     }
 
-    public static bool IsAccumulatorAddition(FuncFragment func) {
-        if(!CanInspect(func)
-            || func.ParameterNames.Length<2
-            || TryParseExpression(func.InlineBody) is not BinaryExpressionSyntax binary
-            || binary.Kind()!=SyntaxKind.AddExpression) {
-            return false;
-        }
-
-        var accumulator=func.ParameterNames[0];
-        var item=func.ParameterNames[1];
-        return (IsParameter(binary.Left,accumulator) && IsParameter(binary.Right,item))
-            || (IsParameter(binary.Left,item) && IsParameter(binary.Right,accumulator));
-    }
-
-    public static bool TryExtractModuloByParameter(FuncFragment selector,out int divisor) {
-        divisor=0;
-        if(!CanInspect(selector)
-            || selector.ParameterNames.Length!=1
-            || TryParseExpression(selector.InlineBody) is not BinaryExpressionSyntax binary
-            || binary.Kind()!=SyntaxKind.ModuloExpression
-            || !IsParameter(binary.Left,selector.ParameterNames[0])
-            || !TryGetSmallInteger(binary.Right,out divisor)
-            || divisor<=0) {
-            return false;
-        }
-
-        return true;
-    }
-
-    public static bool IsParameterCast(FuncFragment selector,string targetType) {
-        if(!CanInspect(selector)
-            || selector.ParameterNames.Length!=1
-            || TryParseExpression(selector.InlineBody) is not CastExpressionSyntax castExpression
-            || !IsParameter(castExpression.Expression,selector.ParameterNames[0])) {
-            return false;
-        }
-
-        return string.Equals(castExpression.Type.ToString(),targetType,StringComparison.Ordinal);
-    }
-
-    public static bool IsNonNegativeIntegerLiteral(string expression) =>
-        TryParseExpression(expression) is LiteralExpressionSyntax literal
-        && literal.Token.Value is int value
-        && value>=0;
-
     private static string AllCondition(ComparisonOperator op,string start,string count,string last,string value) =>
         op switch {
             ComparisonOperator.GreaterThan => $"{count}==0 || (long){start}>{value}",

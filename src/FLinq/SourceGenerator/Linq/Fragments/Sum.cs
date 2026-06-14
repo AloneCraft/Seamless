@@ -47,33 +47,10 @@ public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, 
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(selector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderRangeLongSumSelectorInline(destVar,destType)
+        this.RenderComputeInline(destVar,destType)
         ?? (TryRenderDirectLambda(selector) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum",lambda)
-            : this.RenderComputeInline(destVar,destType));
-    private string? RenderRangeLongSumSelectorInline(string destVar,string destType) {
-        if(source is not RangeRoot range
-            || source.ElementType!="int"
-            || !IsLongType(resultType)
-            || !RangePredicateOptimizer.IsParameterCast(selector,"long")) {
-            return null;
-        }
-
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var sum=$"__sum{番号}";
-        return $$"""
-            {{destType}} {{destVar}};
-            {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
-                var {{sum}}=((long){{count}} * (2L * (long){{start}} + (long){{count}} - 1L)) / 2L;
-                {{destVar}}=({{destType}}){{sum}};
-            }
-            """;
-    }
-    private static bool IsLongType(string typeName) =>
-        typeName is "long" or "global::System.Int64" or "System.Int64";
+            : null);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

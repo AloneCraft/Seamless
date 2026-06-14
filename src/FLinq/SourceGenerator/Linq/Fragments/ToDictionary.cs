@@ -38,8 +38,7 @@ public class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragment 
                 {{destVar}}=new({{count}});
                 for(var {{index}}=0;{{index}}<{{count}};{{index}}++) {
                     var {{value}}={{start}} + {{index}};
-                    ref var __entry=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({{destVar}},{{value}},out _);
-                    __entry={{value}};
+                    {{destVar}}.Add({{value}},{{value}});
                 }
             }
             """;
@@ -101,8 +100,7 @@ public class ToDictionary_keySelector_elementSelector(int 番号,Enumerable sour
                     var {{value}}={{start}} + {{index}};
                     {{FuncReturnTypeName(elementSelector)}} {{element}}=default!;
             {{IndentLines(this.FuncAssign(elementSelector,nameof(elementSelector),element,value),"        ")}}
-                    ref var __entry=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({{destVar}},{{value}},out _);
-                    __entry={{element}};
+                    {{destVar}}.Add({{value}},{{element}});
                 }
             }
             """;
