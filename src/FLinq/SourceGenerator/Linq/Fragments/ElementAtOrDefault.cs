@@ -8,6 +8,9 @@ public class ElementAtOrDefault(int 番号, Enumerable source, string index, str
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int index";
     protected override string ComputeExpression => $"Compute({this.e}, index)";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAtOrDefault",index)
+        ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -46,6 +49,9 @@ public class ElementAtOrDefault_index(int 番号, Enumerable source, string inde
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, global::System.Index index";
     protected override string ComputeExpression => $"Compute({this.e}, index)";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAtOrDefault",index)
+        ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

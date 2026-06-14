@@ -2,6 +2,10 @@
 public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecutionFragment{
     // この enumerable 断片が流す要素型。
     public abstract string ElementType{ get; }
+    // 生成コード内で IEnumerable<T> として再評価できる元ソース式。
+    // Array/List など既に専用高速 root を持つものは null のままにし、
+    // 型情報を失った IEnumerable<T> root だけ terminal 側の軽量 fast path に使う。
+    public virtual string? DirectEnumerableExpression => null;
     // この enumerable の enumerator が TryGetSpan で連続メモリの Span を返せるか。
     // ソース生成時に確定する（ArrayRoot/ListRoot のみ true）。span fast path を分岐なしで生成するために使う。
     public virtual bool CanProvideSpan => false;

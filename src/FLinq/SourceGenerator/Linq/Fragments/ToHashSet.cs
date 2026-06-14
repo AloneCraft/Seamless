@@ -12,6 +12,9 @@ public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSet
     public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e}";
     protected override string ComputeExpression=>$"Compute({this.e})";
+    public override string? RenderInlineComputation(string destVar,string destType)=>
+        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToHashSet")
+        ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers=>$$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source){
@@ -34,6 +37,9 @@ public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,str
     public override string GetEnumeratorPrimaryConstructorParameters=>
         $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string ComputeExpression=>$"Compute({this.e},comparer)";
+    public override string? RenderInlineComputation(string destVar,string destType)=>
+        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToHashSet","comparer")
+        ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers=>$$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){

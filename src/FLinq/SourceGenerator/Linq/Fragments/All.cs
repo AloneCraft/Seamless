@@ -9,7 +9,10 @@ public class All_predicate(int 番号, Enumerable source, FuncFragment predicate
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
-    public override string? RenderInlineComputation(string destVar,string destType) => this.RenderComputeInline(destVar,destType);
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        TryRenderDirectLambda(predicate) is { } lambda
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"All",lambda)
+            : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers {
         get {
             var (preCode, condExpr) = this.FuncInvokeCondition(predicate, nameof(predicate), this.temp, this.item);

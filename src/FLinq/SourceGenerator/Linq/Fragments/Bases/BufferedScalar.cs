@@ -53,4 +53,5 @@ public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番�
             }
             """;
     }
+
 }

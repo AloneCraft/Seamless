@@ -25,10 +25,10 @@
   </ItemGroup>
 
   <!-- Roslyn アナライザーとして参照プロジェクトも一緒にロードする -->
-  <Target Name="GetDependencyTargetPaths">
+  <Target Name="GetDependencyTargetPaths" DependsOnTargets="ResolveReferences">
     <ItemGroup>
-      <TargetPathWithTargetPlatformMoniker Include="@(ResolvedFileToPublish)"
-        Condition="'%(ResolvedFileToPublish.ReferenceSourceTarget)'=='ProjectReference'" />
+      <TargetPathWithTargetPlatformMoniker Include="@(ReferenceCopyLocalPaths)"
+        Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)'=='ProjectReference'" />
     </ItemGroup>
   </Target>
 </Project>

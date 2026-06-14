@@ -9,6 +9,9 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int index";
     protected override string ComputeExpression => $"Compute({this.e}, index)";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
+        ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -47,6 +50,9 @@ public class ElementAt_index(int 番号, Enumerable source, string index, string
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, global::System.Index index";
     protected override string ComputeExpression => $"Compute({this.e}, index)";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
+        this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
+        ?? this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

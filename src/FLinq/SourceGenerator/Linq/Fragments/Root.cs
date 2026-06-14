@@ -8,6 +8,9 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
     public override string StructMethod => string.Empty;
     // 型引数を埋め込んだ完全な struct 名（呼び出し側では具象型引数を持つ）。
     public override string EnumeratorTypeName => $"{this.Struct}<{enumeratorTypeName}>";
+    public override string? DirectEnumerableExpression => useEnumerableInterface
+        ? $"((global::System.Collections.Generic.IEnumerable<{elementType}>)({sourceExpression}))"
+        : null;
     public override string GetEnumeratorExpression {
         get {
             var sourceExpr = useEnumerableInterface
