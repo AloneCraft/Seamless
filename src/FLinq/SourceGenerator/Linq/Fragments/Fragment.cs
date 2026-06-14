@@ -475,7 +475,7 @@ public abstract class Fragment(
     }
 
     // 型推論用ファクトリメソッドの名前。
-    // "_Factory" サフィックスは 静的メソッド群と本体を補助クラスへ退避21() の Struct{番号} リネーム正規表現に対応している。
+    // "_Factory" サフィックスは 補助メンバーをメソッド専用クラスへ退避() の Struct{番号} リネーム正規表現に対応している。
     // 例: Struct0_Factory → {prefix}Struct0_Factory （メソッドごとにユニークな名前に変換される）。
     private protected string FactoryMethodName => $"{this.Struct}_Factory";
 

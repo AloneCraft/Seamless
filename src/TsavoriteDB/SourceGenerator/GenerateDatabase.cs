@@ -1,18 +1,11 @@
 ﻿using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
+using static Tsavorite.SourceGenerator.GeneratorHelpers;
 
 namespace TsavoriteDB.SourceGenerator;
 
 [Generator]
 public sealed class TsavoriteSchemaGenerator : IIncrementalGenerator {
-    private static readonly SymbolDisplayFormat 完全修飾形式 = new(
-        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
-        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
-        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandNullable
-            | SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
-            | SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
-
     public void Initialize(IncrementalGeneratorInitializationContext context) {
         var typeTargets = context.SyntaxProvider
             .CreateSyntaxProvider(
@@ -56,38 +49,7 @@ public sealed class TsavoriteSchemaGenerator : IIncrementalGenerator {
         public bool IsPartial { get; } = isPartial;
     }
 
-    private static string 名前空間テキスト取得(INamespaceSymbol namespaceSymbol) {
-        return namespaceSymbol.IsGlobalNamespace ? string.Empty : namespaceSymbol.ToDisplayString();
-    }
-
-    private static void インデント付き追記(StringBuilder builder, string value, string indent) {
-        foreach(var line in value.Replace("\r\n", "\n").Split('\n')) {
-            if(line.Length==0) {
-                builder.AppendLine();
-                continue;
-            }
-            builder.Append(indent);
-            builder.AppendLine(line);
-        }
-    }
-
-    private static string 空行除去(string source) {
-        var lines = source.Replace("\r\n", "\n").Split('\n');
-        var builder = new StringBuilder(source.Length);
-        var firstWritten = true;
-        foreach(var line in lines) {
-            if(string.IsNullOrWhiteSpace(line)) {
-                continue;
-            }
-            if(!firstWritten) {
-                builder.Append('\n');
-            }
-            builder.Append(line);
-            firstWritten=false;
-        }
-        return builder.ToString();
-    }
-private static string データベースソース構築(ImmutableArray<型対象型> typeTargets) {
+    private static string データベースソース構築(ImmutableArray<型対象型> typeTargets) {
         var builder = new StringBuilder();
         var rootNamespaces = typeTargets
             .Where(static target => target.Symbol.Name=="DatabaseGenerator")
