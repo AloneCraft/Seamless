@@ -1,79 +1,87 @@
 using System.Linq;
 
-using Test.Tsavorite.Collections.Intercept.System.Linq;
-
-using SystemEnumerable = System.Linq.Enumerable;
-
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Optimization;
 
-// ルール §1: 多階層ループ不変式ホイスト + static ラムダのキャプチャ除去。
-// どの階層へ持ち上げられても結果は System.Linq と一致しなければならない。
 public sealed class InvariantHoisting:OptimizationTestBase{
     [Fact,Trait("Category","Unit")]
-    public static void GlobalInvariant() => GlobalInvariantImpl();
-
-    private static void GlobalInvariantImpl(){
-        {
-            // 非空: a に依存しない StaticCheck() は完全に巻き上げ可能。
-            var expected=SystemEnumerable.Select(Outer(),static a => a+StaticCheck()).ToList();
-            var actual=new Consumer<int>();
-            Outer().Select(static a => a+StaticCheck()).Consume(actual);
-            AssertSequenceEqual(expected,actual.Items);
-        }
-        {
-            // 空: 巻き上げても 1 件も出ないこと。
-            var expected=SystemEnumerable.Select(EmptyOuter(),static a => a+StaticCheck()).ToList();
-            var actual=new Consumer<int>();
-            EmptyOuter().Select(static a => a+StaticCheck()).Consume(actual);
-            AssertSequenceEqual(expected,actual.Items);
-        }
+    public static void GlobalInvariant() {
+        AssertSequenceEqual(Outer().Select(static a => a+StaticCheck()).ToList(),GlobalInvariant_NonEmptyOptimized());
+        AssertSequenceEqual(Outer().Select(static a => a+StaticCheck()).ToList(),GlobalInvariant_NonEmptyNoOptimized());
+        AssertSequenceEqual(EmptyOuter().Select(static a => a+StaticCheck()).ToList(),GlobalInvariant_EmptyOptimized());
+        AssertSequenceEqual(EmptyOuter().Select(static a => a+StaticCheck()).ToList(),GlobalInvariant_EmptyNoOptimized());
     }
 
-    [Fact,Trait("Category","Unit")]
-    public static void IntermediateScopeInvariant() => IntermediateScopeInvariantImpl();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> GlobalInvariant_NonEmptyOptimized() => Outer().Select(static a => a+StaticCheck()).ToList();
 
-    private static void IntermediateScopeInvariantImpl(){
-        {
-            // a+StaticCheck() は外側 a のみ依存（中間スコープへ）、b*StackCheck() は global。
-            var expected=SystemEnumerable.SelectMany(Outer(),
-                static a => SystemEnumerable.Select(Inner(),b => (a+StaticCheck())-(b*StackCheck()))).ToList();
-            var actual=new Consumer<int>();
-            Outer().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).Consume(actual);
-            AssertSequenceEqual(expected,actual.Items);
-        }
-        {
-            // 外側が空なら内側シーケンスは一度も生成されない。
-            var expected=SystemEnumerable.SelectMany(EmptyOuter(),
-                static a => SystemEnumerable.Select(Inner(),b => (a+StaticCheck())-(b*StackCheck()))).ToList();
-            var actual=new Consumer<int>();
-            EmptyOuter().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).Consume(actual);
-            AssertSequenceEqual(expected,actual.Items);
-        }
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> GlobalInvariant_NonEmptyNoOptimized() => Outer().Select(static a => a+StaticCheck()).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> GlobalInvariant_EmptyOptimized() => EmptyOuter().Select(static a => a+StaticCheck()).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> GlobalInvariant_EmptyNoOptimized() => EmptyOuter().Select(static a => a+StaticCheck()).ToList();
+
+    [Fact,Trait("Category","Unit")]
+    public static void IntermediateScopeInvariant() {
+        AssertSequenceEqual(Outer().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).ToList(),IntermediateScopeInvariant_NonEmptyOptimized());
+        AssertSequenceEqual(Outer().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).ToList(),IntermediateScopeInvariant_NonEmptyNoOptimized());
+        AssertSequenceEqual(EmptyOuter().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).ToList(),IntermediateScopeInvariant_EmptyOptimized());
+        AssertSequenceEqual(EmptyOuter().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).ToList(),IntermediateScopeInvariant_EmptyNoOptimized());
     }
 
-    [Fact,Trait("Category","Unit")]
-    public static void CapturedLocalEliminatedToStructField() => CapturedLocalEliminatedToStructFieldImpl();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> IntermediateScopeInvariant_NonEmptyOptimized() =>
+        Outer().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).ToList();
 
-    private static void CapturedLocalEliminatedToStructFieldImpl(){
-        // キャプチャされたローカルは display class でなく struct フィールドへ。結果不変を確認。
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> IntermediateScopeInvariant_NonEmptyNoOptimized() =>
+        Outer().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> IntermediateScopeInvariant_EmptyOptimized() =>
+        EmptyOuter().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> IntermediateScopeInvariant_EmptyNoOptimized() =>
+        EmptyOuter().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).ToList();
+
+    [Fact,Trait("Category","Unit")]
+    public static void CapturedLocalEliminatedToStructField() {
         var threshold=3;
-        var expected=SystemEnumerable.Where(Outer(),v => v<threshold).ToList();
-        var actual=new Consumer<int>();
-        Outer().Where(v => v<threshold).Consume(actual);
-        AssertSequenceEqual(expected,actual.Items);
+        AssertSequenceEqual(Outer().Where(v => v<threshold).ToList(),CapturedLocalEliminatedToStructFieldOptimized());
+        AssertSequenceEqual(Outer().Where(v => v<threshold).ToList(),CapturedLocalEliminatedToStructFieldNoOptimized());
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> CapturedLocalEliminatedToStructFieldOptimized() {
+        var threshold=3;
+        return Outer().Where(v => v<threshold).ToList();
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> CapturedLocalEliminatedToStructFieldNoOptimized() {
+        var threshold=3;
+        return Outer().Where(v => v<threshold).ToList();
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void InvariantNotHoistedPastLazyGuard() => InvariantNotHoistedPastLazyGuardImpl();
-
-    private static void InvariantNotHoistedPastLazyGuardImpl(){
-        // ルール §4 null/例外安全: 不変式 100/divisor は本来ループ内で初めて評価される。
-        // ソースが空なら一度も評価されず例外も出ない。先行（ループ外）評価へ巻き上げると
-        // DivideByZeroException になり意味が変わる。両者とも空で例外なしを確認する。
+    public static void InvariantNotHoistedPastLazyGuard() {
         var divisor=0;
-        var expected=SystemEnumerable.Where(EmptyOuter(),v => v>100/divisor).ToList();
-        var actual=new Consumer<int>();
-        EmptyOuter().Where(v => v>100/divisor).Consume(actual);
-        AssertSequenceEqual(expected,actual.Items);
+        AssertSequenceEqual(EmptyOuter().Where(v => v>100/divisor).ToList(),InvariantNotHoistedPastLazyGuardOptimized());
+        AssertSequenceEqual(EmptyOuter().Where(v => v>100/divisor).ToList(),InvariantNotHoistedPastLazyGuardNoOptimized());
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> InvariantNotHoistedPastLazyGuardOptimized() {
+        var divisor=0;
+        return EmptyOuter().Where(v => v>100/divisor).ToList();
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> InvariantNotHoistedPastLazyGuardNoOptimized() {
+        var divisor=0;
+        return EmptyOuter().Where(v => v>100/divisor).ToList();
     }
 }

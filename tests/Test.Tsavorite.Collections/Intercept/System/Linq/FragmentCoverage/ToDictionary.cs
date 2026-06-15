@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 using Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
@@ -11,7 +10,7 @@ public sealed class ToDictionary {
     [Fact,Trait("Category","Unit")]
     public static void keySelector(){
         GeneratedInterceptorAssert.ContainsMethod<ToDictionary>(nameof(keySelectorImpl));
-        var expected=SystemEnumerable.ToDictionary([1,2,3,4],static v => v);
+        var expected=new[]{1,2,3,4}.ToDictionary(static v => v);
         var actual=keySelectorImpl();
         LinqChain1TestBase.AssertDictionaryEqual(expected,actual);
     }
@@ -22,7 +21,7 @@ public sealed class ToDictionary {
     [Fact,Trait("Category","Unit")]
     public static void keySelector_elementSelector(){
         GeneratedInterceptorAssert.ContainsMethod<ToDictionary>(nameof(keySelector_elementSelectorImpl));
-        var expected=SystemEnumerable.ToDictionary([1,2,3,4],static v => v,static v => v*2);
+        var expected=new[]{1,2,3,4}.ToDictionary(static v => v,static v => v*2);
         var actual=keySelector_elementSelectorImpl();
         LinqChain1TestBase.AssertDictionaryEqual(expected,actual);
     }
@@ -33,7 +32,7 @@ public sealed class ToDictionary {
     [Fact,Trait("Category","Unit")]
     public static void keySelector_comparer(){
         GeneratedInterceptorAssert.ContainsMethod<ToDictionary>(nameof(keySelector_comparerImpl));
-        var expected=SystemEnumerable.ToDictionary([1,2,3,4],static v => v,EqualityComparer<int>.Default);
+        var expected=new[]{1,2,3,4}.ToDictionary(static v => v,EqualityComparer<int>.Default);
         var actual=keySelector_comparerImpl();
         LinqChain1TestBase.AssertDictionaryEqual(expected,actual);
     }
@@ -44,7 +43,7 @@ public sealed class ToDictionary {
     [Fact,Trait("Category","Unit")]
     public static void keySelector_elementSelector_comparer(){
         GeneratedInterceptorAssert.ContainsMethod<ToDictionary>(nameof(keySelector_elementSelector_comparerImpl));
-        var expected=SystemEnumerable.ToDictionary([1,2,3,4],static v => v,static v => v*2,EqualityComparer<int>.Default);
+        var expected=new[]{1,2,3,4}.ToDictionary(static v => v,static v => v*2,EqualityComparer<int>.Default);
         var actual=keySelector_elementSelector_comparerImpl();
         LinqChain1TestBase.AssertDictionaryEqual(expected,actual);
     }
@@ -55,7 +54,7 @@ public sealed class ToDictionary {
     [Fact,Trait("Category","Unit")]
     public static void keySelector_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<ToDictionary>(nameof(keySelector_enumerableImpl));
-        var expected=SystemEnumerable.ToDictionary([1,2,3,4],static v => v);
+        var expected=new[]{1,2,3,4}.ToDictionary(static v => v);
         var actual=keySelector_enumerableImpl();
         LinqChain1TestBase.AssertDictionaryEqual(expected,actual);
     }
@@ -67,7 +66,7 @@ public sealed class ToDictionary {
     [Fact,Trait("Category","Unit")]
     public static void keySelector_elementSelector_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<ToDictionary>(nameof(keySelector_elementSelector_enumerableImpl));
-        var expected=SystemEnumerable.ToDictionary([1,2,3,4],static v => v,static v => v*2);
+        var expected=new[]{1,2,3,4}.ToDictionary(static v => v,static v => v*2);
         var actual=keySelector_elementSelector_enumerableImpl();
         LinqChain1TestBase.AssertDictionaryEqual(expected,actual);
     }
@@ -79,7 +78,7 @@ public sealed class ToDictionary {
     [Fact,Trait("Category","Unit")]
     public static void keySelector_comparer_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<ToDictionary>(nameof(keySelector_comparer_enumerableImpl));
-        var expected=SystemEnumerable.ToDictionary([1,2,3,4],static v => v,EqualityComparer<int>.Default);
+        var expected=new[]{1,2,3,4}.ToDictionary(static v => v,EqualityComparer<int>.Default);
         var actual=keySelector_comparer_enumerableImpl();
         LinqChain1TestBase.AssertDictionaryEqual(expected,actual);
     }
@@ -91,7 +90,7 @@ public sealed class ToDictionary {
     [Fact,Trait("Category","Unit")]
     public static void keySelector_elementSelector_comparer_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<ToDictionary>(nameof(keySelector_elementSelector_comparer_enumerableImpl));
-        var expected=SystemEnumerable.ToDictionary([1,2,3,4],static v => v,static v => v*2,EqualityComparer<int>.Default);
+        var expected=new[]{1,2,3,4}.ToDictionary(static v => v,static v => v*2,EqualityComparer<int>.Default);
         var actual=keySelector_elementSelector_comparer_enumerableImpl();
         LinqChain1TestBase.AssertDictionaryEqual(expected,actual);
     }

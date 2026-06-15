@@ -1,17 +1,27 @@
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain2;
 
 public sealed class Skip_Take:LinqChain2TestBase {
     [Fact, Trait("Category","Unit")]
-    public static void NoDelegate() => NoDelegateImpl();
+    public static void NoDelegate() {
+        var expected=Source().Skip(2).Take(3).ToList();
+        NoDelegateOptimized(expected);
+        NoDelegateNoOptimized(expected);
+    }
 
-    private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.Take(SystemEnumerable.Skip(Source(),2),3).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void NoDelegateOptimized(dynamic expected) {
         var actual=new Consumer<int>();
-        Source().Skip(2).Take(3).Consume(actual);
-        AssertSequenceEqual(expected,actual.Items);
+                Source().Skip(2).Take(3).Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void NoDelegateNoOptimized(dynamic expected) {
+        var actual=new Consumer<int>();
+                Source().Skip(2).Take(3).Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
     }
 }

@@ -1,53 +1,106 @@
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed class IntersectBy:LinqChain1TestBase {
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_Static() => keySelector_StaticImpl();
+    public static void keySelector_Static() {
+        var expected=Rows().IntersectBy(Second(),static row => row.Key).ToList();
+        keySelector_StaticOptimized(expected);
+        keySelector_StaticNoOptimized(expected);
+    }
 
-    private static void keySelector_StaticImpl() {
-        var expected=SystemEnumerable.IntersectBy(Rows(),Second(),static row => row.Key).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_StaticOptimized(dynamic expected) {
+        var actual=Rows().IntersectBy(Second(),static row => row.Key).ToList();
+        AssertSequenceEqual(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_StaticNoOptimized(dynamic expected) {
         var actual=Rows().IntersectBy(Second(),static row => row.Key).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_Lambda() => keySelector_LambdaImpl();
+    public static void keySelector_Lambda() {
+        var expected=Rows().IntersectBy(Second(),row => row.Key).ToList();
+        keySelector_LambdaOptimized(expected);
+        keySelector_LambdaNoOptimized(expected);
+    }
 
-    private static void keySelector_LambdaImpl() {
-        var expected=SystemEnumerable.IntersectBy(Rows(),Second(),row => row.Key).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_LambdaOptimized(dynamic expected) {
+        var actual=Rows().IntersectBy(Second(),row => row.Key).ToList();
+        AssertSequenceEqual(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_LambdaNoOptimized(dynamic expected) {
         var actual=Rows().IntersectBy(Second(),row => row.Key).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_Captured() => keySelector_CapturedImpl();
-
-    private static void keySelector_CapturedImpl() {
+    public static void keySelector_Captured() {
         var offset=0;
-        var expected=SystemEnumerable.IntersectBy(Rows(),Second(),row => row.Key+offset).ToList();
+        var expected=Rows().IntersectBy(Second(),row => row.Key+offset).ToList();
+        keySelector_CapturedOptimized(expected);
+        keySelector_CapturedNoOptimized(expected);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_CapturedOptimized(dynamic expected) {
+        var offset=0;
+        var actual=Rows().IntersectBy(Second(),row => row.Key+offset).ToList();
+        AssertSequenceEqual(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_CapturedNoOptimized(dynamic expected) {
+        var offset=0;
         var actual=Rows().IntersectBy(Second(),row => row.Key+offset).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_DelegateSyntax() => keySelector_DelegateSyntaxImpl();
+    public static void keySelector_DelegateSyntax() {
+        var expected=Rows().IntersectBy(Second(),delegate(Chain1Row row) { return row.Key; }).ToList();
+        keySelector_DelegateSyntaxOptimized(expected);
+        keySelector_DelegateSyntaxNoOptimized(expected);
+    }
 
-    private static void keySelector_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.IntersectBy(Rows(),Second(),delegate(Chain1Row row) { return row.Key; }).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_DelegateSyntaxOptimized(dynamic expected) {
+        var actual=Rows().IntersectBy(Second(),delegate(Chain1Row row) { return row.Key; }).ToList();
+        AssertSequenceEqual(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_DelegateSyntaxNoOptimized(dynamic expected) {
         var actual=Rows().IntersectBy(Second(),delegate(Chain1Row row) { return row.Key; }).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_Variable() => keySelector_VariableImpl();
-
-    private static void keySelector_VariableImpl() {
+    public static void keySelector_Variable() {
         Func<Chain1Row,int> keySelector=row => row.Key;
-        var expected=SystemEnumerable.IntersectBy(Rows(),Second(),keySelector).ToList();
+        var expected=Rows().IntersectBy(Second(),keySelector).ToList();
+        keySelector_VariableOptimized(expected);
+        keySelector_VariableNoOptimized(expected);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_VariableOptimized(dynamic expected) {
+        Func<Chain1Row,int> keySelector=row => row.Key;
+        var actual=Rows().IntersectBy(Second(),keySelector).ToList();
+        AssertSequenceEqual(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_VariableNoOptimized(dynamic expected) {
+        Func<Chain1Row,int> keySelector=row => row.Key;
         var actual=Rows().IntersectBy(Second(),keySelector).ToList();
         AssertSequenceEqual(expected,actual);
     }

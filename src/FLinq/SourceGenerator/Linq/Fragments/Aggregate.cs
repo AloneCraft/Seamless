@@ -274,10 +274,6 @@ file static class AggregateInlineDelegateSupport {
     }
 
     public static string FuncAssignInline(this Fragment fragment,FuncFragment func,string methodName,string delegateLocalName,string destination,params string[] arguments) {
-        if(func.CanInvokeAsDelegate) {
-            return $"{destination}={delegateLocalName}.Invoke({string.Join(", ", arguments)});";
-        }
-
-        return fragment.FuncAssignForAggregateInline(func,methodName,destination,arguments);
+        return fragment.FuncAssignForAggregateInline(func,methodName,destination,delegateLocalName,arguments);
     }
 }

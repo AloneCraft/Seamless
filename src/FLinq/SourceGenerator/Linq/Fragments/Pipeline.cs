@@ -417,6 +417,9 @@ public static class PipelineBuilder {
             return false;
         }
         if(stages.Count>0) {
+            if(!ValidateStageCombination(stages,null,allowSingleStage: true)) {
+                return false;
+            }
             var pipeline = new PipelineEnumerable(uniqueNumber++,sourceFragment,stages.ToArray(),currentElementType);
             AddUnsafeAccessors(stages,unsafeAccessorCollector);
             sourceStaticMethods=services.JoinStaticMethods(sourceStaticMethods,pipeline.StructMethod);
@@ -1492,7 +1495,7 @@ public static class PipelineBuilder {
     private static string AddCountExpression(string left,string right) =>
         $"global::System.Math.Max(0,{left})+global::System.Math.Max(0,{right})";
 
-    private static bool ValidateStageCombination(IReadOnlyList<PipelineStage> stages,PipelineTerminalKind? terminalKind) {
+    private static bool ValidateStageCombination(IReadOnlyList<PipelineStage> stages,PipelineTerminalKind? terminalKind,bool allowSingleStage = false) {
         var selectManyStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.SelectMany);
         var binarySetStageCount = stages.Count(static stage => stage.Kind is PipelineStageKind.Union or PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.UnionBy or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy);
         var concatLikeStageCount = stages.Count(static stage => stage.Kind is PipelineStageKind.Concat or PipelineStageKind.Append or PipelineStageKind.Prepend);
@@ -1525,7 +1528,7 @@ public static class PipelineBuilder {
             }
         }
         // 単段でも順序ステージ（Order/OrderDescending）は実バッファ＋ソートを伴うので許可する。
-        if(stages.Count<2 && terminalKind is null && orderStageCount==0) return false;
+        if(stages.Count<2 && !allowSingleStage && terminalKind is null && orderStageCount==0) return false;
         return true;
     }
 
@@ -1602,6 +1605,12 @@ public interface DirectExecutionFragment {
 public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyList<PipelineStage> stages,string elementType):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     public override string ElementType => elementType;
+    private void AppendCounterCall(StringBuilder builder,string indent,string methodName) {
+        var call=this.CounterCall(methodName);
+        if(!string.IsNullOrEmpty(call)) {
+            builder.AppendLine($"{indent}{call}");
+        }
+    }
     public override string StructMethod {
         get {
             var result = string.Empty;
@@ -1973,6 +1982,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
 
         var builder = new StringBuilder();
         builder.AppendLine($"while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"    ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0; index<stages.Count; index++) {
             var stage = stages[index];
@@ -2065,6 +2075,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         }
         builder.AppendLine($"    if(this.{this.StateName(concatIndex)}<=1) {{");
         builder.AppendLine($"        while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"            ","IncrementPhysicalMoveNext");
         var sourceCurrentName = this.ItemName(0);
         for(var index = 0; index<concatIndex; index++) {
             sourceCurrentName=this.AppendStage(builder,stages[index],sourceCurrentName,index);
@@ -2078,6 +2089,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         builder.AppendLine("    }");
         if(stage.Kind==PipelineStageKind.Concat) {
             builder.AppendLine($"    while({this.SecondEnumeratorName(this.SecondOrdinal(concatIndex))}.TryGetNext(out var {this.ItemName(concatIndex+1)})) {{");
+            this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
             var secondName = this.ItemName(concatIndex+1);
             builder.AppendLine($"        {secondName}=({stage.OutputType})(object?){secondName}!;");
             var currentName = secondName;
@@ -2123,6 +2135,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         builder.AppendLine("    }");
         builder.AppendLine("    var __sortIndex=0;");
         builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0; index<orderIndex; index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
@@ -2192,6 +2205,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         builder.AppendLine($"    var __groupMap=new global::System.Collections.Generic.Dictionary<{ComparerKeyType(stage)},{this.GroupingName(groupByIndex)}>({this.ComparerName(this.ComparerOrdinal(groupByIndex))});");
         builder.AppendLine($"    var __groupOrder=new global::System.Collections.Generic.List<{this.GroupingName(groupByIndex)}>();");
         builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0; index<groupByIndex; index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
@@ -2298,6 +2312,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         builder.AppendLine($"if(this.{this.ReverseItemsName(reverseIndex)} is null) {{");
         builder.AppendLine($"    var {this.ReverseItemsName(reverseIndex)}=new global::System.Collections.Generic.List<{stage.OutputType}>();");
         builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0; index<reverseIndex; index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
@@ -2324,6 +2339,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         var builder = new StringBuilder();
         var countOrd = this.CountOrdinal(skipLastIndex);
         builder.AppendLine($"while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"    ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0; index<skipLastIndex; index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
@@ -2350,6 +2366,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         builder.AppendLine($"if(this.{this.ReverseItemsName(takeLastIndex)} is null) {{");
         builder.AppendLine($"    var __tmpList=new global::System.Collections.Generic.List<{stage.OutputType}>();");
         builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0; index<takeLastIndex; index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
@@ -2380,6 +2397,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         builder.AppendLine($"if(this.{this.ReverseItemsName(takeRangeIndex)} is null) {{");
         builder.AppendLine($"    var __tmpRange=new global::System.Collections.Generic.List<{stage.OutputType}>();");
         builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0; index<takeRangeIndex; index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
@@ -2407,6 +2425,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         var stage = stages[defaultIfEmptyIndex];
         var builder = new StringBuilder();
         builder.AppendLine($"while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"    ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0; index<defaultIfEmptyIndex; index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
@@ -2439,11 +2458,13 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         var builder = new StringBuilder();
         builder.AppendLine($"if(!this.{this.StateName(setIndex)}) {{");
         builder.AppendLine($"    while({this.SecondEnumeratorName(this.SecondOrdinal(setIndex))}.TryGetNext(out var {this.ItemName(setIndex+1)})) {{");
+        this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
         builder.AppendLine($"        this.{this.SecondSetName(setIndex)}.Add(({ComparerKeyType(stage)})(object?){this.ItemName(setIndex+1)}!);");
         builder.AppendLine("    }");
         builder.AppendLine($"    this.{this.StateName(setIndex)}=true;");
         builder.AppendLine("}");
         builder.AppendLine($"while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"    ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0; index<setIndex; index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
@@ -2479,6 +2500,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         builder.AppendLine("while(true) {");
         builder.AppendLine($"    if(!this.{this.StateName(unionIndex)}) {{");
         builder.AppendLine($"        while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"            ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0; index<unionIndex; index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
@@ -2498,6 +2520,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         builder.AppendLine($"        this.{this.StateName(unionIndex)}=true;");
         builder.AppendLine("    }");
         builder.AppendLine($"    while({this.SecondEnumeratorName(this.SecondOrdinal(unionIndex))}.TryGetNext(out var {this.ItemName(unionIndex+1)})) {{");
+        this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
         var secondCurrentName = this.ItemName(unionIndex+1);
         builder.AppendLine($"        {secondCurrentName}=({stages[unionIndex].OutputType})(object?){secondCurrentName}!;");
         var secondKeyName = secondCurrentName;
@@ -2546,6 +2569,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             builder.AppendLine($"        this.{hasValueName}=false;");
             builder.AppendLine("    }");
             builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+            this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
             var outerCurrentName0 = this.AppendSelectManyHead(builder,selectManyStage,selectManyIndex,this.ItemName(0));
             var collectionExpression0 = this.SelectManyCollectionExpression(selectManyStage,selectManyIndex,outerCurrentName0);
             builder.AppendLine($"        this.{arrayName}={collectionExpression0};");
@@ -2567,6 +2591,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             builder.AppendLine($"        this.{innerEnumeratorName}=null;");
             builder.AppendLine("    }");
             builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+            this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
             var outerCurrentName = this.AppendSelectManyHead(builder,selectManyStage,selectManyIndex,this.ItemName(0));
             var collectionExpression = this.SelectManyCollectionExpression(selectManyStage,selectManyIndex,outerCurrentName);
             builder.AppendLine($"        this.{innerEnumeratorName}=((global::System.Collections.Generic.IEnumerable<{selectManyStage.InnerElementType}>){collectionExpression}).GetEnumerator();");
@@ -2586,6 +2611,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
 
     // SelectMany の内側要素を取得した後、resultSelector の適用と後続ステージの処理・成功文の出力までを行う。
     private string AppendSelectManyTail(StringBuilder builder,PipelineStage selectManyStage,int selectManyIndex,string innerItemName,string breakStatement,string successStatement,string indent) {
+        this.AppendCounterCall(builder,indent,"IncrementLogicalSelectManyInner");
         var currentName = innerItemName;
         if(selectManyStage.SecondFunc is { } resultSelector) {
             // resultSelector の出力は専用名にする。後続 Select 段は配列 index(=selectManyIndex+1)から
@@ -2610,6 +2636,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             currentName=this.AppendStage(builder,stage,currentName,index);
         }
         var outerName = this.OuterName(selectManyIndex);
+        this.AppendCounterCall(builder,"        ","IncrementLogicalSelectManyOuter");
         builder.AppendLine($"        this.{outerName}={currentName};");
         if(selectManyStage.UsesIndex) {
             builder.AppendLine($"        this.{this.StateName(selectManyIndex)}++;");
@@ -2691,6 +2718,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         } else {
             arguments=[currentName];
         }
+        this.AppendCounterCall(builder,"    ","IncrementLogicalWhere");
         var (preCode,condExpr) =this.FuncInvokeCondition(stage.Func!,nameof(PipelineStageKind.Where),this.TempName(index),arguments);
         if(!string.IsNullOrEmpty(preCode)) {
             builder.AppendLine(IndentBlock(preCode,"    "));
@@ -2708,6 +2736,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         } else {
             arguments=[currentName];
         }
+        this.AppendCounterCall(builder,"    ","IncrementLogicalSelect");
         builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.Select),nextName,arguments),"    "));
         return nextName;
     }

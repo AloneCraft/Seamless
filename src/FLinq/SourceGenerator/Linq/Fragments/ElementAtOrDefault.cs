@@ -11,7 +11,7 @@ public class ElementAtOrDefault(int 番号, Enumerable source, string index, str
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeElementAtOrDefaultInline(destVar,destType)
         ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAtOrDefault",index)
-        ?? this.RenderComputeInline(destVar,destType);
+        ?? this.RenderComputeInline(destVar,destType,index);
     private string? RenderRangeElementAtOrDefaultInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;
@@ -70,7 +70,7 @@ public class ElementAtOrDefault_index(int 番号, Enumerable source, string inde
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeElementAtOrDefaultIndexInline(destVar,destType)
         ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAtOrDefault",index)
-        ?? this.RenderComputeInline(destVar,destType);
+        ?? this.RenderComputeInline(destVar,destType,index);
     private string? RenderRangeElementAtOrDefaultIndexInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;

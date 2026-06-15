@@ -14,6 +14,9 @@ public class Reverse(int 番号, Enumerable source) : Enumerable(番号) {
         {{this.RootSource.GetEnumeratorStruct}}
         {{(this.IsIdentity ? string.Empty : base.GetEnumeratorStruct)}}
         """;
+    public override string EnumeratorTypeName => this.IsIdentity
+        ? this.RootSource.EnumeratorTypeName
+        : base.EnumeratorTypeName;
     public override string GetEnumeratorExpression => this.IsIdentity
         ? this.RootSource.GetEnumeratorExpression
         : $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression})";

@@ -506,6 +506,144 @@ public sealed class RepeatRoot(int 番号,string valueExpression,string countExp
         """;
 }
 
+public sealed class InfiniteSequenceRoot(int 番号,string startExpression,string stepExpression,string elementType) : Enumerable(番号) {
+    public override string StructMethod => string.Empty;
+    public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.InfiniteSequence<{elementType}>({startExpression}, {stepExpression})";
+    public override string GetEnumeratorExpression => $"new {this.Struct}({startExpression}, {stepExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"{elementType} start, {elementType} step";
+    public override string GetEnumeratorConstructor => $"ValidateNotNull(start, nameof(start));\nValidateNotNull(step, nameof(step));";
+    public override string GetEnumeratorFields => $$"""
+        private bool {{this.hasValue}};
+        private static void ValidateNotNull<T>(T value, string name) {
+            if(value is null) {
+                throw new global::System.ArgumentNullException(name);
+            }
+        }
+        private static T Add<T>(T left, T right)
+            where T : global::System.Numerics.IAdditionOperators<T, T, T>
+            => left + right;
+        """;
+    public override string GetTryGetNextBody => $$"""
+        if(!this.{{this.hasValue}}) {
+            this.{{this.hasValue}} = true;
+            current = this.Current = start;
+            return true;
+        }
+        start = Add<{{elementType}}>(start, step);
+        current = this.Current = start;
+        return true;
+        """;
+    public override string GetCurrentExpression => this.currentValue;
+    public override string ElementType => elementType;
+    protected override string GetEnumeratorDisposeBody => string.Empty;
+}
+
+public sealed class SequenceRoot(int 番号,string startExpression,string endInclusiveExpression,string stepExpression,string elementType) : Enumerable(番号) {
+    public override string StructMethod => string.Empty;
+    public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Sequence<{elementType}>({startExpression}, {endInclusiveExpression}, {stepExpression})";
+    public override string GetEnumeratorExpression => $"new {this.Struct}({startExpression}, {endInclusiveExpression}, {stepExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"{elementType} start, {elementType} endInclusive, {elementType} step";
+    public override string GetEnumeratorConstructor => $$"""
+        Validate<{{elementType}}>(start, endInclusive, step);
+        this.{{this.state}} = IsIncrement<{{elementType}}>(step);
+        """;
+    public override string GetEnumeratorFields => $$"""
+        private bool {{this.hasValue}};
+        private readonly bool {{this.state}};
+        private static void Validate<T>(T start, T endInclusive, T step)
+            where T : global::System.Numerics.INumber<T> {
+            if(start is null) {
+                throw new global::System.ArgumentNullException(nameof(start));
+            }
+            if(T.IsNaN(start)) {
+                throw new global::System.ArgumentOutOfRangeException(nameof(start));
+            }
+            if(endInclusive is null) {
+                throw new global::System.ArgumentNullException(nameof(endInclusive));
+            }
+            if(T.IsNaN(endInclusive)) {
+                throw new global::System.ArgumentOutOfRangeException(nameof(endInclusive));
+            }
+            if(step is null) {
+                throw new global::System.ArgumentNullException(nameof(step));
+            }
+            if(T.IsNaN(step)) {
+                throw new global::System.ArgumentOutOfRangeException(nameof(step));
+            }
+            if(T.IsZero(step)) {
+                if(start != endInclusive) {
+                    throw new global::System.ArgumentOutOfRangeException(nameof(step));
+                }
+                return;
+            }
+            if(T.IsPositive(step)) {
+                if(endInclusive < start) {
+                    throw new global::System.ArgumentOutOfRangeException(nameof(endInclusive));
+                }
+                return;
+            }
+            if(endInclusive > start) {
+                throw new global::System.ArgumentOutOfRangeException(nameof(endInclusive));
+            }
+        }
+        private static bool IsIncrement<T>(T step)
+            where T : global::System.Numerics.INumber<T>
+            => T.IsZero(step) || T.IsPositive(step);
+        private static T Add<T>(T left, T right)
+            where T : global::System.Numerics.IAdditionOperators<T, T, T>
+            => left + right;
+        private static bool GreaterThanOrEqual<T>(T left, T right)
+            where T : global::System.Numerics.IComparisonOperators<T, T, bool>
+            => left >= right;
+        private static bool LessThanOrEqual<T>(T left, T right)
+            where T : global::System.Numerics.IComparisonOperators<T, T, bool>
+            => left <= right;
+        private static bool Equal<T>(T left, T right)
+            where T : global::System.Numerics.IEqualityOperators<T, T, bool>
+            => left == right;
+        private static bool NotEqual<T>(T left, T right)
+            where T : global::System.Numerics.IEqualityOperators<T, T, bool>
+            => left != right;
+        """;
+    public override string GetTryGetNextBody => $$"""
+        if(!this.{{this.hasValue}}) {
+            this.{{this.hasValue}} = true;
+            current = this.Current = start;
+            return true;
+        }
+
+        var next = Add<{{elementType}}>(this.Current, step);
+        if(this.{{this.state}}) {
+            if(GreaterThanOrEqual<{{elementType}}>(next, endInclusive) || LessThanOrEqual<{{elementType}}>(next, this.Current)) {
+                if(Equal<{{elementType}}>(next, endInclusive) && NotEqual<{{elementType}}>(this.Current, next)) {
+                    current = this.Current = next;
+                    return true;
+                }
+                current = default!;
+                return false;
+            }
+
+            current = this.Current = next;
+            return true;
+        }
+
+        if(LessThanOrEqual<{{elementType}}>(next, endInclusive) || GreaterThanOrEqual<{{elementType}}>(next, this.Current)) {
+            if(Equal<{{elementType}}>(next, endInclusive) && NotEqual<{{elementType}}>(this.Current, next)) {
+                current = this.Current = next;
+                return true;
+            }
+            current = default!;
+            return false;
+        }
+
+        current = this.Current = next;
+        return true;
+        """;
+    public override string GetCurrentExpression => this.currentValue;
+    public override string ElementType => elementType;
+    protected override string GetEnumeratorDisposeBody => string.Empty;
+}
+
 // Cast<T> の source は System.Collections.IEnumerable なので、generic Root とは別に object として流す。
 public class NonGenericRoot(int 番号, string sourceExpression) : Enumerable(番号) {
     public override string StructMethod => string.Empty;

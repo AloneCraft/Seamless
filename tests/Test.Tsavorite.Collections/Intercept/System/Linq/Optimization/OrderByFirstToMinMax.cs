@@ -1,106 +1,117 @@
 using System;
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
-
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Optimization;
 
-// §1: OrderBy(k).First() -> MinBy(k)（降順は MaxBy）。全ソート O(n log n) を O(n) スキャンへ。
-// First は全要素型で書換（空列は First も生成器 MinBy/MaxBy も throw）。FirstOrDefault は非書換
-// （生成器 MinBy/MaxBy は空列で throw、FirstOrDefault は default のため）だが通常経路で結果は正しい。
-// tie は OrderBy 安定先頭＝MinBy/MaxBy 先頭一致で検証。
 public sealed class OrderByFirstToMinMax:OptimizationTestBase{
     private static Item[] EmptyItems() => [];
-    private static int OrderByFirstEmpty() => EmptyNumbers().OrderBy(static x => x).First();
 
     [Fact,Trait("Category","Unit")]
-    public static void OrderBy_First() => OrderBy_FirstImpl();
-
-    private static void OrderBy_FirstImpl(){
-        {
-            // First→MinBy へ書換。最小値。
-            var expected=SystemEnumerable.First(SystemEnumerable.OrderBy(Numbers(),static x => x));
-            var actual=Numbers().OrderBy(static x => x).First();
-            Assert.Equal(expected,actual);
-        }
-        {
-            // 値型(struct)で最小キー重複。OrderBy 安定先頭 == MinBy 先頭一致。
-            var expected=SystemEnumerable.First(SystemEnumerable.OrderBy(Points(),static p => p.X));
-            var actual=Points().OrderBy(static p => p.X).First();
-            Assert.Equal(expected,actual);
-        }
-        {
-            // 空列(値型)。双方 InvalidOperationException。
-            Assert.Throws<InvalidOperationException>(static () => SystemEnumerable.First(SystemEnumerable.OrderBy(EmptyNumbers(),static x => x)));
-            Assert.Throws<InvalidOperationException>(static () => OrderByFirstEmpty());
-        }
+    public static void OrderBy_First() {
+        Assert.Equal(Numbers().OrderBy(static x => x).First(),OrderBy_First_IntOptimized());
+        Assert.Equal(Numbers().OrderBy(static x => x).First(),OrderBy_First_IntNoOptimized());
+        Assert.Equal(Points().OrderBy(static p => p.X).First(),OrderBy_First_PointOptimized());
+        Assert.Equal(Points().OrderBy(static p => p.X).First(),OrderBy_First_PointNoOptimized());
+        Assert.Throws<InvalidOperationException>(static () => EmptyNumbers().OrderBy(static x => x).First());
+        Assert.Throws<InvalidOperationException>(static () => OrderBy_First_EmptyOptimized());
+        Assert.Throws<InvalidOperationException>(static () => OrderBy_First_EmptyNoOptimized());
     }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static int OrderBy_First_IntOptimized() => Numbers().OrderBy(static x => x).First();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static int OrderBy_First_IntNoOptimized() => Numbers().OrderBy(static x => x).First();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static Point OrderBy_First_PointOptimized() => Points().OrderBy(static p => p.X).First();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static Point OrderBy_First_PointNoOptimized() => Points().OrderBy(static p => p.X).First();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static int OrderBy_First_EmptyOptimized() => EmptyNumbers().OrderBy(static x => x).First();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static int OrderBy_First_EmptyNoOptimized() => EmptyNumbers().OrderBy(static x => x).First();
 
     [Fact,Trait("Category","Unit")]
-    public static void OrderByDescending_First() => OrderByDescending_FirstImpl();
-
-    private static void OrderByDescending_FirstImpl(){
-        {
-            // 値型(int)。First→MaxBy。最大値。
-            var expected=SystemEnumerable.First(SystemEnumerable.OrderByDescending(Numbers(),static x => x));
-            var actual=Numbers().OrderByDescending(static x => x).First();
-            Assert.Equal(expected,actual);
-        }
-        {
-            var expected=SystemEnumerable.First(SystemEnumerable.OrderByDescending(Points(),static p => p.X));
-            var actual=Points().OrderByDescending(static p => p.X).First();
-            Assert.Equal(expected,actual);
-        }
+    public static void OrderByDescending_First() {
+        Assert.Equal(Numbers().OrderByDescending(static x => x).First(),OrderByDescending_First_IntOptimized());
+        Assert.Equal(Numbers().OrderByDescending(static x => x).First(),OrderByDescending_First_IntNoOptimized());
+        Assert.Equal(Points().OrderByDescending(static p => p.X).First(),OrderByDescending_First_PointOptimized());
+        Assert.Equal(Points().OrderByDescending(static p => p.X).First(),OrderByDescending_First_PointNoOptimized());
     }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static int OrderByDescending_First_IntOptimized() => Numbers().OrderByDescending(static x => x).First();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static int OrderByDescending_First_IntNoOptimized() => Numbers().OrderByDescending(static x => x).First();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static Point OrderByDescending_First_PointOptimized() => Points().OrderByDescending(static p => p.X).First();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static Point OrderByDescending_First_PointNoOptimized() => Points().OrderByDescending(static p => p.X).First();
 
     [Fact,Trait("Category","Unit")]
-    public static void OrderBy_FirstOrDefault() => OrderBy_FirstOrDefaultImpl();
-
-    private static void OrderBy_FirstOrDefaultImpl(){
-        {
-            // FirstOrDefault は非書換（OrderBy+FirstOrDefault のまま）。最小キーの先頭一致（重複キーあり）。
-            var expected=SystemEnumerable.FirstOrDefault(SystemEnumerable.OrderBy(Outers(),static i => i.Key));
-            var actual=Outers().OrderBy(static i => i.Key).FirstOrDefault();
-            Assert.Equal(expected,actual);
-        }
-        {
-            // 空列(参照型)。双方 null（FirstOrDefault なので throw しない）。
-            var expected=SystemEnumerable.FirstOrDefault(SystemEnumerable.OrderBy(EmptyItems(),static i => i.Key));
-            var actual=EmptyItems().OrderBy(static i => i.Key).FirstOrDefault();
-            Assert.Equal(expected,actual);
-        }
-        {
-            // 値型(int)。空列 -> default(0)。
-            var expected=SystemEnumerable.FirstOrDefault(SystemEnumerable.OrderBy(EmptyNumbers(),static x => x));
-            var actual=EmptyNumbers().OrderBy(static x => x).FirstOrDefault();
-            Assert.Equal(expected,actual);
-        }
+    public static void OrderBy_FirstOrDefault() {
+        Assert.Equal(Outers().OrderBy(static i => i.Key).FirstOrDefault(),OrderBy_FirstOrDefault_ItemOptimized());
+        Assert.Equal(Outers().OrderBy(static i => i.Key).FirstOrDefault(),OrderBy_FirstOrDefault_ItemNoOptimized());
+        Assert.Equal(EmptyItems().OrderBy(static i => i.Key).FirstOrDefault(),OrderBy_FirstOrDefault_EmptyItemOptimized());
+        Assert.Equal(EmptyItems().OrderBy(static i => i.Key).FirstOrDefault(),OrderBy_FirstOrDefault_EmptyItemNoOptimized());
+        Assert.Equal(EmptyNumbers().OrderBy(static x => x).FirstOrDefault(),OrderBy_FirstOrDefault_EmptyIntOptimized());
+        Assert.Equal(EmptyNumbers().OrderBy(static x => x).FirstOrDefault(),OrderBy_FirstOrDefault_EmptyIntNoOptimized());
     }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static Item? OrderBy_FirstOrDefault_ItemOptimized() => Outers().OrderBy(static i => i.Key).FirstOrDefault();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static Item? OrderBy_FirstOrDefault_ItemNoOptimized() => Outers().OrderBy(static i => i.Key).FirstOrDefault();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static Item? OrderBy_FirstOrDefault_EmptyItemOptimized() => EmptyItems().OrderBy(static i => i.Key).FirstOrDefault();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static Item? OrderBy_FirstOrDefault_EmptyItemNoOptimized() => EmptyItems().OrderBy(static i => i.Key).FirstOrDefault();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static int OrderBy_FirstOrDefault_EmptyIntOptimized() => EmptyNumbers().OrderBy(static x => x).FirstOrDefault();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static int OrderBy_FirstOrDefault_EmptyIntNoOptimized() => EmptyNumbers().OrderBy(static x => x).FirstOrDefault();
 
     [Fact,Trait("Category","Unit")]
-    public static void OrderByDescending_FirstOrDefault() => OrderByDescending_FirstOrDefaultImpl();
-
-    private static void OrderByDescending_FirstOrDefaultImpl(){
-        {
-            // 参照型(Item)。FirstOrDefault→MaxBy。最大キーの先頭一致。
-            var expected=SystemEnumerable.FirstOrDefault(SystemEnumerable.OrderByDescending(Outers(),static i => i.Key));
-            var actual=Outers().OrderByDescending(static i => i.Key).FirstOrDefault();
-            Assert.Equal(expected,actual);
-        }
-        {
-            var expected=SystemEnumerable.FirstOrDefault(SystemEnumerable.OrderByDescending(EmptyItems(),static i => i.Key));
-            var actual=EmptyItems().OrderByDescending(static i => i.Key).FirstOrDefault();
-            Assert.Equal(expected,actual);
-        }
+    public static void OrderByDescending_FirstOrDefault() {
+        Assert.Equal(Outers().OrderByDescending(static i => i.Key).FirstOrDefault(),OrderByDescending_FirstOrDefault_ItemOptimized());
+        Assert.Equal(Outers().OrderByDescending(static i => i.Key).FirstOrDefault(),OrderByDescending_FirstOrDefault_ItemNoOptimized());
+        Assert.Equal(EmptyItems().OrderByDescending(static i => i.Key).FirstOrDefault(),OrderByDescending_FirstOrDefault_EmptyItemOptimized());
+        Assert.Equal(EmptyItems().OrderByDescending(static i => i.Key).FirstOrDefault(),OrderByDescending_FirstOrDefault_EmptyItemNoOptimized());
     }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static Item? OrderByDescending_FirstOrDefault_ItemOptimized() => Outers().OrderByDescending(static i => i.Key).FirstOrDefault();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static Item? OrderByDescending_FirstOrDefault_ItemNoOptimized() => Outers().OrderByDescending(static i => i.Key).FirstOrDefault();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static Item? OrderByDescending_FirstOrDefault_EmptyItemOptimized() => EmptyItems().OrderByDescending(static i => i.Key).FirstOrDefault();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static Item? OrderByDescending_FirstOrDefault_EmptyItemNoOptimized() => EmptyItems().OrderByDescending(static i => i.Key).FirstOrDefault();
 
     [Fact,Trait("Category","Unit")]
-    public static void ReferenceFirst() => ReferenceFirstImpl();
-
-    private static void ReferenceFirstImpl(){
-        // 参照型(string)の First も MinBy へ書換（空列なら双方 throw）。非空での最小長先頭一致。
-        var expected=SystemEnumerable.First(SystemEnumerable.OrderBy(Words(),static w => w.Length));
-        var actual=Words().OrderBy(static w => w.Length).First();
-        Assert.Equal(expected,actual);
+    public static void ReferenceFirst() {
+        Assert.Equal(Words().OrderBy(static w => w.Length).First(),ReferenceFirstOptimized());
+        Assert.Equal(Words().OrderBy(static w => w.Length).First(),ReferenceFirstNoOptimized());
     }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static string ReferenceFirstOptimized() => Words().OrderBy(static w => w.Length).First();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static string ReferenceFirstNoOptimized() => Words().OrderBy(static w => w.Length).First();
 }

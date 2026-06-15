@@ -1,24 +1,43 @@
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed class ElementAtOrDefault:LinqChain1TestBase {
     [Fact, Trait("Category","Unit")]
-    public static void index() => indexImpl();
+    public static void index() {
+        var expected=Source().ElementAtOrDefault(2);
+        indexOptimized(expected);
+        indexNoOptimized(expected);
+    }
 
-    private static void indexImpl() {
-        var expected=SystemEnumerable.ElementAtOrDefault(Source(),2);
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void indexOptimized(dynamic expected) {
+        var actual=Source().ElementAtOrDefault(2);
+        Assert.Equal(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void indexNoOptimized(dynamic expected) {
         var actual=Source().ElementAtOrDefault(2);
         Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void indexFromEnd() => indexFromEndImpl();
+    public static void indexFromEnd() {
+        var expected=Source().ElementAtOrDefault(^1);
+        indexFromEndOptimized(expected);
+        indexFromEndNoOptimized(expected);
+    }
 
-    private static void indexFromEndImpl() {
-        var expected=SystemEnumerable.ElementAtOrDefault(Source(),^1);
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void indexFromEndOptimized(dynamic expected) {
+        var actual=Source().ElementAtOrDefault(^1);
+        Assert.Equal(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void indexFromEndNoOptimized(dynamic expected) {
         var actual=Source().ElementAtOrDefault(^1);
         Assert.Equal(expected,actual);
     }

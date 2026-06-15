@@ -103,7 +103,10 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 if(target.IsLocalMethodInterception) {
                     var ローカル静的メソッド群 = string.Empty;
                     var ローカル本体 = string.Empty;
-                    if(ローカル傍受メソッド本体構築(target,out ローカル静的メソッド群,out ローカル本体,emittedUnsafeAccessors)) {
+                    var builtLocalMethodBody = target.OptimizeLinq
+                        ? ローカル傍受メソッド本体構築(target,out ローカル静的メソッド群,out ローカル本体,emittedUnsafeAccessors)
+                        : TryBuildCounterOnlyLocalMethodBody(target,out ローカル静的メソッド群,out ローカル本体,emittedUnsafeAccessors);
+                    if(builtLocalMethodBody) {
                         if(!string.IsNullOrWhiteSpace(ローカル静的メソッド群)) {
                             インデント付き追記(builder,ローカル静的メソッド群,"    ");
                         }

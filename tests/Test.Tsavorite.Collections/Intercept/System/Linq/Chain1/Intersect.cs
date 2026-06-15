@@ -1,25 +1,46 @@
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed class Intersect:LinqChain1TestBase {
     [Fact, Trait("Category","Unit")]
-    public static void second() => secondImpl();
+    public static void second() {
+        var expected=Source().Intersect(Second()).ToList();
+        secondOptimized(expected);
+        secondNoOptimized(expected);
+    }
 
-    private static void secondImpl() {
-        var expected=SystemEnumerable.Intersect(Source(),Second()).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void secondOptimized(dynamic expected) {
+        var actual=new Consumer<int>();
+        Source().Intersect(Second()).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void secondNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Intersect(Second()).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void second_comparer() => second_comparerImpl();
+    public static void second_comparer() {
+        var expected=Source().Intersect(Second(),EqualityComparer<int>.Default).ToList();
+        second_comparerOptimized(expected);
+        second_comparerNoOptimized(expected);
+    }
 
-    private static void second_comparerImpl() {
-        var expected=SystemEnumerable.Intersect(Source(),Second(),EqualityComparer<int>.Default).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void second_comparerOptimized(dynamic expected) {
+        var actual=new Consumer<int>();
+        Source().Intersect(Second(),EqualityComparer<int>.Default).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void second_comparerNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Intersect(Second(),EqualityComparer<int>.Default).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);

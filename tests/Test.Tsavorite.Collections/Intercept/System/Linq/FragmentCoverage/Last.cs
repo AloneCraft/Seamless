@@ -3,7 +3,6 @@ using System.Linq;
 
 using Test.Tsavorite.Collections.Intercept.System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
@@ -11,7 +10,7 @@ public sealed class Last {
     [Fact,Trait("Category","Unit")]
     public static void noArg(){
         GeneratedInterceptorAssert.ContainsMethod<Last>(nameof(noArgImpl));
-        var expected=SystemEnumerable.Last([1,2,3,4]);
+        var expected=new[]{1,2,3,4}.Last();
         var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }
@@ -22,7 +21,7 @@ public sealed class Last {
     [Fact,Trait("Category","Unit")]
     public static void noArg_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Last>(nameof(noArg_enumerableImpl));
-        var expected=SystemEnumerable.Last([1,2,3,4]);
+        var expected=new[]{1,2,3,4}.Last();
         var actual=noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }

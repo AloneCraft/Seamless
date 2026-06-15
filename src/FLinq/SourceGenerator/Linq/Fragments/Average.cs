@@ -148,7 +148,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                         if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
                         foreach(var {{this.item}} in __span){
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
-                            {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                            {{this.FuncAssignStatic(selector,nameof(selector),this.temp,this.item)}}
                             sum+={{this.temp}};
                         }
                         return ({{resultType}})(sum/__span.Length);
@@ -162,7 +162,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                         while(source.MoveNext()){
                             var {{this.item}}=source.Current;
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
-                            {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                            {{this.FuncAssignStatic(selector,nameof(selector),this.temp,this.item)}}
                             sum+={{this.temp}};
                             count++;
                         }
@@ -181,7 +181,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                         if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
                         foreach(var {{this.item}} in __span){
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
-                            {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                            {{this.FuncAssignStatic(selector,nameof(selector),this.temp,this.item)}}
                             sum+={{this.temp}};
                         }
                         return ({{resultType}})(sum/__span.Length);
@@ -195,7 +195,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                         while(source.MoveNext()){
                             var {{this.item}}=source.Current;
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
-                            {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                            {{this.FuncAssignStatic(selector,nameof(selector),this.temp,this.item)}}
                             sum+={{this.temp}};
                             count++;
                         }
@@ -214,7 +214,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                     if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
                     foreach(var {{this.item}} in __span){
                         {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
-                        {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                        {{this.FuncAssignStatic(selector,nameof(selector),this.temp,this.item)}}
                         sum+={{this.temp}};
                         count++;
                     }
@@ -229,7 +229,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                     while(source.MoveNext()){
                         var {{this.item}}=source.Current;
                         {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
-                        {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                        {{this.FuncAssignStatic(selector,nameof(selector),this.temp,this.item)}}
                         sum+={{this.temp}};
                         count++;
                     }

@@ -68,6 +68,8 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string GetEnumeratorConstructor =>
+        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) {
         var methodName = resultType is "long" or "global::System.Int64" ? "LongCount" : "Count";
         return source is RangeRoot range
@@ -89,7 +91,7 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
                     for(var __i = 0; __i < __span.Length; __i++) {
                         var {{this.item}} = __span[__i];
                         bool {{this.temp}} = default!;
-                        {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
+                        {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item)}}
                         if({{this.temp}}) count++;
                     }
                 }
@@ -104,7 +106,7 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
                     while(source.MoveNext()) {
                         var {{this.item}} = source.Current;
                         bool {{this.temp}} = default!;
-                        {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
+                        {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item)}}
                         if({{this.temp}}) count++;
                     }
                 }

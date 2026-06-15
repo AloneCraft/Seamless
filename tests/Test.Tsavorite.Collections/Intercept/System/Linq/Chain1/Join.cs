@@ -1,69 +1,142 @@
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed class Join:LinqChain1TestBase {
     [Fact, Trait("Category","Unit")]
-    public static void keySelectors_resultSelector_Static() => keySelectors_resultSelector_StaticImpl();
+    public static void keySelectors_resultSelector_Static() {
+        var expected=Source().Join(Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue).ToList();
+        keySelectors_resultSelector_StaticOptimized(expected);
+        keySelectors_resultSelector_StaticNoOptimized(expected);
+    }
 
-    private static void keySelectors_resultSelector_StaticImpl() {
-        var expected=SystemEnumerable.Join(Source(),Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelectors_resultSelector_StaticOptimized(dynamic expected) {
+        var actual=new Consumer<int>();
+        Source().Join(Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelectors_resultSelector_StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Join(Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelectors_resultSelector_Lambda() => keySelectors_resultSelector_LambdaImpl();
+    public static void keySelectors_resultSelector_Lambda() {
+        var expected=Source().Join(Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,innerValue) => outerValue+innerValue).ToList();
+        keySelectors_resultSelector_LambdaOptimized(expected);
+        keySelectors_resultSelector_LambdaNoOptimized(expected);
+    }
 
-    private static void keySelectors_resultSelector_LambdaImpl() {
-        var expected=SystemEnumerable.Join(Source(),Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,innerValue) => outerValue+innerValue).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelectors_resultSelector_LambdaOptimized(dynamic expected) {
+        var actual=new Consumer<int>();
+        Source().Join(Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,innerValue) => outerValue+innerValue).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelectors_resultSelector_LambdaNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Join(Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,innerValue) => outerValue+innerValue).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelectors_resultSelector_Query() => keySelectors_resultSelector_QueryImpl();
+    public static void keySelectors_resultSelector_Query() {
+        var expected=Source().Join(Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,innerValue) => outerValue+innerValue).ToList();
+        keySelectors_resultSelector_QueryOptimized(expected);
+        keySelectors_resultSelector_QueryNoOptimized(expected);
+    }
 
-    private static void keySelectors_resultSelector_QueryImpl() {
-        var expected=SystemEnumerable.Join(Source(),Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,innerValue) => outerValue+innerValue).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelectors_resultSelector_QueryOptimized(dynamic expected) {
+        var actual=new Consumer<int>();
+        (from outerValue in Source() join innerValue in Second() on outerValue equals innerValue select outerValue+innerValue).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelectors_resultSelector_QueryNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         (from outerValue in Source() join innerValue in Second() on outerValue equals innerValue select outerValue+innerValue).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelectors_resultSelector_Captured() => keySelectors_resultSelector_CapturedImpl();
-
-    private static void keySelectors_resultSelector_CapturedImpl() {
+    public static void keySelectors_resultSelector_Captured() {
         var offset=0;
-        var expected=SystemEnumerable.Join(Source(),Second(),outerValue => outerValue+offset,innerValue => innerValue+offset,(outerValue,innerValue) => outerValue+innerValue+offset).ToList();
+        var expected=Source().Join(Second(),outerValue => outerValue+offset,innerValue => innerValue+offset,(outerValue,innerValue) => outerValue+innerValue+offset).ToList();
+        keySelectors_resultSelector_CapturedOptimized(expected);
+        keySelectors_resultSelector_CapturedNoOptimized(expected);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelectors_resultSelector_CapturedOptimized(dynamic expected) {
+        var offset=0;
+        var actual=new Consumer<int>();
+        Source().Join(Second(),outerValue => outerValue+offset,innerValue => innerValue+offset,(outerValue,innerValue) => outerValue+innerValue+offset).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelectors_resultSelector_CapturedNoOptimized(dynamic expected) {
+        var offset=0;
         var actual=new Consumer<int>();
         Source().Join(Second(),outerValue => outerValue+offset,innerValue => innerValue+offset,(outerValue,innerValue) => outerValue+innerValue+offset).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelectors_resultSelector_DelegateSyntax() => keySelectors_resultSelector_DelegateSyntaxImpl();
+    public static void keySelectors_resultSelector_DelegateSyntax() {
+        var expected=Source().Join(Second(),delegate(int outerValue) { return outerValue; },delegate(int innerValue) { return innerValue; },delegate(int outerValue,int innerValue) { return outerValue+innerValue; }).ToList();
+        keySelectors_resultSelector_DelegateSyntaxOptimized(expected);
+        keySelectors_resultSelector_DelegateSyntaxNoOptimized(expected);
+    }
 
-    private static void keySelectors_resultSelector_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.Join(Source(),Second(),delegate(int outerValue) { return outerValue; },delegate(int innerValue) { return innerValue; },delegate(int outerValue,int innerValue) { return outerValue+innerValue; }).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelectors_resultSelector_DelegateSyntaxOptimized(dynamic expected) {
+        var actual=new Consumer<int>();
+        Source().Join(Second(),delegate(int outerValue) { return outerValue; },delegate(int innerValue) { return innerValue; },delegate(int outerValue,int innerValue) { return outerValue+innerValue; }).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelectors_resultSelector_DelegateSyntaxNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Join(Second(),delegate(int outerValue) { return outerValue; },delegate(int innerValue) { return innerValue; },delegate(int outerValue,int innerValue) { return outerValue+innerValue; }).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelectors_resultSelector_Variable() => keySelectors_resultSelector_VariableImpl();
-
-    private static void keySelectors_resultSelector_VariableImpl() {
+    public static void keySelectors_resultSelector_Variable() {
         Func<int,int> outerKeySelector=outerValue => outerValue;
         Func<int,int> innerKeySelector=innerValue => innerValue;
         Func<int,int,int> resultSelector=(outerValue,innerValue) => outerValue+innerValue;
-        var expected=SystemEnumerable.Join(Source(),Second(),outerKeySelector,innerKeySelector,resultSelector).ToList();
+        var expected=Source().Join(Second(),outerKeySelector,innerKeySelector,resultSelector).ToList();
+        keySelectors_resultSelector_VariableOptimized(expected);
+        keySelectors_resultSelector_VariableNoOptimized(expected);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelectors_resultSelector_VariableOptimized(dynamic expected) {
+        Func<int,int> outerKeySelector=outerValue => outerValue;
+        Func<int,int> innerKeySelector=innerValue => innerValue;
+        Func<int,int,int> resultSelector=(outerValue,innerValue) => outerValue+innerValue;
+        var actual=new Consumer<int>();
+        Source().Join(Second(),outerKeySelector,innerKeySelector,resultSelector).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelectors_resultSelector_VariableNoOptimized(dynamic expected) {
+        Func<int,int> outerKeySelector=outerValue => outerValue;
+        Func<int,int> innerKeySelector=innerValue => innerValue;
+        Func<int,int,int> resultSelector=(outerValue,innerValue) => outerValue+innerValue;
         var actual=new Consumer<int>();
         Source().Join(Second(),outerKeySelector,innerKeySelector,resultSelector).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);

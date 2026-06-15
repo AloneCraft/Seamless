@@ -3,7 +3,6 @@ using System.Linq;
 
 using Test.Tsavorite.Collections.Intercept.System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
@@ -11,7 +10,7 @@ public sealed class Zip {
     [Fact,Trait("Category","Unit")]
     public static void second(){
         GeneratedInterceptorAssert.ContainsMethod<Zip>(nameof(secondImpl));
-        var expected=SystemEnumerable.Zip([1,2,3],[4,5,6]).ToList();
+        var expected=new[]{1,2,3}.Zip([4,5,6]).ToList();
         var actual=secondImpl();
         Assert.Equal(expected,actual);
     }
@@ -22,7 +21,7 @@ public sealed class Zip {
     [Fact,Trait("Category","Unit")]
     public static void third(){
         GeneratedInterceptorAssert.ContainsMethod<Zip>(nameof(thirdImpl));
-        var expected=SystemEnumerable.Zip([1,2,3],[4,5,6],[7,8,9]).ToList();
+        var expected=new[]{1,2,3}.Zip([4,5,6],[7,8,9]).ToList();
         var actual=thirdImpl();
         Assert.Equal(expected,actual);
     }
@@ -33,7 +32,7 @@ public sealed class Zip {
     [Fact,Trait("Category","Unit")]
     public static void resultSelector(){
         GeneratedInterceptorAssert.ContainsMethod<Zip>(nameof(resultSelectorImpl));
-        var expected=SystemEnumerable.Zip([1,2,3],[4,5,6],static (a,b) => a+b).ToList();
+        var expected=new[]{1,2,3}.Zip([4,5,6],static (a,b) => a+b).ToList();
         var actual=resultSelectorImpl();
         Assert.Equal(expected,actual);
     }
@@ -44,7 +43,7 @@ public sealed class Zip {
     [Fact,Trait("Category","Unit")]
     public static void second_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Zip>(nameof(second_enumerableImpl));
-        var expected=SystemEnumerable.Zip([1,2,3],[4,5,6]).ToList();
+        var expected=new[]{1,2,3}.Zip([4,5,6]).ToList();
         var actual=second_enumerableImpl();
         Assert.Equal(expected,actual);
     }
@@ -57,7 +56,7 @@ public sealed class Zip {
     [Fact,Trait("Category","Unit")]
     public static void third_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Zip>(nameof(third_enumerableImpl));
-        var expected=SystemEnumerable.Zip([1,2,3],[4,5,6],[7,8,9]).ToList();
+        var expected=new[]{1,2,3}.Zip([4,5,6],[7,8,9]).ToList();
         var actual=third_enumerableImpl();
         Assert.Equal(expected,actual);
     }
@@ -71,7 +70,7 @@ public sealed class Zip {
     [Fact,Trait("Category","Unit")]
     public static void resultSelector_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Zip>(nameof(resultSelector_enumerableImpl));
-        var expected=SystemEnumerable.Zip([1,2,3],[4,5,6],static (a,b) => a+b).ToList();
+        var expected=new[]{1,2,3}.Zip([4,5,6],static (a,b) => a+b).ToList();
         var actual=resultSelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }

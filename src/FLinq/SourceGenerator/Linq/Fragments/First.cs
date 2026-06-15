@@ -36,6 +36,8 @@ public class First_predicate(int 番号, Enumerable source, FuncFragment predica
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string GetEnumeratorConstructor =>
+        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         TryRenderDirectLambda(predicate) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"First",lambda)
@@ -46,7 +48,7 @@ public class First_predicate(int 番号, Enumerable source, FuncFragment predica
             while(source.MoveNext()) {
                 var {{this.item}} = source.Current;
                 bool {{this.temp}} = default!;
-                {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
+                {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item)}}
                 if({{this.temp}}) return {{this.item}};
             }
             throw global::Tsavorite.GeneratedCodeHelpers.NoElements();

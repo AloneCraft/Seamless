@@ -98,6 +98,8 @@ public class Any_predicate(int 番号, Enumerable source, FuncFragment predicate
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string GetEnumeratorConstructor =>
+        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderAny(range,predicate,番号,destVar,destType)
@@ -114,7 +116,7 @@ public class Any_predicate(int 番号, Enumerable source, FuncFragment predicate
                 source.TryGetSpan(out var __span);
                 foreach(var {{this.item}} in __span){
                     bool {{this.temp}}=default!;
-                    {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
+                    {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) return true;
                 }
                 return false;
@@ -126,7 +128,7 @@ public class Any_predicate(int 番号, Enumerable source, FuncFragment predicate
                 while(source.MoveNext()) {
                     var {{this.item}}=source.Current;
                     bool {{this.temp}}=default!;
-                    {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
+                    {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) return true;
                 }
                 return false;
@@ -146,6 +148,8 @@ public class Any_indexPredicate(int 番号, Enumerable source, FuncFragment pred
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string GetEnumeratorConstructor =>
+        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
@@ -153,7 +157,7 @@ public class Any_indexPredicate(int 番号, Enumerable source, FuncFragment pred
             while(source.MoveNext()) {
                 var {{this.item}}=source.Current;
                 bool {{this.temp}}=default!;
-                {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item,this.a)}}
+                {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item,this.a)}}
                 if({{this.temp}}) return true;
                 {{this.a}}++;
             }

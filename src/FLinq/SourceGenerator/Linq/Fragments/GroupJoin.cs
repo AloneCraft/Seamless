@@ -30,7 +30,7 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
     public override string GetEnumeratorFields=>$$"""
         private global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(this.innerKey)}},global::System.Collections.Generic.List<{{this.innerSource.ElementType}}>> {{this.lookup}};
         private int {{this.state}};
-        {{this.BuildLookupBody(false)}}
+        {{this.BuildLookupBody(false,"IncrementLogicalGroupJoinInner")}}
         """;
     public override string GetConsumeExecutionStatement(string consumerName) =>
         this.CanBypassLookupForConsume()
@@ -42,9 +42,11 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             return false;
         }
         if({{this.e}}.MoveNext()){
+            {{this.CounterCall("IncrementLogicalGroupJoinOuter")}}
             var {{this.outerValue}}={{this.e}}.Current;
             {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
             {{this.FuncAssign(this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
+            {{this.CounterCall("IncrementHashProbe")}}
             if({{this.lookup}}.TryGetValue({{this.key}},out var {{this.group}})){
                 {{this.FuncAssignCurrent(this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,this.group)}}
             }else{

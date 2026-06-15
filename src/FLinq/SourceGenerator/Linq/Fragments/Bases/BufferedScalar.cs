@@ -54,4 +54,19 @@ public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番�
             """;
     }
 
+    protected string? RenderComputeInline(string destVar,string destType,params string[] extraArguments){
+        if(this.PrimarySource is not { } src) return null;
+        string srcExpr;
+        try { srcExpr = src.GetEnumeratorExpression; }
+        catch(NotSupportedException) { return null; }
+        var srcVar = $"__s{番号}";
+        var extra = extraArguments.Length==0 ? string.Empty : ", " + string.Join(", ", extraArguments);
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{srcVar}}={{srcExpr}}){
+                {{destVar}}={{this.Struct}}<{{src.EnumeratorTypeName}}>.Compute({{srcVar}}{{extra}});
+            }
+            """;
+    }
+
 }

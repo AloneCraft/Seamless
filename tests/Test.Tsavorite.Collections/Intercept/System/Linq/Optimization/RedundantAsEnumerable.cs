@@ -2,7 +2,6 @@ using System.Linq;
 
 using Test.Tsavorite.Collections.Intercept.System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Optimization;
 
@@ -10,35 +9,74 @@ namespace Test.Tsavorite.Collections.Intercept.System.Linq.Optimization;
 // AsEnumerable は元々ゼロコストの素通しなので、いずれの場合も結果は不変。
 public sealed class RedundantAsEnumerable:OptimizationTestBase{
     [Fact,Trait("Category","Unit")]
-    public static void LeadingAsEnumerableRemoved() => LeadingAsEnumerableRemovedImpl();
+    public static void LeadingAsEnumerableRemoved() {
+                // src.AsEnumerable().Where(p) -> src.Where(p)。
+        var expected=Numbers().AsEnumerable().Where(static x => x>3).ToList();
+        LeadingAsEnumerableRemovedOptimized(expected);
+        LeadingAsEnumerableRemovedNoOptimized(expected);
+    }
 
-    private static void LeadingAsEnumerableRemovedImpl(){
-        // src.AsEnumerable().Where(p) -> src.Where(p)。
-        var expected=SystemEnumerable.Where(SystemEnumerable.AsEnumerable(Numbers()),static x => x>3).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void LeadingAsEnumerableRemovedOptimized(dynamic expected) {
+                // src.AsEnumerable().Where(p) -> src.Where(p)。
         var actual=new Consumer<int>();
-        Numbers().AsEnumerable().Where(static x => x>3).Consume(actual);
-        AssertSequenceEqual(expected,actual.Items);
+                Numbers().AsEnumerable().Where(static x => x>3).Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void LeadingAsEnumerableRemovedNoOptimized(dynamic expected) {
+                // src.AsEnumerable().Where(p) -> src.Where(p)。
+        var actual=new Consumer<int>();
+                Numbers().AsEnumerable().Where(static x => x>3).Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void MiddleAsEnumerableRemoved() => MiddleAsEnumerableRemovedImpl();
+    public static void MiddleAsEnumerableRemoved() {
+                // src.Where(p).AsEnumerable().Select(s) -> src.Where(p).Select(s)。
+        var expected=Numbers().Where(static x => x>3).AsEnumerable().Select(static x => x*2).ToList();
+        MiddleAsEnumerableRemovedOptimized(expected);
+        MiddleAsEnumerableRemovedNoOptimized(expected);
+    }
 
-    private static void MiddleAsEnumerableRemovedImpl(){
-        // src.Where(p).AsEnumerable().Select(s) -> src.Where(p).Select(s)。
-        var expected=SystemEnumerable.Select(SystemEnumerable.AsEnumerable(SystemEnumerable.Where(Numbers(),static x => x>3)),static x => x*2).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void MiddleAsEnumerableRemovedOptimized(dynamic expected) {
+                // src.Where(p).AsEnumerable().Select(s) -> src.Where(p).Select(s)。
         var actual=new Consumer<int>();
-        Numbers().Where(static x => x>3).AsEnumerable().Select(static x => x*2).Consume(actual);
-        AssertSequenceEqual(expected,actual.Items);
+                Numbers().Where(static x => x>3).AsEnumerable().Select(static x => x*2).Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void MiddleAsEnumerableRemovedNoOptimized(dynamic expected) {
+                // src.Where(p).AsEnumerable().Select(s) -> src.Where(p).Select(s)。
+        var actual=new Consumer<int>();
+                Numbers().Where(static x => x>3).AsEnumerable().Select(static x => x*2).Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void OutermostAsEnumerableKept() => OutermostAsEnumerableKeptImpl();
+    public static void OutermostAsEnumerableKept() {
+                // src.Where(p).AsEnumerable() -> 最外段の AsEnumerable は残るが結果は不変。
+        var expected=Numbers().Where(static x => x>3).AsEnumerable().ToList();
+        OutermostAsEnumerableKeptOptimized(expected);
+        OutermostAsEnumerableKeptNoOptimized(expected);
+    }
 
-    private static void OutermostAsEnumerableKeptImpl(){
-        // src.Where(p).AsEnumerable() -> 最外段の AsEnumerable は残るが結果は不変。
-        var expected=SystemEnumerable.AsEnumerable(SystemEnumerable.Where(Numbers(),static x => x>3)).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void OutermostAsEnumerableKeptOptimized(dynamic expected) {
+                // src.Where(p).AsEnumerable() -> 最外段の AsEnumerable は残るが結果は不変。
         var actual=new Consumer<int>();
-        Numbers().Where(static x => x>3).AsEnumerable().Consume(actual);
-        AssertSequenceEqual(expected,actual.Items);
+                Numbers().Where(static x => x>3).AsEnumerable().Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void OutermostAsEnumerableKeptNoOptimized(dynamic expected) {
+                // src.Where(p).AsEnumerable() -> 最外段の AsEnumerable は残るが結果は不変。
+        var actual=new Consumer<int>();
+                Numbers().Where(static x => x>3).AsEnumerable().Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
     }
 }

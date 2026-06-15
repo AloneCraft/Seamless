@@ -27,6 +27,7 @@ public class Where_predicate(int 番号, Enumerable source, FuncFragment predica
                     current = default!;
                     return false;
                 }
+                {{this.CounterCall("IncrementLogicalWhere")}}
                 {{predicateCheck}}
                     goto {{this.Skip}};
                 current = this.{{this.currentValue}} = {{this.item}};
@@ -55,6 +56,7 @@ public class Where_WithInlinedScalarPredicate(int 番号, Enumerable source, Fra
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
         while({{this.e}}.TryGetNext(out var {{outerParamName}})) {
+            {{this.CounterCall("IncrementLogicalWhere")}}
             var {{this.item}} = {{scalarFrag.GetEnumeratorExpression}};
             {{this.item}}.TryGetNext(out var {{this.temp}});
             {{this.item}}.Dispose();
@@ -141,6 +143,7 @@ public class Where_indexPredicate(int 番号, Enumerable source, FuncFragment pr
                     current = default!;
                     return false;
                 }
+                {{this.CounterCall("IncrementLogicalWhere")}}
                 this.{{this.a}}++;
                 {{predicateCheck}}
                     goto {{this.Skip}};

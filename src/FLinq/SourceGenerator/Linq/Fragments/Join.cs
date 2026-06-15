@@ -36,7 +36,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         private static bool IsNullKey<T>(T key){
             return key is null;
         }
-        {{this.BuildLookupBody(true)}}
+        {{this.BuildLookupBody(true,"IncrementLogicalJoinInner")}}
         """;
     public override string GetTryGetNextBody=>$$"""
         {{this.Start}}:
@@ -53,12 +53,14 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             current=default!;
             return false;
         }
+        {{this.CounterCall("IncrementLogicalJoinOuter")}}
         {{this.outerValue}}={{this.e}}.Current;
         {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
         {{this.FuncAssign(this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
         if(IsNullKey({{this.key}})){
             goto {{this.Start}};
         }
+        {{this.CounterCall("IncrementHashProbe")}}
         if(!{{this.lookup}}.TryGetValue({{this.key}},out {{this.group}})){
             goto {{this.Start}};
         }

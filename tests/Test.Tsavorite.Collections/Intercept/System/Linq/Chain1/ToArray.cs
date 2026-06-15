@@ -1,15 +1,24 @@
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed class ToArray:LinqChain1TestBase {
     [Fact, Trait("Category","Unit")]
-    public static void NoDelegate() => NoDelegateImpl();
+    public static void NoDelegate() {
+        var expected=Source().ToArray();
+        NoDelegateOptimized(expected);
+        NoDelegateNoOptimized(expected);
+    }
 
-    private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.ToArray(Source());
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void NoDelegateOptimized(dynamic expected) {
+        var actual=Source().ToArray();
+        AssertSequenceEqual(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void NoDelegateNoOptimized(dynamic expected) {
         var actual=Source().ToArray();
         AssertSequenceEqual(expected,actual);
     }

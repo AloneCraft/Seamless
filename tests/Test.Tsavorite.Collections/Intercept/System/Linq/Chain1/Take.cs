@@ -2,26 +2,46 @@ using System.Linq;
 
 using Test.Tsavorite.Collections.Intercept.System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed class Take:LinqChain1TestBase {
     [Fact, Trait("Category","Unit")]
-    public static void count() => countImpl();
+    public static void count() {
+        var expected=Source().Take(3).ToList();
+        countOptimized(expected);
+        countNoOptimized(expected);
+    }
 
-    private static void countImpl() {
-        var expected=SystemEnumerable.Take(Source(),3).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void countOptimized(dynamic expected) {
+        var actual=new Consumer<int>();
+        Source().Take(3).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void countNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Take(3).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void range() => rangeImpl();
+    public static void range() {
+        var expected=Source().Take(new global::System.Range(1,3)).ToList();
+        rangeOptimized(expected);
+        rangeNoOptimized(expected);
+    }
 
-    private static void rangeImpl() {
-        var expected=SystemEnumerable.Take(Source(),new global::System.Range(1,3)).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void rangeOptimized(dynamic expected) {
+        var actual=Source().Take(new global::System.Range(1,3)).ToList();
+        AssertSequenceEqual(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void rangeNoOptimized(dynamic expected) {
         var actual=Source().Take(new global::System.Range(1,3)).ToList();
         AssertSequenceEqual(expected,actual);
     }

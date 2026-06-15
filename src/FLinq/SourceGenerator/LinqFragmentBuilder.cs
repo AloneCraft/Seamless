@@ -36,6 +36,19 @@ public sealed partial class TsavoriteIncrementalGenerator {
         var definition = method.ReducedFrom ?? method;
         var methodName = definition.Name;
 
+        if(TryBuildKnownEnumerableRootFromSystemInvocation(
+            semanticModel,
+            invocation,
+            definition,
+            containingType,
+            ref uniqueNumber,
+            out var rootFragment,
+            unsafeAccessorCollector,
+            replacementMap: null)) {
+            fragment=rootFragment;
+            return true;
+        }
+
         if(invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression }) {
             if(methodName=="Any" && method.Parameters.Length==0) {
                 return false;
@@ -1258,10 +1271,10 @@ public sealed partial class TsavoriteIncrementalGenerator {
     }
 
     private static bool Enumerableメソッドがフラグメント対応済みか(string methodName)
-       =>methodName=="Any" || IsKnownEnumerableRootMethod(methodName) || フラグメント候補一覧.ContainsKey(methodName);
+       =>methodName=="Any" || methodName=="TryGetNonEnumeratedCount" || IsKnownEnumerableRootMethod(methodName) || フラグメント候補一覧.ContainsKey(methodName);
 
     private static bool IsKnownEnumerableRootMethod(string methodName) =>
-        methodName is "Range" or "Repeat" or "Empty";
+        methodName is "Range" or "Repeat" or "Empty" or "InfiniteSequence" or "Sequence";
 
     private static bool IsKnownEnumerableRootMethod(IMethodSymbol method) =>
         method.ContainingType.ToDisplayString()=="System.Linq.Enumerable"
@@ -1335,11 +1348,10 @@ public sealed partial class TsavoriteIncrementalGenerator {
             return true;
         }
 
-        if(invocation.ArgumentList.Arguments.Count!=2) {
-            return false;
-        }
-
         if(method.Name=="Range") {
+            if(invocation.ArgumentList.Arguments.Count!=2) {
+                return false;
+            }
             fragment=new RangeRoot(
                 uniqueNumber++,
                 RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[0].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
@@ -1348,10 +1360,32 @@ public sealed partial class TsavoriteIncrementalGenerator {
         }
 
         if(method.Name=="Repeat" && method.TypeArguments.Length==1) {
+            if(invocation.ArgumentList.Arguments.Count!=2) {
+                return false;
+            }
             fragment=new RepeatRoot(
                 uniqueNumber++,
                 RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[0].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
                 RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[1].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
+                method.TypeArguments[0].ToDisplayString(完全修飾形式));
+            return true;
+        }
+
+        if(method.Name=="InfiniteSequence" && invocation.ArgumentList.Arguments.Count==2 && method.TypeArguments.Length==1) {
+            fragment=new InfiniteSequenceRoot(
+                uniqueNumber++,
+                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[0].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
+                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[1].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
+                method.TypeArguments[0].ToDisplayString(完全修飾形式));
+            return true;
+        }
+
+        if(method.Name=="Sequence" && invocation.ArgumentList.Arguments.Count==3 && method.TypeArguments.Length==1) {
+            fragment=new SequenceRoot(
+                uniqueNumber++,
+                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[0].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
+                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[1].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
+                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[2].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
                 method.TypeArguments[0].ToDisplayString(完全修飾形式));
             return true;
         }
