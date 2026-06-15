@@ -17,6 +17,7 @@
     <Project Path="src/TsavoriteDB/TsavoriteDB.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Test.SourceGenerator/Test.SourceGenerator.csproj" />
     <Project Path="tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj" />
     <Project Path="tests/Test.Tsavorite/Test.Tsavorite.csproj" />
   </Folder>

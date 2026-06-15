@@ -329,6 +329,9 @@ public sealed partial class TsavoriteIncrementalGenerator {
         if(expression is ThisExpressionSyntax) {
             return "@this";
         }
+        if(expression is BaseExpressionSyntax) {
+            return "@this";
+        }
 
         var text = NormalizeGeneratedExpressionText(expression.ToString());
 
@@ -411,6 +414,36 @@ public sealed partial class TsavoriteIncrementalGenerator {
         }
 
         foreach(var identifier in allIdentifiers) {
+            if(IsMemberAccessName(identifier) || IsInsideNameof(identifier)) {
+                continue;
+            }
+
+            var identifierText = NormalizeExpressionText(identifier.ToString());
+            if(semanticModel.GetSymbolInfo(identifier).Symbol is IFieldSymbol instanceField
+                && !instanceField.IsStatic
+                && IsSameOrBaseType(containingType,instanceField.ContainingType)) {
+                var instanceMemberAccess = SyntaxFactory.MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    SyntaxFactory.ThisExpression(),
+                    SyntaxFactory.IdentifierName(instanceField.Name));
+                var instanceFieldExpression = CanAccessFromGeneratedCode(instanceField)
+                    ? $"@this.{instanceField.Name}"
+                    : RenderFieldForwardExpression(instanceField,instanceMemberAccess,semanticModel,unsafeAccessorCollector);
+                text=ReplaceIdentifierReference(text,identifierText,instanceFieldExpression);
+                continue;
+            }
+
+            if(semanticModel.GetSymbolInfo(identifier).Symbol is IPropertySymbol instanceProperty
+                && !instanceProperty.IsStatic
+                && instanceProperty.GetMethod is not null
+                && IsSameOrBaseType(containingType,instanceProperty.ContainingType)) {
+                var propertyExpression = CanAccessFromGeneratedCode(instanceProperty)
+                    ? $"@this.{instanceProperty.Name}"
+                    : RenderPropertyForwardExpression(instanceProperty,"@this",unsafeAccessorCollector);
+                text=ReplaceIdentifierReference(text,identifierText,propertyExpression);
+                continue;
+            }
+
             if(identifier.Parent is ArgumentSyntax argument
                 && argument.Expression==identifier
                 && semanticModel.GetSymbolInfo(identifier).Symbol is IMethodSymbol methodGroup
@@ -437,7 +470,6 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 continue;
             }
 
-            var identifierText = NormalizeExpressionText(identifier.ToString());
             if(field.HasConstantValue) {
                 text=System.Text.RegularExpressions.Regex.Replace(
                     text,
@@ -743,6 +775,40 @@ public sealed partial class TsavoriteIncrementalGenerator {
             $@"(?<![\w\.]){System.Text.RegularExpressions.Regex.Escape(oldText)}",
             newText,
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    private static bool CanAccessFromGeneratedCode(ISymbol symbol) =>
+        symbol.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal;
+
+    private static bool IsMemberAccessName(IdentifierNameSyntax identifier) =>
+        identifier.Parent is MemberAccessExpressionSyntax memberAccess
+        && ReferenceEquals(memberAccess.Name,identifier);
+
+    private static bool IsInsideNameof(SyntaxNode node) {
+        for(var current = node.Parent;current is not null;current=current.Parent) {
+            if(current is InvocationExpressionSyntax {
+                Expression: IdentifierNameSyntax { Identifier.Text: "nameof" }
+            }) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static string ReplaceIdentifierReference(string text,string identifierText,string replacement) =>
+        System.Text.RegularExpressions.Regex.Replace(
+            text,
+            $@"\b{System.Text.RegularExpressions.Regex.Escape(identifierText)}\b",
+            replacement,
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    private static string RenderPropertyForwardExpression(IPropertySymbol property,string receiverText,List<string>? unsafeAccessorCollector) {
+        var accessorName = $"__Property_{SanitizeIdentifier(property.ContainingType.Name)}_{SanitizeIdentifier(property.Name)}";
+        var targetTypeName = property.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var propTypeName = property.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"get_{property.Name}\")]\nprivate static extern {propTypeName} {accessorName}({targetTypeName} @this);";
+        unsafeAccessorCollector?.Add(accessorCode);
+        return $"{accessorName}({receiverText})";
+    }
 
     /// <summary>
     /// 非 System.Linq 拡張メソッド呼び出しを、その本体をインライン展開した式に置き換える。

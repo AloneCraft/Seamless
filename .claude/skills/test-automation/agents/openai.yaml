@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test Automation"
+  short_description: "テストファーストでUnityの単体・結合・総合テストを設計し、自動化します。"
+  default_prompt: "テストファーストでUnity Test Frameworkの単体・結合・総合テストを追加し、ローカル実行とCI向けの自動化まで整備してください。"

@@ -4,25 +4,6 @@ using Tsavorite;
 using Tsavorite.Linq;
 
 namespace Test.Tsavorite.Database.Database0 {
-    public sealed class Enumerable2 {
-        [Fact, Trait("Category","Unit")]
-        public void QueryOverridesMatchOriginalMethods() {
-            var container = new Container();
-            /*
-            Select_Method内部の呼び出したインターセプトされているがなぜストラテジパターンにならないのか？             *
-            Select_Method(global::Tsavorite.Collections.Generic.IEnumerable<int>) が ストラテジパターン（OptimizedContainer のオーバーライド） にならず、インターセプターとして生成されるのは、ジェネレーターの意図的な設計によるものです。
-            2種類の最適化パスの違い
-                条件	最適化パス
-                [Optimize] クラス + [Optimize] virtual メソッド	OptimizedContainer : Container の override として生成（ストラテジパターン）
-                [Optimize] クラス内の 非 virtual メソッド呼び出し	interceptor として静的に差し替え
-               
-             */
-            var a0=container.Optimize無virtual無(new int[3]);//この呼び出しをインターセプト
-            var a1=container.Optimize無virtual有(new int[3]);//LINQをインターセプト
-            var a3=container.Optimize有virtual有(new int[3]);//LINQをインターセプト
-            var x=container.Select_Method(new int[3]);
-        }
-    }
     static partial class DatabaseGenerator;
     /// <summary>
     ///  <see cref="Test.Tsavorite.Database.Database0.Container"/>
@@ -33,7 +14,7 @@ namespace Test.Tsavorite.Database.Database0 {
     public class Container {
         public global::Tsavorite.Collections.Generic.IEnumerable<int> Optimize無virtual無(global::Tsavorite.Collections.Generic.IEnumerable<int> outer) {
             new global::Tsavorite.Collections.Generic.IEnumerable<int>(Enumerable.Select(outer,static p => p+p));
-            var x=new global::Tsavorite.Collections.Generic.IEnumerable<int>(Enumerable.Select(outer,static p => p+p));
+            var x = new global::Tsavorite.Collections.Generic.IEnumerable<int>(Enumerable.Select(outer,static p => p+p));
             return new(Enumerable.Select(outer,static p => p+p));
         }
         public virtual global::Tsavorite.Collections.Generic.IEnumerable<int> Optimize無virtual有(global::Tsavorite.Collections.Generic.IEnumerable<int> outer) {
@@ -42,11 +23,14 @@ namespace Test.Tsavorite.Database.Database0 {
         //[Optimize]public global::Tsavorite.Collections.Generic.IEnumerable<int> Optimize有virtual無(global::Tsavorite.Collections.Generic.IEnumerable<int> outer) {
         //    return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         //}
-        [Optimize]public virtual global::Tsavorite.Collections.Generic.IEnumerable<int> Optimize有virtual有(global::Tsavorite.Collections.Generic.IEnumerable<int> outer) {
+        [Optimize]
+        public virtual global::Tsavorite.Collections.Generic.IEnumerable<int> Optimize有virtual有(global::Tsavorite.Collections.Generic.IEnumerable<int> outer) {
             return new(Enumerable.Select(outer,static p => p+p));
         }
-        [Optimize][Fact]public virtual  void Call(){
-            var x= this.Select_Method(new int[3]);
+        [Optimize]
+        [Fact]
+        public virtual void Call() {
+            var x = this.Select_Method(new int[3]);
         }
         [Optimize]
         public virtual global::Tsavorite.Collections.Generic.IEnumerable<int> Select_Method(global::Tsavorite.Collections.Generic.IEnumerable<int> outer) {

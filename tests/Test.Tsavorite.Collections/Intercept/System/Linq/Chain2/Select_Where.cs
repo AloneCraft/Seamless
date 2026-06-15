@@ -3,12 +3,12 @@ using System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain2;
 
-public sealed class Select_Where:LinqChain2TestBase {
+public sealed class Select_Where(ITestOutputHelper output):LinqChain2TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void Static() {
+    public void Static() {
         var expected=Source().Select(static v => v*2).Where(static v => v>5).ToList();
-        StaticOptimized(expected);
-        StaticNoOptimized(expected);
+        MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
+        MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -26,10 +26,10 @@ public sealed class Select_Where:LinqChain2TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Lambda() {
+    public void Lambda() {
         var expected=Source().Select(v => v*2).Where(v => v>5).ToList();
-        LambdaOptimized(expected);
-        LambdaNoOptimized(expected);
+        MeasureOptimized(nameof(LambdaOptimized),()=>LambdaOptimized(expected));
+        MeasureOptimized(nameof(LambdaNoOptimized),()=>LambdaNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -47,10 +47,10 @@ public sealed class Select_Where:LinqChain2TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void Query() {
+    public void Query() {
         var expected=Source().Select(v => v*2).Where(v => v>5).ToList();
-        QueryOptimized(expected);
-        QueryNoOptimized(expected);
+        MeasureOptimized(nameof(QueryOptimized),()=>QueryOptimized(expected));
+        MeasureOptimized(nameof(QueryNoOptimized),()=>QueryNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

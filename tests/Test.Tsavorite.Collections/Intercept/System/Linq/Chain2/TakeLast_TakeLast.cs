@@ -3,13 +3,13 @@ using System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain2;
 
-public sealed class TakeLast_TakeLast:LinqChain2TestBase {
+public sealed class TakeLast_TakeLast(ITestOutputHelper output):LinqChain2TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void SpanFusion() {
+    public void SpanFusion() {
                 //span経路(配列)・引数違いでmin融合になること
         var expected=Source().TakeLast(3).TakeLast(2).ToList();
-        SpanFusionOptimized(expected);
-        SpanFusionNoOptimized(expected);
+        MeasureOptimized(nameof(SpanFusionOptimized),()=>SpanFusionOptimized(expected));
+        MeasureOptimized(nameof(SpanFusionNoOptimized),()=>SpanFusionNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -29,11 +29,11 @@ public sealed class TakeLast_TakeLast:LinqChain2TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void SpanChain3() {
+    public void SpanChain3() {
                 //span経路・3段連鎖
         var expected=Source().TakeLast(2).TakeLast(3).TakeLast(4).ToList();
-        SpanChain3Optimized(expected);
-        SpanChain3NoOptimized(expected);
+        MeasureOptimized(nameof(SpanChain3Optimized),()=>SpanChain3Optimized(expected));
+        MeasureOptimized(nameof(SpanChain3NoOptimized),()=>SpanChain3NoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -53,11 +53,11 @@ public sealed class TakeLast_TakeLast:LinqChain2TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void NonSpanQueuePath() {
+    public void NonSpanQueuePath() {
                 //非span経路(Where挟みでQueue経路)
         var expected=Source().Where(p => p>0).TakeLast(3).TakeLast(2).ToList();
-        NonSpanQueuePathOptimized(expected);
-        NonSpanQueuePathNoOptimized(expected);
+        MeasureOptimized(nameof(NonSpanQueuePathOptimized),()=>NonSpanQueuePathOptimized(expected));
+        MeasureOptimized(nameof(NonSpanQueuePathNoOptimized),()=>NonSpanQueuePathNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

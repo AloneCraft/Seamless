@@ -4,12 +4,12 @@ using System.Linq;
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain2;
 
 // 2 個目がスカラー終端演算子（Count）のケース。
-public sealed class Where_Count:LinqChain2TestBase {
+public sealed class Where_Count(ITestOutputHelper output):LinqChain2TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void Static() {
+    public void Static() {
         var expected=Source().Where(static v => v>2).Count();
-        StaticOptimized(expected);
-        StaticNoOptimized(expected);
+        MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
+        MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
