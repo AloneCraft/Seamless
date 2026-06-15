@@ -17,4 +17,10 @@ public class Any():Base() {
         for(var a=0;a<iterationCount;a++)
         this.consumer.Consume(this.src(1).AsValueEnumerable().Any());
     }
+
+    [Fact,Trait("Category","Unit"),TestPriority(100)]
+    public void Results_match()=>this.AssertResults(this.Linq,this.FLinq,this.FLinqNoOptimized,this.ZLinq);
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private void FLinqNoOptimized()=>this.Linq();
 }

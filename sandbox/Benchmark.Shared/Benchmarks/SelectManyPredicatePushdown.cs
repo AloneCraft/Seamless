@@ -10,4 +10,10 @@ public class SelectManyPredicatePushdown:Base{
     [BenchFact,Benchmark]public void FLinq()=>this.Linq();
 
     [BenchFact,Benchmark]public void ZLinq()=>this.outer.AsValueEnumerable().SelectMany(_=>this.inner.AsValueEnumerable()).Where(x=>x>Threshold).Consume(this.consumer);
+
+    [Fact,Trait("Category","Unit"),TestPriority(100)]
+    public void Results_match()=>this.AssertResults(this.Linq,this.FLinq,this.FLinqNoOptimized,this.ZLinq);
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private void FLinqNoOptimized()=>this.Linq();
 }

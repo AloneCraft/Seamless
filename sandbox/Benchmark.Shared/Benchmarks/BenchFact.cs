@@ -3,6 +3,8 @@ using System.Runtime.CompilerServices;
 using Xunit;
 using Xunit.v3;
 
+[assembly: Xunit.TestCaseOrderer(typeof(Seamless.Benchmarks.TestPriorityOrderer))]
+
 namespace Seamless.Benchmarks;
 
 // [Fact,Trait("Category","Benchmark")] を1個に集約した属性。
@@ -16,6 +18,49 @@ public sealed class BenchFactAttribute:FactAttribute,ITraitAttribute{
 
     public IReadOnlyCollection<KeyValuePair<string,string>>GetTraits()=>[new("Category","Benchmark")];
 }
+
+public sealed class TestPriorityAttribute(int priority):Attribute{
+    public int Priority{get;}=priority;
+}
+
+public sealed class TestPriorityOrderer:ITestCaseOrderer{
+    public IReadOnlyCollection<TTestCase> OrderTestCases<TTestCase>(IReadOnlyCollection<TTestCase> testCases)
+        where TTestCase:notnull,Xunit.Sdk.ITestCase{
+        var ordered=new List<TTestCase>(testCases);
+        ordered.Sort(static (left,right) => {
+            var priorityComparison=GetPriority(left).CompareTo(GetPriority(right));
+            if(priorityComparison!=0){
+                return priorityComparison;
+            }
+            return StringComparer.Ordinal.Compare(left.TestMethodName,right.TestMethodName);
+        });
+        return ordered;
+    }
+
+    private static int GetPriority(Xunit.Sdk.ITestCase testCase){
+        var type=FindType(testCase.TestClassName);
+        var methodName=testCase.TestMethodName;
+        if(type is null||methodName is null){
+            return 0;
+        }
+        var method=type.GetMethod(methodName,global::System.Reflection.BindingFlags.Instance|global::System.Reflection.BindingFlags.Static|global::System.Reflection.BindingFlags.Public|global::System.Reflection.BindingFlags.NonPublic);
+        var attribute=method is null?null:Attribute.GetCustomAttribute(method,typeof(TestPriorityAttribute),false) as TestPriorityAttribute;
+        return attribute?.Priority??0;
+    }
+
+    private static Type? FindType(string? typeName){
+        if(typeName is null){
+            return null;
+        }
+        foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies()){
+            var type=assembly.GetType(typeName,false);
+            if(type is not null){
+                return type;
+            }
+        }
+        return null;
+    }
+}
 #else
 namespace Seamless.Benchmarks;
 
@@ -23,4 +68,18 @@ namespace Seamless.Benchmarks;
 // 各ベンチメソッドの [BenchFact] はここでは何もしないマーカーとしてのみ存在する。
 [AttributeUsage(AttributeTargets.Method,AllowMultiple=false)]
 public sealed class BenchFactAttribute:Attribute;
+
+[AttributeUsage(AttributeTargets.Method,AllowMultiple=false)]
+public sealed class FactAttribute:Attribute;
+
+[AttributeUsage(AttributeTargets.Method,AllowMultiple=true)]
+public sealed class TraitAttribute(string name,string value):Attribute{
+    public string Name{get;}=name;
+    public string Value{get;}=value;
+}
+
+[AttributeUsage(AttributeTargets.Method,AllowMultiple=false)]
+public sealed class TestPriorityAttribute(int priority):Attribute{
+    public int Priority{get;}=priority;
+}
 #endif
