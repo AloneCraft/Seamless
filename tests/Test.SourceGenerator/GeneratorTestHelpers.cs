@@ -38,6 +38,7 @@ internal static class GeneratorTestHelpers {
             .Split(Path.PathSeparator)
             .Where(p=>!string.IsNullOrWhiteSpace(p) && File.Exists(p))
             .Select(p=>(MetadataReference)MetadataReference.CreateFromFile(p))
+            .Append(MetadataReference.CreateFromFile(typeof(global::Tsavorite.GeneratedCodeHelpers).Assembly.Location))
             .ToImmutableArray();
         return refs;
     }

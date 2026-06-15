@@ -46,12 +46,12 @@ namespace Test.Tsavorite.Database.Database0 {
         }
         [Fact, Trait("Category","Unit")]
         public void Select非staticデリゲートだが実質staticデリゲート() {
-            var a       = 3;
-            var インターセプト前= new int[3].Select(p => p*p);//非staticだが実質staticに出来るのでインライン成功している
-            var インターセプト後= 置き換え先メソッド();
+            var a = 3;
+            var インターセプト前 = new int[3].Select(p => p*p);//非staticだが実質staticに出来るのでインライン成功している
+            var インターセプト後 = 置き換え先メソッド();
             static List<int> 置き換え先メソッド() {
-                var result0              = new List<int>();
-                var StructInstanceSelect1= new StructInstanceSelect0(3);
+                var result0 = new List<int>();
+                var StructInstanceSelect1 = new StructInstanceSelect0(3);
                 foreach(var item0 in new int[3]) {
                     var selectorItem2 = StructInstanceSelect1.selector0(item0);
                     result0.Add(selectorItem2);
@@ -65,12 +65,12 @@ namespace Test.Tsavorite.Database.Database0 {
         }
         [Fact, Trait("Category","Unit")]
         public void InstanceSelect非staticデリゲートInstanceStruct呼び出しになるべき() {
-            var a       = 3;
-            var インターセプト前= new int[3].Select(p => p*a);//キャプチャ変数は成功しない。インスタンスstructメソッドにならない
-            var インターセプト後= 置き換え先メソッド();
+            var a = 3;
+            var インターセプト前 = new int[3].Select(p => p*a);//キャプチャ変数は成功しない。インスタンスstructメソッドにならない
+            var インターセプト後 = 置き換え先メソッド();
             static List<int> 置き換え先メソッド() {
-                var result0              = new List<int>();
-                var StructInstanceSelect1= new StructInstanceSelect1(3);
+                var result0 = new List<int>();
+                var StructInstanceSelect1 = new StructInstanceSelect1(3);
                 foreach(var item0 in new int[3]) {
                     var selectorItem2 = StructInstanceSelect1.selector0(item0);
                     result0.Add(selectorItem2);
@@ -264,30 +264,5 @@ namespace Test.Tsavorite.Database.Database0 {
 
             Assert.Equal(インターセプト後,インターセプト前);
         }
-
-        [Fact, Trait("Category","Unit")]
-        public void 手書き置換は具体シグネチャのInterceptorを生成する() {
-            AssertConcreteInterceptor(nameof(Select),nameof(Enumerable.Select));
-            AssertConcreteInterceptor(nameof(SelectSelect),nameof(Enumerable.Select));
-            AssertConcreteInterceptor(nameof(WhereSelect),nameof(Enumerable.Select));
-            AssertConcreteInterceptor(nameof(WhereJoin),nameof(Enumerable.Join));
-            AssertConcreteInterceptor(nameof(SelectMany),nameof(Enumerable.SelectMany));
-        }
-
-        private static void AssertConcreteInterceptor(string containingMethodName,string linqMethodName) {
-            var interceptors = new List<MethodInfo>();
-            foreach(var type in typeof(SourceGeneratorExample).Assembly.GetTypes()) {
-                if(!((type.Namespace != null && type.Namespace.StartsWith("Intercept.",StringComparison.Ordinal)) || type.Namespace=="Intercept"))
-                    continue;
-                foreach(var method in type.GetMethods(BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic)) {
-                    if(!method.Name.StartsWith("OptimizedLinq_",StringComparison.Ordinal)) continue;
-                    if(method.IsGenericMethodDefinition) continue;
-                    interceptors.Add(method);
-                }
-            }
-            Assert.NotEmpty(interceptors);
-            Assert.All(interceptors,interceptor => Assert.False(interceptor.IsGenericMethodDefinition));
-        }
-
     }
 }

@@ -455,6 +455,10 @@ public static class PipelineBuilder {
                 return TryBuildZipFragment(invocation,method,services,ref uniqueNumber,sourceFragment,out nextSource,out staticMethods,ref currentElementType);
             case "AggregateBy":
                 return TryBuildAggregateByFragment(semanticModel,invocation,method,services,ref uniqueNumber,sourceFragment,out nextSource,ref currentElementType);
+            case "CountBy":
+                return TryBuildCountByFragment(semanticModel,invocation,method,services,ref uniqueNumber,sourceFragment,out nextSource,ref currentElementType);
+            case "Index":
+                return TryBuildIndexFragment(semanticModel,invocation,method,services,ref uniqueNumber,sourceFragment,out nextSource,ref currentElementType);
             case "Join":
                 return TryBuildJoinFragment(invocation,method,services,ref uniqueNumber,sourceFragment,out nextSource,out staticMethods,ref currentElementType);
             case "GroupJoin":
@@ -557,6 +561,52 @@ public static class PipelineBuilder {
         }
         var resultElementTypeName = resultElementType.ToDisplayString(services.FullyQualifiedFormat);
         nextSource=new AggregateBy(uniqueNumber++,sourceFragment,keySelector,services.RenderExpression(invocation.ArgumentList.Arguments[1].Expression),func,resultElementTypeName);
+        currentElementType=nextSource.ElementType;
+        return true;
+    }
+
+    private static bool TryBuildCountByFragment(
+        SemanticModel semanticModel,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        ref int uniqueNumber,
+        Enumerable sourceFragment,
+        out Enumerable nextSource,
+        ref string currentElementType) {
+        nextSource=null!;
+        if(invocation.ArgumentList.Arguments.Count!=1
+            || method.Parameters.Length<1
+            || method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 }) {
+            return false;
+        }
+        if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,method.Parameters[0].Type,ref uniqueNumber,out var keySelector)
+            || !services.CanUseFunc(keySelector)
+            || !services.TryGetEnumerableElementType(method.ReturnType,out var resultElementType)
+            || services.ContainsAnonymousType(resultElementType)) {
+            return false;
+        }
+        nextSource=new CountBy(uniqueNumber++,sourceFragment,keySelector);
+        currentElementType=nextSource.ElementType;
+        return true;
+    }
+
+    private static bool TryBuildIndexFragment(
+        SemanticModel semanticModel,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        ref int uniqueNumber,
+        Enumerable sourceFragment,
+        out Enumerable nextSource,
+        ref string currentElementType) {
+        nextSource=null!;
+        if(invocation.ArgumentList.Arguments.Count!=0
+            || !services.TryGetEnumerableElementType(method.ReturnType,out var resultElementType)
+            || services.ContainsAnonymousType(resultElementType)) {
+            return false;
+        }
+        nextSource=new Index(uniqueNumber++,sourceFragment);
         currentElementType=nextSource.ElementType;
         return true;
     }

@@ -93,7 +93,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
         var typeStack = 型スタック取得(targets[0].EnclosingType);
         foreach (var t in typeStack)
         {
-            builder.AppendLine($"internal static class {SanitizeIdentifier(t.Name)} {{");
+            builder.AppendLine($"internal static partial class {SanitizeIdentifier(t.Name)} {{");
         }
 
         var emittedMethodNames = new HashSet<string>(StringComparer.Ordinal);
