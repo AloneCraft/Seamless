@@ -1,5 +1,7 @@
 using System.Linq;
 
+using Tsavorite;
+
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed record Chain1Row(int Key,int Value,string Name);
@@ -22,6 +24,14 @@ public abstract class LinqChain1TestBase {
 
     public static void AssertSequenceEqual<T>(IEnumerable<T> expected,IEnumerable<T> actual) {
         Assert.Equal(expected,actual);
+    }
+
+    public static void AssertOptimized<T>(T expected,Func<T> actualFactory,long logicalDelegate,long physicalDelegate) {
+        using var scope=LinqCounterScope.Start();
+        var actual=actualFactory();
+        Assert.Equal(expected,actual);
+        Assert.Equal(logicalDelegate,scope.Counter.LogicalDelegate);
+        Assert.Equal(physicalDelegate,scope.Counter.PhysicalDelegate);
     }
 
     public static void AssertNestedSequenceEqual<T>(IEnumerable<IEnumerable<T>> expected,IEnumerable<IEnumerable<T>> actual) {

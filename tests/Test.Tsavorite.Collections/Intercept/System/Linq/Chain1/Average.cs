@@ -1,73 +1,116 @@
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
+using Tsavorite;
+using Tsavorite.SourceGenerator;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed class Average:LinqChain1TestBase {
     [Fact, Trait("Category","Unit")]
-    public static void int_NoDelegate() => int_NoDelegateImpl();
-
-    private static void int_NoDelegateImpl() {
-        var expected=SystemEnumerable.Average(Source());
-        var actual=Source().Average();
-        Assert.Equal(expected,actual);
+    public static void int_NoDelegate() {
+        var expected=Source().Average();
+        AssertOptimized(expected,()=>int_NoDelegateOptimized(),0,0);
+        AssertOptimized(expected,()=>int_NoDelegateNoOptimized(),0,0);
     }
 
-    [Fact, Trait("Category","Unit")]
-    public static void selector_Nested() => selector_NestedImpl();
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static double int_NoDelegateOptimized() =>
+        Source().Average();
 
-    private static void selector_NestedImpl() {
-        var expected=SystemEnumerable.Average<int>(Source(),p => SystemEnumerable.Average(Source(),int (q) => q+p));
-        var actual=Source().Average(p => Source().Average(q => q+p));
-        Assert.Equal(expected,actual);
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static double int_NoDelegateNoOptimized() =>
+        Source().Average();
+
+    [Fact, Trait("Category","Unit")]
+    public static void selector_Nested() {
+        var expected=Source().Average<int>(p => Source().Average(int (q) => q+p));
+        AssertOptimized(expected,()=>selector_NestedOptimized(),4,0);
+        AssertOptimized(expected,()=>selector_NestedNoOptimized(),4,4);
     }
 
-    [Fact, Trait("Category","Unit")]
-    public static void selector_Static() => selector_StaticImpl();
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static double selector_NestedOptimized() =>
+        Source().Average(p => Source().Average(q => q+p));
 
-    private static void selector_StaticImpl() {
-        var expected=SystemEnumerable.Average(Rows(),static row => row.Value);
-        var actual=Rows().Average(static row => row.Value);
-        Assert.Equal(expected,actual);
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static double selector_NestedNoOptimized() =>
+        Source().Average(p => Source().Average(q => q+p));
+
+    [Fact, Trait("Category","Unit")]
+    public static void selector_Static() {
+        var expected=Rows().Average(static row => row.Value);
+        AssertOptimized(expected,()=>selector_StaticOptimized(),4,0);
+        AssertOptimized(expected,()=>selector_StaticNoOptimized(),4,4);
     }
 
-    [Fact, Trait("Category","Unit")]
-    public static void selector_Lambda() => selector_LambdaImpl();
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static double selector_StaticOptimized() =>
+        Rows().Average(static row => row.Value);
 
-    private static void selector_LambdaImpl() {
-        var expected=SystemEnumerable.Average(Rows(),row => row.Value);
-        var actual=Rows().Average(row => row.Value);
-        Assert.Equal(expected,actual);
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static double selector_StaticNoOptimized() =>
+        Rows().Average(static row => row.Value);
+
+    [Fact, Trait("Category","Unit")]
+    public static void selector_Lambda() {
+        var expected=Rows().Average(row => row.Value);
+        AssertOptimized(expected,()=>selector_LambdaOptimized(),4,0);
+        AssertOptimized(expected,()=>selector_LambdaNoOptimized(),4,4);
     }
 
-    [Fact, Trait("Category","Unit")]
-    public static void selector_Captured() => selector_CapturedImpl();
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static double selector_LambdaOptimized() =>
+        Rows().Average(row => row.Value);
 
-    private static void selector_CapturedImpl() {
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static double selector_LambdaNoOptimized() =>
+        Rows().Average(row => row.Value);
+
+    [Fact, Trait("Category","Unit")]
+    public static void selector_Captured() {
         var offset=0;
-        var expected=SystemEnumerable.Average(Rows(),row => row.Value+offset);
-        var actual=Rows().Average(row => row.Value+offset);
-        Assert.Equal(expected,actual);
+        var expected=Rows().Average(row => row.Value+offset);
+        AssertOptimized(expected,()=>selector_CapturedOptimized(offset),4,0);
+        AssertOptimized(expected,()=>selector_CapturedNoOptimized(offset),4,4);
     }
 
-    [Fact, Trait("Category","Unit")]
-    public static void selector_DelegateSyntax() => selector_DelegateSyntaxImpl();
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static double selector_CapturedOptimized(int offset) =>
+        Rows().Average(row => row.Value+offset);
 
-    private static void selector_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.Average(Rows(),delegate(Chain1Row row) { return row.Value; });
-        var actual=Rows().Average(delegate(Chain1Row row) { return row.Value; });
-        Assert.Equal(expected,actual);
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static double selector_CapturedNoOptimized(int offset) =>
+        Rows().Average(row => row.Value+offset);
+
+    [Fact, Trait("Category","Unit")]
+    public static void selector_DelegateSyntax() {
+        var expected=Rows().Average(delegate(Chain1Row row) { return row.Value; });
+        AssertOptimized(expected,()=>selector_DelegateSyntaxOptimized(),4,0);
+        AssertOptimized(expected,()=>selector_DelegateSyntaxNoOptimized(),4,4);
     }
 
-    [Fact, Trait("Category","Unit")]
-    public static void selector_Variable() => selector_VariableImpl();
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static double selector_DelegateSyntaxOptimized() =>
+        Rows().Average(delegate(Chain1Row row) { return row.Value; });
 
-    private static void selector_VariableImpl() {
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static double selector_DelegateSyntaxNoOptimized() =>
+        Rows().Average(delegate(Chain1Row row) { return row.Value; });
+
+    [Fact, Trait("Category","Unit")]
+    public static void selector_Variable() {
         Func<Chain1Row,int> selector=row => row.Value;
-        var expected=SystemEnumerable.Average(Rows(),selector);
-        var actual=Rows().Average(selector);
-        Assert.Equal(expected,actual);
+        var expected=Rows().Average(selector);
+        AssertOptimized(expected,()=>selector_VariableOptimized(selector),4,4);
+        AssertOptimized(expected,()=>selector_VariableNoOptimized(selector),4,4);
     }
+
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static double selector_VariableOptimized(Func<Chain1Row,int> selector) =>
+        Rows().Average(selector);
+
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static double selector_VariableNoOptimized(Func<Chain1Row,int> selector) =>
+        Rows().Average(selector);
 
 }

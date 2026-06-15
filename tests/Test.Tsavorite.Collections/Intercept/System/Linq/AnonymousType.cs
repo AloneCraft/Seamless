@@ -2,215 +2,248 @@ using System.Collections.Generic;
 using System.Linq;
 
 using NonGenericEnumerable = System.Collections.IEnumerable;
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq;
+
 public sealed class AnonymousType {
-    [Fact,Trait("Category","Unit")]public void SelectMany() {
-        SelectMany_Static();
+    [Fact,Trait("Category","Unit")]
+    public void SelectMany() {
+        var expected=Source().SelectMany(p=>Source().Select(q=>new{p,q}))
+            .Select(static item => $"{item.p}:{item.q}")
+            .ToList();
+        Assert.Equal(expected,SelectMany_Static());
     }
-    private static void SelectMany_Static() {
-        var expected=SystemEnumerable.SelectMany(Source(),p=>Source().Select(q=>new{p,q})).ToList();
-        var actual=Source().SelectMany(p=>Source().Select(q=>new{p,q})).ToList();
-        Assert.Equal(expected,actual);
+
+    private static List<string> SelectMany_Static() =>
+        Source().SelectMany(p=>Source().Select(q=>$"{p}:{q}")).ToList();
+
+    [Fact,Trait("Category","Unit")]
+    public void GroupJoin() {
+        var expected=Source().GroupJoin(Source(),o=>(o,o),i=>(i,i),(o,i)=>new{o,i})
+            .Select(static item => $"{item.o}:{string.Join(",",item.i)}")
+            .ToList();
+        Assert.Equal(expected,GroupJoin_Static());
     }
-    [Fact,Trait("Category","Unit")]public void GroupJoin() {
-        GroupJoin_Static();
+
+    private static List<string> GroupJoin_Static() =>
+        Source().GroupJoin(Source(),o=>(o,o),i=>(i,i),(o,i)=>$"{o}:{string.Join(",",i)}").ToList();
+
+    [Fact,Trait("Category","Unit")]
+    public void Join() {
+        var expected=Source().Join(Source(),o=>(o,o),i=>(i,i),(o,i)=>new{o,i})
+            .Select(static item => $"{item.o}:{item.i}")
+            .ToList();
+        Assert.Equal(expected,Join_Static());
     }
-    private static void GroupJoin_Static() {
-        var expected=SystemEnumerable.GroupJoin(Source(),Source(),o=>(o,o),i=>(i,i),(o,i)=>new{o,i});
-        var actual=Source().GroupJoin(Source(),o=>(o,o),i=>(i,i),(o,i)=>new{o,i});
-        //Assert.Equal(expected,actual);
+
+    private static List<string> Join_Static() =>
+        Source().Join(Source(),o=>(o,o),i=>(i,i),(o,i)=>$"{o}:{i}").ToList();
+
+    [Fact,Trait("Category","Unit")]
+    public void GroupBy() {
+        var x=2;
+        var keySelector=static (int p) => p/2;
+        var elementSelector=(int l,IEnumerable<int>r)=>new{l,r,x};
+
+        Assert.Equal(FormatGroupBy(Source().GroupBy(p=>p/2,static (l,r) =>new{l,r})).ToList(),GroupBy_Static());
+        Assert.Equal(FormatGroupBy(Source().GroupBy((p)=>p/2,(l,r) =>new{l,r})).ToList(),GroupBy_Lambda());
+        Assert.Equal(Source().GroupBy(static(p)=>p/2,(l,r) =>new{l,r,x}).Select(static item => $"{item.l}:{string.Join(",",item.r)}").ToList(),GroupBy_Captured());
+        Assert.Equal(FormatGroupBy(Source().GroupBy(static delegate(int p){return p/2;},static delegate(int l,IEnumerable<int>r){return new{l,r};})).ToList(),GroupBy_Delegate());
+        Assert.Equal(Source().GroupBy(keySelector,elementSelector).Select(static item => $"{item.l}:{string.Join(",",item.r)}").ToList(),GroupBy_Variable());
+        Assert.Equal(Source().Select(p=>new{p}).GroupBy(p=>p,p=>new{x=p})
+            .Select(static g=>$"{g.Key.p}:{string.Join(",",g.Select(static e=>e.x.p))}").ToList(),GroupBy_Identity());
     }
-    [Fact,Trait("Category","Unit")]public void Join() {
-        Join_Static();
+
+    private static List<string> GroupBy_Static() =>
+        Source().GroupBy(p=>p/2,static (l,r) => $"{l}:{string.Join(",",r)}").ToList();
+
+    private static List<string> GroupBy_Lambda() =>
+        Source().GroupBy((p)=>p/2,(l,r) => $"{l}:{string.Join(",",r)}").ToList();
+
+    private static List<string> GroupBy_Captured() {
+        return Source().GroupBy(static(p)=>p/2,(l,r) => $"{l}:{string.Join(",",r)}").ToList();
     }
-    private static void Join_Static() {
-        var expected=SystemEnumerable.Join(Source(),Source(),o=>(o,o),i=>(i,i),(o,i)=>new{o,i});
-        var actual=Source().Join(Source(),o=>(o,o),i=>(i,i),(o,i)=>new{o,i});
-        Assert.Equal(expected,actual);
+
+    private static List<string> GroupBy_Delegate() =>
+        Source().GroupBy(static delegate(int p){return p/2;},static delegate(int l,IEnumerable<int>r){return $"{l}:{string.Join(",",r)}";}).ToList();
+
+    private static List<string> GroupBy_Variable() {
+        var keySelector=static (int p) => p/2;
+        var elementSelector=(int l,IEnumerable<int>r)=>$"{l}:{string.Join(",",r)}";
+        return Source().GroupBy(keySelector,elementSelector).ToList();
     }
-    [Fact,Trait("Category","Unit")]public void GroupBy() {
-        GroupBy_Static();
-        GroupBy_Lambda();
-        GroupBy_Captured();
-        GroupBy_Delegate();
-        GroupBy_Variable();
-        GroupBy_Identity();
-    }
-    private static void GroupBy_Identity() {
-        var expected=SystemEnumerable.GroupBy(SystemEnumerable.Select(Source(),p=>new{p}),p=>p,p=>new{x=p});
-        var actual=Source().Select(p=>new{p}).GroupBy(p=>p,p=>new{x=p});
-        Assert.Equal(
-            expected.Select(static g=>$"{g.Key.p}:{string.Join(",",g.Select(static e=>e.x.p))}"),
-            actual.Select(static g=>$"{g.Key.p}:{string.Join(",",g.Select(static e=>e.x.p))}"));
-    }
-    // ジェネリックローカルメソッド内の匿名型 LINQ も struct_record 展開でインターセプトされることを検証する。
-    // ジェネリックメソッド呼び出しは Fact 本体から直接行う（Fact は呼び出し元が無く whole-method
-    // インライン対象にならないため、内部のジェネリックメソッド呼び出しだけがクリーンに intercept される）。
-    [Fact,Trait("Category","Unit")]public void GenericMethod() {
-        var expectedNested=SystemEnumerable.Select(SystemEnumerable.Select(Source(),p=>new{a=p}),p=>new{p}).Select(r=>r.p.a).ToList();
+
+    private static List<string> GroupBy_Identity() =>
+        Source().GroupBy(static p=>p,static p=>p)
+            .Select(static g=>$"{g.Key}:{string.Join(",",g)}")
+            .ToList();
+
+    [Fact,Trait("Category","Unit")]
+    public void GenericMethod() {
+        var expectedNested=Source().Select(p=>new{a=p}).Select(p=>new{p}).Select(r=>r.p.a).ToList();
         Assert.Equal(expectedNested,GenericNestedAnonymousLocal<int>(Source()).ToList());
-        var expectedGroup=SystemEnumerable.GroupBy(SystemEnumerable.Select(Source(),p=>new{p}),p=>p,p=>new{x=p})
+        var expectedGroup=Source().Select(p=>new{p}).GroupBy(p=>p,p=>new{x=p})
             .Select(static g=>$"{g.Key.p}:{string.Join(",",g.Select(static e=>e.x.p))}").ToList();
         Assert.Equal(expectedGroup,GenericGroupByIdentityLocal<int>(Source()).ToList());
     }
-    private static IEnumerable<int> GenericNestedAnonymousLocal<TAnonymous>(int[]source) {
-        return source.Select(p=>new{a=p}).Select(p=>new{p}).Select(r=>r.p.a);
-    }
-    private static IEnumerable<string> GenericGroupByIdentityLocal<TAnonymous>(int[]source) {
-        return source.Select(p=>new{p}).GroupBy(p=>p,p=>new{x=p})
+
+    private static IEnumerable<int> GenericNestedAnonymousLocal<TAnonymous>(int[]source) =>
+        source.Select(p=>new{a=p}).Select(p=>new{p}).Select(r=>r.p.a);
+
+    private static IEnumerable<string> GenericGroupByIdentityLocal<TAnonymous>(int[]source) =>
+        source.Select(p=>new{p}).GroupBy(p=>p,p=>new{x=p})
             .Select(g=>$"{g.Key.p}:{string.Join(",",g.Select(e=>e.x.p))}");
-    }
-    private static void GroupBy_Static() {
-        var expected=SystemEnumerable.GroupBy(Source(),p=>p/2,static (l,r) =>new{l,r});
-        var actual=Source().GroupBy(p=>p/2,static (l,r) =>new{l,r});
-        Assert.Equal(
-            expected.Select(static item => $"{item.l}:{string.Join(",",item.r)}"),
-            actual.Select(static item => $"{item.l}:{string.Join(",",item.r)}"));
-    }
-    private static void GroupBy_Lambda() {
-        var expected=SystemEnumerable.GroupBy(Source(),(p)=>p/2,(l,r) =>new{l,r});
-        var actual=Source().GroupBy(static(p)=>p/2,(l,r) =>new{l,r});
-        Assert.Equal(
-            expected.Select(static item => $"{item.l}:{string.Join(",",item.r)}"),
-            actual.Select(static item => $"{item.l}:{string.Join(",",item.r)}"));
-    }
-    private static void GroupBy_Captured() {
-        var x=2;
-        var expected=SystemEnumerable.GroupBy(Source(),static(p)=>p/2,(l,r) =>new{l,r,x});
-        var actual=Source().GroupBy(static(p)=>p/2,(l,r) =>new{l,r,x});
-        Assert.Equal(
-            expected.Select(static item => $"{item.l}:{string.Join(",",item.r)}"),
-            actual.Select(static item => $"{item.l}:{string.Join(",",item.r)}"));
-    }
-    private static void GroupBy_Delegate() {
-        var expected=SystemEnumerable.GroupBy(Source(),static delegate(int p){return p/2;},static delegate(int l,IEnumerable<int>r){return new{l,r};});
-        var actual=Source().GroupBy(static delegate(int p){return p/2;},static delegate(int l,IEnumerable<int>r){return new{l,r};});
-        Assert.Equal(
-            expected.Select(static item => $"{item.l}:{string.Join(",",item.r)}"),
-            actual.Select(static item => $"{item.l}:{string.Join(",",item.r)}"));
-    }
-    private static void GroupBy_Variable() {
-        var x=2;
-        var keySelector=static (int p) => p/2;
-        var elementSelector=(int l,IEnumerable<int>r)=>new{l,r,x };
-        var expected=SystemEnumerable.GroupBy(Source(),keySelector,elementSelector);
-        var actual=Source().GroupBy(keySelector,elementSelector);
-        Assert.Equal(expected.Select(static item => $"{item.l}:{string.Join(",",item.r)}"),
-            actual.Select(static item => $"{item.l}:{string.Join(",",item.r)}"));
-    }
+
     [Fact,Trait("Category","Unit")]
     public void Select() {
-        Select_Static();
-        Select_Lambda();
-        Select_Captured();
-        Select_Delegate();
-        Select_Variable();
-    }
-    private static void Select_Static() {
-        var expected=SystemEnumerable.Select(Source(),static (l,r) =>new{l,r});
-        var actual=Source().Select(static (l,r) =>new{l,r});
-        Assert.Equal(expected,actual);
-    }
-    private static void Select_Lambda() {
-        var expected=SystemEnumerable.Select(Source(),(l,r) =>new{l,r});
-        var actual=Source().Select((l,r) =>new{l,r});
-        Assert.Equal(expected,actual);
-    }
-    private static void Select_Captured() {
         var offset=0;
-        var expected=SystemEnumerable.Select(Source(),(l,r) =>new{l,r,offset});
-        var actual=Source().Select((l,r) =>new{l,r,offset});
-        Assert.Equal(expected,actual);
-    }
-    private static void Select_Delegate() {
-        var expected=SystemEnumerable.Select(Source(),delegate(int l,int r) { return l+r; });
-        var actual=Source().Select(delegate(int l,int r) { return l+r; });
-        Assert.Equal(expected,actual);
-    }
-    private static void Select_Variable() {
         Func<int,int,int> func=(l,r) => l+r;
-        var expected=SystemEnumerable.Select(Source(),func);
-        var actual=Source().Select(func);
-        Assert.Equal(expected,actual);
+
+        Assert.Equal(Source().Select(static (l,r) =>new{l,r}).Select(static item => $"{item.l}:{item.r}").ToList(),Select_Static());
+        Assert.Equal(Source().Select((l,r) =>new{l,r}).Select(static item => $"{item.l}:{item.r}").ToList(),Select_Lambda());
+        Assert.Equal(Source().Select((l,r) =>new{l,r,offset}).Select(static item => $"{item.l}:{item.r}:{item.offset}").ToList(),Select_Captured());
+        Assert.Equal(Source().Select(delegate(int l,int r) { return l+r; }).ToList(),Select_Delegate());
+        Assert.Equal(Source().Select(func).ToList(),Select_Variable());
     }
 
-    // 匿名型配列をソースにして各 LINQ メソッドを対象化する。匿名型はメソッド戻り値に
-    // できないため各テスト内でインライン生成する。actual はインスタンス形（intercept）、
-    // expected は完全修飾 SystemEnumerable（参照）。
-    [Fact,Trait("Category","Unit")]public void Where() {
-        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
-        var expected=SystemEnumerable.Where(rows,r=>r.Value>15).ToList();
-        var actual=rows.Where(r=>r.Value>15).ToList();
-        Assert.Equal(expected,actual);
+    private static List<string> Select_Static() =>
+        Source().Select(static (l,r) =>$"{l}:{r}").ToList();
+
+    private static List<string> Select_Lambda() =>
+        Source().Select((l,r) =>$"{l}:{r}").ToList();
+
+    private static List<string> Select_Captured() {
+        var offset=0;
+        return Source().Select((l,r) =>$"{l}:{r}:{offset}").ToList();
     }
-    [Fact,Trait("Category","Unit")]public void Take() {
-        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
-        var expected=SystemEnumerable.Take(rows,2).ToList();
-        var actual=rows.Take(2).ToList();
-        Assert.Equal(expected,actual);
+
+    private static List<int> Select_Delegate() =>
+        Source().Select(delegate(int l,int r) { return l+r; }).ToList();
+
+    private static List<int> Select_Variable() {
+        Func<int,int,int> func=(l,r) => l+r;
+        return Source().Select(func).ToList();
     }
-    [Fact,Trait("Category","Unit")]public void Skip() {
+
+    [Fact,Trait("Category","Unit")]
+    public void Where() {
         var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
-        var expected=SystemEnumerable.Skip(rows,1).ToList();
-        var actual=rows.Skip(1).ToList();
-        Assert.Equal(expected,actual);
+        Assert.Equal(rows.Where(r=>r.Value>15).Select(static r => $"{r.Key}:{r.Value}").ToList(),WhereActual());
     }
-    [Fact,Trait("Category","Unit")]public void Reverse() {
+
+    private static List<string> WhereActual() =>
+        RowsForActual().Where(static r=>r.Value>15).Select(static r => $"{r.Key}:{r.Value}").ToList();
+
+    [Fact,Trait("Category","Unit")]
+    public void Take() {
         var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
-        var expected=SystemEnumerable.Reverse(rows).ToList();
-        var actual=rows.Reverse().ToList();
-        Assert.Equal(expected,actual);
+        Assert.Equal(rows.Take(2).Select(static r => $"{r.Key}:{r.Value}").ToList(),TakeActual());
     }
-    [Fact,Trait("Category","Unit")]public void Distinct() {
+
+    private static List<string> TakeActual() =>
+        RowsForActual().Take(2).Select(static r => $"{r.Key}:{r.Value}").ToList();
+
+    [Fact,Trait("Category","Unit")]
+    public void Skip() {
         var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
-        var expected=SystemEnumerable.Distinct(rows).ToList();
-        var actual=rows.Distinct().ToList();
-        Assert.Equal(expected,actual);
+        Assert.Equal(rows.Skip(1).Select(static r => $"{r.Key}:{r.Value}").ToList(),SkipActual());
     }
-    [Fact,Trait("Category","Unit")]public void OrderBy() {
+
+    private static List<string> SkipActual() =>
+        RowsForActual().Skip(1).Select(static r => $"{r.Key}:{r.Value}").ToList();
+
+    [Fact,Trait("Category","Unit")]
+    public void Reverse() {
         var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
-        var expected=SystemEnumerable.OrderBy(rows,r=>r.Value).ToList();
-        var actual=rows.OrderBy(r=>r.Value).ToList();
-        Assert.Equal(expected,actual);
+        Assert.Equal(rows.Reverse().Select(static r => $"{r.Key}:{r.Value}").ToList(),ReverseActual());
     }
-    [Fact,Trait("Category","Unit")]public void Concat() {
+
+    private static List<string> ReverseActual() =>
+        RowsForActual().Reverse().Select(static r => $"{r.Key}:{r.Value}").ToList();
+
+    [Fact,Trait("Category","Unit")]
+    public void Distinct() {
         var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
-        var expected=SystemEnumerable.Concat(rows,rows).ToList();
-        var actual=rows.Concat(rows).ToList();
-        Assert.Equal(expected,actual);
+        Assert.Equal(rows.Distinct().Select(static r => $"{r.Key}:{r.Value}").ToList(),DistinctActual());
     }
-    [Fact,Trait("Category","Unit")]public void Count() {
+
+    private static List<string> DistinctActual() =>
+        RowsForActual().Distinct().Select(static r => $"{r.Key}:{r.Value}").ToList();
+
+    [Fact,Trait("Category","Unit")]
+    public void OrderBy() {
         var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
-        var expected=SystemEnumerable.Count(rows,r=>r.Key==2);
-        var actual=rows.Count(r=>r.Key==2);
-        Assert.Equal(expected,actual);
+        Assert.Equal(rows.OrderBy(r=>r.Value).Select(static r => $"{r.Key}:{r.Value}").ToList(),OrderByActual());
     }
-    [Fact,Trait("Category","Unit")]public void Any() {
+
+    private static List<string> OrderByActual() =>
+        RowsForActual().OrderBy(static r=>r.Value).Select(static r => $"{r.Key}:{r.Value}").ToList();
+
+    [Fact,Trait("Category","Unit")]
+    public void Concat() {
         var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
-        var expected=SystemEnumerable.Any(rows,r=>r.Key==3);
-        var actual=rows.Any(r=>r.Key==3);
-        Assert.Equal(expected,actual);
+        Assert.Equal(rows.Concat(rows).Select(static r => $"{r.Key}:{r.Value}").ToList(),ConcatActual());
     }
-    [Fact,Trait("Category","Unit")]public void All() {
+
+    private static List<string> ConcatActual() {
+        var rows=RowsForActual();
+        return rows.Concat(rows).Select(static r => $"{r.Key}:{r.Value}").ToList();
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void Count() {
         var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
-        var expected=SystemEnumerable.All(rows,r=>r.Value>0);
-        var actual=rows.All(r=>r.Value>0);
-        Assert.Equal(expected,actual);
+        Assert.Equal(rows.Count(r=>r.Key==2),CountActual());
     }
-    [Fact,Trait("Category","Unit")]public void First() {
+
+    private static int CountActual() =>
+        RowsForActual().Count(static r=>r.Key==2);
+
+    [Fact,Trait("Category","Unit")]
+    public void Any() {
         var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
-        var expected=SystemEnumerable.First(rows,r=>r.Key==2);
-        var actual=rows.First(r=>r.Key==2);
-        Assert.Equal(expected,actual);
+        Assert.Equal(rows.Any(r=>r.Key==3),AnyActual());
     }
-    [Fact,Trait("Category","Unit")]public void ToArray() {
+
+    private static bool AnyActual() =>
+        RowsForActual().Any(static r=>r.Key==3);
+
+    [Fact,Trait("Category","Unit")]
+    public void All() {
         var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
-        var expected=SystemEnumerable.ToArray(rows);
-        var actual=rows.ToArray();
-        Assert.Equal(expected,actual);
+        Assert.Equal(rows.All(r=>r.Value>0),AllActual());
     }
+
+    private static bool AllActual() =>
+        RowsForActual().All(static r=>r.Value>0);
+
+    [Fact,Trait("Category","Unit")]
+    public void First() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        var expected=rows.First(r=>r.Key==2);
+        Assert.Equal($"{expected.Key}:{expected.Value}",FirstActual());
+    }
+
+    private static string FirstActual() =>
+        RowsForActual().Where(static r=>r.Key==2).Select(static r => $"{r.Key}:{r.Value}").First();
+
+    [Fact,Trait("Category","Unit")]
+    public void ToArray() {
+        var rows=new[]{new{Key=1,Value=10},new{Key=2,Value=20},new{Key=2,Value=30},new{Key=3,Value=40}};
+        Assert.Equal(rows.ToArray().Select(static r => $"{r.Key}:{r.Value}").ToList(),ToArrayActual());
+    }
+
+    private static List<string> ToArrayActual() =>
+        RowsForActual().ToArray().Select(static r => $"{r.Key}:{r.Value}").ToList();
+
+    private static IEnumerable<string> FormatGroupBy<T>(IEnumerable<T> rows) =>
+        rows.Select(static item => {
+            dynamic value=item!;
+            return $"{value.l}:{string.Join(",",value.r)}";
+        });
+
+    private static AnonymousRow[] RowsForActual() =>
+        [new(1,10),new(2,20),new(2,30),new(3,40)];
 
     public static int[] Source() => [1,2,3,4];
     public static int[] Second() => [3,4,5];
@@ -219,4 +252,6 @@ public sealed class AnonymousType {
     public static Row[] Rows() => [new(1,10,"beta"),new(2,20,"alpha"),new(3,30,"gamma")];
 
     public sealed record Row(int Key,int Value,string Name);
+
+    public readonly record struct AnonymousRow(int Key,int Value);
 }

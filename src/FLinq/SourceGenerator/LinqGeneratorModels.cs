@@ -76,7 +76,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
         /// </summary>
         public bool HasAnonymousTypeLinq { get; } = hasAnonymousTypeLinq;
     }
-    private sealed class Linq傍受対象型(string identifier,string containingMethodName,string interceptsLocationAttributeText,IMethodSymbol method,IMethodSymbol templateMethod,InvocationExpressionSyntax invocation,INamedTypeSymbol enclosingType,SemanticModel semanticModel,TsavoriteIncrementalGenerator.InterceptParameterSpec[] parameters,TsavoriteIncrementalGenerator.ローカルメソッドLinq解析結果? linqAnalysis = null,string? sourceElementTypeName = null,string[]? methodTypeParameterNames = null,bool isLocalMethodInterception = false):IEquatable<Linq傍受対象型> {
+    private sealed class Linq傍受対象型(string identifier,string containingMethodName,string interceptsLocationAttributeText,IMethodSymbol method,IMethodSymbol templateMethod,InvocationExpressionSyntax invocation,INamedTypeSymbol enclosingType,SemanticModel semanticModel,TsavoriteIncrementalGenerator.InterceptParameterSpec[] parameters,TsavoriteIncrementalGenerator.ローカルメソッドLinq解析結果? linqAnalysis = null,string? sourceElementTypeName = null,string[]? methodTypeParameterNames = null,bool isLocalMethodInterception = false,bool optimizeLinq = true,bool counterInstrumentation = false):IEquatable<Linq傍受対象型> {
         public bool Equals(Linq傍受対象型? other) {
             if(other is null) return false;
             if(ReferenceEquals(this,other)) return true;
@@ -98,6 +98,8 @@ public sealed partial class TsavoriteIncrementalGenerator {
         private string? ExplicitSourceElementTypeName { get; } = sourceElementTypeName;
         private string[] MethodTypeParameters { get; } = methodTypeParameterNames?? [];
         public bool IsLocalMethodInterception { get; } = isLocalMethodInterception;
+        public bool OptimizeLinq { get; } = optimizeLinq;
+        public bool CounterInstrumentation { get; } = counterInstrumentation;
         private string SourceElementTypeName {
             get {
                 if(!string.IsNullOrWhiteSpace(this.ExplicitSourceElementTypeName)) {
@@ -135,7 +137,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
         public string MethodTypeParameterList=>this.MethodTypeParameters.Length==0
             ? string.Empty
             : "<"+string.Join(", ",this.MethodTypeParameters)+">";
-        public string MethodName=>$"OptimizedLinq_{this.Identifier}";
+        public string MethodName=>$"{(this.OptimizeLinq ? "OptimizedLinq" : "MeasuredLinq")}_{this.Identifier}";
     }
     private sealed class InterceptParameterSpec(string name,string typeName,RefKind refKind = RefKind.None) {
         private string Name { get; } = name;

@@ -3,7 +3,6 @@ using System.Linq;
 
 using Test.Tsavorite.Collections.Intercept.System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
@@ -11,7 +10,7 @@ public sealed class Select {
     [Fact,Trait("Category","Unit")]
     public static void selector(){
         GeneratedInterceptorAssert.ContainsMethod<Select>(nameof(selectorImpl));
-        var expected=SystemEnumerable.Select([1,2,3,4],static v => v*2).ToList();
+        var expected=new[]{1,2,3,4}.Select(static v => v*2).ToList();
         var actual=selectorImpl();
         Assert.Equal(expected,actual);
     }
@@ -22,7 +21,7 @@ public sealed class Select {
     [Fact,Trait("Category","Unit")]
     public static void indexSelector(){
         GeneratedInterceptorAssert.ContainsMethod<Select>(nameof(indexSelectorImpl));
-        var expected=SystemEnumerable.Select([1,2,3,4],static (v,i) => v+i).ToList();
+        var expected=new[]{1,2,3,4}.Select(static (v,i) => v+i).ToList();
         var actual=indexSelectorImpl();
         Assert.Equal(expected,actual);
     }
@@ -33,7 +32,7 @@ public sealed class Select {
     [Fact,Trait("Category","Unit")]
     public static void selector_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Select>(nameof(selector_enumerableImpl));
-        var expected=SystemEnumerable.Select([1,2,3,4],static v => v*2).ToList();
+        var expected=new[]{1,2,3,4}.Select(static v => v*2).ToList();
         var actual=selector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
@@ -45,7 +44,7 @@ public sealed class Select {
     [Fact,Trait("Category","Unit")]
     public static void indexSelector_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Select>(nameof(indexSelector_enumerableImpl));
-        var expected=SystemEnumerable.Select([1,2,3,4],static (v,i) => v+i).ToList();
+        var expected=new[]{1,2,3,4}.Select(static (v,i) => v+i).ToList();
         var actual=indexSelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }

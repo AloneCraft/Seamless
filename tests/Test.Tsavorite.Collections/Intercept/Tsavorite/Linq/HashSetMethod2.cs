@@ -88,7 +88,7 @@ public sealed class HashSetMethod2 {
     public static void Select_Select_index_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Select(SystemEnumerable.Select(Source(),static value => value+1),static (value,index) => value+index),
+            Source().Select(static value => value+1).Select(static (value,index) => value+index),
             source.Select(static value => value+1).Select(static (value,index) => value+index)
         );
     }
@@ -97,7 +97,7 @@ public sealed class HashSetMethod2 {
     public static void Select_Where_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Where(SystemEnumerable.Select(Source(),static value => value*10),static value => value>20),
+            Source().Select(static value => value*10).Where(static value => value>20),
             source.Select(static value => value*10).Where(static value => value>20)
         );
     }
@@ -106,7 +106,7 @@ public sealed class HashSetMethod2 {
     public static void Select_Where_index_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Where(SystemEnumerable.Select(Source(),static value => value*10),static (value,index) => value>20&&index>0),
+            Source().Select(static value => value*10).Where(static (value,index) => value>20&&index>0),
             source.Select(static value => value*10).Where(static (value,index) => value>20&&index>0)
         );
     }
@@ -115,7 +115,7 @@ public sealed class HashSetMethod2 {
     public static void Select_index_Select_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Select(SystemEnumerable.Select(Source(),static (value,index) => value+index),static value => value*10),
+            Source().Select(static (value,index) => value+index).Select(static value => value*10),
             source.Select(static (value,index) => value+index).Select(static value => value*10)
         );
     }
@@ -124,7 +124,7 @@ public sealed class HashSetMethod2 {
     public static void Select_index_Select_index_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Select(SystemEnumerable.Select(Source(),static (value,index) => value+index),static (value,index) => value+index),
+            Source().Select(static (value,index) => value+index).Select(static (value,index) => value+index),
             source.Select(static (value,index) => value+index).Select(static (value,index) => value+index)
         );
     }
@@ -133,7 +133,7 @@ public sealed class HashSetMethod2 {
     public static void Select_index_Where_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Where(SystemEnumerable.Select(Source(),static (value,index) => value+index),static value => value>4),
+            Source().Select(static (value,index) => value+index).Where(static value => value>4),
             source.Select(static (value,index) => value+index).Where(static value => value>4)
         );
     }
@@ -142,7 +142,7 @@ public sealed class HashSetMethod2 {
     public static void Select_index_Where_index_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Where(SystemEnumerable.Select(Source(),static (value,index) => value+index),static (value,index) => value>3&&index>1),
+            Source().Select(static (value,index) => value+index).Where(static (value,index) => value>3&&index>1),
             source.Select(static (value,index) => value+index).Where(static (value,index) => value>3&&index>1)
         );
     }
@@ -151,7 +151,7 @@ public sealed class HashSetMethod2 {
     public static void Where_Select_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Select(SystemEnumerable.Where(Source(),static value => value>1),static value => value*10),
+            Source().Where(static value => value>1).Select(static value => value*10),
             source.Where(static value => value>1).Select(static value => value*10)
         );
     }
@@ -160,7 +160,7 @@ public sealed class HashSetMethod2 {
     public static void Where_Select_index_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Select(SystemEnumerable.Where(Source(),static value => value>1),static (value,index) => value+index),
+            Source().Where(static value => value>1).Select(static (value,index) => value+index),
             source.Where(static value => value>1).Select(static (value,index) => value+index)
         );
     }
@@ -169,7 +169,7 @@ public sealed class HashSetMethod2 {
     public static void Where_Where_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Where(SystemEnumerable.Where(Source(),static value => value>1),static value => value<4),
+            Source().Where(static value => value>1).Where(static value => value<4),
             source.Where(static value => value>1).Where(static value => value<4)
         );
     }
@@ -178,7 +178,7 @@ public sealed class HashSetMethod2 {
     public static void Where_Where_index_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Where(SystemEnumerable.Where(Source(),static value => value>1),static (value,index) => value<4&&index<2),
+            Source().Where(static value => value>1).Where(static (value,index) => value<4&&index<2),
             source.Where(static value => value>1).Where(static (value,index) => value<4&&index<2)
         );
     }
@@ -187,7 +187,7 @@ public sealed class HashSetMethod2 {
     public static void Where_index_Select_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Select(SystemEnumerable.Where(Source(),static (value,index) => value>index),static value => value*10),
+            Source().Where(static (value,index) => value>index).Select(static value => value*10),
             source.Where(static (value,index) => value>index).Select(static value => value*10)
         );
     }
@@ -196,7 +196,7 @@ public sealed class HashSetMethod2 {
     public static void Where_index_Select_index_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Select(SystemEnumerable.Where(Source(),static (value,index) => value>index),static (value,index) => value+index),
+            Source().Where(static (value,index) => value>index).Select(static (value,index) => value+index),
             source.Where(static (value,index) => value>index).Select(static (value,index) => value+index)
         );
     }
@@ -205,7 +205,7 @@ public sealed class HashSetMethod2 {
     public static void Where_index_Where_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Where(SystemEnumerable.Where(Source(),static (value,index) => value>index),static value => value<4),
+            Source().Where(static (value,index) => value>index).Where(static value => value<4),
             source.Where(static (value,index) => value>index).Where(static value => value<4)
         );
     }
@@ -214,7 +214,7 @@ public sealed class HashSetMethod2 {
     public static void Where_index_Where_index_ToArray() {
         using var source = CreateUnmanagedSource(Source());
         AssertChain(
-            SystemEnumerable.Where(SystemEnumerable.Where(Source(),static (value,index) => value>index),static (value,index) => value<4&&index<2),
+            Source().Where(static (value,index) => value>index).Where(static (value,index) => value<4&&index<2),
             source.Where(static (value,index) => value>index).Where(static (value,index) => value<4&&index<2)
         );
     }
@@ -226,15 +226,15 @@ public sealed class HashSetMethod2 {
         using var managedStructSource = CreateManagedSource(ManagedStructSource());
 
         AssertChain(
-            SystemEnumerable.Where(SystemEnumerable.Select(LongSource(),static value => value*10L),static value => value>20L),
+            LongSource().Select(static value => value*10L).Where(static value => value>20L),
             longSource.Select(static value => value*10L).Where(static value => value>20L)
         );
         AssertChain(
-            SystemEnumerable.Where(SystemEnumerable.Select(StringSource(),static value => value.ToUpperInvariant()),static value => value.Length>1),
+            StringSource().Select(static value => value.ToUpperInvariant()).Where(static value => value.Length>1),
             stringSource.Select(static value => value.ToUpperInvariant()).Where(static value => value.Length>1)
         );
         AssertChain(
-            SystemEnumerable.Where(SystemEnumerable.Select(ManagedStructSource(),static value => CreateManagedStruct(value)),static value => value.Name.Length>2),
+            ManagedStructSource().Select(static value => CreateManagedStruct(value)).Where(static value => value.Name.Length>2),
             managedStructSource.Select(static value => CreateManagedStruct(value)).Where(static value => value.Name.Length>2)
         );
     }
@@ -242,7 +242,7 @@ public sealed class HashSetMethod2 {
     private static void AssertChain<T>(IEnumerable<T> expected,IEnumerable<T> actual)
         where T : IComparable<T> {
         try {
-            Assert.Equal(SystemEnumerable.OrderBy(expected,static value => value),SystemEnumerable.OrderBy(actual,static value => value));
+            Assert.Equal(expected.OrderBy(static value => value),actual.OrderBy(static value => value));
         }
         finally {
             if(actual is IDisposable disposable) {

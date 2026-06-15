@@ -1,5 +1,7 @@
 using System.Linq;
 
+using Tsavorite;
+
 namespace Test.Tsavorite.Collections.Intercept.System.Linq;
 
 public sealed class EnumerableComparisonCatalogTests {
@@ -29,10 +31,16 @@ public sealed class EnumerableComparisonCatalogTests {
     [Theory,Trait("Category","Unit"),MemberData(nameof(BenchmarkMethodNames))]
     public void BenchmarkMethodNames_match_enumerable_result(string methodName) {
         var expected = EnumerableComparisonCatalog.Normalize(EnumerableComparisonCatalog.RunSystem(methodName));
+        using var optimizedScope = LinqCounterScope.Start();
         var flinq = EnumerableComparisonCatalog.Normalize(EnumerableComparisonCatalog.RunFLinq(methodName));
+        using var noOptimizedScope = LinqCounterScope.Start();
+        var noOptimized = EnumerableComparisonCatalog.Normalize(EnumerableComparisonCatalog.RunFLinqNoOptimized(methodName));
         var zlinq = EnumerableComparisonCatalog.Normalize(EnumerableComparisonCatalog.RunZLinq(methodName));
 
         Assert.Equal(expected,flinq);
+        Assert.Equal(expected,noOptimized);
         Assert.Equal(expected,zlinq);
+        Assert.True(optimizedScope.Counter.PhysicalDelegate<=noOptimizedScope.Counter.PhysicalDelegate);
+        Assert.Equal(noOptimizedScope.Counter.LogicalDelegate,noOptimizedScope.Counter.PhysicalDelegate);
     }
 }

@@ -1,73 +1,114 @@
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
+using Tsavorite.SourceGenerator;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed class Any:LinqChain1TestBase {
     [Fact, Trait("Category","Unit")]
-    public static void NoDelegate() => NoDelegateImpl();
-
-    private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.Any(Source());
-        var actual=Source().Any();
-        Assert.Equal(expected,actual);
+    public static void NoDelegate() {
+        var expected=Source().Any();
+        AssertOptimized(expected,()=>NoDelegateOptimized(),0,0);
+        AssertOptimized(expected,()=>NoDelegateNoOptimized(),0,0);
     }
 
-    [Fact, Trait("Category","Unit")]
-    public static void predicate_Static() => predicate_StaticImpl();
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static bool NoDelegateOptimized() =>
+        Source().Any();
 
-    private static void predicate_StaticImpl() {
-        var expected=SystemEnumerable.Any(Source(),static v => v>3);
-        var actual=Source().Any(static v => v>3);
-        Assert.Equal(expected,actual);
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static bool NoDelegateNoOptimized() =>
+        Source().Any();
+
+    [Fact, Trait("Category","Unit")]
+    public static void predicate_Static() {
+        var expected=Source().Any(static v => v>3);
+        AssertOptimized(expected,()=>predicate_StaticOptimized(),4,0);
+        AssertOptimized(expected,()=>predicate_StaticNoOptimized(),4,4);
     }
 
-    [Fact, Trait("Category","Unit")]
-    public static void predicate_Nested() => predicate_NestedImpl();
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static bool predicate_StaticOptimized() =>
+        Source().Any(static v => v>3);
 
-    private static void predicate_NestedImpl() {
-        var expected=SystemEnumerable.Any(Source(),p => SystemEnumerable.Any(Source(),q => q==p));
-        var actual=Source().Any(p => Source().Any(q => q==p));
-        Assert.Equal(expected,actual);
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static bool predicate_StaticNoOptimized() =>
+        Source().Any(static v => v>3);
+
+    [Fact, Trait("Category","Unit")]
+    public static void predicate_Nested() {
+        var expected=Source().Any(p => Source().Any(q => q==p));
+        AssertOptimized(expected,()=>predicate_NestedOptimized(),1,0);
+        AssertOptimized(expected,()=>predicate_NestedNoOptimized(),1,1);
     }
 
-    [Fact, Trait("Category","Unit")]
-    public static void predicate_Lambda() => predicate_LambdaImpl();
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static bool predicate_NestedOptimized() =>
+        Source().Any(p => Source().Any(q => q==p));
 
-    private static void predicate_LambdaImpl() {
-        var expected=SystemEnumerable.Any(Source(),v => v>3);
-        var actual=Source().Any(v => v>3);
-        Assert.Equal(expected,actual);
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static bool predicate_NestedNoOptimized() =>
+        Source().Any(p => Source().Any(q => q==p));
+
+    [Fact, Trait("Category","Unit")]
+    public static void predicate_Lambda() {
+        var expected=Source().Any(v => v>3);
+        AssertOptimized(expected,()=>predicate_LambdaOptimized(),4,0);
+        AssertOptimized(expected,()=>predicate_LambdaNoOptimized(),4,4);
     }
 
-    [Fact, Trait("Category","Unit")]
-    public static void predicate_Captured() => predicate_CapturedImpl();
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static bool predicate_LambdaOptimized() =>
+        Source().Any(v => v>3);
 
-    private static void predicate_CapturedImpl() {
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static bool predicate_LambdaNoOptimized() =>
+        Source().Any(v => v>3);
+
+    [Fact, Trait("Category","Unit")]
+    public static void predicate_Captured() {
         var threshold=3;
-        var expected=SystemEnumerable.Any(Source(),v => v>threshold);
-        var actual=Source().Any(v => v>threshold);
-        Assert.Equal(expected,actual);
+        var expected=Source().Any(v => v>threshold);
+        AssertOptimized(expected,()=>predicate_CapturedOptimized(threshold),4,0);
+        AssertOptimized(expected,()=>predicate_CapturedNoOptimized(threshold),4,4);
     }
 
-    [Fact, Trait("Category","Unit")]
-    public static void predicate_DelegateSyntax() => predicate_DelegateSyntaxImpl();
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static bool predicate_CapturedOptimized(int threshold) =>
+        Source().Any(v => v>threshold);
 
-    private static void predicate_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.Any(Source(),delegate(int v) { return v>3; });
-        var actual=Source().Any(delegate(int v) { return v>3; });
-        Assert.Equal(expected,actual);
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static bool predicate_CapturedNoOptimized(int threshold) =>
+        Source().Any(v => v>threshold);
+
+    [Fact, Trait("Category","Unit")]
+    public static void predicate_DelegateSyntax() {
+        var expected=Source().Any(delegate(int v) { return v>3; });
+        AssertOptimized(expected,()=>predicate_DelegateSyntaxOptimized(),4,0);
+        AssertOptimized(expected,()=>predicate_DelegateSyntaxNoOptimized(),4,4);
     }
 
-    [Fact, Trait("Category","Unit")]
-    public static void predicate_Variable() => predicate_VariableImpl();
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static bool predicate_DelegateSyntaxOptimized() =>
+        Source().Any(delegate(int v) { return v>3; });
 
-    private static void predicate_VariableImpl() {
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static bool predicate_DelegateSyntaxNoOptimized() =>
+        Source().Any(delegate(int v) { return v>3; });
+
+    [Fact, Trait("Category","Unit")]
+    public static void predicate_Variable() {
         Func<int,bool> predicate=v => v>3;
-        var expected=SystemEnumerable.Any(Source(),predicate);
-        var actual=Source().Any(predicate);
-        Assert.Equal(expected,actual);
+        var expected=Source().Any(predicate);
+        AssertOptimized(expected,()=>predicate_VariableOptimized(predicate),4,4);
+        AssertOptimized(expected,()=>predicate_VariableNoOptimized(predicate),4,4);
     }
 
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static bool predicate_VariableOptimized(Func<int,bool> predicate) =>
+        Source().Any(predicate);
+
+    [LinqIntercept(false,LinqInstrumentation.Counter)]
+    private static bool predicate_VariableNoOptimized(Func<int,bool> predicate) =>
+        Source().Any(predicate);
 }

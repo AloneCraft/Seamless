@@ -12,7 +12,7 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeElementAtInline(destVar,destType)
         ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
-        ?? this.RenderComputeInline(destVar,destType);
+        ?? this.RenderComputeInline(destVar,destType,index);
     private string? RenderRangeElementAtInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;
@@ -72,7 +72,7 @@ public class ElementAt_index(int 番号, Enumerable source, string index, string
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeElementAtIndexInline(destVar,destType)
         ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
-        ?? this.RenderComputeInline(destVar,destType);
+        ?? this.RenderComputeInline(destVar,destType,index);
     private string? RenderRangeElementAtIndexInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;

@@ -4,7 +4,6 @@ using System.Linq;
 
 using Test.Tsavorite.Collections.Intercept.System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
@@ -13,7 +12,7 @@ public sealed class Cast {
     public static void noArg(){
         GeneratedInterceptorAssert.ContainsMethod<Cast>(nameof(noArgImpl));
         IEnumerable src=new object[]{1,2,3};
-        var expected=SystemEnumerable.Cast<int>(src).ToList();
+        var expected=src.Cast<int>().ToList();
         var actual=noArgImpl();
         Assert.Equal(expected,actual);
     }

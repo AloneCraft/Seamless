@@ -3,7 +3,6 @@ using System.Linq;
 
 using Test.Tsavorite.Collections.Intercept.System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
@@ -11,7 +10,7 @@ public sealed class Chunk {
     [Fact,Trait("Category","Unit")]
     public static void size(){
         GeneratedInterceptorAssert.ContainsMethod<Chunk>(nameof(sizeImpl));
-        var expected=SystemEnumerable.Chunk([1,2,3,4],2).SelectMany(static a => a).ToList();
+        var expected=new[]{1,2,3,4}.Chunk(2).SelectMany(static a => a).ToList();
         var actual=sizeImpl().SelectMany(static a => a).ToList();
         Assert.Equal(expected,actual);
     }
@@ -22,7 +21,7 @@ public sealed class Chunk {
     [Fact,Trait("Category","Unit")]
     public static void size_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Chunk>(nameof(size_enumerableImpl));
-        var expected=SystemEnumerable.Chunk([1,2,3,4],2).SelectMany(static a => a).ToList();
+        var expected=new[]{1,2,3,4}.Chunk(2).SelectMany(static a => a).ToList();
         var actual=size_enumerableImpl().SelectMany(static a => a).ToList();
         Assert.Equal(expected,actual);
     }

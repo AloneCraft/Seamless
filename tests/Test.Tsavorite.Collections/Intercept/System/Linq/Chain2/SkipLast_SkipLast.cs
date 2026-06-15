@@ -2,41 +2,79 @@ using System.Linq;
 
 using Test.Tsavorite.Collections.Intercept.System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain2;
 
 public sealed class SkipLast_SkipLast:LinqChain2TestBase {
     [Fact, Trait("Category","Unit")]
-    public static void SpanFusion() => SpanFusionImpl();
+    public static void SpanFusion() {
+                //span経路(配列)・引数違いで加算融合になること
+        var expected=Source().SkipLast(1).SkipLast(2).ToList();
+        SpanFusionOptimized(expected);
+        SpanFusionNoOptimized(expected);
+    }
 
-    private static void SpanFusionImpl() {
-        //span経路(配列)・引数違いで加算融合になること
-        var expected=SystemEnumerable.SkipLast(SystemEnumerable.SkipLast(Source(),1),2).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void SpanFusionOptimized(dynamic expected) {
+                //span経路(配列)・引数違いで加算融合になること
         var actual=new Consumer<int>();
-        Source().SkipLast(1).SkipLast(2).Consume(actual);
-        AssertSequenceEqual(expected,actual.Items);
+                Source().SkipLast(1).SkipLast(2).Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void SpanFusionNoOptimized(dynamic expected) {
+                //span経路(配列)・引数違いで加算融合になること
+        var actual=new Consumer<int>();
+                Source().SkipLast(1).SkipLast(2).Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void SpanChain3() => SpanChain3Impl();
+    public static void SpanChain3() {
+                //span経路・3段連鎖(合計が要素数を超えるケース)
+        var expected=Source().SkipLast(2).SkipLast(2).SkipLast(2).ToList();
+        SpanChain3Optimized(expected);
+        SpanChain3NoOptimized(expected);
+    }
 
-    private static void SpanChain3Impl() {
-        //span経路・3段連鎖(合計が要素数を超えるケース)
-        var expected=SystemEnumerable.SkipLast(SystemEnumerable.SkipLast(SystemEnumerable.SkipLast(Source(),2),2),2).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void SpanChain3Optimized(dynamic expected) {
+                //span経路・3段連鎖(合計が要素数を超えるケース)
         var actual=new Consumer<int>();
-        Source().SkipLast(2).SkipLast(2).SkipLast(2).Consume(actual);
-        AssertSequenceEqual(expected,actual.Items);
+                Source().SkipLast(2).SkipLast(2).SkipLast(2).Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void SpanChain3NoOptimized(dynamic expected) {
+                //span経路・3段連鎖(合計が要素数を超えるケース)
+        var actual=new Consumer<int>();
+                Source().SkipLast(2).SkipLast(2).SkipLast(2).Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void NonSpanQueuePath() => NonSpanQueuePathImpl();
+    public static void NonSpanQueuePath() {
+                //非span経路(Where挟みでQueue経路)
+        var expected=Source().Where(p => p>0).SkipLast(1).SkipLast(2).ToList();
+        NonSpanQueuePathOptimized(expected);
+        NonSpanQueuePathNoOptimized(expected);
+    }
 
-    private static void NonSpanQueuePathImpl() {
-        //非span経路(Where挟みでQueue経路)
-        var expected=SystemEnumerable.SkipLast(SystemEnumerable.SkipLast(SystemEnumerable.Where(Source(),p => p>0),1),2).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void NonSpanQueuePathOptimized(dynamic expected) {
+                //非span経路(Where挟みでQueue経路)
         var actual=new Consumer<int>();
-        Source().Where(p => p>0).SkipLast(1).SkipLast(2).Consume(actual);
-        AssertSequenceEqual(expected,actual.Items);
+                Source().Where(p => p>0).SkipLast(1).SkipLast(2).Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void NonSpanQueuePathNoOptimized(dynamic expected) {
+                //非span経路(Where挟みでQueue経路)
+        var actual=new Consumer<int>();
+                Source().Where(p => p>0).SkipLast(1).SkipLast(2).Consume(actual);
+                AssertSequenceEqual(expected,actual.Items);
     }
 }

@@ -23,6 +23,17 @@ public class LinqRewriteAttributeTests {
         }
         """;
 
+    private const string CounterWithoutOptimization = """
+        using System.Linq;
+        using Tsavorite.SourceGenerator;
+        namespace Sample;
+        public class Container {
+            [LinqIntercept(false,LinqInstrumentation.Counter)]
+            private static int SumPositive(int[] src) => src.Where(x => x>0).Sum();
+            public int Run(int[] src) => SumPositive(src);
+        }
+        """;
+
     // クラスに [LinqIntercept(false)] を付けると、配下のメソッドは展開されない。
     private const string NoRewriteOnClass = """
         using System.Linq;
@@ -87,6 +98,13 @@ public class LinqRewriteAttributeTests {
     }
 
     [Fact]
+    public void CounterInstrumentation_WithNoLinqOptimization_IsIntercepted() {
+        var generated=GeneratedSource(CounterWithoutOptimization);
+        Assert.Contains("MeasuredLinq_SumPositive",generated,StringComparison.Ordinal);
+        Assert.DoesNotContain("OptimizedLinq_SumPositive",generated,StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void NoLinqRewrite_OnClass_NotIntercepted() {
         Assert.False(IsSumPositiveIntercepted(NoRewriteOnClass));
     }
@@ -107,14 +125,16 @@ public class LinqRewriteAttributeTests {
     }
 
     private static bool IsSumPositiveIntercepted(string source) {
+        return GeneratedSource(source).Contains("SumPositive_",StringComparison.Ordinal);
+    }
+
+    private static string GeneratedSource(string source) {
         var comp=GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
         var driver=GeneratorTestHelpers.CreateDriver().RunGenerators(comp);
         var result=driver.GetRunResult();
 
-        var generated=string.Concat(result.Results
+        return string.Concat(result.Results
             .SelectMany(r=>r.GeneratedSources)
             .Select(s=>s.SourceText.ToString()));
-
-        return generated.Contains("SumPositive_",StringComparison.Ordinal);
     }
 }

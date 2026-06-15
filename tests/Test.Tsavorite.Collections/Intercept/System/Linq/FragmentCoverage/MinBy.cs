@@ -3,7 +3,6 @@ using System.Linq;
 
 using Test.Tsavorite.Collections.Intercept.System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
@@ -11,7 +10,7 @@ public sealed class MinBy {
     [Fact,Trait("Category","Unit")]
     public static void keySelector(){
         GeneratedInterceptorAssert.ContainsMethod<MinBy>(nameof(keySelectorImpl));
-        var expected=SystemEnumerable.MinBy([1,2,3,4],static v => v);
+        var expected=new[]{1,2,3,4}.MinBy(static v => v);
         var actual=keySelectorImpl();
         Assert.Equal(expected,actual);
     }
@@ -22,7 +21,7 @@ public sealed class MinBy {
     [Fact,Trait("Category","Unit")]
     public static void keySelector_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<MinBy>(nameof(keySelector_enumerableImpl));
-        var expected=SystemEnumerable.MinBy([1,2,3,4],static v => v);
+        var expected=new[]{1,2,3,4}.MinBy(static v => v);
         var actual=keySelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }

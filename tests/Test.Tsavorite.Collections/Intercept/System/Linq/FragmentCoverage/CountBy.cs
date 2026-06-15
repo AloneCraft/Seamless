@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
@@ -9,7 +8,7 @@ public sealed class CountBy {
     [Fact,Trait("Category","Unit")]
     public static void keySelector(){
         GeneratedInterceptorAssert.ContainsMethod<CountBy>(nameof(keySelectorImpl));
-        var expected=SystemEnumerable.CountBy([1,1,2,2],static v => v).OrderBy(static kv => kv.Key).ToList();
+        var expected=new[]{1,1,2,2}.CountBy(static v => v).OrderBy(static kv => kv.Key).ToList();
         var actual=keySelectorImpl().OrderBy(static kv => kv.Key).ToList();
         Assert.Equal(expected,actual);
     }
@@ -20,7 +19,7 @@ public sealed class CountBy {
     [Fact,Trait("Category","Unit")]
     public static void keySelector_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<CountBy>(nameof(keySelector_enumerableImpl));
-        var expected=SystemEnumerable.CountBy([1,1,2,2],static v => v).OrderBy(static kv => kv.Key).ToList();
+        var expected=new[]{1,1,2,2}.CountBy(static v => v).OrderBy(static kv => kv.Key).ToList();
         var actual=keySelector_enumerableImpl().OrderBy(static kv => kv.Key).ToList();
         Assert.Equal(expected,actual);
     }

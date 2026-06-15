@@ -3,7 +3,6 @@ using System.Linq;
 
 using Test.Tsavorite.Collections.Intercept.System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
@@ -11,7 +10,7 @@ public sealed class OrderBy {
     [Fact,Trait("Category","Unit")]
     public static void keySelector(){
         GeneratedInterceptorAssert.ContainsMethod<OrderBy>(nameof(keySelectorImpl));
-        var expected=SystemEnumerable.OrderBy([3,1,4,2],static v => v).ToList();
+        var expected=new[]{3,1,4,2}.OrderBy(static v => v).ToList();
         var actual=keySelectorImpl();
         Assert.Equal(expected,actual);
     }
@@ -22,7 +21,7 @@ public sealed class OrderBy {
     [Fact,Trait("Category","Unit")]
     public static void comparer(){
         GeneratedInterceptorAssert.ContainsMethod<OrderBy>(nameof(comparerImpl));
-        var expected=SystemEnumerable.OrderBy([3,1,4,2],static v => v,Comparer<int>.Default).ToList();
+        var expected=new[]{3,1,4,2}.OrderBy(static v => v,Comparer<int>.Default).ToList();
         var actual=comparerImpl();
         Assert.Equal(expected,actual);
     }
@@ -33,7 +32,7 @@ public sealed class OrderBy {
     [Fact,Trait("Category","Unit")]
     public static void OrderByDescending_keySelector(){
         GeneratedInterceptorAssert.ContainsMethod<OrderBy>(nameof(OrderByDescending_keySelectorImpl));
-        var expected=SystemEnumerable.OrderByDescending([3,1,4,2],static v => v).ToList();
+        var expected=new[]{3,1,4,2}.OrderByDescending(static v => v).ToList();
         var actual=OrderByDescending_keySelectorImpl();
         Assert.Equal(expected,actual);
     }
@@ -44,7 +43,7 @@ public sealed class OrderBy {
     [Fact,Trait("Category","Unit")]
     public static void OrderByDescending_comparer(){
         GeneratedInterceptorAssert.ContainsMethod<OrderBy>(nameof(OrderByDescending_comparerImpl));
-        var expected=SystemEnumerable.OrderByDescending([3,1,4,2],static v => v,Comparer<int>.Default).ToList();
+        var expected=new[]{3,1,4,2}.OrderByDescending(static v => v,Comparer<int>.Default).ToList();
         var actual=OrderByDescending_comparerImpl();
         Assert.Equal(expected,actual);
     }
@@ -55,7 +54,7 @@ public sealed class OrderBy {
     [Fact,Trait("Category","Unit")]
     public static void keySelector_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<OrderBy>(nameof(keySelector_enumerableImpl));
-        var expected=SystemEnumerable.OrderBy([3,1,4,2],static v => v).ToList();
+        var expected=new[]{3,1,4,2}.OrderBy(static v => v).ToList();
         var actual=keySelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
@@ -67,7 +66,7 @@ public sealed class OrderBy {
     [Fact,Trait("Category","Unit")]
     public static void comparer_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<OrderBy>(nameof(comparer_enumerableImpl));
-        var expected=SystemEnumerable.OrderBy([3,1,4,2],static v => v,Comparer<int>.Default).ToList();
+        var expected=new[]{3,1,4,2}.OrderBy(static v => v,Comparer<int>.Default).ToList();
         var actual=comparer_enumerableImpl();
         Assert.Equal(expected,actual);
     }
@@ -79,7 +78,7 @@ public sealed class OrderBy {
     [Fact,Trait("Category","Unit")]
     public static void OrderByDescending_keySelector_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<OrderBy>(nameof(OrderByDescending_keySelector_enumerableImpl));
-        var expected=SystemEnumerable.OrderByDescending([3,1,4,2],static v => v).ToList();
+        var expected=new[]{3,1,4,2}.OrderByDescending(static v => v).ToList();
         var actual=OrderByDescending_keySelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
@@ -91,7 +90,7 @@ public sealed class OrderBy {
     [Fact,Trait("Category","Unit")]
     public static void OrderByDescending_comparer_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<OrderBy>(nameof(OrderByDescending_comparer_enumerableImpl));
-        var expected=SystemEnumerable.OrderByDescending([3,1,4,2],static v => v,Comparer<int>.Default).ToList();
+        var expected=new[]{3,1,4,2}.OrderByDescending(static v => v,Comparer<int>.Default).ToList();
         var actual=OrderByDescending_comparer_enumerableImpl();
         Assert.Equal(expected,actual);
     }

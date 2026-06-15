@@ -1,62 +1,125 @@
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed class LongCount:LinqChain1TestBase {
     [Fact, Trait("Category","Unit")]
-    public static void NoDelegate() => NoDelegateImpl();
+    public static void NoDelegate() {
+        var expected=Source().LongCount();
+        NoDelegateOptimized(expected);
+        NoDelegateNoOptimized(expected);
+    }
 
-    private static void NoDelegateImpl() {
-        var expected=SystemEnumerable.LongCount(Source());
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void NoDelegateOptimized(dynamic expected) {
+        var actual=Source().LongCount();
+        Assert.Equal(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void NoDelegateNoOptimized(dynamic expected) {
         var actual=Source().LongCount();
         Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Static() => predicate_StaticImpl();
+    public static void predicate_Static() {
+        var expected=Source().LongCount(static v => v>2);
+        predicate_StaticOptimized(expected);
+        predicate_StaticNoOptimized(expected);
+    }
 
-    private static void predicate_StaticImpl() {
-        var expected=SystemEnumerable.LongCount(Source(),static v => v>2);
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void predicate_StaticOptimized(dynamic expected) {
+        var actual=Source().LongCount(static v => v>2);
+        Assert.Equal(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void predicate_StaticNoOptimized(dynamic expected) {
         var actual=Source().LongCount(static v => v>2);
         Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Lambda() => predicate_LambdaImpl();
+    public static void predicate_Lambda() {
+        var expected=Source().LongCount(v => v>2);
+        predicate_LambdaOptimized(expected);
+        predicate_LambdaNoOptimized(expected);
+    }
 
-    private static void predicate_LambdaImpl() {
-        var expected=SystemEnumerable.LongCount(Source(),v => v>2);
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void predicate_LambdaOptimized(dynamic expected) {
+        var actual=Source().LongCount(v => v>2);
+        Assert.Equal(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void predicate_LambdaNoOptimized(dynamic expected) {
         var actual=Source().LongCount(v => v>2);
         Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Captured() => predicate_CapturedImpl();
-
-    private static void predicate_CapturedImpl() {
+    public static void predicate_Captured() {
         var threshold=2;
-        var expected=SystemEnumerable.LongCount(Source(),v => v>threshold);
+        var expected=Source().LongCount(v => v>threshold);
+        predicate_CapturedOptimized(expected);
+        predicate_CapturedNoOptimized(expected);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void predicate_CapturedOptimized(dynamic expected) {
+        var threshold=2;
+        var actual=Source().LongCount(v => v>threshold);
+        Assert.Equal(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void predicate_CapturedNoOptimized(dynamic expected) {
+        var threshold=2;
         var actual=Source().LongCount(v => v>threshold);
         Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_DelegateSyntax() => predicate_DelegateSyntaxImpl();
+    public static void predicate_DelegateSyntax() {
+        var expected=Source().LongCount(delegate(int v) { return v>2; });
+        predicate_DelegateSyntaxOptimized(expected);
+        predicate_DelegateSyntaxNoOptimized(expected);
+    }
 
-    private static void predicate_DelegateSyntaxImpl() {
-        var expected=SystemEnumerable.LongCount(Source(),delegate(int v) { return v>2; });
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void predicate_DelegateSyntaxOptimized(dynamic expected) {
+        var actual=Source().LongCount(delegate(int v) { return v>2; });
+        Assert.Equal(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void predicate_DelegateSyntaxNoOptimized(dynamic expected) {
         var actual=Source().LongCount(delegate(int v) { return v>2; });
         Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Variable() => predicate_VariableImpl();
-
-    private static void predicate_VariableImpl() {
+    public static void predicate_Variable() {
         Func<int,bool> predicate=v => v>2;
-        var expected=SystemEnumerable.LongCount(Source(),predicate);
+        var expected=Source().LongCount(predicate);
+        predicate_VariableOptimized(expected);
+        predicate_VariableNoOptimized(expected);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void predicate_VariableOptimized(dynamic expected) {
+        Func<int,bool> predicate=v => v>2;
+        var actual=Source().LongCount(predicate);
+        Assert.Equal(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void predicate_VariableNoOptimized(dynamic expected) {
+        Func<int,bool> predicate=v => v>2;
         var actual=Source().LongCount(predicate);
         Assert.Equal(expected,actual);
     }

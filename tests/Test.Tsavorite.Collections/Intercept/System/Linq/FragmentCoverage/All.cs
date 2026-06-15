@@ -3,7 +3,6 @@ using System.Linq;
 
 using Test.Tsavorite.Collections.Intercept.System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
@@ -11,7 +10,7 @@ public sealed class All {
     [Fact,Trait("Category","Unit")]
     public static void predicate(){
         GeneratedInterceptorAssert.ContainsMethod<All>(nameof(predicateImpl));
-        var expected=SystemEnumerable.All([1,2,3,4],static v => v>0);
+        var expected=new[]{1,2,3,4}.All(static v => v>0);
         var actual=predicateImpl();
         Assert.Equal(expected,actual);
     }
@@ -22,7 +21,7 @@ public sealed class All {
     [Fact,Trait("Category","Unit")]
     public static void predicate_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<All>(nameof(predicate_enumerableImpl));
-        var expected=SystemEnumerable.All([1,2,3,4],static v => v>0);
+        var expected=new[]{1,2,3,4}.All(static v => v>0);
         var actual=predicate_enumerableImpl();
         Assert.Equal(expected,actual);
     }

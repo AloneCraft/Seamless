@@ -110,7 +110,9 @@ public sealed partial class TsavoriteIncrementalGenerator {
             return false;
         }
 
-        if(!LinqRewrite判定(method,context.SemanticModel.Compilation)) {
+        var optimizeLinq = LinqRewrite判定(method,context.SemanticModel.Compilation);
+        var counterInstrumentation = LinqInstrumentation判定(method,context.SemanticModel.Compilation);
+        if(!optimizeLinq && !counterInstrumentation) {
             return false;
         }
 
@@ -148,11 +150,13 @@ public sealed partial class TsavoriteIncrementalGenerator {
             parameterSpecs,
             linqAnalysis,
             methodTypeParameterNames: methodTypeParameterNames,
-            isLocalMethodInterception: true);
+            isLocalMethodInterception: true,
+            optimizeLinq: optimizeLinq,
+            counterInstrumentation: counterInstrumentation);
         return true;
     }
 
-    // [LinqIntercept(true/false)] によるLINQ展開可否の判定。
+    // [LinqIntercept(true/false)] によるLINQ最適化可否の判定。
     // メソッド > 入れ子クラス(内側から外側) > アセンブリ の順で最初に見つかった指定を採用し、
     // どこにも無ければ展開する(従来どおりのデフォルト挙動)。
     private static bool LinqRewrite判定(IMethodSymbol method,Compilation compilation) {
@@ -185,6 +189,51 @@ public sealed partial class TsavoriteIncrementalGenerator {
         shouldRewrite=default;
         return false;
     }
+
+    private static bool LinqInstrumentation判定(IMethodSymbol method,Compilation compilation) {
+        if(TryGetLinqInstrumentation(method.GetAttributes(),out var methodInstrumentation)) {
+            return methodInstrumentation;
+        }
+
+        for(var type=method.ContainingType;type is not null;type=type.ContainingType) {
+            if(TryGetLinqInstrumentation(type.GetAttributes(),out var typeInstrumentation)) {
+                return typeInstrumentation;
+            }
+        }
+
+        return TryGetLinqInstrumentation(compilation.Assembly.GetAttributes(),out var assemblyInstrumentation)
+            && assemblyInstrumentation;
+    }
+
+    private static bool TryGetLinqInstrumentation(ImmutableArray<AttributeData> attributes,out bool counterInstrumentation) {
+        foreach(var attribute in attributes) {
+            if(attribute.AttributeClass?.Name!="LinqInterceptAttribute") {
+                continue;
+            }
+
+            foreach(var named in attribute.NamedArguments) {
+                if(named.Key=="Instrumentation") {
+                    counterInstrumentation=HasCounterInstrumentation(named.Value.Value);
+                    return true;
+                }
+            }
+
+            if(attribute.ConstructorArguments.Length>1) {
+                counterInstrumentation=HasCounterInstrumentation(attribute.ConstructorArguments[1].Value);
+                return true;
+            }
+        }
+
+        counterInstrumentation=false;
+        return false;
+    }
+
+    private static bool HasCounterInstrumentation(object? value) =>
+        value switch {
+            int intValue => (intValue & 1)!=0,
+            long longValue => (longValue & 1L)!=0,
+            _ => false,
+        };
 
     /// <summary>
     /// <see cref="ローカルメソッドLinq解析実行"/> の結果を <see cref="Compilation"/> をキーにした
@@ -260,7 +309,8 @@ public sealed partial class TsavoriteIncrementalGenerator {
 
             // out/ref パラメータを持つメソッド（TryGetNonEnumeratedCount 等）は
             // Fragment 化できないため解析対象外とする。
-            if(definition.Parameters.Any(static p=>p.RefKind != RefKind.None)) {
+            if(definition.Parameters.Any(static p=>p.RefKind != RefKind.None)
+                && definition.Name!="TryGetNonEnumeratedCount") {
                 continue;
             }
 

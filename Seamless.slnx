@@ -11,8 +11,8 @@
     <File Path="TextFile1.txt" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/SourceGenerator.Shared/SourceGenerator.Shared.csproj" />
     <Project Path="src/FLinq/FLinq.csproj" />
+    <Project Path="src/SourceGenerator.Shared/SourceGenerator.Shared.csproj" />
     <Project Path="src/Tsavorite.Collections/Tsavorite.Collections.csproj" />
     <Project Path="src/TsavoriteDB/TsavoriteDB.csproj" />
   </Folder>
@@ -20,7 +20,8 @@
     <Project Path="tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj" />
     <Project Path="tests/Test.Tsavorite/Test.Tsavorite.csproj" />
   </Folder>
-  <Project Path="sandbox/Benchmark/Benchmark.csproj" />
   <Project Path="sandbox/Benchmark.Shared/Benchmark.Shared.shproj" />
   <Project Path="sandbox/Benchmark.Tests/Benchmark.Tests.csproj" />
+  <Project Path="sandbox/Benchmark/Benchmark.csproj" />
+  <Project Path="sandbox/DynamicLinq.Runner/DynamicLinq.Runner.csproj" />
 </Solution>

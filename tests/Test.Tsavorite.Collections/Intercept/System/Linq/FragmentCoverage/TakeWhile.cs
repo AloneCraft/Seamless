@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
@@ -9,7 +8,7 @@ public sealed class TakeWhile {
     [Fact,Trait("Category","Unit")]
     public static void predicate(){
         GeneratedInterceptorAssert.ContainsMethod<TakeWhile>(nameof(predicateImpl));
-        var expected=SystemEnumerable.TakeWhile([1,2,3,4],static v => v<3).ToList();
+        var expected=new[]{1,2,3,4}.TakeWhile(static v => v<3).ToList();
         var actual=predicateImpl();
         Assert.Equal(expected,actual);
     }
@@ -20,7 +19,7 @@ public sealed class TakeWhile {
     [Fact,Trait("Category","Unit")]
     public static void predicate_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<TakeWhile>(nameof(predicate_enumerableImpl));
-        var expected=SystemEnumerable.TakeWhile([1,2,3,4],static v => v<3).ToList();
+        var expected=new[]{1,2,3,4}.TakeWhile(static v => v<3).ToList();
         var actual=predicate_enumerableImpl();
         Assert.Equal(expected,actual);
     }

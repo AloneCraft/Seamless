@@ -1,72 +1,81 @@
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
-
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Optimization;
 
-// ルール §2: SelectMany の平坦化・融合と Where の述語プッシュダウン。
 public sealed class SelectManyFusion:OptimizationTestBase{
     [Fact,Trait("Category","Unit")]
-    public static void NestedFlatten() => NestedFlattenImpl();
-
-    private static void NestedFlattenImpl(){
-        {
-            // 入れ子 SelectMany を平坦なチェーンへ。
-            var expected=SystemEnumerable.SelectMany(Outer(),
-                static a => SystemEnumerable.SelectMany(Inner(),b => new[] { a+b,a-b })).ToList();
-            var actual=new Consumer<int>();
-            Outer().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).Consume(actual);
-            AssertSequenceEqual(expected,actual.Items);
-        }
-        {
-            var expected=SystemEnumerable.SelectMany(EmptyOuter(),
-                static a => SystemEnumerable.SelectMany(Inner(),b => new[] { a+b,a-b })).ToList();
-            var actual=new Consumer<int>();
-            EmptyOuter().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).Consume(actual);
-            AssertSequenceEqual(expected,actual.Items);
-        }
+    public static void NestedFlatten() {
+        AssertSequenceEqual(Outer().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList(),NestedFlatten_NonEmptyOptimized());
+        AssertSequenceEqual(Outer().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList(),NestedFlatten_NonEmptyNoOptimized());
+        AssertSequenceEqual(EmptyOuter().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList(),NestedFlatten_EmptyOptimized());
+        AssertSequenceEqual(EmptyOuter().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList(),NestedFlatten_EmptyNoOptimized());
     }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> NestedFlatten_NonEmptyOptimized() =>
+        Outer().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> NestedFlatten_NonEmptyNoOptimized() =>
+        Outer().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> NestedFlatten_EmptyOptimized() =>
+        EmptyOuter().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> NestedFlatten_EmptyNoOptimized() =>
+        EmptyOuter().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList();
 
     [Fact,Trait("Category","Unit")]
-    public static void CollectionSelectorResultSelectorFused() => CollectionSelectorResultSelectorFusedImpl();
-
-    private static void CollectionSelectorResultSelectorFusedImpl(){
-        // collectionSelector+resultSelector の融合オーバーロード（中間 iterator 割当を消す）。
-        var expected=SystemEnumerable.SelectMany(Outer(),static a => Inner(),static (a,b) => a+b).ToList();
-        var actual=new Consumer<int>();
-        Outer().SelectMany(static a => Inner(),static (a,b) => a+b).Consume(actual);
-        AssertSequenceEqual(expected,actual.Items);
+    public static void CollectionSelectorResultSelectorFused() {
+        AssertSequenceEqual(Outer().SelectMany(static a => Inner(),static (a,b) => a+b).ToList(),CollectionSelectorResultSelectorFusedOptimized());
+        AssertSequenceEqual(Outer().SelectMany(static a => Inner(),static (a,b) => a+b).ToList(),CollectionSelectorResultSelectorFusedNoOptimized());
     }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> CollectionSelectorResultSelectorFusedOptimized() =>
+        Outer().SelectMany(static a => Inner(),static (a,b) => a+b).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> CollectionSelectorResultSelectorFusedNoOptimized() =>
+        Outer().SelectMany(static a => Inner(),static (a,b) => a+b).ToList();
 
     [Fact,Trait("Category","Unit")]
-    public static void PredicatePushdown() => PredicatePushdownImpl();
-
-    private static void PredicatePushdownImpl(){
-        {
-            // 平坦化後の Where は内側へ押し下げられる。結果は不変。
-            var expected=SystemEnumerable.Where(
-                SystemEnumerable.SelectMany(Outer(),static a => Inner()),static x => x>Limit()).ToList();
-            var actual=new Consumer<int>();
-            Outer().SelectMany(static a => Inner()).Where(static x => x>Limit()).Consume(actual);
-            AssertSequenceEqual(expected,actual.Items);
-        }
-        {
-            // 全要素が脱落するケース。
-            var expected=SystemEnumerable.Where(
-                SystemEnumerable.SelectMany(Outer(),static a => Inner()),static x => x>1000).ToList();
-            var actual=new Consumer<int>();
-            Outer().SelectMany(static a => Inner()).Where(static x => x>1000).Consume(actual);
-            AssertSequenceEqual(expected,actual.Items);
-        }
+    public static void PredicatePushdown() {
+        AssertSequenceEqual(Outer().SelectMany(static a => Inner()).Where(static x => x>Limit()).ToList(),PredicatePushdown_MatchOptimized());
+        AssertSequenceEqual(Outer().SelectMany(static a => Inner()).Where(static x => x>Limit()).ToList(),PredicatePushdown_MatchNoOptimized());
+        AssertSequenceEqual(Outer().SelectMany(static a => Inner()).Where(static x => x>1000).ToList(),PredicatePushdown_NoMatchOptimized());
+        AssertSequenceEqual(Outer().SelectMany(static a => Inner()).Where(static x => x>1000).ToList(),PredicatePushdown_NoMatchNoOptimized());
     }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> PredicatePushdown_MatchOptimized() =>
+        Outer().SelectMany(static a => Inner()).Where(static x => x>Limit()).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> PredicatePushdown_MatchNoOptimized() =>
+        Outer().SelectMany(static a => Inner()).Where(static x => x>Limit()).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> PredicatePushdown_NoMatchOptimized() =>
+        Outer().SelectMany(static a => Inner()).Where(static x => x>1000).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> PredicatePushdown_NoMatchNoOptimized() =>
+        Outer().SelectMany(static a => Inner()).Where(static x => x>1000).ToList();
 
     [Fact,Trait("Category","Unit")]
-    public static void IndexSelectorOverload() => IndexSelectorOverloadImpl();
-
-    private static void IndexSelectorOverloadImpl(){
-        var expected=SystemEnumerable.SelectMany(Outer(),static (a,i) => new[] { a,i }).ToList();
-        var actual=new Consumer<int>();
-        Outer().SelectMany(static (a,i) => new[] { a,i }).Consume(actual);
-        AssertSequenceEqual(expected,actual.Items);
+    public static void IndexSelectorOverload() {
+        AssertSequenceEqual(Outer().SelectMany(static (a,i) => new[] { a,i }).ToList(),IndexSelectorOverloadOptimized());
+        AssertSequenceEqual(Outer().SelectMany(static (a,i) => new[] { a,i }).ToList(),IndexSelectorOverloadNoOptimized());
     }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> IndexSelectorOverloadOptimized() =>
+        Outer().SelectMany(static (a,i) => new[] { a,i }).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> IndexSelectorOverloadNoOptimized() =>
+        Outer().SelectMany(static (a,i) => new[] { a,i }).ToList();
 }

@@ -1,42 +1,81 @@
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed class ToDictionary:LinqChain1TestBase {
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_Static() => keySelector_StaticImpl();
+    public static void keySelector_Static() {
+        var expected=Rows().Take(3).ToDictionary(static row => row.Key);
+        keySelector_StaticOptimized(expected);
+        keySelector_StaticNoOptimized(expected);
+    }
 
-    private static void keySelector_StaticImpl() {
-        var expected=SystemEnumerable.ToDictionary(Rows().Take(3),static row => row.Key);
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_StaticOptimized(dynamic expected) {
+        var actual=Rows().Take(3).ToDictionary(static row => row.Key);
+        AssertDictionaryEqual(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_StaticNoOptimized(dynamic expected) {
         var actual=Rows().Take(3).ToDictionary(static row => row.Key);
         AssertDictionaryEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_elementSelector_Static() => keySelector_elementSelector_StaticImpl();
+    public static void keySelector_elementSelector_Static() {
+        var expected=Rows().Take(3).ToDictionary(static row => row.Key,static row => row.Value);
+        keySelector_elementSelector_StaticOptimized(expected);
+        keySelector_elementSelector_StaticNoOptimized(expected);
+    }
 
-    private static void keySelector_elementSelector_StaticImpl() {
-        var expected=SystemEnumerable.ToDictionary(Rows().Take(3),static row => row.Key,static row => row.Value);
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_elementSelector_StaticOptimized(dynamic expected) {
+        var actual=Rows().Take(3).ToDictionary(static row => row.Key,static row => row.Value);
+        AssertDictionaryEqual(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_elementSelector_StaticNoOptimized(dynamic expected) {
         var actual=Rows().Take(3).ToDictionary(static row => row.Key,static row => row.Value);
         AssertDictionaryEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_comparer() => keySelector_comparerImpl();
+    public static void keySelector_comparer() {
+        var expected=Rows().Take(3).ToDictionary(static row => row.Key,EqualityComparer<int>.Default);
+        keySelector_comparerOptimized(expected);
+        keySelector_comparerNoOptimized(expected);
+    }
 
-    private static void keySelector_comparerImpl() {
-        var expected=SystemEnumerable.ToDictionary(Rows().Take(3),static row => row.Key,EqualityComparer<int>.Default);
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_comparerOptimized(dynamic expected) {
+        var actual=Rows().Take(3).ToDictionary(static row => row.Key,EqualityComparer<int>.Default);
+        AssertDictionaryEqual(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_comparerNoOptimized(dynamic expected) {
         var actual=Rows().Take(3).ToDictionary(static row => row.Key,EqualityComparer<int>.Default);
         AssertDictionaryEqual(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_elementSelector_comparer() => keySelector_elementSelector_comparerImpl();
+    public static void keySelector_elementSelector_comparer() {
+        var expected=Rows().Take(3).ToDictionary(static row => row.Key,static row => row.Value,EqualityComparer<int>.Default);
+        keySelector_elementSelector_comparerOptimized(expected);
+        keySelector_elementSelector_comparerNoOptimized(expected);
+    }
 
-    private static void keySelector_elementSelector_comparerImpl() {
-        var expected=SystemEnumerable.ToDictionary(Rows().Take(3),static row => row.Key,static row => row.Value,EqualityComparer<int>.Default);
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_elementSelector_comparerOptimized(dynamic expected) {
+        var actual=Rows().Take(3).ToDictionary(static row => row.Key,static row => row.Value,EqualityComparer<int>.Default);
+        AssertDictionaryEqual(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void keySelector_elementSelector_comparerNoOptimized(dynamic expected) {
         var actual=Rows().Take(3).ToDictionary(static row => row.Key,static row => row.Value,EqualityComparer<int>.Default);
         AssertDictionaryEqual(expected,actual);
     }

@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
@@ -9,7 +8,7 @@ public sealed class Skip {
     [Fact,Trait("Category","Unit")]
     public static void count(){
         GeneratedInterceptorAssert.ContainsMethod<Skip>(nameof(countImpl));
-        var expected=SystemEnumerable.Skip([1,2,3,4],1).ToList();
+        var expected=new[]{1,2,3,4}.Skip(1).ToList();
         var actual=countImpl();
         Assert.Equal(expected,actual);
     }
@@ -20,7 +19,7 @@ public sealed class Skip {
     [Fact,Trait("Category","Unit")]
     public static void count_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<Skip>(nameof(count_enumerableImpl));
-        var expected=SystemEnumerable.Skip([1,2,3,4],1).ToList();
+        var expected=new[]{1,2,3,4}.Skip(1).ToList();
         var actual=count_enumerableImpl();
         Assert.Equal(expected,actual);
     }

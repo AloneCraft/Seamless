@@ -12,21 +12,24 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
     protected string InnerKeyType=>FuncReturnTypeName(this.innerKey);
     protected string InnerElementType=> this.innerSource.ElementType;
     protected string OuterElementType=> this.outerSource.ElementType;
-    protected string BuildLookupBody(bool skipNullKeyCheck)=>skipNullKeyCheck ? $$"""
+    protected string BuildLookupBody(bool skipNullKeyCheck,string logicalInnerCounterMethod)=>skipNullKeyCheck ? $$"""
         private static global::System.Collections.Generic.Dictionary<{{this.InnerKeyType}},global::System.Collections.Generic.List<{{this.InnerElementType}}>> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
             var {{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{this.InnerKeyType}},global::System.Collections.Generic.List<{{this.InnerElementType}}>>(comparer ?? global::System.Collections.Generic.EqualityComparer<{{this.InnerKeyType}}>.Default);
             using var {{this.innerEnumerator}}=inner;
             while({{this.innerEnumerator}}.MoveNext()){
+                {{this.CounterCall(logicalInnerCounterMethod)}}
                 var {{this.item}}={{this.innerEnumerator}}.Current;
                 {{this.InnerKeyType}} {{this.key}}=default!;
                 {{this.FuncAssignStatic(this.innerKey,nameof(this.innerKey),this.key,this.item)}}
                 if(IsNullKey({{this.key}})){
                     continue;
                 }
+                {{this.CounterCall("IncrementHashBuild")}}
                 if(!{{this.lookup}}.TryGetValue({{this.key}},out var {{this.group}})){
                     {{this.group}}=new global::System.Collections.Generic.List<{{this.InnerElementType}}>();
                     {{this.lookup}}.Add({{this.key}},{{this.group}});
                 }
+                {{this.CounterCall("IncrementBufferAdd")}}
                 {{this.group}}.Add({{this.item}});
             }
             return {{this.lookup}};
@@ -36,13 +39,16 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
             var {{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{this.InnerKeyType}},global::System.Collections.Generic.List<{{this.InnerElementType}}>>(comparer ?? global::System.Collections.Generic.EqualityComparer<{{this.InnerKeyType}}>.Default);
             using var {{this.innerEnumerator}}=inner;
             while({{this.innerEnumerator}}.MoveNext()){
+                {{this.CounterCall(logicalInnerCounterMethod)}}
                 var {{this.item}}={{this.innerEnumerator}}.Current;
                 {{this.InnerKeyType}} {{this.key}}=default!;
                 {{this.FuncAssignStatic(this.innerKey,nameof(this.innerKey),this.key,this.item)}}
+                {{this.CounterCall("IncrementHashBuild")}}
                 if(!{{this.lookup}}.TryGetValue({{this.key}},out var {{this.group}})){
                     {{this.group}}=new global::System.Collections.Generic.List<{{this.InnerElementType}}>();
                     {{this.lookup}}.Add({{this.key}},{{this.group}});
                 }
+                {{this.CounterCall("IncrementBufferAdd")}}
                 {{this.group}}.Add({{this.item}});
             }
             return {{this.lookup}};

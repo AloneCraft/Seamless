@@ -79,6 +79,7 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
         {{this.Start}}:
         if(this.innerEnumerator is not null) {
             if(this.innerEnumerator.MoveNext()) {
+                {{this.CounterCall("IncrementLogicalSelectManyInner")}}
                 var {{this.item}} = this.innerEnumerator.Current;
                 {{this.CurrentValueAssignmentFromInner}}
                 return true;
@@ -91,6 +92,7 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
             return false;
         }
         {{this.MoveNextOuterPrologue}}
+        {{this.CounterCall("IncrementLogicalSelectManyOuter")}}
         this.{{this.outerValue}} = {{this.e}}.Current;
         this.innerEnumerator = {{this.CreateInnerEnumeratorExpression}};
         goto {{this.Start}};
@@ -246,6 +248,7 @@ public class SelectMany_WithInlinedInner(int 番号, Enumerable source, Enumerab
         {{this.Start}}:
         if(this.{{this.hasValue}}) {
             if(this.innerEnumerator.TryGetNext(out var {{this.item}})) {
+                {{this.CounterCall("IncrementLogicalSelectManyInner")}}
                 {{this.CurrentValueAssignmentFromInner}}
                 return true;
             }
@@ -256,6 +259,7 @@ public class SelectMany_WithInlinedInner(int 番号, Enumerable source, Enumerab
             current = default!;
             return false;
         }
+        {{this.CounterCall("IncrementLogicalSelectManyOuter")}}
         this.{{this.outerValue}} = {{this.e}}.Current;
         this.innerEnumerator = {{this.CreateInnerEnumeratorExpression}};
         this.{{this.hasValue}} = true;

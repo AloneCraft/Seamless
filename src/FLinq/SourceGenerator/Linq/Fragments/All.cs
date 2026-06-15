@@ -9,6 +9,8 @@ public class All_predicate(int 番号, Enumerable source, FuncFragment predicate
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string GetEnumeratorConstructor =>
+        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderAll(range,predicate,番号,destVar,destType)
@@ -20,7 +22,7 @@ public class All_predicate(int 番号, Enumerable source, FuncFragment predicate
             : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers {
         get {
-            var (preCode, condExpr) = this.FuncInvokeCondition(predicate, nameof(predicate), this.temp, this.item);
+            var (preCode, condExpr) = this.FuncInvokeConditionStatic(predicate, nameof(predicate), this.temp, this.item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";

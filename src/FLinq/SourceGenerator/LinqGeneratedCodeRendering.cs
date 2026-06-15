@@ -391,20 +391,20 @@ public sealed partial class TsavoriteIncrementalGenerator {
 
             if(method.ReducedFrom is null) {
                 if(TryRenderOrdinaryMethodInvocationExpression(method,invocation,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var ordinaryInvocationText)) {
-                    text=text.Replace(invocationText,ordinaryInvocationText,StringComparison.Ordinal);
-                    foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
-                    continue;
-                }
+                text=ReplaceExpressionFragment(text,invocationText,ordinaryInvocationText);
+                foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
+                continue;
+            }
 
-                text=text.Replace(invocationText,RenderInlineFailureInvocationExpression(method),StringComparison.Ordinal);
+                text=ReplaceExpressionFragment(text,invocationText,RenderInlineFailureInvocationExpression(method));
                 foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
             } else if(method.ReducedFrom is not null
                 && (method.ReducedFrom ?? method).ContainingType.ToDisplayString() != "System.Linq.Enumerable"
                 && invocation.Expression is MemberAccessExpressionSyntax extensionMemberAccess) {
                 if(TryRenderExtensionMethodInvocationExpression(method,invocation,extensionMemberAccess,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var inlineExtensionText)) {
-                    text=text.Replace(invocationText,inlineExtensionText,StringComparison.Ordinal);
+                    text=ReplaceExpressionFragment(text,invocationText,inlineExtensionText);
                 } else {
-                    text=text.Replace(invocationText,RenderInlineFailureInvocationExpression(method),StringComparison.Ordinal);
+                    text=ReplaceExpressionFragment(text,invocationText,RenderInlineFailureInvocationExpression(method));
                 }
                 foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
             }
@@ -736,6 +736,14 @@ public sealed partial class TsavoriteIncrementalGenerator {
             qualifiedName,
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
     }
+
+    private static string ReplaceExpressionFragment(string text,string oldText,string newText) =>
+        System.Text.RegularExpressions.Regex.Replace(
+            text,
+            $@"(?<![\w\.]){System.Text.RegularExpressions.Regex.Escape(oldText)}",
+            newText,
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
     /// <summary>
     /// 非 System.Linq 拡張メソッド呼び出しを、その本体をインライン展開した式に置き換える。
     /// <br/>成功条件: 拡張メソッドのソースが取得でき、本体が式本体か単一 <c>return</c> 文であること。

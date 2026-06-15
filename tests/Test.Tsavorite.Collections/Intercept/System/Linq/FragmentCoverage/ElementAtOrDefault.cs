@@ -3,7 +3,6 @@ using System.Linq;
 
 using Test.Tsavorite.Collections.Intercept.System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.FragmentCoverage;
 
@@ -11,7 +10,7 @@ public sealed class ElementAtOrDefault {
     [Fact,Trait("Category","Unit")]
     public static void index(){
         GeneratedInterceptorAssert.ContainsMethod<ElementAtOrDefault>(nameof(indexImpl));
-        var expected=SystemEnumerable.ElementAtOrDefault([1,2,3,4],1);
+        var expected=new[]{1,2,3,4}.ElementAtOrDefault(1);
         var actual=indexImpl();
         Assert.Equal(expected,actual);
     }
@@ -22,7 +21,7 @@ public sealed class ElementAtOrDefault {
     [Fact,Trait("Category","Unit")]
     public static void index_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<ElementAtOrDefault>(nameof(index_enumerableImpl));
-        var expected=SystemEnumerable.ElementAtOrDefault([1,2,3,4],1);
+        var expected=new[]{1,2,3,4}.ElementAtOrDefault(1);
         var actual=index_enumerableImpl();
         Assert.Equal(expected,actual);
     }

@@ -170,6 +170,35 @@ public sealed partial class TsavoriteIncrementalGenerator {
             ? sc.InlineSupportingMembers
             : fragment.GetEnumeratorStruct;
 
+    private static void ApplyCounterInstrumentation(Fragment fragment,SemanticModel semanticModel,SyntaxNode node) {
+        if(!IsCounterInstrumentationEnabled(semanticModel,node)) {
+            return;
+        }
+
+        fragment.SetCounterInstrumentation(true);
+    }
+
+    private static bool IsCounterInstrumentationEnabled(SemanticModel semanticModel,SyntaxNode node) {
+        var methodDeclaration = node.AncestorsAndSelf().OfType<MethodDeclarationSyntax>().FirstOrDefault();
+        if(methodDeclaration is null
+            || semanticModel.GetDeclaredSymbol(methodDeclaration) is not IMethodSymbol method) {
+            return false;
+        }
+
+        if(TryGetLinqInstrumentation(method.GetAttributes(),out var methodInstrumentation)) {
+            return methodInstrumentation;
+        }
+
+        for(var type=method.ContainingType;type is not null;type=type.ContainingType) {
+            if(TryGetLinqInstrumentation(type.GetAttributes(),out var typeInstrumentation)) {
+                return typeInstrumentation;
+            }
+        }
+
+        return TryGetLinqInstrumentation(semanticModel.Compilation.Assembly.GetAttributes(),out var assemblyInstrumentation)
+            && assemblyInstrumentation;
+    }
+
     /// <summary>
     /// <c>expr.Consume(consumer)</c>（引数1個・文形）を直接消費ループへ展開する。
     /// <br/>演算子別の特殊処理は持たない（thin orchestrator）。<see cref="呼び出し式からフラグメント生成"/> で
@@ -225,6 +254,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
         if(!methodIsStatic) {
             fragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式));
         }
+        ApplyCounterInstrumentation(fragment,semanticModel,linqInvocation);
         generatedFragments.Add(fragment);
         staticMethods=静的メソッドコード連結(staticMethods,invocationStaticMethods);
         staticMethods=静的メソッドコード連結(staticMethods,fragment.GetEnumeratorStruct);
@@ -282,6 +312,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
         if(!methodIsStatic) {
             fragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式));
         }
+        ApplyCounterInstrumentation(fragment,semanticModel,linqInvocation);
         generatedFragments.Add(fragment);
         staticMethods=静的メソッドコード連結(staticMethods,invocationStaticMethods);
         staticMethods=静的メソッドコード連結(staticMethods,fragment.GetEnumeratorStruct);
@@ -655,6 +686,10 @@ public sealed partial class TsavoriteIncrementalGenerator {
             containingType=algebraContainingType;
         }
 
+        if(TryRewriteTryGetNonEnumeratedCountStatement(statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) {
+            return true;
+        }
+
         // ReturnStatement の式がクエリ式（括弧なしまたはあり）の場合は専用パスへ
         if(statement is ReturnStatementSyntax { Expression: { } retExpr }) {
             var retUnwrapped = retExpr;
@@ -713,6 +748,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
             if(!methodIsStatic) {
                 fragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式));
             }
+            ApplyCounterInstrumentation(fragment,semanticModel,invocation);
             generatedFragments.Add(fragment);
 
             staticMethods=静的メソッドコード連結(staticMethods,invocationStaticMethods);
@@ -734,6 +770,182 @@ public sealed partial class TsavoriteIncrementalGenerator {
         builder.AppendLine(generatedStatement);
         return true;
     }
+
+    private static bool TryRewriteTryGetNonEnumeratedCountStatement(
+        StatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount,
+        HashSet<string> usedNames) {
+        if(statement is LocalDeclarationStatementSyntax {
+            Declaration: {
+                Variables: [VariableDeclaratorSyntax { Initializer.Value: InvocationExpressionSyntax invocation } variable]
+            }
+        }) {
+            if(!TryGetNonEnumeratedCountInvocation(invocation,semanticModel,out var sourceExpression,out var outArgument,out var outTypeName)
+                || !TryRenderTryGetNonEnumeratedCountOutArgument(outArgument,semanticModel,containingType,unsafeAccessorCollector,outTypeName,out var outDeclaration,out var outTarget)
+                || !TryPrepareTryGetNonEnumeratedCountSource(sourceExpression,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,out var sourceFragment)) {
+                return false;
+            }
+
+            if(!string.IsNullOrWhiteSpace(outDeclaration)) {
+                builder.AppendLine(outDeclaration);
+            }
+            var resultName=variable.Identifier.ValueText;
+            var enumeratorName=GetUniqueIdentifier($"__tryGetCount{linqInvocationCount}",usedNames);
+            builder.AppendLine($"bool {resultName}=default;");
+            builder.AppendLine($"using var {enumeratorName}={sourceFragment.GetEnumeratorExpression};");
+            var counterCall=CounterCallForGeneratedMethod(semanticModel,invocation,"IncrementTryGetNonEnumeratedCount");
+            if(!string.IsNullOrEmpty(counterCall)) {
+                builder.AppendLine(counterCall);
+            }
+            builder.AppendLine($"{resultName}={enumeratorName}.TryGetNonEnumeratedCount(out {outTarget});");
+            linqInvocationCount++;
+            return true;
+        }
+
+        if(statement is ExpressionStatementSyntax { Expression: InvocationExpressionSyntax expressionInvocation }) {
+            if(!TryGetNonEnumeratedCountInvocation(expressionInvocation,semanticModel,out var sourceExpression,out var outArgument,out var outTypeName)
+                || !TryRenderTryGetNonEnumeratedCountOutArgument(outArgument,semanticModel,containingType,unsafeAccessorCollector,outTypeName,out var outDeclaration,out var outTarget)
+                || !TryPrepareTryGetNonEnumeratedCountSource(sourceExpression,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,out var sourceFragment)) {
+                return false;
+            }
+
+            if(!string.IsNullOrWhiteSpace(outDeclaration)) {
+                builder.AppendLine(outDeclaration);
+            }
+            var enumeratorName=GetUniqueIdentifier($"__tryGetCount{linqInvocationCount}",usedNames);
+            builder.AppendLine($"using var {enumeratorName}={sourceFragment.GetEnumeratorExpression};");
+            var counterCall=CounterCallForGeneratedMethod(semanticModel,expressionInvocation,"IncrementTryGetNonEnumeratedCount");
+            if(!string.IsNullOrEmpty(counterCall)) {
+                builder.AppendLine(counterCall);
+            }
+            builder.AppendLine($"{enumeratorName}.TryGetNonEnumeratedCount(out {outTarget});");
+            linqInvocationCount++;
+            return true;
+        }
+
+        if(statement is ReturnStatementSyntax { Expression: InvocationExpressionSyntax returnInvocation }) {
+            if(!TryGetNonEnumeratedCountInvocation(returnInvocation,semanticModel,out var sourceExpression,out var outArgument,out var outTypeName)
+                || !TryRenderTryGetNonEnumeratedCountOutArgument(outArgument,semanticModel,containingType,unsafeAccessorCollector,outTypeName,out var outDeclaration,out var outTarget)
+                || !TryPrepareTryGetNonEnumeratedCountSource(sourceExpression,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,out var sourceFragment)) {
+                return false;
+            }
+
+            if(!string.IsNullOrWhiteSpace(outDeclaration)) {
+                builder.AppendLine(outDeclaration);
+            }
+            var enumeratorName=GetUniqueIdentifier($"__tryGetCount{linqInvocationCount}",usedNames);
+            builder.AppendLine($"using var {enumeratorName}={sourceFragment.GetEnumeratorExpression};");
+            var counterCall=CounterCallForGeneratedMethod(semanticModel,returnInvocation,"IncrementTryGetNonEnumeratedCount");
+            if(!string.IsNullOrEmpty(counterCall)) {
+                builder.AppendLine(counterCall);
+            }
+            builder.AppendLine($"return {enumeratorName}.TryGetNonEnumeratedCount(out {outTarget});");
+            linqInvocationCount++;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryPrepareTryGetNonEnumeratedCountSource(
+        ExpressionSyntax sourceExpression,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        out Enumerable sourceFragment) {
+        var snapshot=uniqueNumber;
+        if(!単独列挙ソースフラグメント生成(semanticModel,sourceExpression,containingType,ref uniqueNumber,out sourceFragment,out var sourceStaticMethods,unsafeAccessorCollector)) {
+            uniqueNumber=snapshot;
+            return false;
+        }
+
+        if(!methodIsStatic) {
+            sourceFragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式));
+        }
+        ApplyCounterInstrumentation(sourceFragment,semanticModel,sourceExpression);
+        generatedFragments.Add(sourceFragment);
+        staticMethods=静的メソッドコード連結(staticMethods,sourceStaticMethods);
+        staticMethods=静的メソッドコード連結(staticMethods,sourceFragment.GetEnumeratorStruct);
+        return true;
+    }
+
+    private static bool TryGetNonEnumeratedCountInvocation(
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        out ExpressionSyntax sourceExpression,
+        out ArgumentSyntax outArgument,
+        out string outTypeName) {
+        sourceExpression=null!;
+        outArgument=null!;
+        outTypeName=string.Empty;
+        if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) {
+            return false;
+        }
+
+        var definition=method.ReducedFrom ?? method;
+        if(definition.Name!="TryGetNonEnumeratedCount"
+            || definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable") {
+            return false;
+        }
+
+        if(method.ReducedFrom is not null
+            && invocation.Expression is MemberAccessExpressionSyntax { Expression: var receiver }
+            && invocation.ArgumentList.Arguments.Count==1
+            && invocation.ArgumentList.Arguments[0].RefKindKeyword.IsKind(SyntaxKind.OutKeyword)) {
+            sourceExpression=receiver;
+            outArgument=invocation.ArgumentList.Arguments[0];
+            outTypeName=method.Parameters[0].Type.ToDisplayString(完全修飾形式);
+            return true;
+        }
+
+        if(method.ReducedFrom is null
+            && invocation.ArgumentList.Arguments.Count==2
+            && invocation.ArgumentList.Arguments[1].RefKindKeyword.IsKind(SyntaxKind.OutKeyword)) {
+            sourceExpression=invocation.ArgumentList.Arguments[0].Expression;
+            outArgument=invocation.ArgumentList.Arguments[1];
+            outTypeName=method.Parameters[1].Type.ToDisplayString(完全修飾形式);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryRenderTryGetNonEnumeratedCountOutArgument(
+        ArgumentSyntax outArgument,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        List<string> unsafeAccessorCollector,
+        string outTypeName,
+        out string declaration,
+        out string target) {
+        declaration=string.Empty;
+        target=string.Empty;
+        if(outArgument.Expression is DeclarationExpressionSyntax { Designation: SingleVariableDesignationSyntax single }) {
+            target=single.Identifier.ValueText;
+            declaration=$"{outTypeName} {target};";
+            return true;
+        }
+
+        target=RenderExpressionForGeneratedMethod(outArgument.Expression,semanticModel,containingType,unsafeAccessorCollector);
+        return true;
+    }
+
+    private static string CounterCallForGeneratedMethod(SemanticModel semanticModel,SyntaxNode node,string methodName) =>
+        IsCounterInstrumentationEnabled(semanticModel,node)
+            ? $"global::Tsavorite.LinqCounterScope.Counter.{methodName}();"
+            : string.Empty;
 
     /// <summary>
     /// 式本体メソッド（<c>=> expr</c>）の LINQ 呼び出しを置き換え、値を返すメソッドでは <c>return <em>result</em>;</c>、<c>void</c> では式文を出力する。
@@ -836,6 +1048,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
             if(!methodIsStatic) {
                 fragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式));
             }
+            ApplyCounterInstrumentation(fragment,semanticModel,invocation);
             generatedFragments.Add(fragment);
             staticMethods=静的メソッドコード連結(staticMethods,invocationStaticMethods);
             var resultTypeName = semanticModel.GetTypeInfo(invocation).Type?.ToDisplayString(完全修飾形式)
@@ -1026,6 +1239,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
             }
             var whereFragment = (Enumerable)whereCandidate.Constructor.Invoke(
                 [uniqueNumber++,currentFragment,whereFunc]);
+            ApplyCounterInstrumentation(whereFragment,semanticModel,clause);
             staticMethods=静的メソッドコード連結(staticMethods,whereFragment.GetEnumeratorStruct);
             currentFragment=whereFragment;
         }
@@ -1056,6 +1270,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 }
                 var obFragment = (Enumerable)obCandidate.Constructor.Invoke(
                     [uniqueNumber++,currentFragment,orderFunc]);
+                ApplyCounterInstrumentation(obFragment,semanticModel,ordering);
                 staticMethods=静的メソッドコード連結(staticMethods,obFragment.GetEnumeratorStruct);
                 currentFragment=obFragment;
             }
@@ -1083,12 +1298,14 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 }
                 var selectFrag = (Enumerable)selectCandidate.Constructor.Invoke(
                     [uniqueNumber++,currentFragment,selectFunc]);
+                ApplyCounterInstrumentation(selectFrag,semanticModel,selectClause);
                 staticMethods=静的メソッドコード連結(staticMethods,selectFrag.GetEnumeratorStruct);
                 currentFragment=selectFrag;
             }
         }
 
         var tempName2 = GetUniqueIdentifier($"__linq{linqInvocationCount++}",usedNames);
+        ApplyCounterInstrumentation(currentFragment,semanticModel,queryExpression);
         generatedFragments.Add(currentFragment);
         var returnTypeName = semanticModel.GetTypeInfo(queryExpression).Type?.ToDisplayString(完全修飾形式)
             ?? semanticModel.GetTypeInfo(queryExpression).ConvertedType?.ToDisplayString(完全修飾形式)
@@ -1129,6 +1346,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
         }
         return $"{typeName} {string.Join(", ",variables)};";
     }
+
     /// <summary>
     /// 文の直下にある「最も外側の」 LINQ 拡張メソッド呼び出しを出現順に列挙する。
     /// <br/>除外条件:
@@ -1163,6 +1381,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 && 括弧除去(receiver) is InvocationExpressionSyntax receiverInvocation
                 && semanticModel.GetSymbolInfo(receiverInvocation).Symbol is IMethodSymbol { ReducedFrom: null } receiverMethod
                 && SystemLinqEnumerableメソッド判定(receiverMethod)
+                && !IsKnownEnumerableRootMethod(receiverMethod)
                 && Enumerableメソッドがフラグメント対応済みか(receiverMethod.Name)))
             .OrderBy(static invocation=>invocation.SpanStart)
             .ToList();
@@ -1203,6 +1422,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 && 括弧除去(receiver) is InvocationExpressionSyntax receiverInvocation
                 && semanticModel.GetSymbolInfo(receiverInvocation).Symbol is IMethodSymbol { ReducedFrom: null } receiverMethod
                 && SystemLinqEnumerableメソッド判定(receiverMethod)
+                && !IsKnownEnumerableRootMethod(receiverMethod)
                 && Enumerableメソッドがフラグメント対応済みか(receiverMethod.Name)))
             .OrderBy(static invocation=>invocation.SpanStart)
             .ToList();

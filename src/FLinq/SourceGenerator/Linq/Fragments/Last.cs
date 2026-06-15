@@ -65,6 +65,8 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
         $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+    public override string GetEnumeratorConstructor =>
+        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeLastPredicateInline(destVar,destType)
         ?? (TryRenderDirectLambda(predicate) is { } lambda
@@ -90,7 +92,7 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
                 for(var {{index}}={{count}}-1;{{index}}>=0;{{index}}--) {
                     var {{this.item}}={{start}} + {{index}};
                     bool {{this.temp}}=default!;
-            {{IndentLines(this.FuncAssign(predicate,nameof(predicate),this.temp,this.item),"        ")}}
+            {{IndentLines(this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item),"        ")}}
                     if({{this.temp}}) {
                         {{destVar}}={{this.item}};
                         {{found}}=true;
@@ -110,7 +112,7 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
                 source.TryGetSpan(out var __span);
                 foreach(var {{this.item}} in __span){
                     bool {{this.temp}}=default!;
-                    {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
+                    {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}){ found=true; result={{this.item}}; }
                 }
                 if(!found) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
@@ -125,7 +127,7 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
                 while(source.MoveNext()){
                     var {{this.item}}=source.Current;
                     bool {{this.temp}}=default!;
-                    {{this.FuncAssign(predicate,nameof(predicate),this.temp,this.item)}}
+                    {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}){ found=true; result={{this.item}}; }
                 }
                 if(!found) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();

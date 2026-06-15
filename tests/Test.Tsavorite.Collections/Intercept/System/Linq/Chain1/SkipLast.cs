@@ -1,15 +1,25 @@
 using System.Linq;
 
-using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed class SkipLast:LinqChain1TestBase {
     [Fact, Trait("Category","Unit")]
-    public static void count() => countImpl();
+    public static void count() {
+        var expected=Source().SkipLast(2).ToList();
+        countOptimized(expected);
+        countNoOptimized(expected);
+    }
 
-    private static void countImpl() {
-        var expected=SystemEnumerable.SkipLast(Source(),2).ToList();
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void countOptimized(dynamic expected) {
+        var actual=new Consumer<int>();
+        Source().SkipLast(2).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void countNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SkipLast(2).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);

@@ -36,6 +36,7 @@ public class Select_selector(int 番号,Enumerable source,FuncFragment selector)
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
         if({{this.e}}.TryGetNext(out var {{this.item}})) {
+            {{this.CounterCall("IncrementLogicalSelect")}}
             {{this.FuncAssignCurrent(selector,nameof(selector),$"this.{this.currentValue}",this.item)}}
             return true;
         }
@@ -60,6 +61,7 @@ public class Select_WithInlinedScalar(int 番号, Enumerable source, Fragment sc
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
         if({{this.e}}.TryGetNext(out var {{outerParamName}})) {
+            {{this.CounterCall("IncrementLogicalSelect")}}
             var {{this.item}} = {{scalarFrag.GetEnumeratorExpression}};
             {{this.item}}.TryGetNext(out var {{this.temp}});
             {{this.item}}.Dispose();
@@ -161,6 +163,7 @@ public class Select_indexSelector(int 番号, Enumerable source, FuncFragment se
     public override string GetEnumeratorFields => $"private int {this.a} = -1;";
     public override string GetTryGetNextBody => $$"""
         if({{this.e}}.TryGetNext(out var {{this.item}})) {
+            {{this.CounterCall("IncrementLogicalSelect")}}
             this.{{this.a}}++;
             {{this.FuncAssignCurrent(selector,nameof(selector),$"this.{this.currentValue}",this.item,$"this.{this.a}")}}
             return true;
