@@ -4,12 +4,12 @@ using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Sequence:LinqChain1TestBase {
+public sealed class Sequence(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact,Trait("Category","Unit")]
-    public static void start_end_step() {
+    public void start_end_step() {
         var expected=SystemEnumerable.Sequence(1L,9L,2L).ToList();
-        start_end_stepOptimized(expected);
-        start_end_stepNoOptimized(expected);
+        MeasureOptimized(nameof(start_end_stepOptimized),()=>start_end_stepOptimized(expected));
+        MeasureOptimized(nameof(start_end_stepNoOptimized),()=>start_end_stepNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -25,10 +25,10 @@ public sealed class Sequence:LinqChain1TestBase {
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void descending() {
+    public void descending() {
         var expected=SystemEnumerable.Sequence(9L,1L,-2L).ToList();
-        descendingOptimized(expected);
-        descendingNoOptimized(expected);
+        MeasureOptimized(nameof(descendingOptimized),()=>descendingOptimized(expected));
+        MeasureOptimized(nameof(descendingNoOptimized),()=>descendingNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

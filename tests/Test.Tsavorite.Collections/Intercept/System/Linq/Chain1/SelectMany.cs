@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class SelectMany:LinqChain1TestBase {
+public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(output) {
     //[Fact,Trait("Category","Unit")]
     //public void 外だし先行評価Anchor() => this.外だし先行評価AnchorImpl();
 
@@ -16,7 +16,7 @@ public sealed class SelectMany:LinqChain1TestBase {
     int Func() => 0;
 
     [Fact,Trait("Category","Unit")]
-    public static void Static外だし先行評価Anchor() {
+    public void Static外だし先行評価Anchor() {
         var expected=Source().SelectMany(static v => new[] { v,StaticFunc() }).ToList();
         Static外だし先行評価AnchorOptimized(expected);
         Static外だし先行評価AnchorNoOptimized(expected);
@@ -39,10 +39,10 @@ public sealed class SelectMany:LinqChain1TestBase {
     static int StaticFunc() => 0;
 
     [Fact,Trait("Category","Unit")]
-    public static void selector_Static() {
+    public void selector_Static() {
         var expected=Source().SelectMany(static v => new[] { v,v+10 }).ToList();
-        selector_StaticOptimized(expected);
-        selector_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(selector_StaticOptimized),()=>selector_StaticOptimized(expected));
+        MeasureOptimized(nameof(selector_StaticNoOptimized),()=>selector_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -60,10 +60,10 @@ public sealed class SelectMany:LinqChain1TestBase {
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void selector_Query() {
+    public void selector_Query() {
         var expected=Source().SelectMany(v => new[] { v,v+10 }).ToList();
-        selector_QueryOptimized(expected);
-        selector_QueryNoOptimized(expected);
+        MeasureOptimized(nameof(selector_QueryOptimized),()=>selector_QueryOptimized(expected));
+        MeasureOptimized(nameof(selector_QueryNoOptimized),()=>selector_QueryNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -81,10 +81,10 @@ public sealed class SelectMany:LinqChain1TestBase {
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void selector_index_Static() {
+    public void selector_index_Static() {
         var expected=Source().SelectMany(static (v,i) => new[] { v,i }).ToList();
-        selector_index_StaticOptimized(expected);
-        selector_index_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(selector_index_StaticOptimized),()=>selector_index_StaticOptimized(expected));
+        MeasureOptimized(nameof(selector_index_StaticNoOptimized),()=>selector_index_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -102,11 +102,11 @@ public sealed class SelectMany:LinqChain1TestBase {
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void collectionSelector_resultSelector_Static() {
+    public void collectionSelector_resultSelector_Static() {
         var expected=Source().SelectMany(static v => new[] { v,v+10 },static (v,sub) => sub+v)
             .ToList();
-        collectionSelector_resultSelector_StaticOptimized(expected);
-        collectionSelector_resultSelector_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(collectionSelector_resultSelector_StaticOptimized),()=>collectionSelector_resultSelector_StaticOptimized(expected));
+        MeasureOptimized(nameof(collectionSelector_resultSelector_StaticNoOptimized),()=>collectionSelector_resultSelector_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -124,11 +124,11 @@ public sealed class SelectMany:LinqChain1TestBase {
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void collectionSelector_index_resultSelector_Static() {
+    public void collectionSelector_index_resultSelector_Static() {
         var expected=Source().SelectMany(static (v,i) => new[] { v,i },static (v,sub) => sub+v)
             .ToList();
-        collectionSelector_index_resultSelector_StaticOptimized(expected);
-        collectionSelector_index_resultSelector_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(collectionSelector_index_resultSelector_StaticOptimized),()=>collectionSelector_index_resultSelector_StaticOptimized(expected));
+        MeasureOptimized(nameof(collectionSelector_index_resultSelector_StaticNoOptimized),()=>collectionSelector_index_resultSelector_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -146,10 +146,10 @@ public sealed class SelectMany:LinqChain1TestBase {
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void selector_Lambda() {
+    public void selector_Lambda() {
         var expected=Source().SelectMany(v => new[] { v,v+10 }).ToList();
-        selector_LambdaOptimized(expected);
-        selector_LambdaNoOptimized(expected);
+        MeasureOptimized(nameof(selector_LambdaOptimized),()=>selector_LambdaOptimized(expected));
+        MeasureOptimized(nameof(selector_LambdaNoOptimized),()=>selector_LambdaNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -167,11 +167,11 @@ public sealed class SelectMany:LinqChain1TestBase {
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void selector_Captured() {
+    public void selector_Captured() {
         var offset=10;
         var expected=Source().SelectMany(v => new[] { v,v+offset }).ToList();
-        selector_CapturedOptimized(expected);
-        selector_CapturedNoOptimized(expected);
+        MeasureOptimized(nameof(selector_CapturedOptimized),()=>selector_CapturedOptimized(expected));
+        MeasureOptimized(nameof(selector_CapturedNoOptimized),()=>selector_CapturedNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -191,10 +191,10 @@ public sealed class SelectMany:LinqChain1TestBase {
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void selector_DelegateSyntax() {
+    public void selector_DelegateSyntax() {
         var expected=Source().SelectMany(delegate(int v) { return new[] { v,v+10 }; }).ToList();
-        selector_DelegateSyntaxOptimized(expected);
-        selector_DelegateSyntaxNoOptimized(expected);
+        MeasureOptimized(nameof(selector_DelegateSyntaxOptimized),()=>selector_DelegateSyntaxOptimized(expected));
+        MeasureOptimized(nameof(selector_DelegateSyntaxNoOptimized),()=>selector_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -212,11 +212,11 @@ public sealed class SelectMany:LinqChain1TestBase {
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void selector_Variable() {
+    public void selector_Variable() {
         Func<int,int[]> selector=v => [v,v+10];
         var expected=Source().SelectMany(selector).ToList();
-        selector_VariableOptimized(expected);
-        selector_VariableNoOptimized(expected);
+        MeasureOptimized(nameof(selector_VariableOptimized),()=>selector_VariableOptimized(expected));
+        MeasureOptimized(nameof(selector_VariableNoOptimized),()=>selector_VariableNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

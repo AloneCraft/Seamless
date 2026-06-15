@@ -5,12 +5,12 @@ using Test.Tsavorite.Collections.Intercept.System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Skip:LinqChain1TestBase {
+public sealed class Skip(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void count() {
+    public void count() {
         var expected=Source().Skip(2).ToList();
-        countOptimized(expected);
-        countNoOptimized(expected);
+        MeasureOptimized(nameof(countOptimized),()=>countOptimized(expected));
+        MeasureOptimized(nameof(countNoOptimized),()=>countNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

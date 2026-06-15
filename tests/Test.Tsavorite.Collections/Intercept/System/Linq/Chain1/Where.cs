@@ -5,12 +5,12 @@ using Test.Tsavorite.Collections.Intercept.System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Where:LinqChain1TestBase {
+public sealed class Where(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Static() {
+    public void predicate_Static() {
         var expected=Source().Where(static v => v<3).ToList();
-        predicate_StaticOptimized(expected);
-        predicate_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_StaticOptimized),()=>predicate_StaticOptimized(expected));
+        MeasureOptimized(nameof(predicate_StaticNoOptimized),()=>predicate_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -28,10 +28,10 @@ public sealed class Where:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Lambda() {
+    public void predicate_Lambda() {
         var expected=Source().Where(v => v<3).ToList();
-        predicate_LambdaOptimized(expected);
-        predicate_LambdaNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_LambdaOptimized),()=>predicate_LambdaOptimized(expected));
+        MeasureOptimized(nameof(predicate_LambdaNoOptimized),()=>predicate_LambdaNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -49,11 +49,11 @@ public sealed class Where:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Captured() {
+    public void predicate_Captured() {
         var threshold=3;
         var expected=Source().Where(v => v<threshold).ToList();
-        predicate_CapturedOptimized(expected);
-        predicate_CapturedNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_CapturedOptimized),()=>predicate_CapturedOptimized(expected));
+        MeasureOptimized(nameof(predicate_CapturedNoOptimized),()=>predicate_CapturedNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -73,10 +73,10 @@ public sealed class Where:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_DelegateSyntax() {
+    public void predicate_DelegateSyntax() {
         var expected=Source().Where(delegate(int v) { return v<3; }).ToList();
-        predicate_DelegateSyntaxOptimized(expected);
-        predicate_DelegateSyntaxNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_DelegateSyntaxOptimized),()=>predicate_DelegateSyntaxOptimized(expected));
+        MeasureOptimized(nameof(predicate_DelegateSyntaxNoOptimized),()=>predicate_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -94,11 +94,11 @@ public sealed class Where:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Variable() {
+    public void predicate_Variable() {
         Func<int,bool> predicate=v => v<3;
         var expected=Source().Where(predicate).ToList();
-        predicate_VariableOptimized(expected);
-        predicate_VariableNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_VariableOptimized),()=>predicate_VariableOptimized(expected));
+        MeasureOptimized(nameof(predicate_VariableNoOptimized),()=>predicate_VariableNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -118,10 +118,10 @@ public sealed class Where:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Nested() {
+    public void predicate_Nested() {
         var expected=Source().Where(p => Source().Where(q => q==p).Any()).ToList();
-        predicate_NestedOptimized(expected);
-        predicate_NestedNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_NestedOptimized),()=>predicate_NestedOptimized(expected));
+        MeasureOptimized(nameof(predicate_NestedNoOptimized),()=>predicate_NestedNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -139,10 +139,10 @@ public sealed class Where:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Query() {
+    public void predicate_Query() {
         var expected=Source().Where(v => v<3).ToList();
-        predicate_QueryOptimized(expected);
-        predicate_QueryNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_QueryOptimized),()=>predicate_QueryOptimized(expected));
+        MeasureOptimized(nameof(predicate_QueryNoOptimized),()=>predicate_QueryNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -160,10 +160,10 @@ public sealed class Where:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_index_Static() {
+    public void predicate_index_Static() {
         var expected=Source().Where(static (v,i) => v>i).ToList();
-        predicate_index_StaticOptimized(expected);
-        predicate_index_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_index_StaticOptimized),()=>predicate_index_StaticOptimized(expected));
+        MeasureOptimized(nameof(predicate_index_StaticNoOptimized),()=>predicate_index_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -181,10 +181,10 @@ public sealed class Where:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_index_Lambda() {
+    public void predicate_index_Lambda() {
         var expected=Source().Where((v,i) => v>i).ToList();
-        predicate_index_LambdaOptimized(expected);
-        predicate_index_LambdaNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_index_LambdaOptimized),()=>predicate_index_LambdaOptimized(expected));
+        MeasureOptimized(nameof(predicate_index_LambdaNoOptimized),()=>predicate_index_LambdaNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -202,11 +202,11 @@ public sealed class Where:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_index_Captured() {
+    public void predicate_index_Captured() {
         var predicate=new IntIndexPredicate(0);
         var expected=Source().Where(predicate.LessThanThreshold).ToList();
-        predicate_index_CapturedOptimized(expected);
-        predicate_index_CapturedNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_index_CapturedOptimized),()=>predicate_index_CapturedOptimized(expected));
+        MeasureOptimized(nameof(predicate_index_CapturedNoOptimized),()=>predicate_index_CapturedNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -226,10 +226,10 @@ public sealed class Where:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_index_DelegateSyntax() {
+    public void predicate_index_DelegateSyntax() {
         var expected=Source().Where(delegate(int v,int i) { return v>i; }).ToList();
-        predicate_index_DelegateSyntaxOptimized(expected);
-        predicate_index_DelegateSyntaxNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_index_DelegateSyntaxOptimized),()=>predicate_index_DelegateSyntaxOptimized(expected));
+        MeasureOptimized(nameof(predicate_index_DelegateSyntaxNoOptimized),()=>predicate_index_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -247,11 +247,11 @@ public sealed class Where:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_index_Variable() {
+    public void predicate_index_Variable() {
         Func<int,int,bool> predicate=(v,i) => v>i;
         var expected=Source().Where(predicate).ToList();
-        predicate_index_VariableOptimized(expected);
-        predicate_index_VariableNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_index_VariableOptimized),()=>predicate_index_VariableOptimized(expected));
+        MeasureOptimized(nameof(predicate_index_VariableNoOptimized),()=>predicate_index_VariableNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

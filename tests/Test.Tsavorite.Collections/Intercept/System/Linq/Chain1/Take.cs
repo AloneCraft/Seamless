@@ -5,12 +5,12 @@ using Test.Tsavorite.Collections.Intercept.System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Take:LinqChain1TestBase {
+public sealed class Take(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void count() {
+    public void count() {
         var expected=Source().Take(3).ToList();
-        countOptimized(expected);
-        countNoOptimized(expected);
+        MeasureOptimized(nameof(countOptimized),()=>countOptimized(expected));
+        MeasureOptimized(nameof(countNoOptimized),()=>countNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -28,10 +28,10 @@ public sealed class Take:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void range() {
+    public void range() {
         var expected=Source().Take(new global::System.Range(1,3)).ToList();
-        rangeOptimized(expected);
-        rangeNoOptimized(expected);
+        MeasureOptimized(nameof(rangeOptimized),()=>rangeOptimized(expected));
+        MeasureOptimized(nameof(rangeNoOptimized),()=>rangeNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

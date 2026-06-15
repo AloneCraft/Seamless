@@ -5,12 +5,12 @@ using Test.Tsavorite.Collections.Intercept.System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Concat:LinqChain1TestBase {
+public sealed class Concat(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void second() {
+    public void second() {
         var expected=Source().Concat(Second()).ToList();
-        secondOptimized(expected);
-        secondNoOptimized(expected);
+        MeasureOptimized(nameof(secondOptimized),()=>secondOptimized(expected));
+        MeasureOptimized(nameof(secondNoOptimized),()=>secondNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

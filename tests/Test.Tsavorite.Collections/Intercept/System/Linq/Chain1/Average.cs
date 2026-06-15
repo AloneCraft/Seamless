@@ -5,9 +5,9 @@ using Tsavorite.SourceGenerator;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Average:LinqChain1TestBase {
+public sealed class Average(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void int_NoDelegate() {
+    public void int_NoDelegate() {
         var expected=Source().Average();
         AssertOptimized(expected,()=>int_NoDelegateOptimized(),0,0);
         AssertOptimized(expected,()=>int_NoDelegateNoOptimized(),0,0);
@@ -22,7 +22,7 @@ public sealed class Average:LinqChain1TestBase {
         Source().Average();
 
     [Fact, Trait("Category","Unit")]
-    public static void selector_Nested() {
+    public void selector_Nested() {
         var expected=Source().Average<int>(p => Source().Average(int (q) => q+p));
         AssertOptimized(expected,()=>selector_NestedOptimized(),4,0);
         AssertOptimized(expected,()=>selector_NestedNoOptimized(),4,4);
@@ -37,7 +37,7 @@ public sealed class Average:LinqChain1TestBase {
         Source().Average(p => Source().Average(q => q+p));
 
     [Fact, Trait("Category","Unit")]
-    public static void selector_Static() {
+    public void selector_Static() {
         var expected=Rows().Average(static row => row.Value);
         AssertOptimized(expected,()=>selector_StaticOptimized(),4,0);
         AssertOptimized(expected,()=>selector_StaticNoOptimized(),4,4);
@@ -52,7 +52,7 @@ public sealed class Average:LinqChain1TestBase {
         Rows().Average(static row => row.Value);
 
     [Fact, Trait("Category","Unit")]
-    public static void selector_Lambda() {
+    public void selector_Lambda() {
         var expected=Rows().Average(row => row.Value);
         AssertOptimized(expected,()=>selector_LambdaOptimized(),4,0);
         AssertOptimized(expected,()=>selector_LambdaNoOptimized(),4,4);
@@ -67,7 +67,7 @@ public sealed class Average:LinqChain1TestBase {
         Rows().Average(row => row.Value);
 
     [Fact, Trait("Category","Unit")]
-    public static void selector_Captured() {
+    public void selector_Captured() {
         var offset=0;
         var expected=Rows().Average(row => row.Value+offset);
         AssertOptimized(expected,()=>selector_CapturedOptimized(offset),4,0);
@@ -83,7 +83,7 @@ public sealed class Average:LinqChain1TestBase {
         Rows().Average(row => row.Value+offset);
 
     [Fact, Trait("Category","Unit")]
-    public static void selector_DelegateSyntax() {
+    public void selector_DelegateSyntax() {
         var expected=Rows().Average(delegate(Chain1Row row) { return row.Value; });
         AssertOptimized(expected,()=>selector_DelegateSyntaxOptimized(),4,0);
         AssertOptimized(expected,()=>selector_DelegateSyntaxNoOptimized(),4,4);
@@ -98,7 +98,7 @@ public sealed class Average:LinqChain1TestBase {
         Rows().Average(delegate(Chain1Row row) { return row.Value; });
 
     [Fact, Trait("Category","Unit")]
-    public static void selector_Variable() {
+    public void selector_Variable() {
         Func<Chain1Row,int> selector=row => row.Value;
         var expected=Rows().Average(selector);
         AssertOptimized(expected,()=>selector_VariableOptimized(selector),4,4);

@@ -4,12 +4,12 @@ using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Repeat:LinqChain1TestBase {
+public sealed class Repeat(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void element_count() {
+    public void element_count() {
         var expected=SystemEnumerable.Repeat(7,3).ToList();
-        element_countOptimized(expected);
-        element_countNoOptimized(expected);
+        MeasureOptimized(nameof(element_countOptimized),()=>element_countOptimized(expected));
+        MeasureOptimized(nameof(element_countNoOptimized),()=>element_countNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

@@ -1,6 +1,8 @@
 using Tsavorite;
 using Tsavorite.SourceGenerator;
 
+using Test.Tsavorite.Collections.Intercept.System.Linq;
+
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Instrumentation;
 
 public sealed class Counter {
@@ -10,6 +12,7 @@ public sealed class Counter {
 
         var actual = SelectSelectSelectWhereOptimized();
 
+        LinqCounterDiagnostics.EmitActual(nameof(SelectSelectSelectWhere_counts_logical_and_physical),scope.Counter);
         Assert.Equal([5,7,9],actual);
         Assert.Equal(5,scope.Counter.PhysicalMoveNext);
         Assert.Equal(15,scope.Counter.LogicalSelect);
@@ -25,6 +28,7 @@ public sealed class Counter {
 
         var actual = SelectSelectSelectWhereNoOptimized();
 
+        LinqCounterDiagnostics.EmitActual(nameof(SelectSelectSelectWhere_NoOptimized_counts_physical_delegates),scope.Counter);
         Assert.Equal([5,7,9],actual);
         Assert.Equal(20,scope.Counter.LogicalDelegate);
         Assert.Equal(20,scope.Counter.PhysicalDelegate);
@@ -36,6 +40,7 @@ public sealed class Counter {
 
         var actual = JoinOptimized();
 
+        LinqCounterDiagnostics.EmitActual(nameof(Join_counts_lookup_and_probe_work),scope.Counter);
         Assert.Equal([4,4,6],actual);
         Assert.Equal(4,scope.Counter.LogicalJoinInner);
         Assert.Equal(3,scope.Counter.LogicalJoinOuter);
@@ -52,6 +57,7 @@ public sealed class Counter {
 
         var actual = JoinNoOptimized();
 
+        LinqCounterDiagnostics.EmitActual(nameof(Join_NoOptimized_counts_physical_delegates),scope.Counter);
         Assert.Equal([4,4,6],actual);
         Assert.Equal(10,scope.Counter.LogicalDelegate);
         Assert.Equal(10,scope.Counter.PhysicalDelegate);
@@ -63,6 +69,7 @@ public sealed class Counter {
 
         var actual = TryGetNonEnumeratedCountOptimized();
 
+        LinqCounterDiagnostics.EmitActual(nameof(TryGetNonEnumeratedCount_counts_explicit_call),scope.Counter);
         Assert.Equal((true,3),actual);
         Assert.Equal(1,scope.Counter.TryGetNonEnumeratedCount);
     }
@@ -80,6 +87,7 @@ public sealed class Counter {
 
         Task.WaitAll(tasks);
 
+        LinqCounterDiagnostics.EmitActual(nameof(CounterScope_can_share_counter_across_parallel_tasks),scope.Counter);
         Assert.All(tasks,static task => Assert.Equal([5,7,9],task.Result));
         Assert.Equal(20,scope.Counter.PhysicalMoveNext);
         Assert.Equal(60,scope.Counter.LogicalSelect);

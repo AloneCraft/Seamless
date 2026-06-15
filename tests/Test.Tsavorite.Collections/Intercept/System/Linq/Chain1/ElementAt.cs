@@ -3,12 +3,12 @@ using System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class ElementAt:LinqChain1TestBase {
+public sealed class ElementAt(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void index() {
+    public void index() {
         var expected=Source().ElementAt(2);
-        indexOptimized(expected);
-        indexNoOptimized(expected);
+        MeasureOptimized(nameof(indexOptimized),()=>indexOptimized(expected));
+        MeasureOptimized(nameof(indexNoOptimized),()=>indexNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -24,10 +24,10 @@ public sealed class ElementAt:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void indexFromEnd() {
+    public void indexFromEnd() {
         var expected=Source().ElementAt(^1);
-        indexFromEndOptimized(expected);
-        indexFromEndNoOptimized(expected);
+        MeasureOptimized(nameof(indexFromEndOptimized),()=>indexFromEndOptimized(expected));
+        MeasureOptimized(nameof(indexFromEndNoOptimized),()=>indexFromEndNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

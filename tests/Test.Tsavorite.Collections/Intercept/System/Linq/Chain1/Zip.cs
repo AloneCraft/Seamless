@@ -5,12 +5,12 @@ using Test.Tsavorite.Collections.Intercept.System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Zip:LinqChain1TestBase {
+public sealed class Zip(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void second() {
+    public void second() {
         var expected=Source().Zip(Second()).ToList();
-        secondOptimized(expected);
-        secondNoOptimized(expected);
+        MeasureOptimized(nameof(secondOptimized),()=>secondOptimized(expected));
+        MeasureOptimized(nameof(secondNoOptimized),()=>secondNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -28,10 +28,10 @@ public sealed class Zip:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void second_third() {
+    public void second_third() {
         var expected=Source().Zip(Second(),EqualSource()).ToList();
-        second_thirdOptimized(expected);
-        second_thirdNoOptimized(expected);
+        MeasureOptimized(nameof(second_thirdOptimized),()=>second_thirdOptimized(expected));
+        MeasureOptimized(nameof(second_thirdNoOptimized),()=>second_thirdNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -47,10 +47,10 @@ public sealed class Zip:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void second_resultSelector_Static() {
+    public void second_resultSelector_Static() {
         var expected=Source().Zip(Second(),static (a,b) => a+b).ToList();
-        second_resultSelector_StaticOptimized(expected);
-        second_resultSelector_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(second_resultSelector_StaticOptimized),()=>second_resultSelector_StaticOptimized(expected));
+        MeasureOptimized(nameof(second_resultSelector_StaticNoOptimized),()=>second_resultSelector_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -68,10 +68,10 @@ public sealed class Zip:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void second_resultSelector_Lambda() {
+    public void second_resultSelector_Lambda() {
         var expected=Source().Zip(Second(),(a,b) => a+b).ToList();
-        second_resultSelector_LambdaOptimized(expected);
-        second_resultSelector_LambdaNoOptimized(expected);
+        MeasureOptimized(nameof(second_resultSelector_LambdaOptimized),()=>second_resultSelector_LambdaOptimized(expected));
+        MeasureOptimized(nameof(second_resultSelector_LambdaNoOptimized),()=>second_resultSelector_LambdaNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -89,11 +89,11 @@ public sealed class Zip:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void second_resultSelector_Captured() {
+    public void second_resultSelector_Captured() {
         var offset=0;
         var expected=Source().Zip(Second(),(a,b) => a+b+offset).ToList();
-        second_resultSelector_CapturedOptimized(expected);
-        second_resultSelector_CapturedNoOptimized(expected);
+        MeasureOptimized(nameof(second_resultSelector_CapturedOptimized),()=>second_resultSelector_CapturedOptimized(expected));
+        MeasureOptimized(nameof(second_resultSelector_CapturedNoOptimized),()=>second_resultSelector_CapturedNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -113,10 +113,10 @@ public sealed class Zip:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void second_resultSelector_DelegateSyntax() {
+    public void second_resultSelector_DelegateSyntax() {
         var expected=Source().Zip(Second(),delegate(int a,int b) { return a+b; }).ToList();
-        second_resultSelector_DelegateSyntaxOptimized(expected);
-        second_resultSelector_DelegateSyntaxNoOptimized(expected);
+        MeasureOptimized(nameof(second_resultSelector_DelegateSyntaxOptimized),()=>second_resultSelector_DelegateSyntaxOptimized(expected));
+        MeasureOptimized(nameof(second_resultSelector_DelegateSyntaxNoOptimized),()=>second_resultSelector_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -134,11 +134,11 @@ public sealed class Zip:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void second_resultSelector_Variable() {
+    public void second_resultSelector_Variable() {
         Func<int,int,int> resultSelector=(a,b) => a+b;
         var expected=Source().Zip(Second(),resultSelector).ToList();
-        second_resultSelector_VariableOptimized(expected);
-        second_resultSelector_VariableNoOptimized(expected);
+        MeasureOptimized(nameof(second_resultSelector_VariableOptimized),()=>second_resultSelector_VariableOptimized(expected));
+        MeasureOptimized(nameof(second_resultSelector_VariableNoOptimized),()=>second_resultSelector_VariableNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

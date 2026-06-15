@@ -3,12 +3,12 @@ using System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Append:LinqChain1TestBase {
+public sealed class Append(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void element() {
+    public void element() {
         var expected=Source().Append(5).ToList();
-        elementOptimized(expected);
-        elementNoOptimized(expected);
+        MeasureOptimized(nameof(elementOptimized),()=>elementOptimized(expected));
+        MeasureOptimized(nameof(elementNoOptimized),()=>elementNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

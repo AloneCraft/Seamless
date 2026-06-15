@@ -3,12 +3,12 @@ using System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Sum:LinqChain1TestBase {
+public sealed class Sum(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void int_NoDelegate() {
+    public void int_NoDelegate() {
         var expected=Source().Sum();
-        int_NoDelegateOptimized(expected);
-        int_NoDelegateNoOptimized(expected);
+        MeasureOptimized(nameof(int_NoDelegateOptimized),()=>int_NoDelegateOptimized(expected));
+        MeasureOptimized(nameof(int_NoDelegateNoOptimized),()=>int_NoDelegateNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -24,10 +24,10 @@ public sealed class Sum:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void selector_Nested() {
+    public void selector_Nested() {
         var expected=Source().Sum<int>(p => Source().Sum(int (q) => q+p));
-        selector_NestedOptimized(expected);
-        selector_NestedNoOptimized(expected);
+        MeasureOptimized(nameof(selector_NestedOptimized),()=>selector_NestedOptimized(expected));
+        MeasureOptimized(nameof(selector_NestedNoOptimized),()=>selector_NestedNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -43,10 +43,10 @@ public sealed class Sum:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void selector_Static() {
+    public void selector_Static() {
         var expected=Rows().Sum(static row => row.Value);
-        selector_StaticOptimized(expected);
-        selector_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(selector_StaticOptimized),()=>selector_StaticOptimized(expected));
+        MeasureOptimized(nameof(selector_StaticNoOptimized),()=>selector_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -62,10 +62,10 @@ public sealed class Sum:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void selector_Lambda() {
+    public void selector_Lambda() {
         var expected=Rows().Sum(row => row.Value);
-        selector_LambdaOptimized(expected);
-        selector_LambdaNoOptimized(expected);
+        MeasureOptimized(nameof(selector_LambdaOptimized),()=>selector_LambdaOptimized(expected));
+        MeasureOptimized(nameof(selector_LambdaNoOptimized),()=>selector_LambdaNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -81,11 +81,11 @@ public sealed class Sum:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void selector_Captured() {
+    public void selector_Captured() {
         var offset=0;
         var expected=Rows().Sum(row => row.Value+offset);
-        selector_CapturedOptimized(expected);
-        selector_CapturedNoOptimized(expected);
+        MeasureOptimized(nameof(selector_CapturedOptimized),()=>selector_CapturedOptimized(expected));
+        MeasureOptimized(nameof(selector_CapturedNoOptimized),()=>selector_CapturedNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -103,10 +103,10 @@ public sealed class Sum:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void selector_DelegateSyntax() {
+    public void selector_DelegateSyntax() {
         var expected=Rows().Sum(delegate(Chain1Row row) { return row.Value; });
-        selector_DelegateSyntaxOptimized(expected);
-        selector_DelegateSyntaxNoOptimized(expected);
+        MeasureOptimized(nameof(selector_DelegateSyntaxOptimized),()=>selector_DelegateSyntaxOptimized(expected));
+        MeasureOptimized(nameof(selector_DelegateSyntaxNoOptimized),()=>selector_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -122,11 +122,11 @@ public sealed class Sum:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void selector_Variable() {
+    public void selector_Variable() {
         Func<Chain1Row,int> selector=row => row.Value;
         var expected=Rows().Sum(selector);
-        selector_VariableOptimized(expected);
-        selector_VariableNoOptimized(expected);
+        MeasureOptimized(nameof(selector_VariableOptimized),()=>selector_VariableOptimized(expected));
+        MeasureOptimized(nameof(selector_VariableNoOptimized),()=>selector_VariableNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
