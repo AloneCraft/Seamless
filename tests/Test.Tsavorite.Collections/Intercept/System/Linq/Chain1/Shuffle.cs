@@ -3,12 +3,12 @@ using System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Shuffle:LinqChain1TestBase {
+public sealed class Shuffle(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact,Trait("Category","Unit")]
-    public static void noArg() {
+    public void noArg() {
         var expected=SourceWithDuplicates().Shuffle().Order().ToList();
-        noArgOptimized(expected);
-        noArgNoOptimized(expected);
+        MeasureOptimized(nameof(noArgOptimized),()=>noArgOptimized(expected));
+        MeasureOptimized(nameof(noArgNoOptimized),()=>noArgNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

@@ -4,9 +4,9 @@ using Tsavorite.SourceGenerator;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class LastOrDefault:LinqChain1TestBase {
+public sealed class LastOrDefault(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void NoDelegate() {
+    public void NoDelegate() {
         var expected=Source().LastOrDefault();
         AssertOptimized(expected,()=>NoDelegateOptimized(),0,0);
         AssertOptimized(expected,()=>NoDelegateNoOptimized(),0,0);
@@ -21,7 +21,7 @@ public sealed class LastOrDefault:LinqChain1TestBase {
         Source().LastOrDefault();
 
     [Fact, Trait("Category","Unit")]
-    public static void defaultValue() {
+    public void defaultValue() {
         var expected=EmptySource().LastOrDefault(42);
         AssertOptimized(expected,()=>defaultValueOptimized(),0,0);
         AssertOptimized(expected,()=>defaultValueNoOptimized(),0,0);
@@ -36,7 +36,7 @@ public sealed class LastOrDefault:LinqChain1TestBase {
         EmptySource().LastOrDefault(42);
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Static() {
+    public void predicate_Static() {
         var expected=Source().LastOrDefault(static v => v>2);
         AssertOptimized(expected,()=>predicate_StaticOptimized(),1,0);
         AssertOptimized(expected,()=>predicate_StaticNoOptimized(),1,1);
@@ -51,7 +51,7 @@ public sealed class LastOrDefault:LinqChain1TestBase {
         Source().LastOrDefault(static v => v>2);
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Lambda() {
+    public void predicate_Lambda() {
         var expected=Source().LastOrDefault(v => v>2);
         AssertOptimized(expected,()=>predicate_LambdaOptimized(),1,0);
         AssertOptimized(expected,()=>predicate_LambdaNoOptimized(),1,1);
@@ -66,7 +66,7 @@ public sealed class LastOrDefault:LinqChain1TestBase {
         Source().LastOrDefault(v => v>2);
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Captured() {
+    public void predicate_Captured() {
         var threshold=2;
         var expected=Source().LastOrDefault(v => v>threshold);
         AssertOptimized(expected,()=>predicate_CapturedOptimized(threshold),1,0);
@@ -82,7 +82,7 @@ public sealed class LastOrDefault:LinqChain1TestBase {
         Source().LastOrDefault(v => v>threshold);
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_DelegateSyntax() {
+    public void predicate_DelegateSyntax() {
         var expected=Source().LastOrDefault(delegate(int v) { return v>2; });
         AssertOptimized(expected,()=>predicate_DelegateSyntaxOptimized(),1,0);
         AssertOptimized(expected,()=>predicate_DelegateSyntaxNoOptimized(),1,1);
@@ -97,7 +97,7 @@ public sealed class LastOrDefault:LinqChain1TestBase {
         Source().LastOrDefault(delegate(int v) { return v>2; });
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Variable() {
+    public void predicate_Variable() {
         Func<int,bool> predicate=v => v>2;
         var expected=Source().LastOrDefault(predicate);
         AssertOptimized(expected,()=>predicate_VariableOptimized(predicate),1,1);

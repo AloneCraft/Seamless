@@ -5,12 +5,12 @@ using Test.Tsavorite.Collections.Intercept.System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class GroupJoin:LinqChain1TestBase {
+public sealed class GroupJoin(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void keySelectors_resultSelector_Static() {
+    public void keySelectors_resultSelector_Static() {
         var expected=Source().GroupJoin(Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,group) => group.Sum()+outerValue).ToList();
-        keySelectors_resultSelector_StaticOptimized(expected);
-        keySelectors_resultSelector_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(keySelectors_resultSelector_StaticOptimized),()=>keySelectors_resultSelector_StaticOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_StaticNoOptimized),()=>keySelectors_resultSelector_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -28,10 +28,10 @@ public sealed class GroupJoin:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelectors_resultSelector_Lambda() {
+    public void keySelectors_resultSelector_Lambda() {
         var expected=Source().GroupJoin(Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,group) => group.Sum()+outerValue).ToList();
-        keySelectors_resultSelector_LambdaOptimized(expected);
-        keySelectors_resultSelector_LambdaNoOptimized(expected);
+        MeasureOptimized(nameof(keySelectors_resultSelector_LambdaOptimized),()=>keySelectors_resultSelector_LambdaOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_LambdaNoOptimized),()=>keySelectors_resultSelector_LambdaNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -49,10 +49,10 @@ public sealed class GroupJoin:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelectors_resultSelector_Query() {
+    public void keySelectors_resultSelector_Query() {
         var expected=Source().GroupJoin(Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,group) => group.Sum()+outerValue).ToList();
-        keySelectors_resultSelector_QueryOptimized(expected);
-        keySelectors_resultSelector_QueryNoOptimized(expected);
+        MeasureOptimized(nameof(keySelectors_resultSelector_QueryOptimized),()=>keySelectors_resultSelector_QueryOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_QueryNoOptimized),()=>keySelectors_resultSelector_QueryNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -70,11 +70,11 @@ public sealed class GroupJoin:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelectors_resultSelector_Captured() {
+    public void keySelectors_resultSelector_Captured() {
         var offset=0;
         var expected=Source().GroupJoin(Second(),outerValue => outerValue+offset,innerValue => innerValue+offset,(outerValue,group) => group.Sum()+outerValue+offset).ToList();
-        keySelectors_resultSelector_CapturedOptimized(expected);
-        keySelectors_resultSelector_CapturedNoOptimized(expected);
+        MeasureOptimized(nameof(keySelectors_resultSelector_CapturedOptimized),()=>keySelectors_resultSelector_CapturedOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_CapturedNoOptimized),()=>keySelectors_resultSelector_CapturedNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -94,10 +94,10 @@ public sealed class GroupJoin:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelectors_resultSelector_DelegateSyntax() {
+    public void keySelectors_resultSelector_DelegateSyntax() {
         var expected=Source().GroupJoin(Second(),delegate(int outerValue) { return outerValue; },delegate(int innerValue) { return innerValue; },delegate(int outerValue,IEnumerable<int> group) { return group.Sum()+outerValue; }).ToList();
-        keySelectors_resultSelector_DelegateSyntaxOptimized(expected);
-        keySelectors_resultSelector_DelegateSyntaxNoOptimized(expected);
+        MeasureOptimized(nameof(keySelectors_resultSelector_DelegateSyntaxOptimized),()=>keySelectors_resultSelector_DelegateSyntaxOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_DelegateSyntaxNoOptimized),()=>keySelectors_resultSelector_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -115,13 +115,13 @@ public sealed class GroupJoin:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelectors_resultSelector_Variable() {
+    public void keySelectors_resultSelector_Variable() {
         Func<int,int> outerKeySelector=outerValue => outerValue;
         Func<int,int> innerKeySelector=innerValue => innerValue;
         Func<int,IEnumerable<int>,int> resultSelector=(outerValue,group) => group.Sum()+outerValue;
         var expected=Source().GroupJoin(Second(),outerKeySelector,innerKeySelector,resultSelector).ToList();
-        keySelectors_resultSelector_VariableOptimized(expected);
-        keySelectors_resultSelector_VariableNoOptimized(expected);
+        MeasureOptimized(nameof(keySelectors_resultSelector_VariableOptimized),()=>keySelectors_resultSelector_VariableOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_VariableNoOptimized),()=>keySelectors_resultSelector_VariableNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

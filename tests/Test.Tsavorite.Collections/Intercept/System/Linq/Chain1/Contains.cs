@@ -2,12 +2,12 @@ using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Contains:LinqChain1TestBase {
+public sealed class Contains(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void value() {
+    public void value() {
         var expected=Source().Contains(3);
-        valueOptimized(expected);
-        valueNoOptimized(expected);
+        MeasureOptimized(nameof(valueOptimized),()=>valueOptimized(expected));
+        MeasureOptimized(nameof(valueNoOptimized),()=>valueNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -23,10 +23,10 @@ public sealed class Contains:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void value_comparer() {
+    public void value_comparer() {
         var expected=Source().Contains(3,EqualityComparer<int>.Default);
-        value_comparerOptimized(expected);
-        value_comparerNoOptimized(expected);
+        MeasureOptimized(nameof(value_comparerOptimized),()=>value_comparerOptimized(expected));
+        MeasureOptimized(nameof(value_comparerNoOptimized),()=>value_comparerNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

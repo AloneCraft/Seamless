@@ -3,12 +3,12 @@ using System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class ToHashSet:LinqChain1TestBase {
+public sealed class ToHashSet(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void NoDelegate() {
+    public void NoDelegate() {
         var expected=Source().ToHashSet();
-        NoDelegateOptimized(expected);
-        NoDelegateNoOptimized(expected);
+        MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
+        MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -24,10 +24,10 @@ public sealed class ToHashSet:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void comparer() {
+    public void comparer() {
         var expected=Source().ToHashSet(EqualityComparer<int>.Default);
-        comparerOptimized(expected);
-        comparerNoOptimized(expected);
+        MeasureOptimized(nameof(comparerOptimized),()=>comparerOptimized(expected));
+        MeasureOptimized(nameof(comparerNoOptimized),()=>comparerNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

@@ -5,12 +5,12 @@ using Test.Tsavorite.Collections.Intercept.System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class TryGetNonEnumeratedCount:LinqChain1TestBase {
+public sealed class TryGetNonEnumeratedCount(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void count() {
+    public void count() {
         var expectedResult=Source().TryGetNonEnumeratedCount(out var expected);
-        countOptimized(expectedResult,expected);
-        countNoOptimized(expectedResult,expected);
+        MeasureOptimized(nameof(countOptimized),()=>countOptimized(expectedResult,expected));
+        MeasureOptimized(nameof(countNoOptimized),()=>countNoOptimized(expectedResult,expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

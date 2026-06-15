@@ -5,12 +5,12 @@ using Test.Tsavorite.Collections.Intercept.System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class GroupBy:LinqChain1TestBase {
+public sealed class GroupBy(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_Static() {
+    public void keySelector_Static() {
         var expected=Rows().GroupBy(static row => row.Key).ToList();
-        keySelector_StaticOptimized(expected);
-        keySelector_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(keySelector_StaticOptimized),()=>keySelector_StaticOptimized(expected));
+        MeasureOptimized(nameof(keySelector_StaticNoOptimized),()=>keySelector_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -28,10 +28,10 @@ public sealed class GroupBy:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void elementSelector_Static() {
+    public void elementSelector_Static() {
         var expected=Rows().GroupBy(static row => row.Key,static row => row.Value).ToList();
-        elementSelector_StaticOptimized(expected);
-        elementSelector_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(elementSelector_StaticOptimized),()=>elementSelector_StaticOptimized(expected));
+        MeasureOptimized(nameof(elementSelector_StaticNoOptimized),()=>elementSelector_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -49,10 +49,10 @@ public sealed class GroupBy:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void resultSelector_Static() {
+    public void resultSelector_Static() {
         var expected=Rows().GroupBy(static row => row.Key,static (key,group) => group.Sum(row => row.Value)).ToList();
-        resultSelector_StaticOptimized(expected);
-        resultSelector_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(resultSelector_StaticOptimized),()=>resultSelector_StaticOptimized(expected));
+        MeasureOptimized(nameof(resultSelector_StaticNoOptimized),()=>resultSelector_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -70,10 +70,10 @@ public sealed class GroupBy:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void elementSelector_resultSelector_Static() {
+    public void elementSelector_resultSelector_Static() {
         var expected=Rows().GroupBy(static row => row.Key,static row => row.Value,static (key,group) => group.Sum()).ToList();
-        elementSelector_resultSelector_StaticOptimized(expected);
-        elementSelector_resultSelector_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(elementSelector_resultSelector_StaticOptimized),()=>elementSelector_resultSelector_StaticOptimized(expected));
+        MeasureOptimized(nameof(elementSelector_resultSelector_StaticNoOptimized),()=>elementSelector_resultSelector_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -91,10 +91,10 @@ public sealed class GroupBy:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_Nested() {
+    public void keySelector_Nested() {
         var expected=Source().GroupBy(p => Source().GroupBy(q => q%p).Count()).Select(group => group.Key).ToList();
-        keySelector_NestedOptimized(expected);
-        keySelector_NestedNoOptimized(expected);
+        MeasureOptimized(nameof(keySelector_NestedOptimized),()=>keySelector_NestedOptimized(expected));
+        MeasureOptimized(nameof(keySelector_NestedNoOptimized),()=>keySelector_NestedNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -112,10 +112,10 @@ public sealed class GroupBy:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_Query() {
+    public void keySelector_Query() {
         var expected=Rows().GroupBy(row => row.Key).ToList();
-        keySelector_QueryOptimized(expected);
-        keySelector_QueryNoOptimized(expected);
+        MeasureOptimized(nameof(keySelector_QueryOptimized),()=>keySelector_QueryOptimized(expected));
+        MeasureOptimized(nameof(keySelector_QueryNoOptimized),()=>keySelector_QueryNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -133,10 +133,10 @@ public sealed class GroupBy:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_Lambda() {
+    public void keySelector_Lambda() {
         var expected=Rows().GroupBy(row => row.Key).ToList();
-        keySelector_LambdaOptimized(expected);
-        keySelector_LambdaNoOptimized(expected);
+        MeasureOptimized(nameof(keySelector_LambdaOptimized),()=>keySelector_LambdaOptimized(expected));
+        MeasureOptimized(nameof(keySelector_LambdaNoOptimized),()=>keySelector_LambdaNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -154,11 +154,11 @@ public sealed class GroupBy:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_Captured() {
+    public void keySelector_Captured() {
         var offset=0;
         var expected=Rows().GroupBy(row => row.Key+offset).ToList();
-        keySelector_CapturedOptimized(expected);
-        keySelector_CapturedNoOptimized(expected);
+        MeasureOptimized(nameof(keySelector_CapturedOptimized),()=>keySelector_CapturedOptimized(expected));
+        MeasureOptimized(nameof(keySelector_CapturedNoOptimized),()=>keySelector_CapturedNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -178,10 +178,10 @@ public sealed class GroupBy:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_DelegateSyntax() {
+    public void keySelector_DelegateSyntax() {
         var expected=Rows().GroupBy(delegate(Chain1Row row) { return row.Key; }).ToList();
-        keySelector_DelegateSyntaxOptimized(expected);
-        keySelector_DelegateSyntaxNoOptimized(expected);
+        MeasureOptimized(nameof(keySelector_DelegateSyntaxOptimized),()=>keySelector_DelegateSyntaxOptimized(expected));
+        MeasureOptimized(nameof(keySelector_DelegateSyntaxNoOptimized),()=>keySelector_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -199,11 +199,11 @@ public sealed class GroupBy:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void keySelector_Variable() {
+    public void keySelector_Variable() {
         Func<Chain1Row,int> keySelector=row => row.Key;
         var expected=Rows().GroupBy(keySelector).ToList();
-        keySelector_VariableOptimized(expected);
-        keySelector_VariableNoOptimized(expected);
+        MeasureOptimized(nameof(keySelector_VariableOptimized),()=>keySelector_VariableOptimized(expected));
+        MeasureOptimized(nameof(keySelector_VariableNoOptimized),()=>keySelector_VariableNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

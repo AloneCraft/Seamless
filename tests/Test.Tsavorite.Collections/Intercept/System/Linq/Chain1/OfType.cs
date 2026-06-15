@@ -5,12 +5,12 @@ using Test.Tsavorite.Collections.Intercept.System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class OfType:LinqChain1TestBase {
+public sealed class OfType(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void NoDelegate() {
+    public void NoDelegate() {
         var expected=CastObjects().OfType<int>().ToList();
-        NoDelegateOptimized(expected);
-        NoDelegateNoOptimized(expected);
+        MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
+        MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -28,10 +28,10 @@ public sealed class OfType:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void mixedTypes() {
+    public void mixedTypes() {
         var expected=MixedObjects().OfType<int>().ToList();
-        mixedTypesOptimized(expected);
-        mixedTypesNoOptimized(expected);
+        MeasureOptimized(nameof(mixedTypesOptimized),()=>mixedTypesOptimized(expected));
+        MeasureOptimized(nameof(mixedTypesNoOptimized),()=>mixedTypesNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

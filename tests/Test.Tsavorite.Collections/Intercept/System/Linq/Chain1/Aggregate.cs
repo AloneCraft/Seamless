@@ -7,12 +7,12 @@ using Tsavorite.SourceGenerator;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Aggregate:LinqChain1TestBase {
+public sealed class Aggregate(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void func_Static() {
+    public void func_Static() {
         var expected=Source().Aggregate(static (l,r) => l+r);
-        AssertOptimized(expected,()=>func_StaticOptimized(),3,0);
-        AssertOptimized(expected,()=>func_StaticNoOptimized(),3,3);
+        AssertOptimized(nameof(func_StaticOptimized),expected,()=>func_StaticOptimized(),3,0);
+        AssertOptimized(nameof(func_StaticNoOptimized),expected,()=>func_StaticNoOptimized(),3,3);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -24,7 +24,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate(static (l,r) => l+r);
 
     [Fact, Trait("Category","Unit")]
-    public static void func_Lambda() {
+    public void func_Lambda() {
         var expected=Source().Aggregate((l,r) => l+r);
         AssertOptimized(expected,()=>func_LambdaOptimized(),3,0);
         AssertOptimized(expected,()=>func_LambdaNoOptimized(),3,3);
@@ -39,7 +39,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate((l,r) => l+r);
 
     [Fact, Trait("Category","Unit")]
-    public static void func_Captured() {
+    public void func_Captured() {
         var offset=0;
         var expected=Source().Aggregate((l,r) => l+r+offset);
         AssertOptimized(expected,()=>func_CapturedOptimized(offset),3,0);
@@ -55,7 +55,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate((l,r) => l+r+offset);
 
     [Fact, Trait("Category","Unit")]
-    public static void func_DelegateSyntax() {
+    public void func_DelegateSyntax() {
         var expected=Source().Aggregate(delegate(int l,int r) { return l+r; });
         AssertOptimized(expected,()=>func_DelegateSyntaxOptimized(),3,0);
         AssertOptimized(expected,()=>func_DelegateSyntaxNoOptimized(),3,3);
@@ -70,7 +70,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate(delegate(int l,int r) { return l+r; });
 
     [Fact, Trait("Category","Unit")]
-    public static void func_Variable() {
+    public void func_Variable() {
         Func<int,int,int> func=(l,r) => l+r;
         var expected=Source().Aggregate(func);
         AssertOptimized(expected,()=>func_VariableOptimized(func),3,3);
@@ -86,7 +86,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate(func);
 
     [Fact, Trait("Category","Unit")]
-    public static void seed_func_Static() {
+    public void seed_func_Static() {
         var expected=Source().Aggregate(0,static (sum,v) => sum+v);
         AssertOptimized(expected,()=>seed_func_StaticOptimized(),4,0);
         AssertOptimized(expected,()=>seed_func_StaticNoOptimized(),4,4);
@@ -101,7 +101,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate(0,static (sum,v) => sum+v);
 
     [Fact, Trait("Category","Unit")]
-    public static void seed_func_Lambda() {
+    public void seed_func_Lambda() {
         var expected=Source().Aggregate(0,(sum,v) => sum+v);
         AssertOptimized(expected,()=>seed_func_LambdaOptimized(),4,0);
         AssertOptimized(expected,()=>seed_func_LambdaNoOptimized(),4,4);
@@ -116,7 +116,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate(0,(sum,v) => sum+v);
 
     [Fact, Trait("Category","Unit")]
-    public static void seed_func_Captured() {
+    public void seed_func_Captured() {
         var offset=0;
         var expected=Source().Aggregate(0,(sum,v) => sum+v+offset);
         AssertOptimized(expected,()=>seed_func_CapturedOptimized(offset),4,0);
@@ -132,7 +132,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate(0,(sum,v) => sum+v+offset);
 
     [Fact, Trait("Category","Unit")]
-    public static void seed_func_DelegateSyntax() {
+    public void seed_func_DelegateSyntax() {
         var expected=Source().Aggregate(0,delegate(int sum,int v) { return sum+v; });
         AssertOptimized(expected,()=>seed_func_DelegateSyntaxOptimized(),4,0);
         AssertOptimized(expected,()=>seed_func_DelegateSyntaxNoOptimized(),4,4);
@@ -147,7 +147,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate(0,delegate(int sum,int v) { return sum+v; });
 
     [Fact, Trait("Category","Unit")]
-    public static void seed_func_Variable() {
+    public void seed_func_Variable() {
         Func<int,int,int> func=(sum,v) => sum+v;
         var expected=Source().Aggregate(0,func);
         AssertOptimized(expected,()=>seed_func_VariableOptimized(func),4,4);
@@ -163,7 +163,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate(0,func);
 
     [Fact, Trait("Category","Unit")]
-    public static void seed_func_resultSelector_Static() {
+    public void seed_func_resultSelector_Static() {
         var expected=Source().Aggregate(0,static (sum,v) => sum+v,static sum => sum*2);
         AssertOptimized(expected,()=>seed_func_resultSelector_StaticOptimized(),5,0);
         AssertOptimized(expected,()=>seed_func_resultSelector_StaticNoOptimized(),5,5);
@@ -178,7 +178,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate(0,static (sum,v) => sum+v,static sum => sum*2);
 
     [Fact, Trait("Category","Unit")]
-    public static void seed_func_resultSelector_Lambda() {
+    public void seed_func_resultSelector_Lambda() {
         var expected=Source().Aggregate(0,(sum,v) => sum+v,sum => sum*2);
         AssertOptimized(expected,()=>seed_func_resultSelector_LambdaOptimized(),5,0);
         AssertOptimized(expected,()=>seed_func_resultSelector_LambdaNoOptimized(),5,5);
@@ -193,7 +193,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate(0,(sum,v) => sum+v,sum => sum*2);
 
     [Fact, Trait("Category","Unit")]
-    public static void seed_func_resultSelector_Captured() {
+    public void seed_func_resultSelector_Captured() {
         var offset=0;
         var expected=Source().Aggregate(0,(sum,v) => sum+v+offset,sum => sum*2+offset);
         AssertOptimized(expected,()=>seed_func_resultSelector_CapturedOptimized(offset),5,0);
@@ -209,7 +209,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate(0,(sum,v) => sum+v+offset,sum => sum*2+offset);
 
     [Fact, Trait("Category","Unit")]
-    public static void seed_func_resultSelector_DelegateSyntax() {
+    public void seed_func_resultSelector_DelegateSyntax() {
         var expected=Source().Aggregate(0,delegate(int sum,int v) { return sum+v; },delegate(int sum) { return sum*2; });
         AssertOptimized(expected,()=>seed_func_resultSelector_DelegateSyntaxOptimized(),5,0);
         AssertOptimized(expected,()=>seed_func_resultSelector_DelegateSyntaxNoOptimized(),5,5);
@@ -224,7 +224,7 @@ public sealed class Aggregate:LinqChain1TestBase {
         Source().Aggregate(0,delegate(int sum,int v) { return sum+v; },delegate(int sum) { return sum*2; });
 
     [Fact, Trait("Category","Unit")]
-    public static void seed_func_resultSelector_Variable() {
+    public void seed_func_resultSelector_Variable() {
         Func<int,int,int> func=(sum,v) => sum+v;
         Func<int,int> resultSelector=sum => sum*2;
         var expected=Source().Aggregate(0,func,resultSelector);
@@ -240,15 +240,5 @@ public sealed class Aggregate:LinqChain1TestBase {
     private static int seed_func_resultSelector_VariableNoOptimized(Func<int,int,int> func,Func<int,int> resultSelector) =>
         Source().Aggregate(0,func,resultSelector);
 
-    private static void AssertOptimized(int expected,Func<int> actualFactory,long logicalDelegate,long physicalDelegate) {
-        using var scope=LinqCounterScope.Start();
-        var actual=actualFactory();
-        AssertAggregate(expected,actual,logicalDelegate,physicalDelegate,scope.Counter);
-    }
 
-    private static void AssertAggregate(int expected,int actual,long logicalDelegate,long physicalDelegate,LinqCounter counter) {
-        Assert.Equal(expected,actual);
-        Assert.Equal(logicalDelegate,counter.LogicalDelegate);
-        Assert.Equal(physicalDelegate,counter.PhysicalDelegate);
-    }
 }

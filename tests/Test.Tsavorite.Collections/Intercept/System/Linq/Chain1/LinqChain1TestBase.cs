@@ -6,7 +6,7 @@ namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
 public sealed record Chain1Row(int Key,int Value,string Name);
 
-public abstract class LinqChain1TestBase {
+public abstract class LinqChain1TestBase(ITestOutputHelper output) {
     public static int[] Source() => [1,2,3,4];
     public static int[] SourceWithDuplicates() => [1,2,2,3,3,4];
     public static int[] SourceWithDefault() => [0,1,2,3];
@@ -26,12 +26,35 @@ public abstract class LinqChain1TestBase {
         Assert.Equal(expected,actual);
     }
 
-    public static void AssertOptimized<T>(T expected,Func<T> actualFactory,long logicalDelegate,long physicalDelegate) {
+    public void AssertOptimized<T>(T expected,Func<T> actualFactory,long logicalDelegate,long physicalDelegate,[global::System.Runtime.CompilerServices.CallerMemberName] string label="") {
+        AssertOptimized(label,expected,actualFactory,logicalDelegate,physicalDelegate);
+    }
+
+    public void AssertOptimized<T>(string label,T expected,Func<T> actualFactory,long logicalDelegate,long physicalDelegate) {
         using var scope=LinqCounterScope.Start();
         var actual=actualFactory();
+        EmitCounterDiagnostics(label,logicalDelegate,physicalDelegate,scope.Counter);
+        var message=$"{label}: delegate expected(log/phys)={logicalDelegate}/{physicalDelegate}, actual(log/phys)={scope.Counter.LogicalDelegate}/{scope.Counter.PhysicalDelegate}; logical ops={scope.Counter.LogicalOperations}, moveNext={scope.Counter.PhysicalMoveNext}";
+        output.WriteLine(message);
+        global::System.Console.WriteLine(message);
+        global::System.Diagnostics.Trace.WriteLine(message);
         Assert.Equal(expected,actual);
         Assert.Equal(logicalDelegate,scope.Counter.LogicalDelegate);
         Assert.Equal(physicalDelegate,scope.Counter.PhysicalDelegate);
+    }
+
+    public void MeasureOptimized(string label,Action action) {
+        using var scope=LinqCounterScope.Start();
+        action();
+        LinqCounterDiagnostics.EmitActual(label,scope.Counter);
+        var message=$"{label}: delegate(log/phys)={scope.Counter.LogicalDelegate}/{scope.Counter.PhysicalDelegate}; logical ops={scope.Counter.LogicalOperations}, moveNext={scope.Counter.PhysicalMoveNext}";
+        output.WriteLine(message);
+        global::System.Console.WriteLine(message);
+        global::System.Diagnostics.Trace.WriteLine(message);
+    }
+
+    protected static void EmitCounterDiagnostics(string label,long expectedLogicalDelegate,long expectedPhysicalDelegate,LinqCounter counter) {
+        LinqCounterDiagnostics.EmitExpected(label,expectedLogicalDelegate,expectedPhysicalDelegate,counter);
     }
 
     public static void AssertNestedSequenceEqual<T>(IEnumerable<IEnumerable<T>> expected,IEnumerable<IEnumerable<T>> actual) {

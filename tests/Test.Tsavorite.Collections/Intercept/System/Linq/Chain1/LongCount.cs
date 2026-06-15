@@ -3,12 +3,12 @@ using System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class LongCount:LinqChain1TestBase {
+public sealed class LongCount(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void NoDelegate() {
+    public void NoDelegate() {
         var expected=Source().LongCount();
-        NoDelegateOptimized(expected);
-        NoDelegateNoOptimized(expected);
+        MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
+        MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -24,10 +24,10 @@ public sealed class LongCount:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Static() {
+    public void predicate_Static() {
         var expected=Source().LongCount(static v => v>2);
-        predicate_StaticOptimized(expected);
-        predicate_StaticNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_StaticOptimized),()=>predicate_StaticOptimized(expected));
+        MeasureOptimized(nameof(predicate_StaticNoOptimized),()=>predicate_StaticNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -43,10 +43,10 @@ public sealed class LongCount:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Lambda() {
+    public void predicate_Lambda() {
         var expected=Source().LongCount(v => v>2);
-        predicate_LambdaOptimized(expected);
-        predicate_LambdaNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_LambdaOptimized),()=>predicate_LambdaOptimized(expected));
+        MeasureOptimized(nameof(predicate_LambdaNoOptimized),()=>predicate_LambdaNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -62,11 +62,11 @@ public sealed class LongCount:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Captured() {
+    public void predicate_Captured() {
         var threshold=2;
         var expected=Source().LongCount(v => v>threshold);
-        predicate_CapturedOptimized(expected);
-        predicate_CapturedNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_CapturedOptimized),()=>predicate_CapturedOptimized(expected));
+        MeasureOptimized(nameof(predicate_CapturedNoOptimized),()=>predicate_CapturedNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -84,10 +84,10 @@ public sealed class LongCount:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_DelegateSyntax() {
+    public void predicate_DelegateSyntax() {
         var expected=Source().LongCount(delegate(int v) { return v>2; });
-        predicate_DelegateSyntaxOptimized(expected);
-        predicate_DelegateSyntaxNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_DelegateSyntaxOptimized),()=>predicate_DelegateSyntaxOptimized(expected));
+        MeasureOptimized(nameof(predicate_DelegateSyntaxNoOptimized),()=>predicate_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -103,11 +103,11 @@ public sealed class LongCount:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void predicate_Variable() {
+    public void predicate_Variable() {
         Func<int,bool> predicate=v => v>2;
         var expected=Source().LongCount(predicate);
-        predicate_VariableOptimized(expected);
-        predicate_VariableNoOptimized(expected);
+        MeasureOptimized(nameof(predicate_VariableOptimized),()=>predicate_VariableOptimized(expected));
+        MeasureOptimized(nameof(predicate_VariableNoOptimized),()=>predicate_VariableNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

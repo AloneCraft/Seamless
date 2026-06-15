@@ -5,12 +5,12 @@ using Test.Tsavorite.Collections.Intercept.System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class Chunk:LinqChain1TestBase {
+public sealed class Chunk(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void size() {
+    public void size() {
         var expected=Source().Chunk(2).ToList();
-        sizeOptimized(expected);
-        sizeNoOptimized(expected);
+        MeasureOptimized(nameof(sizeOptimized),()=>sizeOptimized(expected));
+        MeasureOptimized(nameof(sizeNoOptimized),()=>sizeNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

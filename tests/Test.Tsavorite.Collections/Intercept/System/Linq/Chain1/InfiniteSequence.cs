@@ -3,12 +3,12 @@ using System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class InfiniteSequence:LinqChain1TestBase {
+public sealed class InfiniteSequence(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact,Trait("Category","Unit")]
-    public static void start_step() {
+    public void start_step() {
         var expected=Enumerable.InfiniteSequence(1L,2L).Take(5).ToList();
-        start_stepOptimized(expected);
-        start_stepNoOptimized(expected);
+        MeasureOptimized(nameof(start_stepOptimized),()=>start_stepOptimized(expected));
+        MeasureOptimized(nameof(start_stepNoOptimized),()=>start_stepNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

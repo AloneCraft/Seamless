@@ -3,12 +3,12 @@ using System.Linq;
 
 namespace Test.Tsavorite.Collections.Intercept.System.Linq.Chain1;
 
-public sealed class DefaultIfEmpty:LinqChain1TestBase {
+public sealed class DefaultIfEmpty(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
-    public static void NoDelegate() {
+    public void NoDelegate() {
         var expected=EmptySource().DefaultIfEmpty().ToList();
-        NoDelegateOptimized(expected);
-        NoDelegateNoOptimized(expected);
+        MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
+        MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -26,10 +26,10 @@ public sealed class DefaultIfEmpty:LinqChain1TestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void defaultValue() {
+    public void defaultValue() {
         var expected=EmptySource().DefaultIfEmpty(42).ToList();
-        defaultValueOptimized(expected);
-        defaultValueNoOptimized(expected);
+        MeasureOptimized(nameof(defaultValueOptimized),()=>defaultValueOptimized(expected));
+        MeasureOptimized(nameof(defaultValueNoOptimized),()=>defaultValueNoOptimized(expected));
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]

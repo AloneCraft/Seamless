@@ -23,6 +23,7 @@ public static class EnumerableComparisonCatalog {
     private static readonly string[] benchmarkMethodNames =
     [
         "Aggregate",
+        "AggregateBy",
         "All",
         "Any",
         "Append",
@@ -32,6 +33,7 @@ public static class EnumerableComparisonCatalog {
         "Concat",
         "Contains",
         "Count",
+        "CountBy",
         "DefaultIfEmpty",
         "Distinct",
         "DistinctBy",
@@ -44,6 +46,7 @@ public static class EnumerableComparisonCatalog {
         "FirstOrDefault",
         "GroupBy",
         "GroupJoin",
+        "Index",
         "Intersect",
         "IntersectBy",
         "Join",
@@ -105,6 +108,7 @@ public static class EnumerableComparisonCatalog {
     public static object? RunSystem(string methodName) {
         return methodName switch {
             "Aggregate" => source.Aggregate(static (left,right) => left+right),
+            "AggregateBy" => source.AggregateBy(static value => value%2,0,static (total,value) => total+value).ToArray(),
             "All" => source.All(static value => value>0),
             "Any" => source.Any(static value => value>3),
             "Append" => source.Append(5).ToArray(),
@@ -114,6 +118,7 @@ public static class EnumerableComparisonCatalog {
             "Concat" => source.Concat(second).ToArray(),
             "Contains" => source.Contains(3),
             "Count" => source.Count(static value => value>2),
+            "CountBy" => sourceWithDuplicates.CountBy(static value => value).ToArray(),
             "DefaultIfEmpty" => global::System.Array.Empty<int>().DefaultIfEmpty(42).ToArray(),
             "Distinct" => sourceWithDuplicates.Distinct().ToArray(),
             "DistinctBy" => rows.DistinctBy(static row => row.Key).Select(static row => row.Name).ToArray(),
@@ -126,6 +131,7 @@ public static class EnumerableComparisonCatalog {
             "FirstOrDefault" => source.FirstOrDefault(static value => value>10),
             "GroupBy" => ProjectGroups(rows.GroupBy(static row => row.Key)),
             "GroupJoin" => source.GroupJoin(second,static outerValue => outerValue,static innerValue => innerValue,static (outerValue,group) => outerValue+group.Sum()).ToArray(),
+            "Index" => source.Index().ToArray(),
             "Intersect" => source.Intersect(second).ToArray(),
             "IntersectBy" => rows.IntersectBy(second,static row => row.Key).Select(static row => row.Name).ToArray(),
             "Join" => rows.Join(otherRows,static row => row.Key,static other => other.Key,static (row,other) => row.Name+":"+other.Name).ToArray(),
@@ -176,6 +182,7 @@ public static class EnumerableComparisonCatalog {
     public static object? RunFLinq(string methodName) {
         return methodName switch {
             "Aggregate" => source.Aggregate(static (left,right) => left+right),
+            "AggregateBy" => source.AggregateBy(static value => value%2,0,static (total,value) => total+value).ToArray(),
             "All" => source.All(static value => value>0),
             "Any" => source.Any(static value => value>3),
             "Append" => source.Append(5).ToArray(),
@@ -185,6 +192,7 @@ public static class EnumerableComparisonCatalog {
             "Concat" => source.Concat(second).ToArray(),
             "Contains" => source.Contains(3),
             "Count" => source.Count(static value => value>2),
+            "CountBy" => sourceWithDuplicates.CountBy(static value => value).ToArray(),
             "DefaultIfEmpty" => Array.Empty<int>().DefaultIfEmpty(42).ToArray(),
             "Distinct" => sourceWithDuplicates.Distinct().ToArray(),
             "DistinctBy" => rows.DistinctBy(static row => row.Key).Select(static row => row.Name).ToArray(),
@@ -197,6 +205,7 @@ public static class EnumerableComparisonCatalog {
             "FirstOrDefault" => source.FirstOrDefault(static value => value>10),
             "GroupBy" => ProjectGroups(rows.GroupBy(static row => row.Key)),
             "GroupJoin" => source.GroupJoin(second,static outerValue => outerValue,static innerValue => innerValue,static (outerValue,group) => outerValue+group.Sum()).ToArray(),
+            "Index" => source.Index().ToArray(),
             "Intersect" => source.Intersect(second).ToArray(),
             "IntersectBy" => rows.IntersectBy(second,static row => row.Key).Select(static row => row.Name).ToArray(),
             "Join" => rows.Join(otherRows,static row => row.Key,static other => other.Key,static (row,other) => row.Name+":"+other.Name).ToArray(),
@@ -247,6 +256,7 @@ public static class EnumerableComparisonCatalog {
     public static object? RunFLinqNoOptimized(string methodName) {
         return methodName switch {
             "Aggregate" => source.Aggregate(static (left,right) => left+right),
+            "AggregateBy" => source.AggregateBy(static value => value%2,0,static (total,value) => total+value).ToArray(),
             "All" => source.All(static value => value>0),
             "Any" => source.Any(static value => value>3),
             "Append" => source.Append(5).ToArray(),
@@ -256,6 +266,7 @@ public static class EnumerableComparisonCatalog {
             "Concat" => source.Concat(second).ToArray(),
             "Contains" => source.Contains(3),
             "Count" => source.Count(static value => value>2),
+            "CountBy" => sourceWithDuplicates.CountBy(static value => value).ToArray(),
             "DefaultIfEmpty" => Array.Empty<int>().DefaultIfEmpty(42).ToArray(),
             "Distinct" => sourceWithDuplicates.Distinct().ToArray(),
             "DistinctBy" => rows.DistinctBy(static row => row.Key).Select(static row => row.Name).ToArray(),
@@ -268,6 +279,7 @@ public static class EnumerableComparisonCatalog {
             "FirstOrDefault" => source.FirstOrDefault(static value => value>10),
             "GroupBy" => ProjectGroups(rows.GroupBy(static row => row.Key)),
             "GroupJoin" => source.GroupJoin(second,static outerValue => outerValue,static innerValue => innerValue,static (outerValue,group) => outerValue+group.Sum()).ToArray(),
+            "Index" => source.Index().ToArray(),
             "Intersect" => source.Intersect(second).ToArray(),
             "IntersectBy" => rows.IntersectBy(second,static row => row.Key).Select(static row => row.Name).ToArray(),
             "Join" => rows.Join(otherRows,static row => row.Key,static other => other.Key,static (row,other) => row.Name+":"+other.Name).ToArray(),
@@ -317,6 +329,7 @@ public static class EnumerableComparisonCatalog {
     public static object? RunZLinq(string methodName) {
         return methodName switch {
             "Aggregate" => source.AsValueEnumerable().Aggregate(static (left,right) => left+right),
+            "AggregateBy" => source.AsValueEnumerable().AggregateBy(static value => value%2,0,static (total,value) => total+value).ToArray(),
             "All" => source.AsValueEnumerable().All(static value => value>0),
             "Any" => source.AsValueEnumerable().Any(static value => value>3),
             "Append" => source.AsValueEnumerable().Append(5).ToArray(),
@@ -326,6 +339,7 @@ public static class EnumerableComparisonCatalog {
             "Concat" => source.AsValueEnumerable().Concat(second).ToArray(),
             "Contains" => source.AsValueEnumerable().Contains(3),
             "Count" => source.AsValueEnumerable().Count(static value => value>2),
+            "CountBy" => sourceWithDuplicates.AsValueEnumerable().CountBy(static value => value).ToArray(),
             "DefaultIfEmpty" => Array.Empty<int>().AsValueEnumerable().DefaultIfEmpty(42).ToArray(),
             "Distinct" => sourceWithDuplicates.AsValueEnumerable().Distinct().ToArray(),
             "DistinctBy" => rows.AsValueEnumerable().DistinctBy(static row => row.Key).Select(static row => row.Name).ToArray(),
@@ -338,6 +352,7 @@ public static class EnumerableComparisonCatalog {
             "FirstOrDefault" => source.AsValueEnumerable().FirstOrDefault(static value => value>10),
             "GroupBy" => ProjectGroups(rows.AsValueEnumerable().GroupBy(static row => row.Key).ToArray()),
             "GroupJoin" => source.AsValueEnumerable().GroupJoin(second,static outerValue => outerValue,static innerValue => innerValue,static (outerValue,group) => outerValue+group.Sum()).ToArray(),
+            "Index" => source.AsValueEnumerable().Index().ToArray(),
             "Intersect" => source.AsValueEnumerable().Intersect(second).ToArray(),
             "IntersectBy" => rows.AsValueEnumerable().IntersectBy(second,static row => row.Key).Select(static row => row.Name).ToArray(),
             "Join" => rows.AsValueEnumerable().Join(otherRows,static row => row.Key,static other => other.Key,static (row,other) => row.Name+":"+other.Name).ToArray(),
