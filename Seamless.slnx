@@ -15,14 +15,22 @@
     <Project Path="src/SourceGenerator.Shared/SourceGenerator.Shared.csproj" />
     <Project Path="src/Tsavorite.Collections/Tsavorite.Collections.csproj" />
     <Project Path="src/TsavoriteDB/TsavoriteDB.csproj" />
+    <Project Path="src/Benchmark/Tsavorite.Benchmark.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Benchmark.Intercept.System.Linq.Enumerable/Benchmark.Intercept.System.Linq.Enumerable.csproj" />
+    <Project Path="tests/Benchmark.Intercept.Tsavorite.Linq.Enumerable/Benchmark.Intercept.Tsavorite.Linq.Enumerable.csproj" />
+    <Project Path="tests/Benchmark.System.Linq.Enumerable/Benchmark.System.Linq.Enumerable.csproj" />
+    <Project Path="tests/Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj" />
+    <Project Path="tests/Benchmark.Tsavorite.Linq.Enumerable/Benchmark.Tsavorite.Linq.Enumerable.csproj" />
     <Project Path="tests/Test.SourceGenerator/Test.SourceGenerator.csproj" />
     <Project Path="tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj" />
     <Project Path="tests/Test.Tsavorite/Test.Tsavorite.csproj" />
   </Folder>
   <Project Path="sandbox/Benchmark.Shared/Benchmark.Shared.shproj" />
-  <Project Path="sandbox/Benchmark.Tests/Benchmark.Tests.csproj" />
-  <Project Path="sandbox/Benchmark/Benchmark.csproj" />
+  <Project Path="sandbox/Benchmark.Intercept.System.Linq.Enumerable/Benchmark.Intercept.System.Linq.Enumerable.csproj" />
+  <Project Path="sandbox/Benchmark.Intercept.Tsavorite.Linq.Enumerable/Benchmark.Intercept.Tsavorite.Linq.Enumerable.csproj" />
+  <Project Path="sandbox/Benchmark.System.Linq.Enumerable/Benchmark.System.Linq.Enumerable.csproj" />
+  <Project Path="sandbox/Benchmark.Tsavorite.Linq.Enumerable/Benchmark.Tsavorite.Linq.Enumerable.csproj" />
   <Project Path="sandbox/DynamicLinq.Runner/DynamicLinq.Runner.csproj" />
 </Solution>

@@ -55,6 +55,8 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
 
 internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer):Enumerable(番号),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
+    private FuncFragment KeySelector=>keySelector;
+    private string Comparer=>comparer;
     public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumerableExpression=>$"global::Tsavorite.Carrier.ValueEnumerableExtensions.DistinctBy({source.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
     public override string GetEnumeratorStruct=>$$"""
@@ -69,11 +71,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
         private static global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
             // DistinctBy も同じで、span 走査かどうかの判定はここではしない。
             // コンパイル時に root 形状が分かる場合は上位で専用生成されるため、ここは汎用経路として最小状態だけを保持する。
-            if(source.TryGetNonEnumeratedCount(out var {{this.count}})){
-                return new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>({{this.count}},comparer);
-            }else{
-                return new global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}>(comparer);
-            }
+            {{this.CreateLookupBody(FuncReturnTypeName(keySelector))}}
         }
         """;
     public override string GetTryGetNextBody=>$$"""
@@ -91,11 +89,18 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
     public override string GetCurrentExpression=> this.currentValue;
     public override string ElementType=>source.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName){
+        if(source is DistinctByBase previous
+            && this.CanMergeWith(previous)) {
+            return previous.GetConsumeExecutionStatement(consumerName);
+        }
         var sourceName=$"__src{番号}";
         var keyName=$"__key{番号}";
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
-        TraversalSupport.AppendHashSetInitialization(builder,this.lookup,FuncReturnTypeName(keySelector),sourceName,comparer);
+        if(this.TryAppendSmallIntegralRangeConsume(builder,sourceName,keyName,consumerName)) {
+            return builder.ToString().TrimEnd();
+        }
+        TraversalSupport.AppendHashSetInitialization(builder,this.lookup,FuncReturnTypeName(keySelector),sourceName,comparer,this.KeyCapacityHint);
         TraversalSupport.AppendTraversalLoop(
             builder,
             sourceName,
@@ -110,4 +115,85 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
             """,source.CanProvideSpan);
         return builder.ToString().TrimEnd();
     }
+
+    private string? KeyCapacityHint =>
+        keySelector.CardinalityUpperBound is { } upperBound
+            ? upperBound.ToString()
+            : null;
+
+    private bool TryAppendSmallIntegralRangeConsume(StringBuilder builder,string sourceName,string keyName,string consumerName) {
+        const int MaxRangeCount = 65536;
+        var keyType=FuncReturnTypeName(keySelector);
+        if(!IsDefaultComparer(comparer)
+            || !IsInt32Type(keyType)
+            || !keySelector.TryGetSmallIntegralRange(MaxRangeCount,out var min,out var max)) {
+            return false;
+        }
+
+        var rangeCount=(long)max-min+1;
+        if(rangeCount is <=0 or >MaxRangeCount) {
+            return false;
+        }
+
+        var seenName=$"__seen{番号}";
+        var seenIndexName=$"__seenIndex{番号}";
+        builder.AppendLine($"var {seenName}=new bool[{rangeCount}];");
+        TraversalSupport.AppendTraversalLoop(
+            builder,
+            sourceName,
+            source.ElementType,
+            "value",
+            $$"""
+            {{keyType}} {{keyName}}=default!;
+            {{this.FuncAssign(keySelector,nameof(keySelector),keyName,"value")}}
+            var {{seenIndexName}}={{keyName}}-({{min}});
+            if(!{{seenName}}[{{seenIndexName}}]){
+                {{seenName}}[{{seenIndexName}}]=true;
+                {{consumerName}}.Consume(value);
+            }
+            """,source.CanProvideSpan);
+        return true;
+    }
+
+    private string CreateLookupBody(string keyType) =>
+        this.KeyCapacityHint is { } capacityHint
+            ? $"return new global::System.Collections.Generic.HashSet<{keyType}>({capacityHint},comparer);"
+            : $$"""
+              if(source.TryGetNonEnumeratedCount(out var {{this.count}})){
+                  return new global::System.Collections.Generic.HashSet<{{keyType}}>({{this.count}},comparer);
+              }else{
+                  return new global::System.Collections.Generic.HashSet<{{keyType}}>(comparer);
+              }
+              """;
+
+    private bool CanMergeWith(DistinctByBase previous) {
+        if(this.KeySelector.ContainsAnchor
+            || previous.KeySelector.ContainsAnchor
+            || !string.Equals(this.Comparer,previous.Comparer,StringComparison.Ordinal)
+            || this.KeySelector.RequiresStatementInlining
+            || previous.KeySelector.RequiresStatementInlining
+            || this.KeySelector.ParameterNames.Length!=previous.KeySelector.ParameterNames.Length
+            || this.KeySelector.ParameterTypeNames.Length!=previous.KeySelector.ParameterTypeNames.Length
+            || this.KeySelector.ReturnTypeName!=previous.KeySelector.ReturnTypeName) {
+            return false;
+        }
+        for(var index=0; index<this.KeySelector.ParameterTypeNames.Length; index++) {
+            if(this.KeySelector.ParameterTypeNames[index]!=previous.KeySelector.ParameterTypeNames[index]) {
+                return false;
+            }
+        }
+        try {
+            return string.Equals(this.KeySelector.RenderAsLambda(),previous.KeySelector.RenderAsLambda(),StringComparison.Ordinal);
+        } catch(InvalidOperationException) {
+            return false;
+        }
+    }
+
+    private static bool IsDefaultComparer(string comparer) =>
+        string.Equals(comparer,"null",StringComparison.Ordinal);
+
+    private static bool IsInt32Type(string typeName) =>
+        string.Equals(typeName,"int",StringComparison.Ordinal)
+        || string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
+        || string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
 }

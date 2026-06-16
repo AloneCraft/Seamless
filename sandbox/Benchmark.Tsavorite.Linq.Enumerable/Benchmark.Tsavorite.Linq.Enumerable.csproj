@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateProgramFile>false</GenerateProgramFile>
+    <IsTestProject>false</IsTestProject>
+    <RootNamespace>Benchmark.Tsavorite.Linq.Enumerable</RootNamespace>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>obj/Generated</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.2" />
+    <PackageReference Include="ZLinq" Version="1.5.6" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="BenchmarkDotNet.Attributes" />
+    <Using Include="BenchmarkDotNet.Configs" />
+    <Using Include="BenchmarkDotNet.Engines" />
+    <Using Include="Tsavorite.SourceGenerator" />
+    <Using Include="Benchmark.Shared" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Benchmark\Program.cs" Link="Program.cs" />
+    <ProjectReference Include="..\..\src\Tsavorite.Collections\Tsavorite.Collections.csproj" />
+    <ProjectReference Include="..\..\src\FLinq\FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+  <Import Project="..\Benchmark.Shared\Benchmark.Tsavorite.Linq.Enumerable.projitems" Label="Shared" />
+</Project>

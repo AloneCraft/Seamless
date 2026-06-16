@@ -526,6 +526,18 @@ public sealed partial class TsavoriteIncrementalGenerator {
             text=ReplaceTypeNameForGeneratedMethod(text,originalTypeText,qualifiedTypeText);
         }
 
+        foreach(var memberAccess in allMemberAccesses.OrderByDescending(static memberAccess => memberAccess.ToString().Length)) {
+            if(!AnchorAnalysis.IsAnchorAccess(memberAccess,semanticModel)) {
+                continue;
+            }
+
+            var memberText = NormalizeExpressionText(memberAccess.ToString())
+                .Replace("this.","@this.",StringComparison.Ordinal);
+            var receiverText = RenderExpressionForGeneratedMethod(memberAccess.Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
+            text=text.Replace(memberText,receiverText,StringComparison.Ordinal);
+            text=text.Replace($"{receiverText}.Anchor",receiverText,StringComparison.Ordinal);
+        }
+
         foreach(var memberAccess in allMemberAccesses) {
             if(semanticModel.GetSymbolInfo(memberAccess).Symbol is not IFieldSymbol field
                 || field.DeclaredAccessibility==Accessibility.Public) {

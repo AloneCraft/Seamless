@@ -397,8 +397,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
     /// 拡張メソッド呼び出し形式・静的呼び出し形式のどちらでも正しく判定できる。
     /// </summary>
     private static bool SystemLinqEnumerableメソッド判定(IMethodSymbol method) {
-        var definition = method.ReducedFrom ?? method;
-        return definition.ContainingType.ToDisplayString()=="System.Linq.Enumerable";
+        return IsSupportedLinqEnumerableMethod(method);
     }
 
     private static 型対象型? 型対象生成(GeneratorSyntaxContext context) {

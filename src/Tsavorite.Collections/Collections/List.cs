@@ -23,7 +23,7 @@ public class List<T, TSerializer>:ListBase<T>
     public override FileAccess OptimizationMode => this.tuning.OptimizationMode;
     public override FileOptions AccessPattern => this.tuning.AccessPattern;
 
-    internal List(string path,long initialCapacity = 16,long initialDataCapacity = 4096) : base(path) {
+    public List(string path,long initialCapacity = 16,long initialDataCapacity = 4096) : base(path) {
         if(initialCapacity<1)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity));
         if(initialDataCapacity<1)

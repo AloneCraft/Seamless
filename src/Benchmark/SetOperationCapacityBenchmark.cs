@@ -3,11 +3,9 @@ using BenchmarkDotNet.Order;
 using Tsavorite.Carrier;
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace BenchmarkExe.Benchmarks;
+namespace Tsavorite.Benchmark.Benchmarks;
 
-// Distinct / Union の容量事前確保（GetCapacityHint）の効果を測る。
-// source が配列（TryGetNonEnumeratedCount==true）の場合、HashSetSlim の resize 回数が減る。
-[MemoryDiagnoser]
+// Distinct / Union の容量事前確保！EetCapacityHint�E��E効果を測る、E// source が�E列！EryGetNonEnumeratedCount==true�E��E場合、HashSetSlim の resize 回数が減る、E[MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [SimpleJob(warmupCount: 1, iterationCount: 5)]
 public class SetOperationCapacityBenchmark
@@ -21,7 +19,6 @@ public class SetOperationCapacityBenchmark
     [GlobalSetup]
     public void GlobalSetup()
     {
-        // source は半分が重複（distinct 結果は CountValue/2 程度）
         var half = Math.Max(1, this.CountValue / 2);
         this.source = new int[this.CountValue];
         for (var i = 0; i < this.CountValue; i++)

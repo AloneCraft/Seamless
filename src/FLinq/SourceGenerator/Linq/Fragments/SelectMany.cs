@@ -116,11 +116,7 @@ public class SelectMany_selector(int 番号, Enumerable source, FuncFragment sel
         !selector.CanInvokeAsDelegate &&
         selector.CanInlineAssign &&
         !selector.RenderInlineExpression("__TsavoriteHoistProbe__").Contains("__TsavoriteHoistProbe__") &&
-        !SelectorContainsAnchor(selector.RenderInlineExpression("__TsavoriteHoistProbe__"));
-    private static bool SelectorContainsAnchor(string expression) =>
-        expression.Contains(".Anchor(",StringComparison.Ordinal) ||
-        expression.Contains("global::Tsavorite.Linq.AnchorExtensions.Anchor(",StringComparison.Ordinal) ||
-        expression.Contains("Tsavorite.Linq.AnchorExtensions.Anchor(",StringComparison.Ordinal);
+        !selector.ContainsAnchor;
     protected override string CollectionElementType =>
         this.UseResultTypeParam ? "TResult" : SequenceElementTypeName(FuncReturnTypeName(selector));
     public override string ElementType => this.CollectionElementType;

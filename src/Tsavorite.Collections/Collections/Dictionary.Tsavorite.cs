@@ -83,8 +83,8 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
     public Enumerator<
         KeyValueIterator,
         KeyValuePair<TKey,TValue>
-    > GetEnumerator() => new(this.ReadSession,new());
-    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new());
+    > GetEnumerator() => new(this.ReadSession,new(),this.Store.Log.TailAddress);
+    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new(),this.Store.Log.TailAddress);
     private ReadOnlyCollectionView<TIterator,T> CreateCollectionView<TIterator,T>()
         where TIterator : ScanIteratorFunctions_List<T,ListBase<T>>,ICreate<TIterator> =>
         new(this);
@@ -117,7 +117,7 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
                 array[arrayIndex++]=e.Current;
             }
         }
-        public Enumerator<TIterator,T> GetEnumerator() => new(dictionary.ReadSession,TIterator.Create());
+        public Enumerator<TIterator,T> GetEnumerator() => new(dictionary.ReadSession,TIterator.Create(),dictionary.Store.Log.TailAddress);
         IEnumerator<T> IEnumerable<T>.GetEnumerator() => this.GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     }

@@ -4,7 +4,7 @@ using Tsavorite.Collections;
 using Tsavorite.Stores;
 using Tsavorite.core;
 
-namespace BenchmarkExe.Benchmarks;
+namespace Tsavorite.Benchmark.Benchmarks;
 
 public enum CollectionImplKind {
     Managed,
@@ -116,8 +116,8 @@ public class DictionaryApiSurfaceBenchmark {
             Directory.CreateDirectory(checkpointDir);
             var logPath = Path.Combine(checkpointDir,"log");
             var objPath = Path.Combine(checkpointDir,"obj");
-            this.logDevice=Devices.CreateLogDevice(logPath);
-            this.objDevice=Devices.CreateLogDevice(objPath);
+            this.logDevice=global::Tsavorite.core.Devices.CreateLogDevice(logPath);
+            this.objDevice=global::Tsavorite.core.Devices.CreateLogDevice(objPath);
         }
 
         var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir);
@@ -205,8 +205,8 @@ public class DictionaryApiSurfaceBenchmark {
 
         var logPath = Path.Combine(this.loadCheckpointDir,"log");
         var objPath = Path.Combine(this.loadCheckpointDir,"obj");
-        using var log = Devices.CreateLogDevice(logPath);
-        using var obj = Devices.CreateLogDevice(objPath);
+        using var log = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
+        using var obj = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
 
         var indexSize = BenchmarkHashStoreSizing.GetIndexSize(this.CountValue);
         var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.CountValue*128L);
@@ -453,8 +453,8 @@ public class DictionaryApiSurfaceBenchmark {
 
         var logPath = Path.Combine(this.loadCheckpointDir,"log");
         var objPath = Path.Combine(this.loadCheckpointDir,"obj");
-        using var log = Devices.CreateLogDevice(logPath);
-        using var obj = Devices.CreateLogDevice(objPath);
+        using var log = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
+        using var obj = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
 
         var indexSize = BenchmarkHashStoreSizing.GetIndexSize(this.CountValue);
         var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.CountValue*128L);

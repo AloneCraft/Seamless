@@ -48,8 +48,10 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     }
     public struct Enumerator<TIterator, T>:IEnumerator<T>
         where TIterator : ScanIteratorFunctions_List<T,ListBase<T>> {
-        private ListBase<T>? Items;
-        private long Index = -1;
+        private long Cursor;
+        private int Index = -1;
+        private int Count;
+        private bool Done;
         private T CurrentValue = default!;
         private readonly ClientSession<
             FixedSpanByteKey,//TKey
@@ -60,6 +62,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
             SpanByteStoreFunctions,
             SpanByteStoreAllocator
         > _session;
+        private readonly long _untilAddress;
         private readonly TIterator _iterator;
         public Enumerator(ClientSession<
             FixedSpanByteKey,//TKey
@@ -70,47 +73,76 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
             SpanByteStoreFunctions,
             SpanByteStoreAllocator
         > session,
-        TIterator iterator) {
+        TIterator iterator,
+        long untilAddress) {
             this._session=session;
+            this._untilAddress=untilAddress;
             this._iterator=iterator;
-            try {
-                var Items = new InMemoryList<T>(Const.Chunk_Length);
-                this._iterator.SetList(Items);
-                var ScanFunctions = this._iterator;
-                var cursor = 0L;
-                this._session.IterateLookup(ref ScanFunctions,ref cursor,resetCursor: false);
-                this._session.BasicContext.CompletePending(wait: true);
-                this.Items=Items;
-            }
-            catch {
-                this.DisposeItems();
-                throw;
-            }
+            this.Cursor=0;
+            this.Index=-1;
+            this.Count=0;
+            this.Done=false;
+            this.CurrentValue=default!;
         }
         public readonly T Current => this.CurrentValue;
         readonly object? IEnumerator.Current => this.Current;
         public bool MoveNext() {
-            if(this.Items is null)
-                return false;
-            var NextIndex = this.Index+1;
-            if(NextIndex>=this.Items.Count) {
+            var nextIndex = this.Index+1;
+            if(nextIndex<this.Count) {
+                this.Index=nextIndex;
+                this.CurrentValue=this._iterator.Chunk[this.Index];
+                return true;
+            }
+
+            if(this.Done) {
                 this.Index=-1;
+                this.CurrentValue=default!;
                 return false;
             }
-            this.Index=NextIndex;
-            this.CurrentValue=this.Items[this.Index];
-            return true;
-        }
-        private void DisposeItems() {
-            this.Items?.Dispose();
-            this.Items=null;
+
+            while(true) {
+                this._iterator.ResetChunk();
+                var scanFunctions = this._iterator;
+                var mayHaveMore = this._session.ScanCursor(
+                    ref this.Cursor,
+                    this._iterator.Chunk.Length,
+                    scanFunctions,
+                    this._untilAddress,
+                    true,
+                    this._untilAddress,
+                    false,
+                    false);
+                this._session.BasicContext.CompletePending(wait: true);
+                this.Count=this._iterator.Count;
+
+                if(!mayHaveMore&&!this._iterator.HasPendingItem)
+                    this.Done=true;
+
+                if(this.Count==0) {
+                    this.Done=true;
+                    this.Index=-1;
+                    this.CurrentValue=default!;
+                    return false;
+                }
+
+                this.Index=0;
+                this.CurrentValue=this._iterator.Chunk[0];
+                return true;
+            }
         }
         public void Reset() {
+            this.Cursor=0;
+            this.Count=0;
             this.Index=-1;
+            this.Done=false;
             this.CurrentValue=default!;
+            this._iterator.ResetChunk();
         }
         public void Dispose() {
-            this.DisposeItems();
+            this.Done=true;
+            this.Index=-1;
+            this.Count=0;
+            this.CurrentValue=default!;
         }
     }
     private protected Collection(CollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {

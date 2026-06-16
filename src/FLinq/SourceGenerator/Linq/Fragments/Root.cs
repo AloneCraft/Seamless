@@ -5,24 +5,30 @@
 // IEnumerable<T>/配列の場合は IEnumerator<T>、List<T> 等の具象型の場合は List<T>.Enumerator 等の値型エニュメレータ名になる。
 // 構造体 Struct1<TEnum> は TEnum でパラメータ化され、呼び出し側で具体型引数により単相化される。
 public class Root(int 番号, string sourceExpression, string elementType, string enumeratorTypeName, bool useEnumerableInterface) : Enumerable(番号) {
+    public override bool CanProvideSpan => useEnumerableInterface;
     public override string StructMethod => string.Empty;
     // 型引数を埋め込んだ完全な struct 名（呼び出し側では具象型引数を持つ）。
-    public override string EnumeratorTypeName => $"{this.Struct}<{enumeratorTypeName}>";
+    public override string EnumeratorTypeName => useEnumerableInterface
+        ? this.Struct
+        : $"{this.Struct}<{enumeratorTypeName}>";
     public override string? DirectEnumerableExpression => useEnumerableInterface
         ? $"((global::System.Collections.Generic.IEnumerable<{elementType}>)({sourceExpression}))"
         : null;
     public override string GetEnumeratorExpression {
         get {
-            var sourceExpr = useEnumerableInterface
-                ? $"((global::System.Collections.Generic.IEnumerable<{elementType}>)({sourceExpression}))"
-                : sourceExpression;
+            if(useEnumerableInterface) {
+                return $"new {this.EnumeratorTypeName}(((global::System.Collections.Generic.IEnumerable<{elementType}>)({sourceExpression})))";
+            }
+            var sourceExpr = sourceExpression;
             return $"new {this.EnumeratorTypeName}({sourceExpr}.GetEnumerator())";
         }
     }
     // TEnum でパラメータ化された struct を手動で出力する（where 制約が struct 宣言の opening brace より前に来る必要があるため）。
-    public override string GetEnumeratorStruct => $$"""
+    public override string GetEnumeratorStruct => useEnumerableInterface
+        ? this.GetEnumerableInterfaceStruct()
+        : $$"""
         private struct {{this.Struct}}<TEnum> : global::Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
-            where TEnum : {{(useEnumerableInterface ? "" : "struct, ")}}global::System.Collections.Generic.IEnumerator<{{elementType}}>
+            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private TEnum {{this.e}};
             public {{this.Struct}}(TEnum {{this.e}}) { this.{{this.e}} = {{this.e}}; }
@@ -56,6 +62,69 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
             {{AggressiveInliningAttribute}}
             public void Dispose() {
                 {{this.e}}.Dispose();
+            }
+        }
+        """;
+
+    private string GetEnumerableInterfaceStruct() => $$"""
+        private struct {{this.Struct}} : global::Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        {
+            private global::System.Collections.Generic.IEnumerable<{{elementType}}> source;
+            private global::System.Collections.Generic.IEnumerator<{{elementType}}>? {{this.e}};
+            private int __index = -1;
+            public {{this.Struct}}(global::System.Collections.Generic.IEnumerable<{{elementType}}> source) { this.source = source; }
+            public {{elementType}} Current { get; private set; } = default!;
+            object? global::System.Collections.IEnumerator.Current => Current;
+            {{AggressiveInliningAttribute}}
+            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
+            {{AggressiveInliningAttribute}}
+            public bool MoveNext() => TryGetNext(out _);
+            {{AggressiveInliningAttribute}}
+            public bool TryGetNonEnumeratedCount(out int count) {
+                if(global::System.Linq.Enumerable.TryGetNonEnumeratedCount(source,out var sourceCount)) {
+                    count = sourceCount - (__index + 1);
+                    return true;
+                }
+                count = 0;
+                return false;
+            }
+            {{AggressiveInliningAttribute}}
+            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
+                var start = __index + 1;
+                if(source is {{elementType}}[] array) {
+                    span = global::System.MemoryExtensions.AsSpan(array, start);
+                    return true;
+                }
+                if(source is global::System.Collections.Generic.List<{{elementType}}> list) {
+                    span = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(list).Slice(start);
+                    return true;
+                }
+                span = default;
+                return false;
+            }
+            {{AggressiveInliningAttribute}}
+            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) {
+                if(!TryGetSpan(out var span)) {
+                    return false;
+                }
+                var start = offset.GetOffset(span.Length);
+                span.Slice(start).CopyTo(destination);
+                return true;
+            }
+            {{AggressiveInliningAttribute}}
+            public bool TryGetNext(out {{elementType}} current) {
+                this.{{this.e}} ??= source.GetEnumerator();
+                if(this.{{this.e}}.MoveNext()) {
+                    __index++;
+                    current = this.Current = this.{{this.e}}.Current;
+                    return true;
+                }
+                current = default!;
+                return false;
+            }
+            {{AggressiveInliningAttribute}}
+            public void Dispose() {
+                this.{{this.e}}?.Dispose();
             }
         }
         """;

@@ -1434,12 +1434,6 @@ public sealed partial class TsavoriteIncrementalGenerator {
     /// 拡張メソッドとして LINQ 的に使われるため対象に含める。
     /// </summary>
     private static bool SystemLinqEnumerable呼び出し判定(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
-        if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) {
-            return false;
-        }
-        var definition = method.ReducedFrom ?? method;
-        var containingType = definition.ContainingType.ToDisplayString();
-        return containingType=="System.Linq.Enumerable"
-            || (definition.Name=="Contains" && containingType=="System.MemoryExtensions");
+        return IsSupportedLinqInvocation(invocation,semanticModel);
     }
 }

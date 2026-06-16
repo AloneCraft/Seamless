@@ -1,9 +1,9 @@
-﻿using BenchmarkDotNet.Columns;
+using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Reports;
 using System.Reflection;
 
-namespace BenchmarkExe.Benchmarks;
+namespace Tsavorite.Benchmark.Benchmarks;
 
 public sealed class BenchmarkColumnsConfig:ManualConfig {
     public BenchmarkColumnsConfig() {
