@@ -74,8 +74,8 @@ public partial class HashSet<TKey> {
     public Enumerator<
         KeyIterator,
         TKey
-    > GetEnumerator() => new(this.ReadSession,new());
-    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<MemoryKeyIterator,TKey>(this.ReadSession,new());
+    > GetEnumerator() => new(this.ReadSession,new(),this.Store.Log.TailAddress);
+    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<MemoryKeyIterator,TKey>(this.ReadSession,new(),this.Store.Log.TailAddress);
     public partial void ExceptWith(HashSet<TKey> other) {
         base.ExceptWith(other,this.ExceptWith_ClientSession);
     }

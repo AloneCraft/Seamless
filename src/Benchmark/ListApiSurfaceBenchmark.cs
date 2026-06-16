@@ -3,7 +3,7 @@ using BenchmarkDotNet.Order;
 using Tsavorite.Collections;
 using Tsavorite.Stores;
 
-namespace BenchmarkExe.Benchmarks;
+namespace Tsavorite.Benchmark.Benchmarks;
 
 public enum ListOperation {
     Add,

@@ -1,5 +1,5 @@
-﻿using BenchmarkDotNet.Running;
-using BenchmarkExe.Benchmarks;
+using BenchmarkDotNet.Running;
+using Tsavorite.Benchmark.Benchmarks;
 
 var switcher = BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly);
 

@@ -15,6 +15,7 @@ internal static class Program {
     private const bool RUN_LINQ = true;
     private const bool RUN_FLINQ = true;
     private const bool RUN_ZLINQ = true;
+    private const bool RUN_TSAVORITE = true;
     private const int IterationTime=1000;
     private const int IterationCount=1;
     private const int WarmupCount=3;
@@ -33,14 +34,17 @@ internal static class Program {
         // ここでは BenchmarkDotNet の IFilter として後段の config に追加し、
         // メニュー（型選択・single-file モード選択）は常に表示されるようにする。
         var includeMethods = new List<string>();
-        if(RUN_LINQ) includeMethods.Add("LINQ");
+        if(RUN_LINQ) includeMethods.Add("Linq");
         if(RUN_FLINQ) includeMethods.Add("FLinq");
         if(RUN_ZLINQ) includeMethods.Add("ZLinq");
+        if(RUN_TSAVORITE) includeMethods.Add("Tsavorite");
         var singleFileMode = IsSingleFileMode(args);
+        var applyCategoryFilter = false;
         if(args.Length==0) {
             var selection = PromptInteractiveSelection();
             args=selection.Args;
             singleFileMode=singleFileMode||selection.SingleFileMode;
+            applyCategoryFilter = selection.UseCategoryFilter;
         }
         args=RemoveSingleFileSwitch(args);
         var job = Job.Default
@@ -56,7 +60,7 @@ internal static class Program {
         // Debug構成でも実行できるように最適化必須バリデータを無効化する
         config=config.WithOptions(ConfigOptions.DisableOptimizationsValidator);
 #endif
-        if(includeMethods.Count>0&&includeMethods.Count<3) {
+        if(applyCategoryFilter&&includeMethods.Count>0&&includeMethods.Count<4) {
             config=config.AddFilter(new MethodNameFilter(includeMethods));
         }
         BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args,config);
@@ -78,10 +82,13 @@ internal static class Program {
             ? "RunAll1FileBenchmark を選びました。ここで番号を指定できます。"
             : "RunAllBenchmark を選びました。ここで番号を指定できます。");
         var args = SelectBenchmarks();
-        return new InteractiveSelection(args,singleFileMode);
+        var useCategoryFilter = args.Length>=2
+            && string.Equals(args[0],"--filter",StringComparison.Ordinal)
+            && args[1]=="*";
+        return new InteractiveSelection(args,singleFileMode,useCategoryFilter);
     }
 
-    readonly record struct InteractiveSelection(string[] Args,bool SingleFileMode);
+    readonly record struct InteractiveSelection(string[] Args,bool SingleFileMode,bool UseCategoryFilter);
 
     static bool IsSingleFileMode(string[] args) {
         if(Environment.GetEnvironmentVariable("SEAMLESS_BENCHMARK_SINGLE_FILE")=="1") {
@@ -102,10 +109,10 @@ internal static class Program {
         return filtered.ToArray();
     }
     // ピボット列の並び。0=LINQ,1=FLinq,2=ZLinq に対応。
-    static readonly string[] MethodKinds = ["LINQ","FLinq","ZLinq"];
+    static readonly string[] MethodKinds = ["Linq","FLinq","ZLinq","Tsavorite"];
     // 表示順: LINQ, ZLinq, FLinq。MethodKinds のインデックスへの対応。
-    static readonly int[] DisplayOrder = [0,2,1];
-    static readonly string[] DisplayLabels = ["LINQ","ZLinq","FLinq"];
+    static readonly int[] DisplayOrder = [0,2,1,3];
+    static readonly string[] DisplayLabels = ["LINQ","ZLinq","FLinq","Tsavorite"];
     static void WriteSingleFileReport() {
         var resultsDir = FindResultsDirectory();
         if(!Directory.Exists(resultsDir)) {
@@ -141,6 +148,7 @@ internal static class Program {
             var typeIndex = Array.IndexOf(header,"Type");
             var methodIndex = Array.IndexOf(header,"Method");
             var meanIndex = Array.IndexOf(header,"Mean");
+            var methodNameIndex = Array.IndexOf(header,"MethodName");
             if(typeIndex<0||methodIndex<0||meanIndex<0) {
                 continue;
             }
@@ -155,9 +163,12 @@ internal static class Program {
                     continue;
                 }
                 var type = row[typeIndex];
-                var rowKey = type+suffix;
+                var parameterSuffix = methodNameIndex>=0&&row.Length>methodNameIndex&&!string.IsNullOrWhiteSpace(row[methodNameIndex])
+                    ? "["+row[methodNameIndex]+"]"
+                    : string.Empty;
+                var rowKey = type+suffix+parameterSuffix;
                 if(!map.TryGetValue(rowKey,out var summary)) {
-                    summary=new SummaryRow(type,suffix);
+                    summary=new SummaryRow(type,suffix+parameterSuffix);
                     map[rowKey]=summary;
                 }
                 summary.MeanText[kindIndex]=row[meanIndex];
@@ -311,9 +322,9 @@ internal static class Program {
         public string Type { get; } = type;
         public string Method { get; } = method;
         public string RowKey { get; } = type+method;
-        public string?[] MeanText { get; } = new string?[3];
-        public double?[] MeanNs { get; } = new double?[3];
-        public double?[] Ratio { get; } = new double?[3];
+        public string?[] MeanText { get; } = new string?[4];
+        public double?[] MeanNs { get; } = new double?[4];
+        public double?[] Ratio { get; } = new double?[4];
         // 最も遅い手法の絶対時間(ns)。Ratioの基準値であり、byRatio出力のソートキーにも使う。
         public double SlowestNs { get; private set; }
         // Ratioは最遅手法を1.0とした相対値（他は1.0以下）。
@@ -327,7 +338,7 @@ internal static class Program {
             if(max<=0) {
                 return;
             }
-            for(var i = 0; i<3; i++) {
+            for(var i = 0; i<this.MeanNs.Length; i++) {
                 if(this.MeanNs[i] is { } v&&v>0) {
                     this.Ratio[i]=v/max;
                 }

@@ -104,6 +104,11 @@ public sealed partial class TsavoriteIncrementalGenerator {
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
         List<string> unsafeAccessors) {
+        if(expression is MemberAccessExpressionSyntax anchorAccess
+            && AnchorAnalysis.IsAnchorAccess(anchorAccess,semanticModel)) {
+            return RenderCounterOnlyExpression(anchorAccess.Expression,semanticModel,containingType,unsafeAccessors);
+        }
+
         if(expression is InvocationExpressionSyntax invocation
             && semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol invokedMethod
             && TryRenderCounterOnlyEnumerableInvocation(invokedMethod,invocation,semanticModel,containingType,unsafeAccessors,out var enumerableExpression)) {

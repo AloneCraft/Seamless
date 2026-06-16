@@ -4,7 +4,7 @@ using Tsavorite.Collections;
 using Tsavorite.Stores;
 using Tsavorite.core;
 
-namespace BenchmarkExe.Benchmarks;
+namespace Tsavorite.Benchmark.Benchmarks;
 
 public enum HashSetOperation {
     Add,
@@ -108,10 +108,10 @@ public class HashSetApiSurfaceBenchmark {
         if(useStorage) {
             var dir = Path.Combine(this.checkpointRoot,"iter-"+Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(dir);
-            this.logA=Devices.CreateLogDevice(Path.Combine(dir,"logA"));
-            this.objA=Devices.CreateLogDevice(Path.Combine(dir,"objA"));
-            this.logB=Devices.CreateLogDevice(Path.Combine(dir,"logB"));
-            this.objB=Devices.CreateLogDevice(Path.Combine(dir,"objB"));
+            this.logA=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(dir,"logA"));
+            this.objA=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(dir,"objA"));
+            this.logB=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(dir,"logB"));
+            this.objB=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(dir,"objB"));
         }
 
         var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: mutableFraction);

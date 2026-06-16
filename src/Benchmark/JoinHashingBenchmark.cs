@@ -3,11 +3,9 @@ using BenchmarkDotNet.Order;
 using Tsavorite.Carrier;
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace BenchmarkExe.Benchmarks;
+namespace Tsavorite.Benchmark.Benchmarks;
 
-// ルール §3: ハッシュ結合分解 + キーセレクタ・ホイスト。
-// outer 100k / inner 1k。各 outer はちょうど 1 件の inner と一致（lookup 構築が効く規模）。
-[MemoryDiagnoser]
+// ルール §3: ハッシュ結合刁E�� + キーセレクタ・ホイスト、E// outer 100k / inner 1k。各 outer はちめE��ど 1 件の inner と一致�E�Eookup 構築が効く規模�E�、E[MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [SimpleJob(warmupCount: 1, iterationCount: 5)]
 public class JoinHashingBenchmark

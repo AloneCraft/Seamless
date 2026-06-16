@@ -3,12 +3,9 @@ using BenchmarkDotNet.Order;
 using Tsavorite.Carrier;
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace BenchmarkExe.Benchmarks;
+namespace Tsavorite.Benchmark.Benchmarks;
 
-// ルール §1: ループ不変式ホイスト + delegate/closure 除去。
-// baseline は N 回 HoistInvariant.Value() を呼び lambda を delegate 経由で起動する。
-// intercept 版は struct 融合で delegate 割当を消し、不変式を巻き上げられる経路を測る。
-[MemoryDiagnoser]
+// ルール §1: ループ不変式�EイスチE+ delegate/closure 除去、E// baseline は N 囁EHoistInvariant.Value() を呼び lambda めEdelegate 経由で起動する、E// intercept 版�E struct 融合で delegate 割当を消し、不変式を巻き上げられる経路を測る、E[MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [SimpleJob(warmupCount: 1, iterationCount: 5)]
 public class InvariantHoistingBenchmark

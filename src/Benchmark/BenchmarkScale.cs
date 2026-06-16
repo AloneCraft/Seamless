@@ -1,11 +1,11 @@
 using Tsavorite.Stores;
 
-namespace BenchmarkExe.Benchmarks;
+namespace Tsavorite.Benchmark.Benchmarks;
 
 /// <summary>
 /// Global scale factor for per-method <c>const Count</c> values in benchmarks.
 /// Each benchmark method (or switch-case operation) defines a base <c>Count</c> chosen so
-/// that one iteration — excluding method-level init/teardown — runs for roughly 10 seconds
+/// that one iteration  Eexcluding method-level init/teardown  Eruns for roughly 10 seconds
 /// at <see cref="Scale"/> == 1. Increase to run longer / more stable, decrease to run faster.
 /// </summary>
 public static class BenchmarkScale {

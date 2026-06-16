@@ -173,26 +173,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     // メソッド/デリゲート呼び出し・インデクサ・代入・生成・throw 等を含めば不可。
     bool IsReorderSafe(LambdaExpressionSyntax lambda) {
         if(lambda.Body is not ExpressionSyntax body) return false;
-        foreach(var n in body.DescendantNodesAndSelf()) {
-            switch(n) {
-                case LiteralExpressionSyntax:
-                case IdentifierNameSyntax:
-                case ParenthesizedExpressionSyntax:
-                case PrefixUnaryExpressionSyntax:
-                case BinaryExpressionSyntax:
-                case ConditionalExpressionSyntax:
-                    break;
-                case CastExpressionSyntax cast:
-                    if(cast.Type is not PredefinedTypeSyntax) return false;
-                    break;
-                case MemberAccessExpressionSyntax member:
-                    if(!this.IsNonNullableValueReceiver(member.Expression)) return false;
-                    break;
-                default:
-                    return false;
-            }
-        }
-        return true;
+        return !AnchorAnalysis.ContainsAnchor(body,this.model);
     }
     bool IsNonNullableValueReceiver(ExpressionSyntax expr) {
         if(this.model.GetTypeInfo(expr).Type is not { } t||!t.IsValueType) return false;

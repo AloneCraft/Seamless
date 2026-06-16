@@ -3,7 +3,7 @@ using BenchmarkDotNet.Order;
 using Tsavorite.Carrier;
 using SystemEnumerable = System.Linq.Enumerable;
 
-namespace BenchmarkExe.Benchmarks;
+namespace Tsavorite.Benchmark.Benchmarks;
 
 static class DatabaseGenerator;
 

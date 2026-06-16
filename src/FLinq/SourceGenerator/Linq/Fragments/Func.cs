@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Text.RegularExpressions;
+using Tsavorite.SourceGenerator;
 
 namespace Tsavorite.SourceGenerator.Linq.Fragments;
 public abstract class FuncFragment {
@@ -32,6 +33,12 @@ public abstract class FuncFragment {
     // 式位置ではなく文として展開する必要があるラムダかどうか。
     // LINQ scalar を内包するラムダは enumerator 生成・TryGetNext 呼び出しが必要になる。
     public bool RequiresStatementInlining;
+    // Anchor を含む式は生成コード上では identity だが、評価回数・評価順を変え得る最適化では境界として扱う。
+    public bool ContainsAnchor;
+    // keySelector の値域上限を静的に推定できる場合の容量ヒント。
+    public int? CardinalityUpperBound;
+    public int? IntegralRangeMin;
+    public int? IntegralRangeMax;
     // 代入文として inline 展開する具体実装を派生型に任せる。
     public virtual string RenderInlineAssign(string destination,int number,params string[] arguments) {
         throw new InvalidOperationException("Inline assign is not supported.");
@@ -90,6 +97,7 @@ public abstract class FuncFragment {
         }
 
         builder.Append($"{destination}={rewrittenBody};");
+        this.ContainsAnchor |= AnchorAnalysis.LooksLikeAnchorText(rewrittenBody);
         return builder.ToString();
     }
 
@@ -111,6 +119,7 @@ public abstract class FuncFragment {
             }
         }
 
+        this.ContainsAnchor |= AnchorAnalysis.LooksLikeAnchorText(rewrittenBody);
         return CanOmitOuterParentheses(rewrittenBody) ? rewrittenBody : $"({rewrittenBody})";
     }
 
@@ -132,6 +141,33 @@ public abstract class FuncFragment {
 
     public virtual bool IsIdentity => false;
 
+    public bool TryGetSmallIntegralRange(int maxCount,out int min,out int max) {
+        if(this.IntegralRangeMin is { } explicitMin && this.IntegralRangeMax is { } explicitMax) {
+            if(IsSmallRange(explicitMin,explicitMax,maxCount)) {
+                min=explicitMin;
+                max=explicitMax;
+                return true;
+            }
+            min=0;
+            max=0;
+            return false;
+        }
+
+        if(!string.IsNullOrWhiteSpace(this.InlineBody)) {
+            var expression=SyntaxFactory.ParseExpression(this.InlineBody);
+            if(CardinalityAnalysis.TryGetIntegralRange(expression,null) is { } parsedRange
+                && IsSmallRange(parsedRange.Min,parsedRange.Max,maxCount)) {
+                min=parsedRange.Min;
+                max=parsedRange.Max;
+                return true;
+            }
+        }
+
+        min=0;
+        max=0;
+        return false;
+    }
+
     private static bool CanOmitOuterParentheses(string expression) {
         var parsed = SyntaxFactory.ParseExpression(expression);
         return parsed is not AssignmentExpressionSyntax
@@ -139,6 +175,9 @@ public abstract class FuncFragment {
             and not AnonymousMethodExpressionSyntax
             and not QueryExpressionSyntax;
     }
+
+    private static bool IsSmallRange(int min,int max,int maxCount) =>
+        min<=max && (long)max-min+1<=maxCount;
 
     private static string ReplaceParameterReference(string text,string parameterName,string replacement) =>
         Regex.Replace(

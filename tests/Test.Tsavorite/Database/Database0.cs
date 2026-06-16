@@ -13,19 +13,19 @@ namespace Test.Tsavorite.Database.Database0 {
     [Optimize]
     public class Container {
         public global::Tsavorite.Collections.Generic.IEnumerable<int> Optimize無virtual無(global::Tsavorite.Collections.Generic.IEnumerable<int> outer) {
-            new global::Tsavorite.Collections.Generic.IEnumerable<int>(Enumerable.Select(outer,static p => p+p));
-            var x = new global::Tsavorite.Collections.Generic.IEnumerable<int>(Enumerable.Select(outer,static p => p+p));
-            return new(Enumerable.Select(outer,static p => p+p));
+            new global::Tsavorite.Collections.Generic.IEnumerable<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
+            var x = new global::Tsavorite.Collections.Generic.IEnumerable<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
+            return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
         public virtual global::Tsavorite.Collections.Generic.IEnumerable<int> Optimize無virtual有(global::Tsavorite.Collections.Generic.IEnumerable<int> outer) {
-            return new(Enumerable.Select(outer,static p => p+p));
+            return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
         //[Optimize]public global::Tsavorite.Collections.Generic.IEnumerable<int> Optimize有virtual無(global::Tsavorite.Collections.Generic.IEnumerable<int> outer) {
         //    return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         //}
         [Optimize]
         public virtual global::Tsavorite.Collections.Generic.IEnumerable<int> Optimize有virtual有(global::Tsavorite.Collections.Generic.IEnumerable<int> outer) {
-            return new(Enumerable.Select(outer,static p => p+p));
+            return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
         [Optimize]
         [Fact]
@@ -34,7 +34,7 @@ namespace Test.Tsavorite.Database.Database0 {
         }
         [Optimize]
         public virtual global::Tsavorite.Collections.Generic.IEnumerable<int> Select_Method(global::Tsavorite.Collections.Generic.IEnumerable<int> outer) {
-            return new(Enumerable.Select(outer,static p => p+p));
+            return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
         [Optimize]
         public virtual IEnumerable<int> SelectSelect_Method(IEnumerable<int> outer) {
@@ -138,7 +138,7 @@ namespace Test.Tsavorite.Database.Database0 {
         public virtual IEnumerable<(T0 o,T1 i)> Query2<T0, T1>(global::Tsavorite.Collections.IHashSet<T0> outer,global::Tsavorite.Collections.IHashSet<T1> inner)
             where T0 : IEquatable<T0>
             where T1 : IEquatable<T1> {
-            return Enumerable.SelectMany(outer,_ => inner,(o,i) => (o,i));
+            return global::Tsavorite.Linq.Enumerable.SelectMany(outer,_ => inner,(o,i) => (o,i));
         }
 
         [Optimize]

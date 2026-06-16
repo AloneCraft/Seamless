@@ -613,6 +613,8 @@ public sealed partial class TsavoriteIncrementalGenerator {
             ? new ArrayRoot(_num, _srcExpr, elementTypeName)
             : IsListType(expressionType)
                 ? new ListRoot(_num, _srcExpr, elementTypeName)
+                : IsTsavoriteConcreteHashSetType(expressionType,out _)
+                    ? new TsavoriteHashSetRoot(_num, _srcExpr, elementTypeName, enumeratorTypeName)
                 : isDuckTyping && concreteEnumeratorTypeName is not null
                     ? new DuckTypingRoot(_num, _srcExpr, elementTypeName, concreteEnumeratorTypeName)
                     : CreateRootEnumerableFragment(_srcExpr, elementTypeName, enumeratorTypeName, effectiveUseEnumerableInterface, _num);
@@ -738,6 +740,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
             ParameterNames=invoke.Parameters.Select(static p=>p.Name).ToArray(),
             CanGenerateMethod=false,
             CanInlineAssign=false,
+            ContainsAnchor=AnchorAnalysis.ContainsAnchor(expression,semanticModel),
         };
         return true;
     }
@@ -832,13 +835,17 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 var delegateTypeName = $"global::System.Func<{string.Join(", ", allTypeNames)}>";
                 var delegateFieldName = $"_anonDel{uniqueNumber++}";
                 var delegateConstructorArg = RenderExpressionForGeneratedMethod(lambda, semanticModel, containingType);
-                fragment = new AnonymousDelegateFuncFragment(delegateTypeName, delegateFieldName, delegateConstructorArg) {
+                    fragment = new AnonymousDelegateFuncFragment(delegateTypeName, delegateFieldName, delegateConstructorArg) {
                     ReturnTypeName = returnTypeName,
                     ParameterTypeNames = paramTypeNames,
                     ParameterNames = lambdaParamNames,
                     CanGenerateMethod = false,
                     CapturedLocals = anonCapturedLocals,
-                    BodyUnsafeAccessorCodes = anonBodyAccessorCodes
+                    BodyUnsafeAccessorCodes = anonBodyAccessorCodes,
+                    ContainsAnchor = AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
+                    CardinalityUpperBound = lambda.Body is ExpressionSyntax anonLambdaBody
+                        ? CardinalityAnalysis.TryGetUpperBound(anonLambdaBody,semanticModel)
+                        : null
                 };
                 return true;
             }
@@ -923,6 +930,8 @@ public sealed partial class TsavoriteIncrementalGenerator {
                             .ToArray(),
                         ScalarStaticMethods = scalarStaticMethods,
                         OuterParameterNames = lambdaSpec.ParameterNames,
+                        ContainsAnchor = AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
+                        CardinalityUpperBound = CardinalityAnalysis.TryGetUpperBound(lambdaBodyExpr,semanticModel),
                     };
                     return true;
                 }
@@ -943,6 +952,11 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 InlineBody = body,
                 CapturedLocals = capturedLocals,
                 BodyUnsafeAccessorCodes = bodyAccessorCodes,
+                ContainsAnchor = AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
+                CardinalityUpperBound = lambda.Body is ExpressionSyntax lambdaExpressionBody
+                        && semanticModel is not null
+                    ? CardinalityAnalysis.TryGetUpperBound(lambdaExpressionBody,semanticModel)
+                    : null,
             };
             return true;
         }
@@ -972,7 +986,9 @@ public sealed partial class TsavoriteIncrementalGenerator {
                         ReturnTypeName = anonReturnTypeName,
                         ParameterTypeNames = anonParamTypeNames,
                         ParameterNames = anonParamNames,
-                        CanGenerateMethod = false
+                        CanGenerateMethod = false,
+                        ContainsAnchor = AnchorAnalysis.ContainsAnchor(anonymousMethod,semanticModel),
+                        CardinalityUpperBound = CardinalityAnalysis.TryGetUpperBound(bodyExpression,semanticModel)
                     };
                     return true;
                 }
@@ -1010,6 +1026,10 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 InlineBody = body,
                 CapturedLocals = capturedLocals,
                 BodyUnsafeAccessorCodes = bodyAccessorCodes,
+                ContainsAnchor = AnchorAnalysis.ContainsAnchor(bodyExpression,semanticModel),
+                CardinalityUpperBound = semanticModel is not null
+                    ? CardinalityAnalysis.TryGetUpperBound(bodyExpression,semanticModel)
+                    : null,
             };
             return true;
         }
@@ -1109,6 +1129,10 @@ public sealed partial class TsavoriteIncrementalGenerator {
             InlineBody = bodyText,
             CapturedLocals = capturedLocals,
             BodyUnsafeAccessorCodes = bodyCollector.ToArray(),
+            ContainsAnchor = AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
+            CardinalityUpperBound = lambda.Body is ExpressionSyntax lambdaBody
+                ? CardinalityAnalysis.TryGetUpperBound(lambdaBody,semanticModel)
+                : null,
         };
         return true;
     }
@@ -1184,6 +1208,10 @@ public sealed partial class TsavoriteIncrementalGenerator {
             CanGenerateMethod=false,
             CapturedLocals=capturedLocals,
             BodyUnsafeAccessorCodes=bodyCollector.ToArray(),
+            ContainsAnchor=AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
+            CardinalityUpperBound=lambda.Body is ExpressionSyntax lambdaBody
+                ? CardinalityAnalysis.TryGetUpperBound(lambdaBody,semanticModel)
+                : null,
         };
         return true;
     }

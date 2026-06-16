@@ -2,17 +2,17 @@
   <Import Project="$(MSBuildThisFileDirectory)..\..\Directory.Build.props" />
 
   <PropertyGroup>
-    <SeamlessBenchmarkTarget Condition="'$(MSBuildProjectName)' == 'Benchmark' and '$(SeamlessBenchmarkTarget)' == '' and '$(SEAMLESS_BENCHMARK_TARGET)' != ''">$(SEAMLESS_BENCHMARK_TARGET)</SeamlessBenchmarkTarget>
-    <SeamlessBenchmarkTarget Condition="'$(MSBuildProjectName)' == 'Benchmark' and '$(SeamlessBenchmarkTarget)' == '' and ('$(TsavoriteConfigurationName)' == 'Debug1' or '$(TsavoriteConfigurationName)' == 'Release1')">1.1.1</SeamlessBenchmarkTarget>
-    <SeamlessBenchmarkTarget Condition="'$(MSBuildProjectName)' == 'Benchmark' and '$(SeamlessBenchmarkTarget)' == '' and ('$(TsavoriteConfigurationName)' == 'Debug2' or '$(TsavoriteConfigurationName)' == 'Release2')">2.0beta3</SeamlessBenchmarkTarget>
-    <SeamlessBenchmarkTarget Condition="'$(MSBuildProjectName)' == 'Benchmark' and '$(SeamlessBenchmarkTarget)' == ''">2.0beta3</SeamlessBenchmarkTarget>
+    <SeamlessBenchmarkTarget Condition="'$(MSBuildProjectName)' == 'Tsavorite.Benchmark' and '$(SeamlessBenchmarkTarget)' == '' and '$(SEAMLESS_BENCHMARK_TARGET)' != ''">$(SEAMLESS_BENCHMARK_TARGET)</SeamlessBenchmarkTarget>
+    <SeamlessBenchmarkTarget Condition="'$(MSBuildProjectName)' == 'Tsavorite.Benchmark' and '$(SeamlessBenchmarkTarget)' == '' and ('$(TsavoriteConfigurationName)' == 'Debug1' or '$(TsavoriteConfigurationName)' == 'Release1')">1.1.1</SeamlessBenchmarkTarget>
+    <SeamlessBenchmarkTarget Condition="'$(MSBuildProjectName)' == 'Tsavorite.Benchmark' and '$(SeamlessBenchmarkTarget)' == '' and ('$(TsavoriteConfigurationName)' == 'Debug2' or '$(TsavoriteConfigurationName)' == 'Release2')">2.0beta3</SeamlessBenchmarkTarget>
+    <SeamlessBenchmarkTarget Condition="'$(MSBuildProjectName)' == 'Tsavorite.Benchmark' and '$(SeamlessBenchmarkTarget)' == ''">2.0beta3</SeamlessBenchmarkTarget>
 
     <!-- Keep Benchmark outputs separated by target so launch-profile switches do not reuse stale binaries. -->
     <BaseIntermediateOutputPath>obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <BaseOutputPath>bin\$(MSBuildProjectName)\</BaseOutputPath>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Benchmark'">
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Tsavorite.Benchmark'">
     <BaseIntermediateOutputPath>obj\$(MSBuildProjectName)\$(SeamlessBenchmarkTarget)\</BaseIntermediateOutputPath>
     <BaseOutputPath>bin\$(MSBuildProjectName)\$(SeamlessBenchmarkTarget)\</BaseOutputPath>
   </PropertyGroup>

@@ -6,9 +6,11 @@
     <SharedGUID>9749dc71-85fa-4584-9cb5-9929b262f213</SharedGUID>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
-    <Import_RootNamespace>Seamless.Benchmarks</Import_RootNamespace>
+    <Import_RootNamespace>Benchmark.Shared</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Infrastructure\**\*.cs" />
+    <Compile Remove="$(MSBuildThisFileDirectory)Infrastructure\TsavoriteBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Benchmarks\**\*.cs" />
   </ItemGroup>
 </Project>

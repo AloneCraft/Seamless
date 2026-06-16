@@ -3,7 +3,7 @@ using BenchmarkDotNet.Order;
 using Tsavorite.Stores;
 using Tsavorite.core;
 
-namespace BenchmarkExe.Benchmarks;
+namespace Tsavorite.Benchmark.Benchmarks;
 
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
@@ -68,8 +68,8 @@ public class DictionaryStoreBenchmark {
 
         var logPath = Path.Combine(checkpointDir,"log");
         var objPath = Path.Combine(checkpointDir,"obj");
-        using var logDevice = Devices.CreateLogDevice(logPath);
-        using var objDevice = Devices.CreateLogDevice(objPath);
+        using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
+        using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
         using var store = this.CreateStore(checkpointDir,logDevice,objDevice);
         using var dict = store.Create();
 
@@ -86,8 +86,8 @@ public class DictionaryStoreBenchmark {
 
         var logPath = Path.Combine(this.loadCheckpointDir,"log");
         var objPath = Path.Combine(this.loadCheckpointDir,"obj");
-        using var logDevice = Devices.CreateLogDevice(logPath);
-        using var objDevice = Devices.CreateLogDevice(objPath);
+        using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
+        using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
         using var store = this.CreateStore(this.loadCheckpointDir,logDevice,objDevice);
         using var dict = store.Create();
 
@@ -119,8 +119,8 @@ public class DictionaryStoreBenchmark {
 
         var logPath = Path.Combine(this.loadCheckpointDir,"log");
         var objPath = Path.Combine(this.loadCheckpointDir,"obj");
-        using var logDevice = Devices.CreateLogDevice(logPath);
-        using var objDevice = Devices.CreateLogDevice(objPath);
+        using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
+        using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
         var indexSize = BenchmarkHashStoreSizing.GetIndexSize(this.Count);
         var memorySize = BenchmarkHashStoreSizing.GetMemorySize(this.Count*128L);
         var factory = HashStore.Create(IndexSize: indexSize,MemorySize: memorySize,MutableFraction: 1.0,CheckpointDir: this.loadCheckpointDir)

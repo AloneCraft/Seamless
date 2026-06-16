@@ -43,9 +43,17 @@ public abstract class Collection<
     /// </summary>
     public abstract class ScanIteratorFunctions_List<T, TList>:IScanIteratorFunctions
         where TList : ListBase<T> {
+        private const int MinimumScanChunkLength = 4096;
+        public readonly T[] Chunk = new T[Math.Max(Const.Chunk_Length,MinimumScanChunkLength)];
+        public int Count;
+        public bool HasPendingItem => false;
         private TList? List;
         private readonly Lock Sync = new();
         public void SetList(TList list) => this.List=list;
+        public void ResetChunk() {
+            lock(this.Sync)
+                this.Count=0;
+        }
         private protected virtual bool ShouldRead<TSourceLogRecord>(in TSourceLogRecord logRecord)
             where TSourceLogRecord : ISourceLogRecord => true;
         private protected abstract T Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)
@@ -56,10 +64,23 @@ public abstract class Collection<
                 cursorRecordResult=CursorRecordResult.Skip;
                 return true;
             }
-            lock(this.Sync)
-                this.List!.Add(this.Deserialize(logRecord));
-            cursorRecordResult=CursorRecordResult.Accept;
-            return true;
+            if(this.List is { } list) {
+                lock(this.Sync)
+                    list.Add(this.Deserialize(logRecord));
+                cursorRecordResult=CursorRecordResult.Accept;
+                return true;
+            }
+
+            lock(this.Sync) {
+                if(this.Count>=this.Chunk.Length) {
+                    cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
+                    return true;
+                }
+
+                this.Chunk[this.Count++]=this.Deserialize(logRecord);
+                cursorRecordResult=CursorRecordResult.Accept;
+                return true;
+            }
         }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) {

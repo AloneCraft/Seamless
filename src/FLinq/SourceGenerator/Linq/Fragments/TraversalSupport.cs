@@ -23,9 +23,13 @@ internal static class TraversalSupport{
         builder.AppendLine("}");
     }
 
-    public static void AppendHashSetInitialization(StringBuilder builder,string setName,string elementType,string enumeratorName,string comparer){
+    public static void AppendHashSetInitialization(StringBuilder builder,string setName,string elementType,string enumeratorName,string comparer,string? capacityHint=null){
         var countName=$"__count_{setName}";
         builder.AppendLine($"global::System.Collections.Generic.HashSet<{elementType}> {setName};");
+        if(capacityHint is not null){
+            builder.AppendLine($"{setName}=new global::System.Collections.Generic.HashSet<{elementType}>({capacityHint},(global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer});");
+            return;
+        }
         builder.AppendLine($"if({enumeratorName}.TryGetNonEnumeratedCount(out var {countName})){{");
         builder.AppendLine($"    {setName}=new global::System.Collections.Generic.HashSet<{elementType}>({countName},(global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer});");
         builder.AppendLine("}else{");
