@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Benchmark.Tsavorite.Linq.Enumerable.Intercept</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Infrastructure\**\*.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Benchmarks\Tsavorite.Linq.Enumerable.Intercept\**\*.cs" />
+  </ItemGroup>
+</Project>
