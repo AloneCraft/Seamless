@@ -173,7 +173,17 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     // メソッド/デリゲート呼び出し・インデクサ・代入・生成・throw 等を含めば不可。
     bool IsReorderSafe(LambdaExpressionSyntax lambda) {
         if(lambda.Body is not ExpressionSyntax body) return false;
-        return !AnchorAnalysis.ContainsAnchor(body,this.model);
+        return !AnchorAnalysis.ContainsAnchor(body,this.model)
+               && !this.HasNullSensitiveMemberAccess(body);
+    }
+    bool HasNullSensitiveMemberAccess(ExpressionSyntax expression) {
+        foreach(var memberAccess in expression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>()) {
+            var receiver = Strip(memberAccess.Expression);
+            if(!this.IsNonNullableValueReceiver(receiver)) {
+                return true;
+            }
+        }
+        return false;
     }
     bool IsNonNullableValueReceiver(ExpressionSyntax expr) {
         if(this.model.GetTypeInfo(expr).Type is not { } t||!t.IsValueType) return false;

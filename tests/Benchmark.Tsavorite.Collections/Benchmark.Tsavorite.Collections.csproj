@@ -9,7 +9,9 @@
     <IsTestProject>true</IsTestProject>
     <RootNamespace>Benchmark.Tsavorite.Collections</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
+    <DefineConstants>$(DefineConstants);BENCH_AS_TEST;TSAVORITE_LINQ_COUNTER</DefineConstants>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>obj/Generated</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -39,7 +41,14 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="BenchmarkDotNet.Attributes" />
+    <Using Include="BenchmarkDotNet.Configs" />
+    <Using Include="BenchmarkDotNet.Engines" />
     <Using Include="ZLinq" />
+    <Using Include="Tsavorite.SourceGenerator" />
+    <Using Include="Benchmark.Shared" />
     <Using Include="Test.Tsavorite.Collections" />
   </ItemGroup>
+  <Import Project="..\..\sandbox\Benchmark.Shared\Benchmark.Tsavorite.Linq.Enumerable.Intercept.projitems" Label="Shared" />
+  <Import Project="..\..\sandbox\Benchmark.Shared\Benchmark.TestInfrastructure.projitems" Label="TestInfrastructure" />
 </Project>

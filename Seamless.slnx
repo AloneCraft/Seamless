@@ -19,7 +19,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Benchmark.Intercept.System.Linq.Enumerable/Benchmark.Intercept.System.Linq.Enumerable.csproj" />
-    <Project Path="tests/Benchmark.Intercept.Tsavorite.Linq.Enumerable/Benchmark.Intercept.Tsavorite.Linq.Enumerable.csproj" />
     <Project Path="tests/Benchmark.System.Linq.Enumerable/Benchmark.System.Linq.Enumerable.csproj" />
     <Project Path="tests/Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj" />
     <Project Path="tests/Benchmark.Tsavorite.Linq.Enumerable/Benchmark.Tsavorite.Linq.Enumerable.csproj" />
@@ -29,8 +28,8 @@
   </Folder>
   <Project Path="sandbox/Benchmark.Shared/Benchmark.Shared.shproj" />
   <Project Path="sandbox/Benchmark.Intercept.System.Linq.Enumerable/Benchmark.Intercept.System.Linq.Enumerable.csproj" />
-  <Project Path="sandbox/Benchmark.Intercept.Tsavorite.Linq.Enumerable/Benchmark.Intercept.Tsavorite.Linq.Enumerable.csproj" />
   <Project Path="sandbox/Benchmark.System.Linq.Enumerable/Benchmark.System.Linq.Enumerable.csproj" />
+  <Project Path="sandbox/Benchmark.Tsavorite.Linq.Enumerable.Intercept/Benchmark.Tsavorite.Linq.Enumerable.Intercept.csproj" />
   <Project Path="sandbox/Benchmark.Tsavorite.Linq.Enumerable/Benchmark.Tsavorite.Linq.Enumerable.csproj" />
   <Project Path="sandbox/DynamicLinq.Runner/DynamicLinq.Runner.csproj" />
 </Solution>
