@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -20,7 +20,7 @@
          Benchmark.dllをMTPテストホストとして起動して失敗するのを防ぐ -->
     <IsTestProject>false</IsTestProject>
     <!-- xunit.v3経由でMicrosoft.Testing.Platformのcapability(TestContainer)が宣言され、
-         Test ExplorerがこのexeをMTPテストコンテナとして検出しBenchmark.Intercept.System.Linq.Enumerableと重複表示されるのを防ぐ。
+         Test ExplorerがこのexeをMTPテストコンテナとして検出しBenchmark.System.Linq.Enumerable.Interceptと重複表示されるのを防ぐ。
          xunit.v3のアセンブリ参照自体は残るためBDNのリフレクション解決には影響しない。 -->
     <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
   </PropertyGroup>

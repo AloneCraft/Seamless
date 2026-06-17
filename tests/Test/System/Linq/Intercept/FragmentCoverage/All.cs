@@ -1,0 +1,32 @@
+using System.Collections.Generic;
+using System.Linq;
+
+using Test.System.Linq.Intercept;
+
+
+namespace Test.System.Linq.Intercept.FragmentCoverage;
+
+public sealed class All {
+    [Fact,Trait("Category","Unit")]
+    public static void predicate(){
+        GeneratedInterceptorAssert.ContainsMethod<All>(nameof(predicateImpl));
+        var expected=new[]{1,2,3,4}.All(static v => v>0);
+        var actual=predicateImpl();
+        Assert.Equal(expected,actual);
+    }
+    private static bool predicateImpl(){
+        return new[]{1,2,3,4}.All(static v => v>0);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public static void predicate_enumerable(){
+        GeneratedInterceptorAssert.ContainsMethod<All>(nameof(predicate_enumerableImpl));
+        var expected=new[]{1,2,3,4}.All(static v => v>0);
+        var actual=predicate_enumerableImpl();
+        Assert.Equal(expected,actual);
+    }
+    private static bool predicate_enumerableImpl(){
+        IEnumerable<int>src=[1,2,3,4];
+        return src.All(static v => v>0);
+    }
+}
