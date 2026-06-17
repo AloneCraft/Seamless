@@ -1,1 +1,1 @@
-﻿[assembly:InternalsVisibleTo("Test.Tsavorite.Collections")]
+[assembly:InternalsVisibleTo("Test")]
