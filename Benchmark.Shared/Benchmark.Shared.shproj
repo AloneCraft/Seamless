@@ -10,7 +10,6 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <None Include="Benchmark.Labo.Linq.Enumerable.Core.projitems" />
-    <None Include="Benchmark.Labo.Linq.Enumerable.projitems" />
     <Compile Include="Labo\**\*.cs" />
     <Compile Include="TestInfrastructure\**\*.cs" />
   </ItemGroup>
