@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Extensions.Logging;
 using Uno.Resizetizer;
+using Windows.Graphics;
 
 namespace Labo.Benchmark.Runner.Uno;
 
@@ -47,6 +48,7 @@ public partial class App : Application
         }
 
         MainWindow.SetWindowIcon();
+        MainWindow.AppWindow?.Resize(new SizeInt32{ Width = 1600, Height = 900 });
         // Ensure the current window is active
         MainWindow.Activate();
     }
