@@ -12,8 +12,21 @@ public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
     protected new global::Tsavorite.Collections.HashSet<int> src(int scale) =>
         this.GetOrCreate(scale,this.srcCache,static length => CreateRange(1,length));
 
+    protected new global::Tsavorite.Collections.HashSet<int> srcCount(int elementCount) =>
+        this.GetOrCreateByLength(elementCount,this.srcCache,static length => CreateRange(1,length));
+
     protected new global::Tsavorite.Collections.HashSet<int> src2(int scale) =>
         this.GetOrCreate(scale,this.src2Cache,static length => {
+            var result = new int[length/2];
+            var start = length/2+1;
+            for(var index = 0;index<result.Length;index++) {
+                result[index]=start+index;
+            }
+            return result;
+        });
+
+    protected new global::Tsavorite.Collections.HashSet<int> src2Count(int elementCount) =>
+        this.GetOrCreateByLength(elementCount,this.src2Cache,static length => {
             var result = new int[length/2];
             var start = length/2+1;
             for(var index = 0;index<result.Length;index++) {
@@ -53,6 +66,20 @@ public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
         var values = factory(this.CountForTestTiming(this.count*scale));
         handle=CreateSet(values);
         cache.Add(scale,handle);
+        return handle.Set;
+    }
+
+    private global::Tsavorite.Collections.HashSet<int> GetOrCreateByLength(
+        int length,
+        Dictionary<int,SourceHandle<int>> cache,
+        Func<int,int[]> factory) {
+        if(cache.TryGetValue(length,out var handle)) {
+            return handle.Set;
+        }
+
+        var values = factory(this.CountForTestTiming(length));
+        handle=CreateSet(values);
+        cache.Add(length,handle);
         return handle.Set;
     }
 

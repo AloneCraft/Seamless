@@ -10,6 +10,7 @@
     <RootNamespace>Labo.Test.System.Linq.Enumerable.ZLinq</RootNamespace>
     <AssemblyName>Labo.Test.System.Linq.Enumerable.ZLinq</AssemblyName>
     <DefineConstants>$(DefineConstants);BENCH_AS_TEST</DefineConstants>
+    <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />

@@ -11,15 +11,8 @@
     <File Path="TextFile1.txt" />
   </Folder>
   <Project Path="Benchmark.Shared/Benchmark.Shared.shproj" Id="9749dc71-85fa-4584-9cb5-9929b262f213" />
-  <Project Path="Benchmark.System.Linq.Enumerable.Intercept.Runner/Benchmark.System.Linq.Enumerable.Intercept.Runner.csproj" />
-  <Project Path="Benchmark.System.Linq.Enumerable.Intercept/Benchmark.System.Linq.Enumerable.Intercept.csproj" />
-  <Project Path="Benchmark.System.Linq.Enumerable/Benchmark.System.Linq.Enumerable.csproj" />
-  <Project Path="Benchmark/Tsavorite.Benchmark.csproj" />
   <Project Path="FLinq/FLinq.csproj" />
   <Project Path="SourceGenerator.Shared/SourceGenerator.Shared.csproj" />
-  <Project Path="Test.Benchmark.System.Linq.Enumerable.Intercept/Test.Benchmark.System.Linq.Enumerable.Intercept.csproj" />
-  <Project Path="Test.Benchmark.Tsavorite.Collections/Test.Benchmark.Tsavorite.Collections.csproj" />
-  <Project Path="Test.Benchmark.Tsavorite.Linq.Enumerable/Test.Benchmark.Tsavorite.Linq.Enumerable.csproj" />
   <Project Path="Test/Test.csproj" />
   <Project Path="Tsavorite.Collections/Tsavorite.Collections.csproj" />
   <Project Path="TsavoriteDB/TsavoriteDB.csproj" />
