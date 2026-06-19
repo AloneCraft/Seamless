@@ -33,5 +33,5 @@
   <ItemGroup>
     <ProjectReference Include="..\Tsavorite.Collections\Tsavorite.Collections.csproj" />
   </ItemGroup>
-  <Import Project="..\Benchmark.Shared\Benchmark.Labo.Linq.Enumerable.projitems" Label="Shared" />
+  <Import Project="..\Benchmark.Shared\Benchmark.Labo.Linq.Enumerable.Core.projitems" Label="Shared" />
 </Project>
