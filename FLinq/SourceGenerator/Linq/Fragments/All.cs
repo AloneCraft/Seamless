@@ -27,13 +27,19 @@ public class All_predicate(int 番号, Enumerable source, FuncFragment predicate
                 ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
 
-            return source.CanProvideSpan
+            return source.CanTryProvideSpan
                 ? $$"""
                     {{AggressiveInliningAttribute}}
                     private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
-                        source.TryGetSpan(out var __span);
-                        foreach(var {{this.item}} in __span){
-                            {{predicateCheck}} return false;
+                        if(source.TryGetSpan(out var __span)){
+                            foreach(var {{this.item}} in __span){
+                                {{predicateCheck}} return false;
+                            }
+                        }else{
+                            while(source.MoveNext()) {
+                                var {{this.item}}=source.Current;
+                                {{predicateCheck}} return false;
+                            }
                         }
                         return true;
                     }

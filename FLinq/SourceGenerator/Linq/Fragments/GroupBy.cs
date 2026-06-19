@@ -1,4 +1,4 @@
-ï»¿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Tsavorite.SourceGenerator.Linq.Fragments;
 
 internal static class GroupBySupport{
     public static string GroupingType(string keyType,string elementType)=>
@@ -10,12 +10,12 @@ internal static class GroupBySupport{
         private bool {{builtName}};
         """;
 
-    // åˆå›ž TryGetNext ã§ Carrier ã® LookupBuilder ã«ã‚ˆã‚Šå…¨ã‚°ãƒ«ãƒ¼ãƒ—ã‚’æ§‹ç¯‰ã—ã€
-    // add-order ã®å¾ªç’°é€£çµãƒªã‚¹ãƒˆã®å…ˆé ­(cursor/first)ã‚’ç¢ºå®šã™ã‚‹ã€‚
-    // ç¶šã‘ã¦ cursor ã‚’ 1 ã¤é€²ã‚ã€ãƒ­ãƒ¼ã‚«ãƒ« __cur ã«å–ã‚Šå‡ºã™ã€‚æœ«å°¾(first ã¸æˆ»ã‚‹)ã§ cursor ã‚’ null åŒ–ã€‚
+    // ‰‰ñ TryGetNext ‚Å Carrier ‚Ì LookupBuilder ‚É‚æ‚è‘SƒOƒ‹[ƒv‚ð\’z‚µA
+    // add-order ‚ÌzŠÂ˜AŒ‹ƒŠƒXƒg‚Ìæ“ª(cursor/first)‚ðŠm’è‚·‚éB
+    // ‘±‚¯‚Ä cursor ‚ð 1 ‚Âi‚ßAƒ[ƒJƒ‹ __cur ‚ÉŽæ‚èo‚·B––”ö(first ‚Ö–ß‚é)‚Å cursor ‚ð null ‰»B
     public static string BuildAndAdvance(
         string enumeratorName,
-        bool canProvideSpan,
+        bool canTryProvideSpan,
         string keyType,
         string elementType,
         string keyAssignCode,
@@ -44,9 +44,12 @@ internal static class GroupBySupport{
                 __builder.Add({{keyName}},{{elementName}});
             }
             """;
-        var buildLoop=canProvideSpan ? $$"""
-            {{enumeratorName}}.TryGetSpan(out var __span);
-            {{addLoopSpan}}
+        var buildLoop=canTryProvideSpan ? $$"""
+            if({{enumeratorName}}.TryGetSpan(out var __span)){
+                {{IndentBlock(addLoopSpan,"    ")}}
+            }else{
+                {{IndentBlock(addLoopWhile,"    ")}}
+            }
             """ : addLoopWhile;
         return $$"""
         if(!this.{{builtName}}){
@@ -74,7 +77,7 @@ internal static class GroupBySupport{
     }
 }
 
-internal class GroupBy_keySelector(int ç•ªå·, Enumerable source, FuncFragment keySelector) : Enumerable(ç•ªå·) {
+internal class GroupBy_keySelector(int ”Ô†, Enumerable source, FuncFragment keySelector) : Enumerable(”Ô†) {
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     private string KeyType => FuncReturnTypeName(keySelector);
     protected override Enumerable PrimarySource => source;
@@ -91,7 +94,7 @@ internal class GroupBy_keySelector(int ç•ªå·, Enumerable source, FuncFragment k
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorFields =>
         GroupBySupport.Fields(this.KeyType,source.ElementType,this.group,this.lookup,this.hasValue);
-    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanProvideSpan,this.KeyType,source.ElementType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),"",this.item,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
+    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,source.ElementType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),"",this.item,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
         current=this.Current=__cur;
         return true;
         """;
@@ -100,11 +103,11 @@ internal class GroupBy_keySelector(int ç•ªå·, Enumerable source, FuncFragment k
 }
 
 internal class GroupBy_keySelector_resultSelector(
-    int ç•ªå·,
+    int ”Ô†,
     Enumerable source,
     FuncFragment keySelector,
     FuncFragment resultSelector)
-    : Enumerable(ç•ªå·) {
+    : Enumerable(”Ô†) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 2
         && method.Parameters[1].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
@@ -139,7 +142,7 @@ internal class GroupBy_keySelector_resultSelector(
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector, resultSelector)}";
     public override string GetEnumeratorFields =>
         GroupBySupport.Fields(this.KeyType,source.ElementType,this.group,this.lookup,this.hasValue);
-    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanProvideSpan,this.KeyType,source.ElementType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),"",this.item,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
+    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,source.ElementType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),"",this.item,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
         {{this.FuncAssignCurrent(resultSelector,nameof(resultSelector),this.currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{source.ElementType}>)__cur")}}
         return true;
         """;
@@ -151,11 +154,11 @@ internal class GroupBy_keySelector_resultSelector(
 }
 
 internal class GroupBy_keySelector_elementSelector(
-    int ç•ªå·,
+    int ”Ô†,
     Enumerable source,
     FuncFragment keySelector,
     FuncFragment elementSelector)
-    : Enumerable(ç•ªå·) {
+    : Enumerable(”Ô†) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 2
         && method.Parameters[1].Type is INamedTypeSymbol { TypeArguments.Length: 2 };
@@ -175,7 +178,7 @@ internal class GroupBy_keySelector_elementSelector(
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector, elementSelector)}";
     public override string GetEnumeratorFields =>
         GroupBySupport.Fields(this.KeyType,this.ElemType,this.group,this.lookup,this.hasValue);
-    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanProvideSpan,this.KeyType,this.ElemType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),$"{this.ElemType} {this.a}=default!;\n{this.FuncAssign(elementSelector,nameof(elementSelector),this.a,this.item)}",this.a,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
+    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,this.ElemType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),$"{this.ElemType} {this.a}=default!;\n{this.FuncAssign(elementSelector,nameof(elementSelector),this.a,this.item)}",this.a,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
         current=this.Current=__cur;
         return true;
         """;
@@ -184,12 +187,12 @@ internal class GroupBy_keySelector_elementSelector(
 }
 
 internal class GroupBy_keySelector_elementSelector_resultSelector(
-    int ç•ªå·,
+    int ”Ô†,
     Enumerable source,
     FuncFragment keySelector,
     FuncFragment elementSelector,
     FuncFragment resultSelector)
-    : Enumerable(ç•ªå·) {
+    : Enumerable(”Ô†) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 3
         && method.Parameters[2].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
@@ -225,7 +228,7 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector, elementSelector, resultSelector)}";
     public override string GetEnumeratorFields =>
         GroupBySupport.Fields(this.KeyType,this.ElemType,this.group,this.lookup,this.hasValue);
-    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanProvideSpan,this.KeyType,this.ElemType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),$"{this.ElemType} {this.a}=default!;\n{this.FuncAssign(elementSelector,nameof(elementSelector),this.a,this.item)}",this.a,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
+    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,this.ElemType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),$"{this.ElemType} {this.a}=default!;\n{this.FuncAssign(elementSelector,nameof(elementSelector),this.a,this.item)}",this.a,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
         {{this.FuncAssignCurrent(resultSelector,nameof(resultSelector),this.currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{this.ElemType}>)__cur")}}
         return true;
         """;

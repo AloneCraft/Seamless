@@ -1,6 +1,6 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Tsavorite.SourceGenerator.Linq.Fragments;
 
-public abstract class SetBase(int 番号,Enumerable source,Enumerable second,string comparer,ISetOperationStrategy operation):Enumerable(番号),ConsumeDirectExecutionFragment{
+public abstract class SetBase(int �ԍ�,Enumerable source,Enumerable second,string comparer,ISetOperationStrategy operation):Enumerable(�ԍ�),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=>string.Empty;
     protected override string StructTypeParameters=>"<TEnum1,TEnum2>";
@@ -71,9 +71,9 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
     public override string ElementType=>source.ElementType;
     protected override string GetEnumeratorDisposeBody=>"source.Dispose();\nsecond.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName){
-        var sourceName=$"__src{番号}";
-        var secondName=$"__sec{番号}";
-        var setName=$"__set{番号}";
+        var sourceName=$"__src{�ԍ�}";
+        var secondName=$"__sec{�ԍ�}";
+        var setName=$"__set{�ԍ�}";
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
@@ -83,22 +83,22 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
                 if({{setName}}.Add(value)){
                     {{consumerName}}.Consume(value);
                 }
-                """,source.CanProvideSpan);
+                """,source.CanTryProvideSpan);
             TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
                 if({{setName}}.Add({{this.SecondValueExpression("value")}})){
                     {{consumerName}}.Consume({{this.SecondValueExpression("value")}});
                 }
-                """,second.CanProvideSpan);
+                """,second.CanTryProvideSpan);
             return builder.ToString().TrimEnd();
         }
         TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
             {{setName}}.Add({{this.SecondValueExpression("value")}});
-            """,second.CanProvideSpan);
+            """,second.CanTryProvideSpan);
         TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
             if({{setName}}.{{operation.SourceAcceptMethod}}(value)){
                 {{consumerName}}.Consume(value);
             }
-            """,source.CanProvideSpan);
+            """,source.CanTryProvideSpan);
         return builder.ToString().TrimEnd();
     }
     private string SecondValueExpression(string valueName){
@@ -109,7 +109,7 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
     }
 }
 
-public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,FuncFragment keySelector,string comparer,ISetByOperationStrategy operation):Enumerable(番号),ConsumeDirectExecutionFragment{
+public abstract class SetByBase(int �ԍ�,Enumerable source,Enumerable second,FuncFragment keySelector,string comparer,ISetByOperationStrategy operation):Enumerable(�ԍ�),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
     protected override string StructTypeParameters=>"<TEnum1,TEnum2>";
@@ -211,9 +211,9 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
     public override string ElementType=>source.ElementType;
     protected override string GetEnumeratorDisposeBody=>"source.Dispose();\nsecond.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName){
-        var sourceName=$"__src{番号}";
-        var secondName=$"__sec{番号}";
-        var setName=$"__set{番号}";
+        var sourceName=$"__src{�ԍ�}";
+        var secondName=$"__sec{�ԍ�}";
+        var setName=$"__set{�ԍ�}";
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
@@ -224,23 +224,23 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
                     if({{setName}}.Add(value)){
                         {{consumerName}}.Consume(value);
                     }
-                    """,source.CanProvideSpan);
+                    """,source.CanTryProvideSpan);
                 TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
                     if({{setName}}.Add(value)){
                         {{consumerName}}.Consume(value);
                     }
-                    """,second.CanProvideSpan);
+                    """,second.CanTryProvideSpan);
                 return builder.ToString().TrimEnd();
             }
             TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
                 {{setName}}.Add(value);
-                """,second.CanProvideSpan);
+                """,second.CanTryProvideSpan);
             TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
                 if(!{{setName}}.{{operation.SourceAcceptMethod}}(value)){
                     continue;
                 }
                 {{consumerName}}.Consume(value);
-                """,source.CanProvideSpan);
+                """,source.CanTryProvideSpan);
             return builder.ToString().TrimEnd();
         }
         this.AppendSetByCollectLoop(builder,secondName,setName);
@@ -252,7 +252,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
             {{this.FuncAssign(keySelector,nameof(keySelector),this.key,"value")}}
             {{setName}}.Add({{this.key}});
-            """,second.CanProvideSpan);
+            """,second.CanTryProvideSpan);
     }
     private void AppendSetByConsumeLoop(StringBuilder builder,string enumeratorName,string consumerName,string setName,string operationMethod){
         TraversalSupport.AppendTraversalLoop(builder,enumeratorName,source.ElementType,"value",$$"""
@@ -262,7 +262,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
                 continue;
             }
             {{consumerName}}.Consume(value);
-            """,source.CanProvideSpan);
+            """,source.CanTryProvideSpan);
     }
     private string SecondKeyExpression(string valueName){
         if(FuncReturnTypeName(keySelector)==second.ElementType){

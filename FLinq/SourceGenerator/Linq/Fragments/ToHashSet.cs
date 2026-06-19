@@ -47,7 +47,11 @@ public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSet
             }else{
                 result=new();
             }
-            while(source.MoveNext()) result.Add(source.Current);
+            if(source.TryGetSpan(out var __span)){
+                foreach(var item in __span) result.Add(item);
+            }else{
+                while(source.MoveNext()) result.Add(source.Current);
+            }
             return result;
         }
         """;
@@ -97,7 +101,11 @@ public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,str
             }else{
                 result=new(comparer);
             }
-            while(source.MoveNext()) result.Add(source.Current);
+            if(source.TryGetSpan(out var __span)){
+                foreach(var item in __span) result.Add(item);
+            }else{
+                while(source.MoveNext()) result.Add(source.Current);
+            }
             return result;
         }
         """;

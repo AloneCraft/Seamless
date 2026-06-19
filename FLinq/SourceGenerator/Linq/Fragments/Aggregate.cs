@@ -9,17 +9,25 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
         var funcVar = $"__aggFunc{番号}";
         var funcSetup = this.DelegateLocal(func,funcVar);
         if(funcSetup is null) return null;
-        var fold = source.CanProvideSpan
+        var fold = source.CanTryProvideSpan
             ? $$"""
-                {{srcVar}}.TryGetSpan(out var __span);
-                if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
-                {{source.ElementType}} {{this.result}}=default!;
-                var __first=true;
-                foreach(var __item in __span){
-                    if(__first){
-                        {{this.result}}=__item;
-                        __first=false;
-                    }else{
+                {{source.ElementType}} {{this.result}};
+                if({{srcVar}}.TryGetSpan(out var __span)){
+                    if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                    {{this.result}}=default!;
+                    var __first=true;
+                    foreach(var __item in __span){
+                        if(__first){
+                            {{this.result}}=__item;
+                            __first=false;
+                        }else{
+                            {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                        }
+                    }
+                }else{
+                    if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                    {{this.result}}=__item;
+                    while({{srcVar}}.TryGetNext(out __item)){
                         {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
                     }
                 }
@@ -53,23 +61,31 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
     public override string GetEnumeratorFields => $$"""
         private bool {{this.yielded}} = false;
         """;
-    public override string GetTryGetNextBody => source.CanProvideSpan
+    public override string GetTryGetNextBody => source.CanTryProvideSpan
         ? $$"""
             if(this.{{this.yielded}}) {
                 current = default!;
                 return false;
             }
             this.{{this.yielded}} = true;
-            {{this.e}}.TryGetSpan(out var __span);
-            if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
-            {{source.ElementType}} {{this.result}}=default!;
-            var __first=true;
-            foreach(var __item in __span){
-                if(__first){
-                    {{this.result}}=__item;
-                    __first=false;
-                }else{
-                    {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+            {{source.ElementType}} {{this.result}};
+            if({{this.e}}.TryGetSpan(out var __span)){
+                if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                {{this.result}}=default!;
+                var __first=true;
+                foreach(var __item in __span){
+                    if(__first){
+                        {{this.result}}=__item;
+                        __first=false;
+                    }else{
+                        {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+                    }
+                }
+            }else{
+                if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                {{this.result}}={{this.item}};
+                while({{this.e}}.TryGetNext(out {{this.item}})){
+                    {{this.FuncAssign(func,nameof(func),this.result,this.result,this.item)}}
                 }
             }
             this.{{this.currentValue}}={{this.result}};
@@ -105,11 +121,16 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
         var funcVar = $"__aggFunc{番号}";
         var funcSetup = this.DelegateLocal(func,funcVar);
         if(funcSetup is null) return null;
-        var fold = source.CanProvideSpan
+        var fold = source.CanTryProvideSpan
             ? $$"""
-                {{srcVar}}.TryGetSpan(out var __span);
-                foreach(var __item in __span){
-                    {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                if({{srcVar}}.TryGetSpan(out var __span)){
+                    foreach(var __item in __span){
+                        {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                    }
+                }else{
+                    while({{srcVar}}.TryGetNext(out var __item)){
+                        {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                    }
                 }
                 """
             : $$"""
@@ -140,7 +161,7 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
     public override string GetEnumeratorFields => $$"""
         private bool {{this.yielded}} = false;
         """;
-    public override string GetTryGetNextBody => source.CanProvideSpan
+    public override string GetTryGetNextBody => source.CanTryProvideSpan
         ? $$"""
             if(this.{{this.yielded}}) {
                 current = default!;
@@ -148,9 +169,14 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
             }
             this.{{this.yielded}} = true;
             var {{this.result}} = {{seed}};
-            {{this.e}}.TryGetSpan(out var __span);
-            foreach(var __item in __span){
-                {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+            if({{this.e}}.TryGetSpan(out var __span)){
+                foreach(var __item in __span){
+                    {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+                }
+            }else{
+                while({{this.e}}.TryGetNext(out var {{this.item}})){
+                    {{this.FuncAssign(func,nameof(func),this.result,this.result,this.item)}}
+                }
             }
             this.{{this.currentValue}}={{this.result}};
             current=this.{{this.currentValue}};
@@ -186,11 +212,16 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
         var funcSetup = this.DelegateLocal(func,funcVar);
         var resultSelectorSetup = this.DelegateLocal(resultSelector,resultSelectorVar);
         if(funcSetup is null || resultSelectorSetup is null) return null;
-        var fold = source.CanProvideSpan
+        var fold = source.CanTryProvideSpan
             ? $$"""
-                {{srcVar}}.TryGetSpan(out var __span);
-                foreach(var __item in __span){
-                    {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                if({{srcVar}}.TryGetSpan(out var __span)){
+                    foreach(var __item in __span){
+                        {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                    }
+                }else{
+                    while({{srcVar}}.TryGetNext(out var __item)){
+                        {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                    }
                 }
                 """
             : $$"""
@@ -225,7 +256,7 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
     public override string GetEnumeratorFields => $$"""
         private bool {{this.yielded}} = false;
         """;
-    public override string GetTryGetNextBody => source.CanProvideSpan
+    public override string GetTryGetNextBody => source.CanTryProvideSpan
         ? $$"""
             if(this.{{this.yielded}}) {
                 current = default!;
@@ -233,9 +264,14 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
             }
             this.{{this.yielded}} = true;
             var {{this.result}} = {{seed}};
-            {{this.e}}.TryGetSpan(out var __span);
-            foreach(var __item in __span){
-                {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+            if({{this.e}}.TryGetSpan(out var __span)){
+                foreach(var __item in __span){
+                    {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+                }
+            }else{
+                while({{this.e}}.TryGetNext(out var {{this.item}})){
+                    {{this.FuncAssign(func,nameof(func),this.result,this.result,this.item)}}
+                }
             }
             {{this.FuncAssign(resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.result)}}
             current=this.{{this.currentValue}};

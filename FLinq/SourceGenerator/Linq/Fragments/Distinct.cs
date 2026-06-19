@@ -1,10 +1,10 @@
-ï»¿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Tsavorite.SourceGenerator.Linq.Fragments;
 
-internal class Distinct(int ç•ªå·,Enumerable source):Distinct_comparer(ç•ªå·,source,"null");
+internal class Distinct(int ”Ô†,Enumerable source):Distinct_comparer(”Ô†,source,"null");
 
-internal class Distinct_comparer(int ç•ªå·,Enumerable source,string comparer):DistinctBase(ç•ªå·,source,comparer);
+internal class Distinct_comparer(int ”Ô†,Enumerable source,string comparer):DistinctBase(”Ô†,source,comparer);
 
-internal abstract class DistinctBase(int ç•ªå·,Enumerable source,string comparer):Enumerable(ç•ªå·),ConsumeDirectExecutionFragment{
+internal abstract class DistinctBase(int ”Ô†,Enumerable source,string comparer):Enumerable(”Ô†),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=>string.Empty;
     public override string GetEnumerableExpression=>$"global::Tsavorite.Carrier.ValueEnumerableExtensions.Distinct({source.GetEnumerableExpression},{comparer})";
@@ -18,8 +18,8 @@ internal abstract class DistinctBase(int ç•ªå·,Enumerable source,string compare
     public override string GetEnumeratorFields=>$$"""
         private global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{this.lookup}};
         private static global::System.Collections.Generic.HashSet<{{source.ElementType}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
-            // Distinct ã¯åˆ—æŒ™é€”ä¸­ã§ set ã‚’æ›´æ–°ã—ç¶šã‘ã‚‹ãŸã‚ã€ã“ã“ã§ã¯ root ã®å‹ã«å¿œã˜ãŸ span åˆ¤å®šã‚’å…¥ã‚Œãªã„ã€‚
-            // ç”Ÿæˆæ™‚ç‚¹ã§ root ãŒ span ç›´èµ°æŸ»ã§ãã‚‹å ´åˆã¯ä¸Šä½ã® consumer å°‚ç”¨ lowering ãŒé¸ã°ã‚Œã€ãã‚Œä»¥å¤–ã¯ã“ã® enumerator çµŒè·¯ã«è½ã¡ã‚‹ã€‚
+            // Distinct ‚Í—ñ‹““r’†‚Å set ‚ğXV‚µ‘±‚¯‚é‚½‚ßA‚±‚±‚Å‚Í root ‚ÌŒ^‚É‰‚¶‚½ span ”»’è‚ğ“ü‚ê‚È‚¢B
+            // ¶¬“_‚Å root ‚ª span ’¼‘–¸‚Å‚«‚éê‡‚ÍãˆÊ‚Ì consumer ê—p lowering ‚ª‘I‚Î‚êA‚»‚êˆÈŠO‚Í‚±‚Ì enumerator Œo˜H‚É—‚¿‚éB
             if(source.TryGetNonEnumeratedCount(out var {{this.count}})){
                 return new global::System.Collections.Generic.HashSet<{{source.ElementType}}>({{this.count}},comparer);
             }else{
@@ -40,7 +40,7 @@ internal abstract class DistinctBase(int ç•ªå·,Enumerable source,string compare
     public override string GetCurrentExpression=> this.currentValue;
     public override string ElementType=>source.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName){
-        var sourceName=$"__src{ç•ªå·}";
+        var sourceName=$"__src{”Ô†}";
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         TraversalSupport.AppendHashSetInitialization(builder,this.lookup,source.ElementType,sourceName,comparer);
@@ -48,12 +48,12 @@ internal abstract class DistinctBase(int ç•ªå·,Enumerable source,string compare
             if({{this.lookup}}.Add(value)){
                 {{consumerName}}.Consume(value);
             }
-            """,source.CanProvideSpan);
+            """,source.CanTryProvideSpan);
         return builder.ToString().TrimEnd();
     }
 }
 
-internal abstract class DistinctByBase(int ç•ªå·,Enumerable source,FuncFragment keySelector,string comparer):Enumerable(ç•ªå·),ConsumeDirectExecutionFragment{
+internal abstract class DistinctByBase(int ”Ô†,Enumerable source,FuncFragment keySelector,string comparer):Enumerable(”Ô†),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     private FuncFragment KeySelector=>keySelector;
     private string Comparer=>comparer;
@@ -69,8 +69,8 @@ internal abstract class DistinctByBase(int ç•ªå·,Enumerable source,FuncFragment
     public override string GetEnumeratorFields=>$$"""
         private global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> {{this.lookup}};
         private static global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
-            // DistinctBy ã‚‚åŒã˜ã§ã€span èµ°æŸ»ã‹ã©ã†ã‹ã®åˆ¤å®šã¯ã“ã“ã§ã¯ã—ãªã„ã€‚
-            // ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«æ™‚ã« root å½¢çŠ¶ãŒåˆ†ã‹ã‚‹å ´åˆã¯ä¸Šä½ã§å°‚ç”¨ç”Ÿæˆã•ã‚Œã‚‹ãŸã‚ã€ã“ã“ã¯æ±ç”¨çµŒè·¯ã¨ã—ã¦æœ€å°çŠ¶æ…‹ã ã‘ã‚’ä¿æŒã™ã‚‹ã€‚
+            // DistinctBy ‚à“¯‚¶‚ÅAspan ‘–¸‚©‚Ç‚¤‚©‚Ì”»’è‚Í‚±‚±‚Å‚Í‚µ‚È‚¢B
+            // ƒRƒ“ƒpƒCƒ‹‚É root Œ`ó‚ª•ª‚©‚éê‡‚ÍãˆÊ‚Åê—p¶¬‚³‚ê‚é‚½‚ßA‚±‚±‚Í”Ä—pŒo˜H‚Æ‚µ‚ÄÅ¬ó‘Ô‚¾‚¯‚ğ•Û‚·‚éB
             {{this.CreateLookupBody(FuncReturnTypeName(keySelector))}}
         }
         """;
@@ -93,8 +93,8 @@ internal abstract class DistinctByBase(int ç•ªå·,Enumerable source,FuncFragment
             && this.CanMergeWith(previous)) {
             return previous.GetConsumeExecutionStatement(consumerName);
         }
-        var sourceName=$"__src{ç•ªå·}";
-        var keyName=$"__key{ç•ªå·}";
+        var sourceName=$"__src{”Ô†}";
+        var keyName=$"__key{”Ô†}";
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         if(this.TryAppendSmallIntegralRangeConsume(builder,sourceName,keyName,consumerName)) {
@@ -112,7 +112,7 @@ internal abstract class DistinctByBase(int ç•ªå·,Enumerable source,FuncFragment
             if({{this.lookup}}.Add({{keyName}})){
                 {{consumerName}}.Consume(value);
             }
-            """,source.CanProvideSpan);
+            """,source.CanTryProvideSpan);
         return builder.ToString().TrimEnd();
     }
 
@@ -135,8 +135,8 @@ internal abstract class DistinctByBase(int ç•ªå·,Enumerable source,FuncFragment
             return false;
         }
 
-        var seenName=$"__seen{ç•ªå·}";
-        var seenIndexName=$"__seenIndex{ç•ªå·}";
+        var seenName=$"__seen{”Ô†}";
+        var seenIndexName=$"__seenIndex{”Ô†}";
         builder.AppendLine($"var {seenName}=new bool[{rangeCount}];");
         TraversalSupport.AppendTraversalLoop(
             builder,
@@ -151,7 +151,7 @@ internal abstract class DistinctByBase(int ç•ªå·,Enumerable source,FuncFragment
                 {{seenName}}[{{seenIndexName}}]=true;
                 {{consumerName}}.Consume(value);
             }
-            """,source.CanProvideSpan);
+            """,source.CanTryProvideSpan);
         return true;
     }
 
