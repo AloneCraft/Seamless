@@ -9,6 +9,8 @@ public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecu
     // この enumerable の enumerator が TryGetSpan で連続メモリの Span を返せるか。
     // ソース生成時に確定する（ArrayRoot/ListRoot のみ true）。span fast path を分岐なしで生成するために使う。
     public virtual bool CanProvideSpan => false;
+    // TryGetSpan を実行時に試してよいか。false の可能性があるため呼び出し側は必ず fallback を持つ。
+    public virtual bool CanTryProvideSpan => this.CanProvideSpan;
     // interceptor が IEnumerable<T> を返すときに使う ValueEnumerable 構築式。
     public virtual string GetEnumerableExpression => $"new global::Tsavorite.Carrier.ValueEnumerable<{this.EnumeratorTypeName}, {this.ElementType}>({this.GetEnumeratorExpression})";
     // 既定では下流の enumerator を Dispose する。
@@ -27,7 +29,7 @@ public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecu
         var enumeratorName=$"__ce{番号}";
         var valueName=$"__cv{番号}";
         builder.AppendLine($"using var {enumeratorName}={this.GetEnumeratorExpression};");
-        TraversalSupport.AppendTraversalLoop(builder,enumeratorName,this.ElementType,valueName,$"{consumerName}.Consume({valueName});",this.CanProvideSpan);
+        TraversalSupport.AppendTraversalLoop(builder,enumeratorName,this.ElementType,valueName,$"{consumerName}.Consume({valueName});",this.CanTryProvideSpan);
         return builder.ToString().TrimEnd();
     }
 }

@@ -18,6 +18,9 @@
     <PackageReference Include="ZLinq" Version="1.5.6" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="generated\**\*.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <Using Include="BenchmarkDotNet.Attributes" />
     <Using Include="BenchmarkDotNet.Configs" />
     <Using Include="BenchmarkDotNet.Engines" />

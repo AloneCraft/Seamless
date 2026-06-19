@@ -10,14 +10,17 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
         ?? this.RenderComputeInline(destVar,destType);
-    protected override string ComputeMembers => source.CanProvideSpan
+    protected override string ComputeMembers => source.CanTryProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source) {
                 {{resultType}} sum = default!;
-                source.TryGetSpan(out var __span);
                 checked{
-                    foreach(var item in __span) sum+=item;
+                    if(source.TryGetSpan(out var __span)){
+                        foreach(var item in __span) sum+=item;
+                    }else{
+                        while(source.MoveNext()) sum+=source.Current;
+                    }
                 }
                 return sum;
             }
@@ -51,17 +54,25 @@ public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, 
         ?? (TryRenderDirectLambda(selector) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum",lambda)
             : null);
-    protected override string ComputeMembers => source.CanProvideSpan
+    protected override string ComputeMembers => source.CanTryProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                 {{resultType}} sum = default!;
-                source.TryGetSpan(out var __span);
                 checked{
-                    foreach(var {{this.item}} in __span){
-                        {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
-                        {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
-                        sum+={{this.temp}};
+                    if(source.TryGetSpan(out var __span)){
+                        foreach(var {{this.item}} in __span){
+                            {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                            {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                            sum+={{this.temp}};
+                        }
+                    }else{
+                        while(source.MoveNext()){
+                            var {{this.item}}=source.Current;
+                            {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                            {{this.FuncAssign(selector,nameof(selector),this.temp,this.item)}}
+                            sum+={{this.temp}};
+                        }
                     }
                 }
                 return sum;

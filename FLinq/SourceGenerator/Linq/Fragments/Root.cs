@@ -6,6 +6,7 @@
 // 構造体 Struct1<TEnum> は TEnum でパラメータ化され、呼び出し側で具体型引数により単相化される。
 public class Root(int 番号, string sourceExpression, string elementType, string enumeratorTypeName, bool useEnumerableInterface) : Enumerable(番号) {
     public override bool CanProvideSpan => false;
+    public override bool CanTryProvideSpan => useEnumerableInterface;
     public override string StructMethod => string.Empty;
     // 型引数を埋め込んだ完全な struct 名（呼び出し側では具象型引数を持つ）。
     public override string EnumeratorTypeName => useEnumerableInterface

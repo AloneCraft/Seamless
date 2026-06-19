@@ -17,24 +17,44 @@ public class TakeLast(int 番号, Enumerable source, string takeCount) : Enumera
         """;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}, {this.EffectiveTakeCount})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int count";
-    public override string GetEnumeratorFields => this.RootSource.CanProvideSpan
+    public override string GetEnumeratorFields => this.RootSource.CanTryProvideSpan
         ? $$"""
             private int {{this.a}}=-1;
             private int {{this.temp}};
+            private global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>? {{this.lookup}};
             """
         : $$"""
             private global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>? {{this.lookup}};
             """;
-    public override string GetTryGetNextBody => this.RootSource.CanProvideSpan
+    public override string GetTryGetNextBody => this.RootSource.CanTryProvideSpan
         ? $$"""
-            {{this.e}}.TryGetSpan(out var __span);
-            if(this.{{this.a}}<0) {
-                var __c=count<0?0:count;
-                this.{{this.a}}=__span.Length-global::System.Math.Min(__c,__span.Length);
-                this.{{this.temp}}=__span.Length;
+            if({{this.e}}.TryGetSpan(out var __span)) {
+                if(this.{{this.a}}<0) {
+                    var __spanCount=count<0?0:count;
+                    this.{{this.a}}=__span.Length-global::System.Math.Min(__spanCount,__span.Length);
+                    this.{{this.temp}}=__span.Length;
+                }
+                if((uint)this.{{this.a}}<(uint)this.{{this.temp}}) {
+                    current=this.{{this.currentValue}}=__span[this.{{this.a}}++];
+                    return true;
+                }
+                current=default!;
+                return false;
             }
-            if((uint)this.{{this.a}}<(uint)this.{{this.temp}}) {
-                current=this.{{this.currentValue}}=__span[this.{{this.a}}++];
+            var __takeCount=count<0?0:count;
+            if(this.{{this.lookup}} is null) {
+                this.{{this.lookup}}=new global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>(__takeCount);
+                if(__takeCount==0) {
+                    current=default!;
+                    return false;
+                }
+                while({{this.e}}.MoveNext()) {
+                    if(this.{{this.lookup}}.Count==__takeCount) this.{{this.lookup}}.Dequeue();
+                    this.{{this.lookup}}.Enqueue({{this.e}}.Current);
+                }
+            }
+            if(this.{{this.lookup}}.Count>0) {
+                current=this.{{this.currentValue}}=this.{{this.lookup}}.Dequeue();
                 return true;
             }
             current=default!;
