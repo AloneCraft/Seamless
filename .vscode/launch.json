@@ -9,12 +9,12 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-benchmark",
-            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
+            "program": "${workspaceFolder}/Benchmark/bin/Tsavorite.Benchmark/2.0beta3/Debug/net10.0/Tsavorite.Benchmark.dll",
             "args": ["--filter", "*${fileBasenameNoExtension}*"],
             "env": {
                 "BDN_DEBUG": "1"
             },
-            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "cwd": "${workspaceFolder}/Benchmark",
             "console": "integratedTerminal",
             "stopAtEntry": false
         },
@@ -23,11 +23,11 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-benchmark",
-            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
+            "program": "${workspaceFolder}/Benchmark/bin/Tsavorite.Benchmark/2.0beta3/Debug/net10.0/Tsavorite.Benchmark.dll",
             "env": {
                 "BDN_DEBUG": "1"
             },
-            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "cwd": "${workspaceFolder}/Benchmark",
             "console": "integratedTerminal",
             "stopAtEntry": false
         },
@@ -36,12 +36,12 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-benchmark",
-            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Debug/net10.0/Benchmark.dll",
+            "program": "${workspaceFolder}/Benchmark/bin/Tsavorite.Benchmark/2.0beta3/Debug/net10.0/Tsavorite.Benchmark.dll",
             "env": {
                 "BDN_DEBUG": "1",
                 "SEAMLESS_BENCHMARK_SINGLE_FILE": "1"
             },
-            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "cwd": "${workspaceFolder}/Benchmark",
             "console": "integratedTerminal",
             "stopAtEntry": false
         },
@@ -50,9 +50,9 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-benchmark-release",
-            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Release/net10.0/Benchmark.dll",
+            "program": "${workspaceFolder}/Benchmark/bin/Tsavorite.Benchmark/2.0beta3/Release/net10.0/Tsavorite.Benchmark.dll",
             "args": ["--filter", "*${fileBasenameNoExtension}*"],
-            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "cwd": "${workspaceFolder}/Benchmark",
             "console": "integratedTerminal",
             "stopAtEntry": false
         },
@@ -61,8 +61,8 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-benchmark-release",
-            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Release/net10.0/Benchmark.dll",
-            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "program": "${workspaceFolder}/Benchmark/bin/Tsavorite.Benchmark/2.0beta3/Release/net10.0/Tsavorite.Benchmark.dll",
+            "cwd": "${workspaceFolder}/Benchmark",
             "console": "integratedTerminal",
             "stopAtEntry": false
         },
@@ -71,11 +71,21 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-benchmark-release",
-            "program": "${workspaceFolder}/sandbox/Benchmark/bin/Release/net10.0/Benchmark.dll",
+            "program": "${workspaceFolder}/Benchmark/bin/Tsavorite.Benchmark/2.0beta3/Release/net10.0/Tsavorite.Benchmark.dll",
             "env": {
                 "SEAMLESS_BENCHMARK_SINGLE_FILE": "1"
             },
-            "cwd": "${workspaceFolder}/sandbox/Benchmark",
+            "cwd": "${workspaceFolder}/Benchmark",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "System.Linq.Enumerable.Intercept Runner(Debug)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-system-linq-intercept-runner",
+            "program": "${workspaceFolder}/Benchmark.System.Linq.Enumerable.Intercept.Runner/bin/Debug/net10.0/Benchmark.System.Linq.Enumerable.Intercept.Runner.dll",
+            "cwd": "${workspaceFolder}/Benchmark.System.Linq.Enumerable.Intercept.Runner",
             "console": "integratedTerminal",
             "stopAtEntry": false
         }

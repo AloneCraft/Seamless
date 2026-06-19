@@ -1,4 +1,0 @@
-interface:
-  display_name: "Unity Headless Automation"
-  short_description: "Automate Unity checks and screenshots"
-  default_prompt: "Run Unity automation to generate, validate, screenshot, and iterate without manual editor clicks."

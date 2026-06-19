@@ -1,0 +1,44 @@
+using SystemEnumerable = global::System.Linq.Enumerable;
+
+namespace Test.System.Linq.Intercept.Chain1;
+
+public sealed class SequenceEqual(ITestOutputHelper output):LinqChain1TestBase(output) {
+    [Fact, Trait("Category","Unit")]
+    public void second() {
+        var expected=Source().SequenceEqual(EqualSource());
+        this.MeasureOptimized(nameof(secondOptimized),()=>secondOptimized(expected));
+        this.MeasureOptimized(nameof(secondNoOptimized),()=>secondNoOptimized(expected));
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void secondOptimized(dynamic expected) {
+        var actual=Source().SequenceEqual(EqualSource());
+        Assert.Equal(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void secondNoOptimized(dynamic expected) {
+        var actual=Source().SequenceEqual(EqualSource());
+        Assert.Equal(expected,actual);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void second_comparer() {
+        var expected=Source().SequenceEqual(EqualSource(),EqualityComparer<int>.Default);
+        this.MeasureOptimized(nameof(second_comparerOptimized),()=>second_comparerOptimized(expected));
+        this.MeasureOptimized(nameof(second_comparerNoOptimized),()=>second_comparerNoOptimized(expected));
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void second_comparerOptimized(dynamic expected) {
+        var actual=Source().SequenceEqual(EqualSource(),EqualityComparer<int>.Default);
+        Assert.Equal(expected,actual);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static void second_comparerNoOptimized(dynamic expected) {
+        var actual=Source().SequenceEqual(EqualSource(),EqualityComparer<int>.Default);
+        Assert.Equal(expected,actual);
+    }
+
+}
