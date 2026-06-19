@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Microsoft.VisualBasic.FileIO;
@@ -10,36 +9,55 @@ using Microsoft.UI.Xaml.Input;
 namespace Labo.Benchmark.Runner.Uno;
 
 public sealed partial class MainPage:Page{
+    private const string TargetFramework = "net10.0";
+
     private readonly string repositoryRoot = FindRepositoryRoot();
     private readonly ObservableCollection<BenchmarkItem> benchmarks = [];
+    private readonly ObservableCollection<CpuCoreInfo> cpuCores = [];
+    private readonly ObservableCollection<BenchmarkRunItem> runningItems = [];
+    private readonly object runGate = new();
+    private readonly Queue<BenchmarkRunItem> pendingRunItems = new();
+    private readonly List<BenchmarkRunItem> allRunItems = [];
+    private readonly Dictionary<int,Task> cpuWorkers = [];
+    private readonly Dictionary<int,Process> runningProcesses = [];
+    private readonly HashSet<int> requeueOnProcessExit = [];
+    private readonly Dictionary<string,IReadOnlyList<BenchmarkProjectMethod>> methodCache = new(StringComparer.Ordinal);
     private readonly IReadOnlyList<BenchmarkProject> benchmarkProjects = [
-        new("System LINQ","Labo.Benchmark.System.Linq.Enumerable.Linq\\Labo.Benchmark.System.Linq.Enumerable.Linq.csproj",true),
-        new("System FLinq","Labo.Benchmark.System.Linq.Enumerable.Flinq\\Labo.Benchmark.System.Linq.Enumerable.Flinq.csproj",false),
-        new("System ZLinq","Labo.Benchmark.System.Linq.Enumerable.ZLinq\\Labo.Benchmark.System.Linq.Enumerable.ZLinq.csproj",false),
-        new("Tsavorite IEnumerable LINQ","Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableLinq\\Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableLinq.csproj",false),
-        new("Tsavorite IEnumerable FLinq","Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFlinq\\Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFlinq.csproj",false),
-        new("Tsavorite IEnumerable ZLinq","Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableZLinq\\Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableZLinq.csproj",false),
-        new("Tsavorite IHashSet LINQ","Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetLinq\\Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetLinq.csproj",false),
-        new("Tsavorite IHashSet FLinq","Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetFlinq\\Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetFlinq.csproj",false),
+        new("System LINQ","Labo.Benchmark.System.Linq.Enumerable.Linq\\Labo.Benchmark.System.Linq.Enumerable.Linq.csproj","Labo.Benchmark.System.Linq.Enumerable.Linq",true),
+        new("System FLinq","Labo.Benchmark.System.Linq.Enumerable.Flinq\\Labo.Benchmark.System.Linq.Enumerable.Flinq.csproj","Labo.Benchmark.System.Linq.Enumerable.FLinq",false),
+        new("System ZLinq","Labo.Benchmark.System.Linq.Enumerable.ZLinq\\Labo.Benchmark.System.Linq.Enumerable.ZLinq.csproj","Labo.Benchmark.System.Linq.Enumerable.ZLinq",false),
+        new("Tsavorite IEnumerable LINQ","Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableLinq\\Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableLinq.csproj","Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableLinq",false),
+        new("Tsavorite IEnumerable FLinq","Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFlinq\\Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFlinq.csproj","Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFLinq",false),
+        new("Tsavorite IEnumerable ZLinq","Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableZLinq\\Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableZLinq.csproj","Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableZLinq",false),
+        new("Tsavorite IHashSet LINQ","Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetLinq\\Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetLinq.csproj","Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetLinq",false),
+        new("Tsavorite IHashSet FLinq","Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetFlinq\\Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetFlinq.csproj","Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetFLinq",false),
     ];
+    private BenchmarkProject canonicalMethodProject => benchmarkProjects[0];
 
     private CancellationTokenSource? runCancellation;
     private string? lastReportPath;
+    private string? currentRunRoot;
     private int? selectionAnchorIndex;
     private bool isShiftDown;
     private bool isControlDown;
     private bool isBusy;
+    private bool isRunning;
+    private bool projectSelectionDirty = true;
 
     public MainPage(){
-        this.InitializeComponent();
+        InitializeComponent();
     }
 
-    private void OnPageLoaded(object sender,RoutedEventArgs e){
+    private async void OnPageLoaded(object sender,RoutedEventArgs e){
         InitializeProjectGrid();
+        InitializeCpuList();
         BenchmarkItemsControl.ItemsSource=benchmarks;
-
+        CpuItemsControl.ItemsSource=cpuCores;
+        RunningItemsControl.ItemsSource=runningItems;
         UpdateSelectionSummary();
+        UpdateProgress();
         UpdateCommandState();
+        await LoadSelectedProjectsAsync(CancellationToken.None);
     }
 
     private void InitializeProjectGrid(){
@@ -64,8 +82,18 @@ public sealed partial class MainPage:Page{
         }
     }
 
+    private void InitializeCpuList(){
+        if(cpuCores.Count>0){
+            return;
+        }
+
+        foreach(var cpu in CpuTopologyProvider.Load()){
+            cpuCores.Add(cpu);
+        }
+    }
+
     private async void OnLoadClick(object sender,RoutedEventArgs e){
-        await LoadSelectedProjectsAsync();
+        await LoadSelectedProjectsAsync(CancellationToken.None);
     }
 
     private void OnProjectCheckBoxClick(object sender,RoutedEventArgs e){
@@ -73,7 +101,25 @@ public sealed partial class MainPage:Page{
             project.IsSelected=checkBox.IsChecked==true;
         }
 
+        RefreshBenchmarksFromCache();
+        UpdateSelectionSummary();
         UpdateCommandState();
+    }
+
+    private void OnCpuCheckBoxClick(object sender,RoutedEventArgs e){
+        if(!isRunning||sender is not CheckBox checkBox||checkBox.DataContext is not CpuCoreInfo cpu){
+            UpdateCpuSummary();
+            return;
+        }
+
+        if(checkBox.IsChecked==true){
+            StartWorkerForCpu(cpu);
+        }else{
+            StopCpuAndRequeue(cpu.LogicalProcessorIndex);
+        }
+
+        UpdateCpuSummary();
+        UpdateProgress();
     }
 
     private void OnSelectAllClick(object sender,RoutedEventArgs e){
@@ -103,26 +149,27 @@ public sealed partial class MainPage:Page{
             return;
         }
 
+        if(projectSelectionDirty||benchmarks.Count==0){
+            await LoadSelectedProjectsAsync(CancellationToken.None);
+        }
+
         var selected = benchmarks.Where(static benchmark => benchmark.IsSelected).ToArray();
         if(selected.Length==0){
             SetStatus("Select at least one benchmark.");
             return;
         }
 
-        var filter = selected.Length==benchmarks.Count
-            ? "*"
-            : string.Join("|",selected.Select(static benchmark => $"*{benchmark.MethodName}*"));
-
-        var benchmarkArgs = new List<string>{"--filter",filter};
-        if(SingleFileCheckBox.IsChecked==true){
-            benchmarkArgs.Add("--single-file");
+        if(cpuCores.All(static cpu => !cpu.IsSelected)){
+            SetStatus("Select at least one CPU.");
+            return;
         }
 
-        await RunBenchmarksAsync(projects,benchmarkArgs);
+        await RunBenchmarksAsync(projects,selected);
     }
 
     private void OnCancelClick(object sender,RoutedEventArgs e){
         runCancellation?.Cancel();
+        KillAllRunningProcesses(requeue:false);
     }
 
     private void OnOpenReportClick(object sender,RoutedEventArgs e){
@@ -183,76 +230,426 @@ public sealed partial class MainPage:Page{
         }
     }
 
-    private async Task LoadSelectedProjectsAsync(){
+    private async Task LoadSelectedProjectsAsync(CancellationToken cancellationToken){
         var projects = GetSelectedProjects();
         if(projects.Count==0){
             SetStatus("Select at least one project.");
             return;
         }
 
-        var project = projects[0];
-        SetBusy(true);
+        SetBusy(true,allowCpuChanges:false);
+        var selectedMethodNames = GetSelectedMethodNames();
         benchmarks.Clear();
         selectionAnchorIndex=null;
         SetReportPath(null);
         LogTextBox.Text=string.Empty;
-        SetStatus($"Loading methods from {project.DisplayName}...");
+        SetStatus("Loading canonical method list...");
 
         try{
-            var args = BuildDotnetRunArgs(project,GetConfiguration(),["--list-json"]);
-            var result = await RunProcessAsync(args,AppendLog,CancellationToken.None);
-            if(result.ExitCode!=0){
-                SetStatus($"List failed: exit code {result.ExitCode}");
-                return;
-            }
-
-            foreach(var item in ParseBenchmarkItems(result.StandardOutput)){
-                benchmarks.Add(item);
-            }
-
-            SetStatus($"Loaded {benchmarks.Count} methods for {projects.Count} selected projects.");
-        }catch(Exception ex){
-            SetStatus(ex.Message);
-            AppendLog(ex.ToString());
-        }finally{
-            SetBusy(false);
-            UpdateSelectionSummary();
-            UpdateCommandState();
-        }
-    }
-
-    private async Task RunBenchmarksAsync(IReadOnlyList<BenchmarkProject> projects,IReadOnlyList<string> benchmarkArgs){
-        runCancellation=new CancellationTokenSource();
-        SetBusy(true);
-        SetStatus($"Running {projects.Count} projects...");
-
-        try{
-            var exitCode = 0;
-            foreach(var project in projects){
-                SetStatus($"Running {project.DisplayName}...");
-                var args = BuildDotnetRunArgs(project,GetConfiguration(),benchmarkArgs);
-                var result = await RunProcessAsync(args,AppendLog,runCancellation.Token);
-                if(result.ExitCode!=0){
-                    exitCode=result.ExitCode;
-                    break;
+            var configuration = GetConfiguration();
+            var canonicalCacheKey = GetMethodCacheKey(configuration,canonicalMethodProject);
+            if(!methodCache.ContainsKey(canonicalCacheKey)){
+                SetStatus($"Loading methods from {canonicalMethodProject.DisplayName}...");
+                var loadedMethods = await LoadProjectMethodListsAsync([canonicalMethodProject],configuration,cancellationToken);
+                foreach(var (projectKey,methods) in loadedMethods){
+                    methodCache[GetMethodCacheKey(configuration,projectKey)]=methods;
                 }
             }
 
-            SetReportPath(CreateComparisonReport(GetConfiguration()));
-            SetStatus(exitCode==0
-                ? "Benchmarks completed."
-                : $"Benchmark failed: exit code {exitCode}");
+            RefreshBenchmarksFromCache(selectedMethodNames);
+            SetStatus(projectSelectionDirty
+                ? "Press Load to load the canonical method list."
+                : $"Loaded {benchmarks.Count} common methods for {projects.Count} selected project(s).");
         }catch(OperationCanceledException){
-            SetStatus("Benchmark canceled.");
+            SetStatus("Load canceled.");
             AppendLog("Canceled.");
         }catch(Exception ex){
             SetStatus(ex.Message);
             AppendLog(ex.ToString());
         }finally{
+            SetBusy(false,allowCpuChanges:false);
+            UpdateSelectionSummary();
+            UpdateCommandState();
+        }
+    }
+
+    private async Task RunBenchmarksAsync(IReadOnlyList<BenchmarkProject> projects,IReadOnlyList<BenchmarkItem> selectedMethods){
+        runCancellation=new CancellationTokenSource();
+        currentRunRoot=CreateRunRoot(GetConfiguration());
+        SetReportPath(null);
+        SetBusy(true,allowCpuChanges:true);
+        SetStatus($"Preparing {projects.Count} project(s) x {selectedMethods.Count} method(s) = {projects.Count*selectedMethods.Count} task(s)...");
+        runningItems.Clear();
+
+        lock(runGate){
+            pendingRunItems.Clear();
+            allRunItems.Clear();
+            runningProcesses.Clear();
+            requeueOnProcessExit.Clear();
+            cpuWorkers.Clear();
+        }
+
+        try{
+            PrepareRunQueue(projects,selectedMethods);
+            UpdateProgress();
+            StartWorkersForSelectedCpus();
+            await WaitForRunCompletionAsync(runCancellation.Token);
+            var reportPath = CreateRunReport(currentRunRoot,includeHtml:SingleFileCheckBox.IsChecked==true);
+            SetReportPath(reportPath);
+            var failed = allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Failed);
+            SetStatus(failed==0
+                ? "Benchmarks completed."
+                : $"Benchmarks completed with {failed} failed task(s).");
+        }catch(OperationCanceledException){
+            var reportPath = CreateRunReport(currentRunRoot,includeHtml:true);
+            SetReportPath(reportPath);
+            SetStatus("Benchmark canceled. Partial report was written.");
+            AppendLog("Canceled.");
+        }catch(Exception ex){
+            var reportPath = CreateRunReport(currentRunRoot,includeHtml:true);
+            SetReportPath(reportPath);
+            SetStatus(ex.Message);
+            AppendLog(ex.ToString());
+        }finally{
+            KillAllRunningProcesses(requeue:false);
             runCancellation?.Dispose();
             runCancellation=null;
-            SetBusy(false);
+            isRunning=false;
+            SetBusy(false,allowCpuChanges:false);
             UpdateCommandState();
+            UpdateProgress();
+        }
+    }
+
+    private void PrepareRunQueue(IReadOnlyList<BenchmarkProject> projects,IReadOnlyList<BenchmarkItem> selectedMethods){
+        if(currentRunRoot is null){
+            throw new InvalidOperationException("Run root was not created.");
+        }
+
+        lock(runGate){
+            pendingRunItems.Clear();
+            allRunItems.Clear();
+            foreach(var method in selectedMethods){
+                foreach(var project in projects){
+                    if(!method.ProjectMethods.TryGetValue(project.ProjectKey,out var projectMethod)){
+                        throw new InvalidOperationException($"Benchmark method '{method.MethodName}' was not found in {project.DisplayName}.");
+                    }
+
+                    var item = new BenchmarkRunItem(project,method,projectMethod);
+                    pendingRunItems.Enqueue(item);
+                    allRunItems.Add(item);
+                }
+            }
+        }
+    }
+
+    private async Task<IReadOnlyDictionary<string,IReadOnlyList<BenchmarkProjectMethod>>> LoadProjectMethodListsAsync(
+        IReadOnlyList<BenchmarkProject> projects,
+        string configuration,
+        CancellationToken cancellationToken){
+        var result = new Dictionary<string,IReadOnlyList<BenchmarkProjectMethod>>(StringComparer.Ordinal);
+        foreach(var project in projects){
+            cancellationToken.ThrowIfCancellationRequested();
+            var dllPath = project.GetDllPath(repositoryRoot,configuration,TargetFramework);
+            if(!File.Exists(dllPath)){
+                throw new FileNotFoundException($"Benchmark DLL was not found: {dllPath}",dllPath);
+            }
+
+            SetStatus($"Loading methods from {project.DisplayName}...");
+            var processResult = await RunDotnetProcessAsync([dllPath,"--list-json"],project.GetProjectDirectory(repositoryRoot),AppendLog,cancellationToken);
+            if(processResult.ExitCode!=0){
+                throw new InvalidOperationException($"List failed for {project.DisplayName}: exit code {processResult.ExitCode}");
+            }
+
+            result[project.ProjectKey]=ParseBenchmarkMethods(processResult.StandardOutput);
+        }
+
+        return result;
+    }
+
+    private void RefreshBenchmarksFromCache(IReadOnlySet<string>? selectedMethodNames = null){
+        var projects = GetSelectedProjects();
+        selectedMethodNames ??= GetSelectedMethodNames();
+        benchmarks.Clear();
+        selectionAnchorIndex=null;
+        if(projects.Count==0){
+            projectSelectionDirty=true;
+            SetStatus("Select at least one project.");
+            return;
+        }
+
+        if(!methodCache.TryGetValue(GetMethodCacheKey(GetConfiguration(),canonicalMethodProject),out var canonicalMethods)){
+            projectSelectionDirty=true;
+            SetStatus("Press Load to load the canonical method list.");
+            return;
+        }
+
+        foreach(var item in CreateBenchmarkItemsFromCanonicalMethods(projects,canonicalMethods)){
+            item.IsSelected=selectedMethodNames.Contains(item.MethodName);
+            benchmarks.Add(item);
+        }
+
+        projectSelectionDirty=false;
+        SetStatus($"Loaded {benchmarks.Count} common methods for {projects.Count} selected project(s).");
+    }
+
+    private HashSet<string> GetSelectedMethodNames(){
+        return benchmarks
+            .Where(static benchmark => benchmark.IsSelected)
+            .Select(static benchmark => benchmark.MethodName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string GetMethodCacheKey(string configuration,BenchmarkProject project){
+        return GetMethodCacheKey(configuration,project.ProjectKey);
+    }
+
+    private static string GetMethodCacheKey(string configuration,string projectKey){
+        return configuration+"|"+projectKey;
+    }
+
+    private static IReadOnlyList<BenchmarkItem> CreateBenchmarkItemsFromCanonicalMethods(
+        IReadOnlyList<BenchmarkProject> projects,
+        IReadOnlyList<BenchmarkProjectMethod> canonicalMethods){
+        if(projects.Count==0){
+            return [];
+        }
+
+        return canonicalMethods
+            .GroupBy(static method => method.MethodName,StringComparer.OrdinalIgnoreCase)
+            .Select(static group => group.First())
+            .OrderBy(static method => method.MethodName,StringComparer.OrdinalIgnoreCase)
+            .Select(method => {
+                var methodsByProject = projects.ToDictionary(
+                    static project => project.ProjectKey,
+                    project => new BenchmarkProjectMethod(
+                        project.DisplayName,
+                        string.Empty,
+                        method.MethodName,
+                        method.MethodName,
+                        method.Categories),
+                    StringComparer.Ordinal);
+                return new BenchmarkItem(method.MethodName,method.MethodName,method.Categories,methodsByProject);
+            })
+            .ToArray();
+    }
+
+    private void StartWorkersForSelectedCpus(){
+        isRunning=true;
+        foreach(var cpu in cpuCores.Where(static cpu => cpu.IsSelected)){
+            StartWorkerForCpu(cpu);
+        }
+        UpdateCpuSummary();
+    }
+
+    private void StartWorkerForCpu(CpuCoreInfo cpu){
+        if(runCancellation is null){
+            return;
+        }
+
+        lock(runGate){
+            if(cpuWorkers.TryGetValue(cpu.LogicalProcessorIndex,out var existing)&&!existing.IsCompleted){
+                return;
+            }
+
+            cpuWorkers[cpu.LogicalProcessorIndex]=Task.Run(() => CpuWorkerLoopAsync(cpu,runCancellation.Token));
+        }
+    }
+
+    private async Task CpuWorkerLoopAsync(CpuCoreInfo cpu,CancellationToken cancellationToken){
+        try{
+            while(!cancellationToken.IsCancellationRequested&&cpu.IsSelected){
+                BenchmarkRunItem? item;
+                lock(runGate){
+                    item=pendingRunItems.Count>0 ? pendingRunItems.Dequeue() : null;
+                }
+
+                if(item is null){
+                    return;
+                }
+
+                try{
+                    await RunSingleBenchmarkAsync(item,cpu,cancellationToken);
+                }catch(OperationCanceledException){
+                    throw;
+                }catch(Exception ex){
+                    AppendLog(ex.ToString());
+                    await RunOnUiAsync(() => {
+                        runningItems.Remove(item);
+                        item.ProcessId=0;
+                        item.FinishedAt=DateTimeOffset.Now;
+                        item.Status=BenchmarkRunStatus.Failed;
+                    });
+                    UpdateProgress();
+                }
+            }
+        }finally{
+            lock(runGate){
+                cpuWorkers.Remove(cpu.LogicalProcessorIndex);
+            }
+        }
+    }
+
+    private async Task RunSingleBenchmarkAsync(BenchmarkRunItem item,CpuCoreInfo cpu,CancellationToken cancellationToken){
+        if(currentRunRoot is null){
+            throw new InvalidOperationException("Run root was not created.");
+        }
+
+        var attempt = item.Attempt+1;
+        var artifactFolder = Path.Combine(
+            currentRunRoot,
+            "artifacts",
+            BenchmarkText.SanitizePathPart(item.Project.AssemblyName),
+            BenchmarkText.SanitizePathPart(item.MethodName),
+            $"cpu{cpu.LogicalProcessorIndex}-attempt{attempt}");
+        Directory.CreateDirectory(artifactFolder);
+
+        await RunOnUiAsync(() => {
+            item.Attempt=attempt;
+            item.ArtifactFolder=artifactFolder;
+            item.AssignedCpu=cpu;
+            item.ProcessId=0;
+            item.StartedAt=DateTimeOffset.Now;
+            item.FinishedAt=null;
+            item.Status=BenchmarkRunStatus.Running;
+            runningItems.Add(item);
+        });
+        UpdateProgress();
+
+        var arguments = new List<string>{
+            item.Project.GetDllPath(repositoryRoot,GetConfiguration(),TargetFramework),
+            "--filter",
+            item.ProjectMethod.ExactFilter,
+            "--artifacts",
+            artifactFolder,
+        };
+        if(cpu.SupportsAffinity){
+            arguments.Add("--affinity");
+            arguments.Add(cpu.AffinityMask.ToString(CultureInfo.InvariantCulture));
+        }
+
+        ProcessResult result;
+        var requeue = false;
+        try{
+            result = await RunDotnetProcessAsync(
+                arguments,
+                item.Project.GetProjectDirectory(repositoryRoot),
+                AppendLog,
+                cancellationToken,
+                cpu.SupportsAffinity?cpu.AffinityMask:null,
+                process => {
+                    lock(runGate){
+                        runningProcesses[cpu.LogicalProcessorIndex]=process;
+                    }
+                    RunOnUi(() => item.ProcessId=process.Id);
+                });
+        }catch(OperationCanceledException){
+            await RunOnUiAsync(() => {
+                runningItems.Remove(item);
+                item.ProcessId=0;
+                item.FinishedAt=DateTimeOffset.Now;
+                item.Status=BenchmarkRunStatus.Canceled;
+            });
+            throw;
+        }finally{
+            lock(runGate){
+                runningProcesses.Remove(cpu.LogicalProcessorIndex);
+                requeue=requeueOnProcessExit.Remove(cpu.LogicalProcessorIndex);
+            }
+        }
+
+        await RunOnUiAsync(() => runningItems.Remove(item));
+
+        if(requeue&&!cancellationToken.IsCancellationRequested){
+            await RunOnUiAsync(() => {
+                item.Status=BenchmarkRunStatus.Pending;
+                item.ProcessId=0;
+                item.AssignedCpu=null;
+                item.FinishedAt=null;
+            });
+            lock(runGate){
+                pendingRunItems.Enqueue(item);
+            }
+            UpdateProgress();
+            return;
+        }
+
+        item.ExitCode=result.ExitCode;
+        var values = ReadResultValues(artifactFolder,item.MethodName);
+        await RunOnUiAsync(() => {
+            item.ExitCode=result.ExitCode;
+            item.Mean=values.Mean;
+            item.Error=values.Error;
+            item.StdDev=values.StdDev;
+            item.FinishedAt=DateTimeOffset.Now;
+            item.ProcessId=0;
+            item.Status=result.ExitCode==0 ? BenchmarkRunStatus.Completed : BenchmarkRunStatus.Failed;
+        });
+        UpdateProgress();
+    }
+
+    private async Task WaitForRunCompletionAsync(CancellationToken cancellationToken){
+        while(true){
+            cancellationToken.ThrowIfCancellationRequested();
+            Task[] workers;
+            lock(runGate){
+                if(pendingRunItems.Count==0&&runningProcesses.Count==0&&cpuWorkers.Count==0){
+                    return;
+                }
+
+                workers=cpuWorkers.Values.ToArray();
+            }
+
+            if(cpuCores.All(static cpu => !cpu.IsSelected)){
+                SetStatus("Paused. Select at least one CPU to resume.");
+            }else{
+                foreach(var cpu in cpuCores.Where(static cpu => cpu.IsSelected)){
+                    StartWorkerForCpu(cpu);
+                }
+            }
+
+            if(workers.Length>0){
+                await Task.WhenAny(Task.WhenAll(workers),Task.Delay(500,cancellationToken));
+            }else{
+                await Task.Delay(500,cancellationToken);
+            }
+        }
+    }
+
+    private void StopCpuAndRequeue(int logicalProcessorIndex){
+        Process? process = null;
+        lock(runGate){
+            if(runningProcesses.TryGetValue(logicalProcessorIndex,out process)){
+                requeueOnProcessExit.Add(logicalProcessorIndex);
+            }
+        }
+
+        KillProcess(process);
+    }
+
+    private void KillAllRunningProcesses(bool requeue){
+        Process[] processes;
+        lock(runGate){
+            if(requeue){
+                foreach(var key in runningProcesses.Keys){
+                    requeueOnProcessExit.Add(key);
+                }
+            }
+            processes=runningProcesses.Values.ToArray();
+        }
+
+        foreach(var process in processes){
+            KillProcess(process);
+        }
+    }
+
+    private static void KillProcess(Process? process){
+        try{
+            if(process is not null&&!process.HasExited){
+                process.Kill(entireProcessTree:true);
+            }
+        }catch(InvalidOperationException){
+        }catch(System.ComponentModel.Win32Exception){
         }
     }
 
@@ -264,38 +661,33 @@ public sealed partial class MainPage:Page{
         return (ConfigurationComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString()??"Release";
     }
 
-    private string GetProjectPath(BenchmarkProject project){
-        return Path.Combine(repositoryRoot,project.RelativeProjectPath);
+    private string CreateRunRoot(string configuration){
+        var runId = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss",CultureInfo.InvariantCulture);
+        var path = Path.Combine(repositoryRoot,"Benchmark",configuration,TargetFramework,"UnoRuns",runId);
+        Directory.CreateDirectory(path);
+        return path;
     }
 
-    private string GetProjectDirectory(BenchmarkProject project){
-        return Path.GetDirectoryName(GetProjectPath(project))??repositoryRoot;
-    }
-
-    private IReadOnlyList<string> BuildDotnetRunArgs(BenchmarkProject project,string configuration,IReadOnlyList<string> benchmarkArgs){
-        var args = new List<string>{
-            "run",
-            "--project",
-            GetProjectPath(project),
-            "-c",
-            configuration,
-            "--",
-        };
-        args.AddRange(benchmarkArgs);
-        return args;
-    }
-
-    private async Task<ProcessResult> RunProcessAsync(IReadOnlyList<string> arguments,Action<string> output,CancellationToken cancellationToken){
+    private async Task<ProcessResult> RunDotnetProcessAsync(
+        IReadOnlyList<string> arguments,
+        string workingDirectory,
+        Action<string> output,
+        CancellationToken cancellationToken,
+        long? processorAffinity = null,
+        Action<Process>? onStarted = null){
         AppendLog("> dotnet "+string.Join(" ",arguments.Select(QuoteArgument)));
 
         var standardOutput = new StringBuilder();
+        var standardError = new StringBuilder();
         using var process = new Process{
             StartInfo = new ProcessStartInfo{
                 FileName = "dotnet",
-                WorkingDirectory = repositoryRoot,
+                WorkingDirectory = workingDirectory,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
                 CreateNoWindow = true,
             },
             EnableRaisingEvents = true,
@@ -316,28 +708,41 @@ public sealed partial class MainPage:Page{
             output(e.Data);
         };
         process.ErrorDataReceived+=(sender,e) => {
-            if(e.Data is not null){
-                output(e.Data);
+            if(e.Data is null){
+                return;
             }
+
+            lock(standardError){
+                standardError.AppendLine(e.Data);
+            }
+            output(e.Data);
         };
 
         process.Start();
+        if(processorAffinity is { } affinity&&(OperatingSystem.IsWindows()||OperatingSystem.IsLinux())){
+            try{
+                process.ProcessorAffinity=new IntPtr(affinity);
+            }catch(PlatformNotSupportedException){
+            }catch(InvalidOperationException){
+            }catch(System.ComponentModel.Win32Exception){
+            }
+        }
+
+        onStarted?.Invoke(process);
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
         try{
             await process.WaitForExitAsync(cancellationToken);
         }catch(OperationCanceledException){
-            if(!process.HasExited){
-                process.Kill(entireProcessTree:true);
-            }
+            KillProcess(process);
             throw;
         }
 
-        return new ProcessResult(process.ExitCode,standardOutput.ToString());
+        return new ProcessResult(process.ExitCode,standardOutput.ToString(),standardError.ToString());
     }
 
-    private static IReadOnlyList<BenchmarkItem> ParseBenchmarkItems(string output){
+    private static IReadOnlyList<BenchmarkProjectMethod> ParseBenchmarkMethods(string output){
         var start = output.IndexOf("[{",StringComparison.Ordinal);
         var end = output.LastIndexOf(']');
         if(start<0||end<start){
@@ -350,52 +755,107 @@ public sealed partial class MainPage:Page{
         })??[];
 
         return items
-            .Select(static item => new BenchmarkItem(
+            .Select(static item => new BenchmarkProjectMethod(
                 item.TypeName,
                 item.TypeFullName,
                 item.MethodName,
                 item.DisplayName,
-                item.Filter,
                 item.Categories??[]))
             .ToArray();
     }
 
-    private void SetBusy(bool value){
-        isBusy=value;
-        BusyRing.IsActive=value;
-        LoadButton.IsEnabled=!value;
-        foreach(var child in ProjectGrid.Children.OfType<Control>()){
-            child.IsEnabled=!value;
+    private static (string Mean,string Error,string StdDev) ReadResultValues(string artifactFolder,string methodName){
+        var csvFile = Directory.Exists(artifactFolder)
+            ? Directory.GetFiles(artifactFolder,"*-report.csv",System.IO.SearchOption.AllDirectories)
+                .Select(static path => new FileInfo(path))
+                .OrderByDescending(static file => file.LastWriteTimeUtc)
+                .FirstOrDefault()
+            : null;
+        if(csvFile is null){
+            return (string.Empty,string.Empty,string.Empty);
         }
-        ConfigurationComboBox.IsEnabled=!value;
-        SingleFileCheckBox.IsEnabled=!value;
-        CancelButton.IsEnabled=value&&runCancellation is not null;
-        UpdateCommandState();
+
+        using var parser = new TextFieldParser(csvFile.FullName,Encoding.UTF8){
+            TextFieldType=FieldType.Delimited,
+            HasFieldsEnclosedInQuotes=true,
+            TrimWhiteSpace=false,
+        };
+        parser.SetDelimiters(",");
+        if(parser.EndOfData){
+            return (string.Empty,string.Empty,string.Empty);
+        }
+
+        var header = parser.ReadFields()??[];
+        var methodIndex = Array.IndexOf(header,"Method");
+        var meanIndex = Array.IndexOf(header,"Mean");
+        var errorIndex = Array.IndexOf(header,"Error");
+        var stdDevIndex = Array.IndexOf(header,"StdDev");
+        while(!parser.EndOfData){
+            var row = parser.ReadFields()??[];
+            if(methodIndex>=0
+                &&row.Length>methodIndex
+                &&string.Equals(row[methodIndex],methodName,StringComparison.OrdinalIgnoreCase)){
+                return (GetCell(row,meanIndex),GetCell(row,errorIndex),GetCell(row,stdDevIndex));
+            }
+        }
+
+        return (string.Empty,string.Empty,string.Empty);
     }
 
-    private void SetReportPath(string? path){
-        lastReportPath=path;
-        ReportLinkButton.Visibility=string.IsNullOrWhiteSpace(path)
-            ? Visibility.Collapsed
-            : Visibility.Visible;
-    }
-
-    private string? CreateComparisonReport(string configuration){
-        var reports = LoadReportData(configuration);
-        if(reports.Count==0){
+    private string? CreateRunReport(string? runRoot,bool includeHtml){
+        if(string.IsNullOrWhiteSpace(runRoot)){
             return null;
         }
 
-        var methodNames = reports
-            .SelectMany(static report => report.Means.Keys)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(static method => method,StringComparer.OrdinalIgnoreCase)
+        Directory.CreateDirectory(runRoot);
+        var rows = allRunItems
+            .Where(static item => item.Status is BenchmarkRunStatus.Completed or BenchmarkRunStatus.Failed)
+            .Select(static item => new ReportRow(
+                item.ProjectDisplayName,
+                item.MethodName,
+                item.StatusText,
+                item.Mean??string.Empty,
+                item.Error??string.Empty,
+                item.StdDev??string.Empty,
+                item.AssignedCpu?.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture)??string.Empty,
+                item.AssignedCpu?.CoreLabel??string.Empty,
+                item.ArtifactFolder??string.Empty,
+                item.ExitCode))
             .ToArray();
 
-        var outputDirectory = Path.Combine(repositoryRoot,"Benchmark",configuration,"net10.0");
-        Directory.CreateDirectory(outputDirectory);
-        var outputPath = Path.Combine(outputDirectory,"BenchmarkComparison.html");
+        var csvPath = Path.Combine(runRoot,"BenchmarkComparison.csv");
+        WriteRunCsv(csvPath,rows);
+        if(!includeHtml){
+            AppendLog($"Comparison CSV: {csvPath}");
+            return csvPath;
+        }
 
+        var htmlPath = Path.Combine(runRoot,"BenchmarkComparison.html");
+        WriteRunHtml(htmlPath,rows);
+        AppendLog($"Comparison report: {htmlPath}");
+        return htmlPath;
+    }
+
+    private static void WriteRunCsv(string path,IReadOnlyList<ReportRow> rows){
+        var writer = new StringBuilder();
+        writer.AppendLine("Project,Method,Status,Mean,Error,StdDev,LogicalCpu,Core,ArtifactFolder,ExitCode");
+        foreach(var row in rows){
+            writer.AppendCsv(row.Project).Append(',');
+            writer.AppendCsv(row.Method).Append(',');
+            writer.AppendCsv(row.Status).Append(',');
+            writer.AppendCsv(row.Mean).Append(',');
+            writer.AppendCsv(row.Error).Append(',');
+            writer.AppendCsv(row.StdDev).Append(',');
+            writer.AppendCsv(row.LogicalCpu).Append(',');
+            writer.AppendCsv(row.Core).Append(',');
+            writer.AppendCsv(row.ArtifactFolder).Append(',');
+            writer.AppendCsv(row.ExitCode?.ToString(CultureInfo.InvariantCulture)??string.Empty).AppendLine();
+        }
+
+        File.WriteAllText(path,writer.ToString(),Encoding.UTF8);
+    }
+
+    private static void WriteRunHtml(string path,IReadOnlyList<ReportRow> rows){
         var writer = new StringBuilder();
         writer.AppendLine("<!DOCTYPE html>");
         writer.AppendLine("<html lang=\"en\">");
@@ -408,124 +868,56 @@ public sealed partial class MainPage:Page{
         writer.AppendLine("    h1{font-size:22px;margin:0 0 8px;}");
         writer.AppendLine("    p{margin:0 0 16px;color:#555;}");
         writer.AppendLine("    table{border-collapse:collapse;width:100%;font-size:13px;}");
-        writer.AppendLine("    th,td{border:1px solid #d5d1c4;padding:5px 7px;text-align:right;white-space:nowrap;}");
+        writer.AppendLine("    th,td{border:1px solid #d5d1c4;padding:5px 7px;text-align:left;white-space:nowrap;}");
         writer.AppendLine("    th{background:#f0ede4;font-weight:600;}");
-        writer.AppendLine("    th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:#fffefa;}");
+        writer.AppendLine("    td.num{text-align:right;}");
         writer.AppendLine("    tbody tr:nth-child(even) td{background:#faf8f0;}");
-        writer.AppendLine("    tbody tr:nth-child(even) td:first-child{background:#faf8f0;}");
         writer.AppendLine("  </style>");
         writer.AppendLine("</head>");
         writer.AppendLine("<body>");
-        var generatedAt = DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz");
         writer.AppendLine("  <h1>Benchmark Comparison</h1>");
-        writer.AppendLine($"  <p>Generated: {EscapeHtml(generatedAt)}</p>");
+        writer.AppendLine($"  <p>Generated: {EscapeHtml(DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz",CultureInfo.InvariantCulture))}</p>");
         writer.AppendLine("  <table>");
-        writer.Append("    <thead><tr><th>Method</th>");
-        foreach(var report in reports){
-            writer.Append("<th>");
-            writer.Append(EscapeHtml(report.Label));
-            writer.Append("</th>");
-        }
-        writer.AppendLine("</tr></thead>");
+        writer.AppendLine("    <thead><tr><th>Project</th><th>Method</th><th>Status</th><th>Mean</th><th>Error</th><th>StdDev</th><th>Logical CPU</th><th>Core</th><th>Artifact</th><th>Exit</th></tr></thead>");
         writer.AppendLine("    <tbody>");
-        foreach(var methodName in methodNames){
-            writer.Append("      <tr><td>");
-            writer.Append(EscapeHtml(methodName));
-            writer.Append("</td>");
-            foreach(var report in reports){
-                writer.Append("<td>");
-                if(report.Means.TryGetValue(methodName,out var mean)){
-                    writer.Append(EscapeHtml(mean));
-                }
-                writer.Append("</td>");
-            }
-            writer.AppendLine("</tr>");
+        foreach(var row in rows){
+            writer.Append("      <tr><td>").Append(EscapeHtml(row.Project)).Append("</td><td>");
+            writer.Append(EscapeHtml(row.Method)).Append("</td><td>");
+            writer.Append(EscapeHtml(row.Status)).Append("</td><td class=\"num\">");
+            writer.Append(EscapeHtml(row.Mean)).Append("</td><td class=\"num\">");
+            writer.Append(EscapeHtml(row.Error)).Append("</td><td class=\"num\">");
+            writer.Append(EscapeHtml(row.StdDev)).Append("</td><td class=\"num\">");
+            writer.Append(EscapeHtml(row.LogicalCpu)).Append("</td><td>");
+            writer.Append(EscapeHtml(row.Core)).Append("</td><td>");
+            writer.Append(EscapeHtml(row.ArtifactFolder)).Append("</td><td class=\"num\">");
+            writer.Append(EscapeHtml(row.ExitCode?.ToString(CultureInfo.InvariantCulture)??string.Empty)).AppendLine("</td></tr>");
         }
         writer.AppendLine("    </tbody>");
         writer.AppendLine("  </table>");
         writer.AppendLine("</body>");
         writer.AppendLine("</html>");
-
-        File.WriteAllText(outputPath,writer.ToString(),Encoding.UTF8);
-        AppendLog($"Comparison report: {outputPath}");
-        return outputPath;
+        File.WriteAllText(path,writer.ToString(),Encoding.UTF8);
     }
 
-    private IReadOnlyList<ReportData> LoadReportData(string configuration){
-        var reports = new List<ReportData>();
-        foreach(var project in benchmarkProjects){
-            var root = Path.Combine(GetProjectDirectory(project),"Benchmark",configuration,"net10.0");
-            if(!Directory.Exists(root)){
-                continue;
-            }
-
-            var reportFiles = Directory.GetFiles(root,"*-report.csv",System.IO.SearchOption.AllDirectories)
-                .Select(static path => new FileInfo(path))
-                .GroupBy(static file => GetReportLabel(file.FullName),StringComparer.OrdinalIgnoreCase)
-                .Select(static group => group.OrderByDescending(static file => file.LastWriteTimeUtc).First())
-                .OrderBy(static file => GetReportLabel(file.FullName),StringComparer.OrdinalIgnoreCase);
-
-            foreach(var reportFile in reportFiles){
-                var means = ReadMeanValues(reportFile.FullName);
-                if(means.Count>0){
-                    reports.Add(new ReportData(GetReportLabel(reportFile.FullName),means));
-                }
-            }
+    private void SetBusy(bool value,bool allowCpuChanges){
+        isBusy=value;
+        BusyRing.IsActive=value;
+        LoadButton.IsEnabled=!value;
+        foreach(var child in ProjectGrid.Children.OfType<Control>()){
+            child.IsEnabled=!value;
         }
-
-        return reports;
+        ConfigurationComboBox.IsEnabled=!value;
+        SingleFileCheckBox.IsEnabled=!value;
+        CpuItemsControl.IsEnabled=!value||allowCpuChanges;
+        CancelButton.IsEnabled=value&&runCancellation is not null;
+        UpdateCommandState();
     }
 
-    private static Dictionary<string,string> ReadMeanValues(string path){
-        var result = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
-        using var parser = new TextFieldParser(path,Encoding.UTF8){
-            TextFieldType=FieldType.Delimited,
-            HasFieldsEnclosedInQuotes=true,
-            TrimWhiteSpace=false,
-        };
-        parser.SetDelimiters(",");
-
-        if(parser.EndOfData){
-            return result;
-        }
-
-        var header = parser.ReadFields()??[];
-        var methodIndex = Array.IndexOf(header,"Method");
-        var meanIndex = Array.IndexOf(header,"Mean");
-        if(methodIndex<0||meanIndex<0){
-            return result;
-        }
-
-        while(!parser.EndOfData){
-            var row = parser.ReadFields()??[];
-            if(row.Length<=methodIndex||row.Length<=meanIndex){
-                continue;
-            }
-
-            result[row[methodIndex]]=row[meanIndex];
-        }
-
-        return result;
-    }
-
-    private static string GetReportLabel(string path){
-        var name = Path.GetFileNameWithoutExtension(path);
-        if(name.EndsWith("-report",StringComparison.OrdinalIgnoreCase)){
-            name=name[..^7];
-        }
-
-        var lastDot = name.LastIndexOf('.');
-        return lastDot>=0&&lastDot+1<name.Length
-            ? name[(lastDot+1)..]
-            : name;
-    }
-
-    private static string EscapeHtml(string value){
-        return value
-            .Replace("&","&amp;",StringComparison.Ordinal)
-            .Replace("<","&lt;",StringComparison.Ordinal)
-            .Replace(">","&gt;",StringComparison.Ordinal)
-            .Replace("\"","&quot;",StringComparison.Ordinal);
+    private void SetReportPath(string? path){
+        lastReportPath=path;
+        ReportLinkButton.Visibility=string.IsNullOrWhiteSpace(path)
+            ? Visibility.Collapsed
+            : Visibility.Visible;
     }
 
     private void UpdateCommandState(){
@@ -539,25 +931,67 @@ public sealed partial class MainPage:Page{
         SelectionSummaryText.Text=$"{selectedCount} / {benchmarks.Count} selected";
     }
 
+    private void UpdateProgress(){
+        RunOnUi(() => {
+            var total = allRunItems.Count;
+            var done = allRunItems.Count(static item => item.Status is BenchmarkRunStatus.Completed or BenchmarkRunStatus.Failed);
+            var failed = allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Failed);
+            var running = allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Running);
+            var remaining = Math.Max(0,total-done);
+            ProgressBar.Maximum=Math.Max(1,total);
+            ProgressBar.Value=done;
+            ProgressText.Text=total==0
+                ? "No run queued"
+                : $"{done} / {total} done, {remaining} remaining, {running} running, {failed} failed";
+            UpdateCpuSummary();
+        });
+    }
+
+    private void UpdateCpuSummary(){
+        var selected = cpuCores.Count(static cpu => cpu.IsSelected);
+        CpuSummaryText.Text=$"{selected} / {cpuCores.Count} CPU selected";
+    }
+
     private void SetStatus(string text){
-        if(DispatcherQueue.HasThreadAccess){
-            StatusText.Text=text;
-        }else{
-            DispatcherQueue.TryEnqueue(() => StatusText.Text=text);
-        }
+        RunOnUi(() => StatusText.Text=text);
     }
 
     private void AppendLog(string text){
-        if(DispatcherQueue.HasThreadAccess){
-            AppendLogCore(text);
-        }else{
-            DispatcherQueue.TryEnqueue(() => AppendLogCore(text));
-        }
+        RunOnUi(() => AppendLogCore(text));
     }
 
     private void AppendLogCore(string text){
         LogTextBox.Text+=text+Environment.NewLine;
         LogTextBox.SelectionStart=LogTextBox.Text.Length;
+    }
+
+    private void RunOnUi(Action action){
+        if(DispatcherQueue.HasThreadAccess){
+            action();
+        }else{
+            DispatcherQueue.TryEnqueue(() => action());
+        }
+    }
+
+    private Task RunOnUiAsync(Action action){
+        if(DispatcherQueue.HasThreadAccess){
+            action();
+            return Task.CompletedTask;
+        }
+
+        var source = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if(!DispatcherQueue.TryEnqueue(() => {
+            try{
+                action();
+                source.SetResult();
+            }catch(Exception ex){
+                source.SetException(ex);
+            }
+        })){
+            source.SetException(new InvalidOperationException("Failed to enqueue UI work."));
+        }
+
+        return source.Task;
     }
 
     private static string FindRepositoryRoot(){
@@ -571,88 +1005,37 @@ public sealed partial class MainPage:Page{
     }
 
     private static string QuoteArgument(string argument){
-        return argument.Contains(' ',StringComparison.Ordinal) ? $"\"{argument}\"" : argument;
+        return argument.Contains(' ',StringComparison.Ordinal)||argument.Contains('|',StringComparison.Ordinal)
+            ? $"\"{argument}\""
+            : argument;
     }
 
-    private sealed record BenchmarkListItem(
-        string TypeName,
-        string TypeFullName,
-        string MethodName,
-        string DisplayName,
-        string Filter,
-        string[]? Categories);
-
-    private sealed record ProcessResult(int ExitCode,string StandardOutput);
-
-    private sealed record ReportData(string Label,Dictionary<string,string> Means);
-}
-
-public sealed class BenchmarkProject:INotifyPropertyChanged{
-    private bool isSelected;
-
-    public BenchmarkProject(string displayName,string relativeProjectPath,bool isSelected){
-        DisplayName=displayName;
-        RelativeProjectPath=relativeProjectPath;
-        this.isSelected=isSelected;
+    private static string EscapeHtml(string value){
+        return value
+            .Replace("&","&amp;",StringComparison.Ordinal)
+            .Replace("<","&lt;",StringComparison.Ordinal)
+            .Replace(">","&gt;",StringComparison.Ordinal)
+            .Replace("\"","&quot;",StringComparison.Ordinal);
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    public string DisplayName { get; }
-    public string RelativeProjectPath { get; }
-
-    public bool IsSelected{
-        get => isSelected;
-        set{
-            if(isSelected==value){
-                return;
-            }
-
-            isSelected=value;
-            PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(nameof(IsSelected)));
-        }
+    private static string GetCell(string[] row,int index){
+        return index>=0&&index<row.Length ? row[index] : string.Empty;
     }
 }
 
-public sealed class BenchmarkItem:INotifyPropertyChanged{
-    private bool isSelected;
-
-    public BenchmarkItem(string typeName,string typeFullName,string methodName,string displayName,string filter,string[] categories){
-        TypeName=typeName;
-        TypeFullName=typeFullName;
-        MethodName=methodName;
-        DisplayName=displayName;
-        Filter=filter;
-        Categories=categories;
-        CategoryText=categories.Length==0?"-":string.Join(", ",categories);
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    public string TypeName { get; }
-    public string TypeFullName { get; }
-    public string MethodName { get; }
-    public string DisplayName { get; }
-    public string Filter { get; }
-    public string[] Categories { get; }
-    public string CategoryText { get; }
-
-    public bool IsSelected{
-        get => isSelected;
-        set{
-            if(isSelected==value){
-                return;
-            }
-
-            isSelected=value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(CheckGlyph));
+internal static class CsvStringBuilderExtensions{
+    public static StringBuilder AppendCsv(this StringBuilder builder,string value){
+        if(value.Contains('"',StringComparison.Ordinal)
+            ||value.Contains(',',StringComparison.Ordinal)
+            ||value.Contains('\r',StringComparison.Ordinal)
+            ||value.Contains('\n',StringComparison.Ordinal)){
+            builder.Append('"');
+            builder.Append(value.Replace("\"","\"\"",StringComparison.Ordinal));
+            builder.Append('"');
+            return builder;
         }
-    }
 
-    public string CheckGlyph => isSelected?"X":string.Empty;
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null){
-        PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(propertyName));
+        builder.Append(value);
+        return builder;
     }
 }
