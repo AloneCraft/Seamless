@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Seamless.sln",
+                "${workspaceFolder}/Seamless.slnx",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -23,7 +23,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Seamless.sln",
+                "${workspaceFolder}/Seamless.slnx",
                 "-c",
                 "Release",
                 "/property:GenerateFullPaths=true",
@@ -38,7 +38,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/sandbox/Benchmark/Benchmark.csproj",
+                "${workspaceFolder}/Benchmark/Tsavorite.Benchmark.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -50,9 +50,33 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/sandbox/Benchmark/Benchmark.csproj",
+                "${workspaceFolder}/Benchmark/Tsavorite.Benchmark.csproj",
                 "-c",
                 "Release",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-test-intercept",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Test.Benchmark.System.Linq.Enumerable.Intercept/Test.Benchmark.System.Linq.Enumerable.Intercept.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-system-linq-intercept-runner",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Benchmark.System.Linq.Enumerable.Intercept.Runner/Benchmark.System.Linq.Enumerable.Intercept.Runner.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],

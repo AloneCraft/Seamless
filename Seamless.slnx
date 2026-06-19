@@ -10,24 +10,25 @@
     <File Path="DEEPSEEK.md" />
     <File Path="TextFile1.txt" />
   </Folder>
-  <Folder Name="/src/">
-    <Project Path="src/FLinq/FLinq.csproj" />
-    <Project Path="src/SourceGenerator.Shared/SourceGenerator.Shared.csproj" />
-    <Project Path="src/Tsavorite.Collections/Tsavorite.Collections.csproj" />
-    <Project Path="src/TsavoriteDB/TsavoriteDB.csproj" />
-    <Project Path="src/Benchmark/Tsavorite.Benchmark.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/Benchmark.System.Linq.Enumerable.Intercept/Benchmark.System.Linq.Enumerable.Intercept.csproj" />
-    <Project Path="tests/Benchmark.System.Linq.Enumerable/Benchmark.System.Linq.Enumerable.csproj" />
-    <Project Path="tests/Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj" />
-    <Project Path="tests/Benchmark.Tsavorite.Linq.Enumerable/Benchmark.Tsavorite.Linq.Enumerable.csproj" />
-    <Project Path="tests/Test/Test.csproj" />
-  </Folder>
-  <Project Path="sandbox/Benchmark.Shared/Benchmark.Shared.shproj" />
-  <Project Path="sandbox/Benchmark.System.Linq.Enumerable.Intercept/Benchmark.System.Linq.Enumerable.Intercept.csproj" />
-  <Project Path="sandbox/Benchmark.System.Linq.Enumerable/Benchmark.System.Linq.Enumerable.csproj" />
-  <Project Path="sandbox/Benchmark.Tsavorite.Linq.Enumerable.Intercept/Benchmark.Tsavorite.Linq.Enumerable.Intercept.csproj" />
-  <Project Path="sandbox/Benchmark.Tsavorite.Linq.Enumerable/Benchmark.Tsavorite.Linq.Enumerable.csproj" />
-  <Project Path="sandbox/DynamicLinq.Runner/DynamicLinq.Runner.csproj" />
+  <Project Path="Benchmark.Shared/Benchmark.Shared.shproj" Id="9749dc71-85fa-4584-9cb5-9929b262f213" />
+  <Project Path="Benchmark.System.Linq.Enumerable.Intercept.Runner/Benchmark.System.Linq.Enumerable.Intercept.Runner.csproj" />
+  <Project Path="Benchmark.System.Linq.Enumerable.Intercept/Benchmark.System.Linq.Enumerable.Intercept.csproj" />
+  <Project Path="Benchmark.System.Linq.Enumerable/Benchmark.System.Linq.Enumerable.csproj" />
+  <Project Path="Benchmark/Tsavorite.Benchmark.csproj" />
+  <Project Path="FLinq/FLinq.csproj" />
+  <Project Path="SourceGenerator.Shared/SourceGenerator.Shared.csproj" />
+  <Project Path="Test.Benchmark.System.Linq.Enumerable.Intercept/Test.Benchmark.System.Linq.Enumerable.Intercept.csproj" />
+  <Project Path="Test.Benchmark.Tsavorite.Collections/Test.Benchmark.Tsavorite.Collections.csproj" />
+  <Project Path="Test.Benchmark.Tsavorite.Linq.Enumerable/Test.Benchmark.Tsavorite.Linq.Enumerable.csproj" />
+  <Project Path="Test/Test.csproj" />
+  <Project Path="Tsavorite.Collections/Tsavorite.Collections.csproj" />
+  <Project Path="TsavoriteDB/TsavoriteDB.csproj" />
+  <Project Path="Labo.Benchmark.System.Linq.Enumerable.Linq/Labo.Benchmark.System.Linq.Enumerable.Linq.csproj" />
+  <Project Path="Labo.Benchmark.System.Linq.Enumerable.Flinq/Labo.Benchmark.System.Linq.Enumerable.Flinq.csproj" />
+  <Project Path="Labo.Benchmark.System.Linq.Enumerable.ZLinq/Labo.Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
+  <Project Path="Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableLinq/Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableLinq.csproj" />
+  <Project Path="Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFlinq/Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFlinq.csproj" />
+  <Project Path="Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableZLinq/Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableZLinq.csproj" />
+  <Project Path="Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetLinq/Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetLinq.csproj" />
+  <Project Path="Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetFlinq/Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetFlinq.csproj" />
 </Solution>

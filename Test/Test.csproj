@@ -1,0 +1,55 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TsavoriteTargetFramework Condition="'$(TsavoriteTargetFramework)' == ''">net10.0</TsavoriteTargetFramework>
+    <TargetFramework>$(TsavoriteTargetFramework)</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <Features>InterceptorsPreview</Features>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AssemblyName>Test</AssemblyName>
+    <RootNamespace>Test</RootNamespace>
+    <DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Tsavorite\Collections\artifacts\**" />
+    <EmbeddedResource Remove="Tsavorite\Collections\artifacts\**" />
+    <EmbeddedResource Remove="Tsavorite\Collections\Garnet\**" />
+    <None Remove="Tsavorite\Collections\artifacts\**" />
+    <None Remove="Tsavorite\Collections\Garnet\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="10.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="JetBrains.Profiler.Api" Version="1.*" />
+    <PackageReference Include="MemoryPack" Version="1.*" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
+    <PackageReference Include="Microsoft.Garnet" Version="2.0.1-beta.5" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0-pre.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="xunit.v3" Version="4.0.0-pre.128" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="ZLinq">
+      <HintPath>$(NuGetPackageRoot)zlinq/1.5.6/lib/net10.0/ZLinq.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Tsavorite.Collections\Tsavorite.Collections.csproj" />
+    <ProjectReference Include="..\FLinq\FLinq.csproj" />
+    <ProjectReference Include="..\SourceGenerator.Shared\SourceGenerator.Shared.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="..\FLinq\FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="..\TsavoriteDB\TsavoriteDB.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+</Project>
