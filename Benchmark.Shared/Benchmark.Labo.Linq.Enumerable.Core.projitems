@@ -12,7 +12,5 @@
     <Compile Include="$(MSBuildThisFileDirectory)Methods1.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Labo\Linq.Enumerable\**\*.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Labo\Linq.Enumerable.Benchmark\**\*.cs" Condition="$([System.String]::Copy('$(MSBuildProjectName)').StartsWith('Labo.Benchmark.'))" />
-    <Compile Remove="$(MSBuildThisFileDirectory)Labo\Linq.Enumerable\EnumerableMethods.cs" />
-    <Compile Remove="$(MSBuildThisFileDirectory)Labo\Linq.Enumerable\TsavoriteEnumerableMethods.cs" />
   </ItemGroup>
 </Project>
