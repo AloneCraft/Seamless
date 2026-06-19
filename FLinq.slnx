@@ -1,5 +1,0 @@
-<Solution>
-  <Project Path="src/FLinq/FLinq.csproj" />
-  <Project Path="src/SourceGenerator.Shared/SourceGenerator.Shared.csproj" />
-  <Project Path="tests/Test/Test.csproj" />
-</Solution>
