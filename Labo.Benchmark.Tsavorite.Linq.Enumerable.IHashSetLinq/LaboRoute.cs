@@ -1,6 +1,6 @@
 namespace Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetLinq {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public sealed class IHashSetLinq():Labo.Shared.Linq.Enumerable.Methods1(3_200_000);
+    public class IHashSetLinq():Labo.Shared.Linq.Enumerable.Methods1(3_200_000);
 }
 
 namespace Labo.Shared.Linq.Enumerable {

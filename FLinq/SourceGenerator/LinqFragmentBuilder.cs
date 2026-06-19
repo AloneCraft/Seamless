@@ -1448,6 +1448,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
         fragment=null!;
         var definition = method.ReducedFrom ?? method;
         if(definition.MethodKind!=MethodKind.Ordinary
+            || !CanInlineOrdinaryEnumerableRootMethod(definition)
             || definition.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax
             || invocation.ArgumentList.Arguments.Any(static argument=>!argument.RefKindKeyword.IsKind(SyntaxKind.None))
             || !TryGetSingleExpressionBody(methodSyntax,out var bodyExpression)) {
@@ -1533,6 +1534,18 @@ public sealed partial class TsavoriteIncrementalGenerator {
         }
 
         return false;
+    }
+
+    private static bool CanInlineOrdinaryEnumerableRootMethod(IMethodSymbol method) {
+        if(method.IsAbstract) {
+            return false;
+        }
+
+        if(method.IsVirtual || method.IsOverride) {
+            return method.IsSealed || method.ContainingType.IsSealed;
+        }
+
+        return true;
     }
 
     private static bool TryBuildTransparentParameterEnumerableRoot(

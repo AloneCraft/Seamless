@@ -1,0 +1,174 @@
+<Page x:Class="Labo.Benchmark.Runner.Uno.MainPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Loaded="OnPageLoaded"
+      KeyDown="OnPageKeyDown"
+      KeyUp="OnPageKeyUp"
+      MinWidth="1150"
+      MinHeight="720"
+      Background="#F8F7F2">
+  <Grid Padding="20"
+        RowSpacing="14"
+        RowDefinitions="Auto,Auto,*,Auto">
+    <Grid ColumnSpacing="12"
+          ColumnDefinitions="320,*,Auto,Auto,Auto">
+      <StackPanel Spacing="4">
+        <TextBlock Text="Benchmark Runner"
+                   FontSize="26"
+                   FontWeight="SemiBold"
+                   Foreground="#202020" />
+        <TextBlock Text="Select benchmark methods and run the existing console benchmark projects."
+                   Foreground="#5D625E" />
+      </StackPanel>
+      <Grid x:Name="ProjectGrid"
+            Grid.Column="1"
+            MinWidth="560"
+            ColumnSpacing="10"
+            RowSpacing="0"
+            ColumnDefinitions="270,270"
+            RowDefinitions="20,20,20,20" />
+      <ComboBox x:Name="ConfigurationComboBox"
+                Grid.Column="2"
+                MinWidth="120"
+                SelectedIndex="1">
+        <ComboBoxItem Content="Debug" />
+        <ComboBoxItem Content="Release" />
+      </ComboBox>
+      <CheckBox x:Name="SingleFileCheckBox"
+                Grid.Column="3"
+                Content="Single file"
+                IsChecked="True"
+                VerticalAlignment="Center" />
+      <Button x:Name="LoadButton"
+              Grid.Column="4"
+              Content="Load"
+              Click="OnLoadClick" />
+    </Grid>
+
+    <Grid Grid.Row="1"
+          ColumnSpacing="10"
+          ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+      <Button Content="Select all"
+              Click="OnSelectAllClick" />
+      <Button Grid.Column="1"
+              Content="Clear"
+              Click="OnClearSelectionClick" />
+      <Button x:Name="RunButton"
+              Grid.Column="2"
+              Content="Run"
+              Click="OnRunClick" />
+      <Button x:Name="CancelButton"
+              Grid.Column="3"
+              Content="Cancel"
+              Click="OnCancelClick"
+              IsEnabled="False" />
+      <TextBlock x:Name="SelectionSummaryText"
+                 Grid.Column="4"
+                 VerticalAlignment="Center"
+                 Foreground="#3D4540" />
+      <ProgressRing x:Name="BusyRing"
+                    Grid.Column="5"
+                    Width="24"
+                    Height="24"
+                    IsActive="False" />
+    </Grid>
+
+    <Border Grid.Row="2"
+            BorderBrush="#D5D1C4"
+            BorderThickness="1"
+            Background="#FFFEFA"
+            CornerRadius="6">
+      <Grid RowDefinitions="Auto,*">
+          <Grid Padding="6,2"
+                ColumnDefinitions="24,2*,*,Auto">
+            <TextBlock Grid.Column="1"
+                       Text="Benchmark"
+                       FontSize="11"
+                       FontWeight="SemiBold" />
+            <TextBlock Grid.Column="2"
+                       Text="Category"
+                       FontSize="11"
+                       FontWeight="SemiBold" />
+            <TextBlock Grid.Column="3"
+                       Text="Method"
+                       FontSize="11"
+                       FontWeight="SemiBold" />
+          </Grid>
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl x:Name="BenchmarkItemsControl">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Grid Height="18"
+                      Padding="6,0"
+                      ColumnDefinitions="24,2*,*,Auto"
+                      Tag="{Binding}"
+                      Tapped="OnBenchmarkRowTapped"
+                      Background="Transparent">
+                  <Border Grid.Column="0"
+                          Width="12"
+                          Height="12"
+                          BorderBrush="#8F938D"
+                          BorderThickness="1"
+                          CornerRadius="2"
+                          Background="#FFFFFF"
+                          HorizontalAlignment="Left"
+                          VerticalAlignment="Center">
+                    <TextBlock Text="{Binding CheckGlyph}"
+                               FontSize="9"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="#202020" />
+                  </Border>
+                  <TextBlock Grid.Column="1"
+                             Text="{Binding DisplayName}"
+                             FontSize="11"
+                             TextTrimming="CharacterEllipsis"
+                             VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2"
+                             Text="{Binding CategoryText}"
+                             FontSize="11"
+                             TextTrimming="CharacterEllipsis"
+                             VerticalAlignment="Center"
+                             Foreground="#676B67" />
+                  <TextBlock Grid.Column="3"
+                             Text="{Binding MethodName}"
+                             FontSize="11"
+                             VerticalAlignment="Center"
+                             Foreground="#676B67" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="3"
+          RowSpacing="6"
+          RowDefinitions="Auto,Auto,160">
+      <Grid ColumnSpacing="12"
+            ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="StatusText"
+                   Text="Ready"
+                   Foreground="#3D4540" />
+        <HyperlinkButton x:Name="ReportLinkButton"
+                         Grid.Column="1"
+                         Content="Open summary"
+                         Visibility="Collapsed"
+                         Click="OnOpenReportClick" />
+      </Grid>
+      <TextBox x:Name="LogTextBox"
+               Grid.Row="2"
+               AcceptsReturn="True"
+               FontFamily="Consolas"
+               FontSize="12"
+               IsReadOnly="True"
+               TextWrapping="NoWrap"
+               ScrollViewer.HorizontalScrollBarVisibility="Auto"
+               ScrollViewer.VerticalScrollBarVisibility="Auto" />
+    </Grid>
+  </Grid>
+</Page>

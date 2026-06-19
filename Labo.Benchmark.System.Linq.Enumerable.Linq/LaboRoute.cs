@@ -1,6 +1,6 @@
 namespace Labo.Benchmark.System.Linq.Enumerable.Linq {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public sealed class Linq():Labo.Shared.Linq.Enumerable.Methods1(3_200_000);
+    public class Linq():Labo.Shared.Linq.Enumerable.Methods1(3_200_000);
 }
 
 namespace Labo.Shared.Linq.Enumerable {
