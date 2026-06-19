@@ -185,6 +185,13 @@ public class Base {
         }
     }
 
+    protected IEnumerable<int> srcMinusPlusCount(int elementCount) {
+        for(var a = 0;a<elementCount;a+=2) {
+            yield return -a;
+            yield return +a;
+        }
+    }
+
     [LinqIntercept(false)]
     protected IEnumerable<int> src(int scale) => global::System.Linq.Enumerable.AsEnumerable(this.GetOrCreate(scale,this.srcCache,static length => {
         var values = new int[length];
@@ -195,7 +202,26 @@ public class Base {
     }));
 
     [LinqIntercept(false)]
+    protected IEnumerable<int> srcCount(int elementCount) => global::System.Linq.Enumerable.AsEnumerable(this.GetOrCreateByLength(elementCount,this.srcCache,static length => {
+        var values = new int[length];
+        for(var i = 0;i<values.Length;i++) {
+            values[i]=i+1;
+        }
+        return values;
+    }));
+
+    [LinqIntercept(false)]
     protected IEnumerable<int> src2(int scale) => global::System.Linq.Enumerable.AsEnumerable(this.GetOrCreate(scale,this.src2Cache,static length => {
+        var values = new int[length/2];
+        var start = length/2+1;
+        for(var i = 0;i<values.Length;i++) {
+            values[i]=start+i;
+        }
+        return values;
+    }));
+
+    [LinqIntercept(false)]
+    protected IEnumerable<int> src2Count(int elementCount) => global::System.Linq.Enumerable.AsEnumerable(this.GetOrCreateByLength(elementCount,this.src2Cache,static length => {
         var values = new int[length/2];
         var start = length/2+1;
         for(var i = 0;i<values.Length;i++) {
@@ -217,9 +243,25 @@ public class Base {
         return values;
     }
 
+    private int[] GetOrCreateByLength(int length,Dictionary<int,int[]> cache,Func<int,int[]> factory) {
+        if(cache.TryGetValue(length,out var values)) {
+            return values;
+        }
+
+        values=factory(length);
+        cache.Add(length,values);
+        return values;
+    }
+
     [LinqIntercept(false)]
     protected IEnumerable<IEnumerable<int>> srcNested(int scale) {
         var side = (int)Math.Sqrt(count*scale);
+        return global::System.Linq.Enumerable.Range(1,side).Select(_ => global::System.Linq.Enumerable.Range(1,side));
+    }
+
+    [LinqIntercept(false)]
+    protected IEnumerable<IEnumerable<int>> srcNestedCount(int elementCount) {
+        var side = (int)Math.Sqrt(elementCount);
         return global::System.Linq.Enumerable.Range(1,side).Select(_ => global::System.Linq.Enumerable.Range(1,side));
     }
 }

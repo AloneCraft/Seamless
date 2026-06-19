@@ -1,6 +1,6 @@
-namespace Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFlinq {
+﻿namespace Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFLinq {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public sealed class IEnumerableFlinq():Labo.Shared.Linq.Enumerable.Methods1(3_200_000);
+    public sealed class IEnumerableFLinq():Labo.Shared.Linq.Enumerable.Methods1(3_200_000);
 }
 
 namespace Labo.Shared.Linq.Enumerable {
@@ -11,6 +11,7 @@ namespace Labo.Shared.Linq.Enumerable {
         public static IEnumerable<T> AsX<T>(this IEnumerable<T> source) => source;
     }
 }
+
 
 
 

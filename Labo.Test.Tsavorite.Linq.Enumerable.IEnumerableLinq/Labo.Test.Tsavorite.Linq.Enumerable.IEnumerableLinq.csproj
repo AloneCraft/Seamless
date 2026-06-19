@@ -11,6 +11,7 @@
     <AssemblyName>Labo.Test.Tsavorite.Linq.Enumerable.IEnumerableLinq</AssemblyName>
     <DefineConstants>$(DefineConstants);BENCH_AS_TEST</DefineConstants>
     <LaboTsavorite>true</LaboTsavorite>
+    <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />

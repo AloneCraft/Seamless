@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>preview</LangVersion>
@@ -9,10 +9,11 @@
     <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <RootNamespace>Labo.Test.Tsavorite.Linq.Enumerable.IEnumerableFlinq</RootNamespace>
-    <AssemblyName>Labo.Test.Tsavorite.Linq.Enumerable.IEnumerableFlinq</AssemblyName>
+    <RootNamespace>Labo.Test.Tsavorite.Linq.Enumerable.IEnumerableFLinq</RootNamespace>
+    <AssemblyName>Labo.Test.Tsavorite.Linq.Enumerable.IEnumerableFLinq</AssemblyName>
     <DefineConstants>$(DefineConstants);BENCH_AS_TEST</DefineConstants>
     <LaboTsavorite>true</LaboTsavorite>
+    <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
@@ -37,3 +38,4 @@
   </ItemGroup>
   <Import Project="..\Benchmark.Shared\Benchmark.Labo.Linq.Enumerable.Core.projitems" Label="Shared" />
 </Project>
+
