@@ -1,6 +1,6 @@
 namespace Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableZLinq {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public sealed class IEnumerableZLinq():Labo.Shared.Linq.Enumerable.Methods1(3_200_000);
+    public class IEnumerableZLinq():Labo.Shared.Linq.Enumerable.Methods1(3_200_000);
 }
 
 namespace Labo.Shared.Linq.Enumerable {

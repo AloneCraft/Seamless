@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
@@ -11,6 +12,11 @@ internal static class Program {
         SetCurrentDirectoryToProject();
 
         var benchmarkAssembly = typeof(global::Labo.Shared.Linq.Enumerable.NoopLinqInterceptAttribute).Assembly;
+        if(IsListJsonMode(args)) {
+            WriteBenchmarkListJson(benchmarkAssembly);
+            return;
+        }
+
         var singleFileMode = IsSingleFileMode(args);
         if(args.Length==0&&!Console.IsInputRedirected) {
             var selection = PromptInteractiveSelection(benchmarkAssembly);
@@ -68,15 +74,7 @@ internal static class Program {
     }
 
     private static string[] SelectBenchmarks(Assembly benchmarkAssembly) {
-        var benchmarkMethods = benchmarkAssembly.GetTypes()
-            .Where(static type => !type.IsAbstract)
-            .SelectMany(static type => type
-                .GetMethods(BindingFlags.Instance|BindingFlags.Public)
-                .Where(static method => method.GetCustomAttributes(typeof(BenchmarkAttribute),false).Length>0)
-                .Select(method => new BenchmarkMethod(type,method)))
-            .OrderBy(static method => method.MethodName,StringComparer.OrdinalIgnoreCase)
-            .ThenBy(static method => method.TypeName,StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var benchmarkMethods = GetBenchmarkMethods(benchmarkAssembly);
 
         if(benchmarkMethods.Count==0) {
             return ["--filter","*"];
@@ -114,6 +112,36 @@ internal static class Program {
         var pattern = string.Join("|",selected.Select(static method => $"*{method.MethodName}*"));
         Console.WriteLine($"Filter: {pattern}");
         return ["--filter",pattern];
+    }
+
+    private static bool IsListJsonMode(string[] args) {
+        return args.Any(static arg => string.Equals(arg,"--list-json",StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void WriteBenchmarkListJson(Assembly benchmarkAssembly) {
+        var benchmarkMethods = GetBenchmarkMethods(benchmarkAssembly)
+            .Select(static method => new BenchmarkListItem(
+                TypeName: method.TypeName,
+                TypeFullName: method.TypeFullName,
+                MethodName: method.MethodName,
+                DisplayName: method.DisplayName,
+                Filter: method.Filter,
+                Categories: method.Categories))
+            .ToArray();
+
+        Console.WriteLine(JsonSerializer.Serialize(benchmarkMethods));
+    }
+
+    private static List<BenchmarkMethod> GetBenchmarkMethods(Assembly benchmarkAssembly) {
+        return benchmarkAssembly.GetTypes()
+            .Where(static type => !type.IsAbstract)
+            .SelectMany(static type => type
+                .GetMethods(BindingFlags.Instance|BindingFlags.Public)
+                .Where(static method => method.GetCustomAttributes(typeof(BenchmarkAttribute),false).Length>0)
+                .Select(method => new BenchmarkMethod(type,method)))
+            .OrderBy(static method => method.MethodName,StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static method => method.TypeName,StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static bool IsSingleFileMode(string[] args) {
@@ -269,9 +297,25 @@ internal static class Program {
     private readonly record struct InteractiveSelection(string[] Args,bool SingleFileMode);
     private sealed record BenchmarkMethod(Type Type,MethodInfo Method) {
         public string TypeName { get; } = Type.Name;
+        public string TypeFullName { get; } = Type.FullName??Type.Name;
         public string MethodName { get; } = Method.Name;
         public string DisplayName { get; } = $"{Type.Name}.{Method.Name}";
+        public string Filter { get; } = $"*{Type.FullName??Type.Name}.{Method.Name}*";
+        public string[] Categories { get; } = Type.GetCustomAttributes<BenchmarkCategoryAttribute>(false)
+            .Concat(Method.GetCustomAttributes<BenchmarkCategoryAttribute>(false))
+            .SelectMany(static attribute => attribute.Categories)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static category => category,StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
+
+    private sealed record BenchmarkListItem(
+        string TypeName,
+        string TypeFullName,
+        string MethodName,
+        string DisplayName,
+        string Filter,
+        string[] Categories);
 }
 
 internal static class BenchmarkOutputLayout {

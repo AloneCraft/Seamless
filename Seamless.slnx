@@ -24,6 +24,7 @@
   <Project Path="Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableZLinq/Labo.Benchmark.Tsavorite.Linq.Enumerable.IEnumerableZLinq.csproj" />
   <Project Path="Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetLinq/Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetLinq.csproj" />
   <Project Path="Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetFlinq/Labo.Benchmark.Tsavorite.Linq.Enumerable.IHashSetFlinq.csproj" />
+  <Project Path="Labo.Benchmark.Runner.Uno/Labo.Benchmark.Runner.Uno/Labo.Benchmark.Runner.Uno.csproj" />
   <Project Path="Labo.Test.System.Linq.Enumerable.Linq/Labo.Test.System.Linq.Enumerable.Linq.csproj" />
   <Project Path="Labo.Test.System.Linq.Enumerable.Flinq/Labo.Test.System.Linq.Enumerable.Flinq.csproj" />
   <Project Path="Labo.Test.System.Linq.Enumerable.ZLinq/Labo.Test.System.Linq.Enumerable.ZLinq.csproj" />

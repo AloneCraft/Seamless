@@ -1,6 +1,6 @@
 ﻿namespace Labo.Benchmark.System.Linq.Enumerable.FLinq {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public sealed class FLinq():Labo.Shared.Linq.Enumerable.Methods1(3_200_000);
+    public class FLinq():Labo.Shared.Linq.Enumerable.Methods1(3_200_000);
 }
 
 namespace Labo.Shared.Linq.Enumerable {
