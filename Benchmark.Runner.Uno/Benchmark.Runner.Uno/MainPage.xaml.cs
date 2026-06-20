@@ -15,6 +15,7 @@ public sealed partial class MainPage:Page{
     private readonly string repositoryRoot = FindRepositoryRoot();
     private readonly ObservableCollection<BenchmarkItem> benchmarks = [];
     private readonly ObservableCollection<CpuCoreInfo> cpuCores = [];
+    private readonly ObservableCollection<CpuRowItem> cpuRows = [];
     private readonly ObservableCollection<BenchmarkRunItem> runningItems = [];
     private readonly object runGate = new();
     private readonly Queue<BenchmarkRunItem> pendingRunItems = new();
@@ -24,6 +25,7 @@ public sealed partial class MainPage:Page{
     private readonly Dictionary<int,BenchmarkRunItem> runningRunItems = [];
     private readonly HashSet<int> requeueOnProcessExit = [];
     private readonly Dictionary<string,IReadOnlyList<BenchmarkProjectMethod>> methodCache = new(StringComparer.Ordinal);
+    private readonly List<CpuPresetDefinition> cpuPresets = [];
     private readonly IReadOnlyList<BenchmarkProject> benchmarkProjects = LoadBenchmarkProjects();
     private BenchmarkProject canonicalMethodProject => benchmarkProjects[0];
 
@@ -45,7 +47,7 @@ public sealed partial class MainPage:Page{
         InitializeProjectGrid();
         InitializeCpuList();
         BenchmarkItemsControl.ItemsSource=benchmarks;
-        CpuItemsControl.ItemsSource=cpuCores;
+        CpuItemsControl.ItemsSource=cpuRows;
         RunningItemsControl.ItemsSource=runningItems;
         UpdateSelectionSummary();
         UpdateProgress();
@@ -83,6 +85,47 @@ public sealed partial class MainPage:Page{
         foreach(var cpu in CpuTopologyProvider.Load()){
             cpuCores.Add(cpu);
         }
+        RebuildCpuRows();
+        InitializeCpuPresetButtons();
+        var first = cpuCores.OrderBy(static item => item.LogicalProcessorIndex).FirstOrDefault();
+        ApplyCpuSelection(cpu => cpu==first,updateWorkers:false);
+    }
+
+    private void RebuildCpuRows(){
+        cpuRows.Clear();
+        var ordered = cpuCores
+            .OrderBy(static cpu => cpu.LogicalProcessorIndex)
+            .ToArray();
+        for(var i=0;i<ordered.Length;i+=4){
+            cpuRows.Add(new CpuRowItem(
+                i<ordered.Length ? ordered[i] : null,
+                i+1<ordered.Length ? ordered[i+1] : null,
+                i+2<ordered.Length ? ordered[i+2] : null,
+                i+3<ordered.Length ? ordered[i+3] : null));
+        }
+    }
+
+    private void InitializeCpuPresetButtons(){
+        cpuPresets.Clear();
+        cpuPresets.AddRange(CpuPresetCatalog.Build(cpuCores));
+
+        CpuPresetGrid.Children.Clear();
+        CpuPresetGrid.ColumnDefinitions.Clear();
+        for(var i=0;i<cpuPresets.Count;i++){
+            CpuPresetGrid.ColumnDefinitions.Add(new ColumnDefinition{
+                Width = GridLength.Auto,
+            });
+
+            var preset = cpuPresets[i];
+            var button = new Button{
+                Content=preset.Label,
+                Tag=preset,
+                MinWidth=48,
+            };
+            button.Click+=OnCpuPresetClick;
+            Grid.SetColumn(button,i);
+            CpuPresetGrid.Children.Add(button);
+        }
     }
 
     private void OnConfigurationSelectionChanged(object sender,SelectionChangedEventArgs e){
@@ -106,15 +149,79 @@ public sealed partial class MainPage:Page{
     }
 
     private void OnCpuCheckBoxClick(object sender,RoutedEventArgs e){
-        if(!isRunning||sender is not CheckBox checkBox||checkBox.DataContext is not CpuCoreInfo cpu){
+        if(sender is not CheckBox checkBox){
+            return;
+        }
+
+        var cpu = checkBox.Tag as CpuCoreInfo ?? checkBox.DataContext as CpuCoreInfo;
+        if(cpu is null){
+            return;
+        }
+
+        SetCpuSelected(cpu,checkBox.IsChecked==true);
+    }
+
+    private void OnCpuCellTapped(object sender,TappedRoutedEventArgs e){
+        if(sender is not FrameworkElement element||element.Tag is not CpuCoreInfo cpu){
+            return;
+        }
+
+        SetCpuSelected(cpu,!cpu.IsSelected);
+    }
+
+    private void SetCpuSelected(CpuCoreInfo cpu,bool shouldSelect){
+        if(!shouldSelect&&cpuCores.All(item => item==cpu||!item.IsSelected)){
+            cpu.IsSelected=true;
+            SetStatus("Select at least one CPU.");
             UpdateCpuSummary();
             return;
         }
 
-        if(checkBox.IsChecked==true){
+        cpu.IsSelected=shouldSelect;
+        if(isRunning&&shouldSelect){
             StartWorkerForCpu(cpu);
-        }else{
+        }else if(isRunning){
             StopCpuAndRequeue(cpu.LogicalProcessorIndex);
+        }
+
+        UpdateCpuSummary();
+        UpdateProgress();
+    }
+
+    private void OnCpuPresetClick(object sender,RoutedEventArgs e){
+        if(sender is not Button button||button.Tag is not CpuPresetDefinition preset){
+            return;
+        }
+
+        var selected = preset.LogicalProcessorIndexes.ToHashSet();
+        ApplyCpuSelection(cpu => selected.Contains(cpu.LogicalProcessorIndex),updateWorkers:true);
+    }
+
+    private void ApplyCpuSelection(Func<CpuCoreInfo,bool> shouldSelect,bool updateWorkers){
+        if(cpuCores.Count==0){
+            return;
+        }
+
+        var selected = cpuCores.Where(shouldSelect).ToHashSet();
+        if(selected.Count==0){
+            selected.Add(cpuCores.OrderBy(static cpu => cpu.LogicalProcessorIndex).First());
+        }
+
+        foreach(var cpu in cpuCores){
+            var wasSelected = cpu.IsSelected;
+            var isSelected = selected.Contains(cpu);
+            if(wasSelected==isSelected){
+                continue;
+            }
+
+            cpu.IsSelected=isSelected;
+            if(updateWorkers&&isRunning){
+                if(isSelected){
+                    StartWorkerForCpu(cpu);
+                }else{
+                    StopCpuAndRequeue(cpu.LogicalProcessorIndex);
+                }
+            }
         }
 
         UpdateCpuSummary();
@@ -1038,6 +1145,7 @@ public sealed partial class MainPage:Page{
                 item.StdDev??string.Empty,
                 item.AssignedCpu?.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture)??string.Empty,
                 item.AssignedCpu?.CoreLabel??string.Empty,
+                item.AssignedCpu?.CpuDisplayText??string.Empty,
                 item.ArtifactFolder??string.Empty,
                 item.ExitCode))
             .ToArray();
@@ -1056,66 +1164,11 @@ public sealed partial class MainPage:Page{
     }
 
     private static void WriteRunCsv(string path,IReadOnlyList<ReportRow> rows){
-        var writer = new StringBuilder();
-        writer.AppendLine("Project,Method,Status,Mean,Error,StdDev,LogicalCpu,Core,ArtifactFolder,ExitCode");
-        foreach(var row in rows){
-            writer.AppendCsv(row.Project).Append(',');
-            writer.AppendCsv(row.Method).Append(',');
-            writer.AppendCsv(row.Status).Append(',');
-            writer.AppendCsv(row.Mean).Append(',');
-            writer.AppendCsv(row.Error).Append(',');
-            writer.AppendCsv(row.StdDev).Append(',');
-            writer.AppendCsv(row.LogicalCpu).Append(',');
-            writer.AppendCsv(row.Core).Append(',');
-            writer.AppendCsv(row.ArtifactFolder).Append(',');
-            writer.AppendCsv(row.ExitCode?.ToString(CultureInfo.InvariantCulture)??string.Empty).AppendLine();
-        }
-
-        File.WriteAllText(path,writer.ToString(),Encoding.UTF8);
+        File.WriteAllText(path,BenchmarkReportFormatter.BuildCsv(rows),Encoding.UTF8);
     }
 
     private static void WriteRunHtml(string path,IReadOnlyList<ReportRow> rows){
-        var writer = new StringBuilder();
-        writer.AppendLine("<!DOCTYPE html>");
-        writer.AppendLine("<html lang=\"en\">");
-        writer.AppendLine("<head>");
-        writer.AppendLine("  <meta charset=\"utf-8\">");
-        writer.AppendLine("  <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">");
-        writer.AppendLine("  <title>Benchmark Comparison</title>");
-        writer.AppendLine("  <style>");
-        writer.AppendLine("    body{font-family:Segoe UI,Arial,sans-serif;margin:20px;color:#202020;background:#fffefa;}");
-        writer.AppendLine("    h1{font-size:22px;margin:0 0 8px;}");
-        writer.AppendLine("    p{margin:0 0 16px;color:#555;}");
-        writer.AppendLine("    table{border-collapse:collapse;width:100%;font-size:13px;}");
-        writer.AppendLine("    th,td{border:1px solid #d5d1c4;padding:5px 7px;text-align:left;white-space:nowrap;}");
-        writer.AppendLine("    th{background:#f0ede4;font-weight:600;}");
-        writer.AppendLine("    td.num{text-align:right;}");
-        writer.AppendLine("    tbody tr:nth-child(even) td{background:#faf8f0;}");
-        writer.AppendLine("  </style>");
-        writer.AppendLine("</head>");
-        writer.AppendLine("<body>");
-        writer.AppendLine("  <h1>Benchmark Comparison</h1>");
-        writer.AppendLine($"  <p>Generated: {EscapeHtml(DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz",CultureInfo.InvariantCulture))}</p>");
-        writer.AppendLine("  <table>");
-        writer.AppendLine("    <thead><tr><th>Project</th><th>Method</th><th>Status</th><th>Mean</th><th>Error</th><th>StdDev</th><th>Logical CPU</th><th>Core</th><th>Artifact</th><th>Exit</th></tr></thead>");
-        writer.AppendLine("    <tbody>");
-        foreach(var row in rows){
-            writer.Append("      <tr><td>").Append(EscapeHtml(row.Project)).Append("</td><td>");
-            writer.Append(EscapeHtml(row.Method)).Append("</td><td>");
-            writer.Append(EscapeHtml(row.Status)).Append("</td><td class=\"num\">");
-            writer.Append(EscapeHtml(row.Mean)).Append("</td><td class=\"num\">");
-            writer.Append(EscapeHtml(row.Error)).Append("</td><td class=\"num\">");
-            writer.Append(EscapeHtml(row.StdDev)).Append("</td><td class=\"num\">");
-            writer.Append(EscapeHtml(row.LogicalCpu)).Append("</td><td>");
-            writer.Append(EscapeHtml(row.Core)).Append("</td><td>");
-            writer.Append(EscapeHtml(row.ArtifactFolder)).Append("</td><td class=\"num\">");
-            writer.Append(EscapeHtml(row.ExitCode?.ToString(CultureInfo.InvariantCulture)??string.Empty)).AppendLine("</td></tr>");
-        }
-        writer.AppendLine("    </tbody>");
-        writer.AppendLine("  </table>");
-        writer.AppendLine("</body>");
-        writer.AppendLine("</html>");
-        File.WriteAllText(path,writer.ToString(),Encoding.UTF8);
+        File.WriteAllText(path,BenchmarkReportFormatter.BuildHtml(rows,DateTimeOffset.Now),Encoding.UTF8);
     }
 
     private void SetBusy(bool value,bool allowCpuChanges){
@@ -1125,6 +1178,9 @@ public sealed partial class MainPage:Page{
             child.IsEnabled=!value;
         }
         ConfigurationComboBox.IsEnabled=!value;
+        foreach(var child in CpuPresetGrid.Children.OfType<Control>()){
+            child.IsEnabled=!value||allowCpuChanges;
+        }
         CpuItemsControl.IsEnabled=!value||allowCpuChanges;
         CancelButton.IsEnabled=value&&runCancellation is not null;
         UpdateCommandState();
@@ -1240,32 +1296,7 @@ public sealed partial class MainPage:Page{
             : argument;
     }
 
-    private static string EscapeHtml(string value){
-        return value
-            .Replace("&","&amp;",StringComparison.Ordinal)
-            .Replace("<","&lt;",StringComparison.Ordinal)
-            .Replace(">","&gt;",StringComparison.Ordinal)
-            .Replace("\"","&quot;",StringComparison.Ordinal);
-    }
-
     private static string GetCell(string[] row,int index){
         return index>=0&&index<row.Length ? row[index] : string.Empty;
-    }
-}
-
-internal static class CsvStringBuilderExtensions{
-    public static StringBuilder AppendCsv(this StringBuilder builder,string value){
-        if(value.Contains('"',StringComparison.Ordinal)
-            ||value.Contains(',',StringComparison.Ordinal)
-            ||value.Contains('\r',StringComparison.Ordinal)
-            ||value.Contains('\n',StringComparison.Ordinal)){
-            builder.Append('"');
-            builder.Append(value.Replace("\"","\"\"",StringComparison.Ordinal));
-            builder.Append('"');
-            return builder;
-        }
-
-        builder.Append(value);
-        return builder;
     }
 }

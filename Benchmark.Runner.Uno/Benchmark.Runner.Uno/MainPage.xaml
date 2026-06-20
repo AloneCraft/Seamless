@@ -160,12 +160,13 @@
 
       <Grid Grid.Column="1"
             RowSpacing="12"
-            RowDefinitions="2*,3*">
+            RowDefinitions="Auto,*">
         <Border BorderBrush="#D5D1C4"
                 BorderThickness="1"
                 Background="#FFFEFA"
-                CornerRadius="6">
-          <Grid RowDefinitions="Auto,*">
+                CornerRadius="6"
+                Height="220">
+          <Grid RowDefinitions="Auto,Auto,*">
             <Grid Padding="8,4"
                   ColumnDefinitions="*,Auto">
               <TextBlock Text="CPU"
@@ -177,31 +178,148 @@
                          FontSize="12"
                          Foreground="#5D625E" />
             </Grid>
-            <ScrollViewer Grid.Row="1"
-                          VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled">
-              <ItemsControl x:Name="CpuItemsControl">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="local:CpuCoreInfo">
-                    <Grid Height="24"
-                          Padding="6,0"
-                          ColumnDefinitions="*,Auto">
-                      <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                Click="OnCpuCheckBoxClick"
-                                Content="{Binding DisplayText}"
-                                FontSize="12"
-                                Padding="0"
-                                VerticalAlignment="Center" />
+            <Grid x:Name="CpuPresetGrid"
+                  Grid.Row="1"
+                  Padding="6,0,6,4"
+                  ColumnSpacing="6" />
+            <ListView x:Name="CpuItemsControl"
+                      Grid.Row="2"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                      SelectionMode="None"
+                      IsItemClickEnabled="False"
+                      HorizontalContentAlignment="Stretch"
+                      Padding="2,0,2,2"
+                      BorderThickness="0"
+                      Background="Transparent">
+              <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                  <Setter Property="Height" Value="16" />
+                  <Setter Property="MaxHeight" Value="16" />
+                  <Setter Property="Padding" Value="0" />
+                  <Setter Property="Margin" Value="0" />
+                  <Setter Property="MinHeight" Value="0" />
+                  <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                  <Setter Property="VerticalContentAlignment" Value="Stretch" />
+                </Style>
+              </ListView.ItemContainerStyle>
+              <ListView.ItemTemplate>
+                <DataTemplate x:DataType="local:CpuRowItem">
+                  <Grid Height="16"
+                        Padding="4,0"
+                        ColumnSpacing="4"
+                        ColumnDefinitions="*,*,*,*">
+                    <Grid Tag="{Binding Column0}"
+                          Tapped="OnCpuCellTapped"
+                          ColumnDefinitions="13,*"
+                          Visibility="{Binding Column0, Converter={StaticResource NullToVisibilityConverter}}"
+                          Background="Transparent">
+                      <Border Width="10"
+                              Height="10"
+                              BorderBrush="#8F938D"
+                              BorderThickness="1"
+                              CornerRadius="2"
+                              Background="#FFFFFF"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Column0.CheckGlyph}"
+                                   FontSize="9"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Foreground="#202020" />
+                      </Border>
                       <TextBlock Grid.Column="1"
-                                 Text="{Binding AffinityText}"
-                                 FontSize="11"
-                                 Foreground="#676B67"
+                                 Text="{Binding Column0.DisplayText}"
+                                 FontSize="10"
+                                 TextTrimming="CharacterEllipsis"
                                  VerticalAlignment="Center" />
                     </Grid>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </ScrollViewer>
+                    <Grid Grid.Column="1"
+                          Tag="{Binding Column1}"
+                          Tapped="OnCpuCellTapped"
+                          ColumnDefinitions="13,*"
+                          Visibility="{Binding Column1, Converter={StaticResource NullToVisibilityConverter}}"
+                          Background="Transparent">
+                      <Border Width="10"
+                              Height="10"
+                              BorderBrush="#8F938D"
+                              BorderThickness="1"
+                              CornerRadius="2"
+                              Background="#FFFFFF"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Column1.CheckGlyph}"
+                                   FontSize="9"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Foreground="#202020" />
+                      </Border>
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding Column1.DisplayText}"
+                                 FontSize="10"
+                                 TextTrimming="CharacterEllipsis"
+                                 VerticalAlignment="Center" />
+                    </Grid>
+                    <Grid Grid.Column="2"
+                          Tag="{Binding Column2}"
+                          Tapped="OnCpuCellTapped"
+                          ColumnDefinitions="13,*"
+                          Visibility="{Binding Column2, Converter={StaticResource NullToVisibilityConverter}}"
+                          Background="Transparent">
+                      <Border Width="10"
+                              Height="10"
+                              BorderBrush="#8F938D"
+                              BorderThickness="1"
+                              CornerRadius="2"
+                              Background="#FFFFFF"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Column2.CheckGlyph}"
+                                   FontSize="9"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Foreground="#202020" />
+                      </Border>
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding Column2.DisplayText}"
+                                 FontSize="10"
+                                 TextTrimming="CharacterEllipsis"
+                                 VerticalAlignment="Center" />
+                    </Grid>
+                    <Grid Grid.Column="3"
+                          Tag="{Binding Column3}"
+                          Tapped="OnCpuCellTapped"
+                          ColumnDefinitions="13,*"
+                          Visibility="{Binding Column3, Converter={StaticResource NullToVisibilityConverter}}"
+                          Background="Transparent">
+                      <Border Width="10"
+                              Height="10"
+                              BorderBrush="#8F938D"
+                              BorderThickness="1"
+                              CornerRadius="2"
+                              Background="#FFFFFF"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Column3.CheckGlyph}"
+                                   FontSize="9"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Foreground="#202020" />
+                      </Border>
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding Column3.DisplayText}"
+                                 FontSize="10"
+                                 TextTrimming="CharacterEllipsis"
+                                 VerticalAlignment="Center" />
+                    </Grid>
+                  </Grid>
+                </DataTemplate>
+              </ListView.ItemTemplate>
+            </ListView>
           </Grid>
         </Border>
 

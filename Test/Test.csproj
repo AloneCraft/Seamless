@@ -52,4 +52,10 @@
     <ProjectReference Include="..\FLinq\FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\TsavoriteDB\TsavoriteDB.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Benchmark.Runner.Uno\Benchmark.Runner.Uno\BenchmarkRunnerModels.cs" Link="Benchmark.Runner.Uno\BenchmarkRunnerModels.cs" />
+    <Compile Include="..\Benchmark.Runner.Uno\Benchmark.Runner.Uno\CpuPresetCatalog.cs" Link="Benchmark.Runner.Uno\CpuPresetCatalog.cs" />
+    <Compile Include="..\Benchmark.Runner.Uno\Benchmark.Runner.Uno\BenchmarkReportFormatter.cs" Link="Benchmark.Runner.Uno\BenchmarkReportFormatter.cs" />
+    <Compile Include="..\Benchmark.Runner.Uno\Benchmark.Runner.Uno\CsvStringBuilderExtensions.cs" Link="Benchmark.Runner.Uno\CsvStringBuilderExtensions.cs" />
+  </ItemGroup>
 </Project>

@@ -155,6 +155,10 @@ internal static class CpuTopologyProvider{
         var hasHybridScores = knownScores.Length>1;
         var maxScore = hasHybridScores?knownScores[^1]:(int?)null;
         var minScore = hasHybridScores?knownScores[0]:(int?)null;
+        if(hasHybridScores){
+            groups=MergeSingletonEfficiencyGroups(groups,minScore);
+        }
+
         var nextKindIndex = new Dictionary<CpuCoreKind,int>();
 
         for(var physicalIndex=0;physicalIndex<groups.Length;physicalIndex++){
@@ -172,6 +176,43 @@ internal static class CpuTopologyProvider{
                 yield return CreateCpu(logicalProcessor,kind,physicalIndex,kindIndex,supportsAffinity:CanUseAffinity(logicalProcessor));
             }
         }
+    }
+
+    private static CoreGroup[] MergeSingletonEfficiencyGroups(CoreGroup[] groups,int? efficiencyScore){
+        if(efficiencyScore is null){
+            return groups;
+        }
+
+        var merged = new List<CoreGroup>(groups.Length);
+        for(var index=0;index<groups.Length;){
+            var group = groups[index];
+            if(group.KindScore!=efficiencyScore||group.LogicalProcessors.Count!=1){
+                merged.Add(group);
+                index++;
+                continue;
+            }
+
+            var run = new List<CoreGroup>();
+            while(index<groups.Length
+                &&groups[index].KindScore==efficiencyScore
+                &&groups[index].LogicalProcessors.Count==1){
+                run.Add(groups[index]);
+                index++;
+            }
+
+            for(var runIndex=0;runIndex<run.Count;runIndex+=4){
+                merged.Add(new CoreGroup(
+                    run
+                        .Skip(runIndex)
+                        .Take(4)
+                        .SelectMany(static item => item.LogicalProcessors)
+                        .Order()
+                        .ToArray(),
+                    efficiencyScore));
+            }
+        }
+
+        return merged.ToArray();
     }
 
     private static CpuCoreInfo CreateCpu(int logicalProcessorIndex,CpuCoreKind kind,int physicalCoreIndex,int kindCoreIndex,bool supportsAffinity){

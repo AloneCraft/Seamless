@@ -112,7 +112,7 @@ public sealed class CpuCoreInfo:BindableObject{
         KindCoreIndex=kindCoreIndex;
         AffinityMask=affinityMask;
         SupportsAffinity=supportsAffinity;
-        isSelected=true;
+        isSelected=false;
     }
 
     public int LogicalProcessorIndex { get; }
@@ -121,13 +121,20 @@ public sealed class CpuCoreInfo:BindableObject{
     public int KindCoreIndex { get; }
     public long AffinityMask { get; }
     public bool SupportsAffinity { get; }
+    public string GroupDisplayText => CoreLabel;
+    public string CpuDisplayText => $"{LogicalProcessorIndex}({GroupDisplayText})";
 
     public bool IsSelected{
         get => isSelected;
-        set => SetProperty(ref isSelected,value);
+        set{
+            if(SetProperty(ref isSelected,value)){
+                OnPropertyChanged(nameof(CheckGlyph));
+            }
+        }
     }
 
-    public string DisplayText => $"CPU {LogicalProcessorIndex}  {CoreLabel}";
+    public string DisplayText => CpuDisplayText;
+    public string CheckGlyph => isSelected?"X":string.Empty;
     public string CoreLabel => CoreKind switch{
         CpuCoreKind.Performance => $"P{KindCoreIndex}",
         CpuCoreKind.Efficiency => $"E{KindCoreIndex}",
@@ -137,6 +144,12 @@ public sealed class CpuCoreInfo:BindableObject{
         ? $"mask {AffinityMask}"
         : "affinity unsupported";
 }
+
+public sealed record CpuRowItem(
+    CpuCoreInfo? Column0,
+    CpuCoreInfo? Column1,
+    CpuCoreInfo? Column2,
+    CpuCoreInfo? Column3);
 
 public enum BenchmarkRunStatus{
     Pending,
@@ -240,7 +253,7 @@ public sealed class BenchmarkRunItem:BindableObject{
     }
 
     public string StatusText => Status.ToString();
-    public string CpuDisplay => AssignedCpu is null?"-":$"CPU {AssignedCpu.LogicalProcessorIndex} / {AssignedCpu.CoreLabel}";
+    public string CpuDisplay => AssignedCpu?.CpuDisplayText??"-";
     public string ProcessIdText => ProcessId==0?"-":ProcessId.ToString();
 }
 
@@ -281,6 +294,7 @@ public sealed record ReportRow(
     string StdDev,
     string LogicalCpu,
     string Core,
+    string CpuDisplay,
     string ArtifactFolder,
     int? ExitCode);
 

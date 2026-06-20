@@ -1,1 +1,1 @@
-global using LaboLinqInterceptAttribute = Labo.Shared.Linq.Enumerable.NoopLinqInterceptAttribute;
+global using LinqInterceptAttribute = Shared.Linq.Enumerable.NoopLinqInterceptAttribute;
