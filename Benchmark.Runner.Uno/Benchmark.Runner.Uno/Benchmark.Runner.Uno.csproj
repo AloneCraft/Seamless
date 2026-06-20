@@ -1,0 +1,44 @@
+<Project Sdk="Uno.Sdk/6.5.36">
+  <PropertyGroup>
+    <TargetFrameworks>net10.0-desktop</TargetFrameworks>
+
+    <OutputType>Exe</OutputType>
+    <UnoSingleProject>true</UnoSingleProject>
+
+    <!-- Display name -->
+    <ApplicationTitle>Benchmark.Runner.Uno</ApplicationTitle>
+    <!-- App Identifier -->
+    <ApplicationId>com.companyname.benchmark-runner-uno</ApplicationId>
+    <!-- Versions -->
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <!-- Package Publisher -->
+    <ApplicationPublisher>Benchmark.Runner.Uno</ApplicationPublisher>
+    <!-- Package Description -->
+    <Description>Benchmark.Runner.Uno powered by Uno Platform.</Description>
+
+    <!--
+      UnoFeatures are used to quickly add and manage features enabled for your app.
+      https://aka.platform.uno/singleproject-features
+    -->
+    <UnoFeatures>
+      SkiaRenderer;
+    </UnoFeatures>
+    <UnoDisableHotDesign>true</UnoDisableHotDesign>
+    <UnoDisableMCPSupport>true</UnoDisableMCPSupport>
+    <AfterUnoSdkTargets>$(MSBuildProjectDirectory)\UnoRunner.AfterUnoSdk.targets</AfterUnoSdkTargets>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+    <ProjectReference Include="..\..\Benchmark.DotNet.Linq.Enumerable.Linq\Benchmark.DotNet.Linq.Enumerable.Linq.csproj" />
+    <ProjectReference Include="..\..\Benchmark.DotNet.Linq.Enumerable.Flinq\Benchmark.DotNet.Linq.Enumerable.Flinq.csproj" />
+    <ProjectReference Include="..\..\Benchmark.DotNet.Linq.Enumerable.ZLinq\Benchmark.DotNet.Linq.Enumerable.ZLinq.csproj" />
+    <ProjectReference Include="..\..\Benchmark.Tsavorite.Linq.Enumerable.IEnumerableLinq\Benchmark.Tsavorite.Linq.Enumerable.IEnumerableLinq.csproj" />
+    <ProjectReference Include="..\..\Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFlinq\Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFlinq.csproj" />
+    <ProjectReference Include="..\..\Benchmark.Tsavorite.Linq.Enumerable.IEnumerableZLinq\Benchmark.Tsavorite.Linq.Enumerable.IEnumerableZLinq.csproj" />
+    <ProjectReference Include="..\..\Benchmark.Tsavorite.Linq.Enumerable.IHashSetLinq\Benchmark.Tsavorite.Linq.Enumerable.IHashSetLinq.csproj" />
+    <ProjectReference Include="..\..\Benchmark.Tsavorite.Linq.Enumerable.IHashSetFlinq\Benchmark.Tsavorite.Linq.Enumerable.IHashSetFlinq.csproj" />
+  </ItemGroup>
+
+</Project>

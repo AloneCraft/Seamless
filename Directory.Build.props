@@ -1,6 +1,6 @@
 <Project>
-  <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectName)').StartsWith('Labo.Benchmark.'))">
-    <OutputType>Exe</OutputType>
+  <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectName)').StartsWith('Benchmark.'))">
+    <OutputType>Library</OutputType>
     <GenerateProgramFile>false</GenerateProgramFile>
     <IsTestProject>false</IsTestProject>
     <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
