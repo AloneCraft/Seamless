@@ -88,6 +88,20 @@
             "cwd": "${workspaceFolder}/Benchmark.System.Linq.Enumerable.Intercept.Runner",
             "console": "integratedTerminal",
             "stopAtEntry": false
+        },
+        {
+            "name": "Uno Benchmark Runner exe(Debug)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-uno-desktop",
+            "program": "${workspaceFolder}/Labo.Benchmark.Runner.Uno/Labo.Benchmark.Runner.Uno/bin/Debug/net10.0-desktop/Labo.Benchmark.Runner.Uno.exe",
+            "args": [],
+            "env": {
+                "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
+            },
+            "cwd": "${workspaceFolder}",
+            "console": "internalConsole",
+            "stopAtEntry": false
         }
     ]
 }

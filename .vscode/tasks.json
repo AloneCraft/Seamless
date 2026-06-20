@@ -81,6 +81,19 @@
                 "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-uno-desktop",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Labo.Benchmark.Runner.Uno/Labo.Benchmark.Runner.Uno/Labo.Benchmark.Runner.Uno.csproj",
+                "/property:GenerateFullPaths=true",
+                "/property:TargetFramework=net10.0-desktop",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
         }
     ]
 }

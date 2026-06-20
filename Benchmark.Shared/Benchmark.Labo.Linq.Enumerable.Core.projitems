@@ -11,6 +11,5 @@
     <Compile Remove="$(MSBuildThisFileDirectory)Infrastructure\TsavoriteConsumerExtensions.cs" Condition="'$(LaboTsavorite)'!='true'" />
     <Compile Include="$(MSBuildThisFileDirectory)Methods1.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Labo\Linq.Enumerable\**\*.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Labo\Linq.Enumerable.Benchmark\**\*.cs" Condition="$([System.String]::Copy('$(MSBuildProjectName)').StartsWith('Labo.Benchmark.'))" />
   </ItemGroup>
 </Project>

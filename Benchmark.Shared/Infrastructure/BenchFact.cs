@@ -1,5 +1,5 @@
 #if BENCH_AS_TEST
-using System.Runtime.CompilerServices;
+using global::System.Runtime.CompilerServices;
 using Xunit;
 using Xunit.v3;
 
