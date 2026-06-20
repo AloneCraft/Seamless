@@ -13,13 +13,13 @@
       "request": "launch",
       "preLaunchTask": "build-desktop",
       // If you have changed target frameworks, make sure to update the program path.
-      "program": "${workspaceFolder}/Labo.Benchmark.Runner.Uno/bin/Debug/net10.0-desktop/Labo.Benchmark.Runner.Uno.exe",
+      "program": "${workspaceFolder}/Benchmark.Runner.Uno/bin/Debug/net10.0-desktop/Benchmark.Runner.Uno.exe",
       "args": [],
-      "launchSettingsProfile": "Labo.Benchmark.Runner.Uno (Desktop)",
+      "launchSettingsProfile": "Benchmark.Runner.Uno (Desktop)",
       "env": {
         "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
       },
-      "cwd": "${workspaceFolder}/Labo.Benchmark.Runner.Uno",
+      "cwd": "${workspaceFolder}/Benchmark.Runner.Uno",
       // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
       "console": "internalConsole",
       "stopAtEntry": false

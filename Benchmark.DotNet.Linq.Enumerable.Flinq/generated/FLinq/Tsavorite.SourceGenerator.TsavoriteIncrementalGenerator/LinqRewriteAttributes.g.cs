@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 namespace Tsavorite.SourceGenerator {
     [global::System.Flags]
     internal enum LinqInstrumentation {

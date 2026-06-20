@@ -1,1 +1,0 @@
-global using LaboLinqInterceptAttribute = Tsavorite.SourceGenerator.LinqInterceptAttribute;

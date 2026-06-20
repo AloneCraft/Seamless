@@ -9,8 +9,8 @@
   <Import Project="Benchmark.Shared.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <None Include="Benchmark.Labo.Linq.Enumerable.Core.projitems" />
-    <Compile Include="Labo\**\*.cs" />
+    <None Include="Benchmark.Linq.Enumerable.Core.projitems" />
+    <Compile Include="Linq.Enumerable*\**\*.cs" />
     <Compile Include="TestInfrastructure\**\*.cs" />
   </ItemGroup>
   <ItemGroup>

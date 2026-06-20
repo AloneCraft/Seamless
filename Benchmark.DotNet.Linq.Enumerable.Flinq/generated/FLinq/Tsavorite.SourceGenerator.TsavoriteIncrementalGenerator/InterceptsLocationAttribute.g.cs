@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 namespace System.Runtime.CompilerServices {
     [global::System.AttributeUsage(global::System.AttributeTargets.Method,AllowMultiple=true)]
     internal sealed class InterceptsLocationAttribute : global::System.Attribute {

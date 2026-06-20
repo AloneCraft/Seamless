@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <DefineConstants Condition="'$(Tsavorite)' == 'true'">$(DefineConstants);TSAVORITE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Infrastructure\**\*.cs" />
+    <Compile Remove="$(MSBuildThisFileDirectory)Infrastructure\TsavoriteBase.cs" Condition="'$(Tsavorite)'!='true'" />
+    <Compile Remove="$(MSBuildThisFileDirectory)Infrastructure\TsavoriteConsumerExtensions.cs" Condition="'$(Tsavorite)'!='true'" />
+    <Compile Include="$(MSBuildThisFileDirectory)Methods1.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Linq.Enumerable\**\*.cs" />
+  </ItemGroup>
+</Project>
