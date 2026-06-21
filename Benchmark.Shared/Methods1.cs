@@ -32,10 +32,10 @@ public abstract class Methods1 : global::Benchmark.Shared.Base {
     private const int MaterializeLookupCount=32_000_000;
     private const int SetCount=19_000_000;
     private const int GroupingCount=28_000_000;
-    private const int JoinCount=330_000;
+    private const int JoinCount=320_000;
     private const int SortCount=1_700_000;
     private const int NestedCount=24_000_000;
-    private const int GeneratedCount=110_000_000;
+    private const int GeneratedCount=104_400_000;
     private const int SourceShapeCount=60_000_000;
     private const int SelectManyOuterCount=120_000;
     private const int SelectManyInnerCount=128;

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Calibrate LINQ Test Workloads"
+  short_description: "SeamlessのLINQテスト負荷を再測定して調整"
+  default_prompt: "Use $calibrate-linq-test-workloads to recalibrate Seamless LINQ test workloads."

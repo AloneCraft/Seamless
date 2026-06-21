@@ -35,6 +35,9 @@
     <ProjectReference Include="..\FLinq\FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\Tsavorite.Collections\Tsavorite.Collections.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
   <Import Project="..\Benchmark.Shared\Benchmark.Linq.Enumerable.Core.projitems" Label="Shared" />
 </Project>
 

@@ -44,6 +44,42 @@
                 "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "test-release",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "test",
+                "${workspaceFolder}/Seamless.slnx",
+                "-c",
+                "Release",
+                "--no-restore",
+                "--settings",
+                "${workspaceFolder}/test.runsettings"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": "test"
+        },
+        {
+            "label": "test-release-diagnostics",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "test",
+                "${workspaceFolder}/Seamless.slnx",
+                "-c",
+                "Release",
+                "--no-restore",
+                "--settings",
+                "${workspaceFolder}/test.runsettings",
+                "--logger",
+                "console;verbosity=diagnostic",
+                "--logger",
+                "trx;LogFileName=artifacts/test-release-diagnostic.trx"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": "test"
         }
     ]
 }

@@ -11,5 +11,6 @@
     "editor.formatOnSave": true
   },
   "dotnet.defaultSolution": "Seamless.slnx",
+  "dotnet.unitTests.runSettingsPath": "test.runsettings",
   "dotnet.testWindow.enableNextTest": false
 }
