@@ -1,10 +1,14 @@
 ﻿using System.IO.MemoryMappedFiles;
-namespace Tsavorite.Collections;
+using Tsavorite.Collections;
 
-public class List<T>(string path,long initialCapacity = 16,long initialDataCapacity = 4096):List<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity) {
+namespace Persistent.Collections;
+
+public abstract class List<T>:ListBase<T> {
+    private protected List(string path) : base(path) {
+    }
 }
 
-public class List<T, TSerializer>:ListBase<T>
+public class List<T, TSerializer>:List<T>
     where TSerializer : ISerializer<T> {
     private const long UnusedIndex = -1;
 
@@ -391,4 +395,123 @@ public class List<T, TSerializer>:ListBase<T>
             this.WriteIndexUnchecked(index,UnusedIndex);
         }
     }
+}
+
+internal sealed class FixedList<T>:List<T>
+    where T : unmanaged {
+    private const long HeaderLength = sizeof(long);
+    private FileStream stream = null!;
+    private MemoryMappedFile mappedFile = null!;
+    private MemoryMappedViewAccessor accessor = null!;
+    private TempListTuning tuning = new(FileAccess.ReadWrite,FileOptions.SequentialScan);
+
+    public override FileAccess OptimizationMode => this.tuning.OptimizationMode;
+    public override FileOptions AccessPattern => this.tuning.AccessPattern;
+
+    public FixedList(string path,long initialCapacity = 16) : base(path) {
+        if(initialCapacity<1)
+            throw new ArgumentOutOfRangeException(nameof(initialCapacity));
+        this.stream=this.OpenStream(this.Path);
+        var elementSize = Unsafe.SizeOf<T>();
+        var initializeHeader = this.stream.Length==0;
+        if(this.stream.Length==0) {
+            this.Count=0;
+            this.Capacity=this.AlignCapacity(initialCapacity,elementSize);
+            this.stream.SetLength(this.GetFileLength(this.Capacity,elementSize));
+        }
+        else {
+            if(this.stream.Length<HeaderLength||(this.stream.Length-HeaderLength)%elementSize!=0)
+                throw new InvalidDataException("The fixed list file length is invalid.");
+            this.Capacity=(this.stream.Length-HeaderLength)/elementSize;
+        }
+        this.CreateMapping();
+        if(initializeHeader)
+            this.WriteCount();
+        else {
+            this.Count=this.LoadCount();
+            if(this.Count<0||this.Count>this.Capacity)
+                throw new InvalidDataException("The fixed list count is invalid.");
+        }
+        this.ApplyTuning();
+    }
+
+    public override void Add(T item) {
+        this.ThrowIfDisposed();
+        this.EnsureCapacity(this.Count+1);
+        this.accessor.Write(this.GetOffset(this.Count),ref item);
+        this.Count++;
+        this.OnCountChanged();
+    }
+
+    public override void SetTuning(TempListTuning tuning) {
+        this.ThrowIfDisposed();
+        if(this.tuning.Equals(tuning))
+            return;
+        var requiresReopen = MemoryMappedListTuning.RequiresReopen(this.tuning,tuning);
+        this.tuning=tuning;
+        if(requiresReopen) {
+            this.ReopenMapping();
+            return;
+        }
+        this.ApplyTuning();
+    }
+
+    protected override T GetItem(long index) {
+        this.accessor.Read(this.GetOffset(index),out T value);
+        return value;
+    }
+
+    protected override void OnCountChanged() {
+        this.WriteCount();
+    }
+
+    protected override void DisposeCore() {
+        this.accessor.Flush();
+        this.accessor.Dispose();
+        this.mappedFile.Dispose();
+        this.stream.Dispose();
+    }
+
+    private void EnsureCapacity(long minimumCapacity) {
+        if(minimumCapacity<=this.Capacity)
+            return;
+        var elementSize = Unsafe.SizeOf<T>();
+        var newCapacity = this.AlignCapacity(Math.Max(this.Capacity*2,minimumCapacity),elementSize);
+        this.accessor.Flush();
+        this.accessor.Dispose();
+        this.mappedFile.Dispose();
+        this.Capacity=newCapacity;
+        this.stream.SetLength(this.GetFileLength(newCapacity,elementSize));
+        this.CreateMapping();
+        this.ApplyTuning();
+    }
+
+    private void CreateMapping() {
+        this.mappedFile=MemoryMappedFile.CreateFromFile(this.stream,null,this.stream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
+        this.accessor=this.mappedFile.CreateViewAccessor(0,this.stream.Length,MemoryMappedFileAccess.ReadWrite);
+    }
+
+    private void ReopenMapping() {
+        this.accessor.Flush();
+        this.accessor.Dispose();
+        this.mappedFile.Dispose();
+        this.stream.Dispose();
+        this.stream=this.OpenStream(this.Path);
+        this.CreateMapping();
+        this.ApplyTuning();
+    }
+
+    private FileStream OpenStream(string path) =>
+        new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,BufferSize,MemoryMappedListTuning.GetFileOptions(this.Tuning));
+
+    private void ApplyTuning() =>
+        MemoryMappedListTuning.ApplyTuning(this.stream,this.accessor,this.Tuning);
+
+    private long LoadCount() => this.accessor.ReadInt64(0);
+    private void WriteCount() => this.accessor.Write(0,this.Count);
+
+    private long GetOffset(long index) => checked(HeaderLength+index*(long)Unsafe.SizeOf<T>());
+    private long GetFileLength(long capacity,int elementSize) => checked(HeaderLength+capacity*(long)elementSize);
+    private long AlignCapacity(long capacity,int elementSize) =>
+        MemoryMappedListTuning.AlignElementCapacity(capacity,elementSize);
 }

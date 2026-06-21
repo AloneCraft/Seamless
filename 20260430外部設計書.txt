@@ -4,97 +4,97 @@
   Version     : 1.0
   Date        : 2026-04-30
   Repository  : https://github.com/KazuhiroNomura/Seamless
-  対象ブランチ : master
+  対象ブランチE: master
 ================================================================================
 
-1. システム構成
+1. シスチE��構�E
 --------------------------------------------------------------------------------
-1.1 コンポーネント
-    - Seamless.dll      : Tsavorite 2.0.0-beta.3 バインディング (DefineConstants
+1.1 コンポ�EネンチE
+    - Seamless.dll      : Tsavorite 2.0.0-beta.3 バインチE��ング (DefineConstants
                            TSAVORITE2_0BETA3)
-    - Benchmark          : BenchmarkDotNet ベースの計測ベンチマーク
+    - Benchmark          : BenchmarkDotNet ベ�Eスの計測ベンチ�Eーク
 
-1.2 名前空間
-    - Seamless                  : ルート、Const 等
-    - Seamless.Collections      : 利用者公開コレクション、シリアライザ、
-                                  IDictionary / IHashSet / ISet 等
+1.2 名前空閁E
+    - Seamless                  : ルート、Const 筁E
+    - Seamless.Collections      : 利用老E�E開コレクション、シリアライザ、E
+                                  IDictionary / IHashSet / ISet 筁E
     - Seamless.Stores           : ストアファクトリ、HashStore / ListStore /
-                                  ManagedDictionaryStore 等
-    - Seamless.Devices          : MemoryOnlyDevice 等の IDevice 実装
+                                  ManagedDictionaryStore 筁E
+    - Seamless.Devices          : MemoryOnlyDevice 等�E IDevice 実裁E
     - Seamless.SessionFunctions : Tsavorite Session 用 Functions
-    - Seamless.Linq             : 集合演算等のストラテジー実装
+    - Seamless.Linq             : 雁E��演算等�EストラチE��ー実裁E
 
-2. 公開 API（外部 I/F）
+2. 公閁EAPI�E�外部 I/F�E�E
 --------------------------------------------------------------------------------
-2.1 ファクトリ：HashStore
-    HashStore.Create(IndexSize, PageSize, SegmentSize, MemorySize,
+2.1 ファクトリ�E�HashStore
+    Store.Create(IndexSize, PageSize, SegmentSize, MemorySize,
                      MutableFraction, CheckpointDir, StorageLimitFraction,
-                     StorageReserveBytes) : HashStore
-    HashStore は値型（readonly struct）で、構成パラメータを保持する。
-    Create<TKey,TValue>(ManagedTag/UnmanagedTag タグ引数の組合せ) により
-    以下の Store を返す。
+                     StorageReserveBytes) : Store
+    Store は値型！Eeadonly struct�E�で、構�Eパラメータを保持する、E
+    Create<TKey,TValue>(ManagedTag/UnmanagedTag タグ引数の絁E��ぁE により
+    以下�E Store を返す、E
 
         - DictionaryStore<TKey,TValue>
         - DictionaryStore<TKey,TValue>
-    ストレージ併用版は IDevice LogDevice / IDevice ObjectLogDevice を追加で
-    受け取る。
+    ストレージ併用版�E IDevice LogDevice / IDevice ObjectLogDevice を追加で
+    受け取る、E
 
 2.2 Store の役割
-    - Create() で利用者公開コレクション（Seamless.Collections.IDictionary 等）
-      を返す。
-    - GetRecoveryEntryCount() で Recovery 後のエントリ数を取得する。
-    - CompactLog(compactUntil) で Tsavorite ログをコンパクト化する。
+    - Create() で利用老E�E開コレクション�E�Eeamless.Collections.IDictionary 等！E
+      を返す、E
+    - GetRecoveryEntryCount() で Recovery 後�Eエントリ数を取得する、E
+    - CompactLog(compactUntil) で Tsavorite ログをコンパクト化する、E
 
-2.3 Dictionary 公開 API（IDictionary<TKey,TValue>）
-    - インデクサ this[TKey key] : 取得時 KeyNotFoundException、設定時 Upsert。
-    - Add(TKey,TValue) / Add(KeyValuePair) : 重複時例外。
-    - TryAdd(TKey,TValue) : 重複時 KeyAlreadyExists、満杯時 LogFull、
-                            成功時 Success を TryAddResult で返す。
+2.3 Dictionary 公閁EAPI�E�EDictionary<TKey,TValue>�E�E
+    - インチE��サ this[TKey key] : 取得時 KeyNotFoundException、設定時 Upsert、E
+    - Add(TKey,TValue) / Add(KeyValuePair) : 重褁E��例外、E
+    - TryAdd(TKey,TValue) : 重褁E�� KeyAlreadyExists、満杯晁ELogFull、E
+                            成功晁ESuccess めETryAddResult で返す、E
     - ContainsKey(TKey) / Contains(KeyValuePair) / Contains(TKey)
     - TryGetValue(TKey, out TValue)
     - Remove(TKey) / Remove(TKey, out TValue) / Remove(KeyValuePair)
     - Keys / Values : ICollection<TKey/TValue>
-                       （IReadOnlyDictionary 経由では IEnumerable）
-    - GetEnumerator() : KeyValuePair<TKey,TValue> を列挙
-    - CopyTo(KeyValuePair[], int) : array.Length-arrayIndex < Count なら例外
+                       �E�EReadOnlyDictionary 経由では IEnumerable�E�E
+    - GetEnumerator() : KeyValuePair<TKey,TValue> を�E持E
+    - CopyTo(KeyValuePair[], int) : array.Length-arrayIndex < Count なら例夁E
     - EntryCount / GetLongCount() : long
     - IsDisposed
     - Refresh()
 
-2.4 HashSet 公開 API（IHashSet<T>）
+2.4 HashSet 公閁EAPI�E�EHashSet<T>�E�E
     - Add(T)
     - Contains(T) / Remove(T)
-    - 集合演算群: ExceptWith / IntersectWith / SymmetricExceptWith /
+    - 雁E��演算群: ExceptWith / IntersectWith / SymmetricExceptWith /
                   UnionWith / IsSubsetOf / IsSupersetOf / IsProperSubsetOf /
                   IsProperSupersetOf / Overlaps / SetEquals
     - GetEnumerator()
     - CopyTo(T[], int)
     - EntryCount / GetLongCount() / IsDisposed / Refresh()
 
-2.5 List 公開 API（ListStore）
+2.5 List 公閁EAPI�E�EistStore�E�E
     - ListStore.Create<T>(path, initialCapacity, initialDataCapacity,
                           ManagedTag) : ManagedList<T>
     - ListStore.Create<T>(path, initialCapacity, UnmanagedTag) :
       UnmanagedList<T>  (T : unmanaged)
-    ManagedList<T> はインデックスファイル + データファイル（メモリマップド）
-    で構成され、可変長レコードを格納する。
+    ManagedList<T> はインチE��クスファイル + チE�Eタファイル�E�メモリマップド�E�E
+    で構�Eされ、可変長レコードを格納する、E
 
 2.6 シリアライザ
     public interface ISerializer<T>{
         static abstract ReadOnlySpan<byte> Serialize(ref T value);
         static abstract T Deserialize(ReadOnlySpan<byte> bytes);
     }
-    既定実装：
+    既定実裁E��E
     - ManagedSerializer<T>   : MemoryPack を介する可変長
     - UnmanagedSerializer<T> : T : unmanaged の生メモリ直写し
 
-2.7 Tag 構造体（オーバーロード解決用）
+2.7 Tag 構造体（オーバ�Eロード解決用�E�E
     public readonly struct ManagedTag;
     public readonly struct UnmanagedTag;
 
-3. 利用例（疑似コード）
+3. 利用例（疑似コード！E
 --------------------------------------------------------------------------------
-    var hashStore = HashStore.Create();
+    var hashStore = Store.Create();
     using var dictStore = hashStore.Create<int,string>(default(UnmanagedTag),
                                                        default(ManagedTag));
     using var dict = dictStore.Create();
@@ -105,53 +105,53 @@
     using var listOwner = ListStore.Create<MyType>(@"C:\tmp\my.list");
     listOwner.Add(item);
 
-4. 入力 / 出力境界
+4. 入劁E/ 出力墁E��
 --------------------------------------------------------------------------------
-4.1 入力
-    - 構成パラメータ（IndexSize 等は 2 の冪である必要がある）。
-    - IDevice 実装（ストレージ併用時）。
-    - CheckpointDir（Recovery 時）。
-    - シリアライザ実装（既定の Managed/Unmanaged 以外を選択する場合）。
+4.1 入劁E
+    - 構�Eパラメータ�E�EndexSize 等�E 2 の冪である忁E��がある�E�、E
+    - IDevice 実裁E��ストレージ併用時）、E
+    - CheckpointDir�E�Eecovery 時）、E
+    - シリアライザ実裁E��既定�E Managed/Unmanaged 以外を選択する場合）、E
 
-4.2 出力
-    - コレクションインスタンス（IDictionary / IHashSet / ISet / IList 互換）。
-    - Recovery メタデータ（Checkpoint 配下 .seamless ディレクトリの json）。
+4.2 出劁E
+    - コレクションインスタンス�E�EDictionary / IHashSet / ISet / IList 互換�E�、E
+    - Recovery メタチE�Eタ�E�Eheckpoint 配丁E.seamless チE��レクトリの json�E�、E
 
-4.3 例外
-    - ArgumentNullException        : null 引数。
-    - ArgumentOutOfRangeException  : 負値、0 以下、範囲外パラメータ。
-    - InvalidOperationException    : 構成不整合（例：ManagedDictionaryStore で
-                                      Unmanaged×Unmanaged 生成要求）。
-    - KeyNotFoundException         : インデクサ get でキー未存在。
-    - InvalidDataException         : ManagedList の伴ファイル欠損。
-    - LogFull 状態                 : TryAddResult.LogFull もしくは
-                                      ThrowLogFull() による例外。
+4.3 例夁E
+    - ArgumentNullException        : null 引数、E
+    - ArgumentOutOfRangeException  : 負値、E 以下、篁E��外パラメータ、E
+    - InvalidOperationException    : 構�E不整合（例：ManagedDictionaryStore で
+                                      Unmanaged×Unmanaged 生�E要求）、E
+    - KeyNotFoundException         : インチE��サ get でキー未存在、E
+    - InvalidDataException         : ManagedList の伴ファイル欠損、E
+    - LogFull 状慁E                : TryAddResult.LogFull もしく�E
+                                      ThrowLogFull() による例外、E
 
 5. 設定パラメータ
 --------------------------------------------------------------------------------
-5.1 IndexSize     : ハッシュインデックスサイズ。Const.IndexSize=64 既定。
-5.2 PageSize      : Tsavorite ログページサイズ。Const.PageSize=4096 既定。
-5.3 SegmentSize   : Const.SegmentSize=PageSize*1。
-5.4 MemorySize    : Const.LogMemorySize=1<<13。
-5.5 MutableFraction       : メモリ内可変領域比率。0..1。
-5.6 StorageLimitFraction  : ストレージ容量比率。0..1。既定 1.0。
-5.7 StorageReserveBytes   : ストレージ末尾予約バイト数。0 以上。
+5.1 IndexSize     : ハッシュインチE��クスサイズ、Eonst.IndexSize=64 既定、E
+5.2 PageSize      : Tsavorite ログペ�Eジサイズ、Eonst.PageSize=4096 既定、E
+5.3 SegmentSize   : Const.SegmentSize=PageSize*1、E
+5.4 MemorySize    : Const.LogMemorySize=1<<13、E
+5.5 MutableFraction       : メモリ冁E��変領域比率、E..1、E
+5.6 StorageLimitFraction  : ストレージ容量比率、E..1。既宁E1.0、E
+5.7 StorageReserveBytes   : ストレージ末尾予紁E��イト数、E 以上、E
 
-6. 永続化レイアウト
+6. 永続化レイアウチE
 --------------------------------------------------------------------------------
 6.1 Tsavorite ログ
-    - IDevice の実装が決定する。MemoryOnlyDevice を使う場合は永続化されない。
-6.2 Checkpoint メタデータ
+    - IDevice の実裁E��決定する、EemoryOnlyDevice を使ぁE��合�E永続化されなぁE��E
+6.2 Checkpoint メタチE�Eタ
     - <CheckpointDir>/.seamless/<token:N>.index-size.json
     - <CheckpointDir>/.seamless/latest.index-size.json
 6.3 ManagedList
-    - <path>       : データファイル。
-    - <path>.index : 各レコードのオフセットを格納するインデックスファイル。
+    - <path>       : チE�Eタファイル、E
+    - <path>.index : 吁E��コード�EオフセチE��を格納するインチE��クスファイル、E
 
-7. エラーハンドリング指針
+7. エラーハンドリング持E�E
 --------------------------------------------------------------------------------
-7.1 Pending Status は CompletePending を実行し、IsCompleted が真になることを
-    確認する。
-7.2 LogFull 判定は OverflowMutableStrategy（Memory / Storage）で事前に行い、
-    必要時のみ書き込みを試みる。
-7.3 Dispose 後に呼ばれた API は ObjectDisposedException 相当の挙動を取る。
+7.1 Pending Status は CompletePending を実行し、IsCompleted が真になることめE
+    確認する、E
+7.2 LogFull 判定�E OverflowMutableStrategy�E�Eemory / Storage�E�で事前に行い、E
+    忁E��時のみ書き込みを試みる、E
+7.3 Dispose 後に呼ばれた API は ObjectDisposedException 相当�E挙動を取る、E

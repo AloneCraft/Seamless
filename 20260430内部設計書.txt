@@ -1,15 +1,15 @@
-ï»¿================================================================================
-  Seamless å†…éƒ¨è¨­è¨ˆæ›¸
+================================================================================
+  Seamless “à•”İŒv‘
   Document ID : SEAMLESS-INT-20260430
   Version     : 1.0
   Date        : 2026-04-30
   Repository  : https://github.com/KazuhiroNomura/Seamless
-  å¯¾è±¡ãƒ–ãƒ©ãƒ³ãƒ : master
+  ‘ÎÛƒuƒ‰ƒ“ƒ` : master
 ================================================================================
 
-1. ã‚¯ãƒ©ã‚¹éšå±¤
+1. ƒNƒ‰ƒXŠK‘w
 --------------------------------------------------------------------------------
-1.1 Collection éšå±¤ï¼ˆSeamless1 / Seamless2 å…±æœ‰ï¼‰
+1.1 Collection ŠK‘wiSeamless1 / Seamless2 ‹¤—Lj
 
     Collection<TKey, TValue,
               TSessionKey, TSessionValue,
@@ -17,216 +17,216 @@
               TReadFunctions, TAddFunctions,
               TContainsFunctions, TContainsDeleteFunctions,
               TStoreFunctions, TAllocator>
-        â†‘
+        ª
     ManagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>
     UnmanagedCollection<TKey, TValue, TKeySerializer, TValueSerializer>
-        â†‘
+        ª
     ManagedManagedCollection / ManagedUnmanagedCollection /
     UnmanagedManagedCollection / UnmanagedUnmanagedCollection
-        â†‘
-    ManagedDictionary / UnmanagedDictionaryï¼ˆpartialï¼‰
-    ManagedHashSet / UnmanagedHashSetï¼ˆpartialï¼‰
-    ManagedSet / UnmanagedSetï¼ˆpartialï¼‰
+        ª
+    ManagedDictionary / UnmanagedDictionaryipartialj
+    ManagedHashSet / UnmanagedHashSetipartialj
+    ManagedSet / UnmanagedSetipartialj
 
-    - é™çš„ã‚¸ã‚§ãƒãƒªãƒƒã‚¯ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã§ Session Functions ã¨ Allocator ã‚’
-      å›ºå®šã—ã€ã™ã¹ã¦ã®ãƒ›ãƒƒãƒˆãƒ‘ã‚¹ã‚’éä»®æƒ³ã§è§£æ±ºã™ã‚‹ã€‚
-    - Managed / Unmanaged ã®å·®ç•°ã¯ TSessionKey / TSessionValue
-      ï¼ˆSpanByte vs å›ºå®šæ§‹é€ ä½“ï¼‰ã¨ Serializer ã®å·®ã§å¸åã™ã‚‹ã€‚
+    - Ã“IƒWƒFƒlƒŠƒbƒNƒpƒ‰ƒ[ƒ^‚Å Session Functions ‚Æ Allocator ‚ğ
+      ŒÅ’è‚µA‚·‚×‚Ä‚ÌƒzƒbƒgƒpƒX‚ğ”ñ‰¼‘z‚Å‰ğŒˆ‚·‚éB
+    - Managed / Unmanaged ‚Ì·ˆÙ‚Í TSessionKey / TSessionValue
+      iSpanByte vs ŒÅ’è\‘¢‘Ìj‚Æ Serializer ‚Ì·‚Å‹zû‚·‚éB
 
-1.2 Store éšå±¤
-    CollectionStore (Seamless å…±æœ‰)
-        â”œ ManagedCollectionStore<TKey,TValue>  (Seamless1/Seamless2 å€‹åˆ¥)
-        â”‚   â”œ ManagedDictionaryStore<TKey,TValue>
-        â”‚   â”œ ManagedHashSetStore<TKey>
-        â”‚   â”” ManagedSetStore<TRecord,TKey>
-        â”” UnmanagedCollectionStore<TKey,TValue>
-            â”œ UnmanagedDictionaryStore<TKey,TValue>
-            â”œ UnmanagedHashSetStore<TKey>
-            â”” UnmanagedSetStore<TRecord,TKey>
+1.2 Store ŠK‘w
+    CollectionStore (Seamless ‹¤—L)
+        „¥ ManagedCollectionStore<TKey,TValue>  (Seamless1/Seamless2 ŒÂ•Ê)
+        „    „¥ ManagedDictionaryStore<TKey,TValue>
+        „    „¥ ManagedHashSetStore<TKey>
+        „    „¤ ManagedSetStore<TRecord,TKey>
+        „¤ UnmanagedCollectionStore<TKey,TValue>
+            „¥ UnmanagedDictionaryStore<TKey,TValue>
+            „¥ UnmanagedHashSetStore<TKey>
+            „¤ UnmanagedSetStore<TRecord,TKey>
 
-    - CollectionStore ã¯ AssertIsPowerOfTwoï¼ˆDEBUGï¼‰ã¨
-      GetRecoveryEntryCount ã‚’æä¾›ã™ã‚‹åŸºåº•ã€‚
-    - å„ Store ã® Create() ãŒã‚³ãƒ¬ã‚¯ã‚·ãƒ§ãƒ³ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ã‚’è¿”ã™ãƒ•ã‚¡ã‚¯ãƒˆãƒªã€‚
+    - CollectionStore ‚Í AssertIsPowerOfTwoiDEBUGj‚Æ
+      GetRecoveryEntryCount ‚ğ’ñ‹Ÿ‚·‚éŠî’êB
+    - Še Store ‚Ì Create() ‚ªƒRƒŒƒNƒVƒ‡ƒ“ƒCƒ“ƒXƒ^ƒ“ƒX‚ğ•Ô‚·ƒtƒ@ƒNƒgƒŠB
 
-1.3 ãƒ•ã‚¡ã‚¯ãƒˆãƒªï¼šHashStoreï¼ˆreadonly structï¼‰
-    - æ§‹æˆãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ï¼ˆIndexSize ç­‰ï¼‰ã‚’ä¿æŒã€‚
+1.3 ƒtƒ@ƒNƒgƒŠFStoreireadonly structj
+    - \¬ƒpƒ‰ƒ[ƒ^iIndexSize “™j‚ğ•ÛB
     - Create<TKey,TValue>(ManagedTag/UnmanagedTag, ManagedTag/UnmanagedTag)
-      ã® 4 ã‚ªãƒ¼ãƒãƒ¼ãƒ­ãƒ¼ãƒ‰ã‚’ OverloadResolutionPriority ã§å„ªå…ˆé †ä½ä»˜ã‘ã€‚
-    - ã‚¹ãƒˆãƒ¬ãƒ¼ã‚¸ç”¨ Create<TKey,TValue>(IDevice, IDevice, ...) ã‚’åˆ¥ç³»çµ±ã§æŒã¤ã€‚
-    - WithRecoveryIndexSize ã§ Checkpoint ãƒ¡ã‚¿ãƒ‡ãƒ¼ã‚¿ã‹ã‚‰ IndexSize ã‚’å†æ±ºå®šã€‚
+      ‚Ì 4 ƒI[ƒo[ƒ[ƒh‚ğ OverloadResolutionPriority ‚Å—Dæ‡ˆÊ•t‚¯B
+    - ƒXƒgƒŒ[ƒW—p Create<TKey,TValue>(IDevice, IDevice, ...) ‚ğ•ÊŒn“‚Å‚ÂB
+    - WithRecoveryIndexSize ‚Å Checkpoint ƒƒ^ƒf[ƒ^‚©‚ç IndexSize ‚ğÄŒˆ’èB
 
-2. Session æ§‹æˆï¼ˆTsavorite ClientSessionï¼‰
+2. Session \¬iTsavorite ClientSessionj
 --------------------------------------------------------------------------------
-ManagedDictionary ã¯ä»¥ä¸‹ã®ã‚»ãƒƒã‚·ãƒ§ãƒ³ã‚’ä¿æŒã™ã‚‹ï¼ˆSeamless1 ä¾‹ï¼‰ã€‚
+ManagedDictionary ‚ÍˆÈ‰º‚ÌƒZƒbƒVƒ‡ƒ“‚ğ•Û‚·‚éiSeamless1 —ájB
     Remove_TKey_TValue_ClientSession :
         TInput=EqualityEmpty, TOutput=SpanByteAndMemory,
         TFunctions=ManagedRemove_TKey_TValue
     Remove_KeyValuePair_ClientSession :
         TInput=SpanByte, TOutput=bool,
         TFunctions=ManagedRemove_KeyValuePair
-è¦ªã‚¯ãƒ©ã‚¹å´ã§ä»¥ä¸‹ã‚’ä¿æŒã™ã‚‹ã€‚
-    Read / Add / Contains / ContainsDelete å„ ClientSessionã€‚
+eƒNƒ‰ƒX‘¤‚ÅˆÈ‰º‚ğ•Û‚·‚éB
+    Read / Add / Contains / ContainsDelete Še ClientSessionB
 
-å„ Session ã¯ä»¥ä¸‹ã®ãƒ©ã‚¤ãƒ•ã‚µã‚¤ã‚¯ãƒ«åˆ¶ç´„ã«å¾“ã†ã€‚
-    - ç”Ÿæˆ: ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿ãŠã‚ˆã³ RecreateAdditionalSessions / Refresh ã§
-            CreateAdditionalSessions ãŒå‘¼ã°ã‚Œã‚‹ã€‚
-    - ç ´æ£„: DisposeAdditionalSessions ã§ CompletePendingAndDispose ã‚’å‘¼ã¶ã€‚
-            Dispose(bool disposing) ã¯ disposed ãƒ•ãƒ©ã‚°ã§å¤šé‡å®Ÿè¡Œã‚’æŠ‘æ­¢ã™ã‚‹ã€‚
+Še Session ‚ÍˆÈ‰º‚Ìƒ‰ƒCƒtƒTƒCƒNƒ‹§–ñ‚É]‚¤B
+    - ¶¬: ƒRƒ“ƒXƒgƒ‰ƒNƒ^‚¨‚æ‚Ñ RecreateAdditionalSessions / Refresh ‚Å
+            CreateAdditionalSessions ‚ªŒÄ‚Î‚ê‚éB
+    - ”jŠü: DisposeAdditionalSessions ‚Å CompletePendingAndDispose ‚ğŒÄ‚ÔB
+            Dispose(bool disposing) ‚Í disposed ƒtƒ‰ƒO‚Å‘½dÀs‚ğ—}~‚·‚éB
 
-3. ä¸»è¦ã‚ªãƒšãƒ¬ãƒ¼ã‚·ãƒ§ãƒ³ã®å†…éƒ¨å‡¦ç†
+3. å—vƒIƒyƒŒ[ƒVƒ‡ƒ“‚Ì“à•”ˆ—
 --------------------------------------------------------------------------------
 3.1 Add / Upsert
-    1. TKeySerializer.Serialize / TValueSerializer.Serialize ã§
-       ReadOnlySpan<byte> ã‚’å–å¾—ã€‚
-    2. WouldOverflowMutable ã§å®¹é‡ã‚’åˆ¤å®šã—ã€æº€æ¯ãªã‚‰ ThrowLogFull / LogFullã€‚
-    3. fixed ã§ pin ã— SpanByte.FromPinnedSpan ã‚’ä½œæˆã€‚
-    4. BasicContext.RMW or Upsert ã‚’å‘¼ã¶ã€‚
-    5. Pending(...) ã§ Pending ã‚’è§£æ±ºã—ã€Status ã‚’ç¢ºå®šã€‚
+    1. TKeySerializer.Serialize / TValueSerializer.Serialize ‚Å
+       ReadOnlySpan<byte> ‚ğæ“¾B
+    2. WouldOverflowMutable ‚Å—e—Ê‚ğ”»’è‚µA–”t‚È‚ç ThrowLogFull / LogFullB
+    3. fixed ‚Å pin ‚µ SpanByte.FromPinnedSpan ‚ğì¬B
+    4. BasicContext.RMW or Upsert ‚ğŒÄ‚ÔB
+    5. Pending(...) ‚Å Pending ‚ğ‰ğŒˆ‚µAStatus ‚ğŠm’èB
 
 3.2 Read / TryGetValue
-    1. Key ã‚’ Serializeã€SpanByteAndMemory Output ã‚’ç”¨æ„ã€‚
-    2. BasicContext.Read ã‚’å‘¼ã³ã€Pending ã‚’è§£æ±ºã€‚
-    3. Found ãªã‚‰ TValueSerializer.Deserializeã€NotFound ãªã‚‰ defaultã€‚
+    1. Key ‚ğ SerializeASpanByteAndMemory Output ‚ğ—pˆÓB
+    2. BasicContext.Read ‚ğŒÄ‚ÑAPending ‚ğ‰ğŒˆB
+    3. Found ‚È‚ç TValueSerializer.DeserializeANotFound ‚È‚ç defaultB
 
 3.3 Remove(TKey)
-    1. ContainsDelete ç³» Functions ã«ã‚ˆã‚Š RMW ã§å‰Šé™¤ã‚’å®Ÿè¡Œã€‚
-    2. Output(bool) ã‚’ç¢ºèªã—ã€å‰Šé™¤å¯å¦ã‚’è¿”ã™ã€‚
+    1. ContainsDelete Œn Functions ‚É‚æ‚è RMW ‚Åíœ‚ğÀsB
+    2. Output(bool) ‚ğŠm”F‚µAíœ‰Â”Û‚ğ•Ô‚·B
 
-3.4 Remove(TKey, out TValue)ï¼ˆManagedDictionary æ‹¡å¼µï¼‰
-    1. ManagedRemove_TKey_TValue Functions ã§ RMW ã‚’å®Ÿè¡Œã€‚
-    2. InPlaceUpdater / CopyUpdater çµŒè·¯ã§å€¤ãŒ SpanByteAndMemory ã«è¤‡è£½ã•ã‚ŒãŸ
-       å ´åˆ (Length>0)ã€Deserialize ã—ã¦è¿”ã™ã€‚
-    3. ãã‚Œä»¥å¤–ã¯ default ã‚’è¿”ã™ã€‚
+3.4 Remove(TKey, out TValue)iManagedDictionary Šg’£j
+    1. ManagedRemove_TKey_TValue Functions ‚Å RMW ‚ğÀsB
+    2. InPlaceUpdater / CopyUpdater Œo˜H‚Å’l‚ª SpanByteAndMemory ‚É•¡»‚³‚ê‚½
+       ê‡ (Length>0)ADeserialize ‚µ‚Ä•Ô‚·B
+    3. ‚»‚êˆÈŠO‚Í default ‚ğ•Ô‚·B
 
-3.5 Remove(KeyValuePair)ï¼ˆManagedDictionary æ‹¡å¼µï¼‰
-    1. Key / Value ã‚’ãã‚Œãã‚Œ Serializeã€‚
-    2. ManagedRemove_KeyValuePair Functions ã§ RMWï¼ˆInput=Value, Output=boolï¼‰ã€‚
-    3. å€¤ä¸€è‡´æ™‚ã®ã¿å‰Šé™¤ã—ã€çµæœ bool ã‚’è¿”ã™ã€‚
+3.5 Remove(KeyValuePair)iManagedDictionary Šg’£j
+    1. Key / Value ‚ğ‚»‚ê‚¼‚ê SerializeB
+    2. ManagedRemove_KeyValuePair Functions ‚Å RMWiInput=Value, Output=booljB
+    3. ’lˆê’v‚Ì‚İíœ‚µAŒ‹‰Ê bool ‚ğ•Ô‚·B
 
-3.6 åˆ—æŒ™
+3.6 —ñ‹“
     - GetEnumerator() :
-        InMemoryList<KeyValuePair<TKey,TValue>>ï¼ˆãƒ¡ãƒ¢ãƒªå¸¸é§åˆ†ã®ã¿ï¼‰ã«
-        KeyValueIterator ãŒå€¤ã‚’è“„ç©ã—ã€ManagedList<KeyValuePair>.Enumerator
-        ã‚’è¿”å´ã™ã‚‹ã€‚
+        InMemoryList<KeyValuePair<TKey,TValue>>iƒƒ‚ƒŠí’“•ª‚Ì‚İj‚É
+        KeyValueIterator ‚ª’l‚ğ’~Ï‚µAManagedList<KeyValuePair>.Enumerator
+        ‚ğ•Ô‹p‚·‚éB
     - CreateCollection<TIterator,T> :
-        ã‚¹ãƒˆãƒ¬ãƒ¼ã‚¸è¶Šã—ã®å…¨ä»¶åˆ—æŒ™ãŒå¿…è¦ãªå ´åˆã€ListStore.Create<T> ã§
-        ä¸€æ™‚çš„ãªæ°¸ç¶šãƒãƒƒãƒ•ã‚¡ã‚’ä½œã‚Šã€IterateLookupAll ã§ã‚¹ã‚­ãƒ£ãƒ³ã™ã‚‹ã€‚
-        ãã®å¾Œ System.Collections.Generic.List<T> ã«ã‚³ãƒ”ãƒ¼ã—ã¦è¿”å´ã—ã€
-        ä½œæ¥­ãƒ•ã‚¡ã‚¤ãƒ«ã¯ finally ã§å‰Šé™¤ã™ã‚‹ï¼ˆDeleteTemporaryWorkListPathï¼‰ã€‚
+        ƒXƒgƒŒ[ƒW‰z‚µ‚Ì‘SŒ—ñ‹“‚ª•K—v‚Èê‡AListStore.Create<T> ‚Å
+        ˆê“I‚È‰i‘±ƒoƒbƒtƒ@‚ğì‚èAIterateLookupAll ‚ÅƒXƒLƒƒƒ“‚·‚éB
+        ‚»‚ÌŒã System.Collections.Generic.List<T> ‚ÉƒRƒs[‚µ‚Ä•Ô‹p‚µA
+        ì‹Æƒtƒ@ƒCƒ‹‚Í finally ‚Åíœ‚·‚éiDeleteTemporaryWorkListPathjB
     - ICollection<KeyValuePair<TKey,TValue>>.GetEnumerator() :
-        ãƒ¡ãƒ¢ãƒªã®ã¿ã§æ¸ˆã‚€çµŒè·¯ã§ã¯ ReadMemoryClientSession ã‚’ç”¨ã„ã‚‹ã€‚
+        ƒƒ‚ƒŠ‚Ì‚İ‚ÅÏ‚ŞŒo˜H‚Å‚Í ReadMemoryClientSession ‚ğ—p‚¢‚éB
 
-3.7 å®¹é‡åˆ¤å®šï¼ˆOverflowMutableStrategyï¼‰
-    - Memory  : (tailAddress - beginAddress) > limit - required ã§åˆ¤å®šã€‚
-                limit = logMemorySize * mutableFractionï¼ˆ0 ä»¥ä¸‹ãªã‚‰ logMemorySizeï¼‰ã€‚
-    - Storage : tailAddress > limitBytes - required ã§åˆ¤å®šã€‚
+3.7 —e—Ê”»’èiOverflowMutableStrategyj
+    - Memory  : (tailAddress - beginAddress) > limit - required ‚Å”»’èB
+                limit = logMemorySize * mutableFractioni0 ˆÈ‰º‚È‚ç logMemorySizejB
+    - Storage : tailAddress > limitBytes - required ‚Å”»’èB
                 limitBytes = min(storageCapacity * limitFraction,
-                                 storageCapacity - reserveBytes)ã€‚
+                                 storageCapacity - reserveBytes)B
 
 3.8 Log Compaction
-    ManagedCollectionStore.CompactLog(compactUntil) ã¯
+    ManagedCollectionStore.CompactLog(compactUntil) ‚Í
     Store.Log.Compact<...>(ManagedAdd.Create(), compactUntil,
-                           CompactionType.Lookup) ã‚’å‘¼ã¶ã€‚
+                           CompactionType.Lookup) ‚ğŒÄ‚ÔB
 
-4. ã‚·ãƒªã‚¢ãƒ©ã‚¤ã‚º
+4. ƒVƒŠƒAƒ‰ƒCƒY
 --------------------------------------------------------------------------------
 4.1 ManagedSerializer<T>
-    - MemoryPack ç­‰ã‚’ç”¨ã„ã¦å¯å¤‰é•· ReadOnlySpan<byte> ã‚’è¿”ã™ã€‚
+    - MemoryPack “™‚ğ—p‚¢‚Ä‰Â•Ï’· ReadOnlySpan<byte> ‚ğ•Ô‚·B
 4.2 UnmanagedSerializer<T> (T : unmanaged)
-    - sizeof(T) ã®ãƒã‚¤ãƒˆåˆ—ã«ãƒ¡ãƒ¢ãƒªã‚³ãƒ”ãƒ¼ã™ã‚‹ã€‚
+    - sizeof(T) ‚ÌƒoƒCƒg—ñ‚Éƒƒ‚ƒŠƒRƒs[‚·‚éB
 4.3 EqualityEmpty
-    - 0 ãƒã‚¤ãƒˆç›¸å½“ã®ãƒ—ãƒ¬ãƒ¼ã‚¹ãƒ›ãƒ«ãƒ€å€¤å‹ã€‚HashSet ã® Valueã€TInput / TContext
-      ã«ç”¨ã„ã‚‹ã€‚
+    - 0 ƒoƒCƒg‘Š“–‚ÌƒvƒŒ[ƒXƒzƒ‹ƒ_’lŒ^BHashSet ‚Ì ValueATInput / TContext
+      ‚É—p‚¢‚éB
 
 5. SessionFunctions
 --------------------------------------------------------------------------------
-5.1 ManagedAdd / UnmanagedAdd : RMW ã§ TryAdd ã‚’å®Ÿè£…ã€‚
-5.2 ManagedRead / UnmanagedRead : Read ã§å€¤ã‚’ Output(SpanByteAndMemory) ã«
-                                   ã‚³ãƒ”ãƒ¼ã€‚
-5.3 ManagedContains / UnmanagedContains : å­˜åœ¨åˆ¤å®šã®ã¿ã€‚
-5.4 ManagedContainsDelete / UnmanagedContainsDelete : å­˜åœ¨æ™‚ã« Tombstone ã‚’
-                                                       ç«‹ã¦ã¦å‰Šé™¤ã€‚
-5.5 ManagedRemove_TKey_TValue : å€¤ã‚’ Output ã«è¤‡è£½ã—ã¤ã¤å‰Šé™¤ã€‚
-5.6 ManagedRemove_KeyValuePair / Unmanaged ç‰ˆ : Value ä¸€è‡´æ™‚ã®ã¿å‰Šé™¤ã€‚
-5.7 ManagedIntersectWith / SymmetricExceptWith / ExceptWith / Unmanaged ç‰ˆ :
-    é›†åˆæ¼”ç®—ç”¨ RMW Functionsã€‚
+5.1 ManagedAdd / UnmanagedAdd : RMW ‚Å TryAdd ‚ğÀ‘•B
+5.2 ManagedRead / UnmanagedRead : Read ‚Å’l‚ğ Output(SpanByteAndMemory) ‚É
+                                   ƒRƒs[B
+5.3 ManagedContains / UnmanagedContains : ‘¶İ”»’è‚Ì‚İB
+5.4 ManagedContainsDelete / UnmanagedContainsDelete : ‘¶İ‚É Tombstone ‚ğ
+                                                       —§‚Ä‚ÄíœB
+5.5 ManagedRemove_TKey_TValue : ’l‚ğ Output ‚É•¡»‚µ‚Â‚ÂíœB
+5.6 ManagedRemove_KeyValuePair / Unmanaged ”Å : Value ˆê’v‚Ì‚İíœB
+5.7 ManagedIntersectWith / SymmetricExceptWith / ExceptWith / Unmanaged ”Å :
+    W‡‰‰Z—p RMW FunctionsB
 
 6. ManagedList
 --------------------------------------------------------------------------------
-6.1 ãƒ•ã‚¡ã‚¤ãƒ«æ§‹æˆ
-    - data file       : ä»»æ„é•·ãƒ¬ã‚³ãƒ¼ãƒ‰ã‚’é€£ç¶šé…ç½®ã€‚
-    - <path>.index    : å„ãƒ¬ã‚³ãƒ¼ãƒ‰ã®å…ˆé ­ã‚ªãƒ•ã‚»ãƒƒãƒˆï¼ˆlongï¼‰ã‚’ Capacity å€‹åˆ†ã€‚
-6.2 ãƒ¡ãƒ¢ãƒªãƒãƒƒãƒ—ãƒ‰
-    - dataMappedFile / indexMappedFile ã‚’åŒæ–¹ MemoryMappedViewAccessor ã§
-      é–‹ãã€‚
-    - TempListTuning ã«å¾“ã„ FileAccess / FileOptions ã‚’åˆ‡ã‚Šæ›¿ãˆå¯èƒ½ã€‚
-6.3 æ“ä½œ
-    - Add(T) : Serialize â†’ AppendRecordï¼ˆå®¹é‡ã‚’è¶…ãˆãŸã‚‰æ‹¡å¼µï¼‰ã€‚
-    - DuplicateRemoval : SortBySerializedBits ã§ãƒã‚¤ãƒˆåˆ—ã‚½ãƒ¼ãƒˆã—ã€
-                         éš£æ¥é‡è¤‡ã‚’é™¤å»ã€‚
-6.4 ãƒ©ã‚¤ãƒ•ã‚µã‚¤ã‚¯ãƒ«
-    - æ—¢å­˜ãƒ•ã‚¡ã‚¤ãƒ«ãŒã‚ã‚‹å ´åˆã¯ LoadState ã§å¾©å…ƒã€‚
-    - data / index ãŒç‰‡å´ã®ã¿å­˜åœ¨ â†’ InvalidDataExceptionã€‚
+6.1 ƒtƒ@ƒCƒ‹\¬
+    - data file       : ”CˆÓ’·ƒŒƒR[ƒh‚ğ˜A‘±”z’uB
+    - <path>.index    : ŠeƒŒƒR[ƒh‚Ìæ“ªƒIƒtƒZƒbƒgilongj‚ğ Capacity ŒÂ•ªB
+6.2 ƒƒ‚ƒŠƒ}ƒbƒvƒh
+    - dataMappedFile / indexMappedFile ‚ğ‘o•û MemoryMappedViewAccessor ‚Å
+      ŠJ‚­B
+    - TempListTuning ‚É]‚¢ FileAccess / FileOptions ‚ğØ‚è‘Ö‚¦‰Â”\B
+6.3 ‘€ì
+    - Add(T) : Serialize ¨ AppendRecordi—e—Ê‚ğ’´‚¦‚½‚çŠg’£jB
+    - DuplicateRemoval : SortBySerializedBits ‚ÅƒoƒCƒg—ñƒ\[ƒg‚µA
+                         —×Úd•¡‚ğœ‹B
+6.4 ƒ‰ƒCƒtƒTƒCƒNƒ‹
+    - Šù‘¶ƒtƒ@ƒCƒ‹‚ª‚ ‚éê‡‚Í LoadState ‚Å•œŒ³B
+    - data / index ‚ª•Ğ‘¤‚Ì‚İ‘¶İ ¨ InvalidDataExceptionB
 
 7. Recovery
 --------------------------------------------------------------------------------
-7.1 ManagedDictionaryStore / UnmanagedDictionaryStore ã¯
-    GetRecoveryEntryCount() ã‚’ override ã—ã€Create() ã§é–‹ã„ãŸä¸€æ™‚çš„ãª
-    Dictionary ã‹ã‚‰ GetLongCount() ã‚’è¿”ã™ã€‚
-7.2 HashStore.WithRecoveryIndexSize ã¯ Checkpoint ãƒ¡ã‚¿ãƒ‡ãƒ¼ã‚¿ã‹ã‚‰
-    GetIndexSizeForCapacity ã«åŸºã¥ãé©åˆ‡ãª IndexSizeï¼ˆ2 ã®å†ªï¼‰ã‚’é¸æŠã™ã‚‹ã€‚
+7.1 ManagedDictionaryStore / UnmanagedDictionaryStore ‚Í
+    GetRecoveryEntryCount() ‚ğ override ‚µACreate() ‚ÅŠJ‚¢‚½ˆê“I‚È
+    Dictionary ‚©‚ç GetLongCount() ‚ğ•Ô‚·B
+7.2 Store.WithRecoveryIndexSize ‚Í Checkpoint ƒƒ^ƒf[ƒ^‚©‚ç
+    GetIndexSizeForCapacity ‚ÉŠî‚Ã‚«“KØ‚È IndexSizei2 ‚Ì™pj‚ğ‘I‘ğ‚·‚éB
 
-8. ãƒ©ã‚¤ãƒ•ã‚µã‚¤ã‚¯ãƒ«
+8. ƒ‰ƒCƒtƒTƒCƒNƒ‹
 --------------------------------------------------------------------------------
 8.1 Dispose
-    - Dictionary ç³»: è‡ªèº«ã®è¿½åŠ  Session ã‚’ Dispose ã—ãŸå¾Œã€base.Dispose ã‚’å‘¼ã¶ã€‚
-    - HashSet ç³»   : IntersectWith / SymmetricExceptWith Session ã‚’ Dispose ã—ã€
-                     base.Dispose ã‚’å‘¼ã¶ã€‚
-    - ownedStore ãŒã‚ã‚‹å ´åˆï¼ˆCreateOwned çµŒç”±ï¼‰ã¯ Store ã‚‚åŒæ™‚ã« Disposeã€‚
+    - Dictionary Œn: ©g‚Ì’Ç‰Á Session ‚ğ Dispose ‚µ‚½ŒãAbase.Dispose ‚ğŒÄ‚ÔB
+    - HashSet Œn   : IntersectWith / SymmetricExceptWith Session ‚ğ Dispose ‚µA
+                     base.Dispose ‚ğŒÄ‚ÔB
+    - ownedStore ‚ª‚ ‚éê‡iCreateOwned Œo—Rj‚Í Store ‚à“¯‚É DisposeB
 8.2 IsDisposed
-    - å„ Collection å†…éƒ¨ã® disposed ãƒ•ãƒ©ã‚°ã‚’è¿”ã™ã€‚
-    - å¤šé‡ Dispose ã¯ no-opã€‚
+    - Še Collection “à•”‚Ì disposed ƒtƒ‰ƒO‚ğ•Ô‚·B
+    - ‘½d Dispose ‚Í no-opB
 
-9. ã‚¹ãƒ¬ãƒƒãƒ‡ã‚£ãƒ³ã‚°
+9. ƒXƒŒƒbƒfƒBƒ“ƒO
 --------------------------------------------------------------------------------
-9.1 Session ã¯å˜ä¸€ã‚¹ãƒ¬ãƒƒãƒ‰ã‹ã‚‰ã®åˆ©ç”¨ã‚’å‰æã¨ã™ã‚‹ã€‚
-9.2 é›†åˆæ¼”ç®—ãªã©è¤‡æ•° Session ã‚’ä½µç”¨ã™ã‚‹å‡¦ç†ã§ã¯ã€å„ Session ã®ãƒ­ãƒƒã‚¯ç²’åº¦ã‚’
-    Tsavorite ã«å§”è­²ã™ã‚‹ã€‚
-9.3 GC ã¯ ServerGarbageCollection=trueï¼ˆãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆè¨­å®šï¼‰ã€‚
+9.1 Session ‚Í’PˆêƒXƒŒƒbƒh‚©‚ç‚Ì—˜—p‚ğ‘O’ñ‚Æ‚·‚éB
+9.2 W‡‰‰Z‚È‚Ç•¡” Session ‚ğ•¹—p‚·‚éˆ—‚Å‚ÍAŠe Session ‚ÌƒƒbƒN—±“x‚ğ
+    Tsavorite ‚ÉˆÏ÷‚·‚éB
+9.3 GC ‚Í ServerGarbageCollection=trueiƒvƒƒWƒFƒNƒgİ’èjB
 
-10. ãƒ†ã‚¹ãƒˆæ§‹æˆ
+10. ƒeƒXƒg\¬
 --------------------------------------------------------------------------------
-10.1 Test.Seamless1, Test.Seamless2 ã¯ãã‚Œãã‚Œ Seamless1.dll / Seamless2.dll ã‚’
-     å‚ç…§ã—ã€åŒä¸€ã® xUnit ãƒ†ã‚¹ãƒˆã‚³ãƒ¼ãƒ‰ã‚’å…±æœ‰ã™ã‚‹ã€‚
-10.2 ãƒ†ã‚¹ãƒˆã‚¯ãƒ©ã‚¹åã¯ãƒ†ã‚¹ãƒˆå¯¾è±¡ã‚¯ãƒ©ã‚¹ã¨åŒä¸€ã¨ã—ã€ãƒ¡ã‚½ãƒƒãƒ‰é †åºã‚‚ä¸€è‡´ã•ã›ã‚‹ã€‚
-10.3 1 ãƒ¡ã‚½ãƒƒãƒ‰ã®ä¸­ã§è¤‡æ•°ã‚±ãƒ¼ã‚¹ã‚’ {} ã‚¹ã‚³ãƒ¼ãƒ—ã§åŒºåˆ‡ã‚Šã€ã‚³ãƒ¡ãƒ³ãƒˆã§æ„å›³ã‚’æ˜ç¤ºã™ã‚‹ã€‚
-10.4 Tsavorite ãƒãƒ¼ã‚¸ãƒ§ãƒ³ã«ã‚ˆã‚‹å·®åˆ†ã¯ #if ã§åˆ†ã‘ãšã€ä¸¡ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã«å¯¾å¿œã™ã‚‹
-     ã‚³ãƒ¼ãƒ‰ã‚’åˆ¥ã€…ã«ç½®ãã“ã¨ã§å¸åã™ã‚‹ã€‚
+10.1 Test.Seamless1, Test.Seamless2 ‚Í‚»‚ê‚¼‚ê Seamless1.dll / Seamless2.dll ‚ğ
+     QÆ‚µA“¯ˆê‚Ì xUnit ƒeƒXƒgƒR[ƒh‚ğ‹¤—L‚·‚éB
+10.2 ƒeƒXƒgƒNƒ‰ƒX–¼‚ÍƒeƒXƒg‘ÎÛƒNƒ‰ƒX‚Æ“¯ˆê‚Æ‚µAƒƒ\ƒbƒh‡˜‚àˆê’v‚³‚¹‚éB
+10.3 1 ƒƒ\ƒbƒh‚Ì’†‚Å•¡”ƒP[ƒX‚ğ {} ƒXƒR[ƒv‚Å‹æØ‚èAƒRƒƒ“ƒg‚ÅˆÓ}‚ğ–¾¦‚·‚éB
+10.4 Tsavorite ƒo[ƒWƒ‡ƒ“‚É‚æ‚é·•ª‚Í #if ‚Å•ª‚¯‚¸A—¼ƒvƒƒWƒFƒNƒg‚É‘Î‰‚·‚é
+     ƒR[ƒh‚ğ•ÊX‚É’u‚­‚±‚Æ‚Å‹zû‚·‚éB
 
-11. ãƒ“ãƒ«ãƒ‰æ§‹æˆ
+11. ƒrƒ‹ƒh\¬
 --------------------------------------------------------------------------------
-11.1 å…±é€š SDK / TFM ã¯ Directory.Build.props ã¨ global.json ã§ç®¡ç†ã™ã‚‹ã€‚
-11.2 Seamless1 : DefineConstants TSAVORITE1_1_1, Microsoft.Garnet 1.*ã€‚
-11.3 Seamless2 : DefineConstants TSAVORITE2_0BETA3, Microsoft.Garnet 2.0.0-beta.3ã€‚
-11.4 å…±æœ‰ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆ Seamless.projitems ã‚’ Import ã§å…±æœ‰ã™ã‚‹ã€‚
-11.5 AllowUnsafeBlocks = Trueï¼ˆfixed / SpanByte.FromPinnedSpan ç”¨é€”ï¼‰ã€‚
+11.1 ‹¤’Ê SDK / TFM ‚Í Directory.Build.props ‚Æ global.json ‚ÅŠÇ—‚·‚éB
+11.2 Seamless1 : DefineConstants TSAVORITE1_1_1, Microsoft.Garnet 1.*B
+11.3 Seamless2 : DefineConstants TSAVORITE2_0BETA3, Microsoft.Garnet 2.0.0-beta.3B
+11.4 ‹¤—LƒvƒƒWƒFƒNƒg Seamless.projitems ‚ğ Import ‚Å‹¤—L‚·‚éB
+11.5 AllowUnsafeBlocks = Trueifixed / SpanByte.FromPinnedSpan —p“rjB
 
-12. ã‚³ãƒ¼ãƒ‡ã‚£ãƒ³ã‚°è¦ç´„é©ç”¨
+12. ƒR[ƒfƒBƒ“ƒO‹K–ñ“K—p
 --------------------------------------------------------------------------------
-- ã‚¤ãƒ³ãƒ‡ãƒ³ãƒˆã¯ã‚¹ãƒšãƒ¼ã‚¹ã€‚
-- è­˜åˆ¥å­ãƒ»è¨˜å·é–“ã‚¹ãƒšãƒ¼ã‚¹ç„¡ã—ã€æ³¢æ‹¬å¼§åŒä¸€è¡Œã€‚
-- if-else ã¯ç‰‡æ–¹ãŒç©ºã§ã‚‚ { } ã‚’çœç•¥ã—ãªã„ã€‚
-- ä¸‰é …æ¼”ç®—å­ã¯ã‚«ãƒãƒ¬ãƒƒã‚¸è¨ˆæ¸¬ã®éƒ½åˆã§ if-else ã‚’å„ªå…ˆã€‚
-- Managed/Unmanaged ãŠã‚ˆã³ 1.1.1/2.0beta3 ã®å¯¾å¿œãƒ•ã‚¡ã‚¤ãƒ«ã¯è¡Œç•ªå·ãƒ¬ãƒ™ãƒ«ã§
-  æƒãˆã€ç‰‡å´ã ã‘ãƒ¡ãƒ³ãƒãƒ¼é †ã‚„ç©ºè¡Œé…ç½®ã‚’å¤‰æ›´ã—ãªã„ã€‚
+- ƒCƒ“ƒfƒ“ƒg‚ÍƒXƒy[ƒXB
+- ¯•ÊqE‹L†ŠÔƒXƒy[ƒX–³‚µA”gŠ‡ŒÊ“¯ˆêsB
+- if-else ‚Í•Ğ•û‚ª‹ó‚Å‚à { } ‚ğÈ—ª‚µ‚È‚¢B
+- O€‰‰Zq‚ÍƒJƒoƒŒƒbƒWŒv‘ª‚Ì“s‡‚Å if-else ‚ğ—DæB
+- Managed/Unmanaged ‚¨‚æ‚Ñ 1.1.1/2.0beta3 ‚Ì‘Î‰ƒtƒ@ƒCƒ‹‚Ís”Ô†ƒŒƒxƒ‹‚Å
+  ‘µ‚¦A•Ğ‘¤‚¾‚¯ƒƒ“ƒo[‡‚â‹ós”z’u‚ğ•ÏX‚µ‚È‚¢B
 
-13. æ—¢çŸ¥ã®åˆ¶ç´„ãƒ»æ³¨æ„äº‹é …
+13. Šù’m‚Ì§–ñE’ˆÓ–€
 --------------------------------------------------------------------------------
-13.1 Iterator å†…éƒ¨ã§ List<T> ç­‰ã®ã‚ªãƒ³ãƒ¡ãƒ¢ãƒªã‚³ãƒ¬ã‚¯ã‚·ãƒ§ãƒ³ã«å…¨ä»¶ã‚’è“„ç©ã—ã¦ã¯
-     ãªã‚‰ãªã„ã€‚ãƒãƒ£ãƒ³ã‚¯ï¼ˆConst.Chunk_Lengthï¼‰ã¾ãŸã¯ ListStore ã«ã‚ˆã‚‹æ°¸ç¶šãƒãƒƒãƒ•ã‚¡
-     ã‚’ä»‹ã™ã‚‹ã€‚
-13.2 1.1.1 ã¨ 2.0beta3 ã® SessionFunctions ã‚·ã‚°ãƒãƒãƒ£å·®ã¯ SessionFunctions éšå±¤ã«
-     é–‰ã˜è¾¼ã‚ã€ä¸Šä½ Collection API ã®ã‚·ã‚°ãƒãƒãƒ£ã‚’å¤‰ãˆãªã„ã€‚
-13.3 ManagedDictionaryStore ã¯ UnmanagedÃ—Unmanaged ã®çµ„åˆã›ã‚’ç”Ÿæˆã—ãªã„
-     ï¼ˆInvalidOperationExceptionï¼‰ã€‚UnmanagedÃ—Unmanaged ã¯
-     UnmanagedDictionaryStore ã§ç”Ÿæˆã™ã‚‹ã€‚
+13.1 Iterator “à•”‚Å List<T> “™‚ÌƒIƒ“ƒƒ‚ƒŠƒRƒŒƒNƒVƒ‡ƒ“‚É‘SŒ‚ğ’~Ï‚µ‚Ä‚Í
+     ‚È‚ç‚È‚¢Bƒ`ƒƒƒ“ƒNiConst.Chunk_Lengthj‚Ü‚½‚Í ListStore ‚É‚æ‚é‰i‘±ƒoƒbƒtƒ@
+     ‚ğ‰î‚·‚éB
+13.2 1.1.1 ‚Æ 2.0beta3 ‚Ì SessionFunctions ƒVƒOƒlƒ`ƒƒ·‚Í SessionFunctions ŠK‘w‚É
+     •Â‚¶‚ßAãˆÊ Collection API ‚ÌƒVƒOƒlƒ`ƒƒ‚ğ•Ï‚¦‚È‚¢B
+13.3 ManagedDictionaryStore ‚Í Unmanaged~Unmanaged ‚Ì‘g‡‚¹‚ğ¶¬‚µ‚È‚¢
+     iInvalidOperationExceptionjBUnmanaged~Unmanaged ‚Í
+     UnmanagedDictionaryStore ‚Å¶¬‚·‚éB

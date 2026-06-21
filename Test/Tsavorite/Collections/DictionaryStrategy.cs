@@ -71,7 +71,7 @@ public readonly struct ManagedStoreDictionaryStrategy<TKeyProvider, TValueProvid
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0) {
-        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -82,7 +82,7 @@ public readonly struct ManagedStoreDictionaryStrategy<TKeyProvider, TValueProvid
         double mutableFraction = 1.0,
         string? checkpointDir = null,
         bool recoverDevice = false) {
-        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -99,7 +99,7 @@ public readonly struct UnmanagedKeyDictionaryStrategy<TKeyProvider, TValueProvid
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0) {
-        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new BlittableStrategy(),new MemoryPackSerializerStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new BlittableStrategy(),new MemoryPackSerializerStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -110,7 +110,7 @@ public readonly struct UnmanagedKeyDictionaryStrategy<TKeyProvider, TValueProvid
         double mutableFraction = 1.0,
         string? checkpointDir = null,
         bool recoverDevice = false) {
-        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new BlittableStrategy(),new MemoryPackSerializerStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new BlittableStrategy(),new MemoryPackSerializerStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -127,7 +127,7 @@ public readonly struct UnmanagedValueDictionaryStrategy<TKeyProvider, TValueProv
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0) {
-        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new BlittableStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new BlittableStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -138,7 +138,7 @@ public readonly struct UnmanagedValueDictionaryStrategy<TKeyProvider, TValueProv
         double mutableFraction = 1.0,
         string? checkpointDir = null,
         bool recoverDevice = false) {
-        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new BlittableStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new BlittableStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -156,7 +156,7 @@ public readonly struct UnmanagedStoreDictionaryStrategy<TKeyProvider, TValueProv
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0
     ) {
-        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new BlittableStrategy(),new BlittableStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new BlittableStrategy(),new BlittableStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -168,7 +168,7 @@ public readonly struct UnmanagedStoreDictionaryStrategy<TKeyProvider, TValueProv
         string? checkpointDir = null,
         bool recoverDevice = false
     ) {
-        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);

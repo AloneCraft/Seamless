@@ -138,7 +138,7 @@ namespace Test.Tsavorite.Database.Database0 {
         public virtual IEnumerable<(T0 o,T1 i)> Query2<T0, T1>(global::Tsavorite.Collections.IHashSet<T0> outer,global::Tsavorite.Collections.IHashSet<T1> inner)
             where T0 : IEquatable<T0>
             where T1 : IEquatable<T1> {
-            return global::Tsavorite.Linq.Enumerable.SelectMany(outer,_ => inner,(o,i) => (o,i));
+            return global::System.Linq.Enumerable.SelectMany(outer,_ => inner,(o,i) => (o,i));
         }
 
         [Optimize]

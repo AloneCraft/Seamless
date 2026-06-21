@@ -63,9 +63,14 @@ public sealed partial class MainPage:Page{
         for(var i=0;i<benchmarkProjects.Count;i++){
             var project = benchmarkProjects[i];
             var checkBox = new CheckBox{
-                Content=project.DisplayName,
+                Content=new TextBlock{
+                    Text=project.DisplayName,
+                    TextTrimming=TextTrimming.CharacterEllipsis,
+                    VerticalAlignment=VerticalAlignment.Center,
+                },
                 IsChecked=project.IsSelected,
                 FontSize=12,
+                HorizontalAlignment=HorizontalAlignment.Stretch,
                 Padding=new Thickness(0),
                 MinHeight=20,
                 DataContext=project,

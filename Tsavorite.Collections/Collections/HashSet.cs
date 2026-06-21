@@ -37,6 +37,74 @@ public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<
     public partial void IntersectWith(HashSet<TKey> other);
     public partial void SymmetricExceptWith(HashSet<TKey> other);
     public partial void UnionWith(HashSet<TKey> other);
+    public void ExceptWith(global::System.Collections.Generic.ISet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        foreach(var item in other)
+            this.Remove(item);
+    }
+
+    public void ExceptWith(IEnumerable<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        foreach(var item in other)
+            this.Remove(item);
+    }
+
+    public void IntersectWith(global::System.Collections.Generic.ISet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        var workListPath = CreateTemporaryWorkListPath("hashset-intersect-ienumerable");
+        try {
+            using var keysToRemove = new Persistent.Collections.List<TKey,AutoSerializer<TKey>>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            foreach(var item in this) {
+                if(!other.Contains(item))
+                    keysToRemove.Add(item);
+            }
+            foreach(var item in keysToRemove)
+                this.Remove(item);
+        }
+        finally {
+            DeleteTemporaryWorkListPath(workListPath);
+        }
+    }
+
+    public void IntersectWith(IEnumerable<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        if(other is global::System.Collections.Generic.ISet<TKey> set) {
+            this.IntersectWith(set);
+            return;
+        }
+        var materialized = new global::System.Collections.Generic.HashSet<TKey>(other);
+        this.IntersectWith(materialized);
+    }
+
+    public void SymmetricExceptWith(global::System.Collections.Generic.ISet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        foreach(var item in other) {
+            if(!this.Remove(item))
+                this.Add(item);
+        }
+    }
+
+    public void SymmetricExceptWith(IEnumerable<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        if(other is global::System.Collections.Generic.ISet<TKey> set) {
+            this.SymmetricExceptWith(set);
+            return;
+        }
+        var materialized = new global::System.Collections.Generic.HashSet<TKey>(other);
+        this.SymmetricExceptWith(materialized);
+    }
+
+    public void UnionWith(global::System.Collections.Generic.ISet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        foreach(var item in other)
+            this.Add(item);
+    }
+
+    public void UnionWith(IEnumerable<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        foreach(var item in other)
+            this.Add(item);
+    }
     public override bool IsDisposed => this.disposed;
     private bool disposed;
     protected override void Dispose(bool disposing) {

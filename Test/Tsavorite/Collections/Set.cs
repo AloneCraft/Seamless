@@ -15,7 +15,7 @@ public readonly record struct UnmanagedSetRecord(int Key,long Value):IRecord<int
 public class Set {
     [Fact, Trait("Category","Unit")]
     public void ManagedSet_AddTryGetRemove_UsesRecordKey() {
-        using var store = HashStore.Create().CreateSet<int,ManagedSetRecord>();
+        using var store = Store.Create().CreateSet<int,ManagedSetRecord>();
         using var set = store.Create();
 
         var record = new ManagedSetRecord(1,"alpha");
@@ -34,8 +34,8 @@ public class Set {
 
     [Fact, Trait("Category","Unit")]
     public void ManagedSet_UnionWith_KeepsExistingRecordForDuplicateKey() {
-        using var store = HashStore.Create().CreateSet<int,ManagedSetRecord>();
-        using var otherStore = HashStore.Create().CreateSet<int,ManagedSetRecord>();
+        using var store = Store.Create().CreateSet<int,ManagedSetRecord>();
+        using var otherStore = Store.Create().CreateSet<int,ManagedSetRecord>();
         using var set = store.Create();
         using var other = otherStore.Create();
 
@@ -58,7 +58,7 @@ public class Set {
 
     [Fact, Trait("Category","Unit")]
     public void UnmanagedSet_AddTryGetRemove_UsesRecordKey() {
-        using var store = HashStore.Create().CreateSet<int,UnmanagedSetRecord>();
+        using var store = Store.Create().CreateSet<int,UnmanagedSetRecord>();
         using var set = store.Create();
 
         var record = new UnmanagedSetRecord(7,99);
@@ -75,8 +75,8 @@ public class Set {
 
     [Fact, Trait("Category","Unit")]
     public void ManagedSet_FunctionalOperations_WithManagedSet_KeepReturnTypesAndValues() {
-        using var store = HashStore.Create().CreateSet<int,ManagedSetRecord>();
-        using var otherStore = HashStore.Create().CreateSet<int,ManagedSetRecord>();
+        using var store = Store.Create().CreateSet<int,ManagedSetRecord>();
+        using var otherStore = Store.Create().CreateSet<int,ManagedSetRecord>();
         using var set = store.Create();
         using var other = otherStore.Create();
 
@@ -121,9 +121,9 @@ public class Set {
 
     [Fact, Trait("Category","Unit")]
     public void ManagedSet_FunctionalOperations_WithManagedHashSet_KeepReturnTypesAndValues() {
-        using var store = HashStore.Create().CreateSet<int,ManagedSetRecord>();
+        using var store = Store.Create().CreateSet<int,ManagedSetRecord>();
         using var set = store.Create();
-        using var keyStore = HashStore.Create().CreateHashSet<int>();
+        using var keyStore = Store.Create().CreateHashSet<int>();
         using var keys = keyStore.Create();
 
         set.Add(new ManagedSetRecord(1,"alpha"));
@@ -154,8 +154,8 @@ public class Set {
 
     [Fact, Trait("Category","Unit")]
     public void UnmanagedSet_FunctionalOperations_WithUnmanagedSet_KeepReturnTypesAndValues() {
-        using var store = HashStore.Create().CreateSet<int,UnmanagedSetRecord>();
-        using var otherStore = HashStore.Create().CreateSet<int,UnmanagedSetRecord>();
+        using var store = Store.Create().CreateSet<int,UnmanagedSetRecord>();
+        using var otherStore = Store.Create().CreateSet<int,UnmanagedSetRecord>();
         using var set = store.Create();
         using var other = otherStore.Create();
 
@@ -197,9 +197,9 @@ public class Set {
 
     [Fact, Trait("Category","Unit")]
     public void UnmanagedSet_FunctionalOperations_WithUnmanagedHashSet_KeepReturnTypesAndValues() {
-        using var store = HashStore.Create().CreateSet<int,UnmanagedSetRecord>();
+        using var store = Store.Create().CreateSet<int,UnmanagedSetRecord>();
         using var set = store.Create();
-        using var keyStore = HashStore.Create().Create<int>(new BlittableStrategy());
+        using var keyStore = Store.Create().Create<int>(new BlittableStrategy());
         using var keys = keyStore.Create();
 
         set.Add(new UnmanagedSetRecord(1,10));
@@ -232,7 +232,7 @@ public class Set {
     public void ManagedSetOfT_Distinct_SortsAndDeduplicates() {
         var path = CreatePath("managed-view-set");
         try {
-            using var set = new Set<string>(path,initialCapacity: 1,initialDataCapacity: 128);
+            using var set = new global::Persistent.Collections.Set<string>(path,initialCapacity: 1,initialDataCapacity: 128);
             set.Add("bravo");
             set.Add("alpha");
             set.Add("alpha");
@@ -253,7 +253,7 @@ public class Set {
     public void UnmanagedSetOfT_Distinct_SortsAndDeduplicates() {
         var path = CreatePath("unmanaged-view-set");
         try {
-            using var set = new Set<int>(path,initialCapacity: 1);
+            using var set = new global::Persistent.Collections.Set<int>(path,initialCapacity: 1,initialDataCapacity: 128);
             set.Add(5);
             set.Add(3);
             set.Add(5);

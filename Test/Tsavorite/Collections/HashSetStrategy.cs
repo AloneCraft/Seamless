@@ -3,9 +3,9 @@ using Tsavorite.Collections;
 using Tsavorite.Stores;
 namespace Test.Tsavorite.Collections;
 
-public sealed class HashSetHandle<T>(IDisposable store,IHashSet<T> set):IDisposable
+public sealed class HashSetHandle<T>(IDisposable store,global::Tsavorite.Collections.HashSet<T> set):IDisposable
     where T : IEquatable<T> {
-    public IHashSet<T> Set => set;
+    public global::Tsavorite.Collections.HashSet<T> Set => set;
     public void Dispose(){
         set.Dispose();
         store.Dispose();
@@ -40,7 +40,7 @@ public readonly struct MemoryPackHashSetStrategy<TProvider, T>:IHashSetTestStrat
     public static HashSetHandle<T> CreateMemorySet(
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0){
-        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<T>(new MemoryPackSerializerStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<T>(new MemoryPackSerializerStrategy());
         return new HashSetHandle<T>(store,store.Create());
     }
 }
@@ -51,7 +51,7 @@ public readonly struct BlittableHashSetStrategy<TProvider, T>:IHashSetTestStrate
     public static HashSetHandle<T> CreateMemorySet(
         long memorySize = Const.LogMemorySize,
         double mutableFraction = 1.0){
-        var store = HashStore.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<T>();
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<T>();
         return new HashSetHandle<T>(store,store.Create());
     }
 }

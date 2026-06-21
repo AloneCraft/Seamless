@@ -43,8 +43,8 @@ public class SetOperationStressTests {
             using(var objDevA = global::Tsavorite.core.Devices.CreateLogDevice(objA))
             using(var logDevB = global::Tsavorite.core.Devices.CreateLogDevice(logB))
             using(var objDevB = global::Tsavorite.core.Devices.CreateLogDevice(objB))
-            using(var storeA = HashStore.Create().Create<int>(logDevA,objDevA))
-            using(var storeB = HashStore.Create().Create<int>(logDevB,objDevB))
+            using(var storeA = Store.Create().Create<int>(logDevA,objDevA))
+            using(var storeB = Store.Create().Create<int>(logDevB,objDevB))
             using(var setA = storeA.Create())
             using(var setB = storeB.Create()) {
                 try {
@@ -134,8 +134,8 @@ public class SetOperationStressTests {
             using(var objDevA = global::Tsavorite.core.Devices.CreateLogDevice(objA))
             using(var logDevB = global::Tsavorite.core.Devices.CreateLogDevice(logB))
             using(var objDevB = global::Tsavorite.core.Devices.CreateLogDevice(objB))
-            using(var storeA = HashStore.Create().Create<string>(logDevA,objDevA,new MemoryPackSerializerStrategy()))
-            using(var storeB = HashStore.Create().Create<string>(logDevB,objDevB,new MemoryPackSerializerStrategy()))
+            using(var storeA = Store.Create().Create<string>(logDevA,objDevA,new MemoryPackSerializerStrategy()))
+            using(var storeB = Store.Create().Create<string>(logDevB,objDevB,new MemoryPackSerializerStrategy()))
             using(var setA = storeA.Create())
             using(var setB = storeB.Create()) {
                 try {

@@ -1,4 +1,4 @@
-namespace Benchmark.Shared;
+﻿namespace Benchmark.Shared;
 
 #if BENCH_AS_TEST
 #pragma warning disable xUnit1013
@@ -94,8 +94,8 @@ public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
     private static SourceHandle<T> CreateSet<T>(IEnumerable<T> values)
         where T : unmanaged, IEquatable<T> {
         var count = values.TryGetNonEnumeratedCount(out var knownCount) ? knownCount : 80_000;
-        var store = global::Tsavorite.Stores.HashStore.Create(
-            IndexSize: global::Tsavorite.Stores.HashStore.GetIndexSizeForCapacity(count),
+        var store = global::Tsavorite.Store.Create(
+            IndexSize: global::Tsavorite.Store.GetIndexSizeForCapacity(count),
             MemorySize: GetMemorySize(count))
             .Create<T>();
         var set = store.Create();

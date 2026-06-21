@@ -5,7 +5,7 @@ public class CounterIterator{
     [Fact,Trait("Category","Unit")]
     public void CountsAllAddedElements(){
         const int Count=300;
-        using var s=HashStore.Create().Create<int>();
+        using var s=Store.Create().Create<int>();
         using var h=s.Create();
         for(var a=0; a<Count; a++){
             h.Add(a);

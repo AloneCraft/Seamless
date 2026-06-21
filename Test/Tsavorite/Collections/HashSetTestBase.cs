@@ -83,7 +83,7 @@ public abstract class HashSetTestBase<TStrategy, T>
         {
             // null ��n���Ɨ�O�ɂȂ邱��
             using var h = TStrategy.CreateMemorySet();
-            Assert.Throws<ArgumentNullException>(() => h.Set.ExceptWith(null!));
+            Assert.Throws<ArgumentNullException>(() => h.Set.ExceptWith((global::Tsavorite.Collections.HashSet<T>)null!));
         }
     }
     [Fact, Trait("Category","Unit")]
@@ -104,7 +104,7 @@ public abstract class HashSetTestBase<TStrategy, T>
         {
             // null ��n���Ɨ�O�ɂȂ邱��
             using var h = TStrategy.CreateMemorySet();
-            Assert.Throws<ArgumentNullException>(() => h.Set.IntersectWith(null!));
+            Assert.Throws<ArgumentNullException>(() => h.Set.IntersectWith((global::Tsavorite.Collections.HashSet<T>)null!));
         }
     }
     [Fact, Trait("Category","Unit")]
@@ -249,7 +249,7 @@ public abstract class HashSetTestBase<TStrategy, T>
         {
             // null ��n���Ɨ�O�ɂȂ邱��
             using var h = TStrategy.CreateMemorySet();
-            Assert.Throws<ArgumentNullException>(() => h.Set.SymmetricExceptWith(null!));
+            Assert.Throws<ArgumentNullException>(() => h.Set.SymmetricExceptWith((global::Tsavorite.Collections.HashSet<T>)null!));
         }
     }
     [Fact, Trait("Category","Unit")]
@@ -269,7 +269,48 @@ public abstract class HashSetTestBase<TStrategy, T>
         {
             // null ��n���Ɨ�O�ɂȂ邱��
             using var h = TStrategy.CreateMemorySet();
-            Assert.Throws<ArgumentNullException>(() => h.Set.UnionWith(null!));
+            Assert.Throws<ArgumentNullException>(() => h.Set.UnionWith((global::Tsavorite.Collections.HashSet<T>)null!));
+        }
+    }
+    [Fact, Trait("Category","Unit")]
+    public void WithOverloads_AcceptConcreteHashSetSystemISetAndEnumerable() {
+        {
+            using var h = TStrategy.CreateMemorySet();
+            using var other = TStrategy.CreateMemorySet();
+            h.Set.Add(TStrategy.Elem(1));
+            h.Set.Add(TStrategy.Elem(2));
+            other.Set.Add(TStrategy.Elem(2));
+            h.Set.ExceptWith(other.Set);
+            Assert.Single(h.Set);
+            Assert.True(h.Set.Contains(TStrategy.Elem(1)));
+        }
+        {
+            using var h = TStrategy.CreateMemorySet();
+            h.Set.Add(TStrategy.Elem(1));
+            h.Set.Add(TStrategy.Elem(2));
+            global::System.Collections.Generic.ISet<T> other = new global::System.Collections.Generic.HashSet<T> { TStrategy.Elem(2),TStrategy.Elem(3) };
+            h.Set.IntersectWith(other);
+            Assert.Single(h.Set);
+            Assert.True(h.Set.Contains(TStrategy.Elem(2)));
+        }
+        {
+            using var h = TStrategy.CreateMemorySet();
+            h.Set.Add(TStrategy.Elem(1));
+            h.Set.Add(TStrategy.Elem(2));
+            h.Set.UnionWith(new[] { TStrategy.Elem(2),TStrategy.Elem(3),TStrategy.Elem(3) }.AsEnumerable());
+            Assert.Equal(3,h.Set.Count);
+            Assert.True(h.Set.Contains(TStrategy.Elem(1)));
+            Assert.True(h.Set.Contains(TStrategy.Elem(2)));
+            Assert.True(h.Set.Contains(TStrategy.Elem(3)));
+        }
+        {
+            using var h = TStrategy.CreateMemorySet();
+            h.Set.Add(TStrategy.Elem(1));
+            h.Set.Add(TStrategy.Elem(2));
+            h.Set.SymmetricExceptWith(new[] { TStrategy.Elem(2),TStrategy.Elem(3),TStrategy.Elem(3) }.AsEnumerable());
+            Assert.Equal(2,h.Set.Count);
+            Assert.True(h.Set.Contains(TStrategy.Elem(1)));
+            Assert.True(h.Set.Contains(TStrategy.Elem(3)));
         }
     }
     [Fact, Trait("Category","Unit")]

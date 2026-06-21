@@ -43,7 +43,7 @@ namespace Test.Tsavorite.Database.TPC_H {
             var objPath = Path.Combine(loadCheckpointDir,"obj");
             var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
             var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
-            var store = HashStore.Create(IndexSize: 1L<<12,MemorySize: 1L<<24).Create<T>(logDevice,objDevice);
+            var store = Store.Create(IndexSize: 1L<<12,MemorySize: 1L<<24).Create<T>(logDevice,objDevice);
             var table = store.Create();
             this.disposables.Add(logDevice);
             this.disposables.Add(objDevice);
@@ -677,12 +677,12 @@ namespace Test.Tsavorite.Database.TPC_H {
         private void AssertStorageListRoundTrip(int query) {
             var expected = QueryRows(this.Container,query,false);
             var folder = TestPath.Directory<TpchTests>($"Q{query:D2}");
-            using(var list = new global::Tsavorite.Collections.List<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
+            using(var list = global::Persistent.Store.Create().Create<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
                 foreach(var row in expected) {
                     list.Add(row);
                 }
             }
-            using(var list = new global::Tsavorite.Collections.List<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
+            using(var list = global::Persistent.Store.Create().Create<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
                 var actual = list.OrderBy(row => row,StringComparer.Ordinal).ToArray();
                 Assert.Equal(expected,actual);
             }

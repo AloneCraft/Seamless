@@ -6,7 +6,7 @@ namespace Test.Tsavorite.Collections;
 public class DictionaryIReadOnly {
     [Fact, Trait("Category","Unit")]
     public void Keys_IReadOnlyDictionary() {
-        using var store = HashStore.Create().Create<int,string>();
+        using var store = Store.Create().Create<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");
         dict.Add(2,"b");
@@ -18,7 +18,7 @@ public class DictionaryIReadOnly {
     }
     [Fact, Trait("Category","Unit")]
     public void Values_IReadOnlyDictionary() {
-        using var store = HashStore.Create().Create<int,string>();
+        using var store = Store.Create().Create<int,string>();
         using var dict = store.Create();
         dict.Add(1,"a");
         dict.Add(2,"b");

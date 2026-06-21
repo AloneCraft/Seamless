@@ -1,4 +1,5 @@
-﻿using Tsavorite.SessionFunctions;
+﻿using Persistent.Collections;
+using Tsavorite.SessionFunctions;
 using Tsavorite.Stores;
 namespace Tsavorite.Collections;
 

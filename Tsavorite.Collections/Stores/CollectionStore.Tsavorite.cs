@@ -3,8 +3,8 @@
 namespace Tsavorite.Stores;
 
 /// <summary>
-/// Tsavorite ストアを管琁E��る抽象基底クラス、E
-/// DictionaryStore および HashSetStore の共通実裁E��提供する、E
+/// Tsavorite ストアを管?E??る抽象基底クラス、E
+/// DictionaryStore および HashSetStore の共通実裁E??提供する、E
 /// </summary>
 public abstract partial class CollectionStore<
     TKey,
@@ -24,7 +24,7 @@ public abstract partial class CollectionStore<
     private int CheckpointInProgress;
     private bool UsesStorageDevice => this.Settings is not null&&(this.Settings.LogDevice is not MemoryOnlyDevice||this.Settings.ObjectLogDevice is not MemoryOnlyDevice);
 
-    /// <summary>チE��ト専用シーム: TakeCheckpointAsync 完亁E���ECompleteCheckpointAsync 前に呼び出されるコールバック、E/summary>
+    /// <summary>チE??ト専用シーム: TakeCheckpointAsync 完?E???ECompleteCheckpointAsync 前に呼び出されるコールバック、E/summary>
     private protected CollectionStore(
         TStoreFunctions StoreFunctions,
         Func<AllocatorSettings,TStoreFunctions,TAllocator> allocatorFactory,
@@ -143,7 +143,7 @@ public abstract partial class CollectionStore<
     }
 
     private void WriteRecoveryIndexMetadata(Guid token) {
-        HashStore.WriteRecoveryIndexMetadata(this.Settings.CheckpointDir!,token,this.GetRecoveryEntryCount());
+        global::Tsavorite.Store.WriteRecoveryIndexMetadata(this.Settings.CheckpointDir!,token,this.GetRecoveryEntryCount());
     }
 
     public Guid SaveLogOnly(CheckpointType CheckpointType = CheckpointType.Snapshot) => this.SaveLogOnlyAsync(CheckpointType).GetAwaiter().GetResult();
