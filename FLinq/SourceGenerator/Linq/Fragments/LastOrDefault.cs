@@ -147,7 +147,7 @@ public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment
                 for(var __i=__span.Length-1;__i>=0;__i--){
                     var {{this.item}}=__span[__i];
                     bool {{this.temp}}=default!;
-                    {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item)}}
+                    {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}){
                         return {{this.item}};
                     }
@@ -162,7 +162,7 @@ public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment
                 while(source.MoveNext()) {
                     var {{this.item}} = source.Current;
                     bool {{this.temp}} = default!;
-                    {{this.FuncAssignStatic(predicate, nameof(predicate),this.temp,this.item)}}
+                    {{this.FuncAssignStaticIndented("        ",predicate, nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) result = {{this.item}};
                 }
                 return result;

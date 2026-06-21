@@ -68,8 +68,10 @@ public abstract class Fragment(
 
     private protected string ClosureArgsSuffix(params FuncFragment[] funcs) {
         var captures = DistinctCapturedLocals(funcs).ToArray();
+        var hoistedLocals = DistinctHoistedLocals(funcs).ToArray();
         var delegates = DistinctDelegateFuncs(funcs).ToArray();
         var parts = captures.Select(static c => c.Name)
+            .Concat(hoistedLocals.Select(static h => h.ExpressionText))
             .Concat(delegates.Select(static f => f.DelegateConstructorArg!));
         var joined = string.Join(", ", parts);
         return string.IsNullOrEmpty(joined) ? string.Empty : ", " + joined;
@@ -84,8 +86,10 @@ public abstract class Fragment(
 
     private protected string ClosureArgsSuffixForCtorBody(params FuncFragment[] funcs) {
         var captures = DistinctCapturedLocals(funcs).ToArray();
+        var hoistedLocals = DistinctHoistedLocals(funcs).ToArray();
         var delegates = DistinctDelegateFuncs(funcs).ToArray();
         var parts = captures.Select(static c => $"this.{c.Name}")
+            .Concat(hoistedLocals.Select(static h => $"this.{h.Name}"))
             .Concat(delegates.Select(static f => $"this.{f.DelegateFieldName}"));
         var joined = string.Join(", ", parts);
         return string.IsNullOrEmpty(joined) ? string.Empty : ", " + joined;
@@ -93,8 +97,10 @@ public abstract class Fragment(
 
     private static string ClosureParameterSuffix(params FuncFragment[] funcs) {
         var captures = DistinctCapturedLocals(funcs).ToArray();
+        var hoistedLocals = DistinctHoistedLocals(funcs).ToArray();
         var delegates = DistinctDelegateFuncs(funcs).ToArray();
         var parts = captures.Select(static c => $"{c.TypeName} {c.Name}")
+            .Concat(hoistedLocals.Select(static h => $"{h.TypeName} {h.Name}"))
             .Concat(delegates.Select(static f => $"{f.DelegateTypeName} {f.DelegateFieldName}"));
         var joined = string.Join(", ", parts);
         return string.IsNullOrEmpty(joined) ? string.Empty : ", " + joined;
@@ -109,6 +115,24 @@ public abstract class Fragment(
                 }
             }
         }
+    }
+
+    private static IEnumerable<HoistedLocal> DistinctHoistedLocals(params FuncFragment[] funcs) {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach(var func in funcs) {
+            foreach(var hoistedLocal in func.HoistedLocals) {
+                if(names.Add(hoistedLocal.Name)) {
+                    yield return hoistedLocal;
+                }
+            }
+        }
+    }
+
+    private protected string HoistedLocalDeclarations(params FuncFragment[] funcs) {
+        var hoistedLocals = DistinctHoistedLocals(funcs).ToArray();
+        return hoistedLocals.Length==0
+            ? string.Empty
+            : string.Join("\n",hoistedLocals.Select(static h=>$"{h.TypeName} {h.Name}={h.ExpressionText};"));
     }
 
     private static IEnumerable<FuncFragment> DistinctDelegateFuncs(params FuncFragment[] funcs) {
@@ -251,6 +275,8 @@ public abstract class Fragment(
         }
         return $"{destination}={this.FuncInvoke(func,methodName,arguments)};";
     }
+    private protected string FuncAssignIndented(string indent,FuncFragment func,string methodName,string destination,params string[] arguments) =>
+        IndentGeneratedStatement(this.FuncAssign(func,methodName,destination,arguments),indent);
 
     internal string FuncAssignForAggregateInline(FuncFragment func,string methodName,string destination,string? delegateLocalName,params string[] arguments) {
         if(func.CanInvokeAsDelegate && delegateLocalName is { Length: > 0 }) {
@@ -270,6 +296,8 @@ public abstract class Fragment(
         var expr = this.FuncInvoke(func,methodName,arguments);
         return $"current = {destination} = {expr};";
     }
+    private protected string FuncAssignCurrentIndented(string indent,FuncFragment func,string methodName,string destination,params string[] arguments) =>
+        IndentGeneratedStatement(this.FuncAssignCurrent(func,methodName,destination,arguments),indent);
 
     private protected static string WrapConditionExpression(string conditionExpr) =>
         $"({TrimSingleOuterParentheses(conditionExpr)})";
@@ -494,6 +522,11 @@ public abstract class Fragment(
         }
         throw LambdaInlineUnsupported(func,methodName);
     }
+    private protected string FuncAssignStaticIndented(string indent,FuncFragment func,string methodName,string destination,params string[] arguments) =>
+        IndentGeneratedStatement(this.FuncAssignStatic(func,methodName,destination,arguments),indent);
+
+    private protected static string IndentGeneratedStatement(string text,string indent) =>
+        IndentLines(text.Trim(),indent);
 
     // IEnumerable<T> / T[] の文字列型名から要素型名を取り出す。
     private protected static string SequenceElementTypeName(string sequenceTypeName) {
@@ -535,8 +568,10 @@ public abstract class Fragment(
     // ClosureArgsSuffix と異なり、DelegateConstructorArg（ラムダ式）ではなく DelegateFieldName（フィールド名）を使う。
     private protected string ClosureArgsSuffixForFactory(params FuncFragment[] funcs) {
         var captures = DistinctCapturedLocals(funcs).ToArray();
+        var hoistedLocals = DistinctHoistedLocals(funcs).ToArray();
         var delegates = DistinctDelegateFuncs(funcs).ToArray();
         var parts = captures.Select(static c => c.Name)
+            .Concat(hoistedLocals.Select(static h => h.Name))
             .Concat(delegates.Select(static f => f.DelegateFieldName!));
         var joined = string.Join(", ", parts);
         return string.IsNullOrEmpty(joined) ? string.Empty : ", " + joined;

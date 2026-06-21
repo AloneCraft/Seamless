@@ -69,7 +69,7 @@ public class Single_predicate(int 番号, Enumerable source, FuncFragment predic
                 source.TryGetSpan(out var __span);
                 foreach(var {{this.item}} in __span){
                     bool {{this.temp}}=default!;
-                    {{this.FuncAssignStatic(predicate, nameof(predicate),this.temp,this.item)}}
+                    {{this.FuncAssignStaticIndented("        ",predicate, nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) {
                         if(found) throw new global::System.InvalidOperationException("Sequence contains more than one matching element");
                         value={{this.item}};
@@ -88,7 +88,7 @@ public class Single_predicate(int 番号, Enumerable source, FuncFragment predic
                 while(source.MoveNext()) {
                     var {{this.item}} = source.Current;
                     bool {{this.temp}} = default!;
-                    {{this.FuncAssignStatic(predicate, nameof(predicate),this.temp,this.item)}}
+                    {{this.FuncAssignStaticIndented("        ",predicate, nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) {
                         if(found) throw new global::System.InvalidOperationException("Sequence contains more than one matching element");
                         value = {{this.item}};

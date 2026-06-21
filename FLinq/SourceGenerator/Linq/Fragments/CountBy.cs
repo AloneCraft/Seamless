@@ -24,7 +24,7 @@ public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : 
                 for(var __i=0;__i<__span.Length;__i++) {
                     var {{this.item}}=__span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     ref var __cnt=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{this.lookup}},{{this.key}},out var __exists);
                     __cnt++;
                 }
@@ -37,7 +37,7 @@ public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : 
                 while({{this.e}}.MoveNext()) {
                     var {{this.item}}={{this.e}}.Current;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     ref var __cnt=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{this.lookup}},{{this.key}},out var __exists);
                     __cnt++;
                 }

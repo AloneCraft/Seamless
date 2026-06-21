@@ -4,6 +4,9 @@ using System.Text.RegularExpressions;
 using Tsavorite.SourceGenerator;
 
 namespace Tsavorite.SourceGenerator.Linq.Fragments;
+
+public readonly record struct HoistedLocal(string Name,string TypeName,string ExpressionText);
+
 public abstract class FuncFragment {
     // delegate 戻り値型名。
     public string ReturnTypeName="void";
@@ -24,6 +27,7 @@ public abstract class FuncFragment {
     // ラムダがキャプチャしているローカル変数・外側パラメータ一覧（ラムダ引数は除く）。
     // struct closure 時に primary ctor へそのまま渡して backing field 化する。
     public (string Name, string TypeName)[] CapturedLocals = [];
+    public HoistedLocal[] HoistedLocals = [];
     // ラムダ本体内のフィールド・static メソッドアクセス用に生成した UnsafeAccessor extern 宣言コード。
     // Fragment.CollectAllUnsafeAccessorCodes() で収集して補助クラスに出力される。
     public string[] BodyUnsafeAccessorCodes = [];

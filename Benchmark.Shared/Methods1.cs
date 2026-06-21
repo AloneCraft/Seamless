@@ -37,8 +37,8 @@ public abstract class Methods1 : global::Benchmark.Shared.Base {
     private const int NestedCount=24_000_000;
     private const int GeneratedCount=104_400_000;
     private const int SourceShapeCount=60_000_000;
-    private const int SelectManyOuterCount=120_000;
-    private const int SelectManyInnerCount=128;
+    private const int SelectManyOuterCount=12_000;
+    private const int SelectManyInnerCount=1_280;
     // [Aggregate_func]
     [BenchFact,Benchmark]
     public void Aggregate_func() => this.Aggregate_func_Impl();

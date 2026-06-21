@@ -21,14 +21,14 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
                             {{this.result}}=__item;
                             __first=false;
                         }else{
-                            {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                            {{this.FuncAssignInlineIndented("            ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                         }
                     }
                 }else{
                     if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
                     {{this.result}}=__item;
                     while({{srcVar}}.TryGetNext(out __item)){
-                        {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                     }
                 }
                 """
@@ -36,7 +36,7 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
                 if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
                 var {{this.result}}=__item;
                 while({{srcVar}}.TryGetNext(out __item)){
-                    {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                 }
                 """;
         return $$"""
@@ -78,14 +78,14 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
                         {{this.result}}=__item;
                         __first=false;
                     }else{
-                        {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+                        {{this.FuncAssignIndented("            ",func,nameof(func),this.result,this.result,"__item")}}
                     }
                 }
             }else{
                 if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
                 {{this.result}}={{this.item}};
                 while({{this.e}}.TryGetNext(out {{this.item}})){
-                    {{this.FuncAssign(func,nameof(func),this.result,this.result,this.item)}}
+                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,this.item)}}
                 }
             }
             this.{{this.currentValue}}={{this.result}};
@@ -101,7 +101,7 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
             if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
             var {{this.result}}={{this.item}};
             while({{this.e}}.TryGetNext(out {{this.item}})){
-                {{this.FuncAssign(func,nameof(func),this.result,this.result,this.item)}}
+                {{this.FuncAssignIndented("    ",func,nameof(func),this.result,this.result,this.item)}}
             }
             this.{{this.currentValue}}={{this.result}};
             current=this.{{this.currentValue}};
@@ -125,17 +125,17 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
             ? $$"""
                 if({{srcVar}}.TryGetSpan(out var __span)){
                     foreach(var __item in __span){
-                        {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                     }
                 }else{
                     while({{srcVar}}.TryGetNext(out var __item)){
-                        {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                     }
                 }
                 """
             : $$"""
                 while({{srcVar}}.TryGetNext(out var __item)){
-                    {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                 }
                 """;
         return $$"""
@@ -171,11 +171,11 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
             var {{this.result}} = {{seed}};
             if({{this.e}}.TryGetSpan(out var __span)){
                 foreach(var __item in __span){
-                    {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,"__item")}}
                 }
             }else{
                 while({{this.e}}.TryGetNext(out var {{this.item}})){
-                    {{this.FuncAssign(func,nameof(func),this.result,this.result,this.item)}}
+                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,this.item)}}
                 }
             }
             this.{{this.currentValue}}={{this.result}};
@@ -190,7 +190,7 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
             this.{{this.yielded}} = true;
             var {{this.result}} = {{seed}};
             while({{this.e}}.TryGetNext(out var {{this.item}})){
-                {{this.FuncAssign(func,nameof(func),this.result,this.result,this.item)}}
+                {{this.FuncAssignIndented("    ",func,nameof(func),this.result,this.result,this.item)}}
             }
             this.{{this.currentValue}}={{this.result}};
             current=this.{{this.currentValue}};
@@ -216,17 +216,17 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
             ? $$"""
                 if({{srcVar}}.TryGetSpan(out var __span)){
                     foreach(var __item in __span){
-                        {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                     }
                 }else{
                     while({{srcVar}}.TryGetNext(out var __item)){
-                        {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                     }
                 }
                 """
             : $$"""
                 while({{srcVar}}.TryGetNext(out var __item)){
-                    {{this.FuncAssignInline(func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                 }
                 """;
         return $$"""
@@ -236,7 +236,7 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
             using(var {{srcVar}}={{srcExpr}}){
                 var {{this.result}} = {{seed}};
                 {{fold}}
-                {{this.FuncAssignInline(resultSelector,nameof(resultSelector),resultSelectorVar,destVar,this.result)}}
+                {{this.FuncAssignInlineIndented("    ",resultSelector,nameof(resultSelector),resultSelectorVar,destVar,this.result)}}
             }
             """;
     }
@@ -266,14 +266,14 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
             var {{this.result}} = {{seed}};
             if({{this.e}}.TryGetSpan(out var __span)){
                 foreach(var __item in __span){
-                    {{this.FuncAssign(func,nameof(func),this.result,this.result,"__item")}}
+                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,"__item")}}
                 }
             }else{
                 while({{this.e}}.TryGetNext(out var {{this.item}})){
-                    {{this.FuncAssign(func,nameof(func),this.result,this.result,this.item)}}
+                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,this.item)}}
                 }
             }
-            {{this.FuncAssign(resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.result)}}
+            {{this.FuncAssignIndented("",resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.result)}}
             current=this.{{this.currentValue}};
             return true;
             """
@@ -285,9 +285,9 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
             this.{{this.yielded}} = true;
             var {{this.result}} = {{seed}};
             while({{this.e}}.TryGetNext(out var {{this.item}})){
-                {{this.FuncAssign(func,nameof(func),this.result,this.result,this.item)}}
+                {{this.FuncAssignIndented("    ",func,nameof(func),this.result,this.result,this.item)}}
             }
-            {{this.FuncAssign(resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.result)}}
+            {{this.FuncAssignIndented("",resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.result)}}
             current=this.{{this.currentValue}};
             return true;
             """;
@@ -312,4 +312,11 @@ file static class AggregateInlineDelegateSupport {
     public static string FuncAssignInline(this Fragment fragment,FuncFragment func,string methodName,string delegateLocalName,string destination,params string[] arguments) {
         return fragment.FuncAssignForAggregateInline(func,methodName,destination,delegateLocalName,arguments);
     }
+
+    public static string FuncAssignInlineIndented(this Fragment fragment,string indent,FuncFragment func,string methodName,string delegateLocalName,string destination,params string[] arguments) {
+        return IndentLines(fragment.FuncAssignInline(func,methodName,delegateLocalName,destination,arguments).Trim(),indent);
+    }
+
+    private static string IndentLines(string text,string indent) =>
+        string.Join("\n",text.Replace("\r\n","\n").Split('\n').Select(line=>indent+line));
 }

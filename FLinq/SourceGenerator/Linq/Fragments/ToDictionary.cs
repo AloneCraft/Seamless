@@ -55,7 +55,7 @@ public class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragment 
             while(source.MoveNext()){
                 var {{this.item}}=source.Current;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
                 result.Add({{this.key}},{{this.item}});
             }
             return result;
@@ -117,9 +117,9 @@ public class ToDictionary_keySelector_elementSelector(int 番号,Enumerable sour
             while(source.MoveNext()){
                 var {{this.item}}=source.Current;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
                 {{FuncReturnTypeName(elementSelector)}} {{this.temp}}=default!;
-                {{this.FuncAssign(elementSelector,nameof(elementSelector),this.temp,this.item)}}
+                {{this.FuncAssignIndented("        ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
                 result.Add({{this.key}},{{this.temp}});
             }
             return result;
@@ -177,7 +177,7 @@ public class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Func
             while(source.MoveNext()){
                 var {{this.item}}=source.Current;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
                 result.Add({{this.key}},{{this.item}});
             }
             return result;
@@ -208,9 +208,9 @@ public class ToDictionary_keySelector_elementSelector_comparer(int 番号,Enumer
             while(source.MoveNext()){
                 var {{this.item}}=source.Current;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
                 {{FuncReturnTypeName(elementSelector)}} {{this.temp}}=default!;
-                {{this.FuncAssign(elementSelector,nameof(elementSelector),this.temp,this.item)}}
+                {{this.FuncAssignIndented("        ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
                 result.Add({{this.key}},{{this.temp}});
             }
             return result;

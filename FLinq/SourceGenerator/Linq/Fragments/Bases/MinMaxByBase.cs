@@ -30,7 +30,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
             var __first=true;
             foreach(var {{this.item}} in __span){
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
                 if(__first||comparer.Compare({{this.key}},bestKey){{this.CompareOp}}0){
                     __first=false;
                     bestElement={{this.item}};
@@ -51,7 +51,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
                 var __first=true;
                 foreach(var {{this.item}} in __span){
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     if(__first||comparer.Compare({{this.key}},bestKey){{this.CompareOp}}0){
                         __first=false;
                         bestElement={{this.item}};
@@ -68,11 +68,11 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
             if(!source.MoveNext()) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
             {{resultType}} bestElement=source.Current;
             {{FuncReturnTypeName(keySelector)}} bestKey=default!;
-            {{this.FuncAssign(keySelector,nameof(keySelector),"bestKey","bestElement")}}
+            {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
             while(source.MoveNext()){
                 var {{this.item}}=source.Current;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
                 if(comparer.Compare({{this.key}},bestKey){{this.CompareOp}}0){
                     bestElement={{this.item}};
                     bestKey={{this.key}};
@@ -88,11 +88,11 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
             if(!source.MoveNext()) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
             {{resultType}} bestElement=source.Current;
             {{FuncReturnTypeName(keySelector)}} bestKey=default!;
-            {{this.FuncAssign(keySelector,nameof(keySelector),"bestKey","bestElement")}}
+            {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
             while(source.MoveNext()){
                 var {{this.item}}=source.Current;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
                 if(comparer.Compare({{this.key}},bestKey){{this.CompareOp}}0){
                     bestElement={{this.item}};
                     bestKey={{this.key}};

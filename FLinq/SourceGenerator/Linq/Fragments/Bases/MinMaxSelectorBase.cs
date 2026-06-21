@@ -29,7 +29,7 @@ public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFrag
                     var __first=true;
                     foreach(var {{this.item}} in __span){
                         {{resultType}} value=default!;
-                        {{this.FuncAssign(selector,nameof(selector),"value",this.item)}}
+                        {{this.FuncAssignIndented("            ",selector,nameof(selector),"value",this.item)}}
                         if(__first||{{this.CompareCond}}){
                             __first=false;
                             result=value;
@@ -39,11 +39,11 @@ public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFrag
                     {{source.ElementType}} {{this.item}};
                     if(!source.MoveNext()) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
                     {{this.item}}=source.Current;
-                    {{this.FuncAssign(selector,nameof(selector),"result",this.item)}}
+                    {{this.FuncAssignIndented("        ",selector,nameof(selector),"result",this.item)}}
                     while(source.MoveNext()){
                         {{this.item}}=source.Current;
                         {{resultType}} value=default!;
-                        {{this.FuncAssign(selector,nameof(selector),"value",this.item)}}
+                        {{this.FuncAssignIndented("            ",selector,nameof(selector),"value",this.item)}}
                         if({{this.CompareCond}}) result=value;
                     }
                 }
@@ -58,11 +58,11 @@ public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFrag
                 {{resultType}} result=default!;
                 if(!source.MoveNext()) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
                 {{this.item}}=source.Current;
-                {{this.FuncAssign(selector,nameof(selector),"result",this.item)}}
+                {{this.FuncAssignIndented("    ",selector,nameof(selector),"result",this.item)}}
                 while(source.MoveNext()){
                     {{this.item}}=source.Current;
                     {{resultType}} value=default!;
-                    {{this.FuncAssign(selector,nameof(selector),"value",this.item)}}
+                    {{this.FuncAssignIndented("        ",selector,nameof(selector),"value",this.item)}}
                     if({{this.CompareCond}}) result=value;
                 }
                 return result;

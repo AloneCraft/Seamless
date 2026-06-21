@@ -91,7 +91,7 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
                     for(var __i = 0; __i < __span.Length; __i++) {
                         var {{this.item}} = __span[__i];
                         bool {{this.temp}} = default!;
-                        {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",predicate,nameof(predicate),this.temp,this.item)}}
                         if({{this.temp}}) count++;
                     }
                 }
@@ -106,7 +106,7 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
                     while(source.MoveNext()) {
                         var {{this.item}} = source.Current;
                         bool {{this.temp}} = default!;
-                        {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",predicate,nameof(predicate),this.temp,this.item)}}
                         if({{this.temp}}) count++;
                     }
                 }

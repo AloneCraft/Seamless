@@ -143,7 +143,7 @@ public abstract class SetByBase(int î‘çÜ,Enumerable source,Enumerable second,Fun
             }
             while(source.TryGetNext(out var {{this.item}})){
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),this.key,this.item)}}
                 if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.key}})){
                     current=this.{{this.currentValue}}={{this.item}};
                     return true;
@@ -154,7 +154,7 @@ public abstract class SetByBase(int î‘çÜ,Enumerable source,Enumerable second,Fun
             """ : $$"""
             while(source.TryGetNext(out var {{this.item}})){
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),this.key,this.item)}}
                 if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.key}})){
                     current=this.{{this.currentValue}}={{this.item}};
                     return true;
@@ -165,7 +165,7 @@ public abstract class SetByBase(int î‘çÜ,Enumerable source,Enumerable second,Fun
                 while(second.TryGetNext(out var {{this.temp}})){
                     var {{this.item}}=({{source.ElementType}})(object?){{this.temp}}!;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
                     if(this.{{this.lookup}}.Add({{this.key}})){
                         current=this.{{this.currentValue}}={{this.item}};
                         return true;
@@ -217,6 +217,10 @@ public abstract class SetByBase(int î‘çÜ,Enumerable source,Enumerable second,Fun
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
+        var hoistedDeclarations=this.HoistedLocalDeclarations(keySelector);
+        if(!string.IsNullOrEmpty(hoistedDeclarations)) {
+            builder.AppendLine(hoistedDeclarations);
+        }
         TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,comparer);
         if(this.UseIdentityKeySelector){
             if(!operation.PreloadSecondFirst){
@@ -250,14 +254,14 @@ public abstract class SetByBase(int î‘çÜ,Enumerable source,Enumerable second,Fun
     private void AppendSetByCollectLoop(StringBuilder builder,string enumeratorName,string setName){
         TraversalSupport.AppendTraversalLoop(builder,enumeratorName,second.ElementType,"value",$$"""
             {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-            {{this.FuncAssign(keySelector,nameof(keySelector),this.key,"value")}}
+            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),this.key,"value")}}
             {{setName}}.Add({{this.key}});
             """,second.CanTryProvideSpan);
     }
     private void AppendSetByConsumeLoop(StringBuilder builder,string enumeratorName,string consumerName,string setName,string operationMethod){
         TraversalSupport.AppendTraversalLoop(builder,enumeratorName,source.ElementType,"value",$$"""
             {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-            {{this.FuncAssign(keySelector,nameof(keySelector),this.key,"value")}}
+            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),this.key,"value")}}
             if(!{{setName}}.{{operationMethod}}({{this.key}})){
                 continue;
             }

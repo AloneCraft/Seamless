@@ -1,8 +1,8 @@
 namespace Benchmark.System.Linq.Enumerable.Intercept;
 
 public class SelectMany_Hoisting_PredicatePushdown:Base{
-    private readonly int[] outer=global::System.Linq.Enumerable.Range(0,30_000).ToArray();
-    private readonly int[] inner=global::System.Linq.Enumerable.Range(0,128).ToArray();
+    private readonly int[] outer=global::System.Linq.Enumerable.Range(0,3_000).ToArray();
+    private readonly int[] inner=global::System.Linq.Enumerable.Range(0,1_280).ToArray();
     private const int Threshold=120;
 
     [BenchFact,Benchmark(Baseline=true)]public void Linq()=>this.outer.SelectMany(_=>this.inner).Where(x=>x>Threshold&&HoistInvariant.Value()==0).Consume(this.consumer);

@@ -143,7 +143,7 @@ internal class GroupBy_keySelector_resultSelector(
     public override string GetEnumeratorFields =>
         GroupBySupport.Fields(this.KeyType,source.ElementType,this.group,this.lookup,this.hasValue);
     public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,source.ElementType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),"",this.item,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
-        {{this.FuncAssignCurrent(resultSelector,nameof(resultSelector),this.currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{source.ElementType}>)__cur")}}
+        {{this.FuncAssignCurrentIndented("",resultSelector,nameof(resultSelector),this.currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{source.ElementType}>)__cur")}}
         return true;
         """;
     public override string GetCurrentExpression => this.currentValue;
@@ -229,7 +229,7 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
     public override string GetEnumeratorFields =>
         GroupBySupport.Fields(this.KeyType,this.ElemType,this.group,this.lookup,this.hasValue);
     public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,this.ElemType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),$"{this.ElemType} {this.a}=default!;\n{this.FuncAssign(elementSelector,nameof(elementSelector),this.a,this.item)}",this.a,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
-        {{this.FuncAssignCurrent(resultSelector,nameof(resultSelector),this.currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{this.ElemType}>)__cur")}}
+        {{this.FuncAssignCurrentIndented("",resultSelector,nameof(resultSelector),this.currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{this.ElemType}>)__cur")}}
         return true;
         """;
     public override string GetCurrentExpression => this.currentValue;

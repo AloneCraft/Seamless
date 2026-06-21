@@ -55,7 +55,7 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
                 for(var __i=0;__i<__span.Length;__i++) {
                     var {{this.item}} = __span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                    {{this.FuncAssign(keySelector, nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("        ",keySelector, nameof(keySelector),this.key,this.item)}}
                     ref var {{this.group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
                     if(!__exists) {
                         {{this.group}} = new global::System.Collections.Generic.List<{{source.ElementType}}>();
@@ -74,7 +74,7 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
                 while(source.MoveNext()) {
                     var {{this.item}} = source.Current;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                    {{this.FuncAssign(keySelector, nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("        ",keySelector, nameof(keySelector),this.key,this.item)}}
                     ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
                     if(!__exists) {
                         __group = new global::System.Collections.Generic.List<{{source.ElementType}}>();
@@ -114,9 +114,9 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
                 for(var __i=0;__i<__span.Length;__i++) {
                     var {{this.item}} = __span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                    {{this.FuncAssign(keySelector, nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("        ",keySelector, nameof(keySelector),this.key,this.item)}}
                     {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
-                    {{this.FuncAssign(elementSelector, nameof(elementSelector),this.temp,this.item)}}
+                    {{this.FuncAssignIndented("        ",elementSelector, nameof(elementSelector),this.temp,this.item)}}
                     ref var {{this.group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
                     if(!__exists) {
                         {{this.group}} = new global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>();
@@ -135,9 +135,9 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
                 while(source.MoveNext()) {
                     var {{this.item}} = source.Current;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                    {{this.FuncAssign(keySelector, nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("        ",keySelector, nameof(keySelector),this.key,this.item)}}
                     {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
-                    {{this.FuncAssign(elementSelector, nameof(elementSelector),this.temp,this.item)}}
+                    {{this.FuncAssignIndented("        ",elementSelector, nameof(elementSelector),this.temp,this.item)}}
                     ref var {{this.group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
                     if(!__exists) {
                         {{this.group}} = new global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>();
@@ -177,7 +177,7 @@ internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFr
                 for(var __i=0;__i<__span.Length;__i++) {
                     var {{this.item}} = __span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                    {{this.FuncAssign(keySelector, nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("        ",keySelector, nameof(keySelector),this.key,this.item)}}
                     ref var {{this.group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
                     if(!__exists) {
                         {{this.group}} = new global::System.Collections.Generic.List<{{source.ElementType}}>();
@@ -196,7 +196,7 @@ internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFr
                 while(source.MoveNext()) {
                     var {{this.item}} = source.Current;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                    {{this.FuncAssign(keySelector, nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("        ",keySelector, nameof(keySelector),this.key,this.item)}}
                     ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
                     if(!__exists) {
                         __group = new global::System.Collections.Generic.List<{{source.ElementType}}>();
@@ -237,9 +237,9 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
                 for(var __i=0;__i<__span.Length;__i++) {
                     var {{this.item}} = __span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                    {{this.FuncAssign(keySelector, nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("        ",keySelector, nameof(keySelector),this.key,this.item)}}
                     {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
-                    {{this.FuncAssign(elementSelector, nameof(elementSelector),this.temp,this.item)}}
+                    {{this.FuncAssignIndented("        ",elementSelector, nameof(elementSelector),this.temp,this.item)}}
                     ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
                     if(!__exists) {
                         __group = new global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>();
@@ -258,9 +258,9 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
                 while(source.MoveNext()) {
                     var {{this.item}} = source.Current;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                    {{this.FuncAssign(keySelector, nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("        ",keySelector, nameof(keySelector),this.key,this.item)}}
                     {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
-                    {{this.FuncAssign(elementSelector, nameof(elementSelector),this.temp,this.item)}}
+                    {{this.FuncAssignIndented("        ",elementSelector, nameof(elementSelector),this.temp,this.item)}}
                     ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
                     if(!__exists) {
                         __group = new global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>();

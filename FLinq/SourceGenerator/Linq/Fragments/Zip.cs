@@ -73,7 +73,7 @@ public class Zip_resultSelector(int 番号, Enumerable source, Enumerable second
         if(source.MoveNext()&&second.MoveNext()) {
             var {{this.item}}=source.Current;
             var {{this.temp}}=second.Current;
-            {{this.FuncAssignCurrent(resultSelector,nameof(resultSelector),this.currentValue,this.item,this.temp)}}
+            {{this.FuncAssignCurrentIndented("    ",resultSelector,nameof(resultSelector),this.currentValue,this.item,this.temp)}}
             return true;
         }
         current=default!;

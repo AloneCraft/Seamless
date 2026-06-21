@@ -43,7 +43,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         if({{this.state}}==1&&{{this.group}} is not null){
             if({{this.groupIndex}}<{{this.group}}.Count){
                 var {{this.item}}={{this.group}}[{{this.groupIndex}}++];
-                {{this.FuncAssignCurrent(this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,this.item)}}
+                {{this.FuncAssignCurrentIndented("        ",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,this.item)}}
                 return true;
             }
             {{this.group}}=null;
@@ -56,7 +56,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         {{this.CounterCall("IncrementLogicalJoinOuter")}}
         {{this.outerValue}}={{this.e}}.Current;
         {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
-        {{this.FuncAssign(this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
+        {{this.FuncAssignIndented("",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
         if(IsNullKey({{this.key}})){
             goto {{this.Start}};
         }

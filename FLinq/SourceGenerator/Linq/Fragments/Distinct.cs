@@ -77,7 +77,7 @@ internal abstract class DistinctByBase(int î‘çÜ,Enumerable source,FuncFragment k
     public override string GetTryGetNextBody=>$$"""
         while({{this.e}}.TryGetNext(out var {{this.item}})){
             {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-            {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+            {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),this.key,this.item)}}
             if(this.{{this.lookup}}.Add({{this.key}})){
                 current=this.{{this.currentValue}}={{this.item}};
                 return true;
@@ -97,6 +97,10 @@ internal abstract class DistinctByBase(int î‘çÜ,Enumerable source,FuncFragment k
         var keyName=$"__key{î‘çÜ}";
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
+        var hoistedDeclarations=this.HoistedLocalDeclarations(keySelector);
+        if(!string.IsNullOrEmpty(hoistedDeclarations)) {
+            builder.AppendLine(hoistedDeclarations);
+        }
         if(this.TryAppendSmallIntegralRangeConsume(builder,sourceName,keyName,consumerName)) {
             return builder.ToString().TrimEnd();
         }
@@ -108,7 +112,7 @@ internal abstract class DistinctByBase(int î‘çÜ,Enumerable source,FuncFragment k
             "value",
             $$"""
             {{FuncReturnTypeName(keySelector)}} {{keyName}}=default!;
-            {{this.FuncAssign(keySelector,nameof(keySelector),keyName,"value")}}
+            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),keyName,"value")}}
             if({{this.lookup}}.Add({{keyName}})){
                 {{consumerName}}.Consume(value);
             }
@@ -145,7 +149,7 @@ internal abstract class DistinctByBase(int î‘çÜ,Enumerable source,FuncFragment k
             "value",
             $$"""
             {{keyType}} {{keyName}}=default!;
-            {{this.FuncAssign(keySelector,nameof(keySelector),keyName,"value")}}
+            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),keyName,"value")}}
             var {{seenIndexName}}={{keyName}}-({{min}});
             if(!{{seenName}}[{{seenIndexName}}]){
                 {{seenName}}[{{seenIndexName}}]=true;
