@@ -225,8 +225,7 @@ public abstract class Methods1 : global::Benchmark.Shared.Base {
     public void First() => this.First_Impl();
 
     [LinqInterceptAttribute(true)]
-    private void First_Impl() 
-{
+    private void First_Impl(){
         for(var i=0;i<First_iterationCount;i++){
             this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<int>().First());
         }
@@ -236,8 +235,7 @@ public abstract class Methods1 : global::Benchmark.Shared.Base {
     public void FirstOrDefault() => this.FirstOrDefault_Impl();
 
     [LinqInterceptAttribute(true)]
-    private void FirstOrDefault_Impl() 
-{
+    private void FirstOrDefault_Impl() {
         for(var i=0;i<FirstOrDefault_iterationCount;i++){
             this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<int>().FirstOrDefault());
         }
