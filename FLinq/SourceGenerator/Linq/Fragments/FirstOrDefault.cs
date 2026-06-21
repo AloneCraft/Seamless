@@ -65,7 +65,7 @@ public class FirstOrDefault_predicate(int 番号, Enumerable source, FuncFragmen
             while(source.MoveNext()) {
                 var {{this.item}} = source.Current;
                 bool {{this.temp}} = default!;
-                {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item)}}
+                {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                 if({{this.temp}}) return {{this.item}};
             }
             return default!;

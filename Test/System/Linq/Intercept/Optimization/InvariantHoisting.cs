@@ -1,8 +1,12 @@
 using System.Linq;
+using Test.System.Linq.Intercept;
+using Tsavorite.Linq;
 
 namespace Test.System.Linq.Intercept.Optimization;
 
 public sealed class InvariantHoisting:OptimizationTestBase{
+    private static int mutatingCallCount;
+
     [Fact,Trait("Category","Unit")]
     public static void GlobalInvariant() {
         AssertSequenceEqual(Outer().Select(static a => a+StaticCheck()).ToList(),GlobalInvariant_NonEmptyOptimized());
@@ -67,10 +71,9 @@ public sealed class InvariantHoisting:OptimizationTestBase{
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void InvariantNotHoistedPastLazyGuard() {
-        var divisor=0;
-        AssertSequenceEqual(EmptyOuter().Where(v => v>100/divisor).ToList(),InvariantNotHoistedPastLazyGuardOptimized());
-        AssertSequenceEqual(EmptyOuter().Where(v => v>100/divisor).ToList(),InvariantNotHoistedPastLazyGuardNoOptimized());
+    public static void InvariantMayEvaluateBeforeLazyGuard() {
+        Assert.Throws<DivideByZeroException>(() => InvariantNotHoistedPastLazyGuardOptimized());
+        Assert.Empty(InvariantNotHoistedPastLazyGuardNoOptimized());
     }
 
     [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
@@ -83,5 +86,129 @@ public sealed class InvariantHoisting:OptimizationTestBase{
     private static List<int> InvariantNotHoistedPastLazyGuardNoOptimized() {
         var divisor=0;
         return EmptyOuter().Where(v => v>100/divisor).ToList();
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public static void PartialExpressionHoistedForSelect() {
+        AssertSequenceEqual(SelectPartialInvariantNoOptimized(),SelectPartialInvariantOptimized());
+        var generated=GeneratedInterceptorAssert.SourceFor<InvariantHoisting>(nameof(SelectPartialInvariantOptimized));
+        Assert.Contains("__hoist",generated);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public static void PartialExpressionHoistedAcrossDelegateKinds() {
+        AssertSequenceEqual(WherePartialInvariantNoOptimized(),WherePartialInvariantOptimized());
+        AssertSequenceEqual(GroupByPartialInvariantNoOptimized(),GroupByPartialInvariantOptimized());
+        AssertSequenceEqual(JoinPartialInvariantNoOptimized(),JoinPartialInvariantOptimized());
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public static void PartialExpressionHoistEvaluatesOncePerEnumeratorConstruction() {
+        mutatingCallCount=0;
+        AssertSequenceEqual([8,9,10,11,12],MutatingPartialInvariantOptimized());
+        Assert.Equal(1,mutatingCallCount);
+
+        mutatingCallCount=0;
+        AssertSequenceEqual([8,9,10,11,12],MutatingPartialInvariantNoOptimized());
+        Assert.Equal(Outer().Length,mutatingCallCount);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public static void PartialExpressionHoistEvaluatesBeforeEmptySourceEnumeration() {
+        mutatingCallCount=0;
+        Assert.Empty(EmptySourceMutatingPartialInvariantOptimized());
+        Assert.Equal(1,mutatingCallCount);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public static void AnchorPreventsPartialExpressionHoist() {
+        mutatingCallCount=0;
+        Assert.Empty(AnchorMutatingPartialInvariantOptimized());
+        Assert.Equal(0,mutatingCallCount);
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> SelectPartialInvariantOptimized() {
+        var x=3;
+        return Outer().Select(p => p+x*x).ToList();
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> SelectPartialInvariantNoOptimized() {
+        var x=3;
+        return Outer().Select(p => p+x*x).ToList();
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> WherePartialInvariantOptimized() {
+        var threshold=1;
+        var offset=2;
+        return Outer().Where(p => p>threshold+offset).ToList();
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> WherePartialInvariantNoOptimized() {
+        var threshold=1;
+        var offset=2;
+        return Outer().Where(p => p>threshold+offset).ToList();
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> GroupByPartialInvariantOptimized() {
+        var x=2;
+        return Outers()
+            .GroupBy(p => p.Key,p => p.Id+x*x,(key,values) => key+values.Sum()+x*x)
+            .OrderBy(value => value)
+            .ToList();
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> GroupByPartialInvariantNoOptimized() {
+        var x=2;
+        return Outers()
+            .GroupBy(p => p.Key,p => p.Id+x*x,(key,values) => key+values.Sum()+x*x)
+            .OrderBy(value => value)
+            .ToList();
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> JoinPartialInvariantOptimized() {
+        var x=2;
+        var y=2;
+        return Outers()
+            .Join(Inners(),outer => outer.Key+x*x,inner => inner.Key+y*y,(outer,inner) => outer.Id+inner.Id+x*x)
+            .OrderBy(value => value)
+            .ToList();
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> JoinPartialInvariantNoOptimized() {
+        var x=2;
+        var y=2;
+        return Outers()
+            .Join(Inners(),outer => outer.Key+x*x,inner => inner.Key+y*y,(outer,inner) => outer.Id+inner.Id+x*x)
+            .OrderBy(value => value)
+            .ToList();
+    }
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> MutatingPartialInvariantOptimized() =>
+        Outer().Select(p => p+MutatingValue()).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> MutatingPartialInvariantNoOptimized() =>
+        Outer().Select(p => p+MutatingValue()).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> EmptySourceMutatingPartialInvariantOptimized() =>
+        EmptyOuter().Select(p => p+MutatingValue()).ToList();
+
+    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    private static List<int> AnchorMutatingPartialInvariantOptimized() =>
+        EmptyOuter().Select(p => p+MutatingValue().Anchor).ToList();
+
+    private static int MutatingValue() {
+        mutatingCallCount++;
+        return 7;
     }
 }

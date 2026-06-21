@@ -44,7 +44,7 @@ internal class LeftJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragmen
         if({{this.state}}==1&&{{this.group}} is not null){
             if({{this.groupIndex}}<{{this.group}}.Count){
                 var {{this.item}}={{this.group}}[{{this.groupIndex}}++];
-                {{this.FuncAssignCurrent(this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,this.item)}}
+                {{this.FuncAssignCurrentIndented("        ",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,this.item)}}
                 return true;
             }
             {{this.group}}=null;
@@ -57,14 +57,14 @@ internal class LeftJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragmen
         {{this.CounterCall("IncrementLogicalLeftJoinOuter")}}
         {{this.outerValue}}={{this.e}}.Current;
         {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
-        {{this.FuncAssign(this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
+        {{this.FuncAssignIndented("",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
         {{this.CounterCall("IncrementHashProbe")}}
         if(!IsNullKey({{this.key}})&&{{this.lookup}}.TryGetValue({{this.key}},out {{this.group}})){
             {{this.groupIndex}}=0;
             {{this.state}}=1;
             goto {{this.Start}};
         }
-        {{this.FuncAssignCurrent(this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,$"default({this.innerSource.ElementType})")}}
+        {{this.FuncAssignCurrentIndented("",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,$"default({this.innerSource.ElementType})")}}
         return true;
         """;
     public override string GetCurrentExpression=> this.currentValue;

@@ -45,12 +45,12 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             {{this.CounterCall("IncrementLogicalGroupJoinOuter")}}
             var {{this.outerValue}}={{this.e}}.Current;
             {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
-            {{this.FuncAssign(this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
+            {{this.FuncAssignIndented("    ",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
             {{this.CounterCall("IncrementHashProbe")}}
             if({{this.lookup}}.TryGetValue({{this.key}},out var {{this.group}})){
-                {{this.FuncAssignCurrent(this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,this.group)}}
+                {{this.FuncAssignCurrentIndented("        ",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,this.group)}}
             }else{
-                {{this.FuncAssignCurrent(this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,$"(global::System.Collections.Generic.IEnumerable<{this.innerSource.ElementType}>)global::System.Array.Empty<{this.innerSource.ElementType}>()")}}
+                {{this.FuncAssignCurrentIndented("        ",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,$"(global::System.Collections.Generic.IEnumerable<{this.innerSource.ElementType}>)global::System.Array.Empty<{this.innerSource.ElementType}>()")}}
             }
             current=this.{{this.currentValue}};
             return true;

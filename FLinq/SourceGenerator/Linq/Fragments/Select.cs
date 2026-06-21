@@ -37,7 +37,7 @@ public class Select_selector(int 番号,Enumerable source,FuncFragment selector)
     public override string GetTryGetNextBody => $$"""
         if({{this.e}}.TryGetNext(out var {{this.item}})) {
             {{this.CounterCall("IncrementLogicalSelect")}}
-            {{this.FuncAssignCurrent(selector,nameof(selector),$"this.{this.currentValue}",this.item)}}
+            {{this.FuncAssignCurrentIndented("    ",selector,nameof(selector),$"this.{this.currentValue}",this.item)}}
             return true;
         }
         current = default!;
@@ -165,7 +165,7 @@ public class Select_indexSelector(int 番号, Enumerable source, FuncFragment se
         if({{this.e}}.TryGetNext(out var {{this.item}})) {
             {{this.CounterCall("IncrementLogicalSelect")}}
             this.{{this.a}}++;
-            {{this.FuncAssignCurrent(selector,nameof(selector),$"this.{this.currentValue}",this.item,$"this.{this.a}")}}
+            {{this.FuncAssignCurrentIndented("    ",selector,nameof(selector),$"this.{this.currentValue}",this.item,$"this.{this.a}")}}
             return true;
         }
         current = default!;

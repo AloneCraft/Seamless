@@ -28,12 +28,12 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
                 for(var __i=0;__i<__span.Length;__i++) {
                     var {{this.item}}=__span[__i];
                     {{this.KeyType}} {{this.key}}=default!;
-                    {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     ref var __agg=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{this.lookup}},{{this.key}},out var __exists);
                     if(!__exists) {
                         __agg={{seed}};
                     }
-                    {{this.FuncAssign(func,nameof(func),"__agg","__agg",this.item)}}
+                    {{this.FuncAssignIndented("            ",func,nameof(func),"__agg","__agg",this.item)}}
                 }
             }else{
                 if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
@@ -44,12 +44,12 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
                 while({{this.e}}.MoveNext()) {
                     var {{this.item}}={{this.e}}.Current;
                     {{this.KeyType}} {{this.key}}=default!;
-                    {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     ref var __agg=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{this.lookup}},{{this.key}},out var __exists);
                     if(!__exists) {
                         __agg={{seed}};
                     }
-                    {{this.FuncAssign(func,nameof(func),"__agg","__agg",this.item)}}
+                    {{this.FuncAssignIndented("            ",func,nameof(func),"__agg","__agg",this.item)}}
                 }
             }
             this.{{this.innerEnumerator}}=this.{{this.lookup}}.GetEnumerator();

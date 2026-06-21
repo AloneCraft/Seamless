@@ -621,6 +621,246 @@ public sealed partial class TsavoriteIncrementalGenerator {
         return true;
     }
 
+    private static bool TryHoistInvariantSubexpressions(
+        ExpressionSyntax body,
+        IReadOnlyCollection<string> parameterNames,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        out IReadOnlyDictionary<string,string>? renderReplacementMap,
+        out HoistedLocal[] hoistedLocals,
+        out string[] unsafeAccessorCodes,
+        out IReadOnlyCollection<ExpressionSyntax> hoistedExpressions) {
+        renderReplacementMap=null;
+        hoistedLocals=[];
+        unsafeAccessorCodes=[];
+        hoistedExpressions=Array.Empty<ExpressionSyntax>();
+
+        var parameterSet = new HashSet<string>(parameterNames,StringComparer.Ordinal);
+        var candidates = body.DescendantNodesAndSelf(descendIntoChildren: static node => !IsNestedFunctionBoundary(node))
+            .OfType<ExpressionSyntax>()
+            .Where(expr => !ReferenceEquals(expr,body))
+            .Where(expr => IsMeaningfulHoistCandidate(expr,semanticModel))
+            .Where(expr => !ContainsDisallowedHoistNode(expr))
+            .Where(expr => !AnchorAnalysis.ContainsAnchor(expr,semanticModel))
+            .Where(expr => !IsInsideAnchorAccess(expr,semanticModel))
+            .Where(expr => !ReferencesAnyLambdaParameter(expr,parameterSet,semanticModel))
+            .Select(expr => (Expression: expr, Type: semanticModel.GetTypeInfo(expr).ConvertedType ?? semanticModel.GetTypeInfo(expr).Type))
+            .Where(pair => IsUsableHoistedType(pair.Type))
+            .ToArray();
+        if(candidates.Length==0) {
+            return false;
+        }
+
+        var selected = new List<(ExpressionSyntax Expression,ITypeSymbol Type)>();
+        foreach(var candidate in candidates
+            .OrderByDescending(static pair => pair.Expression.Span.Length)
+            .ThenBy(static pair => pair.Expression.SpanStart)) {
+            if(selected.Any(existing => SpansOverlap(existing.Expression.Span,candidate.Expression.Span))) {
+                continue;
+            }
+            selected.Add((candidate.Expression,candidate.Type!));
+        }
+        if(selected.Count==0) {
+            return false;
+        }
+
+        selected=selected.OrderBy(static pair => pair.Expression.SpanStart).ToList();
+        var replacements = new Dictionary<string,string>(StringComparer.Ordinal);
+        var locals = new List<HoistedLocal>(selected.Count);
+        var accessorCodes = new List<string>();
+        foreach(var (expression,type) in selected) {
+            var expressionKey=expression.ToString();
+            if(replacements.ContainsKey(expressionKey)) {
+                continue;
+            }
+            var name=$"__hoist{uniqueNumber++}";
+            var expressionAccessorCodes = new List<string>();
+            var expressionText=RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,expressionAccessorCodes);
+            replacements.Add(expressionKey,name);
+            locals.Add(new HoistedLocal(
+                name,
+                type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                expressionText));
+            accessorCodes.AddRange(expressionAccessorCodes);
+        }
+
+        if(locals.Count==0) {
+            return false;
+        }
+        renderReplacementMap=replacements;
+        hoistedLocals=locals.ToArray();
+        unsafeAccessorCodes=accessorCodes.ToArray();
+        hoistedExpressions=selected.Select(static pair => pair.Expression).ToArray();
+        return true;
+    }
+
+    private static bool IsNestedFunctionBoundary(SyntaxNode node) =>
+        node is AnonymousFunctionExpressionSyntax
+            or LocalFunctionStatementSyntax;
+
+    private static bool IsInsideAnchorAccess(ExpressionSyntax expression,SemanticModel semanticModel) =>
+        expression.Ancestors()
+            .OfType<MemberAccessExpressionSyntax>()
+            .Any(memberAccess => AnchorAnalysis.IsAnchorAccess(memberAccess,semanticModel));
+
+    private static bool IsMeaningfulHoistCandidate(ExpressionSyntax expression,SemanticModel semanticModel) {
+        if(expression.Parent is InvocationExpressionSyntax invocation
+            && ReferenceEquals(invocation.Expression,expression)) {
+            return false;
+        }
+        if(expression is MemberBindingExpressionSyntax) {
+            return false;
+        }
+        if(expression is SimpleNameSyntax simpleName
+            && ((simpleName.Parent is MemberAccessExpressionSyntax memberAccess && ReferenceEquals(memberAccess.Name,simpleName))
+                || (simpleName.Parent is MemberBindingExpressionSyntax memberBinding && ReferenceEquals(memberBinding.Name,simpleName)))) {
+            return false;
+        }
+        if(IsPredefinedTypeAlias(expression.ToString())) {
+            return false;
+        }
+        var symbolInfo = semanticModel.GetSymbolInfo(expression);
+        if(expression is MemberAccessExpressionSyntax
+            && (symbolInfo.Symbol is INamespaceOrTypeSymbol or IMethodSymbol
+                || symbolInfo.CandidateSymbols.Any(static symbol => symbol is INamespaceOrTypeSymbol or IMethodSymbol))) {
+            return false;
+        }
+        if(expression is LiteralExpressionSyntax
+            or ParenthesizedExpressionSyntax
+            or ThisExpressionSyntax
+            or BaseExpressionSyntax) {
+            return false;
+        }
+        if(expression is IdentifierNameSyntax identifier) {
+            if(symbolInfo.Symbol is INamespaceOrTypeSymbol or IMethodSymbol
+                || symbolInfo.CandidateSymbols.Any(static symbol => symbol is INamespaceOrTypeSymbol or IMethodSymbol)) {
+                return false;
+            }
+            return symbolInfo.Symbol is IFieldSymbol or IPropertySymbol;
+        }
+        return true;
+    }
+
+    private static bool IsPredefinedTypeAlias(string text) =>
+        text is "bool"
+            or "byte"
+            or "sbyte"
+            or "short"
+            or "ushort"
+            or "int"
+            or "uint"
+            or "long"
+            or "ulong"
+            or "double"
+            or "float"
+            or "decimal"
+            or "string"
+            or "char"
+            or "object";
+
+    private static bool ContainsDisallowedHoistNode(ExpressionSyntax expression) =>
+        expression.DescendantNodesAndSelf(descendIntoChildren: static node => !IsNestedFunctionBoundary(node))
+            .Any(static node => node is AssignmentExpressionSyntax
+                or AwaitExpressionSyntax
+                or ThrowExpressionSyntax
+                or AnonymousFunctionExpressionSyntax
+                or QueryExpressionSyntax
+                or DeclarationExpressionSyntax
+                or PrefixUnaryExpressionSyntax { RawKind: (int)SyntaxKind.PreIncrementExpression or (int)SyntaxKind.PreDecrementExpression }
+                or PostfixUnaryExpressionSyntax { RawKind: (int)SyntaxKind.PostIncrementExpression or (int)SyntaxKind.PostDecrementExpression });
+
+    private static bool ReferencesAnyLambdaParameter(
+        ExpressionSyntax expression,
+        HashSet<string> parameterNames,
+        SemanticModel semanticModel) =>
+        expression.DescendantNodesAndSelf(descendIntoChildren: static node => !IsNestedFunctionBoundary(node))
+            .OfType<IdentifierNameSyntax>()
+            .Any(identifier => semanticModel.GetSymbolInfo(identifier).Symbol is IParameterSymbol parameter
+                && parameterNames.Contains(parameter.Name));
+
+    private static bool IsUsableHoistedType(ITypeSymbol? type) =>
+        type is not null
+        && type.SpecialType!=SpecialType.System_Void
+        && type is not IErrorTypeSymbol
+        && !ContainsAnonymousType(type);
+
+    private static bool SpansOverlap(TextSpan left,TextSpan right) =>
+        left.Start<right.End && right.Start<left.End;
+
+    private static bool SymbolReferencedOutsideHoistedExpressions(
+        ISymbol symbol,
+        ExpressionSyntax body,
+        IReadOnlyCollection<ExpressionSyntax> hoistedExpressions,
+        SemanticModel semanticModel) {
+        if(hoistedExpressions.Count==0) {
+            return true;
+        }
+        if(symbol is IParameterSymbol { Name: "this" }) {
+            return UsesThisOutsideHoistedExpressions(body,hoistedExpressions,semanticModel);
+        }
+        foreach(var identifier in body.DescendantNodesAndSelf(descendIntoChildren: static node => !IsNestedFunctionBoundary(node)).OfType<IdentifierNameSyntax>()) {
+            if(IsInsideHoistedExpression(identifier,hoistedExpressions)) {
+                continue;
+            }
+            if(SymbolEqualityComparer.Default.Equals(semanticModel.GetSymbolInfo(identifier).Symbol,symbol)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool UsesThisOutsideHoistedExpressions(
+        ExpressionSyntax body,
+        IReadOnlyCollection<ExpressionSyntax> hoistedExpressions,
+        SemanticModel semanticModel) {
+        foreach(var node in body.DescendantNodesAndSelf(descendIntoChildren: static node => !IsNestedFunctionBoundary(node))) {
+            if(IsInsideHoistedExpression(node,hoistedExpressions)) {
+                continue;
+            }
+            if(node is ThisExpressionSyntax or BaseExpressionSyntax) {
+                return true;
+            }
+            if(node is IdentifierNameSyntax identifier
+                && semanticModel.GetSymbolInfo(identifier).Symbol is ISymbol identifierSymbol
+                && IsInstanceMember(identifierSymbol)) {
+                return true;
+            }
+            if(node is MemberAccessExpressionSyntax memberAccess
+                && semanticModel.GetSymbolInfo(memberAccess).Symbol is ISymbol memberSymbol
+                && IsInstanceMember(memberSymbol)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool IsInstanceMember(ISymbol symbol) =>
+        symbol switch {
+            IFieldSymbol field => !field.IsStatic,
+            IPropertySymbol property => !property.IsStatic,
+            IMethodSymbol method => !method.IsStatic,
+            IEventSymbol @event => !@event.IsStatic,
+            _ => false
+        };
+
+    private static bool IsInsideHoistedExpression(SyntaxNode node,IReadOnlyCollection<ExpressionSyntax> hoistedExpressions) =>
+        hoistedExpressions.Any(expression =>
+            node.SpanStart>=expression.SpanStart
+            && node.Span.End<=expression.Span.End);
+
+    private sealed class HoistedExpressionRewriter(IReadOnlyDictionary<ExpressionSyntax,string> replacements):CSharpSyntaxRewriter {
+        private readonly IReadOnlyDictionary<ExpressionSyntax,string> replacements = replacements;
+
+        public override SyntaxNode? Visit(SyntaxNode? node) {
+            if(node is ExpressionSyntax expression
+                && this.replacements.TryGetValue(expression,out var replacement)) {
+                return SyntaxFactory.IdentifierName(replacement).WithTriviaFrom(expression);
+            }
+            return base.Visit(node);
+        }
+    }
+
     /// <summary>
     /// ソース型の public な非明示的実装 <c>GetEnumerator()</c> を探し、具象エニュメレータ型名と
     /// duck-typing フラグを返す。
@@ -863,24 +1103,43 @@ public sealed partial class TsavoriteIncrementalGenerator {
 
             var body = lambdaSpec.Body;
             var capturedLocals = Array.Empty<(string Name, string TypeName)>();
+            var hoistedLocals = Array.Empty<HoistedLocal>();
             var bodyAccessorCodes = Array.Empty<string>();
             var capturesThis = false;
             ExpressionSyntax? lambdaBodyExpr = null;
+            ExpressionSyntax? originalLambdaBodyExpr = null;
+            IReadOnlyCollection<ExpressionSyntax> hoistedExpressions = Array.Empty<ExpressionSyntax>();
+            IReadOnlyDictionary<string,string>? hoistReplacementMap = null;
             if(semanticModel is not null && TryGetLambdaExpressionBody(lambda,out lambdaBodyExpr)) {
+                originalLambdaBodyExpr=lambdaBodyExpr;
                 if(containingType is not null) {
+                    if(TryHoistInvariantSubexpressions(
+                        lambdaBodyExpr,
+                        lambdaSpec.ParameterNames,
+                        semanticModel,
+                        containingType,
+                        ref uniqueNumber,
+                        out hoistReplacementMap,
+                        out hoistedLocals,
+                        out var hoistAccessorCodes,
+                        out hoistedExpressions)) {
+                        bodyAccessorCodes=hoistAccessorCodes;
+                    }
                     var bodyCollector = new List<string>();
-                    body=RenderExpressionForGeneratedMethod(lambdaBodyExpr,semanticModel,containingType,bodyCollector);
-                    bodyAccessorCodes = bodyCollector.ToArray();
+                    body=RenderExpressionForGeneratedMethod(lambdaBodyExpr,semanticModel,containingType,bodyCollector,hoistReplacementMap);
+                    bodyAccessorCodes = bodyAccessorCodes.Concat(bodyCollector).ToArray();
                 }
                 // ラムダがキャプチャしているローカル変数・外側パラメータを検出する。
                 // lambda 自身のパラメータと暗黙の this は除外する。
-                var dataFlow = semanticModel.AnalyzeDataFlow(lambdaBodyExpr);
+                var dataFlow = semanticModel.AnalyzeDataFlow(originalLambdaBodyExpr);
                 if(dataFlow?.Succeeded == true) {
                     var paramSet = new HashSet<string>(lambdaSpec.ParameterNames,StringComparer.Ordinal);
                     var thisSymbol = dataFlow.DataFlowsIn.FirstOrDefault(sym=>sym.Name == "this") as IParameterSymbol;
-                    capturesThis = thisSymbol is not null;
+                    capturesThis = thisSymbol is not null
+                        && SymbolReferencedOutsideHoistedExpressions(thisSymbol,originalLambdaBodyExpr!,hoistedExpressions,semanticModel);
                     capturedLocals = dataFlow.DataFlowsIn
                         .Where(sym=>(sym is ILocalSymbol || sym is IParameterSymbol) && !paramSet.Contains(sym.Name) && sym.Name != "this")
+                        .Where(sym=>SymbolReferencedOutsideHoistedExpressions(sym,originalLambdaBodyExpr!,hoistedExpressions,semanticModel))
                         .Select(sym=>(sym.Name, sym is ILocalSymbol loc
                             ? loc.Type.ToDisplayString(完全修飾形式)
                             : ((IParameterSymbol)sym).Type.ToDisplayString(完全修飾形式)))
@@ -889,7 +1148,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
                     // struct closure のキャプチャ変数として明示的に持ち回る。
                     // 型は containingType（呼び出し元の囲み型。Full Fusion 時は呼び出し先と異なりうる）ではなく
                     // 実際の暗黙 this パラメーターの型（ラムダの宣言元インスタンスの型）を用いる。
-                    if(thisSymbol is not null) {
+                    if(capturesThis && thisSymbol is not null) {
                         capturedLocals = capturedLocals
                             .Append(("@this", thisSymbol.Type.ToDisplayString(完全修飾形式)))
                             .ToArray();
@@ -900,6 +1159,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
             if(semanticModel is not null
                 && containingType is not null
                 && lambdaBodyExpr is not null
+                && hoistedLocals.Length==0
                 && TryFindSystemLinqInvocation(lambdaBodyExpr,semanticModel,out var scalarInvocation,out var scalarMethod)) {
                 var snapshot = uniqueNumber;
                 if(呼び出し式からフラグメント生成(
@@ -925,6 +1185,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
                         ScalarExpression = RenderExpressionForGeneratedMethod(scalarInvocation,semanticModel,containingType),
                         ScalarReturnTypeName = semanticModel.GetTypeInfo(scalarInvocation).Type?.ToDisplayString(完全修飾形式) ?? scalarFragment.GetType().Name,
                         CapturedLocals = capturedLocals,
+                        HoistedLocals = hoistedLocals,
                         BodyUnsafeAccessorCodes = bodyAccessorCodes
                             .Concat(scalarFragment.CollectAllUnsafeAccessorCodes())
                             .ToArray(),
@@ -951,6 +1212,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 CanInlineAssign = true,
                 InlineBody = body,
                 CapturedLocals = capturedLocals,
+                HoistedLocals = hoistedLocals,
                 BodyUnsafeAccessorCodes = bodyAccessorCodes,
                 ContainsAnchor = AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
                 CardinalityUpperBound = lambda.Body is ExpressionSyntax lambdaExpressionBody
@@ -997,19 +1259,37 @@ public sealed partial class TsavoriteIncrementalGenerator {
 
             var body = anonymousSpec.Body;
             var capturedLocals = Array.Empty<(string Name, string TypeName)>();
+            var hoistedLocals = Array.Empty<HoistedLocal>();
             var bodyAccessorCodes = Array.Empty<string>();
             var capturesThis = false;
+            IReadOnlyCollection<ExpressionSyntax> hoistedExpressions = Array.Empty<ExpressionSyntax>();
+            IReadOnlyDictionary<string,string>? hoistReplacementMap = null;
             if(semanticModel is not null && containingType is not null) {
+                if(TryHoistInvariantSubexpressions(
+                    bodyExpression,
+                    anonymousSpec.ParameterNames,
+                    semanticModel,
+                    containingType,
+                    ref uniqueNumber,
+                    out hoistReplacementMap,
+                    out hoistedLocals,
+                    out var hoistAccessorCodes,
+                    out hoistedExpressions)) {
+                    bodyAccessorCodes=hoistAccessorCodes;
+                }
                 var bodyCollector = new List<string>();
-                body=RenderExpressionForGeneratedMethod(bodyExpression,semanticModel,containingType,bodyCollector);
-                bodyAccessorCodes = bodyCollector.ToArray();
+                body=RenderExpressionForGeneratedMethod(bodyExpression,semanticModel,containingType,bodyCollector,hoistReplacementMap);
+                bodyAccessorCodes = bodyAccessorCodes.Concat(bodyCollector).ToArray();
 
                 var dataFlow = semanticModel.AnalyzeDataFlow(bodyExpression);
                 if(dataFlow?.Succeeded == true) {
                     var paramSet = new HashSet<string>(anonymousSpec.ParameterNames,StringComparer.Ordinal);
-                    capturesThis = dataFlow.DataFlowsIn.Any(sym=>sym.Name == "this");
+                    var thisSymbol = dataFlow.DataFlowsIn.FirstOrDefault(sym=>sym.Name == "this") as IParameterSymbol;
+                    capturesThis = thisSymbol is not null
+                        && SymbolReferencedOutsideHoistedExpressions(thisSymbol,bodyExpression,hoistedExpressions,semanticModel);
                     capturedLocals = dataFlow.DataFlowsIn
                         .Where(sym=>(sym is ILocalSymbol || sym is IParameterSymbol) && !paramSet.Contains(sym.Name) && sym.Name != "this")
+                        .Where(sym=>SymbolReferencedOutsideHoistedExpressions(sym,bodyExpression,hoistedExpressions,semanticModel))
                         .Select(sym=>(sym.Name, sym is ILocalSymbol loc
                             ? loc.Type.ToDisplayString(完全修飾形式)
                             : ((IParameterSymbol)sym).Type.ToDisplayString(完全修飾形式)))
@@ -1025,6 +1305,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 CanInlineAssign = true,
                 InlineBody = body,
                 CapturedLocals = capturedLocals,
+                HoistedLocals = hoistedLocals,
                 BodyUnsafeAccessorCodes = bodyAccessorCodes,
                 ContainsAnchor = AnchorAnalysis.ContainsAnchor(bodyExpression,semanticModel),
                 CardinalityUpperBound = semanticModel is not null
@@ -1767,13 +2048,6 @@ public sealed partial class TsavoriteIncrementalGenerator {
         List<string>? unsafeAccessorCollector,
         IReadOnlyDictionary<string,string>? replacementMap) {
         fragment=null!;
-#if false
-        if(!蛻玲嫌隕∫ｴ蝙句叙蠕・method.ReturnType,out var elementType,out _)) {
-            return false;
-        }
-
-        var elementTypeName=elementType.ToDisplayString(螳悟・菫ｮ鬟ｾ蠖｢蠑・;
-#endif
         if(!TryGetCollectionExpressionElementType(method.ReturnType,out var elementType)) {
             return false;
         }

@@ -85,6 +85,9 @@ public sealed class TsavoriteHashSetScanTerminal(
         foreach(var capture in this.CapturedLocals()) {
             builder.AppendLine($"    public {capture.TypeName} {capture.Name};");
         }
+        foreach(var hoistedLocal in this.HoistedLocals()) {
+            builder.AppendLine($"    public {hoistedLocal.TypeName} {hoistedLocal.Name};");
+        }
         foreach(var func in this.DelegateFuncs()) {
             builder.AppendLine($"    public {func.DelegateTypeName} {func.DelegateFieldName};");
         }
@@ -130,6 +133,9 @@ public sealed class TsavoriteHashSetScanTerminal(
         builder.AppendLine($"private static bool {this.BodyMethodName}(ref {this.StateTypeName} state,object? itemObject) {{");
         foreach(var capture in this.CapturedLocals()) {
             builder.AppendLine($"    var {capture.Name}=state.{capture.Name};");
+        }
+        foreach(var hoistedLocal in this.HoistedLocals()) {
+            builder.AppendLine($"    var {hoistedLocal.Name}=state.{hoistedLocal.Name};");
         }
         foreach(var func in this.DelegateFuncs()) {
             builder.AppendLine($"    var {func.DelegateFieldName}=state.{func.DelegateFieldName};");
@@ -207,6 +213,17 @@ public sealed class TsavoriteHashSetScanTerminal(
         }
     }
 
+    private IEnumerable<HoistedLocal> HoistedLocals() {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach(var func in this.Funcs()) {
+            foreach(var hoistedLocal in func.HoistedLocals) {
+                if(names.Add(hoistedLocal.Name)) {
+                    yield return hoistedLocal;
+                }
+            }
+        }
+    }
+
     private IEnumerable<FuncFragment> DelegateFuncs() {
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach(var func in this.Funcs()) {
@@ -218,10 +235,12 @@ public sealed class TsavoriteHashSetScanTerminal(
 
     private IEnumerable<(string Name,string TypeName)> ClosureParameters() =>
         this.CapturedLocals()
+            .Concat(this.HoistedLocals().Select(static hoistedLocal=>(hoistedLocal.Name,hoistedLocal.TypeName)))
             .Concat(this.DelegateFuncs().Select(static func=>(func.DelegateFieldName!,func.DelegateTypeName!)));
 
     private string ClosureArgumentList() {
         var args = this.CapturedLocals().Select(static capture=>capture.Name)
+            .Concat(this.HoistedLocals().Select(static hoistedLocal=>hoistedLocal.ExpressionText))
             .Concat(this.DelegateFuncs().Select(static func=>func.DelegateConstructorArg!))
             .ToArray();
         return string.Join(", ",args);

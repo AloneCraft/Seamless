@@ -1582,6 +1582,7 @@ public static class PipelineBuilder {
                 CanInlineAssign=true,
                 InlineBody=$"({leftExpr})&&({rightExpr})",
                 CapturedLocals=left.CapturedLocals.Concat(right.CapturedLocals).Distinct().ToArray(),
+                HoistedLocals=left.HoistedLocals.Concat(right.HoistedLocals).Distinct().ToArray(),
                 BodyUnsafeAccessorCodes=left.BodyUnsafeAccessorCodes.Concat(right.BodyUnsafeAccessorCodes).Distinct().ToArray(),
                 SupportingMemberSources=joinStaticMethods(left.SupportingMemberSources,right.SupportingMemberSources),
                 ContainsAnchor=left.ContainsAnchor || right.ContainsAnchor
@@ -1844,7 +1845,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
     }
 
     private static string? TryRenderDirectLambda(FuncFragment func) {
-        if(func.CapturedLocals.Length!=0 || func.RequiresStatementInlining) {
+        if(func.CapturedLocals.Length!=0 || func.HoistedLocals.Length!=0 || func.RequiresStatementInlining) {
             return null;
         }
         try {
@@ -2944,7 +2945,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         if(string.IsNullOrEmpty(suffix)) {
             yield break;
         }
-        foreach(var part in suffix[2..].Split(',')) {
+        foreach(var part in SplitTopLevelComma(suffix[2..])) {
             yield return part.Trim();
         }
     }
@@ -2954,8 +2955,99 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         if(string.IsNullOrEmpty(suffix)) {
             yield break;
         }
-        foreach(var part in suffix[2..].Split(',')) {
+        foreach(var part in SplitTopLevelComma(suffix[2..])) {
             yield return part.Trim();
+        }
+    }
+
+    private static IEnumerable<string> SplitTopLevelComma(string text) {
+        var parenDepth = 0;
+        var bracketDepth = 0;
+        var braceDepth = 0;
+        var angleDepth = 0;
+        var start = 0;
+        var inString = false;
+        var inChar = false;
+        var inVerbatimString = false;
+        for(var index = 0;index<=text.Length;index++) {
+            if(index==text.Length) {
+                yield return text[start..index];
+                yield break;
+            }
+
+            var current = text[index];
+            var next = index+1<text.Length ? text[index+1] : '\0';
+            if(inString) {
+                if(inVerbatimString && current=='"' && next=='"') {
+                    index++;
+                    continue;
+                }
+                if(!inVerbatimString && current=='\\') {
+                    index++;
+                    continue;
+                }
+                if(current=='"') {
+                    inString=false;
+                    inVerbatimString=false;
+                }
+                continue;
+            }
+            if(inChar) {
+                if(current=='\\') {
+                    index++;
+                    continue;
+                }
+                if(current=='\'') {
+                    inChar=false;
+                }
+                continue;
+            }
+
+            if(current=='@' && next=='"') {
+                inString=true;
+                inVerbatimString=true;
+                index++;
+                continue;
+            }
+            if(current=='"') {
+                inString=true;
+                continue;
+            }
+            if(current=='\'') {
+                inChar=true;
+                continue;
+            }
+
+            switch(current) {
+                case '(':
+                    parenDepth++;
+                    break;
+                case ')':
+                    parenDepth--;
+                    break;
+                case '[':
+                    bracketDepth++;
+                    break;
+                case ']':
+                    bracketDepth--;
+                    break;
+                case '{':
+                    braceDepth++;
+                    break;
+                case '}':
+                    braceDepth--;
+                    break;
+                case '<':
+                    angleDepth++;
+                    break;
+                case '>':
+                    angleDepth--;
+                    break;
+                case ',' when parenDepth==0 && bracketDepth==0 && braceDepth==0 && angleDepth==0:
+                    yield return text[start..index];
+                    start=index+1;
+                    break;
+            }
         }
     }
 

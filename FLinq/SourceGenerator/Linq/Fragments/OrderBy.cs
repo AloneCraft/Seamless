@@ -88,7 +88,7 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             source.TryGetSpan(out var __span);
             foreach(var {{this.item}} in __span){
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),this.key,this.item)}}
                 items.Add(new SortItem({{this.item}},{{this.key}},index++));
             }
             """
@@ -96,7 +96,7 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             while(source.MoveNext()) {
                 var {{this.item}} = source.Current;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),this.key,this.item)}}
                 items.Add(new SortItem({{this.item}}, {{this.key}}, index++));
             }
             """;
@@ -143,9 +143,9 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             source.TryGetSpan(out var __span);
             foreach(var {{this.item}} in __span){
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),this.key,this.item)}}
                 {{FuncReturnTypeName(po.OwnKeySelector)}} {{this.a}}=default!;
-                {{this.FuncAssign(po.OwnKeySelector,"primaryKeySelector",this.a,this.item)}}
+                {{this.FuncAssignIndented("    ",po.OwnKeySelector,"primaryKeySelector",this.a,this.item)}}
                 items.Add(new SortItem({{this.item}},{{this.key}},{{this.a}},index++));
             }
             """
@@ -153,9 +153,9 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             while(source.MoveNext()) {
                 var {{this.item}} = source.Current;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                {{this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),this.key,this.item)}}
                 {{FuncReturnTypeName(po.OwnKeySelector)}} {{this.a}} = default!;
-                {{this.FuncAssign(po.OwnKeySelector,"primaryKeySelector",this.a,this.item)}}
+                {{this.FuncAssignIndented("    ",po.OwnKeySelector,"primaryKeySelector",this.a,this.item)}}
                 items.Add(new SortItem({{this.item}}, {{this.key}}, {{this.a}}, index++));
             }
             """;

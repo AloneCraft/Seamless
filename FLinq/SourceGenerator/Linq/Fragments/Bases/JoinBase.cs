@@ -20,7 +20,7 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
                 {{this.CounterCall(logicalInnerCounterMethod)}}
                 var {{this.item}}={{this.innerEnumerator}}.Current;
                 {{this.InnerKeyType}} {{this.key}}=default!;
-                {{this.FuncAssignStatic(this.innerKey,nameof(this.innerKey),this.key,this.item)}}
+                {{this.FuncAssignStaticIndented("        ",this.innerKey,nameof(this.innerKey),this.key,this.item)}}
                 if(IsNullKey({{this.key}})){
                     continue;
                 }
@@ -42,7 +42,7 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
                 {{this.CounterCall(logicalInnerCounterMethod)}}
                 var {{this.item}}={{this.innerEnumerator}}.Current;
                 {{this.InnerKeyType}} {{this.key}}=default!;
-                {{this.FuncAssignStatic(this.innerKey,nameof(this.innerKey),this.key,this.item)}}
+                {{this.FuncAssignStaticIndented("        ",this.innerKey,nameof(this.innerKey),this.key,this.item)}}
                 {{this.CounterCall("IncrementHashBuild")}}
                 if(!{{this.lookup}}.TryGetValue({{this.key}},out var {{this.group}})){
                     {{this.group}}=new global::System.Collections.Generic.List<{{this.InnerElementType}}>();

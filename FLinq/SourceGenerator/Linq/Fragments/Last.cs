@@ -112,7 +112,7 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
                 source.TryGetSpan(out var __span);
                 foreach(var {{this.item}} in __span){
                     bool {{this.temp}}=default!;
-                    {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item)}}
+                    {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}){ found=true; result={{this.item}}; }
                 }
                 if(!found) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
@@ -127,7 +127,7 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
                 while(source.MoveNext()){
                     var {{this.item}}=source.Current;
                     bool {{this.temp}}=default!;
-                    {{this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item)}}
+                    {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}){ found=true; result={{this.item}}; }
                 }
                 if(!found) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
