@@ -1,4 +1,8 @@
 <Project>
+  <PropertyGroup>
+    <RunSettingsFilePath>$(MSBuildThisFileDirectory)test.runsettings</RunSettingsFilePath>
+  </PropertyGroup>
+
   <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectName)').StartsWith('Benchmark.'))">
     <OutputType>Library</OutputType>
     <GenerateProgramFile>false</GenerateProgramFile>

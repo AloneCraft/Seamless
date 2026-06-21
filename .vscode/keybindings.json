@@ -1,0 +1,18 @@
+﻿[
+  {
+    "key": "f5",
+    "command": "workbench.action.tasks.runTask",
+    "args": {
+      "task": "test-release"
+    },
+    "when": "workbenchState == 'focused'"
+  },
+  {
+    "key": "shift+f5",
+    "command": "workbench.action.tasks.runTask",
+    "args": {
+      "task": "test-release-diagnostics"
+    },
+    "when": "workbenchState == 'focused'"
+  }
+]
