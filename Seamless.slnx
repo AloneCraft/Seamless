@@ -33,4 +33,5 @@
   <Project Path="Test.Tsavorite.Linq.Enumerable.IEnumerableZLinq/Test.Tsavorite.Linq.Enumerable.IEnumerableZLinq.csproj" />
   <Project Path="Test.Tsavorite.Linq.Enumerable.IHashSetLinq/Test.Tsavorite.Linq.Enumerable.IHashSetLinq.csproj" />
   <Project Path="Test.Tsavorite.Linq.Enumerable.IHashSetFLinq/Test.Tsavorite.Linq.Enumerable.IHashSetFLinq.csproj" />
+  <Project Path="DiscoveryProbe.Tests/DiscoveryProbe.Tests.csproj" />
 </Solution>

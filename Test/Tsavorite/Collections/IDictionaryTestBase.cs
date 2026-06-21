@@ -141,7 +141,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
             // キー一覧を取得できること
-            Assert.Equivalent(new[] { TStrategy.K(1),TStrategy.K(2) },dict.Keys);
+            Assert.True(new HashSet<TKey>(new[] { TStrategy.K(1),TStrategy.K(2) }).SetEquals(dict.Keys));
         }
         {
             // キー一覧は全件コピー済みの標準Listではなく読み取り専用viewであること
@@ -159,7 +159,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
             // 値一覧を取得できること
-            Assert.Equivalent(new[] { TStrategy.V(1),TStrategy.V(2) },dict.Values);
+            Assert.True(new HashSet<TValue>(new[] { TStrategy.V(1),TStrategy.V(2) }).SetEquals(dict.Values));
         }
         {
             // 値一覧は全件コピー済みの標準Listではなく読み取り専用viewであること

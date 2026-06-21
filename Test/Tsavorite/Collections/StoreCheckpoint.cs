@@ -8,25 +8,25 @@ public class StoreCheckpoint {
     //private static string CreateFolder()=>Path.Combine(Environment.CurrentDirectory,"TsavoriteTest_"+Guid.NewGuid().ToString("N"));
     private static string CreateFolder() => TestPath.Directory<StoreCheckpoint>();
     [Fact, Trait("Category","Unit")]
-    public async Task SaveAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
-        var ct = TestContext.Current.CancellationToken;
+    public async Task SaveAsync_CheckpointDirNotSet_ThrowsInvalidOperationException() {
+        var ct = CancellationToken.None;
         using var store = HashStore.Create().Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.SaveAsync(ct: ct));
     }
     [Fact, Trait("Category","Unit")]
-    public async Task LoadAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
-        var ct = TestContext.Current.CancellationToken;
+    public async Task LoadAsync_CheckpointDirNotSet_ThrowsInvalidOperationException() {
+        var ct = CancellationToken.None;
         using var store = HashStore.Create().Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.LoadAsync(ct));
     }
     [Fact, Trait("Category","Unit")]
-    public async Task SaveLogOnlyAsync_CheckpointDir未設定_InvalidOperationExceptionをスロー() {
-        var ct = TestContext.Current.CancellationToken;
+    public async Task SaveLogOnlyAsync_CheckpointDirNotSet_ThrowsInvalidOperationException() {
+        var ct = CancellationToken.None;
         using var store = HashStore.Create().Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.SaveLogOnlyAsync(ct: ct));
     }
     [Fact, Trait("Category","Unit")]
-    public void Save_Load_HashSet_データが永続化され復元される() {
+    public void Save_Load_HashSet_DataPersistsAndRestores() {
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
         Guid token;
@@ -58,8 +58,8 @@ public class StoreCheckpoint {
         }
     }
     [Fact, Trait("Category","Unit")]
-    public async Task SaveAsync_LoadAsync_HashSet_データが永続化され復元される() {
-        var ct = TestContext.Current.CancellationToken;
+    public async Task SaveAsync_LoadAsync_HashSet_DataPersistsAndRestores() {
+        var ct = CancellationToken.None;
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
         Guid token;
@@ -89,8 +89,8 @@ public class StoreCheckpoint {
         }
     }
     [Fact, Trait("Category","Unit")]
-    public async Task SaveAsync_LoadAsync_Dictionary_データが永続化され復元される() {
-        var ct = TestContext.Current.CancellationToken;
+    public async Task SaveAsync_LoadAsync_Dictionary_DataPersistsAndRestores() {
+        var ct = CancellationToken.None;
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
         Guid token;
@@ -117,8 +117,8 @@ public class StoreCheckpoint {
         }
     }
     [Fact, Trait("Category","Unit")]
-    public async Task SaveAsync_LoadAsync_HashSet_ハッシュインデックスが復元されContainsが動作する() {
-        var ct = TestContext.Current.CancellationToken;
+    public async Task SaveAsync_LoadAsync_HashSet_RecoveryIndexRestoresAndContainsWorks() {
+        var ct = CancellationToken.None;
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
         Guid token;
@@ -141,9 +141,9 @@ public class StoreCheckpoint {
         }
     }
     [Fact, Trait("Category","Unit")]
-    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:プラットフォームの互換性を検証",Justification = "<保留中>")]
-    public async Task SaveAsync_LoadAsync_Dictionary_ハッシュインデックスが復元されReadが動作する() {
-        var ct = TestContext.Current.CancellationToken;
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:繝励Λ繝・ヨ繝輔か繝ｼ繝縺ｮ莠呈鋤諤ｧ繧呈､懆ｨｼ",Justification = "<菫晉蕗荳ｭ>")]
+    public async Task SaveAsync_LoadAsync_Dictionary_RecoveryIndexRestoresAndReadWorks() {
+        var ct = CancellationToken.None;
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
         Guid token;
@@ -170,7 +170,7 @@ public class StoreCheckpoint {
     }
 
     [Fact, Trait("Category","Unit")]
-    public void Save_Load_Dictionary_Add件数に応じてWithRecoveryIndexSizeがIndexSizeを拡張する() {
+    public void Save_Load_Dictionary_ExpandsRecoveryIndexSizeByEntryCount() {
         const long initialIndexSize = 64;
         const int entryCount = 100;
         var expectedIndexSize = HashStore.GetIndexSizeForCapacity(entryCount,initialIndexSize);
@@ -211,7 +211,7 @@ public class StoreCheckpoint {
     }
 
     [Fact, Trait("Category","Unit")]
-    public void SaveLogOnly_LoadLatest_Dictionary_Add件数に応じてWithRecoveryIndexSizeがIndexSizeを拡張する() {
+    public void SaveLogOnly_LoadLatest_Dictionary_ExpandsRecoveryIndexSizeByEntryCount() {
         const long initialIndexSize = 64;
         const int entryCount = 100;
         var expectedIndexSize = HashStore.GetIndexSizeForCapacity(entryCount,initialIndexSize);
@@ -251,8 +251,8 @@ public class StoreCheckpoint {
     }
 
     [Fact, Trait("Category","Unit")]
-    public async Task SaveAsync_CheckpointFailed_InvalidOperationExceptionをスロー() {
-        var ct = TestContext.Current.CancellationToken;
+    public async Task SaveAsync_CheckpointFailed_ThrowsInvalidOperationException() {
+        var ct = CancellationToken.None;
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
@@ -260,15 +260,14 @@ public class StoreCheckpoint {
         using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
         using var set = store.Create();
         set.Add(1);
-        // SaveAsync が同期的にロックを取得してから非同期 I/O を待機するため、
-        // await せずタスクを保持しておくことでロックが取得された状態を維持できる
+        // SaveAsync 縺悟酔譛溽噪縺ｫ繝ｭ繝・け繧貞叙蠕励＠縺ｦ縺九ｉ髱槫酔譛・I/O 繧貞ｾ・ｩ溘☆繧九◆繧√・        // await 縺帙★繧ｿ繧ｹ繧ｯ繧剃ｿ晄戟縺励※縺翫￥縺薙→縺ｧ繝ｭ繝・け縺悟叙蠕励＆繧後◆迥ｶ諷九ｒ邯ｭ謖√〒縺阪ｋ
         var ongoingCheckpoint = store.SaveAsync(ct: ct).AsTask();
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveAsync(ct: ct).AsTask());
         await ongoingCheckpoint;
     }
     [Fact, Trait("Category","Unit")]
-    public async Task SaveLogOnlyAsync_CheckpointFailed_InvalidOperationExceptionをスロー() {
-        var ct = TestContext.Current.CancellationToken;
+    public async Task SaveLogOnlyAsync_CheckpointFailed_ThrowsInvalidOperationException() {
+        var ct = CancellationToken.None;
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
@@ -276,14 +275,13 @@ public class StoreCheckpoint {
         using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
         using var set = store.Create();
         set.Add(1);
-        // SaveLogOnlyAsync が同期的にロックを取得してから非同期 I/O を待機するため、
-        // await せずタスクを保持しておくことでロックが取得された状態を維持できる
+        // SaveLogOnlyAsync 縺悟酔譛溽噪縺ｫ繝ｭ繝・け繧貞叙蠕励＠縺ｦ縺九ｉ髱槫酔譛・I/O 繧貞ｾ・ｩ溘☆繧九◆繧√・        // await 縺帙★繧ｿ繧ｹ繧ｯ繧剃ｿ晄戟縺励※縺翫￥縺薙→縺ｧ繝ｭ繝・け縺悟叙蠕励＆繧後◆迥ｶ諷九ｒ邯ｭ謖√〒縺阪ｋ
         var ongoingCheckpoint = store.SaveLogOnlyAsync(ct: ct).AsTask();
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveLogOnlyAsync(ct: ct).AsTask());
         await ongoingCheckpoint;
     }
     [Fact, Trait("Category","Unit")]
-    public async Task SaveAsync_CompleteCheckpointAsyncキャンセル_OperationCanceledExceptionをスロー() {
+    public async Task SaveAsync_CompleteCheckpointAsyncCanceled_ThrowsOperationCanceledException() {
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
@@ -297,15 +295,14 @@ public class StoreCheckpoint {
     }
     [SupportedOSPlatform("windows")]
     private class SimulatedFlakyDevice(string path):LocalStorageDevice(path,false,false,false,-1,false,false,false) {
-        // 失敗させるかどうかのスイッチ
+        // 螟ｱ謨励＆縺帙ｋ縺九←縺・°縺ｮ繧ｹ繧､繝・メ
         public bool ShouldFail { get; set; } = false;
-        // チェックポイント進行中状態を作るための遅延(ms)
+        // 繝√ぉ繝・け繝昴う繝ｳ繝磯ｲ陦御ｸｭ迥ｶ諷九ｒ菴懊ｋ縺溘ａ縺ｮ驕・ｻｶ(ms)
         public int WriteDelayMilliseconds { get; set; } = 0;
 
         public override void WriteAsync(IntPtr srcAddress,int alignedSourceNextAddress,ulong alignedDestinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object callbackContext) {
             if(this.ShouldFail) {
-                // 第1引数に 0 以外（エラーコード）を渡してコールバックを即時実行
-                // これにより Tsavorite 内部でチェックポイント失敗のフローが走る
+                // Complete the callback with an error code to simulate device failure.
                 const uint ERROR_CODE = 0xFFFFFFFF;
                 callback(ERROR_CODE,numBytesToWrite,callbackContext);
                 return;
@@ -314,7 +311,7 @@ public class StoreCheckpoint {
             if(this.WriteDelayMilliseconds>0)
                 Thread.Sleep(this.WriteDelayMilliseconds);
 
-            // 通常の書き込み処理
+            // Use the normal device path when failure is disabled.
             base.WriteAsync(srcAddress,alignedSourceNextAddress,alignedDestinationAddress,numBytesToWrite,callback,callbackContext);
         }
 
@@ -329,8 +326,8 @@ public class StoreCheckpoint {
         }
     }
     [Fact, Trait("Category","Unit")]
-    public async Task SaveLogOnlyAsync_LoadAsync_HashSet_データが永続化され復元される() {
-        var ct = TestContext.Current.CancellationToken;
+    public async Task SaveLogOnlyAsync_LoadAsync_HashSet_DataPersistsAndRestores() {
+        var ct = CancellationToken.None;
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
         Guid token;
@@ -359,8 +356,8 @@ public class StoreCheckpoint {
         }
     }
     [Fact, Trait("Category","Unit")]
-    public async Task SaveLogOnlyAsync_LoadAsync_Dictionary_データが永続化され復元される() {
-        var ct = TestContext.Current.CancellationToken;
+    public async Task SaveLogOnlyAsync_LoadAsync_Dictionary_DataPersistsAndRestores() {
+        var ct = CancellationToken.None;
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
         Guid token;
