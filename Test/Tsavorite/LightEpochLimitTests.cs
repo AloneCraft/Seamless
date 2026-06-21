@@ -38,7 +38,7 @@ public class LightEpochLimitTests {
             InvalidOperationException? overflow = null;
             for(var i = 0; i<1025; i++) {
                 try {
-                    stores.Add(HashStore.Create().Create<int,int>());
+                    stores.Add(Store.Create().Create<int,int>());
                 }
                 catch(InvalidOperationException ex) when(ex.Message.Contains("Exceeded maximum number of active LightEpoch instances",StringComparison.Ordinal)) {
                     overflow=ex;
@@ -63,7 +63,7 @@ public class LightEpochLimitTests {
         var stores = new List<DictionaryStore<int,int>>();
         try {
             for(var i = 0; i<Count; i++) {
-                stores.Add(HashStore.Create().Create<int,int>());
+                stores.Add(Store.Create().Create<int,int>());
             }
             Assert.Equal(Count,stores.Count);
         }
@@ -82,7 +82,7 @@ public class LightEpochLimitTests {
         var stores = new List<DictionaryStore<int,int>>();
         try {
             for(var i = 0; i<16; i++) {
-                stores.Add(HashStore.Create().Create<int,int>());
+                stores.Add(Store.Create().Create<int,int>());
             }
             foreach(var s in stores) {
                 s.Dispose();
@@ -90,7 +90,7 @@ public class LightEpochLimitTests {
             stores.Clear();
 
             for(var i = 0; i<16; i++) {
-                stores.Add(HashStore.Create().Create<int,int>());
+                stores.Add(Store.Create().Create<int,int>());
             }
             Assert.Equal(16,stores.Count);
         }
@@ -109,19 +109,19 @@ public class LightEpochLimitTests {
         var slots = new Stack<DictionaryStore<int,int>>();
         try {
             for(var i = 0; i<1024; i++) {
-                slots.Push(HashStore.Create().Create<int,int>());
+                slots.Push(Store.Create().Create<int,int>());
             }
 
             // 1 個 Dispose してスロットを解放
             slots.Pop().Dispose();
 
             // 解放したスロットへ 1 個作成 → 成功 (1024/1024)
-            slots.Push(HashStore.Create().Create<int,int>());
+            slots.Push(Store.Create().Create<int,int>());
             Assert.Equal(1024,slots.Count);
 
             // もう 1 個作成しようとすると上限超過で throw
             Assert.Throws<InvalidOperationException>(() => {
-                using var overflow = HashStore.Create().Create<int,int>();
+                using var overflow = Store.Create().Create<int,int>();
             });
         }
         finally {
@@ -139,7 +139,7 @@ public class LightEpochLimitTests {
     /// </summary>
     [Fact]
     public void kTableSize_128Threads_AllSucceed() {
-        using var store = HashStore.Create().Create<int,int>();
+        using var store = Store.Create().Create<int,int>();
         const int ThreadCount = 128;
         var errors = new global::System.Collections.Concurrent.ConcurrentBag<Exception>();
         var barrier = new Barrier(ThreadCount);
@@ -175,7 +175,7 @@ public class LightEpochLimitTests {
     /// </summary>
     [Fact]
     public void SessionCount_25Dicts_AllSucceed() {
-        using var store = HashStore.Create().Create<int,int>();
+        using var store = Store.Create().Create<int,int>();
         var dicts = new List<IDisposable>();
         try {
             for(var i = 0; i<25; i++) {
@@ -195,7 +195,7 @@ public class LightEpochLimitTests {
     public void SessionCount_26Dicts_AllSucceed() {
         // kTableSize = 128 縺ｯ繧ｻ繝・す繝ｧ繝ｳ逕滓・謨ｰ縺ｮ荳企剞縺ｧ縺ｯ縺ｪ縺上・
         // 蜷梧凾 epoch 菫晄戟繧ｹ繝ｬ繝・ラ謨ｰ縺ｮ荳企剞縲・6 dict (130 session) 縺ｧ繧ゆｽ懈・縺ｯ謌仙粥縺吶ｋ縲・
-        using var store = HashStore.Create().Create<int,int>();
+        using var store = Store.Create().Create<int,int>();
         var dicts = new List<IDisposable>();
         try {
             for(var i = 0; i<26; i++) {
@@ -213,7 +213,7 @@ public class LightEpochLimitTests {
     /// </summary>
     [Fact]
     public void SessionCount_DisposeAndRecreate_Succeeds() {
-        using var store = HashStore.Create().Create<int,int>();
+        using var store = Store.Create().Create<int,int>();
         // 25 蛟倶ｽ懈・ 竊・蜈ｨ Dispose 竊・蜀阪・ 25 蛟倶ｽ懈・縺ｧ縺阪ｋ
         for(var round = 0; round<2; round++) {
             var dicts = new List<IDisposable>();

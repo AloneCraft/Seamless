@@ -13,7 +13,7 @@ public sealed class IEnumerable<T>:SystemCollectionsGeneric.IEnumerable<T> {
 
     public static implicit operator IEnumerable<T>(T[] source) => new(source);
     public static implicit operator IEnumerable<T>(SystemCollectionsGeneric.List<T> source) => new(source);
-    public static implicit operator IEnumerable<T>(List<T> source) => new(source);
+    public static implicit operator IEnumerable<T>(Persistent.Collections.List<T> source) => new(source);
 
     public IEnumerator<T> GetEnumerator() => this.source.GetEnumerator();
 

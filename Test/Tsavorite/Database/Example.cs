@@ -166,7 +166,7 @@ namespace Test.Tsavorite.Database.Example {
 
 #if TSAVORITE2_0BETA3
         private static byte[] RoundTrip_Tsavorite2_0BETA3(Key0 key,byte[] valueBytes) {
-            using var store = HashStore.Create().Create<Key0,byte[]>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+            using var store = Store.Create().Create<Key0,byte[]>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
             using var dict = store.Create();
 
             dict[key]=valueBytes;

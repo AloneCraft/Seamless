@@ -37,3 +37,5 @@ global using SpanByteStoreAllocator = Tsavorite.core.SpanByteAllocator<
         Tsavorite.core.DefaultRecordTriggers
     >
 >;
+
+global using Tsavorite;

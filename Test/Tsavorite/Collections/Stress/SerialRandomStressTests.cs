@@ -49,7 +49,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
                     using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
-                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
+                    using var store = Store.Create(CheckpointDir: checkpointDir)
                         .Create<int,int>(logDevice,objDevice);
                     using var dict = store.Create();
                     foreach(var t in keys)
@@ -60,7 +60,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
                     using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
-                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
+                    using var store = Store.Create(CheckpointDir: checkpointDir)
                         .Create<int,int>(logDevice,objDevice);
                     store.Load(token);
                     using var dict = store.Create();
@@ -113,7 +113,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
                     using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
-                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
+                    using var store = Store.Create(CheckpointDir: checkpointDir)
                         .Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
                     using var dict = store.Create();
                     for(var i = 0; i<keys.Length; i++)
@@ -124,7 +124,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
                     using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
-                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
+                    using var store = Store.Create(CheckpointDir: checkpointDir)
                         .Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
                     store.Load(token);
                     using var dict = store.Create();
@@ -173,7 +173,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
                     using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
-                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
+                    using var store = Store.Create(CheckpointDir: checkpointDir)
                         .Create<int>(logDevice,objDevice);
                     using var set = store.Create();
                     foreach(var t in keys)
@@ -184,7 +184,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
                     using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
-                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
+                    using var store = Store.Create(CheckpointDir: checkpointDir)
                         .Create<int>(logDevice,objDevice);
                     store.Load(token);
                     using var set = store.Create();
@@ -228,7 +228,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
                     using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
-                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
+                    using var store = Store.Create(CheckpointDir: checkpointDir)
                         .Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy());
                     using var set = store.Create();
                     for(var i = 0; i<keys.Length; i++)
@@ -239,7 +239,7 @@ public class SerialRandomStressTests {
                 {
                     using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
                     using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
-                    using var store = HashStore.Create(CheckpointDir: checkpointDir)
+                    using var store = Store.Create(CheckpointDir: checkpointDir)
                         .Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy());
                     store.Load(token);
                     using var set = store.Create();

@@ -113,7 +113,7 @@ public sealed class Dictionary(ITestOutputHelper output) {
         static i => $"key_{i:D6}",
         static i => $"value_{i:D6}_{new string('x', 100)}",
         static (logDevice, objDevice, checkpointDir, recovery, token) => {
-            var factory = HashStore.Create(CheckpointDir: checkpointDir);
+            var factory = Store.Create(CheckpointDir: checkpointDir);
             if(recovery) {
                 factory = factory.WithRecoveryIndexSize(token, 64);
             }
@@ -127,7 +127,7 @@ public sealed class Dictionary(ITestOutputHelper output) {
         static i => i,
         static i => i * 100,
         static (logDevice, objDevice, checkpointDir, recovery, token) => {
-            var factory = HashStore.Create(CheckpointDir: checkpointDir);
+            var factory = Store.Create(CheckpointDir: checkpointDir);
             if(recovery) {
                 factory = factory.WithRecoveryIndexSize(token, 64);
             }

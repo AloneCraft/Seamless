@@ -1,4 +1,5 @@
-﻿namespace Tsavorite.Collections;
+﻿using Persistent.Collections;
+namespace Tsavorite.Collections;
 /// <summary>
 /// これはSystem.Collections.Generic.List<T>に使えるならそれに置き換えてこれは削除して
 /// </summary>

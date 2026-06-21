@@ -10,19 +10,19 @@ public class StoreCheckpoint {
     [Fact, Trait("Category","Unit")]
     public async Task SaveAsync_CheckpointDirNotSet_ThrowsInvalidOperationException() {
         var ct = CancellationToken.None;
-        using var store = HashStore.Create().Create<int>();
+        using var store = Store.Create().Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.SaveAsync(ct: ct));
     }
     [Fact, Trait("Category","Unit")]
     public async Task LoadAsync_CheckpointDirNotSet_ThrowsInvalidOperationException() {
         var ct = CancellationToken.None;
-        using var store = HashStore.Create().Create<int>();
+        using var store = Store.Create().Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.LoadAsync(ct));
     }
     [Fact, Trait("Category","Unit")]
     public async Task SaveLogOnlyAsync_CheckpointDirNotSet_ThrowsInvalidOperationException() {
         var ct = CancellationToken.None;
-        using var store = HashStore.Create().Create<int>();
+        using var store = Store.Create().Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.SaveLogOnlyAsync(ct: ct));
     }
     [Fact, Trait("Category","Unit")]
@@ -33,7 +33,7 @@ public class StoreCheckpoint {
         {
             using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var LogObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
             using var set = store.Create();
             set[1]=11;
             set[2]=22;
@@ -45,7 +45,7 @@ public class StoreCheckpoint {
         {
             using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var LogObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
             store.Load(token);
             var (begin2,head2,ro2,tail2)=store.Address;
             using var set = store.Create();
@@ -66,7 +66,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
             using var set = store.Create();
             set.Add(1);
             set.Add(2);
@@ -78,7 +78,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
             await store.LoadAsync(token,ct);
             var (begin2,head2,ro2,tail2)=store.Address;
             using var set = store.Create();
@@ -97,7 +97,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
             using var dict = store.Create();
             dict.Add(1,"one");
             dict.Add(2,"two");
@@ -106,7 +106,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
             await store.LoadAsync(token,ct);
             using var dict = store.Create();
             Assert.True(dict.ContainsKey(1));
@@ -125,7 +125,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
             using var set = store.Create();
             for(var i = 0; i<100; i++) set.Add(i);
             token=await store.SaveAsync(ct: ct);
@@ -133,7 +133,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
             await store.LoadAsync(token,ct);
             using var set = store.Create();
             for(var i = 0; i<100; i++) Assert.True(set.Contains(i),$"Contains({i}) failed after recovery");
@@ -150,7 +150,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
             using var dict = store.Create();
             for(var i = 0; i<50; i++) dict.Add(i,$"val_{i}");
             token=await store.SaveAsync(ct: ct);
@@ -158,7 +158,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
             await store.LoadAsync(token,ct);
             using var dict = store.Create();
             for(var i = 0; i<50; i++) {
@@ -173,7 +173,7 @@ public class StoreCheckpoint {
     public void Save_Load_Dictionary_ExpandsRecoveryIndexSizeByEntryCount() {
         const long initialIndexSize = 64;
         const int entryCount = 100;
-        var expectedIndexSize = HashStore.GetIndexSizeForCapacity(entryCount,initialIndexSize);
+        var expectedIndexSize = Store.GetIndexSizeForCapacity(entryCount,initialIndexSize);
         Assert.True(expectedIndexSize>initialIndexSize);
 
         var folder = CreateFolder();
@@ -182,7 +182,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            var factory = HashStore.Create(IndexSize: initialIndexSize,CheckpointDir: checkpointDir);
+            var factory = Store.Create(IndexSize: initialIndexSize,CheckpointDir: checkpointDir);
             using var store = factory.Create<int,string>(logDevice,objDevice);
             using var dict = store.Create();
 
@@ -192,7 +192,7 @@ public class StoreCheckpoint {
             token=store.Save();
         }
 
-        var recoveryFactory = HashStore.Create(IndexSize: initialIndexSize,CheckpointDir: checkpointDir);
+        var recoveryFactory = Store.Create(IndexSize: initialIndexSize,CheckpointDir: checkpointDir);
         Assert.Equal(expectedIndexSize,recoveryFactory.ResolveRecoveryIndexSize(token,initialIndexSize));
 
         {
@@ -214,7 +214,7 @@ public class StoreCheckpoint {
     public void SaveLogOnly_LoadLatest_Dictionary_ExpandsRecoveryIndexSizeByEntryCount() {
         const long initialIndexSize = 64;
         const int entryCount = 100;
-        var expectedIndexSize = HashStore.GetIndexSizeForCapacity(entryCount,initialIndexSize);
+        var expectedIndexSize = Store.GetIndexSizeForCapacity(entryCount,initialIndexSize);
         Assert.True(expectedIndexSize>initialIndexSize);
 
         var folder = CreateFolder();
@@ -222,7 +222,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            var factory = HashStore.Create(IndexSize: initialIndexSize,CheckpointDir: checkpointDir);
+            var factory = Store.Create(IndexSize: initialIndexSize,CheckpointDir: checkpointDir);
             using var store = factory.Create<int,string>(logDevice,objDevice);
             using var dict = store.Create();
 
@@ -232,7 +232,7 @@ public class StoreCheckpoint {
             _=store.SaveLogOnly();
         }
 
-        var recoveryFactory = HashStore.Create(IndexSize: initialIndexSize,CheckpointDir: checkpointDir);
+        var recoveryFactory = Store.Create(IndexSize: initialIndexSize,CheckpointDir: checkpointDir);
         Assert.Equal(expectedIndexSize,recoveryFactory.ResolveRecoveryIndexSize(minimumIndexSize: initialIndexSize));
 
         {
@@ -257,7 +257,7 @@ public class StoreCheckpoint {
         var checkpointDir = folder+"_checkpoint";
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-        using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
+        using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
         using var set = store.Create();
         set.Add(1);
         // SaveAsync 縺悟酔譛溽噪縺ｫ繝ｭ繝・け繧貞叙蠕励＠縺ｦ縺九ｉ髱槫酔譛・I/O 繧貞ｾ・ｩ溘☆繧九◆繧√・        // await 縺帙★繧ｿ繧ｹ繧ｯ繧剃ｿ晄戟縺励※縺翫￥縺薙→縺ｧ繝ｭ繝・け縺悟叙蠕励＆繧後◆迥ｶ諷九ｒ邯ｭ謖√〒縺阪ｋ
@@ -272,7 +272,7 @@ public class StoreCheckpoint {
         var checkpointDir = folder+"_checkpoint";
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-        using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
+        using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
         using var set = store.Create();
         set.Add(1);
         // SaveLogOnlyAsync 縺悟酔譛溽噪縺ｫ繝ｭ繝・け繧貞叙蠕励＠縺ｦ縺九ｉ髱槫酔譛・I/O 繧貞ｾ・ｩ溘☆繧九◆繧√・        // await 縺帙★繧ｿ繧ｹ繧ｯ繧剃ｿ晄戟縺励※縺翫￥縺薙→縺ｧ繝ｭ繝・け縺悟叙蠕励＆繧後◆迥ｶ諷九ｒ邯ｭ謖√〒縺阪ｋ
@@ -286,7 +286,7 @@ public class StoreCheckpoint {
         var checkpointDir = folder+"_checkpoint";
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-        using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
+        using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
         using var set = store.Create();
         set.Add(1);
         using var cts = new CancellationTokenSource();
@@ -334,7 +334,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
             using var set = store.Create();
             set.Add(1);
             set.Add(2);
@@ -346,7 +346,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
             await store.LoadAsync(token,ct);
             using var set = store.Create();
             Assert.True(set.Contains(1));
@@ -364,7 +364,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
             using var dict = store.Create();
             dict.Add(1,"one");
             dict.Add(2,"two");
@@ -373,7 +373,7 @@ public class StoreCheckpoint {
         {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
             await store.LoadAsync(token,ct);
             using var dict = store.Create();
             Assert.True(dict.ContainsKey(1));

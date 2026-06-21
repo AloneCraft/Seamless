@@ -91,7 +91,7 @@ public sealed class HashSet(ITestOutputHelper output):HashSetStorageBoundaryTest
     protected override string MakeKey(int i) => $"hashset_key_{i:D6}_"+new string('a',50);
 
     protected override HashSetStore<string> CreateStore(IDevice logDevice,IDevice objDevice,string? checkpointDir = null,bool recovery = false,Guid token = default) {
-        var factory = HashStore.Create(CheckpointDir: checkpointDir);
+        var factory = Store.Create(CheckpointDir: checkpointDir);
 
         if(recovery) {
             factory=factory.WithRecoveryIndexSize(token,64);

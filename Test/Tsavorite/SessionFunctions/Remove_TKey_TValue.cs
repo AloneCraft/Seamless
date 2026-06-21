@@ -68,15 +68,15 @@ public sealed class ManagedRemoveTKeyTValue:RemoveTKeyTValueTests<int,string> {
     protected override int Key(int seed) => seed;
     protected override string Value(int seed) => $"v{seed}";
     protected override (global::Tsavorite.Collections.IDictionary<int,string> Dict,IDisposable Store) CreateMemory() {
-        var store = HashStore.Create().Create<int,string>();
+        var store = Store.Create().Create<int,string>();
         return (store.Create(),store);
     }
     protected override (global::Tsavorite.Collections.IDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
-        var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(logDevice,objDevice);
+        var store = Store.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override (global::Tsavorite.Collections.IDictionary<int,string> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
-        var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int,string>(logDevice,objDevice);
+        var store = Store.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int,string>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store) =>
@@ -87,15 +87,15 @@ public sealed class UnmanagedRemoveTKeyTValue:RemoveTKeyTValueTests<int,long> {
     protected override int Key(int seed) => seed;
     protected override long Value(int seed) => (long)seed*100L;
     protected override (global::Tsavorite.Collections.IDictionary<int,long> Dict,IDisposable Store) CreateMemory() {
-        var store = HashStore.Create().Create<int,long>();
+        var store = Store.Create().Create<int,long>();
         return (store.Create(),store);
     }
     protected override (global::Tsavorite.Collections.IDictionary<int,long> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
-        var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,long>(logDevice,objDevice);
+        var store = Store.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,long>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override (global::Tsavorite.Collections.IDictionary<int,long> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
-        var store = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int,long>(logDevice,objDevice);
+        var store = Store.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int,long>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store) =>

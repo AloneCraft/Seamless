@@ -9,11 +9,11 @@ public sealed class BlittableUpsert:AddTests<int,long>{
     protected override int Key(int seed)=>seed;
     protected override long Value(int seed)=>(long)seed*100L;
     protected override(global::System.Collections.Generic.IDictionary<int,long> Dict,IDisposable Store) CreateMemory(){
-        var store=HashStore.Create().Create<int,long>();
+        var store=Store.Create().Create<int,long>();
         return(store.Create(),store);
     }
     protected override(global::System.Collections.Generic.IDictionary<int,long> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice){
-        var store=HashStore.Create(MemorySize:Const.MinObjectLogCapacity).Create<int,long>(logDevice,objDevice);
+        var store=Store.Create(MemorySize:Const.MinObjectLogCapacity).Create<int,long>(logDevice,objDevice);
         return(store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store)=>
@@ -23,7 +23,7 @@ public sealed class BlittableUpsert:AddTests<int,long>{
 
     protected override void DoUpsert(){
 #if TSAVORITE1_1_1
-        using var store=HashStore.Create().Create<int,long>();
+        using var store=Store.Create().Create<int,long>();
         using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Tsavorite.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
         var bc=session.BasicContext;
         var key=200;
@@ -38,7 +38,7 @@ public sealed class BlittableUpsert:AddTests<int,long>{
 
     protected override void DoInPlaceWriter(){
 #if TSAVORITE1_1_1
-        using var store=HashStore.Create().Create<int,long>();
+        using var store=Store.Create().Create<int,long>();
         using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Tsavorite.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
         var bc=session.BasicContext;
         var key=200;
@@ -59,7 +59,7 @@ public sealed class BlittableUpsert:AddTests<int,long>{
 
     protected override void DoRMW(){
 #if TSAVORITE1_1_1
-        using var store=HashStore.Create().Create<int,long>();
+        using var store=Store.Create().Create<int,long>();
         using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Tsavorite.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
         var key=1;
         var input0=100L;
@@ -90,7 +90,7 @@ public sealed class BlittableUpsert:AddTests<int,long>{
 
     protected override void DoConcurrentWriter(){
 #if TSAVORITE1_1_1
-        using var store=HashStore.Create().Create<int,long>();
+        using var store=Store.Create().Create<int,long>();
         using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Tsavorite.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
         var bc=session.BasicContext;
         var key=300;

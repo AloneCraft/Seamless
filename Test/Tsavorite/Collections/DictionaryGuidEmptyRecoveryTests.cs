@@ -36,7 +36,7 @@ public class DictionaryGuidEmptyRecoveryTests {
         {
             using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var LogObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
             using var dict = store.Create();
             dict[1]=11;
             dict[2]=22;
@@ -46,7 +46,7 @@ public class DictionaryGuidEmptyRecoveryTests {
         {
             using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var LogObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
             store.Load(logToken);
             using var dict = store.Create();
             Assert.True(dict.Contains(1));
@@ -67,7 +67,7 @@ public class DictionaryGuidEmptyRecoveryTests {
         {
             using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var LogObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
             using var dict = store.Create();
             dict[10]=1000;
             dict[20]=2000;
@@ -76,7 +76,7 @@ public class DictionaryGuidEmptyRecoveryTests {
         {
             using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder);
             using var LogObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(folder+"_obj");
-            using var store = HashStore.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,int>(LogDevice,LogObjDevice);
             // トークンを指定せず自動検出で復元
             // インデックスチェックポイントが無いのでログから再構築（Guid.EqualityEmptyと同等）
             store.Load();

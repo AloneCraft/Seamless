@@ -1,15 +1,16 @@
 ﻿using System.Text.Json;
-namespace Tsavorite.Stores;
+using Tsavorite.Stores;
+namespace Tsavorite;
 
 /// <summary>
 /// Store ファクトリ。
 /// </summary>
-public readonly struct HashStore {
+public readonly struct Store {
     private readonly long IndexSize, PageSize, SegmentSize, MemorySize;
     private readonly double MutableFraction, StorageLimitFraction;
     private readonly long StorageReserveBytes;
     private readonly string? CheckpointDir;
-    private HashStore(
+    private Store(
         long IndexSize,
         long PageSize,
         long SegmentSize,
@@ -34,8 +35,8 @@ public readonly struct HashStore {
         this.StorageReserveBytes=StorageReserveBytes;
         this.CheckpointDir=CheckpointDir;
     }
-    /// <summary>構成パラメータを指定して HashStore を生成する。</summary>
-    public static HashStore Create(
+    /// <summary>構成パラメータを指定して Store を生成する。</summary>
+    public static Store Create(
         long IndexSize = Const.IndexSize,
         long PageSize = Const.PageSize,
         long SegmentSize = Const.SegmentSize,
@@ -72,7 +73,7 @@ public readonly struct HashStore {
             : fallbackIndexSize;
     }
 
-    public HashStore WithRecoveryIndexSize(Guid? token = null,long minimumIndexSize = Const.IndexSize) {
+    public Store WithRecoveryIndexSize(Guid? token = null,long minimumIndexSize = Const.IndexSize) {
         var resolvedIndexSize = this.ResolveRecoveryIndexSize(token,minimumIndexSize);
         return resolvedIndexSize==this.IndexSize
             ? this

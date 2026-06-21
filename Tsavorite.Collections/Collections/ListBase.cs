@@ -1,6 +1,6 @@
 ﻿using System.IO.MemoryMappedFiles;
 
-namespace Tsavorite.Collections;
+namespace Persistent.Collections;
 
 public readonly record struct TempListTuning(FileAccess OptimizationMode,FileOptions accessPattern) {
     public FileAccess OptimizationMode { get; } = ValidateOptimizationMode(OptimizationMode);

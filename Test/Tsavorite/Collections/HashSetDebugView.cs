@@ -5,7 +5,7 @@
 //public class HashSetDebugView{
 //    [Fact,Trait("Category","Unit")]
 //    public void Items_�S�G���g����Ԃ�(){
-//        using var store=HashStore.Create().CreateHashSet<int>();
+//        using var store=Store.Create().CreateHashSet<int>();
 //        using HashSet<int> set=store.Create();
 //        set.Add(10);
 //        set.Add(20);

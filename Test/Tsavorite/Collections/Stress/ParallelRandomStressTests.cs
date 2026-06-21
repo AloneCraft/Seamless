@@ -64,7 +64,7 @@ public class ParallelRandomStressTests {
             }
             using(var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath))
             using(var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath))
-            using(var store = HashStore.Create().Create<int,int>(logDevice,objDevice)) {
+            using(var store = Store.Create().Create<int,int>(logDevice,objDevice)) {
                 for(var r = 0; r<repeat; r++) {
                     using(var dict = store.Create()) {
                         dict.Clear();
@@ -138,7 +138,7 @@ public class ParallelRandomStressTests {
             }
             using(var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath))
             using(var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath))
-            using(var store = HashStore.Create().Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy())) {
+            using(var store = Store.Create().Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy())) {
                 for(var r = 0; r<repeat; r++) {
                     using(var dict = store.Create()) {
                         dict.Clear();
@@ -201,7 +201,7 @@ public class ParallelRandomStressTests {
             }
             using(var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath))
             using(var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath))
-            using(var store = HashStore.Create().Create<int>(logDevice,objDevice)) {
+            using(var store = Store.Create().Create<int>(logDevice,objDevice)) {
                 for(var r = 0; r<repeat; r++) {
                     using(var set = store.Create()) {
                         set.Clear();
@@ -254,7 +254,7 @@ public class ParallelRandomStressTests {
             }
             using(var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath))
             using(var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath))
-            using(var store = HashStore.Create().Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy())) {
+            using(var store = Store.Create().Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy())) {
                 for(var r = 0; r<repeat; r++) {
                     using(var set = store.Create()) {
                         set.Clear();

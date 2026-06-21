@@ -18,7 +18,7 @@ public abstract class IntersectWith<TKey, TSet>:CommonWith<TKey,TSet>
 public sealed class ManagedIntersectWith:IntersectWith<string,global::Tsavorite.Collections.HashSet<string>> {
     protected override string CreateKey(int seed) => seed.ToString();
     protected override (global::Tsavorite.Collections.HashSet<string> Set,IDisposable Store) CreateSet() {
-        var store = HashStore.Create().Create<string>(new MemoryPackSerializerStrategy());
+        var store = Store.Create().Create<string>(new MemoryPackSerializerStrategy());
         return (store.Create(),store);
     }
     protected override void With(global::Tsavorite.Collections.HashSet<string> set,global::Tsavorite.Collections.HashSet<string> other) => set.IntersectWith(other);
@@ -34,8 +34,8 @@ public sealed class ManagedIntersectWith:IntersectWith<string,global::Tsavorite.
         using var objDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var logDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var objDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var storeA = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceA,objDeviceA,new MemoryPackSerializerStrategy());
-        using var storeB = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceB,objDeviceB,new MemoryPackSerializerStrategy());
+        using var storeA = Store.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceA,objDeviceA,new MemoryPackSerializerStrategy());
+        using var storeB = Store.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceB,objDeviceB,new MemoryPackSerializerStrategy());
         using var setA = storeA.Create();
         using var setB = storeB.Create();
 
@@ -65,7 +65,7 @@ public sealed class ManagedIntersectWith:IntersectWith<string,global::Tsavorite.
 public sealed class UnmanagedIntersectWith:IntersectWith<int,global::Tsavorite.Collections.HashSet<int>> {
     protected override int CreateKey(int seed) => seed;
     protected override (global::Tsavorite.Collections.HashSet<int> Set,IDisposable Store) CreateSet() {
-        var store = HashStore.Create().Create<int>();
+        var store = Store.Create().Create<int>();
         return (store.Create(),store);
     }
     protected override void With(global::Tsavorite.Collections.HashSet<int> set,global::Tsavorite.Collections.HashSet<int> other) => set.IntersectWith(other);
@@ -81,8 +81,8 @@ public sealed class UnmanagedIntersectWith:IntersectWith<int,global::Tsavorite.C
         using var objDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var logDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
         using var objDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var storeA = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceA,objDeviceA,new BlittableStrategy());
-        using var storeB = HashStore.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceB,objDeviceB,new BlittableStrategy());
+        using var storeA = Store.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceA,objDeviceA,new BlittableStrategy());
+        using var storeB = Store.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceB,objDeviceB,new BlittableStrategy());
         using var setA = storeA.Create();
         using var setB = storeB.Create();
 

@@ -2,7 +2,7 @@
 using Microsoft.CodeAnalysis.Text;
 using static Tsavorite.SourceGenerator.GeneratorHelpers;
 
-namespace TsavoriteDB.SourceGenerator;
+namespace Database.Tsavorite.SourceGenerator;
 
 [Generator]
 public sealed class TsavoriteSchemaGenerator : IIncrementalGenerator {

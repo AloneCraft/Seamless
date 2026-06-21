@@ -15,7 +15,7 @@ public abstract class UnionWith<TKey, TSet>:CommonWith<TKey,TSet>
 public sealed class ManagedUnionWith:UnionWith<string,global::Tsavorite.Collections.HashSet<string>> {
     protected override string CreateKey(int seed) => seed.ToString();
     protected override (global::Tsavorite.Collections.HashSet<string> Set,IDisposable Store) CreateSet() {
-        var store = HashStore.Create().Create<string>(new MemoryPackSerializerStrategy());
+        var store = Store.Create().Create<string>(new MemoryPackSerializerStrategy());
         return (store.Create(),store);
     }
     protected override void With(global::Tsavorite.Collections.HashSet<string> set,global::Tsavorite.Collections.HashSet<string> other) => set.UnionWith(other);
@@ -25,7 +25,7 @@ public sealed class ManagedUnionWith:UnionWith<string,global::Tsavorite.Collecti
 public sealed class UnmanagedUnionWith:UnionWith<int,global::Tsavorite.Collections.HashSet<int>> {
     protected override int CreateKey(int seed) => seed;
     protected override (global::Tsavorite.Collections.HashSet<int> Set,IDisposable Store) CreateSet() {
-        var store = HashStore.Create().Create<int>();
+        var store = Store.Create().Create<int>();
         return (store.Create(),store);
     }
     protected override void With(global::Tsavorite.Collections.HashSet<int> set,global::Tsavorite.Collections.HashSet<int> other) => set.UnionWith(other);

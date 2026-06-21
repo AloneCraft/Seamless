@@ -2,31 +2,6 @@
 
 namespace Tsavorite.Collections;
 
-public class Set<TRecord>(string path,long initialCapacity = 16,long initialDataCapacity = 4096):List<TRecord>(path,initialCapacity,initialDataCapacity), ISet<TRecord> {
-    public Set<TRecord> Distinct() {
-        this.DuplicateRemoval();
-        return this;
-    }
-    public void Clear() {
-        throw new NotImplementedException();
-    }
-    public bool Contains(TRecord item) {
-        throw new NotImplementedException();
-    }
-    public void CopyTo(TRecord[] array,int arrayIndex) {
-        if(array.Length-arrayIndex<this.GetLongCount())
-            throw new ArgumentException("The destination array is too small.");
-        foreach(var item in this)
-            array[arrayIndex++]=item;
-    }
-    public bool Remove(TRecord item) {
-        throw new NotImplementedException();
-    }
-    public new int Count => checked((int)this.GetLongCount());
-    public bool IsReadOnly => false;
-    public long EntryCount => this.GetLongCount();
-    IEnumerator<TRecord> IMemoryCollection<TRecord>.GetEnumerator() => ((IEnumerable<TRecord>)this).GetEnumerator();
-}
 public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>>,ISet<TKey,TRecord>where TRecord:IRecord<TKey>{
     private readonly IDisposable? ownedStore;
     internal Set(CollectionStore<TKey,TRecord> collectionStore,IDisposable? ownedStore = null) : base(collectionStore) {
@@ -181,12 +156,12 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
     }
 
     private static Set<TKey,TRecord> CreateOwnedResultSet() {
-        var store = HashStore.Create().CreateSet<TKey,TRecord>();
+        var store = global::Tsavorite.Store.Create().CreateSet<TKey,TRecord>();
         return new(store,store);
     }
 
     private static HashSet<TKey> CreateOwnedKeyResultSet() {
-        var store = HashStore.Create().Create<TKey>();
+        var store = global::Tsavorite.Store.Create().Create<TKey>();
         return store.CreateOwned();
     }
 

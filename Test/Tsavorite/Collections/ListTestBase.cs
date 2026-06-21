@@ -12,7 +12,8 @@ public abstract class ListTestBase<TStrategy, T>
     private static string CreatePath([CallerMemberName] string methodName = "") {
         var directoryPath = Path.Combine(
             Environment.CurrentDirectory,
-            typeof(ListTestBase<TStrategy,T>).Name
+            typeof(TStrategy).Name,
+            typeof(T).Name
         );
         Directory.CreateDirectory(directoryPath);
         return Path.Combine(directoryPath,$"{methodName}.dat");
@@ -94,6 +95,47 @@ public abstract class ListTestBase<TStrategy, T>
         }
         finally {
             TryDeleteDirectory(path);
+        }
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void BackingFiles_FollowFixedOrVariableStrategy() {
+        var path = CreatePath();
+        try {
+            using(var h = TStrategy.CreateList(path,initialCapacity: 1)) {
+                h.List.Add(TStrategy.Elem(1));
+                h.List.Add(TStrategy.Elem(2));
+            }
+
+            Assert.True(File.Exists(path));
+            if(RuntimeHelpers.IsReferenceOrContainsReferences<T>())
+                Assert.True(File.Exists(path+".index"));
+            else
+                Assert.False(File.Exists(path+".index"));
+        }
+        finally {
+            TryDeleteDirectory(path);
+        }
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void CreateTemp_ReturnsDisposablePersistentList() {
+        string? path = null;
+        Persistent.Collections.List<T>? list = null;
+        try {
+            list=global::Persistent.Store.Create().CreateTemp<T>(initialCapacity: 1);
+            path=list.Path;
+            list.Add(TStrategy.Elem(1));
+            Assert.Equal(1L,list.Count);
+            Assert.Equal(TStrategy.Elem(1),list[0]);
+
+            list.Dispose();
+            Assert.True(list.IsDisposed);
+        }
+        finally {
+            list?.Dispose();
+            if(path is not null)
+                TryDeleteDirectory(path);
         }
     }
 
