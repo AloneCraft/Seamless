@@ -10,7 +10,7 @@ internal static class LinqCounterDiagnostics {
             return;
         }
 
-        TestContext.Current.SendDiagnosticMessage(
+        Console.WriteLine(
             "{0}: delegate expected(log/phys)={1}/{2}, actual(log/phys)={3}/{4}; logical ops={5}, select={6}, where={7}, selectMany(o/i)={8}/{9}, join(o/i)={10}/{11}, groupJoin(o/i)={12}/{13}, leftJoin(o/i)={14}/{15}, rightJoin(o/i)={16}/{17}, moveNext={18}, hash(build/probe)={19}/{20}, bufferAdd={21}, tryGetNonEnumeratedCount={22}",
             label,
             expectedLogicalDelegate,
@@ -42,7 +42,7 @@ internal static class LinqCounterDiagnostics {
             return;
         }
 
-        TestContext.Current.SendDiagnosticMessage(
+        Console.WriteLine(
             "{0}: delegate(log/phys)={1}/{2}; logical ops={3}, select={4}, where={5}, selectMany(o/i)={6}/{7}, join(o/i)={8}/{9}, groupJoin(o/i)={10}/{11}, leftJoin(o/i)={12}/{13}, rightJoin(o/i)={14}/{15}, moveNext={16}, hash(build/probe)={17}/{18}, bufferAdd={19}, tryGetNonEnumeratedCount={20}",
             label,
             counter.LogicalDelegate,
