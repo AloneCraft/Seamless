@@ -25,6 +25,16 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     private static void SumStructInstance() { }
     private static void SumGeneratedHelper() { }
     private static void ToArrayConsume() { }
+    private static void MaterializeFastPaths() { }
+    private static void ToArrayFast() { }
+    private static void ToListFast() { }
+    private static void ToHashSetFast() { }
+    private static void ToDictionaryFast() { }
+    private static void ToLookupFast() { }
+    private static void SelectToArrayFast() { }
+    private static void WhereToArrayFast() { }
+    private static void WhereSelectToListFast() { }
+    private static void OfTypeToArrayFast() { }
 
     [Fact]
     public void PartialClass_TwoFiles_DoesNotDuplicateGeneratedHelperType()
@@ -182,6 +192,73 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             && result.GeneratedSource.Contains("foreach(var __item in __linq", StringComparison.Ordinal)
             && result.GeneratedSource.Contains(".Consume(__item);", StringComparison.Ordinal),
             "Scalar materialize terminal followed by Consume should expand to direct item consumption.",
+            result.GeneratedSource,
+            output);
+        AssertNoErrors(result.Diagnostics);
+    }
+
+    [Fact]
+    public void MaterializeTerminals_GenerateFastPaths()
+    {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static int[] ToArrayFast(IEnumerable<int> src) => src.ToArray();
+                private static List<int> ToListFast(IEnumerable<int> src) => src.ToList();
+                private static HashSet<int> ToHashSetFast(IEnumerable<int> src) => src.ToHashSet();
+                private static Dictionary<int,int> ToDictionaryFast(IEnumerable<int> src) => src.ToDictionary(static x => x);
+                private static ILookup<int,int> ToLookupFast(IEnumerable<int> src) => src.ToLookup(static x => x);
+                private static int[] SelectToArrayFast(int[] src) => src.Select(static x => x+1).ToArray();
+                private static int[] WhereToArrayFast(int[] src) => src.Where(static x => x>0).ToArray();
+                private static List<int> WhereSelectToListFast(int[] src) => src.Where(static x => x>0).Select(static x => x+1).ToList();
+                private static string[] OfTypeToArrayFast(object[] src) => src.OfType<string>().ToArray();
+                private static void MaterializeFastPaths(IEnumerable<int> src) {
+                    _ = ToArrayFast(src);
+                    _ = ToListFast(src);
+                    _ = ToHashSetFast(src);
+                    _ = ToDictionaryFast(src);
+                    _ = ToLookupFast(src);
+                    _ = SelectToArrayFast([1, 2, 3]);
+                    _ = WhereToArrayFast([1, 2, 3]);
+                    _ = WhereSelectToListFast([1, 2, 3]);
+                    _ = OfTypeToArrayFast(["a", 1, "b"]);
+                }
+                public void Run(IEnumerable<int> src) => MaterializeFastPaths(src);
+                public static string TargetName => nameof(MaterializeFastPaths);
+            }
+            """;
+
+        var result = RunGeneratorAndCompile(("Container.cs", source));
+
+        AssertIntercepted(result.GeneratedSource, nameof(ToArrayFast));
+        AssertIntercepted(result.GeneratedSource, nameof(ToListFast));
+        AssertIntercepted(result.GeneratedSource, nameof(ToHashSetFast));
+        AssertIntercepted(result.GeneratedSource, nameof(ToDictionaryFast));
+        AssertIntercepted(result.GeneratedSource, nameof(ToLookupFast));
+        AssertIntercepted(result.GeneratedSource, nameof(SelectToArrayFast));
+        AssertIntercepted(result.GeneratedSource, nameof(WhereToArrayFast));
+        AssertIntercepted(result.GeneratedSource, nameof(WhereSelectToListFast));
+        AssertIntercepted(result.GeneratedSource, nameof(OfTypeToArrayFast));
+        var expectedFragments = new[]
+        {
+            "TryGetNonEnumeratedCount",
+            "TryCopyTo",
+            "TryGetSpan",
+            "global::System.Collections.Generic.ICollection<int>",
+            "global::System.Runtime.InteropServices.CollectionsMarshal.SetCount",
+            "global::System.GC.AllocateUninitializedArray<int>",
+            "global::System.Buffers.ArrayPool<int>.Shared.Rent",
+            "destination[__i++]",
+        };
+        var missingFragments = expectedFragments
+            .Where(fragment => !result.GeneratedSource.Contains(fragment, StringComparison.Ordinal))
+            .ToArray();
+        GeneratedSourceAssert.True(
+            !result.GeneratedSource.Contains("LinqInterceptorFailure", StringComparison.Ordinal)
+            && missingFragments.Length == 0,
+            $"Materialize terminals should generate direct, count/span/copy, and Select copy fast paths. Missing: {string.Join(", ", missingFragments)}",
             result.GeneratedSource,
             output);
         AssertNoErrors(result.Diagnostics);

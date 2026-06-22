@@ -5,6 +5,9 @@ public class Select_selector(int 番号,Enumerable source,FuncFragment selector)
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
     private bool UseResultTypeParam => selector.RequiresResultTypeParameter;
+    internal Enumerable Source => source;
+    internal FuncFragment Selector => selector;
+    internal bool RequiresResultTypeParameter => this.UseResultTypeParam;
     public override string ElementType => this.UseResultTypeParam ? "TResult" : FuncReturnTypeName(selector);
     protected override string StructTypeParameters =>
         this.UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
@@ -34,6 +37,35 @@ public class Select_selector(int 番号,Enumerable source,FuncFragment selector)
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(selector)}";
     public override string GetEnumeratorFields => string.Empty;
+    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{this.e}.TryGetNonEnumeratedCount(out count);";
+    protected override string GetTryCopyToBody => $$"""
+        if(!this.{{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+            return false;
+        }
+        var __start = __offset.GetOffset(__count);
+        if(__start < 0 || __start > __count || destination.Length > __count - __start) {
+            return false;
+        }
+        if(this.{{this.e}}.TryGetSpan(out var __span)) {
+            for(var __i=0; __i<destination.Length; __i++) {
+                var {{this.item}} = __span[__start + __i];
+                {{this.FuncAssignIndented("            ",selector,nameof(selector),"destination[__i]",this.item)}}
+            }
+            return true;
+        }
+        for(var __i=0; __i<__start; __i++) {
+            if(!this.{{this.e}}.TryGetNext(out _)) {
+                return false;
+            }
+        }
+        for(var __i=0; __i<destination.Length; __i++) {
+            if(!this.{{this.e}}.TryGetNext(out var {{this.item}})) {
+                return false;
+            }
+            {{this.FuncAssignIndented("        ",selector,nameof(selector),"destination[__i]",this.item)}}
+        }
+        return true;
+        """;
     public override string GetTryGetNextBody => $$"""
         if({{this.e}}.TryGetNext(out var {{this.item}})) {
             {{this.CounterCall("IncrementLogicalSelect")}}
