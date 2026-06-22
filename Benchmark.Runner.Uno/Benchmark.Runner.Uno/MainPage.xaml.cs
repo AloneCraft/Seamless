@@ -501,7 +501,8 @@ public sealed partial class MainPage:Page{
         return canonicalMethods
             .GroupBy(static method => method.MethodName,StringComparer.OrdinalIgnoreCase)
             .Select(static group => group.First())
-            .OrderBy(static method => method.MethodName,StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static method => IsDiagnosticBenchmark(method) ? 0 : 1)
+            .ThenBy(static method => method.MethodName,StringComparer.OrdinalIgnoreCase)
             .Select(method => {
                 var methodsByProject = projects.ToDictionary(
                     static project => project.ProjectKey,
@@ -515,6 +516,14 @@ public sealed partial class MainPage:Page{
                 return new BenchmarkItem(method.MethodName,method.MethodName,method.Categories,methodsByProject);
             })
             .ToArray();
+    }
+
+    private static bool IsDiagnosticBenchmark(BenchmarkProjectMethod method){
+        return string.Equals(method.MethodName,"Diagnostic_Instant",StringComparison.Ordinal);
+    }
+
+    private static bool IsDiagnosticBenchmark(string methodName){
+        return string.Equals(methodName,"Diagnostic_Instant",StringComparison.Ordinal);
     }
 
     private void StartWorkersForSelectedCpus(){
@@ -692,18 +701,16 @@ public sealed partial class MainPage:Page{
             throw new InvalidOperationException("Run root was not created.");
         }
 
-        var workerDirectory = AppContext.BaseDirectory;
-        var workerExe = Path.Combine(workerDirectory,OperatingSystem.IsWindows()?"Benchmark.Runner.Uno.exe":"Benchmark.Runner.Uno");
-        var workerDll = Path.Combine(workerDirectory,"Benchmark.Runner.Uno.dll");
+        var (workerDirectory,workerExe,workerDll) = ResolveBenchmarkWorkerHostPaths();
         var startInfo = new ProcessStartInfo{
             WorkingDirectory = Directory.Exists(workerDirectory)?workerDirectory:repositoryRoot,
             UseShellExecute = false,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            StandardInputEncoding = Encoding.UTF8,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
+            StandardInputEncoding = new UTF8Encoding(false),
+            StandardOutputEncoding = new UTF8Encoding(false),
+            StandardErrorEncoding = new UTF8Encoding(false),
             CreateNoWindow = true,
         };
 
@@ -713,10 +720,9 @@ public sealed partial class MainPage:Page{
             startInfo.FileName="dotnet";
             startInfo.ArgumentList.Add(workerDll);
         }else{
-            throw new FileNotFoundException($"Benchmark worker mode host was not found. Build Benchmark.Runner.Uno first: {workerDll}",workerDll);
+            throw new FileNotFoundException($"Benchmark worker host was not found. Searched: {workerExe}, {workerDll}",workerDll);
         }
 
-        startInfo.ArgumentList.Add("--worker");
         startInfo.ArgumentList.Add("--logical-cpu");
         startInfo.ArgumentList.Add(cpu.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture));
         startInfo.ArgumentList.Add("--run-root");
@@ -733,8 +739,52 @@ public sealed partial class MainPage:Page{
         };
         process.Start();
         process.BeginErrorReadLine();
+        WaitForWorkerReady(process);
         AppendLog($"> worker CPU {cpu.LogicalProcessorIndex}: {process.Id}");
         return process;
+    }
+
+    private (string Directory,string ExePath,string DllPath) ResolveBenchmarkWorkerHostPaths(){
+        foreach(var workerDirectory in EnumerateBenchmarkWorkerDirectories()){
+            var workerExe = Path.Combine(workerDirectory,OperatingSystem.IsWindows()?"Benchmark.Worker.exe":"Benchmark.Worker");
+            var workerDll = Path.Combine(workerDirectory,"Benchmark.Worker.dll");
+            if(File.Exists(workerExe)||File.Exists(workerDll)){
+                return (workerDirectory,workerExe,workerDll);
+            }
+        }
+
+        var defaultDirectory = AppContext.BaseDirectory;
+        return (
+            defaultDirectory,
+            Path.Combine(defaultDirectory,OperatingSystem.IsWindows()?"Benchmark.Worker.exe":"Benchmark.Worker"),
+            Path.Combine(defaultDirectory,"Benchmark.Worker.dll"));
+    }
+
+    private IEnumerable<string> EnumerateBenchmarkWorkerDirectories(){
+        yield return AppContext.BaseDirectory;
+
+        var configuration = GetConfiguration();
+        yield return Path.Combine(repositoryRoot,"Benchmark.Worker","bin",configuration,TargetFramework);
+
+        if(!string.Equals(configuration,"Debug",StringComparison.OrdinalIgnoreCase)){
+            yield return Path.Combine(repositoryRoot,"Benchmark.Worker","bin","Debug",TargetFramework);
+        }
+
+        if(!string.Equals(configuration,"Release",StringComparison.OrdinalIgnoreCase)){
+            yield return Path.Combine(repositoryRoot,"Benchmark.Worker","bin","Release",TargetFramework);
+        }
+    }
+
+    private static void WaitForWorkerReady(Process worker){
+        try{
+            var line = worker.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+            if(!string.Equals(line,"ready",StringComparison.Ordinal)){
+                throw new InvalidOperationException($"Benchmark worker did not complete startup handshake. Received: {line??"<null>"}");
+            }
+        }catch{
+            KillProcess(worker);
+            throw;
+        }
     }
 
     private static async Task StopWorkerGracefullyAsync(Process worker){
@@ -757,14 +807,20 @@ public sealed partial class MainPage:Page{
         await worker.StandardInput.FlushAsync(cancellationToken);
         while(true){
             cancellationToken.ThrowIfCancellationRequested();
-            var line = await worker.StandardOutput.ReadLineAsync(cancellationToken);
+            var lineTask = worker.StandardOutput.ReadLineAsync(cancellationToken).AsTask();
+            var line = IsDiagnosticBenchmark(message.MethodName)
+                ? await lineTask.WaitAsync(TimeSpan.FromSeconds(10),cancellationToken)
+                : await lineTask;
             if(line is null){
                 throw new InvalidOperationException($"Benchmark worker exited before returning result. ExitCode: {(worker.HasExited?worker.ExitCode:null)}");
             }
 
             try{
                 var result = JsonSerializer.Deserialize<WorkerResultMessage>(line);
-                if(result is not null&&string.Equals(result.TaskId,message.TaskId,StringComparison.Ordinal)){
+                if(result is not null){
+                    if(!string.Equals(result.TaskId,message.TaskId,StringComparison.Ordinal)){
+                        AppendLog($"> worker task id mismatch. expected={message.TaskId} actual={result.TaskId}");
+                    }
                     return result;
                 }
             }catch(JsonException){

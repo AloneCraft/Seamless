@@ -1,4 +1,4 @@
-namespace Benchmark.DotNet.Linq.Enumerable.ZLinq {
+namespace Benchmark.DotNet.Linq.Enumerable {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
     public class ZLinq():global::Shared.Linq.Enumerable.Methods1(3_200_000);
 }

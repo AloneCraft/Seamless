@@ -1,4 +1,26 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
+/*
+Where_predicate は source.Where(item => 条件) を「条件に合うまで source を進める」状態機械へ変換する。
+
+入力例:
+  source.Where(x => x.Price > limit)
+
+constructor 引数:
+  - source: 上流の Enumerable Fragment。
+  - predicate: item だけを受ける FuncFragment。inline 可能なら if 条件へ直接展開される。
+
+生成例:
+  Start:
+  if(!source.TryGetNext(out var item)) return false;
+  if(!predicate(item)) goto Start;
+  current = item;
+  return true;
+
+バリエーション:
+  - predicate がキャプチャを持つ場合、必要な値だけ Enumerator constructor に渡して this.capture 経由で使う。
+  - predicate が匿名型や delegate 保持対象なら this.predicateDelegate.Invoke(item) になる。
+  - Where_indexPredicate は index をフィールドで増やし、predicate(item, index) を呼ぶ。
+*/
 public class Where_predicate(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         !(method.Parameters.Length > 0 &&
@@ -43,6 +65,24 @@ public class Where_predicate(int 番号, Enumerable source, FuncFragment predica
     public override string ElementType => source.ElementType;
 }
 
+/*
+Where_WithInlinedScalarPredicate は predicate 本体が LINQ scalar を返す特殊形を内側 Fragment として展開する。
+
+入力例:
+  people.Where(p => p.Children.Any(c => c.Age > 10))
+
+生成例:
+  while(source.TryGetNext(out var p)) {
+      using var inner = childrenOfP.Any(...).GetEnumerator();
+      inner.TryGetNext(out var keep);
+      if(!keep) continue;
+      current = p;
+      return true;
+  }
+
+設計意図:
+  lambda 内の Any/Count などを System.Linq 呼び出しのまま残さず、外側 item を使う内側 Fragment として再帰的に生成する。
+*/
 public class Where_WithInlinedScalarPredicate(int 番号, Enumerable source, Fragment scalarFrag, string outerParamName)
     : Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) => false;
@@ -121,6 +161,16 @@ public class Where_WithInlinedScalarPredicate(int 番号, Enumerable source, Fra
     }
 }
 
+/*
+Where_indexPredicate は source.Where((item, index) => 条件) 用。
+
+生成例:
+  index++;
+  if(!predicate(item, index)) goto Start;
+
+通常版との差分:
+  index フィールドを -1 で持ち、source から要素を1つ読むたびに checked なしで増やして predicate に渡す。
+*/
 public class Where_indexPredicate(int 番号, Enumerable source, FuncFragment predicate) : Where_predicate(番号, source, predicate) {
     public static new bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length > 0 &&

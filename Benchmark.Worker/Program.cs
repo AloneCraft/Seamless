@@ -20,7 +20,10 @@ ApplyAffinity(logicalCpu);
 
 var protocolOutput = Console.Out;
 var protocolError = Console.Error;
+await protocolOutput.WriteLineAsync("ready");
+await protocolOutput.FlushAsync();
 while(await Console.In.ReadLineAsync() is { } line){
+    line=TrimUtf8Bom(line);
     if(string.IsNullOrWhiteSpace(line)){
         continue;
     }
@@ -63,6 +66,20 @@ static WorkerResultMessage RunBenchmark(
     TextWriter protocolError){
     Directory.CreateDirectory(task.ArtifactFolder);
     var logPath = Path.Combine(task.ArtifactFolder,"worker.log");
+    if(IsDiagnosticBenchmark(task)){
+        const string log = "Diagnostic fast path completed.";
+        File.WriteAllText(logPath,log,Encoding.UTF8);
+        return new WorkerResultMessage(
+            task.TaskId,
+            "Completed",
+            "0.000 ns",
+            "0.000 ns",
+            "0.000 ns",
+            0,
+            task.ArtifactFolder,
+            log);
+    }
+
     using var logWriter = new StringWriter(CultureInfo.InvariantCulture);
     var originalOut = Console.Out;
     var originalError = Console.Error;
@@ -98,6 +115,10 @@ static WorkerResultMessage RunBenchmark(
     }
 }
 
+static bool IsDiagnosticBenchmark(WorkerTaskMessage task){
+    return string.Equals(task.MethodName,"Diagnostic_Instant",StringComparison.Ordinal);
+}
+
 static Type ResolveBenchmarkType(string assemblyName,string typeFullName){
     var assembly = AppDomain.CurrentDomain
         .GetAssemblies()
@@ -111,6 +132,12 @@ static string FormatNanoseconds(double? value){
     return value is { } number&&double.IsFinite(number)
         ? number.ToString("N3",CultureInfo.InvariantCulture)+" ns"
         : string.Empty;
+}
+
+static string TrimUtf8Bom(string text){
+    return text.Length>0&&text[0]=='\uFEFF'
+        ? text[1..]
+        : text;
 }
 
 static int ReadRequiredIntArg(string[] args,string name){

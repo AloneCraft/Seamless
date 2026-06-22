@@ -1,4 +1,4 @@
-﻿<Project Sdk="Uno.Sdk/6.5.36">
+<Project Sdk="Uno.Sdk/6.5.36">
   <PropertyGroup>
     <TargetFrameworks>net10.0-desktop</TargetFrameworks>
 
@@ -31,9 +31,31 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
+    <ProjectReference Include="..\..\Benchmark.Worker\Benchmark.Worker.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\Benchmark.DotNet.Linq.Enumerable.Linq\Benchmark.DotNet.Linq.Enumerable.Linq.csproj" />
     <ProjectReference Include="..\..\Benchmark.DotNet.Linq.Enumerable.Flinq\Benchmark.DotNet.Linq.Enumerable.Flinq.csproj" />
     <ProjectReference Include="..\..\Benchmark.DotNet.Linq.Enumerable.ZLinq\Benchmark.DotNet.Linq.Enumerable.ZLinq.csproj" />
   </ItemGroup>
+
+  <Target Name="CopyBenchmarkWorkerHost"
+          AfterTargets="Build"
+          Condition="'$(IsCrossTargetingBuild)' != 'true' and '$(TargetDir)' != ''">
+    <MSBuild Projects="$(MSBuildProjectDirectory)\..\..\Benchmark.Worker\Benchmark.Worker.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration);TargetFramework=net10.0" />
+
+    <ItemGroup>
+      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\..\Benchmark.Worker\bin\$(Configuration)\net10.0\Benchmark.Worker.exe" Condition="Exists('$(MSBuildProjectDirectory)\..\..\Benchmark.Worker\bin\$(Configuration)\net10.0\Benchmark.Worker.exe')" />
+      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\..\Benchmark.Worker\bin\$(Configuration)\net10.0\Benchmark.Worker.dll" Condition="Exists('$(MSBuildProjectDirectory)\..\..\Benchmark.Worker\bin\$(Configuration)\net10.0\Benchmark.Worker.dll')" />
+      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\..\Benchmark.Worker\bin\$(Configuration)\net10.0\Benchmark.Worker.deps.json" Condition="Exists('$(MSBuildProjectDirectory)\..\..\Benchmark.Worker\bin\$(Configuration)\net10.0\Benchmark.Worker.deps.json')" />
+      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\..\Benchmark.Worker\bin\$(Configuration)\net10.0\Benchmark.Worker.runtimeconfig.json" Condition="Exists('$(MSBuildProjectDirectory)\..\..\Benchmark.Worker\bin\$(Configuration)\net10.0\Benchmark.Worker.runtimeconfig.json')" />
+      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\..\Benchmark.Worker\bin\$(Configuration)\net10.0\Benchmark.Worker.pdb" Condition="Exists('$(MSBuildProjectDirectory)\..\..\Benchmark.Worker\bin\$(Configuration)\net10.0\Benchmark.Worker.pdb')" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_BenchmarkWorkerFiles)"
+          DestinationFolder="$(TargetDir)"
+          SkipUnchangedFiles="true"
+          Condition="'@(_BenchmarkWorkerFiles)' != ''" />
+  </Target>
 
 </Project>

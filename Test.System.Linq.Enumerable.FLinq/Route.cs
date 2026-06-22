@@ -1,4 +1,4 @@
-namespace Test.System.Linq.Enumerable.FLinq {
+namespace Test.System.Linq.Enumerable {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
     public sealed class FLinq():global::Shared.Linq.Enumerable.Methods1(80_000);
 }

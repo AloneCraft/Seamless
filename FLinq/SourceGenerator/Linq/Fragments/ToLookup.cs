@@ -1,5 +1,27 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+ToLookupBase は ToLookup overload 群の Lookup/Grouping 実装と Compute 生成の共通基底。
+
+入力例:
+  source.ToLookup(x => x.Category)
+  source.ToLookup(x => x.Category, x => x.Value, comparer)
+
+生成例:
+  var map = new Dictionary<TKey, List<TElement>>(capacity, comparer);
+  var order = new List<TKey>(capacity);
+  foreach(var item in source) {
+      key = keySelector(item);
+      element = elementSelector があれば elementSelector(item) else item;
+      if(!map has key) { map[key] = new List<TElement>(); order.Add(key); }
+      map[key].Add(element);
+  }
+  return new TsavoriteLookup(map, order);
+
+設計意図:
+  System.Linq.ILookup<TKey,TElement> を返すため、生成コード内に軽量な TsavoriteLookup/TsavoriteGrouping を同時に出す。
+  order list を持ち、初出 key の順序で grouping を列挙する。
+*/
 internal abstract class ToLookupBase(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType){
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=>string.Empty;

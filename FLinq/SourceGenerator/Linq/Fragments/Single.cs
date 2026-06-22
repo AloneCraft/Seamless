@@ -1,5 +1,23 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+Single は source.Single() を、0件/2件以上を検出する Compute に変換する。
+
+入力例:
+  source.Single()
+  source.Single(predicate)
+
+生成例:
+  if(!source.MoveNext()) throw NoElements();
+  var value = source.Current;
+  if(source.MoveNext()) throw MoreThanOneElement();
+  return value;
+
+バリエーション:
+  - span source は Length で 0/1/>1 を即判定する。
+  - Range/Repeat は count 式だけで inline 判定できる。
+  - predicate 付きは一致数を found flag で追跡し、2件目で例外にする。
+*/
 public class Single(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length == 0;
     protected override Enumerable PrimarySource => source;

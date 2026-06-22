@@ -1,4 +1,22 @@
 namespace Seamless.FLinq.Linq.Fragments;
+/*
+Aggregate_func は seed なし Aggregate(func) を、先頭要素を初期 accumulator にして畳み込む scalar へ変換する。
+
+入力例:
+  source.Aggregate((acc, item) => acc + item)
+
+生成例:
+  if(!source.TryGetNext(out var item)) throw NoElements();
+  var result = item;
+  while(source.TryGetNext(out item)) {
+      result = func(result, item);
+  }
+  current = result;
+
+バリエーション:
+  - source が TryGetSpan 可能なら span foreach で先頭要素判定を行う。
+  - func が delegate 保持対象なら inline direct computation 側で delegate local を用意して Invoke する。
+*/
 public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : Scalar(番号) {
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType){
@@ -111,6 +129,22 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
+/*
+Aggregate_seed_func は Aggregate(seed, func) を、seed から始める畳み込みにする。
+
+入力例:
+  source.Aggregate(0, (acc, item) => acc + item)
+
+生成例:
+  var result = seed;
+  while(source.TryGetNext(out var item)) {
+      result = func(result, item);
+  }
+  current = result;
+
+seed なしとの差分:
+  空 sequence でも seed を返すため NoElements 例外を出さない。
+*/
 public class Aggregate_seed_func(int 番号, Enumerable source,string seed, FuncFragment func) : Scalar(番号) {
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType){
@@ -200,6 +234,21 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
+/*
+Aggregate_seed_func_resultSelector は Aggregate(seed, func, resultSelector) を、畳み込み後に final selector を通す。
+
+入力例:
+  source.Aggregate(seed, (acc, item) => Step(acc, item), acc => Finish(acc))
+
+生成例:
+  var result = seed;
+  foreach(var item in source) result = func(result, item);
+  current = resultSelector(result);
+
+設計意図:
+  func と resultSelector の両方に closure/delegate/statement inline の可能性があるため、
+  ClosureArgsSuffix と FuncAssign を2つ分組み合わせて生成する。
+*/
 public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,string seed, FuncFragment func,FuncFragment resultSelector) : Scalar(番号) {
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType){

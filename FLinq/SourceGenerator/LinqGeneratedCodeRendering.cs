@@ -432,6 +432,10 @@ public sealed partial class TsavoriteIncrementalGenerator {
         var processedInvocationTexts = new HashSet<string>(StringComparer.Ordinal);
         foreach(var invocation in allInvocations) {
             if(processedInvocations.Contains(invocation)) continue;
+            if(IsExpressionReplaced(invocation,replacementMap)) {
+                foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
+                continue;
+            }
 
             // nameof() は生成 namespace ではスコープ外になる識別子を参照しうるため、文字列リテラルへ評価する。
             if(invocation.Expression is IdentifierNameSyntax { Identifier.Text: "nameof" }
@@ -676,6 +680,10 @@ public sealed partial class TsavoriteIncrementalGenerator {
 
         return text;
     }
+
+    private static bool IsExpressionReplaced(ExpressionSyntax expression,IReadOnlyDictionary<string,string>? replacementMap) =>
+        replacementMap is not null
+        && replacementMap.ContainsKey(NormalizeGeneratedExpressionText(expression.ToString()));
 
     /// <summary>
     /// 通常メソッド呼び出し（非拡張）を生成コード用にレンダリングする。

@@ -7,7 +7,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <RootNamespace>Test.System.Linq.Enumerable.ZLinq</RootNamespace>
+    <RootNamespace>Test.System.Linq.Enumerable</RootNamespace>
     <AssemblyName>Test.System.Linq.Enumerable.ZLinq</AssemblyName>
     <DefineConstants>$(DefineConstants);BENCH_AS_TEST</DefineConstants>
     <OutputType>Library</OutputType>

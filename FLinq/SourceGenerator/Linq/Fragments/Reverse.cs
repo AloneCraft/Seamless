@@ -1,5 +1,25 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+Reverse は source.Reverse() を、初回に逆順で読める状態を作ってから末尾から返す enumerator へ変換する。
+
+入力例:
+  source.Reverse()
+  source.Reverse().Reverse()
+
+生成例:
+  if(notInitialized) {
+      if(source.TryGetSpan(out var span)) index = span.Length - 1;
+      else buffer = source.ToList(); index = buffer.Count - 1;
+  }
+  if(index >= 0) return spanOrBuffer[index--];
+  return false;
+
+バリエーション:
+  - source が span を返せる場合は buffer を作らず span の末尾から読む。
+  - span が無い場合は List に全件 buffer する。
+  - 連続 Reverse は偶数回なら RootSource そのものへ畳み込む。
+*/
 public class Reverse(int 番号, Enumerable source) : Enumerable(番号) {
     private Enumerable Source => source;
     private Enumerable RootSource => this.Source is Reverse reverse ? reverse.RootSource : this.Source;

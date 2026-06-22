@@ -1,4 +1,27 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
+/*
+Select_selector は source.Select(item => 値) を「source から1件読み、selector の結果を Current に入れる」
+enumerator へ変換する。
+
+入力例:
+  source.Select(x => x.Price * tax)
+
+constructor 引数:
+  - source: 上流 Enumerable Fragment。
+  - selector: item を result へ写像する FuncFragment。
+
+生成例:
+  if(source.TryGetNext(out var item)) {
+      current = selector(item);
+      return true;
+  }
+  return false;
+
+バリエーション:
+  - selector が inline 可能なら current = item.Price * this.tax; のように式展開される。
+  - 匿名型戻り値など型名を書けない場合は TResult factory を生成し、ValueEnumerable<Struct<TEnum,TResult>,TResult> で閉じる。
+  - Select_indexSelector は index フィールドを増やして selector(item, index) を呼ぶ。
+*/
 public class Select_selector(int 番号,Enumerable source,FuncFragment selector):Enumerable(番号){
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         !(method.Parameters.Length > 0 &&
@@ -78,6 +101,23 @@ public class Select_selector(int 番号,Enumerable source,FuncFragment selector)
     public override string GetCurrentExpression => this.currentValue;
 }
 
+/*
+Select_WithInlinedScalar は selector 本体が LINQ scalar を返すとき、内側の scalar Fragment をそのまま使う特殊形。
+
+入力例:
+  parents.Select(p => p.Children.Count(c => c.Active))
+
+生成例:
+  if(source.TryGetNext(out var p)) {
+      using var inner = childrenOfP.Count(...).GetEnumerator();
+      inner.TryGetNext(out var value);
+      current = value;
+      return true;
+  }
+
+設計意図:
+  selector 内 LINQ を delegate 呼び出しに閉じ込めず、生成済み Fragment の TryGetNext で計算する。
+*/
 public class Select_WithInlinedScalar(int 番号, Enumerable source, Fragment scalarFrag, string outerParamName, string elementType)
     : Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) => false;
@@ -158,6 +198,19 @@ public class Select_WithInlinedScalar(int 番号, Enumerable source, Fragment sc
     }
 }
 
+/*
+Select_indexSelector は source.Select((item, index) => 値) 用。
+
+生成例:
+  if(source.TryGetNext(out var item)) {
+      index++;
+      current = selector(item, index);
+      return true;
+  }
+
+通常版との差分:
+  index を Enumerator フィールドとして保持し、各要素の selector 呼び出しに追加引数として渡す。
+*/
 public class Select_indexSelector(int 番号, Enumerable source, FuncFragment selector) : Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length > 0 &&

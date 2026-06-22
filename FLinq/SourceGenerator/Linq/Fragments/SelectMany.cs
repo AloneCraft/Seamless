@@ -3,6 +3,29 @@
 以前の loop 展開版の断片は記録として残すが、実際の実装は Enumerator ベースに統一した。
 */
 
+/*
+SelectManyBase は外側 source と、各外側要素から作る内側 sequence を平坦化する状態機械の共通基底。
+
+入力例:
+  outer.SelectMany(o => o.Children)
+
+生成例:
+  Start:
+  if(innerEnumerator != null && innerEnumerator.MoveNext()) {
+      current = innerEnumerator.Current;
+      return true;
+  }
+  DisposeInnerIfNeeded();
+  if(!outer.MoveNext()) return false;
+  outerValue = outer.Current;
+  innerEnumerator = collectionSelector(outerValue).GetEnumerator();
+  goto Start;
+
+バリエーション:
+  - resultSelector 付きは current = resultSelector(outerValue, innerValue) を生成する。
+  - index selector 付きは外側要素を読むたびに index を増やす。
+  - SelectMany_WithInlinedInner は内側 LINQ チェーンを具象 struct enumerator のまま保持する。
+*/
 public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable(番号) {
     internal static bool TryBuildInlined(
         SemanticModel semanticModel,
@@ -106,6 +129,17 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
         """;
 }
 
+/*
+SelectMany_selector は collection selector だけを持つ標準形。
+
+入力例:
+  source.SelectMany(x => x.Items)
+
+生成分岐:
+  - selector が外側 item に依存しない場合、innerEnumerable0 を constructor に渡して使い回す。
+  - selector が item に依存する場合、各 outerValue ごとに selector(outerValue).GetEnumerator() を作る。
+  - 匿名型など delegate 保持が必要な場合は selectorDelegate.Invoke(outerValue).GetEnumerator() にする。
+*/
 public class SelectMany_selector(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>>";
     public static bool IsApplicableOverload(IMethodSymbol method) =>
@@ -159,7 +193,7 @@ public class SelectMany_selector(int 番号, Enumerable source, FuncFragment sel
             ? $"{selector.DelegateFieldName}.Invoke({this.outerValue}).GetEnumerator()"
             : this.IsHoistable
                 ? "innerEnumerable0.GetEnumerator()"
-                : $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpression(this.outerValue)}).GetEnumerator()";
+                : $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue)}).GetEnumerator()";
     protected override string CurrentValueAssignmentFromInner => $"current = this.{this.currentValue} = {this.item};";
 }
 
@@ -179,7 +213,7 @@ public class SelectMany_indexSelector(int 番号, Enumerable source, FuncFragmen
         """;
     protected override string MoveNextOuterPrologue => $"this.{this.a}++;";
     protected override string CreateInnerEnumeratorExpression =>
-        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpression(this.outerValue,this.a)}).GetEnumerator()";
+        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue,this.a)}).GetEnumerator()";
     protected override string CurrentValueAssignmentFromInner => $"current = this.{this.currentValue} = {this.item};";
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(selector));
     public override string ElementType => this.CollectionElementType;
@@ -202,7 +236,7 @@ public class SelectMany_selector_resultSelector(int 番号, Enumerable source, F
         """;
     protected override string CollectionSelectorPrimaryConstructorParameter => string.Empty;
     protected override string CreateInnerEnumeratorExpression =>
-        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){collectionSelector.RenderInlineExpression(this.outerValue)}).GetEnumerator()";
+        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){collectionSelector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue)}).GetEnumerator()";
     protected override string CurrentValueAssignmentFromInner =>
         this.FuncAssignCurrent(resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.outerValue,this.item);
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(collectionSelector));
@@ -214,6 +248,23 @@ public class SelectMany_selector_resultSelector(int 番号, Enumerable source, F
 /// <br/>IEnumerator&lt;T&gt;? ではなく具象 struct 型フィールドを使うことで、
 /// インターフェースディスパッチを排除し、毎外要素でのデリゲート呼び出しもなくす。
 /// </summary>
+/*
+SelectMany_WithInlinedInner は collection selector の内側 LINQ を Fragment として展開できた場合の高速形。
+
+入力例:
+  outer.SelectMany(o => o.Children.Where(c => c.Active).Select(c => c.Name))
+
+生成例:
+  private InnerStruct innerEnumerator;
+  private bool hasInner;
+  if(hasInner && innerEnumerator.TryGetNext(out var item)) return item;
+  if(!outer.MoveNext()) return false;
+  innerEnumerator = new InnerStruct(outerValue を差し込んだ source);
+  hasInner = true;
+
+設計意図:
+  innerEnumerator を IEnumerator<T>? にせず具象 struct 型で持つことで、interface dispatch と delegate 呼び出しを避ける。
+*/
 public class SelectMany_WithInlinedInner(int 番号, Enumerable source, Enumerable innerFragment, string outerParamName)
     : SelectManyBase(番号, source) {
 
@@ -306,7 +357,7 @@ public class SelectMany_indexSelector_resultSelector(int 番号, Enumerable sour
     protected override string CollectionSelectorPrimaryConstructorParameter => string.Empty;
     protected override string MoveNextOuterPrologue => $"this.{this.a}++;";
     protected override string CreateInnerEnumeratorExpression =>
-        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){collectionSelector.RenderInlineExpression(this.outerValue,this.a)}).GetEnumerator()";
+        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){collectionSelector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue,this.a)}).GetEnumerator()";
     protected override string CurrentValueAssignmentFromInner =>
         this.FuncAssignCurrent(resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.outerValue,this.item);
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(collectionSelector));

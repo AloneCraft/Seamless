@@ -1,5 +1,28 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+BufferedSequence は OrderBy/Shuffle など「一度 List に構築してから列挙する」シーケンス基底。
+
+入力例:
+  source.OrderBy(x => x.Key)
+
+生成されるコード例:
+  private List<T>.Enumerator buffered;
+  public GeneratedEnumerator(TSourceEnumerator source) {
+      buffered = Build(source).GetEnumerator();
+  }
+  public bool TryGetNext(out T current) {
+      if(buffered.MoveNext()) {
+          current = buffered.Current;
+          return true;
+      }
+      return false;
+  }
+
+設計意図:
+  遅延評価の外形は保ったまま、最初の MoveNext 前に並べ替えやシャッフルの全体構築を済ませる。
+  BuildMembers に SortItem や比較 delegate などの補助メンバーを差し込める。
+*/
 public abstract class BufferedSequence(int 番号,string elementType) : Enumerable(番号) {
     protected abstract string BuildExpression { get; }
     protected virtual string BuildMembers => string.Empty;

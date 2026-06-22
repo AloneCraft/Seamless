@@ -1,5 +1,26 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+SetBase は Union/Except/Intersect など、要素そのものを key にする二入力集合演算の共通基底。
+
+入力例:
+  first.Union(second)
+  first.Except(second, comparer)
+
+生成例:
+  if(operation.PreloadSecondFirst) {
+      foreach(var right in second) set.Add(right);
+      foreach(var left in first) if(set.SourceAccept(left)) return left;
+  } else {
+      foreach(var left in first) if(set.Add(left)) return left;
+      foreach(var right in second) if(set.Add(right)) return right;
+  }
+
+バリエーション:
+  - Union は左を返しながら set に追加し、その後右の未出要素を返す。
+  - Except/Intersect は先に右側 set を作り、左側の Remove/Add など operation 固有の判定で返す。
+  - direct consume では HashSet 初期化と TraversalSupport ループを出し、Enumerator.Current を経由しない。
+*/
 public abstract class SetBase(int 番号,Enumerable source,Enumerable second,string comparer,ISetOperationStrategy operation):Enumerable(番号),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=>string.Empty;
@@ -109,6 +130,24 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
     }
 }
 
+/*
+SetByBase は UnionBy/ExceptBy/IntersectBy など、keySelector(item) で集合判定する二入力演算の共通基底。
+
+入力例:
+  first.ExceptBy(second, x => x.Id, comparer)
+
+生成例:
+  foreach(var right in second) secondKeys.Add(keySelector(right));
+  foreach(var left in first) {
+      var key = keySelector(left);
+      if(secondKeys.SourceAccept(key)) return left;
+  }
+
+バリエーション:
+  - keySelector が identity の場合は key 計算用の FuncAssign を省いた専用 body を使う。
+  - UnionBy は右側も「同じ key が未出なら右要素を返す」状態を持つ。
+  - non-identity では closure/delegate/hoisted local を constructor と direct consume の両方へ伝播する。
+*/
 public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,FuncFragment keySelector,string comparer,ISetByOperationStrategy operation):Enumerable(番号),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));

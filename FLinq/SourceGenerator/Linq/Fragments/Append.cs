@@ -1,5 +1,23 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+Append は source.Append(value) を、source を読み切った後に追加要素を返す状態機械へ変換する。
+
+入力例:
+  source.Append(a).Append(b)
+
+生成例:
+  if(state == Source) {
+      if(source.MoveNext()) return source.Current;
+      state = FirstAppend;
+  }
+  if(state == FirstAppend) return a;
+  if(state == SecondAppend) return b;
+  return false;
+
+設計意図:
+  連続 Append は FlattenedElements へ畳み込み、ネストした enumerator を作らず1つの state フィールドで処理する。
+*/
 public class Append(int 番号, Enumerable source, string element) : Enumerable(番号) {
     private Enumerable Source => source;
     private string ElementExpression => element;

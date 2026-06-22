@@ -1,4 +1,19 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
+/*
+Any は source.Any() を「件数 fast path か MoveNext 1回」で判定する scalar に変換する。
+
+入力例:
+  source.Any()
+
+生成例:
+  if(source.TryGetNonEnumeratedCount(out var count)) result = count != 0;
+  else result = source.MoveNext();
+
+バリエーション:
+  - Range/Repeat は count 式だけで inline 結果を出せる。
+  - Any(predicate) は predicate が true になった時点で true を返す Compute を生成する。
+  - Any(indexPredicate) は index を増やしながら predicate(item, index) を評価する。
+*/
 public class Any(int 番号,Enumerable source):Scalar(番号){
     internal static bool TryBuildWithPredicate(
         SemanticModel semanticModel,
@@ -87,6 +102,17 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
+/*
+Any_predicate は source.Any(predicate) を、最初に true になった要素で短絡する Compute にする。
+
+生成例:
+  foreach(var item in source) {
+      if(predicate(item)) return true;
+  }
+  return false;
+
+source が span を確実に返せる場合は foreach(span) を生成し、それ以外は MoveNext loop にする。
+*/
 public class Any_predicate(int 番号, Enumerable source, FuncFragment predicate) : BufferedScalar(番号, "bool") {
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;

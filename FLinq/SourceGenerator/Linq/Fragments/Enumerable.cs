@@ -1,4 +1,27 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
+/*
+Enumerable は遅延評価されるシーケンス Fragment の基底。
+
+入力例:
+  source.Where(predicate)
+
+生成されるコード例:
+  using var e = sourceFragment.GetEnumerator();
+  while(e.TryGetNext(out var item)) {
+      consumer.Consume(item);
+  }
+
+主なパラメーター/override:
+  - ElementType: この Fragment が流す要素型。
+  - GetEnumeratorExpression: 呼び出し側が使う new GeneratedEnumerator(...) 式。
+  - CanProvideSpan / CanTryProvideSpan: span fast path を生成してよいか。
+  - GetConsumeExecutionStatement: Consume(consumer) など終端が列挙だけで済む場合の direct execution。
+
+バリエーション:
+  - ArrayRoot/ListRoot のように Span を確実に返せる source は for(span) へ展開される。
+  - 通常 source は while(TryGetNext) に落ちる。
+  - Distinct/Set 系のように事前 HashSet 構築が必要な Fragment は direct consume を override する。
+*/
 public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecutionFragment{
     // この enumerable 断片が流す要素型。
     public abstract string ElementType{ get; }

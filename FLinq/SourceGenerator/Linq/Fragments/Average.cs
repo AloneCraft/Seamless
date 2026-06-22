@@ -1,5 +1,27 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+Average は source.Average() / Average(selector) を、sum と count を持つ Compute に変換する。
+
+入力例:
+  source.Average()
+  source.Average(x => x.Score)
+
+生成例:
+  count = 0;
+  sum = accumulatorDefault;
+  foreach(var item in source) {
+      sum += selectorOrItem(item);
+      count++;
+  }
+  if(count == 0) throw NoElements();
+  return sum / count;
+
+バリエーション:
+  - decimal は decimal accumulator、int/long/float/double は double accumulator を使う。
+  - int の span source は AverageIntSimd を使う。
+  - selector 付きは selector の戻り値型で accumulator 方針を決める。
+*/
 public class Average(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
     private bool UseDecimalAccumulator => source.ElementType=="decimal";
     private bool UseDoubleAccumulator =>

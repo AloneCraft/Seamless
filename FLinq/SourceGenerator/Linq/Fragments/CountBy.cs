@@ -1,4 +1,20 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
+/*
+CountBy は key ごとの出現数を数え、KeyValuePair<TKey,int> 相当を列挙する Fragment。
+
+入力例:
+  source.CountBy(x => x.Category)
+
+生成例:
+  foreach(var item in source) {
+      key = keySelector(item);
+      counts[key] = counts.TryGetValue(key, out c) ? c + 1 : 1;
+  }
+  foreach(var pair in counts) current = pair;
+
+設計意図:
+  GroupBy(...).Select(g => (g.Key, g.Count())) より、group の List を作らず count だけを Dictionary に保持する。
+*/
 public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : Enumerable(番号) {
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     protected override Enumerable PrimarySource => source;

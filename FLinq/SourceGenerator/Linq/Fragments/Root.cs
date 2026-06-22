@@ -1,5 +1,30 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+Root 系 Fragment は LINQ チェーンの最初の source を struct enumerator 化する。
+
+入力例:
+  array.Where(...)
+  list.Select(...)
+  Enumerable.Range(start, count)
+
+生成されるコード例:
+  private struct RootEnumerator {
+      private int index;
+      public bool TryGetNext(out T current) {
+          if(++index < source.Length) {
+              current = source[index];
+              return true;
+          }
+          return false;
+      }
+  }
+
+バリエーション:
+  - Root: 任意の GetEnumerator() を包む。IEnumerable<T> interface 経由なら実行時に array/list span を試す。
+  - ArrayRoot/ListRoot: index 直走査 + TryGetSpan/TryCopyTo を常に提供する。
+  - RangeRoot/RepeatRoot/SequenceRoot: 元の collection を持たず、値を計算で生成する。
+*/
 // Root は他の Fragment へ分解されない列挙ソースそのものを表す。
 // enumeratorTypeName には具象 GetEnumerator() 戻り値型名を渡す。
 // IEnumerable<T>/配列の場合は IEnumerator<T>、List<T> 等の具象型の場合は List<T>.Enumerator 等の値型エニュメレータ名になる。
@@ -146,6 +171,19 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
 
 // 配列ソース専用。インデックスベースで走査し、IEnumerator<T> を一切介さない完全具象 struct を生成する。
 // TryGetSpan / TryGetNonEnumeratedCount も正しく実装するため GetEnumeratorStruct を手動出力する。
+/*
+ArrayRoot は配列 source 専用。IEnumerator<T> を作らず index で直接走査する。
+
+生成例:
+  if(++index < source.Length) {
+      current = source[index];
+      return true;
+  }
+
+設計意図:
+  TryGetSpan/TryCopyTo/TryGetNonEnumeratedCount を常に true にできるので、後続の ToArray/Count などが
+  分岐なしに連続メモリ fast path を選べる。
+*/
 public class ArrayRoot(int 番号, string sourceExpression, string elementType) : Enumerable(番号) {
     public override bool CanProvideSpan => true;
     public override string StructMethod => string.Empty;
@@ -210,6 +248,20 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
 // List<T> ソース専用。List.Enumerator を包む素通し Root + バージョンチェックを避け、
 // CollectionsMarshal.AsSpan(list) で内部配列を直接 Span として走査する（配列ソースと同等の高速パス）。
 // 内部フィールド名に依存せず public API のみを使うため安全。TryGetSpan/TryGetNonEnumeratedCount/TryCopyTo も提供する。
+/*
+ListRoot は List<T> source 専用。List<T>.Enumerator の version check を避け、
+CollectionsMarshal.AsSpan(list) を index で読む。
+
+生成例:
+  var span = CollectionsMarshal.AsSpan(source);
+  if(++index < span.Length) {
+      current = span[index];
+      return true;
+  }
+
+設計意図:
+  配列同様に TryGetSpan/TryCopyTo を提供し、Select/Where 後の materialize でもコピー系 fast path を維持する。
+*/
 public class ListRoot(int 番号, string sourceExpression, string elementType) : Enumerable(番号) {
     public override bool CanProvideSpan => true;
     public override string StructMethod => string.Empty;
@@ -332,6 +384,19 @@ public class DuckTypingRoot(int 番号, string sourceExpression, string elementT
         """;
 }
 
+/*
+RangeRoot は Enumerable.Range(start, count) を collection なしで生成する。
+
+生成例:
+  if(index < count) {
+      current = start + index++;
+      return true;
+  }
+
+バリエーション:
+  - Count/Any/First/Single/ToArray/ToList などは RangePredicateOptimizer や専用 inline でさらに短い式になる。
+  - DescendingRangeRoot は Reverse(Range(...)) などで逆順計算に寄せる。
+*/
 public sealed class RangeRoot(int 番号,string startExpression,string countExpression) : Enumerable(番号) {
     internal string StartExpression => startExpression;
     internal string CountExpression => countExpression;
@@ -464,6 +529,16 @@ public sealed class DescendingRangeRoot(int 番号,string startExpression,string
         """;
 }
 
+/*
+EmptyRoot は Enumerable.Empty<T>() を「常に false を返す enumerator」として生成する。
+
+生成例:
+  current = default!;
+  return false;
+
+設計意図:
+  空列挙は Consume direct execution では空文字列を返し、呼び出し元に不要な while を出さない。
+*/
 public sealed class EmptyRoot(int 番号,string elementType) : Enumerable(番号) {
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Empty<{elementType}>()";
@@ -509,6 +584,18 @@ public sealed class EmptyRoot(int 番号,string elementType) : Enumerable(番号
     public override string GetConsumeExecutionStatement(string consumerName) => string.Empty;
 }
 
+/*
+RepeatRoot は Enumerable.Repeat(value, count) を値と残数だけで生成する。
+
+生成例:
+  if(index++ < count) {
+      current = value;
+      return true;
+  }
+
+バリエーション:
+  Count/Any/Single など要素値を見ない終端は count 式だけで結果を出せる。
+*/
 public sealed class RepeatRoot(int 番号,string valueExpression,string countExpression,string elementType) : Enumerable(番号) {
     internal string ValueExpression => valueExpression;
     internal string CountExpression => countExpression;
@@ -608,6 +695,19 @@ public sealed class InfiniteSequenceRoot(int 番号,string startExpression,strin
     protected override string GetEnumeratorDisposeBody => string.Empty;
 }
 
+/*
+SequenceRoot は start/end/step で表せる数列を生成する root。
+
+生成例:
+  if(step > 0 ? currentValue <= end : currentValue >= end) {
+      current = currentValue;
+      currentValue += step;
+      return true;
+  }
+
+設計意図:
+  RangeRoot より一般的な数列用。元 collection を持たず、境界判定と加算だけで TryGetNext を構成する。
+*/
 public sealed class SequenceRoot(int 番号,string startExpression,string endInclusiveExpression,string stepExpression,string elementType) : Enumerable(番号) {
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Sequence<{elementType}>({startExpression}, {endInclusiveExpression}, {stepExpression})";

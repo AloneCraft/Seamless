@@ -2,6 +2,32 @@ using System.Text;
 
 namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+TsavoriteHashSetScanTerminal は TsavoriteHashSetRoot + Where/Select/AsEnumerable + Count/Any/First の形を
+HashSet 内部 scan へ direct execution する専用終端。
+
+入力例:
+  tsavoriteSet.Where(x => x > threshold).Select(x => x + 1).First()
+
+生成例:
+  var source = originalHashSetExpression;
+  var state = new ScanState(captures...);
+  ScanInt32(source, itemObject => ScanBody(ref state, itemObject));
+  result = terminalKind switch {
+      Count => state.Count,
+      Any => state.Found,
+      First => state.Found ? state.Value : throw NoElements()
+  };
+
+主な制約:
+  - root の要素型は int。
+  - stage は Where/Select/AsEnumerable のみ。
+  - terminal は Count/Any/First のみ。
+  - statement inline が必要な FuncFragment は対象外。
+
+設計意図:
+  通常 enumerator を作らず UnsafeAccessor で Tsavorite の scan API へ入り、body delegate 内で pipeline stage を順に評価する。
+*/
 public sealed class TsavoriteHashSetScanTerminal(
     int 番号,
     PipelineEnumerable pipeline,

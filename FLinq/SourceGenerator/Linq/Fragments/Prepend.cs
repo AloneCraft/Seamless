@@ -1,4 +1,19 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
+/*
+Prepend は source.Prepend(value) を、追加要素を先に返してから source を列挙する状態機械へ変換する。
+
+入力例:
+  source.Prepend(a).Prepend(b)
+
+生成例:
+  if(state == 0) return b;
+  if(state == 1) return a;
+  if(source.MoveNext()) return source.Current;
+  return false;
+
+設計意図:
+  連続 Prepend は先頭側から FlattenedElements に畳み込み、source の enumerator は1つだけ保持する。
+*/
 public class Prepend(int 番号, Enumerable source, string element) : Enumerable(番号) {
     private Enumerable Source => source;
     private string ElementExpression => element;

@@ -1712,6 +1712,31 @@ public interface DirectExecutionFragment {
     string GetDirectExecutionStatement(string actualVariableName,string actualTypeName);
 }
 
+/*
+PipelineEnumerable は Where/Select/Take/OrderBy など複数 stage を1つの enumerator 状態機械へ畳む。
+
+入力例:
+  source.Where(p).Select(s).Take(n)
+
+生成例:
+  while(source.TryGetNext(out var current0)) {
+      if(!p(current0)) continue;
+      var current1 = s(current0);
+      if(takeCountReached) return false;
+      current = current1;
+      return true;
+  }
+  return false;
+
+主な stage 分岐:
+  - Where/Select/AsEnumerable/Cast は直列 loop 内の軽い変換として展開する。
+  - SelectMany/GroupBy/Reverse/OrderBy/TakeLast などは stage 専用の buffer/state field を追加する。
+  - Union/Except/Intersect 系 stage は二入力集合演算として BuildBinarySetLoop に切り替える。
+
+設計意図:
+  個別 Fragment を深くネストすると enumerator struct が段数分重なる。Pipeline は stage list を見て
+  1つの Struct に state field と loop 分岐を集め、CountPreserving な場合は TryCopyTo もまとめて生成する。
+*/
 public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyList<PipelineStage> stages,string elementType):Enumerable(番号) {
     private bool CountPreserving => stages.All(static stage => stage.Kind is PipelineStageKind.Select or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast);
     protected override Enumerable PrimarySource => source;
@@ -3237,6 +3262,24 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
     }
 }
 
+/*
+PipelineTerminal は PipelineEnumerable の終端を scalar/direct execution として出す。
+
+入力例:
+  source.Where(p).Select(s).ToArray()
+  source.Where(p).Any()
+
+生成例:
+  using var e = pipeline.GetEnumerator();
+  if(kind == Any) result = e.TryGetNext(out _);
+  if(kind == Count) while(e.TryGetNext(out _)) count++;
+  if(kind == ToArray) TryGetNonEnumeratedCount/TryCopyTo を試し、だめなら ArrayPool で蓄積する。
+
+バリエーション:
+  - Any/Count/First は単一結果 enumerator も direct execution も生成できる。
+  - ToList/ToArray/ToDictionary/Sum は direct execution 専用で、GetEnumeratorExpression は使わない。
+  - ToDictionary は func1 を keySelector、func2 を elementSelector として扱い、comparerValue を constructor に渡す。
+*/
 public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,PipelineTerminalKind terminalKind,FuncFragment? func1=null,FuncFragment? func2=null,string? comparerValue=null):Scalar(番号),DirectExecutionFragment {
     protected override Enumerable PrimarySource => pipeline;
     private string ResultType {
