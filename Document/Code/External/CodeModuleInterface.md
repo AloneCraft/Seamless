@@ -6,7 +6,7 @@ evidence_sources:
   - FLinq/SourceGenerator/interceptor.cs
   - Tsavorite.Collections/Collections/
   - Tsavorite.Collections/Stores/
-  - TsavoriteDB/SourceGenerator/GenerateDatabase.cs
+  - Seamless.Database/SourceGenerator/GenerateDatabase.cs
   - Benchmark.Runner.Uno/Benchmark.Runner.Uno/
 derived_from:
   - Reverse/Code/Internal/
@@ -24,7 +24,7 @@ review_status: draft
 | `Tsavorite.Collections` store factory | `HashStore.Create(...)` と overload による Dictionary/HashSet/Set store 生成。 | `Tsavorite.Collections/Stores/HashStore.cs:38`, `Tsavorite.Collections/Stores/HashStore.cs:146`, `Tsavorite.Collections/Stores/HashStore.cs:240`, `Tsavorite.Collections/Stores/HashStore.cs:280` |
 | `Tsavorite.Collections` collection API | `IDictionary<TKey,TValue>`、`IHashSet<T>`、`ISet<TRecord>`、`IMemoryCollection<T>` 相当の操作。 | `Tsavorite.Collections/Collections/IDictionary.cs:9`, `Tsavorite.Collections/Collections/IHashSet.cs:8`, `Tsavorite.Collections/Collections/ISet.cs:3`, `Tsavorite.Collections/Collections/IMemoryCollection.cs:6` |
 | `Tsavorite.Collections` LINQ API | `IHashSet<T>` に対する LINQ-like extension。 | `Tsavorite.Collections/Linq/Enumerable.cs:8`, `Tsavorite.Collections/Linq/Enumerable.cs:18`, `Tsavorite.Collections/Linq/Enumerable.cs:2238`, `Tsavorite.Collections/Linq/Enumerable.cs:2258` |
-| `TsavoriteDB` source generator | `DatabaseGenerator` marker と schema partial struct を入力に、MemoryPack 対応 generated source を出す。 | `TsavoriteDB/SourceGenerator/GenerateDatabase.cs:37`, `TsavoriteDB/SourceGenerator/GenerateDatabase.cs:52`, `TsavoriteDB/SourceGenerator/GenerateDatabase.cs:114` |
+| `Seamless.Database` source generator | `DatabaseGenerator` marker と schema partial struct を入力に、MemoryPack 対応 generated source を出す。 | `Seamless.Database/SourceGenerator/GenerateDatabase.cs:37`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:52`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:114` |
 | `Benchmark.Runner.Uno` | desktop UI と worker mode。Benchmark method discovery、CPU 選択、CSV/HTML report 出力。 | `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkWorkerHost.cs:17`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:841`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:1153` |
 
 ## API 利用順序

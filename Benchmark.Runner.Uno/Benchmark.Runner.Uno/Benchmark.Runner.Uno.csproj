@@ -35,6 +35,10 @@
     <ProjectReference Include="..\..\Benchmark.DotNet.Linq.Enumerable.Linq\Benchmark.DotNet.Linq.Enumerable.Linq.csproj" />
     <ProjectReference Include="..\..\Benchmark.DotNet.Linq.Enumerable.Flinq\Benchmark.DotNet.Linq.Enumerable.Flinq.csproj" />
     <ProjectReference Include="..\..\Benchmark.DotNet.Linq.Enumerable.ZLinq\Benchmark.DotNet.Linq.Enumerable.ZLinq.csproj" />
+    <ProjectReference Include="..\..\Benchmark.Tsavorite.Linq.Enumerable.Linq\Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />
+    <ProjectReference Include="..\..\Benchmark.Tsavorite.Linq.Enumerable.FLinq\Benchmark.Tsavorite.Linq.Enumerable.FLinq.csproj" />
+    <ProjectReference Include="..\..\Benchmark.Persisted.Linq.Enumerable.Linq\Benchmark.Persisted.Linq.Enumerable.Linq.csproj" />
+    <ProjectReference Include="..\..\Benchmark.Persisted.Linq.Enumerable.FLinq\Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
   </ItemGroup>
 
   <Target Name="CopyBenchmarkWorkerHost"

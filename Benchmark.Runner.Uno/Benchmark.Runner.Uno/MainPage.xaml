@@ -12,7 +12,7 @@
         RowSpacing="14"
         RowDefinitions="Auto,Auto,*,Auto">
     <Grid ColumnSpacing="12"
-          ColumnDefinitions="320,*,120">
+          ColumnDefinitions="320,*,120,110">
       <StackPanel Spacing="4">
         <TextBlock Text="Benchmark Runner"
                    FontSize="26"
@@ -34,6 +34,20 @@
                 SelectionChanged="OnConfigurationSelectionChanged">
         <ComboBoxItem Content="Debug" />
         <ComboBoxItem Content="Release" />
+      </ComboBox>
+      <ComboBox x:Name="ElementScaleComboBox"
+                Grid.Column="3"
+                MinWidth="110"
+                SelectedIndex="4">
+        <ComboBoxItem Content="0.06125" />
+        <ComboBoxItem Content="0.125" />
+        <ComboBoxItem Content="0.25" />
+        <ComboBoxItem Content="0.5" />
+        <ComboBoxItem Content="1" />
+        <ComboBoxItem Content="2" />
+        <ComboBoxItem Content="4" />
+        <ComboBoxItem Content="8" />
+        <ComboBoxItem Content="16" />
       </ComboBox>
     </Grid>
 
@@ -135,17 +149,20 @@
                   </Border>
                   <TextBlock Grid.Column="1"
                              Text="{Binding DisplayName}"
+                             TextDecorations="{Binding TextDecorations}"
                              FontSize="11"
                              TextTrimming="CharacterEllipsis"
                              VerticalAlignment="Center" />
                   <TextBlock Grid.Column="2"
                              Text="{Binding CategoryText}"
+                             TextDecorations="{Binding TextDecorations}"
                              FontSize="11"
                              TextTrimming="CharacterEllipsis"
                              VerticalAlignment="Center"
                              Foreground="#676B67" />
                   <TextBlock Grid.Column="3"
                              Text="{Binding MethodName}"
+                             TextDecorations="{Binding TextDecorations}"
                              FontSize="11"
                              VerticalAlignment="Center"
                              Foreground="#676B67" />
@@ -405,7 +422,7 @@
                          Click="OnOpenHtmlReportClick" />
         <HyperlinkButton x:Name="ChartReportLinkButton"
                          Grid.Column="2"
-                         Content="Chart"
+                         Content="Charts"
                          Visibility="Collapsed"
                          Click="OnOpenChartReportClick" />
       </Grid>

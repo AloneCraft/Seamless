@@ -1,13 +1,13 @@
-using Seamless.Collections.Tsavorite.Stores;
+using Seamless.Tsavorite.Collections.Stores;
 namespace Test.Seamless.Stores;
 /// <summary>
-/// src/Seamless.Collections.Tsavorite/Store/CollectionStore`2.cs �̑S�����J�o�[����B
+/// src/Seamless.Tsavorite.Collections/Store/CollectionStore`2.cs �̑S�����J�o�[����B
 /// �����e�X�g(CoverInternals��)�ŃJ�o�[���Ă��Ȃ�����ɒ��͂���B
 /// </summary>
 
 public class CollectionStore {
     private static string CreateFolder() => TestPath.Directory<CollectionStore>();
-    private const long TestMemorySize = global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity;
+    private const long TestMemorySize = global::Seamless.Tsavorite.Collections.Const.MinObjectLogCapacity;
     //CollectionStore �R���X�g���N�^: ObjectLogDevice.Capacity<0 �̕���
     //Capacity=-1�̃f�o�C�X��n����ObjectLogSegmentSize=Const.MinObjectLogCapacity�ɂȂ�
     [Fact, Trait("Category","Unit")]
@@ -29,7 +29,7 @@ public class CollectionStore {
     public void CompactWithLookup_EarlyReturn() {
         var folder = CreateFolder();
         using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
+        using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Collections.Const.MinObjectLogCapacity);
         using var store = Store.Create(MemorySize: TestMemorySize,MutableFraction: 0.1).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
         //�f�[�^����������CompactWithLookup����s
@@ -61,7 +61,7 @@ public class CollectionStore {
         //1.1.1��
         var folder = CreateFolder();
         using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
+        using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Collections.Const.MinObjectLogCapacity);
         using var store = Store.Create(MemorySize: TestMemorySize,MutableFraction: 0.1).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
         //�f�[�^����������CompactWithLookup����s
@@ -94,7 +94,7 @@ public class CollectionStore {
     public void CompactWithLookup_ClipToSafeReadOnly() {
         var folder = CreateFolder();
         using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
+        using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Collections.Const.MinObjectLogCapacity);
         //MutableFraction=0�őS�f�[�^�𑦎��ǂݎ���p�ɂ���
         using var store = Store.Create(MemorySize: TestMemorySize,MutableFraction: 0).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();

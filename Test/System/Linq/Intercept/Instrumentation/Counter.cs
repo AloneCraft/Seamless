@@ -1,4 +1,4 @@
-using Seamless.Collections.Tsavorite;
+using Seamless.Tsavorite.Collections;
 using Seamless.FLinq;
 
 using Test.System.Linq.Intercept;

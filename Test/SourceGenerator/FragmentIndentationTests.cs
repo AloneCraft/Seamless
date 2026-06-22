@@ -61,7 +61,7 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
 
     [Fact]
     public void FragmentRawStrings_DoNotDirectlyEmbedFuncAssignStatements() {
-        var fragmentsRoot = FindRepositoryPath("FLinq", "SourceGenerator", "Linq", "Fragments");
+        var fragmentsRoot = FindRepositoryPath("Seamless.FLinq", "SourceGenerator", "Linq", "Fragments");
         var offenders = Directory.EnumerateFiles(fragmentsRoot, "*.cs", SearchOption.AllDirectories)
             .Where(static path => !path.EndsWith($"{Path.DirectorySeparatorChar}Pipeline.cs", StringComparison.Ordinal))
             .SelectMany(static path => File.ReadLines(path)
@@ -128,7 +128,7 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
             directory is not null;
             directory = directory.Parent) {
             if(File.Exists(Path.Combine(directory.FullName, "Seamless.slnx"))
-                && Directory.Exists(Path.Combine(directory.FullName, "FLinq"))) {
+                && Directory.Exists(Path.Combine(directory.FullName, "Seamless.FLinq"))) {
                 return directory.FullName;
             }
         }

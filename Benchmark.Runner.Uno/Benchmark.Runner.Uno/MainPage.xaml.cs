@@ -40,7 +40,10 @@ public sealed partial class MainPage:Page{
     private bool isRunning;
     private bool projectSelectionDirty = true;
 
-    private sealed record RunReportPaths(string? CsvPath,string? HtmlPath,string? ChartHtmlPath);
+    private sealed record RunReportPaths(
+        string? CsvPath,
+        string? HtmlPath,
+        string? ChartHtmlPath);
 
     public MainPage(){
         InitializeComponent();
@@ -395,7 +398,7 @@ public sealed partial class MainPage:Page{
         currentRunRoot=CreateRunRoot(GetConfiguration());
         SetReportPaths(null,null);
         SetBusy(true,allowCpuChanges:true);
-        SetStatus($"Preparing {projects.Count} project(s) x {selectedMethods.Count} method(s) = {projects.Count*selectedMethods.Count} task(s)...");
+        SetStatus($"Preparing {projects.Count} project(s) x {selectedMethods.Count} method(s) = {projects.Count*selectedMethods.Count} task(s), element scale {GetSelectedElementScale()}...");
         runningItems.Clear();
 
         lock(runGate){
@@ -442,6 +445,10 @@ public sealed partial class MainPage:Page{
     private void PrepareRunQueue(IReadOnlyList<BenchmarkProject> projects,IReadOnlyList<BenchmarkItem> selectedMethods){
         if(currentRunRoot is null){
             throw new InvalidOperationException("Run root was not created.");
+        }
+
+        foreach(var benchmark in benchmarks){
+            benchmark.IsCompleted=false;
         }
 
         lock(runGate){
@@ -632,6 +639,7 @@ public sealed partial class MainPage:Page{
             item.Project.AssemblyName,
             item.Project.TypeFullName,
             item.MethodName,
+            GetSelectedElementScale(),
             artifactFolder);
         WorkerResultMessage? result = null;
         Exception? workerException = null;
@@ -792,7 +800,7 @@ public sealed partial class MainPage:Page{
     private static async Task StopWorkerGracefullyAsync(Process worker){
         try{
             if(!worker.HasExited){
-                var message = JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,string.Empty));
+                var message = JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty));
                 await worker.StandardInput.WriteLineAsync(message);
                 await worker.StandardInput.FlushAsync();
                 await worker.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(3));
@@ -1002,11 +1010,16 @@ public sealed partial class MainPage:Page{
 
     private static bool IsDefaultBenchmarkType(Type type){
         return type.Name.Equals("Linq",StringComparison.Ordinal)
-            &&(type.Namespace?.Contains(".System.",StringComparison.OrdinalIgnoreCase)??false);
+            &&(type.Namespace?.Contains(".DotNet.",StringComparison.OrdinalIgnoreCase)??false);
     }
 
     private static int GetBenchmarkProjectOrder(Type type){
-        var sourceOrder = type.Namespace?.Contains(".Tsavorite.",StringComparison.OrdinalIgnoreCase)==true ? 1 : 0;
+        var sourceOrder = GetBenchmarkSource(type) switch{
+            BenchmarkSource.DotNet => 0,
+            BenchmarkSource.Persisted => 1,
+            BenchmarkSource.Tsavorite => 2,
+            _ => 9,
+        };
         var kindOrder = type.Name.EndsWith("Linq",StringComparison.Ordinal)&&!type.Name.EndsWith("FLinq",StringComparison.Ordinal) ? 0
             : type.Name.EndsWith("FLinq",StringComparison.Ordinal) ? 1
             : type.Name.EndsWith("ZLinq",StringComparison.Ordinal) ? 2
@@ -1018,9 +1031,12 @@ public sealed partial class MainPage:Page{
     }
 
     private static string CreateBenchmarkDisplayName(Type type){
-        var source = type.Namespace?.Contains(".Tsavorite.",StringComparison.OrdinalIgnoreCase)==true
-            ? "Tsavorite"
-            : "System";
+        var source = GetBenchmarkSource(type) switch{
+            BenchmarkSource.DotNet => "System",
+            BenchmarkSource.Persisted => "Persisted",
+            BenchmarkSource.Tsavorite => "Tsavorite",
+            _ => "System",
+        };
         var name = type.Name;
         var suffix = name.EndsWith("FLinq",StringComparison.Ordinal) ? "FLinq"
             : name.EndsWith("ZLinq",StringComparison.Ordinal) ? "ZLinq"
@@ -1037,12 +1053,40 @@ public sealed partial class MainPage:Page{
             : source+" "+prefix+" "+suffix;
     }
 
+    private static BenchmarkSource GetBenchmarkSource(Type type){
+        var ns = type.Namespace??string.Empty;
+        if(ns.Contains(".Persisted.",StringComparison.OrdinalIgnoreCase)){
+            return BenchmarkSource.Persisted;
+        }
+
+        if(ns.Contains(".Tsavorite.",StringComparison.OrdinalIgnoreCase)){
+            return BenchmarkSource.Tsavorite;
+        }
+
+        if(ns.Contains(".DotNet.",StringComparison.OrdinalIgnoreCase)){
+            return BenchmarkSource.DotNet;
+        }
+
+        return BenchmarkSource.Unknown;
+    }
+
+    private enum BenchmarkSource{
+        Unknown,
+        DotNet,
+        Persisted,
+        Tsavorite,
+    }
+
     private IReadOnlyList<BenchmarkProject> GetSelectedProjects(){
         return benchmarkProjects.Where(static project => project.IsSelected).ToArray();
     }
 
     private string GetConfiguration(){
         return (ConfigurationComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString()??"Release";
+    }
+
+    private string GetSelectedElementScale(){
+        return (ElementScaleComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString()??"1";
     }
 
     private string CreateRunRoot(string configuration){
@@ -1197,6 +1241,10 @@ public sealed partial class MainPage:Page{
             .Select(static item => new ReportRow(
                 item.ProjectDisplayName,
                 item.MethodName,
+                item.ProjectMethod.TypeFullName,
+                string.IsNullOrWhiteSpace(item.ProjectMethod.TypeFullName)
+                    ? item.MethodName
+                    : item.ProjectMethod.TypeFullName+"."+item.ProjectMethod.MethodName,
                 item.StatusText,
                 item.Mean??string.Empty,
                 item.Error??string.Empty,
@@ -1204,6 +1252,8 @@ public sealed partial class MainPage:Page{
                 item.AssignedCpu?.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture)??string.Empty,
                 item.AssignedCpu?.CoreLabel??string.Empty,
                 item.AssignedCpu?.CpuDisplayText??string.Empty,
+                item.StartedAt?.ToString("O",CultureInfo.InvariantCulture)??string.Empty,
+                item.FinishedAt?.ToString("O",CultureInfo.InvariantCulture)??string.Empty,
                 item.ArtifactFolder??string.Empty,
                 item.ExitCode))
             .ToArray();
@@ -1216,11 +1266,11 @@ public sealed partial class MainPage:Page{
         }
 
         var htmlPath = Path.Combine(runRoot,"BenchmarkComparison.html");
-        var chartHtmlPath = Path.Combine(runRoot,"BenchmarkComparisonChart.html");
+        var chartHtmlPath = Path.Combine(runRoot,"BenchmarkComparisonCharts.html");
         WriteRunHtml(htmlPath,rows);
-        WriteRunChartHtml(chartHtmlPath,rows);
+        WriteRunChartsHtml(chartHtmlPath,rows);
         AppendLog($"Comparison report: {htmlPath}");
-        AppendLog($"Comparison chart: {chartHtmlPath}");
+        AppendLog($"Comparison charts: {chartHtmlPath}");
         return new RunReportPaths(csvPath,htmlPath,chartHtmlPath);
     }
 
@@ -1232,8 +1282,8 @@ public sealed partial class MainPage:Page{
         File.WriteAllText(path,BenchmarkReportFormatter.BuildHtml(rows,DateTimeOffset.Now),Encoding.UTF8);
     }
 
-    private static void WriteRunChartHtml(string path,IReadOnlyList<ReportRow> rows){
-        File.WriteAllText(path,BenchmarkReportFormatter.BuildChartHtml(rows,DateTimeOffset.Now),Encoding.UTF8);
+    private static void WriteRunChartsHtml(string path,IReadOnlyList<ReportRow> rows){
+        File.WriteAllText(path,BenchmarkReportFormatter.BuildChartsHtml(rows,DateTimeOffset.Now),Encoding.UTF8);
     }
 
     private void SetBusy(bool value,bool allowCpuChanges){
@@ -1243,6 +1293,7 @@ public sealed partial class MainPage:Page{
             child.IsEnabled=!value;
         }
         ConfigurationComboBox.IsEnabled=!value;
+        ElementScaleComboBox.IsEnabled=!value;
         foreach(var child in CpuPresetGrid.Children.OfType<Control>()){
             child.IsEnabled=!value||allowCpuChanges;
         }
@@ -1294,8 +1345,24 @@ public sealed partial class MainPage:Page{
             ProgressText.Text=total==0
                 ? "No run queued"
                 : $"{doneMethods} / {totalMethods} methods done ({done} / {total} tasks, {remaining} remaining, {running} running, {failed} failed)";
+            UpdateBenchmarkCompletionState();
             UpdateCpuSummary();
         });
+    }
+
+    private void UpdateBenchmarkCompletionState(){
+        if(allRunItems.Count==0){
+            return;
+        }
+
+        var completedMethods = allRunItems
+            .GroupBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
+            .Where(static group => group.All(static item => item.Status is BenchmarkRunStatus.Completed or BenchmarkRunStatus.Failed))
+            .Select(static group => group.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach(var benchmark in benchmarks){
+            benchmark.IsCompleted=completedMethods.Contains(benchmark.MethodName);
+        }
     }
 
     private void UpdateCpuSummary(){

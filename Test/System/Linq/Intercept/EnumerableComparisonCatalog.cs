@@ -2,7 +2,7 @@ using System.Collections;
 using System.Globalization;
 using System.Linq;
 
-using Seamless.Collections.Tsavorite;
+using Seamless.Tsavorite.Collections;
 using Seamless.FLinq;
 using ZLinq;
 

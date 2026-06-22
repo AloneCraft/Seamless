@@ -10,7 +10,7 @@ internal static class GeneratorTestHelpers {
 
     public static CSharpGeneratorDriver CreateDriver() {
         return CSharpGeneratorDriver.Create(
-            generators: [new TsavoriteIncrementalGenerator().AsSourceGenerator()],
+            generators: [new FLinqIncrementalGenerator().AsSourceGenerator()],
             parseOptions: ParseOptions,
             driverOptions: new GeneratorDriverOptions(
                 disabledOutputs: IncrementalGeneratorOutputKind.None,
@@ -38,7 +38,7 @@ internal static class GeneratorTestHelpers {
             .Split(Path.PathSeparator)
             .Where(p=>!string.IsNullOrWhiteSpace(p) && File.Exists(p))
             .Select(p=>(MetadataReference)MetadataReference.CreateFromFile(p))
-            .Append(MetadataReference.CreateFromFile(typeof(global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers).Assembly.Location))
+            .Append(MetadataReference.CreateFromFile(typeof(global::Seamless.Linq.GeneratedCodeHelpers).Assembly.Location))
             .ToImmutableArray();
         return refs;
     }

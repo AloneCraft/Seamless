@@ -1,6 +1,6 @@
 using System.Linq;
 
-using Seamless.Collections.Tsavorite;
+using Seamless.Tsavorite.Collections;
 using Seamless.FLinq;
 // ReSharper disable ConvertClosureToMethodGroup
 //���ڎw�肷��ƃC���^�[�Z�v�g����Ȃ�

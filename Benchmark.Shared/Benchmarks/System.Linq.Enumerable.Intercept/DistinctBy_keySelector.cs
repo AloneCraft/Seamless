@@ -1,4 +1,4 @@
-using Seamless.Collections.Tsavorite.Linq;
+using Seamless.Linq;
 
 namespace Benchmark.System.Linq.Enumerable.Intercept;
 

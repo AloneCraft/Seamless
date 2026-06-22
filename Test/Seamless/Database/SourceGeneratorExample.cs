@@ -1,6 +1,6 @@
 using System.Linq;
 using System.Reflection;
-using Seamless.Collections.Tsavorite.Linq;
+using Seamless.Linq;
 
 namespace Test.Seamless.Database.Database0 {
     //置き換え元LINQコードからSourceGeneratorにインターセプトを出力させる見本である。

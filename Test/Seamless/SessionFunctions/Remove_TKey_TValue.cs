@@ -1,5 +1,5 @@
-using Seamless.Collections.Tsavorite;
-using Seamless.Collections.Tsavorite.Stores;
+using Seamless.Tsavorite.Collections;
+using Seamless.Tsavorite.Collections.Stores;
 using Tsavorite.core;
 namespace Test.Seamless.SessionFunctions;
 
@@ -8,9 +8,9 @@ public abstract class RemoveTKeyTValueTests<TKey, TValue>
     where TValue : IEquatable<TValue> {
     protected abstract TKey Key(int seed);
     protected abstract TValue Value(int seed);
-    protected abstract (global::Seamless.Collections.Tsavorite.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateMemory();
-    protected abstract (global::Seamless.Collections.Tsavorite.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice);
-    protected abstract (global::Seamless.Collections.Tsavorite.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice);
+    protected abstract (global::Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateMemory();
+    protected abstract (global::Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice);
+    protected abstract (global::Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice);
     protected abstract void FlushAndEvict(IDisposable store);
 
     protected string CreateDiskFolder() => TestPath.Directory(this);
@@ -67,15 +67,15 @@ public abstract class RemoveTKeyTValueTests<TKey, TValue>
 public sealed class ManagedRemoveTKeyTValue:RemoveTKeyTValueTests<int,string> {
     protected override int Key(int seed) => seed;
     protected override string Value(int seed) => $"v{seed}";
-    protected override (global::Seamless.Collections.Tsavorite.IDictionary<int,string> Dict,IDisposable Store) CreateMemory() {
+    protected override (global::Seamless.Tsavorite.Collections.IDictionary<int,string> Dict,IDisposable Store) CreateMemory() {
         var store = Store.Create().Create<int,string>();
         return (store.Create(),store);
     }
-    protected override (global::Seamless.Collections.Tsavorite.IDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
+    protected override (global::Seamless.Tsavorite.Collections.IDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
         var store = Store.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(logDevice,objDevice);
         return (store.Create(),store);
     }
-    protected override (global::Seamless.Collections.Tsavorite.IDictionary<int,string> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
+    protected override (global::Seamless.Tsavorite.Collections.IDictionary<int,string> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
         var store = Store.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int,string>(logDevice,objDevice);
         return (store.Create(),store);
     }
@@ -86,15 +86,15 @@ public sealed class ManagedRemoveTKeyTValue:RemoveTKeyTValueTests<int,string> {
 public sealed class UnmanagedRemoveTKeyTValue:RemoveTKeyTValueTests<int,long> {
     protected override int Key(int seed) => seed;
     protected override long Value(int seed) => (long)seed*100L;
-    protected override (global::Seamless.Collections.Tsavorite.IDictionary<int,long> Dict,IDisposable Store) CreateMemory() {
+    protected override (global::Seamless.Tsavorite.Collections.IDictionary<int,long> Dict,IDisposable Store) CreateMemory() {
         var store = Store.Create().Create<int,long>();
         return (store.Create(),store);
     }
-    protected override (global::Seamless.Collections.Tsavorite.IDictionary<int,long> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
+    protected override (global::Seamless.Tsavorite.Collections.IDictionary<int,long> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
         var store = Store.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,long>(logDevice,objDevice);
         return (store.Create(),store);
     }
-    protected override (global::Seamless.Collections.Tsavorite.IDictionary<int,long> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
+    protected override (global::Seamless.Tsavorite.Collections.IDictionary<int,long> Dict,IDisposable Store) CreateDiskSpill(IDevice logDevice,IDevice objDevice) {
         var store = Store.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int,long>(logDevice,objDevice);
         return (store.Create(),store);
     }

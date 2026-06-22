@@ -27,9 +27,9 @@ review_status: draft
 根拠: `Tsavorite.Collections/Stores/HashStore.cs:38`, `Tsavorite.Collections/Stores/HashStore.cs:146`, `Tsavorite.Collections/Collections/Collection.Tsavorite.cs:131`, `Tsavorite.Collections/Collections/Collection.Tsavorite.cs:256`, `Tsavorite.Collections/Linq/Enumerable.cs:8`。
 
 ### Schema generation
-`partial schema type` -> `TsavoriteSchemaGenerator` -> `unmanaged/managed property split` -> `MemoryPackable generated record`
+`partial schema type` -> `DatabaseSchemaGenerator` -> `unmanaged/managed property split` -> `MemoryPackable generated record`
 
-根拠: `TsavoriteDB/SourceGenerator/GenerateDatabase.cs:11`, `TsavoriteDB/SourceGenerator/GenerateDatabase.cs:114`, `TsavoriteDB/SourceGenerator/GenerateDatabase.cs:124`, `TsavoriteDB/SourceGenerator/GenerateDatabase.cs:170`。
+根拠: `Seamless.Database/SourceGenerator/GenerateDatabase.cs:11`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:114`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:124`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:170`。
 
 ### Benchmark execution
 `UI selection` -> `run queue` -> `worker task JSON` -> `BenchmarkDotNet run` -> `worker result JSON` -> `CSV/HTML report`

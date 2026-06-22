@@ -12,11 +12,18 @@ public sealed class BenchmarkTestIterationsAttribute(int count):Attribute {
 
 public static class BenchmarkExecutionMode {
     private const string TestModeKey = "Benchmark.Shared.TestMode";
+    private const string ElementScaleKey = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
     private static readonly System.Threading.AsyncLocal<int?> ComparisonElementLimit = new();
+    private static readonly Lazy<double> ElementScale = new(ReadElementScale);
 
     public static bool IsTestMode =>
+#if BENCH_AS_TEST
+        true
+#else
         AppContext.GetData(TestModeKey) is true
-        ||Environment.GetEnvironmentVariable("SEAMLESS_BENCHMARK_TEST_MODE")=="1";
+        ||Environment.GetEnvironmentVariable("SEAMLESS_BENCHMARK_TEST_MODE")=="1"
+#endif
+        ;
 
     public static bool IsComparisonMode => ComparisonElementLimit.Value is > 0;
 
@@ -36,6 +43,30 @@ public static class BenchmarkExecutionMode {
         ComparisonElementLimit.Value is > 0 and var limit
             ? Math.Min(elementCount,limit)
             : elementCount;
+
+    internal static int ScaleElementCount(int elementCount) {
+        if(elementCount<=0) {
+            return elementCount;
+        }
+
+        var scaled = elementCount*ElementScale.Value;
+        if(!double.IsFinite(scaled)||scaled<=1) {
+            return 1;
+        }
+
+        return scaled>=int.MaxValue
+            ? int.MaxValue
+            : Math.Max(1,(int)Math.Round(scaled,MidpointRounding.AwayFromZero));
+    }
+
+    private static double ReadElementScale() {
+        var text = Environment.GetEnvironmentVariable(ElementScaleKey);
+        return double.TryParse(text,global::System.Globalization.NumberStyles.Float,global::System.Globalization.CultureInfo.InvariantCulture,out var scale)
+            &&double.IsFinite(scale)
+            &&scale>0
+            ? scale
+            : 1;
+    }
 }
 
 public sealed class Consumer {
@@ -138,7 +169,7 @@ public class Base {
         this.count=count>=0?count:(BenchmarkExecutionMode.IsTestMode?TestDefaultCount:BenchmarkDefaultCount);
 
     private protected int CountForTestTiming(int benchmarkCount) =>
-        BenchmarkExecutionMode.IsTestMode?this.count:benchmarkCount;
+        BenchmarkExecutionMode.ScaleElementCount(BenchmarkExecutionMode.IsTestMode?this.count:benchmarkCount);
 
     private protected int CountForComparison(int elementCount) =>
         BenchmarkExecutionMode.LimitForComparison(elementCount);
@@ -182,11 +213,11 @@ public class Base {
     protected void AssertResults(Action linq,Action flinq,Action noOptimized,Action zlinq) {
         var expected = this.CaptureResult(linq);
 #if TSAVORITE_LINQ_COUNTER
-        using var optimizedScope = global::Seamless.Collections.Tsavorite.LinqCounterScope.Start();
+        using var optimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
         var flinqResult = this.CaptureResult(flinq);
 #if TSAVORITE_LINQ_COUNTER
-        using var noOptimizedScope = global::Seamless.Collections.Tsavorite.LinqCounterScope.Start();
+        using var noOptimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
         var noOptimizedResult = this.CaptureResult(noOptimized);
         var zlinqResult = this.CaptureResult(zlinq);
@@ -205,11 +236,11 @@ public class Base {
     protected void AssertResults(Action linq,Action flinq,Action noOptimized) {
         var expected = this.CaptureResult(linq);
 #if TSAVORITE_LINQ_COUNTER
-        using var optimizedScope = global::Seamless.Collections.Tsavorite.LinqCounterScope.Start();
+        using var optimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
         var flinqResult = this.CaptureResult(flinq);
 #if TSAVORITE_LINQ_COUNTER
-        using var noOptimizedScope = global::Seamless.Collections.Tsavorite.LinqCounterScope.Start();
+        using var noOptimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
         var noOptimizedResult = this.CaptureResult(noOptimized);
 
@@ -332,7 +363,7 @@ public class Base {
     }
 
     protected IEnumerable<int> srcMinusPlus(int scale) {
-        var length=this.CountForComparison(count*scale);
+        var length=this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(count*scale));
         for(var a = 0;a<length;a+=2) {
             yield return -a;
             yield return +a;
@@ -340,7 +371,7 @@ public class Base {
     }
 
     protected IEnumerable<int> srcMinusPlusCount(int elementCount) {
-        var length=this.CountForComparison(elementCount);
+        var length=this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
         for(var a = 0;a<length;a+=2) {
             yield return -a;
             yield return +a;
@@ -389,7 +420,7 @@ public class Base {
     protected IEnumerable<int> srcOne(int scale) => [0];
 
     private int[] GetOrCreate(int scale,Dictionary<int,int[]> cache,Func<int,int[]> factory) {
-        var length=this.CountForComparison(count*scale);
+        var length=this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(count*scale));
         if(cache.TryGetValue(length,out var values)) {
             return values;
         }
@@ -400,7 +431,7 @@ public class Base {
     }
 
     private int[] GetOrCreateByLength(int length,Dictionary<int,int[]> cache,Func<int,int[]> factory) {
-        var effectiveLength=this.CountForComparison(length);
+        var effectiveLength=this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(length));
         if(cache.TryGetValue(effectiveLength,out var values)) {
             return values;
         }
@@ -412,13 +443,13 @@ public class Base {
 
     [LinqIntercept(false)]
     protected IEnumerable<IEnumerable<int>> srcNested(int scale) {
-        var side = (int)Math.Sqrt(this.CountForComparison(count*scale));
+        var side = (int)Math.Sqrt(this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(count*scale)));
         return global::System.Linq.Enumerable.Range(1,side).Select(_ => global::System.Linq.Enumerable.Range(1,side));
     }
 
     [LinqIntercept(false)]
     protected IEnumerable<IEnumerable<int>> srcNestedCount(int elementCount) {
-        var side = (int)Math.Sqrt(this.CountForComparison(elementCount));
+        var side = (int)Math.Sqrt(this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount)));
         return global::System.Linq.Enumerable.Range(1,side).Select(_ => global::System.Linq.Enumerable.Range(1,side));
     }
 }
