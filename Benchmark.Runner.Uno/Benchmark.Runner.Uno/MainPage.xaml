@@ -394,15 +394,20 @@
           RowSpacing="6"
           RowDefinitions="Auto,Auto,160">
       <Grid ColumnSpacing="12"
-            ColumnDefinitions="*,Auto">
+            ColumnDefinitions="*,Auto,Auto">
         <TextBlock x:Name="StatusText"
                    Text="Ready"
                    Foreground="#3D4540" />
-        <HyperlinkButton x:Name="ReportLinkButton"
+        <HyperlinkButton x:Name="HtmlReportLinkButton"
                          Grid.Column="1"
-                         Content="Open HTML report"
+                         Content="HTML"
                          Visibility="Collapsed"
-                         Click="OnOpenReportClick" />
+                         Click="OnOpenHtmlReportClick" />
+        <HyperlinkButton x:Name="ChartReportLinkButton"
+                         Grid.Column="2"
+                         Content="Chart"
+                         Visibility="Collapsed"
+                         Click="OnOpenChartReportClick" />
       </Grid>
       <TextBox x:Name="LogTextBox"
                Grid.Row="2"

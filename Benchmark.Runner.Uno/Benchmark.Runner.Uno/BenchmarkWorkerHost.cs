@@ -73,19 +73,6 @@ internal static class BenchmarkWorkerHost{
         TextWriter protocolError){
         Directory.CreateDirectory(task.ArtifactFolder);
         var logPath = Path.Combine(task.ArtifactFolder,"worker.log");
-        if(IsDiagnosticBenchmark(task)){
-            const string log = "Diagnostic fast path completed.";
-            File.WriteAllText(logPath,log,Encoding.UTF8);
-            return new WorkerResultMessage(
-                task.TaskId,
-                "Completed",
-                "0.000 ns",
-                "0.000 ns",
-                "0.000 ns",
-                0,
-                task.ArtifactFolder,
-                log);
-        }
 
         using var logWriter = new StringWriter(CultureInfo.InvariantCulture);
         var originalOut = Console.Out;
@@ -122,10 +109,6 @@ internal static class BenchmarkWorkerHost{
             originalOut.Flush();
             originalError.Flush();
         }
-    }
-
-    private static bool IsDiagnosticBenchmark(WorkerTaskMessage task){
-        return string.Equals(task.MethodName,"Diagnostic_Instant",StringComparison.Ordinal);
     }
 
     private static Type ResolveBenchmarkType(string assemblyName,string typeFullName){

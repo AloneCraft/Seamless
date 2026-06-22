@@ -30,7 +30,8 @@ public sealed partial class MainPage:Page{
     private BenchmarkProject canonicalMethodProject => benchmarkProjects[0];
 
     private CancellationTokenSource? runCancellation;
-    private string? lastReportPath;
+    private string? htmlReportPath;
+    private string? chartReportPath;
     private string? currentRunRoot;
     private int? selectionAnchorIndex;
     private bool isShiftDown;
@@ -38,6 +39,8 @@ public sealed partial class MainPage:Page{
     private bool isBusy;
     private bool isRunning;
     private bool projectSelectionDirty = true;
+
+    private sealed record RunReportPaths(string? CsvPath,string? HtmlPath,string? ChartHtmlPath);
 
     public MainPage(){
         InitializeComponent();
@@ -280,14 +283,22 @@ public sealed partial class MainPage:Page{
         KillAllRunningProcesses(requeue:false);
     }
 
-    private void OnOpenReportClick(object sender,RoutedEventArgs e){
-        if(string.IsNullOrWhiteSpace(lastReportPath)||!File.Exists(lastReportPath)){
+    private void OnOpenHtmlReportClick(object sender,RoutedEventArgs e){
+        OpenReport(htmlReportPath);
+    }
+
+    private void OnOpenChartReportClick(object sender,RoutedEventArgs e){
+        OpenReport(chartReportPath);
+    }
+
+    private void OpenReport(string? path){
+        if(string.IsNullOrWhiteSpace(path)||!File.Exists(path)){
             SetStatus("Report file was not found.");
             return;
         }
 
         Process.Start(new ProcessStartInfo{
-            FileName = lastReportPath,
+            FileName = path,
             UseShellExecute = true,
         });
     }
@@ -349,7 +360,7 @@ public sealed partial class MainPage:Page{
         var selectedMethodNames = GetSelectedMethodNames();
         benchmarks.Clear();
         selectionAnchorIndex=null;
-        SetReportPath(null);
+        SetReportPaths(null,null);
         LogTextBox.Text=string.Empty;
         SetStatus("Loading canonical method list...");
 
@@ -382,7 +393,7 @@ public sealed partial class MainPage:Page{
     private async Task RunBenchmarksAsync(IReadOnlyList<BenchmarkProject> projects,IReadOnlyList<BenchmarkItem> selectedMethods){
         runCancellation=new CancellationTokenSource();
         currentRunRoot=CreateRunRoot(GetConfiguration());
-        SetReportPath(null);
+        SetReportPaths(null,null);
         SetBusy(true,allowCpuChanges:true);
         SetStatus($"Preparing {projects.Count} project(s) x {selectedMethods.Count} method(s) = {projects.Count*selectedMethods.Count} task(s)...");
         runningItems.Clear();
@@ -401,20 +412,20 @@ public sealed partial class MainPage:Page{
             UpdateProgress();
             StartWorkersForSelectedCpus();
             await WaitForRunCompletionAsync(runCancellation.Token);
-            var reportPath = CreateRunReport(currentRunRoot,includeHtml:true);
-            SetReportPath(reportPath);
+            var reportPaths = CreateRunReport(currentRunRoot,includeHtml:true);
+            SetReportPaths(reportPaths.HtmlPath,reportPaths.ChartHtmlPath);
             var failed = allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Failed);
             SetStatus(failed==0
                 ? "Benchmarks completed."
                 : $"Benchmarks completed with {failed} failed task(s).");
         }catch(OperationCanceledException){
-            var reportPath = CreateRunReport(currentRunRoot,includeHtml:true);
-            SetReportPath(reportPath);
+            var reportPaths = CreateRunReport(currentRunRoot,includeHtml:true);
+            SetReportPaths(reportPaths.HtmlPath,reportPaths.ChartHtmlPath);
             SetStatus("Benchmark canceled. Partial report was written.");
             AppendLog("Canceled.");
         }catch(Exception ex){
-            var reportPath = CreateRunReport(currentRunRoot,includeHtml:true);
-            SetReportPath(reportPath);
+            var reportPaths = CreateRunReport(currentRunRoot,includeHtml:true);
+            SetReportPaths(reportPaths.HtmlPath,reportPaths.ChartHtmlPath);
             SetStatus(ex.Message);
             AppendLog(ex.ToString());
         }finally{
@@ -501,8 +512,7 @@ public sealed partial class MainPage:Page{
         return canonicalMethods
             .GroupBy(static method => method.MethodName,StringComparer.OrdinalIgnoreCase)
             .Select(static group => group.First())
-            .OrderBy(static method => IsDiagnosticBenchmark(method) ? 0 : 1)
-            .ThenBy(static method => method.MethodName,StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static method => method.MethodName,StringComparer.OrdinalIgnoreCase)
             .Select(method => {
                 var methodsByProject = projects.ToDictionary(
                     static project => project.ProjectKey,
@@ -516,14 +526,6 @@ public sealed partial class MainPage:Page{
                 return new BenchmarkItem(method.MethodName,method.MethodName,method.Categories,methodsByProject);
             })
             .ToArray();
-    }
-
-    private static bool IsDiagnosticBenchmark(BenchmarkProjectMethod method){
-        return string.Equals(method.MethodName,"Diagnostic_Instant",StringComparison.Ordinal);
-    }
-
-    private static bool IsDiagnosticBenchmark(string methodName){
-        return string.Equals(methodName,"Diagnostic_Instant",StringComparison.Ordinal);
     }
 
     private void StartWorkersForSelectedCpus(){
@@ -808,9 +810,7 @@ public sealed partial class MainPage:Page{
         while(true){
             cancellationToken.ThrowIfCancellationRequested();
             var lineTask = worker.StandardOutput.ReadLineAsync(cancellationToken).AsTask();
-            var line = IsDiagnosticBenchmark(message.MethodName)
-                ? await lineTask.WaitAsync(TimeSpan.FromSeconds(10),cancellationToken)
-                : await lineTask;
+            var line = await lineTask;
             if(line is null){
                 throw new InvalidOperationException($"Benchmark worker exited before returning result. ExitCode: {(worker.HasExited?worker.ExitCode:null)}");
             }
@@ -1186,9 +1186,9 @@ public sealed partial class MainPage:Page{
         return (string.Empty,string.Empty,string.Empty);
     }
 
-    private string? CreateRunReport(string? runRoot,bool includeHtml){
+    private RunReportPaths CreateRunReport(string? runRoot,bool includeHtml){
         if(string.IsNullOrWhiteSpace(runRoot)){
-            return null;
+            return new RunReportPaths(null,null,null);
         }
 
         Directory.CreateDirectory(runRoot);
@@ -1212,13 +1212,16 @@ public sealed partial class MainPage:Page{
         WriteRunCsv(csvPath,rows);
         if(!includeHtml){
             AppendLog($"Comparison CSV: {csvPath}");
-            return csvPath;
+            return new RunReportPaths(csvPath,null,null);
         }
 
         var htmlPath = Path.Combine(runRoot,"BenchmarkComparison.html");
+        var chartHtmlPath = Path.Combine(runRoot,"BenchmarkComparisonChart.html");
         WriteRunHtml(htmlPath,rows);
+        WriteRunChartHtml(chartHtmlPath,rows);
         AppendLog($"Comparison report: {htmlPath}");
-        return htmlPath;
+        AppendLog($"Comparison chart: {chartHtmlPath}");
+        return new RunReportPaths(csvPath,htmlPath,chartHtmlPath);
     }
 
     private static void WriteRunCsv(string path,IReadOnlyList<ReportRow> rows){
@@ -1227,6 +1230,10 @@ public sealed partial class MainPage:Page{
 
     private static void WriteRunHtml(string path,IReadOnlyList<ReportRow> rows){
         File.WriteAllText(path,BenchmarkReportFormatter.BuildHtml(rows,DateTimeOffset.Now),Encoding.UTF8);
+    }
+
+    private static void WriteRunChartHtml(string path,IReadOnlyList<ReportRow> rows){
+        File.WriteAllText(path,BenchmarkReportFormatter.BuildChartHtml(rows,DateTimeOffset.Now),Encoding.UTF8);
     }
 
     private void SetBusy(bool value,bool allowCpuChanges){
@@ -1244,14 +1251,14 @@ public sealed partial class MainPage:Page{
         UpdateCommandState();
     }
 
-    private void SetReportPath(string? path){
+    private void SetReportPaths(string? htmlPath,string? chartHtmlPath){
         RunOnUi(() => {
-            lastReportPath=path;
-            var extension = string.IsNullOrWhiteSpace(path)?string.Empty:Path.GetExtension(path);
-            ReportLinkButton.Content=extension.Equals(".html",StringComparison.OrdinalIgnoreCase)
-                ? "Open HTML report"
-                : "Open report";
-            ReportLinkButton.Visibility=string.IsNullOrWhiteSpace(path)
+            htmlReportPath=htmlPath;
+            chartReportPath=chartHtmlPath;
+            HtmlReportLinkButton.Visibility=string.IsNullOrWhiteSpace(htmlPath)
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+            ChartReportLinkButton.Visibility=string.IsNullOrWhiteSpace(chartHtmlPath)
                 ? Visibility.Collapsed
                 : Visibility.Visible;
         });
