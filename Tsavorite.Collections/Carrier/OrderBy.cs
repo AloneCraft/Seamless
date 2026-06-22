@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static ValueEnumerable<OrderBy<TEnumerator,TSource,TSource>,TSource> Order<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source)
             where TEnumerator : struct, IValueEnumerator<TSource>
@@ -80,7 +80,7 @@
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     // OrderBy has ThenBy/ThenByDescending instance methods.
 
     [StructLayout(LayoutKind.Auto)]

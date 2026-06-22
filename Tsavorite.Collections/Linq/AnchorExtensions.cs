@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Linq;
+﻿namespace Seamless.Collections.Tsavorite.Linq;
 
 public static class AnchorExtensions {
     extension<T>(T value) {

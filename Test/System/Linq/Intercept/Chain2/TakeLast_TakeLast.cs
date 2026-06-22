@@ -12,7 +12,7 @@ public sealed class TakeLast_TakeLast(ITestOutputHelper output):LinqChain2TestBa
         this.MeasureOptimized(nameof(SpanFusionNoOptimized),()=>SpanFusionNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void SpanFusionOptimized(dynamic expected) {
                 //span経路(配列)・引数違いでmin融合になること
         var actual=new Consumer<int>();
@@ -20,7 +20,7 @@ public sealed class TakeLast_TakeLast(ITestOutputHelper output):LinqChain2TestBa
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void SpanFusionNoOptimized(dynamic expected) {
                 //span経路(配列)・引数違いでmin融合になること
         var actual=new Consumer<int>();
@@ -36,7 +36,7 @@ public sealed class TakeLast_TakeLast(ITestOutputHelper output):LinqChain2TestBa
         this.MeasureOptimized(nameof(SpanChain3NoOptimized),()=>SpanChain3NoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void SpanChain3Optimized(dynamic expected) {
                 //span経路・3段連鎖
         var actual=new Consumer<int>();
@@ -44,7 +44,7 @@ public sealed class TakeLast_TakeLast(ITestOutputHelper output):LinqChain2TestBa
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void SpanChain3NoOptimized(dynamic expected) {
                 //span経路・3段連鎖
         var actual=new Consumer<int>();
@@ -60,7 +60,7 @@ public sealed class TakeLast_TakeLast(ITestOutputHelper output):LinqChain2TestBa
         this.MeasureOptimized(nameof(NonSpanQueuePathNoOptimized),()=>NonSpanQueuePathNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void NonSpanQueuePathOptimized(dynamic expected) {
                 //非span経路(Where挟みでQueue経路)
         var actual=new Consumer<int>();
@@ -68,7 +68,7 @@ public sealed class TakeLast_TakeLast(ITestOutputHelper output):LinqChain2TestBa
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void NonSpanQueuePathNoOptimized(dynamic expected) {
                 //非span経路(Where挟みでQueue経路)
         var actual=new Consumer<int>();

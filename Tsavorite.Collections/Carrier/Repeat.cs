@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromRepeat<T>,T> Repeat<T>(T element,int count) {
             if(count<0) {
@@ -10,7 +10,7 @@
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromRepeat<T>(T _element,int _count):IValueEnumerator<T> {

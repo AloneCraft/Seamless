@@ -13,14 +13,14 @@ public sealed class GroupJoin(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(keySelectors_resultSelector_StaticNoOptimized),()=>keySelectors_resultSelector_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelector_StaticOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().GroupJoin(Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,group) => group.Sum()+outerValue).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelector_StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().GroupJoin(Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,group) => group.Sum()+outerValue).Consume(actual);
@@ -34,14 +34,14 @@ public sealed class GroupJoin(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(keySelectors_resultSelector_LambdaNoOptimized),()=>keySelectors_resultSelector_LambdaNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelector_LambdaOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().GroupJoin(Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,group) => group.Sum()+outerValue).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelector_LambdaNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().GroupJoin(Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,group) => group.Sum()+outerValue).Consume(actual);
@@ -55,14 +55,14 @@ public sealed class GroupJoin(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(keySelectors_resultSelector_QueryNoOptimized),()=>keySelectors_resultSelector_QueryNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelector_QueryOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         (from outerValue in Source() join innerValue in Second() on outerValue equals innerValue into grouping select grouping.Sum()+outerValue).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelector_QueryNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         (from outerValue in Source() join innerValue in Second() on outerValue equals innerValue into grouping select grouping.Sum()+outerValue).Consume(actual);
@@ -77,7 +77,7 @@ public sealed class GroupJoin(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(keySelectors_resultSelector_CapturedNoOptimized),()=>keySelectors_resultSelector_CapturedNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelector_CapturedOptimized(dynamic expected) {
         var offset=0;
         var actual=new Consumer<int>();
@@ -85,7 +85,7 @@ public sealed class GroupJoin(ITestOutputHelper output):LinqChain1TestBase(outpu
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelector_CapturedNoOptimized(dynamic expected) {
         var offset=0;
         var actual=new Consumer<int>();
@@ -100,14 +100,14 @@ public sealed class GroupJoin(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(keySelectors_resultSelector_DelegateSyntaxNoOptimized),()=>keySelectors_resultSelector_DelegateSyntaxNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelector_DelegateSyntaxOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().GroupJoin(Second(),delegate(int outerValue) { return outerValue; },delegate(int innerValue) { return innerValue; },delegate(int outerValue,IEnumerable<int> group) { return group.Sum()+outerValue; }).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelector_DelegateSyntaxNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().GroupJoin(Second(),delegate(int outerValue) { return outerValue; },delegate(int innerValue) { return innerValue; },delegate(int outerValue,IEnumerable<int> group) { return group.Sum()+outerValue; }).Consume(actual);
@@ -124,7 +124,7 @@ public sealed class GroupJoin(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(keySelectors_resultSelector_VariableNoOptimized),()=>keySelectors_resultSelector_VariableNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelector_VariableOptimized(dynamic expected) {
         Func<int,int> outerKeySelector=outerValue => outerValue;
         Func<int,int> innerKeySelector=innerValue => innerValue;
@@ -134,7 +134,7 @@ public sealed class GroupJoin(ITestOutputHelper output):LinqChain1TestBase(outpu
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelector_VariableNoOptimized(dynamic expected) {
         Func<int,int> outerKeySelector=outerValue => outerValue;
         Func<int,int> innerKeySelector=innerValue => innerValue;

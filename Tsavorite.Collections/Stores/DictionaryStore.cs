@@ -1,6 +1,6 @@
-﻿using Tsavorite.Collections;
-using Tsavorite.Devices;
-namespace Tsavorite.Stores;
+using Seamless.Collections.Tsavorite;
+using Seamless.Collections.Tsavorite.Devices;
+namespace Seamless.Collections.Tsavorite.Stores;
 
 public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
     private readonly bool keyUsesMemoryPackSerializer;
@@ -24,7 +24,7 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
         this.valueUsesMemoryPackSerializer=valueUsesMemoryPackSerializer;
     }
 
-    public Collections.IDictionary<TKey,TValue> Create() {
+    public Seamless.Collections.Tsavorite.IDictionary<TKey,TValue> Create() {
         if(this.keyUsesMemoryPackSerializer) {
             if(this.valueUsesMemoryPackSerializer) {
                 return new Dictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(this);
@@ -54,13 +54,13 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
         return dictionary.GetLongCount();
     }
 
-    private Collections.IDictionary<TKey,TValue> CreateDictionary(Type dictionaryOpenType,Type keySerializerOpenType,Type valueSerializerOpenType) {
+    private Seamless.Collections.Tsavorite.IDictionary<TKey,TValue> CreateDictionary(Type dictionaryOpenType,Type keySerializerOpenType,Type valueSerializerOpenType) {
         var dictionaryType = dictionaryOpenType.MakeGenericType(
             typeof(TKey),
             typeof(TValue),
             keySerializerOpenType.MakeGenericType(typeof(TKey)),
             valueSerializerOpenType.MakeGenericType(typeof(TValue)));
-        return (Collections.IDictionary<TKey,TValue>)Activator.CreateInstance(
+        return (Seamless.Collections.Tsavorite.IDictionary<TKey,TValue>)Activator.CreateInstance(
             dictionaryType,
             BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic,
             binder: null,

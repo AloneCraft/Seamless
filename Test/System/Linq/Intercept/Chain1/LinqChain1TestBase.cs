@@ -1,6 +1,6 @@
 using System.Linq;
 
-using Tsavorite;
+using Seamless.Collections.Tsavorite;
 
 namespace Test.System.Linq.Intercept.Chain1;
 
@@ -88,7 +88,7 @@ public abstract class LinqChain1TestBase(ITestOutputHelper output) {
         }
     }
 
-    public static void AssertDictionaryEqual<TKey,TValue>(IDictionary<TKey,TValue> expected,IDictionary<TKey,TValue> actual)
+    public static void AssertDictionaryEqual<TKey,TValue>(global::System.Collections.Generic.IDictionary<TKey,TValue> expected,global::System.Collections.Generic.IDictionary<TKey,TValue> actual)
         where TKey:notnull {
         Assert.Equal(expected.Count,actual.Count);
         foreach(var (key,value) in expected) {

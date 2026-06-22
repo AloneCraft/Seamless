@@ -13,14 +13,14 @@ public sealed class AsEnumerable(ITestOutputHelper output):LinqChain1TestBase(ou
         this.MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void NoDelegateOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().AsEnumerable().Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void NoDelegateNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().AsEnumerable().Consume(actual);

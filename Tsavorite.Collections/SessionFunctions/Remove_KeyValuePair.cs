@@ -1,5 +1,5 @@
-﻿using Tsavorite.Collections;
-namespace Tsavorite.SessionFunctions;
+﻿using Seamless.Collections.Tsavorite;
+namespace Seamless.Collections.Tsavorite.SessionFunctions;
 /// <summary>
 /// RMW で Key,Value 両方が一致するエントリのみ削除するセチE��ョン関数、E
 /// output=true で削除成功を通知する、E

@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 public class IntersectBy(int 番号, Enumerable source, Enumerable second, FuncFragment keySelector) : IntersectBy_comparer(番号, source, second, keySelector, "null") { }
 

@@ -11,13 +11,13 @@ public sealed class ToHashSet(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void NoDelegateOptimized(dynamic expected) {
         var actual=Source().ToHashSet();
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void NoDelegateNoOptimized(dynamic expected) {
         var actual=Source().ToHashSet();
         AssertSequenceEqual(expected,actual);
@@ -30,13 +30,13 @@ public sealed class ToHashSet(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(comparerNoOptimized),()=>comparerNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void comparerOptimized(dynamic expected) {
         var actual=Source().ToHashSet(EqualityComparer<int>.Default);
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void comparerNoOptimized(dynamic expected) {
         var actual=Source().ToHashSet(EqualityComparer<int>.Default);
         AssertSequenceEqual(expected,actual);

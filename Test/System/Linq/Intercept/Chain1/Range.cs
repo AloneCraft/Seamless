@@ -12,13 +12,13 @@ public sealed class Range(ITestOutputHelper output):LinqChain1TestBase(output) {
         this.MeasureOptimized(nameof(start_countNoOptimized),()=>start_countNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void start_countOptimized(dynamic expected) {
         var actual=Enumerable.Range(1,4).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void start_countNoOptimized(dynamic expected) {
         var actual=Enumerable.Range(1,4).ToList();
         AssertSequenceEqual(expected,actual);

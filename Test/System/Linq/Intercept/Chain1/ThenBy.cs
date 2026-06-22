@@ -11,14 +11,14 @@ public sealed class ThenBy(ITestOutputHelper output):LinqChain1TestBase(output) 
         this.MeasureOptimized(nameof(keySelector_StaticNoOptimized),()=>keySelector_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_StaticOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().OrderBy(static row => row.Key).ThenBy(static row => row.Name).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().OrderBy(static row => row.Key).ThenBy(static row => row.Name).Consume(actual);
@@ -32,14 +32,14 @@ public sealed class ThenBy(ITestOutputHelper output):LinqChain1TestBase(output) 
         this.MeasureOptimized(nameof(keySelector_QueryNoOptimized),()=>keySelector_QueryNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_QueryOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         (from row in Rows() orderby row.Key,row.Name select row).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_QueryNoOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         (from row in Rows() orderby row.Key,row.Name select row).Consume(actual);
@@ -53,14 +53,14 @@ public sealed class ThenBy(ITestOutputHelper output):LinqChain1TestBase(output) 
         this.MeasureOptimized(nameof(keySelector_LambdaNoOptimized),()=>keySelector_LambdaNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_LambdaOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().OrderBy(row => row.Key).ThenBy(row => row.Name).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_LambdaNoOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().OrderBy(row => row.Key).ThenBy(row => row.Name).Consume(actual);
@@ -75,7 +75,7 @@ public sealed class ThenBy(ITestOutputHelper output):LinqChain1TestBase(output) 
         this.MeasureOptimized(nameof(keySelector_CapturedNoOptimized),()=>keySelector_CapturedNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_CapturedOptimized(dynamic expected) {
         var suffix="";
         var actual=new Consumer<Chain1Row>();
@@ -83,7 +83,7 @@ public sealed class ThenBy(ITestOutputHelper output):LinqChain1TestBase(output) 
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_CapturedNoOptimized(dynamic expected) {
         var suffix="";
         var actual=new Consumer<Chain1Row>();
@@ -98,14 +98,14 @@ public sealed class ThenBy(ITestOutputHelper output):LinqChain1TestBase(output) 
         this.MeasureOptimized(nameof(keySelector_DelegateSyntaxNoOptimized),()=>keySelector_DelegateSyntaxNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_DelegateSyntaxOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().OrderBy(row => row.Key).ThenBy(delegate(Chain1Row row) { return row.Name; }).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_DelegateSyntaxNoOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().OrderBy(row => row.Key).ThenBy(delegate(Chain1Row row) { return row.Name; }).Consume(actual);
@@ -120,7 +120,7 @@ public sealed class ThenBy(ITestOutputHelper output):LinqChain1TestBase(output) 
         this.MeasureOptimized(nameof(keySelector_VariableNoOptimized),()=>keySelector_VariableNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_VariableOptimized(dynamic expected) {
         Func<Chain1Row,string> keySelector=row => row.Name;
         var actual=new Consumer<Chain1Row>();
@@ -128,7 +128,7 @@ public sealed class ThenBy(ITestOutputHelper output):LinqChain1TestBase(output) 
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_VariableNoOptimized(dynamic expected) {
         Func<Chain1Row,string> keySelector=row => row.Name;
         var actual=new Consumer<Chain1Row>();
@@ -143,14 +143,14 @@ public sealed class ThenBy(ITestOutputHelper output):LinqChain1TestBase(output) 
         this.MeasureOptimized(nameof(keySelector_comparerNoOptimized),()=>keySelector_comparerNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_comparerOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().OrderBy(static row => row.Key).ThenBy(static row => row.Name,StringComparer.Ordinal).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_comparerNoOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().OrderBy(static row => row.Key).ThenBy(static row => row.Name,StringComparer.Ordinal).Consume(actual);

@@ -14,14 +14,14 @@ public sealed class WhereConjunction:OptimizationTestBase{
         TwoWhereNoOptimized(expected);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void TwoWhereOptimized(dynamic expected) {
         var actual=new Consumer<int>();
                 Numbers().Where(static x => x>2).Where(static x => x%2==0).Consume(actual);
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void TwoWhereNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
                 Numbers().Where(static x => x>2).Where(static x => x%2==0).Consume(actual);
@@ -35,14 +35,14 @@ public sealed class WhereConjunction:OptimizationTestBase{
         ThreeWhereNoOptimized(expected);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void ThreeWhereOptimized(dynamic expected) {
         var actual=new Consumer<int>();
                 Numbers().Where(static x => x>1).Where(static x => x<9).Where(static x => x%2==1).Consume(actual);
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void ThreeWhereNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
                 Numbers().Where(static x => x>1).Where(static x => x<9).Where(static x => x%2==1).Consume(actual);

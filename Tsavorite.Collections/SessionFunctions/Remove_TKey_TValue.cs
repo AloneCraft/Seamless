@@ -1,5 +1,5 @@
-﻿using Tsavorite.Collections;
-namespace Tsavorite.SessionFunctions;
+﻿using Seamless.Collections.Tsavorite;
+namespace Seamless.Collections.Tsavorite.SessionFunctions;
 
 /// <summary>
 /// Dictionary 用の Remove(key, out value) セチE��ョン関数、E

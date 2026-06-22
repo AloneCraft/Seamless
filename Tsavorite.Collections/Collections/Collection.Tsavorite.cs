@@ -1,7 +1,7 @@
-﻿using Persistent.Collections;
-using Tsavorite.SessionFunctions;
-using Tsavorite.Stores;
-namespace Tsavorite.Collections;
+using Seamless.Collections.Persisted;
+using Seamless.Collections.Tsavorite.SessionFunctions;
+using Seamless.Collections.Tsavorite.Stores;
+namespace Seamless.Collections.Tsavorite;
 
 [DebuggerDisplay("EntryCount={EntryCount}")]
 public abstract class Collection<
@@ -43,7 +43,7 @@ public abstract class Collection<
     /// <see cref="SetList"/> 縺ｧ蜃ｺ蜉帛・繝ｪ繧ｹ繝医ｒ蟾ｮ縺苓ｾｼ繧縲・
     /// </summary>
     public abstract class ScanIteratorFunctions_List<T, TList>:IScanIteratorFunctions
-        where TList : ListBase<T> {
+        where TList : PersistedList<T> {
         private const int MinimumScanChunkLength = 4096;
         public readonly T[] Chunk = new T[Math.Max(Const.Chunk_Length,MinimumScanChunkLength)];
         public int Count;
@@ -91,7 +91,7 @@ public abstract class Collection<
     }
 
     public abstract class MemoryScanIteratorFunctions<T, TList>:ScanIteratorFunctions_List<T,TList>
-        where TList : ListBase<T> {
+        where TList : PersistedList<T> {
         private protected sealed override bool ShouldRead<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             typeof(TSourceLogRecord)!=typeof(DiskLogRecord);
     }
@@ -788,7 +788,7 @@ public abstract class Collection<
         var ReadSession = self.ReadSession;
         var workListPath = CreateTemporaryWorkListPath("intersect-with");
         try {
-            using var keysToExpire = new List<byte[],RawByteArraySerializer>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            using var keysToExpire = new SerializedList<byte[],RawByteArraySerializer>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
             var Iterator = new ScanIteratorFunctions_IntersectWith<TCollection>(other,keysToExpire);
             // IntersectWith 縺ｯ襍ｰ譟ｻ縺励↑縺後ｉ RMW 縺ｧ tombstone 繧定ｿｽ險倥☆繧九◆繧√・
             // 襍ｰ譟ｻ髢句ｧ区凾縺ｮ TailAddress 繧剃ｸ企剞縺ｫ蝗ｺ螳壹＠縺ｦ譁ｰ隕剰ｿｽ險伜・繧貞・襍ｰ譟ｻ縺励↑縺・・
@@ -908,7 +908,7 @@ public abstract class Collection<
     }
     private readonly struct ScanIteratorFunctions_IntersectWith<TCollection>(
         TCollection other,
-        List<byte[],RawByteArraySerializer> keysToExpire
+        SerializedList<byte[],RawByteArraySerializer> keysToExpire
     ):IScanIteratorFunctions
         where TCollection : Collection<
             TKey,

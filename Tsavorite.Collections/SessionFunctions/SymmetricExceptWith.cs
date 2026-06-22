@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SessionFunctions;
+﻿namespace Seamless.Collections.Tsavorite.SessionFunctions;
 
 internal readonly struct SymmetricExceptWith:
     ISessionFunctions<EqualityEmpty,EqualityEmpty,EqualityEmpty> {

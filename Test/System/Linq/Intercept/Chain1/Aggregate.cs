@@ -1,7 +1,7 @@
 using System.Linq;
 
-using Tsavorite;
-using Tsavorite.SourceGenerator;
+using Seamless.Collections.Tsavorite;
+using Seamless.FLinq;
 // ReSharper disable ConvertClosureToMethodGroup
 //���ڎw�肷��ƃC���^�[�Z�v�g����Ȃ�
 

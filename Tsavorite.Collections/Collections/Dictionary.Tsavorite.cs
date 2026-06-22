@@ -1,7 +1,7 @@
-﻿using Persistent.Collections;
-using Tsavorite.SessionFunctions;
-using Tsavorite.Stores;
-namespace Tsavorite.Collections;
+using Seamless.Collections.Persisted;
+using Seamless.Collections.Tsavorite.SessionFunctions;
+using Seamless.Collections.Tsavorite.Stores;
+namespace Seamless.Collections.Tsavorite;
 
 public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> {
     private ClientSession<
@@ -87,13 +87,13 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
     > GetEnumerator() => new(this.ReadSession,new(),this.Store.Log.TailAddress);
     IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new(),this.Store.Log.TailAddress);
     private ReadOnlyCollectionView<TIterator,T> CreateCollectionView<TIterator,T>()
-        where TIterator : ScanIteratorFunctions_List<T,ListBase<T>>,ICreate<TIterator> =>
+        where TIterator : ScanIteratorFunctions_List<T,PersistedList<T>>,ICreate<TIterator> =>
         new(this);
 
     private sealed class ReadOnlyCollectionView<TIterator,T>(
         Dictionary<TKey,TValue,TKeySerializer,TValueSerializer> dictionary
     ):ICollection<T>
-        where TIterator : ScanIteratorFunctions_List<T,ListBase<T>>,ICreate<TIterator> {
+        where TIterator : ScanIteratorFunctions_List<T,PersistedList<T>>,ICreate<TIterator> {
         public int Count => checked((int)dictionary.GetLongCount());
         public bool IsReadOnly => true;
         public void Add(T item) => throw new NotSupportedException();

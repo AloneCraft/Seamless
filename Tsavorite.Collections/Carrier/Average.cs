@@ -1,6 +1,6 @@
 ﻿// System.Linq returns float -> float, decimal -> decimal, others(int, long, double) -> double
 
-namespace Tsavorite.Carrier;
+namespace Seamless.Collections.Tsavorite.Carrier;
 
 partial class ValueEnumerableExtensions {
     // (), (nullable), (selector), (selector(nullable))

@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Collections;
+﻿namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
 /// Tsavorite バックエンドを持つ HashSet の共通インターフェース。

@@ -1,6 +1,6 @@
-﻿using Tsavorite.Devices;
+using Seamless.Collections.Tsavorite.Devices;
 
-namespace Tsavorite.Stores;
+namespace Seamless.Collections.Tsavorite.Stores;
 
 /// <summary>
 /// Tsavorite ストアを管?E??る抽象基底クラス、E
@@ -143,7 +143,7 @@ public abstract partial class CollectionStore<
     }
 
     private void WriteRecoveryIndexMetadata(Guid token) {
-        global::Tsavorite.Store.WriteRecoveryIndexMetadata(this.Settings.CheckpointDir!,token,this.GetRecoveryEntryCount());
+        global::Seamless.Collections.Tsavorite.Store.WriteRecoveryIndexMetadata(this.Settings.CheckpointDir!,token,this.GetRecoveryEntryCount());
     }
 
     public Guid SaveLogOnly(CheckpointType CheckpointType = CheckpointType.Snapshot) => this.SaveLogOnlyAsync(CheckpointType).GetAwaiter().GetResult();

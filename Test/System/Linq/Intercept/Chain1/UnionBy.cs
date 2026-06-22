@@ -11,13 +11,13 @@ public sealed class UnionBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(keySelector_StaticNoOptimized),()=>keySelector_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_StaticOptimized(dynamic expected) {
         var actual=Rows().UnionBy(OtherRows(),static row => row.Key).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_StaticNoOptimized(dynamic expected) {
         var actual=Rows().UnionBy(OtherRows(),static row => row.Key).ToList();
         AssertSequenceEqual(expected,actual);
@@ -30,13 +30,13 @@ public sealed class UnionBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(keySelector_LambdaNoOptimized),()=>keySelector_LambdaNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_LambdaOptimized(dynamic expected) {
         var actual=Rows().UnionBy(OtherRows(),row => row.Key).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_LambdaNoOptimized(dynamic expected) {
         var actual=Rows().UnionBy(OtherRows(),row => row.Key).ToList();
         AssertSequenceEqual(expected,actual);
@@ -50,14 +50,14 @@ public sealed class UnionBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(keySelector_CapturedNoOptimized),()=>keySelector_CapturedNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_CapturedOptimized(dynamic expected) {
         var offset=0;
         var actual=Rows().UnionBy(OtherRows(),row => row.Key+offset).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_CapturedNoOptimized(dynamic expected) {
         var offset=0;
         var actual=Rows().UnionBy(OtherRows(),row => row.Key+offset).ToList();
@@ -71,13 +71,13 @@ public sealed class UnionBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(keySelector_DelegateSyntaxNoOptimized),()=>keySelector_DelegateSyntaxNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_DelegateSyntaxOptimized(dynamic expected) {
         var actual=Rows().UnionBy(OtherRows(),delegate(Chain1Row row) { return row.Key; }).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_DelegateSyntaxNoOptimized(dynamic expected) {
         var actual=Rows().UnionBy(OtherRows(),delegate(Chain1Row row) { return row.Key; }).ToList();
         AssertSequenceEqual(expected,actual);
@@ -91,14 +91,14 @@ public sealed class UnionBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(keySelector_VariableNoOptimized),()=>keySelector_VariableNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_VariableOptimized(dynamic expected) {
         Func<Chain1Row,int> keySelector=row => row.Key;
         var actual=Rows().UnionBy(OtherRows(),keySelector).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_VariableNoOptimized(dynamic expected) {
         Func<Chain1Row,int> keySelector=row => row.Key;
         var actual=Rows().UnionBy(OtherRows(),keySelector).ToList();

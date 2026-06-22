@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Stores;
+﻿namespace Seamless.Collections.Tsavorite.Stores;
 
 public abstract partial class CollectionStore<TKey, TValue>
    :CollectionStore<

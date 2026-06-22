@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Tsavorite.SourceGenerator;
+namespace Seamless.FLinq;
 
 // 匿名型を「名指し可能なジェネリック record struct」へ透過置換するためのレジストリ。
 //

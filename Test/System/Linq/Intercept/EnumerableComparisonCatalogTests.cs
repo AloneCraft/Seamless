@@ -1,6 +1,6 @@
 using System.Linq;
 
-using Tsavorite;
+using Seamless.Collections.Tsavorite;
 
 namespace Test.System.Linq.Intercept;
 

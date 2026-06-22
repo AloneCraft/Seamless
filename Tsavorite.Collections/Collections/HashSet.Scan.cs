@@ -1,4 +1,4 @@
-namespace Tsavorite.Collections;
+namespace Seamless.Collections.Tsavorite;
 
 internal interface IHashSetScanStrategy<TSelf, T>
     where TSelf : struct, IHashSetScanStrategy<TSelf,T> {

@@ -1,10 +1,11 @@
+using Xunit.Abstractions;
+
 namespace Test.SourceGenerator;
 
-public class LinqRewriteAttributeTests {
-    // メソッドに [LinqIntercept(false)] を付けると、LINQ を含んでいてもインターセプターが生成されない。
+public class LinqRewriteAttributeTests(ITestOutputHelper output) {
     private const string NoRewriteOnMethod = """
         using System.Linq;
-        using Tsavorite.SourceGenerator;
+        using Seamless.FLinq;
         namespace Sample;
         public class Container {
             [LinqIntercept(false)]
@@ -13,7 +14,6 @@ public class LinqRewriteAttributeTests {
         }
         """;
 
-    // 属性が無ければ、デフォルトで展開（インターセプター生成）される。
     private const string DefaultRewrite = """
         using System.Linq;
         namespace Sample;
@@ -25,7 +25,7 @@ public class LinqRewriteAttributeTests {
 
     private const string CounterWithoutOptimization = """
         using System.Linq;
-        using Tsavorite.SourceGenerator;
+        using Seamless.FLinq;
         namespace Sample;
         public class Container {
             [LinqIntercept(false,LinqInstrumentation.Counter)]
@@ -34,10 +34,9 @@ public class LinqRewriteAttributeTests {
         }
         """;
 
-    // クラスに [LinqIntercept(false)] を付けると、配下のメソッドは展開されない。
     private const string NoRewriteOnClass = """
         using System.Linq;
-        using Tsavorite.SourceGenerator;
+        using Seamless.FLinq;
         namespace Sample;
         [LinqIntercept(false)]
         public class Container {
@@ -46,10 +45,9 @@ public class LinqRewriteAttributeTests {
         }
         """;
 
-    // クラスに [LinqIntercept(false)] を付けても、メソッドの [LinqIntercept(true)] が優先され展開される。
     private const string MethodOverridesClass = """
         using System.Linq;
-        using Tsavorite.SourceGenerator;
+        using Seamless.FLinq;
         namespace Sample;
         [LinqIntercept(false)]
         public class Container {
@@ -59,10 +57,9 @@ public class LinqRewriteAttributeTests {
         }
         """;
 
-    // アセンブリ全体に [LinqIntercept(false)] を付けても、クラスの [LinqIntercept(true)] が優先され展開される。
     private const string ClassOverridesAssembly = """
         using System.Linq;
-        using Tsavorite.SourceGenerator;
+        using Seamless.FLinq;
         [assembly: LinqIntercept(false)]
         namespace Sample;
         [LinqIntercept(true)]
@@ -72,10 +69,9 @@ public class LinqRewriteAttributeTests {
         }
         """;
 
-    // ネストしたクラスでは、内側のクラスの属性が外側より優先される。
     private const string InnerClassOverridesOuter = """
         using System.Linq;
-        using Tsavorite.SourceGenerator;
+        using Seamless.FLinq;
         namespace Sample;
         [LinqIntercept(false)]
         public class Outer {
@@ -89,52 +85,74 @@ public class LinqRewriteAttributeTests {
 
     [Fact]
     public void NoLinqRewrite_OnMethod_NotIntercepted() {
-        Assert.False(IsSumPositiveIntercepted(NoRewriteOnMethod));
+        AssertNotIntercepted(NoRewriteOnMethod);
     }
 
     [Fact]
     public void NoAttribute_DefaultsToIntercepted() {
-        Assert.True(IsSumPositiveIntercepted(DefaultRewrite));
+        AssertIntercepted(DefaultRewrite);
     }
 
     [Fact]
     public void CounterInstrumentation_WithNoLinqOptimization_IsIntercepted() {
-        var generated=GeneratedSource(CounterWithoutOptimization);
-        Assert.Contains("MeasuredLinq_SumPositive",generated,StringComparison.Ordinal);
-        Assert.DoesNotContain("OptimizedLinq_SumPositive",generated,StringComparison.Ordinal);
+        var generated = GeneratedSource(CounterWithoutOptimization);
+        GeneratedSourceAssert.True(
+            generated.Contains("MeasuredLinq_SumPositive", StringComparison.Ordinal),
+            "Measured interceptor was not generated.",
+            generated,
+            output);
+        GeneratedSourceAssert.True(
+            !generated.Contains("OptimizedLinq_SumPositive", StringComparison.Ordinal),
+            "Optimized interceptor should not be generated.",
+            generated,
+            output);
     }
 
     [Fact]
     public void NoLinqRewrite_OnClass_NotIntercepted() {
-        Assert.False(IsSumPositiveIntercepted(NoRewriteOnClass));
+        AssertNotIntercepted(NoRewriteOnClass);
     }
 
     [Fact]
     public void LinqRewrite_OnMethod_OverridesNoRewriteOnClass() {
-        Assert.True(IsSumPositiveIntercepted(MethodOverridesClass));
+        AssertIntercepted(MethodOverridesClass);
     }
 
     [Fact]
     public void LinqRewrite_OnClass_OverridesNoRewriteOnAssembly() {
-        Assert.True(IsSumPositiveIntercepted(ClassOverridesAssembly));
+        AssertIntercepted(ClassOverridesAssembly);
     }
 
     [Fact]
     public void LinqRewrite_OnInnerClass_OverridesNoRewriteOnOuterClass() {
-        Assert.True(IsSumPositiveIntercepted(InnerClassOverridesOuter));
+        AssertIntercepted(InnerClassOverridesOuter);
     }
 
-    private static bool IsSumPositiveIntercepted(string source) {
-        return GeneratedSource(source).Contains("SumPositive_",StringComparison.Ordinal);
+    private void AssertIntercepted(string source) {
+        var generated = GeneratedSource(source);
+        GeneratedSourceAssert.True(
+            generated.Contains("SumPositive_", StringComparison.Ordinal),
+            "Expected SumPositive interceptor was not generated.",
+            generated,
+            output);
+    }
+
+    private void AssertNotIntercepted(string source) {
+        var generated = GeneratedSource(source);
+        GeneratedSourceAssert.True(
+            !generated.Contains("SumPositive_", StringComparison.Ordinal),
+            "SumPositive interceptor should not be generated.",
+            generated,
+            output);
     }
 
     private static string GeneratedSource(string source) {
-        var comp=GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
-        var driver=GeneratorTestHelpers.CreateDriver().RunGenerators(comp);
-        var result=driver.GetRunResult();
+        var comp = GeneratorTestHelpers.CreateCompilation([("Container.cs", source)]);
+        var driver = GeneratorTestHelpers.CreateDriver().RunGenerators(comp);
+        var result = driver.GetRunResult();
 
         return string.Concat(result.Results
-            .SelectMany(r=>r.GeneratedSources)
-            .Select(s=>s.SourceText.ToString()));
+            .SelectMany(r => r.GeneratedSources)
+            .Select(s => s.SourceText.ToString()));
     }
 }

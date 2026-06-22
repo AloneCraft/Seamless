@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier.Internal.Polyfill; // first priority
+﻿namespace Seamless.Collections.Tsavorite.Carrier.Internal.Polyfill; // first priority
 
 internal static class GC
 {

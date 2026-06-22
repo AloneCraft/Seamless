@@ -12,13 +12,13 @@ public sealed class Select_Sum(ITestOutputHelper output):LinqChain2TestBase(outp
         this.MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void StaticOptimized(dynamic expected) {
         var actual=Source().Select(static v => v*2).Sum();
                 Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void StaticNoOptimized(dynamic expected) {
         var actual=Source().Select(static v => v*2).Sum();
                 Assert.Equal(expected,actual);

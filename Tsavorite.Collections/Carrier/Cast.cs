@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     // Cast has been moved to instance method
 
     //    partial class ValueEnumerableExtensions
@@ -9,7 +9,7 @@
     //    }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct Cast<TEnumerator, TSource, TResult>(TEnumerator source)

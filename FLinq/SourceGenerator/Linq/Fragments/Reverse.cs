@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 public class Reverse(int 番号, Enumerable source) : Enumerable(番号) {
     private Enumerable Source => source;
@@ -9,7 +9,7 @@ public class Reverse(int 番号, Enumerable source) : Enumerable(番号) {
     public override string GetEnumerableExpression =>
         this.IsIdentity
             ? this.RootSource.GetEnumerableExpression
-            : $"global::Tsavorite.Carrier.ValueEnumerableExtensions.Reverse({this.RootSource.GetEnumerableExpression})";
+            : $"global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.Reverse({this.RootSource.GetEnumerableExpression})";
     public override string GetEnumeratorStruct => $$"""
         {{this.RootSource.GetEnumeratorStruct}}
         {{(this.IsIdentity ? string.Empty : base.GetEnumeratorStruct)}}

@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 public abstract class BufferedSequence(int 番号,string elementType) : Enumerable(番号) {
     protected abstract string BuildExpression { get; }

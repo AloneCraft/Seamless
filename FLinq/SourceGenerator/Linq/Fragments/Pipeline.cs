@@ -1,8 +1,8 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Tsavorite.SourceGenerator;
+using Seamless.FLinq;
 
-namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 
 public enum PipelineStageKind {
     Where,
@@ -706,7 +706,7 @@ public static class PipelineBuilder {
             }
             var containingType = (method.ReducedFrom ?? method).ContainingType.ToDisplayString();
             if(containingType!="System.Linq.Enumerable"
-                && containingType!="Tsavorite.Linq.Enumerable") {
+                && containingType!="Seamless.Collections.Tsavorite.Linq.Enumerable") {
                 break;
             }
             invocations.Add(currentInvocation);
@@ -1755,9 +1755,9 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
     }
     protected override string StructTypeConstraints {
         get {
-            var constraints = new List<string> { $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Tsavorite.Carrier.IValueEnumerator<{source.ElementType}>" };
+            var constraints = new List<string> { $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{source.ElementType}>" };
             foreach(var (second,index) in this.SecondSources.Select(static (second,index) => (second,index))) {
-                constraints.Add($"where {SecondTypeParameterName(index)} : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>, global::Tsavorite.Carrier.IValueEnumerator<{second.ElementType}>");
+                constraints.Add($"where {SecondTypeParameterName(index)} : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>, global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{second.ElementType}>");
             }
             return string.Join("\n    ",constraints);
         }
@@ -3265,7 +3265,7 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
                 return "return source.TryGetNext(out _);";
             }
             if(terminalKind==PipelineTerminalKind.First) {
-                return "if(source.TryGetNext(out var item)) return item;\nthrow global::Tsavorite.GeneratedCodeHelpers.NoElements();";
+                return "if(source.TryGetNext(out var item)) return item;\nthrow global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();";
             }
             throw new NotSupportedException($"{terminalKind} does not support scalar enumerator generation.");
         }
@@ -3332,7 +3332,7 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
             builder.AppendLine($"if({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {{");
             builder.AppendLine($"    {actualVariableName}=__item{this.result};");
             builder.AppendLine("} else {");
-            builder.AppendLine("    throw global::Tsavorite.GeneratedCodeHelpers.NoElements();");
+            builder.AppendLine("    throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();");
             builder.AppendLine("}");
             return builder.ToString().TrimEnd();
         }

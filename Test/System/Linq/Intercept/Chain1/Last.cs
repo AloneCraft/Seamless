@@ -1,6 +1,6 @@
 using System.Linq;
 
-using Tsavorite.SourceGenerator;
+using Seamless.FLinq;
 
 namespace Test.System.Linq.Intercept.Chain1;
 

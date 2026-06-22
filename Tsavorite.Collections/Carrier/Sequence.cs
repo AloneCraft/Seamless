@@ -1,7 +1,7 @@
 ﻿// This code is based for Sequence.Primitives.cs and Sequence.DateTime.cs.
 // So if you change this code, need to check theres.
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
 #if NET8_0_OR_GREATER
 
@@ -44,7 +44,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
 #if NET8_0_OR_GREATER
 
     [StructLayout(LayoutKind.Auto)]

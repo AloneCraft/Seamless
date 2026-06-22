@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 
 internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment keySelector,string resultType,string direction):BufferedScalar(番号,resultType){
     protected override Enumerable PrimarySource=>source;
@@ -24,7 +24,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
         private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             var comparer=global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
             source.TryGetSpan(out var __span);
-            if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+            if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
             {{resultType}} bestElement=default!;
             {{FuncReturnTypeName(keySelector)}} bestKey=default!;
             var __first=true;
@@ -45,7 +45,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
         private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             if(source.TryGetSpan(out var __span)){
                 var comparer=global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
-                if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 {{resultType}} bestElement=default!;
                 {{FuncReturnTypeName(keySelector)}} bestKey=default!;
                 var __first=true;
@@ -65,7 +65,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
         {{AggressiveInliningAttribute}}
         private static {{resultType}} ComputeEnumerator(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             var comparer=global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
-            if(!source.MoveNext()) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+            if(!source.MoveNext()) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
             {{resultType}} bestElement=source.Current;
             {{FuncReturnTypeName(keySelector)}} bestKey=default!;
             {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
@@ -85,7 +85,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             var comparer=global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
-            if(!source.MoveNext()) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+            if(!source.MoveNext()) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
             {{resultType}} bestElement=source.Current;
             {{FuncReturnTypeName(keySelector)}} bestKey=default!;
             {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),"bestKey","bestElement")}}

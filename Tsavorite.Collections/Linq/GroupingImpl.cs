@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Linq;
+﻿namespace Seamless.Collections.Tsavorite.Linq;
 
 public sealed class GroupingImpl<TKey,TElement>(TKey key):IGrouping<TKey,TElement> {
     private readonly List<TElement> elements=[];

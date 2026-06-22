@@ -13,14 +13,14 @@ public sealed class Concat(ITestOutputHelper output):LinqChain1TestBase(output) 
         this.MeasureOptimized(nameof(secondNoOptimized),()=>secondNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void secondOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Concat(Second()).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void secondNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Concat(Second()).Consume(actual);

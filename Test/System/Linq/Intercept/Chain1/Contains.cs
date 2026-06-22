@@ -10,13 +10,13 @@ public sealed class Contains(ITestOutputHelper output):LinqChain1TestBase(output
         this.MeasureOptimized(nameof(valueNoOptimized),()=>valueNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void valueOptimized(dynamic expected) {
         var actual=Source().Contains(3);
         Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void valueNoOptimized(dynamic expected) {
         var actual=Source().Contains(3);
         Assert.Equal(expected,actual);
@@ -29,13 +29,13 @@ public sealed class Contains(ITestOutputHelper output):LinqChain1TestBase(output
         this.MeasureOptimized(nameof(value_comparerNoOptimized),()=>value_comparerNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void value_comparerOptimized(dynamic expected) {
         var actual=Source().Contains(3,EqualityComparer<int>.Default);
         Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void value_comparerNoOptimized(dynamic expected) {
         var actual=Source().Contains(3,EqualityComparer<int>.Default);
         Assert.Equal(expected,actual);

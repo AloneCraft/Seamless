@@ -1,9 +1,9 @@
 ﻿using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Text.RegularExpressions;
-using Tsavorite.SourceGenerator;
+using Seamless.FLinq;
 
-namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 
 public readonly record struct HoistedLocal(string Name,string TypeName,string ExpressionText);
 

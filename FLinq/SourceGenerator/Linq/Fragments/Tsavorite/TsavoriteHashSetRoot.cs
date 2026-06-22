@@ -1,4 +1,4 @@
-namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 
 public sealed class TsavoriteHashSetRoot(
     int 番号,

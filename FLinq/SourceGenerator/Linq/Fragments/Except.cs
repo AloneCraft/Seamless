@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 public class Except(int 番号,Enumerable source,Enumerable second):Except_comparer(番号,source,second,"null");
 

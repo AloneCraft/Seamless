@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier;
+﻿namespace Seamless.Collections.Tsavorite.Carrier;
 
 partial class ValueEnumerableExtensions {
     public static bool TryGetNonEnumeratedCount<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source,out int count)

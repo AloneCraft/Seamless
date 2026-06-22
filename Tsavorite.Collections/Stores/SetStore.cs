@@ -1,7 +1,7 @@
-﻿using Tsavorite.Collections;
-using Tsavorite.Devices;
+﻿using Seamless.Collections.Tsavorite;
+using Seamless.Collections.Tsavorite.Devices;
 
-namespace Tsavorite.Stores;
+namespace Seamless.Collections.Tsavorite.Stores;
 
 public class SetStore<TKey, TRecord>:CollectionStore<TKey,TRecord>
     where TRecord : IRecord<TKey> {

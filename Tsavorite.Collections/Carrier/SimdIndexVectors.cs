@@ -1,5 +1,5 @@
 ﻿#if NET8_0_OR_GREATER
-namespace Tsavorite.Carrier;
+namespace Seamless.Collections.Tsavorite.Carrier;
 
 internal static class SimdIndexVectors
 {

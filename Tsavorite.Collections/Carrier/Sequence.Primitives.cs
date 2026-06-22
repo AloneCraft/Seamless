@@ -3,9 +3,9 @@
 // byte/sbyte/ushort/char/short/uint/int/ulong/long (+SIMD optimize)
 // float/double/decimal/DateTime/DateTimeOffset
 
-using Tsavorite.Carrier;
+using Seamless.Collections.Tsavorite.Carrier;
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromByteSequence,Byte> Sequence(Byte start,Byte endInclusive,Byte step) {
 
@@ -40,7 +40,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromByteSequence(Byte currentValue,Byte endInclusive,Byte step,bool isIncrement):IValueEnumerator<Byte> {
@@ -160,7 +160,7 @@ namespace Tsavorite.Carrier.Linq {
     }
 }
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromSByteSequence,SByte> Sequence(SByte start,SByte endInclusive,SByte step) {
 
@@ -195,7 +195,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromSByteSequence(SByte currentValue,SByte endInclusive,SByte step,bool isIncrement):IValueEnumerator<SByte> {
@@ -315,7 +315,7 @@ namespace Tsavorite.Carrier.Linq {
     }
 }
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromUInt16Sequence,UInt16> Sequence(UInt16 start,UInt16 endInclusive,UInt16 step) {
 
@@ -350,7 +350,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromUInt16Sequence(UInt16 currentValue,UInt16 endInclusive,UInt16 step,bool isIncrement):IValueEnumerator<UInt16> {
@@ -470,7 +470,7 @@ namespace Tsavorite.Carrier.Linq {
     }
 }
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromInt16Sequence,Int16> Sequence(Int16 start,Int16 endInclusive,Int16 step) {
 
@@ -505,7 +505,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromInt16Sequence(Int16 currentValue,Int16 endInclusive,Int16 step,bool isIncrement):IValueEnumerator<Int16> {
@@ -625,7 +625,7 @@ namespace Tsavorite.Carrier.Linq {
     }
 }
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromUInt32Sequence,UInt32> Sequence(UInt32 start,UInt32 endInclusive,UInt32 step) {
 
@@ -660,7 +660,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromUInt32Sequence(UInt32 currentValue,UInt32 endInclusive,UInt32 step,bool isIncrement):IValueEnumerator<UInt32> {
@@ -780,7 +780,7 @@ namespace Tsavorite.Carrier.Linq {
     }
 }
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromInt32Sequence,Int32> Sequence(Int32 start,Int32 endInclusive,Int32 step) {
 
@@ -815,7 +815,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromInt32Sequence(Int32 currentValue,Int32 endInclusive,Int32 step,bool isIncrement):IValueEnumerator<Int32> {
@@ -935,7 +935,7 @@ namespace Tsavorite.Carrier.Linq {
     }
 }
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromUInt64Sequence,UInt64> Sequence(UInt64 start,UInt64 endInclusive,UInt64 step) {
 
@@ -970,7 +970,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromUInt64Sequence(UInt64 currentValue,UInt64 endInclusive,UInt64 step,bool isIncrement):IValueEnumerator<UInt64> {
@@ -1090,7 +1090,7 @@ namespace Tsavorite.Carrier.Linq {
     }
 }
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromInt64Sequence,Int64> Sequence(Int64 start,Int64 endInclusive,Int64 step) {
 
@@ -1125,7 +1125,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromInt64Sequence(Int64 currentValue,Int64 endInclusive,Int64 step,bool isIncrement):IValueEnumerator<Int64> {
@@ -1245,7 +1245,7 @@ namespace Tsavorite.Carrier.Linq {
     }
 }
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromCharSequence,Char> Sequence(Char start,Char endInclusive,Char step) {
 
@@ -1280,7 +1280,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromCharSequence(Char currentValue,Char endInclusive,Char step,bool isIncrement):IValueEnumerator<Char> {
@@ -1400,7 +1400,7 @@ namespace Tsavorite.Carrier.Linq {
     }
 }
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromSingleSequence,Single> Sequence(Single start,Single endInclusive,Single step) {
             if(Single.IsNaN(start)) Throws.ArgumentOutOfRange(nameof(start));
@@ -1437,7 +1437,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromSingleSequence(Single currentValue,Single endInclusive,Single step,bool isIncrement):IValueEnumerator<Single> {
@@ -1502,7 +1502,7 @@ namespace Tsavorite.Carrier.Linq {
     }
 }
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromDoubleSequence,Double> Sequence(Double start,Double endInclusive,Double step) {
             if(Double.IsNaN(start)) Throws.ArgumentOutOfRange(nameof(start));
@@ -1539,7 +1539,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromDoubleSequence(Double currentValue,Double endInclusive,Double step,bool isIncrement):IValueEnumerator<Double> {
@@ -1604,7 +1604,7 @@ namespace Tsavorite.Carrier.Linq {
     }
 }
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromDecimalSequence,Decimal> Sequence(Decimal start,Decimal endInclusive,Decimal step) {
 
@@ -1639,7 +1639,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromDecimalSequence(Decimal currentValue,Decimal endInclusive,Decimal step,bool isIncrement):IValueEnumerator<Decimal> {

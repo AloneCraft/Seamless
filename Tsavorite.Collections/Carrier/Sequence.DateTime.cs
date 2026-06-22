@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromSequenceDateTime,DateTime> Sequence(DateTime start,DateTime endInclusive,TimeSpan step) {
             if(step==TimeSpan.Zero) // (T.IsZero(step))
@@ -31,7 +31,7 @@
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromSequenceDateTime(DateTime currentValue,DateTime endInclusive,TimeSpan step,bool isIncrement):IValueEnumerator<DateTime> {
@@ -96,7 +96,7 @@ namespace Tsavorite.Carrier.Linq {
     }
 }
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromSequenceDateTimeOffset,DateTimeOffset> Sequence(DateTimeOffset start,DateTimeOffset endInclusive,TimeSpan step) {
             if(step==TimeSpan.Zero) // (T.IsZero(step))
@@ -129,7 +129,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromSequenceDateTimeOffset(

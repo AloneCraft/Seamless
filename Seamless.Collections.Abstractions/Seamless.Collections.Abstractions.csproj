@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Seamless.Collections.Serialization</RootNamespace>
+    <AssemblyName>Seamless.Collections.Abstractions</AssemblyName>
+    <PackageId>Seamless.Collections.Abstractions</PackageId>
+    <Title>Seamless Collections Abstractions</Title>
+    <Description>Shared serialization abstractions for Seamless collections packages.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="MemoryPack" Version="1.*" />
+  </ItemGroup>
+</Project>

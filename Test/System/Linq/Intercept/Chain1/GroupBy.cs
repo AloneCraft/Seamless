@@ -13,14 +13,14 @@ public sealed class GroupBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(keySelector_StaticNoOptimized),()=>keySelector_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_StaticOptimized(dynamic expected) {
         var actual=new Consumer<IGrouping<int,Chain1Row>>();
         Rows().GroupBy(static row => row.Key).Consume(actual);
         AssertGroupSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<IGrouping<int,Chain1Row>>();
         Rows().GroupBy(static row => row.Key).Consume(actual);
@@ -34,14 +34,14 @@ public sealed class GroupBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(elementSelector_StaticNoOptimized),()=>elementSelector_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void elementSelector_StaticOptimized(dynamic expected) {
         var actual=new Consumer<IGrouping<int,int>>();
         Rows().GroupBy(static row => row.Key,static row => row.Value).Consume(actual);
         AssertGroupSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void elementSelector_StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<IGrouping<int,int>>();
         Rows().GroupBy(static row => row.Key,static row => row.Value).Consume(actual);
@@ -55,14 +55,14 @@ public sealed class GroupBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(resultSelector_StaticNoOptimized),()=>resultSelector_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void resultSelector_StaticOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Rows().GroupBy(static row => row.Key,static (key,group) => group.Sum(row => row.Value)).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void resultSelector_StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Rows().GroupBy(static row => row.Key,static (key,group) => group.Sum(row => row.Value)).Consume(actual);
@@ -76,14 +76,14 @@ public sealed class GroupBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(elementSelector_resultSelector_StaticNoOptimized),()=>elementSelector_resultSelector_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void elementSelector_resultSelector_StaticOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Rows().GroupBy(static row => row.Key,static row => row.Value,static (key,group) => group.Sum()).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void elementSelector_resultSelector_StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Rows().GroupBy(static row => row.Key,static row => row.Value,static (key,group) => group.Sum()).Consume(actual);
@@ -97,14 +97,14 @@ public sealed class GroupBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(keySelector_NestedNoOptimized),()=>keySelector_NestedNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_NestedOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().GroupBy(p => Source().GroupBy(q => q%p).Count()).Select(group => group.Key).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_NestedNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().GroupBy(p => Source().GroupBy(q => q%p).Count()).Select(group => group.Key).Consume(actual);
@@ -118,14 +118,14 @@ public sealed class GroupBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(keySelector_QueryNoOptimized),()=>keySelector_QueryNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_QueryOptimized(dynamic expected) {
         var actual=new Consumer<IGrouping<int,Chain1Row>>();
         (from row in Rows() group row by row.Key).Consume(actual);
         AssertGroupSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_QueryNoOptimized(dynamic expected) {
         var actual=new Consumer<IGrouping<int,Chain1Row>>();
         (from row in Rows() group row by row.Key).Consume(actual);
@@ -139,14 +139,14 @@ public sealed class GroupBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(keySelector_LambdaNoOptimized),()=>keySelector_LambdaNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_LambdaOptimized(dynamic expected) {
         var actual=new Consumer<IGrouping<int,Chain1Row>>();
         Rows().GroupBy(row => row.Key).Consume(actual);
         AssertGroupSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_LambdaNoOptimized(dynamic expected) {
         var actual=new Consumer<IGrouping<int,Chain1Row>>();
         Rows().GroupBy(row => row.Key).Consume(actual);
@@ -161,7 +161,7 @@ public sealed class GroupBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(keySelector_CapturedNoOptimized),()=>keySelector_CapturedNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_CapturedOptimized(dynamic expected) {
         var offset=0;
         var actual=new Consumer<IGrouping<int,Chain1Row>>();
@@ -169,7 +169,7 @@ public sealed class GroupBy(ITestOutputHelper output):LinqChain1TestBase(output)
         AssertGroupSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_CapturedNoOptimized(dynamic expected) {
         var offset=0;
         var actual=new Consumer<IGrouping<int,Chain1Row>>();
@@ -184,14 +184,14 @@ public sealed class GroupBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(keySelector_DelegateSyntaxNoOptimized),()=>keySelector_DelegateSyntaxNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_DelegateSyntaxOptimized(dynamic expected) {
         var actual=new Consumer<IGrouping<int,Chain1Row>>();
         Rows().GroupBy(delegate(Chain1Row row) { return row.Key; }).Consume(actual);
         AssertGroupSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_DelegateSyntaxNoOptimized(dynamic expected) {
         var actual=new Consumer<IGrouping<int,Chain1Row>>();
         Rows().GroupBy(delegate(Chain1Row row) { return row.Key; }).Consume(actual);
@@ -206,7 +206,7 @@ public sealed class GroupBy(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(keySelector_VariableNoOptimized),()=>keySelector_VariableNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_VariableOptimized(dynamic expected) {
         Func<Chain1Row,int> keySelector=row => row.Key;
         var actual=new Consumer<IGrouping<int,Chain1Row>>();
@@ -214,7 +214,7 @@ public sealed class GroupBy(ITestOutputHelper output):LinqChain1TestBase(output)
         AssertGroupSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_VariableNoOptimized(dynamic expected) {
         Func<Chain1Row,int> keySelector=row => row.Key;
         var actual=new Consumer<IGrouping<int,Chain1Row>>();

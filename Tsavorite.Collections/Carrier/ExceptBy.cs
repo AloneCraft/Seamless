@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static ValueEnumerable<ExceptBy<TEnumerator,TEnumerator2,TSource,TKey>,TSource> ExceptBy<TEnumerator, TEnumerator2, TSource, TKey>(this ValueEnumerable<TEnumerator,TSource> source,ValueEnumerable<TEnumerator2,TKey> second,Func<TSource,TKey> keySelector)
             where TEnumerator : struct, IValueEnumerator<TSource>
@@ -20,7 +20,7 @@
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct ExceptBy<TEnumerator, TEnumerator2, TSource, TKey>(TEnumerator source,ValueEnumerable<TEnumerator2,TKey> second,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer)

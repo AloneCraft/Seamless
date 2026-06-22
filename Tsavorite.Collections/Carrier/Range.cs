@@ -1,9 +1,9 @@
 ﻿#if NET8_0_OR_GREATER
 #endif
 
-using Tsavorite.Carrier;
+using Seamless.Collections.Tsavorite.Carrier;
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromRange,int> Range(int start,int count) {
             long max = ((long)start)+count-1;
@@ -102,7 +102,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     // Standard Range implementation
 
     [StructLayout(LayoutKind.Auto)]

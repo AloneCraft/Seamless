@@ -1,10 +1,14 @@
-ï»¿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RootNamespace>Tsavorite.SourceGenerator</RootNamespace>
+    <RootNamespace>Seamless.FLinq</RootNamespace>
+    <AssemblyName>Seamless.FLinq</AssemblyName>
+    <PackageId>Seamless.FLinq</PackageId>
+    <Title>Seamless FLinq</Title>
+    <Description>Compile-time LINQ rewriting source generator for Seamless.</Description>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <NoWarn>$(NoWarn);RS1041;RS2008</NoWarn>
@@ -24,7 +28,7 @@
     <None Include="StaticSources\**\*.cs" Pack="true" PackagePath="buildTransitive\StaticSources\" />
   </ItemGroup>
 
-  <!-- Roslyn ã‚¢ãƒŠãƒ©ã‚¤ã‚¶ãƒ¼ã¨ã—ã¦å‚ç…§ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã‚‚ä¸€ç·’ã«ãƒ­ãƒ¼ãƒ‰ã™ã‚‹ -->
+  <!-- Roslyn ƒAƒiƒ‰ƒCƒU[‚Æ‚µ‚ÄŽQÆƒvƒƒWƒFƒNƒg‚àˆê‚Éƒ[ƒh‚·‚é -->
   <Target Name="GetDependencyTargetPaths" DependsOnTargets="ResolveReferences">
     <ItemGroup>
       <TargetPathWithTargetPlatformMoniker Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)'=='ProjectReference'" />

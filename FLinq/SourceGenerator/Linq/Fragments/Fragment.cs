@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 public abstract class Fragment(
     int 番号
 ) {
@@ -174,17 +174,17 @@ public abstract class Fragment(
 
     private protected string CounterCall(string methodName) =>
         this.CounterInstrumentationEnabled
-            ? $"global::Tsavorite.LinqCounterScope.Counter.{methodName}();"
+            ? $"global::Seamless.Collections.Tsavorite.LinqCounterScope.Counter.{methodName}();"
             : string.Empty;
 
     private protected string CountLogicalDelegateExpression(string expression) =>
         this.CounterInstrumentationEnabled
-            ? $"global::Tsavorite.LinqCounterScope.Counter.RecordLogicalDelegate({expression})"
+            ? $"global::Seamless.Collections.Tsavorite.LinqCounterScope.Counter.RecordLogicalDelegate({expression})"
             : expression;
 
     private protected string CountPhysicalDelegateExpression(string expression) =>
         this.CounterInstrumentationEnabled
-            ? $"global::Tsavorite.LinqCounterScope.Counter.RecordPhysicalDelegate({expression})"
+            ? $"global::Seamless.Collections.Tsavorite.LinqCounterScope.Counter.RecordPhysicalDelegate({expression})"
             : expression;
 
     // UnsafeAccessor コードを断片ツリー全体から収集する。
@@ -415,7 +415,7 @@ public abstract class Fragment(
         var currentPropDecl = this.GetCurrentPropertyDeclaration(currentType);
 
         return $$"""
-            {{this.GetEnumeratorStructDeclaration($"global::Tsavorite.Carrier.IValueEnumerator<{currentType}>, global::System.Collections.Generic.IEnumerator<{currentType}>")}}
+            {{this.GetEnumeratorStructDeclaration($"global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{currentType}>, global::System.Collections.Generic.IEnumerator<{currentType}>")}}
             {{fieldsFromParams}}
             {{fields}}
             {{ctor}}
@@ -476,7 +476,7 @@ public abstract class Fragment(
     // 生成 struct に付ける where 制約。PrimarySource が設定されると struct 制約付きの where 句になる。
     protected virtual string StructTypeConstraints =>
         this.PrimarySource is { } src
-            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{src.ElementType}>, global::Tsavorite.Carrier.IValueEnumerator<{src.ElementType}>"
+            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{src.ElementType}>, global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{src.ElementType}>"
             : string.Empty;
 
     private protected string GetEnumeratorStructDeclaration(string interfaceType) {

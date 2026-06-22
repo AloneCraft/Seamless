@@ -19,9 +19,11 @@ global using System.Text;
 global using System.Threading;
 global using System.Threading.Tasks;
 
-global using Tsavorite.Carrier;
-global using Tsavorite.Carrier.Internal;
-global using Tsavorite.Carrier.Linq;
+global using Seamless.Collections.Tsavorite.Carrier;
+global using Seamless.Collections.Tsavorite.Carrier.Internal;
+global using Seamless.Collections.Tsavorite.Carrier.Linq;
+global using Seamless.Collections.Persisted;
+global using Seamless.Collections.Serialization;
 #if NET9_0_OR_GREATER
 #endif
 
@@ -38,4 +40,4 @@ global using SpanByteStoreAllocator = Tsavorite.core.SpanByteAllocator<
     >
 >;
 
-global using Tsavorite;
+global using Seamless.Collections.Tsavorite;

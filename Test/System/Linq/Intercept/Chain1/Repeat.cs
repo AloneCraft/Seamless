@@ -12,13 +12,13 @@ public sealed class Repeat(ITestOutputHelper output):LinqChain1TestBase(output) 
         this.MeasureOptimized(nameof(element_countNoOptimized),()=>element_countNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void element_countOptimized(dynamic expected) {
         var actual=Enumerable.Repeat(7,3).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void element_countNoOptimized(dynamic expected) {
         var actual=Enumerable.Repeat(7,3).ToList();
         AssertSequenceEqual(expected,actual);

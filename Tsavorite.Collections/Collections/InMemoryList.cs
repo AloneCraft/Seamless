@@ -1,10 +1,10 @@
-﻿using Persistent.Collections;
-namespace Tsavorite.Collections;
+using Seamless.Collections.Persisted;
+namespace Seamless.Collections.Tsavorite;
 /// <summary>
 /// これはSystem.Collections.Generic.List<T>に使えるならそれに置き換えてこれは削除して
 /// </summary>
 /// <typeparam name="T"></typeparam>
-public sealed class InMemoryList<T>:ListBase<T> {
+public sealed class InMemoryList<T>:PersistedList<T> {
     private readonly global::System.Collections.Generic.List<T> items;
     private TempListTuning tuning = new(FileAccess.ReadWrite,FileOptions.SequentialScan);
 

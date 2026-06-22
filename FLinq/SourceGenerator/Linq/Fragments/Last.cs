@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 public class Last(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length == 0;
     protected override Enumerable PrimarySource => source;
@@ -22,7 +22,7 @@ public class Last(int 番号, Enumerable source, string resultType) : BufferedSc
             {
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
-                if({{count}}==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if({{count}}==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 {{destVar}}={{start}} + {{count}} - 1;
             }
             """;
@@ -32,7 +32,7 @@ public class Last(int 番号, Enumerable source, string resultType) : BufferedSc
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source) {
                 source.TryGetSpan(out var __span);
-                if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 return __span[__span.Length-1];
             }
             """
@@ -45,7 +45,7 @@ public class Last(int 番号, Enumerable source, string resultType) : BufferedSc
                     found=true;
                     result=source.Current;
                 }
-                if(!found) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(!found) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 return result;
             }
             """;
@@ -99,7 +99,7 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
                         break;
                     }
                 }
-                if(!{{found}}) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(!{{found}}) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
             }
             """;
     }
@@ -115,7 +115,7 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}){ found=true; result={{this.item}}; }
                 }
-                if(!found) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(!found) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 return result;
             }
             """
@@ -130,7 +130,7 @@ public class Last_predicate(int 番号, Enumerable source, FuncFragment predicat
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}){ found=true; result={{this.item}}; }
                 }
-                if(!found) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(!found) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 return result;
             }
             """;

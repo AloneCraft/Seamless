@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 // 要素が匿名型（ElementType=="TResult"）のチェーンを materialize する ToList。
 // 匿名型の型名は生成コードに書けないため、Carrier の汎用 ToList へ型推論で委譲し
@@ -10,7 +10,7 @@ internal sealed class AnonymousExitToList(int 番号,Enumerable source):Scalar(�
     public override string GetTryGetNextBody => string.Empty;
     public override string GetCurrentExpression => string.Empty;
     public string GetDirectExecutionStatement(string actualVariableName,string actualTypeName) =>
-        $"var {actualVariableName}=global::Tsavorite.Carrier.ValueEnumerableExtensions.ToList({source.GetEnumerableExpression});";
+        $"var {actualVariableName}=global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.ToList({source.GetEnumerableExpression});";
 }
 
 public class ToList(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {

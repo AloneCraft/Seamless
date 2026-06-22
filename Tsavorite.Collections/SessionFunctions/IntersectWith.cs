@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SessionFunctions;
+﻿namespace Seamless.Collections.Tsavorite.SessionFunctions;
 
 /// <summary>
 /// IntersectWith 逕ｨ縺ｮ RMW 繧ｻ繝・す繝ｧ繝ｳ髢｢謨ｰ縲・

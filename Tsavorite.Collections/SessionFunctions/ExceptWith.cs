@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SessionFunctions;
+﻿namespace Seamless.Collections.Tsavorite.SessionFunctions;
 
 /// <summary>
 /// ExceptWith 逕ｨ縺ｮ Delete 繧ｻ繝・す繝ｧ繝ｳ髢｢謨ｰ縲・

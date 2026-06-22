@@ -1,6 +1,6 @@
 ﻿#if NET8_0_OR_GREATER
 
-namespace Tsavorite.Carrier;
+namespace Seamless.Collections.Tsavorite.Carrier;
 
 partial class ValueEnumerableExtensions {
     // FrozenDictionary

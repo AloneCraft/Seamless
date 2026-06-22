@@ -11,7 +11,7 @@ public sealed class ReverseIdentityAfterJoin:OptimizationTestBase{
         AssertSequenceEqual(expected,LeftJoinReverseReverseToArrayNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static int[] LeftJoinReverseReverseToArrayOptimized() =>
         Numbers()
             .Distinct()
@@ -25,7 +25,7 @@ public sealed class ReverseIdentityAfterJoin:OptimizationTestBase{
             .Reverse()
             .ToArray();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static int[] LeftJoinReverseReverseToArrayNoOptimized() =>
         Numbers()
             .Distinct()

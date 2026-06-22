@@ -11,13 +11,13 @@ public sealed class LongCount(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void NoDelegateOptimized(dynamic expected) {
         var actual=Source().LongCount();
         Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void NoDelegateNoOptimized(dynamic expected) {
         var actual=Source().LongCount();
         Assert.Equal(expected,actual);
@@ -30,13 +30,13 @@ public sealed class LongCount(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(predicate_StaticNoOptimized),()=>predicate_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void predicate_StaticOptimized(dynamic expected) {
         var actual=Source().LongCount(static v => v>2);
         Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void predicate_StaticNoOptimized(dynamic expected) {
         var actual=Source().LongCount(static v => v>2);
         Assert.Equal(expected,actual);
@@ -49,13 +49,13 @@ public sealed class LongCount(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(predicate_LambdaNoOptimized),()=>predicate_LambdaNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void predicate_LambdaOptimized(dynamic expected) {
         var actual=Source().LongCount(v => v>2);
         Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void predicate_LambdaNoOptimized(dynamic expected) {
         var actual=Source().LongCount(v => v>2);
         Assert.Equal(expected,actual);
@@ -69,14 +69,14 @@ public sealed class LongCount(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(predicate_CapturedNoOptimized),()=>predicate_CapturedNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void predicate_CapturedOptimized(dynamic expected) {
         var threshold=2;
         var actual=Source().LongCount(v => v>threshold);
         Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void predicate_CapturedNoOptimized(dynamic expected) {
         var threshold=2;
         var actual=Source().LongCount(v => v>threshold);
@@ -90,13 +90,13 @@ public sealed class LongCount(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(predicate_DelegateSyntaxNoOptimized),()=>predicate_DelegateSyntaxNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void predicate_DelegateSyntaxOptimized(dynamic expected) {
         var actual=Source().LongCount(delegate(int v) { return v>2; });
         Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void predicate_DelegateSyntaxNoOptimized(dynamic expected) {
         var actual=Source().LongCount(delegate(int v) { return v>2; });
         Assert.Equal(expected,actual);
@@ -110,14 +110,14 @@ public sealed class LongCount(ITestOutputHelper output):LinqChain1TestBase(outpu
         this.MeasureOptimized(nameof(predicate_VariableNoOptimized),()=>predicate_VariableNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void predicate_VariableOptimized(dynamic expected) {
         Func<int,bool> predicate=v => v>2;
         var actual=Source().LongCount(predicate);
         Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void predicate_VariableNoOptimized(dynamic expected) {
         Func<int,bool> predicate=v => v>2;
         var actual=Source().LongCount(predicate);

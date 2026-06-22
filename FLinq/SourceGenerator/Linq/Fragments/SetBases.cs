@@ -1,11 +1,11 @@
-namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 
-public abstract class SetBase(int î‘çÜ,Enumerable source,Enumerable second,string comparer,ISetOperationStrategy operation):Enumerable(î‘çÜ),ConsumeDirectExecutionFragment{
+public abstract class SetBase(int Áï™Âè∑,Enumerable source,Enumerable second,string comparer,ISetOperationStrategy operation):Enumerable(Áï™Âè∑),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=>string.Empty;
     protected override string StructTypeParameters=>"<TEnum1,TEnum2>";
     protected override string StructTypeConstraints=>
-        $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Tsavorite.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Tsavorite.Carrier.IValueEnumerator<{second.ElementType}>";
+        $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName=>$"{this.Struct}<{source.EnumeratorTypeName},{second.EnumeratorTypeName}>";
     public override string GetEnumeratorStruct=>$$"""
         {{source.GetEnumeratorStruct}}
@@ -71,9 +71,9 @@ public abstract class SetBase(int î‘çÜ,Enumerable source,Enumerable second,strin
     public override string ElementType=>source.ElementType;
     protected override string GetEnumeratorDisposeBody=>"source.Dispose();\nsecond.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName){
-        var sourceName=$"__src{î‘çÜ}";
-        var secondName=$"__sec{î‘çÜ}";
-        var setName=$"__set{î‘çÜ}";
+        var sourceName=$"__src{Áï™Âè∑}";
+        var secondName=$"__sec{Áï™Âè∑}";
+        var setName=$"__set{Áï™Âè∑}";
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
@@ -109,12 +109,12 @@ public abstract class SetBase(int î‘çÜ,Enumerable source,Enumerable second,strin
     }
 }
 
-public abstract class SetByBase(int î‘çÜ,Enumerable source,Enumerable second,FuncFragment keySelector,string comparer,ISetByOperationStrategy operation):Enumerable(î‘çÜ),ConsumeDirectExecutionFragment{
+public abstract class SetByBase(int Áï™Âè∑,Enumerable source,Enumerable second,FuncFragment keySelector,string comparer,ISetByOperationStrategy operation):Enumerable(Áï™Âè∑),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
     protected override string StructTypeParameters=>"<TEnum1,TEnum2>";
     protected override string StructTypeConstraints=>
-        $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Tsavorite.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Tsavorite.Carrier.IValueEnumerator<{second.ElementType}>";
+        $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName=>$"{this.Struct}<{source.EnumeratorTypeName},{second.EnumeratorTypeName}>";
     public override string GetEnumeratorStruct=>$$"""
         {{source.GetEnumeratorStruct}}
@@ -211,9 +211,9 @@ public abstract class SetByBase(int î‘çÜ,Enumerable source,Enumerable second,Fun
     public override string ElementType=>source.ElementType;
     protected override string GetEnumeratorDisposeBody=>"source.Dispose();\nsecond.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName){
-        var sourceName=$"__src{î‘çÜ}";
-        var secondName=$"__sec{î‘çÜ}";
-        var setName=$"__set{î‘çÜ}";
+        var sourceName=$"__src{Áï™Âè∑}";
+        var secondName=$"__sec{Áï™Âè∑}";
+        var setName=$"__set{Áï™Âè∑}";
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");

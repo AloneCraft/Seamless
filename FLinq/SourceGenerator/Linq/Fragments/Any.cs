@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 public class Any(int 番号,Enumerable source):Scalar(番号){
     internal static bool TryBuildWithPredicate(
         SemanticModel semanticModel,

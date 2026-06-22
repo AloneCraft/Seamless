@@ -1,7 +1,7 @@
 using System.Linq;
 
-using Tsavorite;
-using Tsavorite.SourceGenerator;
+using Seamless.Collections.Tsavorite;
+using Seamless.FLinq;
 
 namespace Test.System.Linq.Intercept.Chain1;
 

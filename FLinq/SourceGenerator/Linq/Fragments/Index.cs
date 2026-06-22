@@ -1,10 +1,10 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 public class Index(int 番号, Enumerable source) : Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     public override string GetEnumerableExpression =>
-        $"global::Tsavorite.Carrier.ValueEnumerableExtensions.Index({source.GetEnumerableExpression})";
+        $"global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.Index({source.GetEnumerableExpression})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}

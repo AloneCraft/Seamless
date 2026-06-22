@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-using Tsavorite.Carrier;
+using Seamless.Collections.Tsavorite.Carrier;
 
 namespace Test.System.Linq.Intercept;
 

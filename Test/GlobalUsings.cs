@@ -6,5 +6,6 @@ global using System.Linq;
 global using System.Threading;
 global using System.Threading.Tasks;
 global using Test;
-global using Tsavorite;
+global using Seamless.Collections.Tsavorite;
+global using Seamless.Collections.Serialization;
 global using Xunit.Abstractions;

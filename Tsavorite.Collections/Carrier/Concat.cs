@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static ValueEnumerable<Concat<TEnumerator1,TEnumerator2,TSource>,TSource> Concat<TEnumerator1, TEnumerator2, TSource>(this ValueEnumerable<TEnumerator1,TSource> source,ValueEnumerable<TEnumerator2,TSource> second)
             where TEnumerator1 : struct, IValueEnumerator<TSource>
@@ -14,7 +14,7 @@
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct Concat<TEnumerator1, TEnumerator2, TSource>(TEnumerator1 first,TEnumerator2 second)

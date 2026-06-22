@@ -1,6 +1,6 @@
-﻿using Tsavorite.Collections;
-using Tsavorite.Stores;
-namespace Tsavorite.SessionFunctions;
+﻿using Seamless.Collections.Tsavorite;
+using Seamless.Collections.Tsavorite.Stores;
+namespace Seamless.Collections.Tsavorite.SessionFunctions;
 
 using System.Diagnostics.CodeAnalysis;
 /// <summary>

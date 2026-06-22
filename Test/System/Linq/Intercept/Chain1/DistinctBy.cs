@@ -11,14 +11,14 @@ public sealed class DistinctBy(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(keySelector_StaticNoOptimized),()=>keySelector_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_StaticOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().DistinctBy(static row => row.Key).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().DistinctBy(static row => row.Key).Consume(actual);
@@ -32,14 +32,14 @@ public sealed class DistinctBy(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(keySelector_NestedNoOptimized),()=>keySelector_NestedNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_NestedOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().DistinctBy(p => Source().DistinctBy(q => q%p).Count()).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_NestedNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().DistinctBy(p => Source().DistinctBy(q => q%p).Count()).Consume(actual);
@@ -53,14 +53,14 @@ public sealed class DistinctBy(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(keySelector_LambdaNoOptimized),()=>keySelector_LambdaNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_LambdaOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().DistinctBy(row => row.Key).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_LambdaNoOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().DistinctBy(row => row.Key).Consume(actual);
@@ -75,7 +75,7 @@ public sealed class DistinctBy(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(keySelector_CapturedNoOptimized),()=>keySelector_CapturedNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_CapturedOptimized(dynamic expected) {
         var offset=0;
         var actual=new Consumer<Chain1Row>();
@@ -83,7 +83,7 @@ public sealed class DistinctBy(ITestOutputHelper output):LinqChain1TestBase(outp
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_CapturedNoOptimized(dynamic expected) {
         var offset=0;
         var actual=new Consumer<Chain1Row>();
@@ -98,14 +98,14 @@ public sealed class DistinctBy(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(keySelector_DelegateSyntaxNoOptimized),()=>keySelector_DelegateSyntaxNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_DelegateSyntaxOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().DistinctBy(delegate(Chain1Row row) { return row.Key; }).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_DelegateSyntaxNoOptimized(dynamic expected) {
         var actual=new Consumer<Chain1Row>();
         Rows().DistinctBy(delegate(Chain1Row row) { return row.Key; }).Consume(actual);
@@ -120,7 +120,7 @@ public sealed class DistinctBy(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(keySelector_VariableNoOptimized),()=>keySelector_VariableNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_VariableOptimized(dynamic expected) {
         Func<Chain1Row,int> keySelector=row => row.Key;
         var actual=new Consumer<Chain1Row>();
@@ -128,7 +128,7 @@ public sealed class DistinctBy(ITestOutputHelper output):LinqChain1TestBase(outp
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_VariableNoOptimized(dynamic expected) {
         Func<Chain1Row,int> keySelector=row => row.Key;
         var actual=new Consumer<Chain1Row>();

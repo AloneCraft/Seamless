@@ -1,4 +1,4 @@
-namespace Tsavorite.SourceGenerator.Linq.Fragments.Tsavorite.Pending;
+namespace Seamless.FLinq.Linq.Fragments.Tsavorite.Pending;
 
 internal sealed class AllScanFragment {
 }

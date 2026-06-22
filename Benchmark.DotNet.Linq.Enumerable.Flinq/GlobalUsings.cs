@@ -1,1 +1,1 @@
-global using LinqInterceptAttribute = Tsavorite.SourceGenerator.LinqInterceptAttribute;
+global using LinqInterceptAttribute = Seamless.FLinq.LinqInterceptAttribute;

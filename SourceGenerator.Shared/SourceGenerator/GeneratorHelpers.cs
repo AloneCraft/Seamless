@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator;
+﻿namespace Seamless.FLinq;
 
 public static class GeneratorHelpers {
     public static readonly SymbolDisplayFormat 完全修飾形式 = new(

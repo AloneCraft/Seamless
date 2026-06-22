@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Tsavorite.SourceGenerator;
+using Seamless.FLinq;
 
 namespace Test.SourceGenerator;
 
@@ -38,7 +38,7 @@ internal static class GeneratorTestHelpers {
             .Split(Path.PathSeparator)
             .Where(p=>!string.IsNullOrWhiteSpace(p) && File.Exists(p))
             .Select(p=>(MetadataReference)MetadataReference.CreateFromFile(p))
-            .Append(MetadataReference.CreateFromFile(typeof(global::Tsavorite.GeneratedCodeHelpers).Assembly.Location))
+            .Append(MetadataReference.CreateFromFile(typeof(global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers).Assembly.Location))
             .ToImmutableArray();
         return refs;
     }

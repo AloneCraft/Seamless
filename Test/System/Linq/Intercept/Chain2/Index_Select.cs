@@ -13,14 +13,14 @@ public sealed class Index_Select(ITestOutputHelper output):LinqChain2TestBase(ou
         this.MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void StaticOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Index().Select(static pair => pair.Index+pair.Item).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Index().Select(static pair => pair.Index+pair.Item).Consume(actual);
@@ -34,14 +34,14 @@ public sealed class Index_Select(ITestOutputHelper output):LinqChain2TestBase(ou
         this.MeasureOptimized(nameof(LambdaNoOptimized),()=>LambdaNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void LambdaOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Index().Select(pair => pair.Index+pair.Item).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void LambdaNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Index().Select(pair => pair.Index+pair.Item).Consume(actual);

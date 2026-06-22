@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Collections;
+﻿namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
 /// デバッグ表示や検査のために、メモリ上に存在する要素だけを列挙する。

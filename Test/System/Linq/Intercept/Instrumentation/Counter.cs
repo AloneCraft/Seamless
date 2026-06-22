@@ -1,5 +1,5 @@
-using Tsavorite;
-using Tsavorite.SourceGenerator;
+using Seamless.Collections.Tsavorite;
+using Seamless.FLinq;
 
 using Test.System.Linq.Intercept;
 

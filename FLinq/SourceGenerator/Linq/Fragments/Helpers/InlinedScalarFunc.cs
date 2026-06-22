@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 internal sealed class InlinedScalarFunc(Fragment scalarFragment):LambdaFunc{
     public Fragment ScalarFragment=>scalarFragment;

@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 public class ToArray(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
     // スタック上で受ける InlineArray の要素数。これ以内なら ArrayPool に一切触れない。

@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番号) {
     protected abstract string ComputeExpression { get; }
     protected virtual string ComputeMembers => string.Empty;

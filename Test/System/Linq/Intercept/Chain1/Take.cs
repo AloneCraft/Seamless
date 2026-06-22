@@ -13,14 +13,14 @@ public sealed class Take(ITestOutputHelper output):LinqChain1TestBase(output) {
         this.MeasureOptimized(nameof(countNoOptimized),()=>countNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void countOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Take(3).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void countNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Take(3).Consume(actual);
@@ -34,13 +34,13 @@ public sealed class Take(ITestOutputHelper output):LinqChain1TestBase(output) {
         this.MeasureOptimized(nameof(rangeNoOptimized),()=>rangeNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void rangeOptimized(dynamic expected) {
         var actual=Source().Take(new global::System.Range(1,3)).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void rangeNoOptimized(dynamic expected) {
         var actual=Source().Take(new global::System.Range(1,3)).ToList();
         AssertSequenceEqual(expected,actual);

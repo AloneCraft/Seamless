@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier;
+﻿namespace Seamless.Collections.Tsavorite.Carrier;
 
 [StructLayout(LayoutKind.Auto)]
 [DebuggerDisplay("{DebuggerDisplay,nq}")]

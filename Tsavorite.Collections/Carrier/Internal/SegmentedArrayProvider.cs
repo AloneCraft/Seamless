@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier.Internal;
+﻿namespace Seamless.Collections.Tsavorite.Carrier.Internal;
 
 // similar as IBufferWriter style to avoid Add frequently.
 internal ref struct SegmentedArrayProvider<T>

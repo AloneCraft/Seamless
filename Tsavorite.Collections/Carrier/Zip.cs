@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static ValueEnumerable<Zip<TEnumerator,TEnumerator2,TFirst,TSecond>,(TFirst First,TSecond Second)> Zip<TEnumerator, TEnumerator2, TFirst, TSecond>(this ValueEnumerable<TEnumerator,TFirst> source,ValueEnumerable<TEnumerator2,TSecond> second)
             where TEnumerator : struct, IValueEnumerator<TFirst>
@@ -31,7 +31,7 @@
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct Zip<TEnumerator, TEnumerator2, TFirst, TSecond>(TEnumerator source,TEnumerator2 second)

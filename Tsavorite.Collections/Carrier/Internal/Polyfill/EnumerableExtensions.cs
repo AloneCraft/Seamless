@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Tsavorite.Carrier.Internal;
+namespace Seamless.Collections.Tsavorite.Carrier.Internal;
 
 internal static class EnumerableExtensions
 {

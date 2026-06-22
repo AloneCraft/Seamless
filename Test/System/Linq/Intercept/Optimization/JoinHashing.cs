@@ -9,11 +9,11 @@ public sealed class JoinHashing:OptimizationTestBase{
         AssertSequenceEqual(Outers().Join(Inners(),o => o.Key+GetOffset(),i => i.Key,(o,i) => o.Id+i.Id).ToList(),ComputedOuterKeyNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> ComputedOuterKeyOptimized() =>
         Outers().Join(Inners(),o => o.Key+GetOffset(),i => i.Key,(o,i) => o.Id+i.Id).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> ComputedOuterKeyNoOptimized() =>
         Outers().Join(Inners(),o => o.Key+GetOffset(),i => i.Key,(o,i) => o.Id+i.Id).ToList();
 
@@ -25,19 +25,19 @@ public sealed class JoinHashing:OptimizationTestBase{
         AssertSequenceEqual(Outers().Join(Inners(),o => o.Key+1000,i => i.Key,(o,i) => o.Id*100+i.Id).ToList(),DuplicateInnerKeysMultiBucket_NoMatchNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> DuplicateInnerKeysMultiBucket_MatchOptimized() =>
         Outers().Join(Inners(),o => o.Key,i => i.Key,(o,i) => o.Id*100+i.Id).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> DuplicateInnerKeysMultiBucket_MatchNoOptimized() =>
         Outers().Join(Inners(),o => o.Key,i => i.Key,(o,i) => o.Id*100+i.Id).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> DuplicateInnerKeysMultiBucket_NoMatchOptimized() =>
         Outers().Join(Inners(),o => o.Key+1000,i => i.Key,(o,i) => o.Id*100+i.Id).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> DuplicateInnerKeysMultiBucket_NoMatchNoOptimized() =>
         Outers().Join(Inners(),o => o.Key+1000,i => i.Key,(o,i) => o.Id*100+i.Id).ToList();
 
@@ -50,11 +50,11 @@ public sealed class JoinHashing:OptimizationTestBase{
         AssertSequenceEqual(expected,JoinAnonymousResultNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<string> JoinAnonymousResultOptimized() =>
         Outers().Join(Inners(),o => o.Key,i => i.Key,(o,i) => $"{o.Id}:{i.Id}").ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<string> JoinAnonymousResultNoOptimized() =>
         Outers().Join(Inners(),o => o.Key,i => i.Key,(o,i) => $"{o.Id}:{i.Id}").ToList();
 
@@ -64,11 +64,11 @@ public sealed class JoinHashing:OptimizationTestBase{
         AssertSequenceEqual(Outers().GroupJoin(Inners(),o => o.Key,i => i.Key,(o,g) => o.Id*1000+g.Select(static x => x.Id).Sum()).ToList(),GroupJoinWithEmptyGroupsNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> GroupJoinWithEmptyGroupsOptimized() =>
         Outers().GroupJoin(Inners(),o => o.Key,i => i.Key,(o,g) => o.Id*1000+g.Select(static x => x.Id).Sum()).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> GroupJoinWithEmptyGroupsNoOptimized() =>
         Outers().GroupJoin(Inners(),o => o.Key,i => i.Key,(o,g) => o.Id*1000+g.Select(static x => x.Id).Sum()).ToList();
 }

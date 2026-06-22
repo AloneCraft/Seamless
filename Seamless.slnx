@@ -1,8 +1,8 @@
 <Solution>
   <Folder Name="/solution/">
-    <File Path="20260430内部設計書.txt" />
-    <File Path="20260430外部設計書.txt" />
-    <File Path="20260430要件定義書.txt" />
+    <File Path="20260430蜀・Κ險ｭ險域嶌.txt" />
+    <File Path="20260430螟夜Κ險ｭ險域嶌.txt" />
+    <File Path="20260430隕∽ｻｶ螳夂ｾｩ譖ｸ.txt" />
     <File Path="AGENTS.md" />
     <File Path="AI_SYNTAX_RULES.md" />
     <File Path="CLAUDE.md" />
@@ -10,17 +10,19 @@
     <File Path="DEEPSEEK.md" />
     <File Path="TextFile1.txt" />
   </Folder>
-  <Project Path="Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj" />
-  <Project Path="Benchmark.Shared/Benchmark.Shared.shproj" Id="9749dc71-85fa-4584-9cb5-9929b262f213" />
+  <Project Path="Benchmark.DotNet.Linq.Enumerable.FLinq/Benchmark.DotNet.Linq.Enumerable.FLinq.csproj" />
   <Project Path="Benchmark.DotNet.Linq.Enumerable.Linq/Benchmark.DotNet.Linq.Enumerable.Linq.csproj" />
   <Project Path="Benchmark.DotNet.Linq.Enumerable.ZLinq/Benchmark.DotNet.Linq.Enumerable.ZLinq.csproj" />
-  <Project Path="Benchmark.DotNet.Linq.Enumerable.FLinq/Benchmark.DotNet.Linq.Enumerable.FLinq.csproj" />
+  <Project Path="Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj" />
+  <Project Path="Benchmark.Shared/Benchmark.Shared.shproj" Id="9749dc71-85fa-4584-9cb5-9929b262f213" />
   <Project Path="FLinq/FLinq.csproj" />
+  <Project Path="Seamless.Collections.Abstractions/Seamless.Collections.Abstractions.csproj" />
+  <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
   <Project Path="SourceGenerator.Shared/SourceGenerator.Shared.csproj" />
-  <Project Path="Test/Test.csproj" />
-  <Project Path="Tsavorite.Collections/Tsavorite.Collections.csproj" />
-  <Project Path="TsavoriteDB/TsavoriteDB.csproj" />
-  <Project Path="Test.System.Linq.Enumerable.Linq/Test.System.Linq.Enumerable.Linq.csproj" />
   <Project Path="Test.System.Linq.Enumerable.FLinq/Test.System.Linq.Enumerable.FLinq.csproj" />
+  <Project Path="Test.System.Linq.Enumerable.Linq/Test.System.Linq.Enumerable.Linq.csproj" />
   <Project Path="Test.System.Linq.Enumerable.ZLinq/Test.System.Linq.Enumerable.ZLinq.csproj" />
+  <Project Path="Test/Test.csproj" />
+  <Project Path="Tsavorite.Collections/Seamless.Collections.Tsavorite.csproj" />
+  <Project Path="TsavoriteDB/TsavoriteDB.csproj" />
 </Solution>

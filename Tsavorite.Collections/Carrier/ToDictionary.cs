@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static Dictionary<TKey,TValue> ToDictionary<TEnumerator, TKey, TValue>(this ValueEnumerable<TEnumerator,KeyValuePair<TKey,TValue>> source)
             where TKey : notnull

@@ -1,8 +1,8 @@
-namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 
 internal static class GroupBySupport{
     public static string GroupingType(string keyType,string elementType)=>
-        $"global::Tsavorite.Carrier.Linq.Grouping<{keyType}, {elementType}>";
+        $"global::Seamless.Collections.Tsavorite.Carrier.Linq.Grouping<{keyType}, {elementType}>";
 
     public static string Fields(string keyType,string elementType,string cursorName,string firstName,string builtName)=>$$"""
         private {{GroupingType(keyType,elementType)}}? {{cursorName}};
@@ -10,9 +10,9 @@ internal static class GroupBySupport{
         private bool {{builtName}};
         """;
 
-    // ‰‰ñ TryGetNext ‚Å Carrier ‚Ì LookupBuilder ‚É‚æ‚è‘SƒOƒ‹[ƒv‚ğ\’z‚µA
-    // add-order ‚ÌzŠÂ˜AŒ‹ƒŠƒXƒg‚Ìæ“ª(cursor/first)‚ğŠm’è‚·‚éB
-    // ‘±‚¯‚Ä cursor ‚ğ 1 ‚Âi‚ßAƒ[ƒJƒ‹ __cur ‚Éæ‚èo‚·B––”ö(first ‚Ö–ß‚é)‚Å cursor ‚ğ null ‰»B
+    // åˆå› TryGetNext ã§ Carrier ã® LookupBuilder ã«ã‚ˆã‚Šå…¨ã‚°ãƒ«ãƒ¼ãƒ—ã‚’æ§‹ç¯‰ã—ã€
+    // add-order ã®å¾ªç’°é€£çµãƒªã‚¹ãƒˆã®å…ˆé ­(cursor/first)ã‚’ç¢ºå®šã™ã‚‹ã€‚
+    // ç¶šã‘ã¦ cursor ã‚’ 1 ã¤é€²ã‚ã€ãƒ­ãƒ¼ã‚«ãƒ« __cur ã«å–ã‚Šå‡ºã™ã€‚æœ«å°¾(first ã¸æˆ»ã‚‹)ã§ cursor ã‚’ null åŒ–ã€‚
     public static string BuildAndAdvance(
         string enumeratorName,
         bool canTryProvideSpan,
@@ -54,7 +54,7 @@ internal static class GroupBySupport{
         return $$"""
         if(!this.{{builtName}}){
             this.{{builtName}}=true;
-            var __builder=new global::Tsavorite.Carrier.Linq.LookupBuilder<{{keyType}}, {{elementType}}>(global::System.Collections.Generic.EqualityComparer<{{keyType}}>.Default);
+            var __builder=new global::Seamless.Collections.Tsavorite.Carrier.Linq.LookupBuilder<{{keyType}}, {{elementType}}>(global::System.Collections.Generic.EqualityComparer<{{keyType}}>.Default);
             {{IndentBlock(buildLoop,"            ")}}
             this.{{cursorName}}=this.{{firstName}}=__builder.GetRootGroupAndClear();
         }
@@ -77,12 +77,12 @@ internal static class GroupBySupport{
     }
 }
 
-internal class GroupBy_keySelector(int ”Ô†, Enumerable source, FuncFragment keySelector) : Enumerable(”Ô†) {
+internal class GroupBy_keySelector(int ç•ªå·, Enumerable source, FuncFragment keySelector) : Enumerable(ç•ªå·) {
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     private string KeyType => FuncReturnTypeName(keySelector);
     protected override Enumerable PrimarySource => source;
     public override string GetEnumerableExpression =>
-        $"global::Tsavorite.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()})";
+        $"global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()})";
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
@@ -103,11 +103,11 @@ internal class GroupBy_keySelector(int ”Ô†, Enumerable source, FuncFragment key
 }
 
 internal class GroupBy_keySelector_resultSelector(
-    int ”Ô†,
+    int ç•ªå·,
     Enumerable source,
     FuncFragment keySelector,
     FuncFragment resultSelector)
-    : Enumerable(”Ô†) {
+    : Enumerable(ç•ªå·) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 2
         && method.Parameters[1].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
@@ -119,14 +119,14 @@ internal class GroupBy_keySelector_resultSelector(
         this.UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
     protected override string StructTypeConstraints =>
         this.UseResultTypeParam
-            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Tsavorite.Carrier.IValueEnumerator<{source.ElementType}>"
+            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{source.ElementType}>"
             : base.StructTypeConstraints;
     public override string EnumeratorTypeName =>
         this.UseResultTypeParam ? $"{this.Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
     private string FactorySource => !this.UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
-        private static global::Tsavorite.Carrier.ValueEnumerable<{{this.Struct}}<TEnum, TResult>, TResult> {{this.FactoryMethodName}}<TEnum, TResult>(TEnum source{{this.ClosurePrimaryCtorSuffix(keySelector, resultSelector)}})
-            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Tsavorite.Carrier.IValueEnumerator<{{source.ElementType}}>
+        private static global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerable<{{this.Struct}}<TEnum, TResult>, TResult> {{this.FactoryMethodName}}<TEnum, TResult>(TEnum source{{this.ClosurePrimaryCtorSuffix(keySelector, resultSelector)}})
+            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{{source.ElementType}}>
             => new(new {{this.Struct}}<TEnum, TResult>(source{{this.ClosureArgsSuffixForFactory(keySelector, resultSelector)}}));
         """;
     public override string StructMethod => JoinStaticMethods(JoinStaticMethods(this.FuncSupport(keySelector, nameof(keySelector)),this.FuncSupport(resultSelector, nameof(resultSelector))),this.FactorySource);
@@ -150,15 +150,15 @@ internal class GroupBy_keySelector_resultSelector(
     public override string GetEnumerableExpression =>
         this.UseResultTypeParam
             ? $"{this.FactoryMethodName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector, resultSelector)})"
-            : $"global::Tsavorite.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {resultSelector.DelegateConstructorArg ?? resultSelector.RenderAsLambda()})";
+            : $"global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {resultSelector.DelegateConstructorArg ?? resultSelector.RenderAsLambda()})";
 }
 
 internal class GroupBy_keySelector_elementSelector(
-    int ”Ô†,
+    int ç•ªå·,
     Enumerable source,
     FuncFragment keySelector,
     FuncFragment elementSelector)
-    : Enumerable(”Ô†) {
+    : Enumerable(ç•ªå·) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 2
         && method.Parameters[1].Type is INamedTypeSymbol { TypeArguments.Length: 2 };
@@ -166,7 +166,7 @@ internal class GroupBy_keySelector_elementSelector(
     private string KeyType => FuncReturnTypeName(keySelector);
     private string ElemType => FuncReturnTypeName(elementSelector);
     public override string GetEnumerableExpression =>
-        $"global::Tsavorite.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {elementSelector.DelegateConstructorArg ?? elementSelector.RenderAsLambda()})";
+        $"global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {elementSelector.DelegateConstructorArg ?? elementSelector.RenderAsLambda()})";
     public override string StructMethod => JoinStaticMethods(this.FuncSupport(keySelector, nameof(keySelector)),this.FuncSupport(elementSelector, nameof(elementSelector)));
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
@@ -187,12 +187,12 @@ internal class GroupBy_keySelector_elementSelector(
 }
 
 internal class GroupBy_keySelector_elementSelector_resultSelector(
-    int ”Ô†,
+    int ç•ªå·,
     Enumerable source,
     FuncFragment keySelector,
     FuncFragment elementSelector,
     FuncFragment resultSelector)
-    : Enumerable(”Ô†) {
+    : Enumerable(ç•ªå·) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length == 3
         && method.Parameters[2].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
@@ -205,14 +205,14 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
         this.UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
     protected override string StructTypeConstraints =>
         this.UseResultTypeParam
-            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Tsavorite.Carrier.IValueEnumerator<{source.ElementType}>"
+            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{source.ElementType}>"
             : base.StructTypeConstraints;
     public override string EnumeratorTypeName =>
         this.UseResultTypeParam ? $"{this.Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
     private string FactorySource => !this.UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
-        private static global::Tsavorite.Carrier.ValueEnumerable<{{this.Struct}}<TEnum, TResult>, TResult> {{this.FactoryMethodName}}<TEnum, TResult>(TEnum source{{this.ClosurePrimaryCtorSuffix(keySelector, elementSelector, resultSelector)}})
-            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Tsavorite.Carrier.IValueEnumerator<{{source.ElementType}}>
+        private static global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerable<{{this.Struct}}<TEnum, TResult>, TResult> {{this.FactoryMethodName}}<TEnum, TResult>(TEnum source{{this.ClosurePrimaryCtorSuffix(keySelector, elementSelector, resultSelector)}})
+            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{{source.ElementType}}>
             => new(new {{this.Struct}}<TEnum, TResult>(source{{this.ClosureArgsSuffixForFactory(keySelector, elementSelector, resultSelector)}}));
         """;
     public override string StructMethod => JoinStaticMethods(JoinStaticMethods(JoinStaticMethods(this.FuncSupport(keySelector, nameof(keySelector)),this.FuncSupport(elementSelector, nameof(elementSelector))),this.FuncSupport(resultSelector, nameof(resultSelector))),this.FactorySource);
@@ -236,5 +236,5 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
     public override string GetEnumerableExpression =>
         this.UseResultTypeParam
             ? $"{this.FactoryMethodName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector, elementSelector, resultSelector)})"
-            : $"global::Tsavorite.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {elementSelector.DelegateConstructorArg ?? elementSelector.RenderAsLambda()}, {resultSelector.DelegateConstructorArg ?? resultSelector.RenderAsLambda()})";
+            : $"global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {elementSelector.DelegateConstructorArg ?? elementSelector.RenderAsLambda()}, {resultSelector.DelegateConstructorArg ?? resultSelector.RenderAsLambda()})";
 }

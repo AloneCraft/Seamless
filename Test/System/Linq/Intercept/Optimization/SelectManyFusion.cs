@@ -11,19 +11,19 @@ public sealed class SelectManyFusion:OptimizationTestBase{
         AssertSequenceEqual(EmptyOuter().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList(),NestedFlatten_EmptyNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> NestedFlatten_NonEmptyOptimized() =>
         Outer().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> NestedFlatten_NonEmptyNoOptimized() =>
         Outer().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> NestedFlatten_EmptyOptimized() =>
         EmptyOuter().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> NestedFlatten_EmptyNoOptimized() =>
         EmptyOuter().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList();
 
@@ -33,11 +33,11 @@ public sealed class SelectManyFusion:OptimizationTestBase{
         AssertSequenceEqual(Outer().SelectMany(static a => Inner(),static (a,b) => a+b).ToList(),CollectionSelectorResultSelectorFusedNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> CollectionSelectorResultSelectorFusedOptimized() =>
         Outer().SelectMany(static a => Inner(),static (a,b) => a+b).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> CollectionSelectorResultSelectorFusedNoOptimized() =>
         Outer().SelectMany(static a => Inner(),static (a,b) => a+b).ToList();
 
@@ -49,19 +49,19 @@ public sealed class SelectManyFusion:OptimizationTestBase{
         AssertSequenceEqual(Outer().SelectMany(static a => Inner()).Where(static x => x>1000).ToList(),PredicatePushdown_NoMatchNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> PredicatePushdown_MatchOptimized() =>
         Outer().SelectMany(static a => Inner()).Where(static x => x>Limit()).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> PredicatePushdown_MatchNoOptimized() =>
         Outer().SelectMany(static a => Inner()).Where(static x => x>Limit()).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> PredicatePushdown_NoMatchOptimized() =>
         Outer().SelectMany(static a => Inner()).Where(static x => x>1000).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> PredicatePushdown_NoMatchNoOptimized() =>
         Outer().SelectMany(static a => Inner()).Where(static x => x>1000).ToList();
 
@@ -71,11 +71,11 @@ public sealed class SelectManyFusion:OptimizationTestBase{
         AssertSequenceEqual(Outer().SelectMany(static (a,i) => new[] { a,i }).ToList(),IndexSelectorOverloadNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> IndexSelectorOverloadOptimized() =>
         Outer().SelectMany(static (a,i) => new[] { a,i }).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> IndexSelectorOverloadNoOptimized() =>
         Outer().SelectMany(static (a,i) => new[] { a,i }).ToList();
 }

@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier;
+﻿namespace Seamless.Collections.Tsavorite.Carrier;
 
 partial class ValueEnumerableExtensions {
     public static TResult? Min<TEnumerator, TSource, TResult>(this ValueEnumerable<TEnumerator,TSource> source,Func<TSource,TResult> selector)
