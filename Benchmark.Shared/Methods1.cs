@@ -438,13 +438,13 @@ public abstract class Methods1 : global::Benchmark.Shared.Base {
     public void Range() => this.Range_Impl();
 
     [LinqInterceptAttribute(true)]
-    private void Range_Impl() => global::System.Linq.Enumerable.Range(1,GeneratedCount).Consume(this.consumer);
+    private void Range_Impl() => global::System.Linq.Enumerable.Range(1,this.CountForComparison(GeneratedCount)).Consume(this.consumer);
     // [Repeat]
     [BenchFact,Benchmark]
     public void Repeat() => this.Repeat_Impl();
 
     [LinqInterceptAttribute(true)]
-    private void Repeat_Impl() => global::System.Linq.Enumerable.Repeat(7,GeneratedCount).Consume(this.consumer);
+    private void Repeat_Impl() => global::System.Linq.Enumerable.Repeat(7,this.CountForComparison(GeneratedCount)).Consume(this.consumer);
     // [Reverse]
     [BenchFact,Benchmark]
     [BenchmarkCategory(Categories.Linq)]
@@ -729,8 +729,8 @@ public abstract class Methods1 : global::Benchmark.Shared.Base {
     [LinqInterceptAttribute(true)]
     private void Zip_tuple_Impl() => this.srcCount(StreamShapeCount).AsX<int>().Zip(this.src2Count(StreamShapeCount)).Consume(this.consumer);
 
-    private readonly int[] outer = global::System.Linq.Enumerable.Range(0,SelectManyOuterCount).ToArray();
-    private readonly int[] inner = global::System.Linq.Enumerable.Range(0,SelectManyInnerCount).ToArray();
+    private int[] outer = [];
+    private int[] inner = [];
     private const int Threshold = 120;
 
     private int[] array = [];
@@ -742,7 +742,9 @@ public abstract class Methods1 : global::Benchmark.Shared.Base {
     }
 
     private void Initialize() {
-        this.sourceCount=SourceShapeCount;
+        this.outer=global::System.Linq.Enumerable.Range(0,this.CountForComparison(SelectManyOuterCount)).ToArray();
+        this.inner=global::System.Linq.Enumerable.Range(0,this.CountForComparison(SelectManyInnerCount)).ToArray();
+        this.sourceCount=this.CountForComparison(SourceShapeCount);
         this.array=global::System.Linq.Enumerable.Range(1,this.sourceCount).ToArray();
         this.list=this.array.ToList();
     }

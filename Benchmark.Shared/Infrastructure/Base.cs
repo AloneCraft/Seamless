@@ -12,24 +12,45 @@ public sealed class BenchmarkTestIterationsAttribute(int count):Attribute {
 
 public static class BenchmarkExecutionMode {
     private const string TestModeKey = "Benchmark.Shared.TestMode";
+    private static readonly System.Threading.AsyncLocal<int?> ComparisonElementLimit = new();
 
     public static bool IsTestMode =>
         AppContext.GetData(TestModeKey) is true
         ||Environment.GetEnvironmentVariable("SEAMLESS_BENCHMARK_TEST_MODE")=="1";
 
+    public static bool IsComparisonMode => ComparisonElementLimit.Value is > 0;
+
     public static void EnableTestMode() => AppContext.SetData(TestModeKey,true);
+
+    public static void EnableComparisonMode(int maxElementCount) {
+        if(maxElementCount<=0) {
+            throw new ArgumentOutOfRangeException(nameof(maxElementCount));
+        }
+
+        ComparisonElementLimit.Value=maxElementCount;
+    }
+
+    public static void DisableComparisonMode() => ComparisonElementLimit.Value=null;
+
+    internal static int LimitForComparison(int elementCount) =>
+        ComparisonElementLimit.Value is > 0 and var limit
+            ? Math.Min(elementCount,limit)
+            : elementCount;
 }
 
 public sealed class Consumer {
+    private const int DigestSampleCount = 8;
     private readonly global::BenchmarkDotNet.Engines.Consumer inner = new();
     private readonly List<object?> captured = [];
     private bool captureEnabled;
+    private DigestCapture? digestCapture;
 
     public void Consume<T>(T value) {
         if(this.captureEnabled) {
             this.captured.Add(value);
         }
 
+        this.digestCapture?.Add(value);
         this.inner.Consume(value);
     }
 
@@ -41,6 +62,64 @@ public sealed class Consumer {
     internal object?[] EndCapture() {
         this.captureEnabled=false;
         return this.captured.ToArray();
+    }
+
+    internal void BeginDigestCapture(Func<object?,string> normalize) {
+        if(this.digestCapture is not null) {
+            throw new InvalidOperationException("Digest capture is already active.");
+        }
+
+        this.digestCapture=new DigestCapture(normalize);
+    }
+
+    internal string EndDigestCapture() {
+        var capture=this.digestCapture??throw new InvalidOperationException("Digest capture is not active.");
+        this.digestCapture=null;
+        return capture.End();
+    }
+
+    internal static string CreateSingleDigest(string normalized) {
+        var capture=new DigestCapture(static value => value?.ToString()??string.Empty);
+        capture.Add(normalized);
+        return capture.End();
+    }
+
+    private sealed class DigestCapture(Func<object?,string> normalize) {
+        private readonly System.Security.Cryptography.IncrementalHash hash =
+            System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
+        private readonly List<string> first = [];
+        private readonly Queue<string> last = [];
+        private long count;
+
+        public void Add(object? value) {
+            var normalized=normalize(value);
+            this.count++;
+            if(this.first.Count<DigestSampleCount) {
+                this.first.Add(normalized);
+            }
+            if(this.last.Count==DigestSampleCount) {
+                this.last.Dequeue();
+            }
+            this.last.Enqueue(normalized);
+
+            var bytes=System.Text.Encoding.UTF8.GetBytes(normalized);
+            var lengthBytes=new byte[4];
+            System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(lengthBytes,bytes.Length);
+            this.hash.AppendData(lengthBytes);
+            this.hash.AppendData(bytes);
+        }
+
+        public string End() {
+            var hashText=Convert.ToHexString(this.hash.GetHashAndReset());
+            this.hash.Dispose();
+            return "count="+this.count
+                +";sha256="+hashText
+                +";first="+Format(this.first)
+                +";last="+Format(this.last);
+        }
+
+        private static string Format(IEnumerable<string> values) =>
+            "["+string.Join(",",values)+"]";
     }
 }
 
@@ -60,6 +139,45 @@ public class Base {
 
     private protected int CountForTestTiming(int benchmarkCount) =>
         BenchmarkExecutionMode.IsTestMode?this.count:benchmarkCount;
+
+    private protected int CountForComparison(int elementCount) =>
+        BenchmarkExecutionMode.LimitForComparison(elementCount);
+
+    public string CaptureBenchmarkMethodResult(string methodName,bool invokeImpl) {
+        if(string.IsNullOrWhiteSpace(methodName)) {
+            throw new ArgumentException("Method name is required.",nameof(methodName));
+        }
+
+        var method=invokeImpl
+            ? FindInstanceMethodInHierarchy(this.GetType(),methodName+"_Impl",nonPublic:true)
+            : FindBenchmarkMethod(this.GetType(),methodName);
+
+        this.Result=MissingResult;
+        this.consumer.BeginDigestCapture(Normalize);
+        object? returnValue=null;
+        Exception? invocationError=null;
+        var consumed=string.Empty;
+        try {
+            returnValue=method.Invoke(this,null);
+        } catch(System.Reflection.TargetInvocationException ex) when(ex.InnerException is not null) {
+            invocationError=ex.InnerException;
+        } finally {
+            consumed=this.consumer.EndDigestCapture();
+        }
+
+        if(invocationError is not null) {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(invocationError).Throw();
+            throw new InvalidOperationException("Unreachable.");
+        }
+
+        if(!ReferenceEquals(MissingResult,this.Result)) {
+            return Consumer.CreateSingleDigest(Normalize(this.Result));
+        }
+        if(method.ReturnType!=typeof(void)) {
+            return Consumer.CreateSingleDigest(Normalize(returnValue));
+        }
+        return consumed;
+    }
 
     protected void AssertResults(Action linq,Action flinq,Action noOptimized,Action zlinq) {
         var expected = this.CaptureResult(linq);
@@ -178,15 +296,52 @@ public class Base {
         return true;
     }
 
+    private static System.Reflection.MethodInfo FindBenchmarkMethod(Type type,string methodName) {
+        var method=FindInstanceMethodInHierarchy(type,methodName,nonPublic:false);
+        if(!HasAttribute(method,"BenchmarkAttribute")) {
+            throw new MissingMethodException(type.FullName,methodName+" [Benchmark]");
+        }
+        return method;
+    }
+
+    private static System.Reflection.MethodInfo FindInstanceMethodInHierarchy(Type type,string methodName,bool nonPublic) {
+        var flags=System.Reflection.BindingFlags.Instance
+            |System.Reflection.BindingFlags.DeclaredOnly
+            |(nonPublic?System.Reflection.BindingFlags.NonPublic:System.Reflection.BindingFlags.Public);
+        for(var current=type;current is not null;current=current.BaseType!) {
+            var method=current.GetMethod(methodName,flags);
+            if(method is null) {
+                continue;
+            }
+            if(method.GetParameters().Length!=0) {
+                throw new InvalidOperationException($"{current.FullName}.{methodName} must not declare parameters.");
+            }
+            return method;
+        }
+
+        throw new MissingMethodException(type.FullName,methodName);
+    }
+
+    private static bool HasAttribute(System.Reflection.MemberInfo member,string attributeName) {
+        foreach(var attribute in member.CustomAttributes) {
+            if(attribute.AttributeType.Name==attributeName) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     protected IEnumerable<int> srcMinusPlus(int scale) {
-        for(var a = 0;a<count*scale;a+=2) {
+        var length=this.CountForComparison(count*scale);
+        for(var a = 0;a<length;a+=2) {
             yield return -a;
             yield return +a;
         }
     }
 
     protected IEnumerable<int> srcMinusPlusCount(int elementCount) {
-        for(var a = 0;a<elementCount;a+=2) {
+        var length=this.CountForComparison(elementCount);
+        for(var a = 0;a<length;a+=2) {
             yield return -a;
             yield return +a;
         }
@@ -234,16 +389,7 @@ public class Base {
     protected IEnumerable<int> srcOne(int scale) => [0];
 
     private int[] GetOrCreate(int scale,Dictionary<int,int[]> cache,Func<int,int[]> factory) {
-        if(cache.TryGetValue(scale,out var values)) {
-            return values;
-        }
-
-        values=factory(count*scale);
-        cache.Add(scale,values);
-        return values;
-    }
-
-    private int[] GetOrCreateByLength(int length,Dictionary<int,int[]> cache,Func<int,int[]> factory) {
+        var length=this.CountForComparison(count*scale);
         if(cache.TryGetValue(length,out var values)) {
             return values;
         }
@@ -253,15 +399,26 @@ public class Base {
         return values;
     }
 
+    private int[] GetOrCreateByLength(int length,Dictionary<int,int[]> cache,Func<int,int[]> factory) {
+        var effectiveLength=this.CountForComparison(length);
+        if(cache.TryGetValue(effectiveLength,out var values)) {
+            return values;
+        }
+
+        values=factory(effectiveLength);
+        cache.Add(effectiveLength,values);
+        return values;
+    }
+
     [LinqIntercept(false)]
     protected IEnumerable<IEnumerable<int>> srcNested(int scale) {
-        var side = (int)Math.Sqrt(count*scale);
+        var side = (int)Math.Sqrt(this.CountForComparison(count*scale));
         return global::System.Linq.Enumerable.Range(1,side).Select(_ => global::System.Linq.Enumerable.Range(1,side));
     }
 
     [LinqIntercept(false)]
     protected IEnumerable<IEnumerable<int>> srcNestedCount(int elementCount) {
-        var side = (int)Math.Sqrt(elementCount);
+        var side = (int)Math.Sqrt(this.CountForComparison(elementCount));
         return global::System.Linq.Enumerable.Range(1,side).Select(_ => global::System.Linq.Enumerable.Range(1,side));
     }
 }

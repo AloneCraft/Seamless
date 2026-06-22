@@ -59,13 +59,14 @@ public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
         int scale,
         Dictionary<int,SourceHandle<int>> cache,
         Func<int,int[]> factory) {
-        if(cache.TryGetValue(scale,out var handle)) {
+        var length=this.CountForComparison(this.CountForTestTiming(this.count*scale));
+        if(cache.TryGetValue(length,out var handle)) {
             return handle.Set;
         }
 
-        var values = factory(this.CountForTestTiming(this.count*scale));
+        var values = factory(length);
         handle=CreateSet(values);
-        cache.Add(scale,handle);
+        cache.Add(length,handle);
         return handle.Set;
     }
 
@@ -73,13 +74,14 @@ public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
         int length,
         Dictionary<int,SourceHandle<int>> cache,
         Func<int,int[]> factory) {
-        if(cache.TryGetValue(length,out var handle)) {
+        var effectiveLength=this.CountForComparison(this.CountForTestTiming(length));
+        if(cache.TryGetValue(effectiveLength,out var handle)) {
             return handle.Set;
         }
 
-        var values = factory(this.CountForTestTiming(length));
+        var values = factory(effectiveLength);
         handle=CreateSet(values);
-        cache.Add(length,handle);
+        cache.Add(effectiveLength,handle);
         return handle.Set;
     }
 
