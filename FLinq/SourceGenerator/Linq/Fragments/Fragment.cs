@@ -1,8 +1,34 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
+/*
+Fragment は「LINQ 呼び出しをどの C# コードへ置き換えるか」を表す最小単位。
+
+入力例:
+  source.Where(x => x > 0).Select(x => x * 2).ToArray()
+
+生成の読み方:
+  - 実際の出力では Struct{番号}, __e{番号}, __it{番号} のような番号付き名になる。
+  - このフォルダ内のコメントでは、理解しやすいように sourceEnumerator / item / result などの擬似名で書く。
+  - Enumerable 系 Fragment は GetEnumeratorStruct + GetTryGetNextBody を合成して struct enumerator を出す。
+  - Scalar 系 Fragment は Compute(...) または単一要素 enumerator を出し、終端結果だけを返す。
+
+代表的な生成骨格:
+  private struct GeneratedEnumerator<TSourceEnumerator> : IValueEnumerator<T> {
+      private TSourceEnumerator sourceEnumerator;
+      public bool TryGetNext(out T current) {
+          // 各 Fragment の GetTryGetNextBody がここへ入る。
+      }
+  }
+
+設計意図:
+  interceptor 側に演算子ごとのコード生成を散らさず、Fragment が状態機械・補助 struct・
+  lambda の展開方法を所有する。FuncFragment は inline 可能なら式/代入へ展開し、匿名型など
+  型名を書けない場合だけ delegate フィールド保持に切り替える。
+*/
 public abstract class Fragment(
     int 番号
 ) {
     private protected const string AggressiveInliningAttribute = "[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]";
+    private bool renderingInstanceMember;
 
     // 生成コード内で enumerator 変数名として使う。
     private protected string e => $"__e{番号}";
@@ -256,7 +282,7 @@ public abstract class Fragment(
             return this.CountPhysicalDelegateExpression($"this.{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})");
         }
         if(func.CanInlineAssign) {
-            return this.CountLogicalDelegateExpression(func.RenderInlineExpression(arguments));
+            return this.CountLogicalDelegateExpression(this.RenderInlineExpression(func,arguments));
         }
         throw LambdaInlineUnsupported(func,methodName);
     }
@@ -264,13 +290,13 @@ public abstract class Fragment(
     // 代入文が必要なときの共通ヘルパー。
     private protected string FuncAssign(FuncFragment func,string methodName,string destination,params string[] arguments) {
         if(func.RequiresStatementInlining) {
-            return $"{this.CounterCall("IncrementLogicalDelegate")}\n{func.RenderInlineAssign(destination,番号,arguments)}";
+            return $"{this.CounterCall("IncrementLogicalDelegate")}\n{this.RenderInlineAssign(func,destination,arguments)}";
         }
         if(func.CanInvokeAsDelegate) {
             return $"{destination}={this.CountPhysicalDelegateExpression($"this.{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})")};";
         }
         if(func.CanInlineAssign) {
-            return $"{this.CounterCall("IncrementLogicalDelegate")}\n{func.RenderInlineAssign(destination,番号,arguments)}";
+            return $"{this.CounterCall("IncrementLogicalDelegate")}\n{this.RenderInlineAssign(func,destination,arguments)}";
         }
         if(func is LambdaFunc) {
             throw LambdaInlineUnsupported(func,methodName);
@@ -279,6 +305,26 @@ public abstract class Fragment(
     }
     private protected string FuncAssignIndented(string indent,FuncFragment func,string methodName,string destination,params string[] arguments) =>
         IndentGeneratedStatement(this.FuncAssign(func,methodName,destination,arguments),indent);
+
+    private string RenderInlineAssign(FuncFragment func,string destination,params string[] arguments) =>
+        this.renderingInstanceMember
+            ? func.RenderInlineAssignWithHoistedReceiver("this.",destination,番号,arguments)
+            : func.RenderInlineAssign(destination,番号,arguments);
+
+    private string RenderInlineExpression(FuncFragment func,params string[] arguments) =>
+        this.renderingInstanceMember
+            ? func.RenderInlineExpressionWithHoistedReceiver("this.",arguments)
+            : func.RenderInlineExpression(arguments);
+
+    private string RenderInstanceMember(Func<string> render) {
+        var previous=this.renderingInstanceMember;
+        this.renderingInstanceMember=true;
+        try {
+            return render();
+        } finally {
+            this.renderingInstanceMember=previous;
+        }
+    }
 
     internal string FuncAssignForAggregateInline(FuncFragment func,string methodName,string destination,string? delegateLocalName,params string[] arguments) {
         if(func.CanInvokeAsDelegate && delegateLocalName is { Length: > 0 }) {
@@ -339,7 +385,7 @@ public abstract class Fragment(
         if(func.RequiresStatementInlining) {
             // InlinedScalarFunc など複数文が必要な場合は一時変数経由
             var declaration = $"{func.ReturnTypeName} {tempVar} = default!;";
-            var assignStatement = func.RenderInlineAssign(tempVar,番号,arguments);
+            var assignStatement = this.RenderInlineAssign(func,tempVar,arguments);
             var counterCall = this.CounterCall("IncrementLogicalDelegate");
             var pre = thisShadow.Length > 0 ? $"{thisShadow}\n{counterCall}\n{declaration}\n{assignStatement}" : $"{counterCall}\n{declaration}\n{assignStatement}";
             return (pre, tempVar);
@@ -349,7 +395,7 @@ public abstract class Fragment(
         }
         if(func.CanInlineAssign) {
             // 単純ラムダなら直接式として展開
-            return (thisShadow, this.CountLogicalDelegateExpression(func.RenderInlineExpression(arguments)));
+            return (thisShadow, this.CountLogicalDelegateExpression(this.RenderInlineExpression(func,arguments)));
         }
         throw LambdaInlineUnsupported(func,methodName);
     }
@@ -409,7 +455,7 @@ public abstract class Fragment(
             ctorDecl = $"public {this.Struct}({this.GetEnumeratorPrimaryConstructorParameters}) {{\n{ctorBody}\n}}";
         }
 
-        var tryGetNextBody = IndentLines(this.GetTryGetNextBody, "        ");
+        var tryGetNextBody = IndentLines(this.RenderInstanceMember(() => this.GetTryGetNextBody), "        ");
         var dispose = IndentLines(disposeBody, "        ");
         var fieldsFromParams = IndentLines(ctorParamFields, "    ");
         var fields = IndentLines(this.GetEnumeratorFields, "    ");
@@ -429,15 +475,15 @@ public abstract class Fragment(
                 public bool MoveNext() => TryGetNext(out _);
                 {{AggressiveInliningAttribute}}
                 public bool TryGetNonEnumeratedCount(out int count) {
-            {{IndentLines(this.GetTryGetNonEnumeratedCountBody, "        ")}}
+            {{IndentLines(this.RenderInstanceMember(() => this.GetTryGetNonEnumeratedCountBody), "        ")}}
                 }
                 {{AggressiveInliningAttribute}}
                 public bool TryGetSpan(out global::System.ReadOnlySpan<{{currentType}}> span) {
-            {{IndentLines(this.GetTryGetSpanBody, "        ")}}
+            {{IndentLines(this.RenderInstanceMember(() => this.GetTryGetSpanBody), "        ")}}
                 }
                 {{AggressiveInliningAttribute}}
                 public bool TryCopyTo(scoped global::System.Span<{{currentType}}> destination, global::System.Index __offset) {
-            {{IndentLines(this.GetTryCopyToBody, "        ")}}
+            {{IndentLines(this.RenderInstanceMember(() => this.GetTryCopyToBody), "        ")}}
                 }
                 {{AggressiveInliningAttribute}}
                 public bool TryGetNext(out {{currentType}} current) {
@@ -496,7 +542,7 @@ public abstract class Fragment(
     // struct の TryGetNext 内で使う。static ラムダまたはキャプチャ変数付きラムダならインライン展開する。
     private protected string FuncInvokeField(FuncFragment func,string methodName,params string[] arguments) {
         if(func.CanInlineAssign) {
-            return this.CountLogicalDelegateExpression(func.RenderInlineExpression(arguments));
+            return this.CountLogicalDelegateExpression(func.RenderInlineExpressionWithHoistedReceiver("this.",arguments));
         }
         throw LambdaInlineUnsupported(func,methodName);
     }

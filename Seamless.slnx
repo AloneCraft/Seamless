@@ -1,8 +1,5 @@
 <Solution>
   <Folder Name="/solution/">
-    <File Path="20260430蜀・Κ險ｭ險域嶌.txt" />
-    <File Path="20260430螟夜Κ險ｭ險域嶌.txt" />
-    <File Path="20260430隕∽ｻｶ螳夂ｾｩ譖ｸ.txt" />
     <File Path="AGENTS.md" />
     <File Path="AI_SYNTAX_RULES.md" />
     <File Path="CLAUDE.md" />
@@ -15,6 +12,8 @@
   <Project Path="Benchmark.DotNet.Linq.Enumerable.ZLinq/Benchmark.DotNet.Linq.Enumerable.ZLinq.csproj" />
   <Project Path="Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj" />
   <Project Path="Benchmark.Shared/Benchmark.Shared.shproj" Id="9749dc71-85fa-4584-9cb5-9929b262f213" />
+  <Project Path="Benchmark.Worker/Benchmark.Worker.csproj" />
+  <Project Path="Document/Document.csproj" Id="b6f45f7e-1008-41c4-a1d3-7f9efbf33610" />
   <Project Path="FLinq/FLinq.csproj" />
   <Project Path="Seamless.Collections.Abstractions/Seamless.Collections.Abstractions.csproj" />
   <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />

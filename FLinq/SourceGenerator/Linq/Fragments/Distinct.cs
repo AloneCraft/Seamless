@@ -4,6 +4,26 @@ internal class Distinct(int 番号,Enumerable source):Distinct_comparer(番号,s
 
 internal class Distinct_comparer(int 番号,Enumerable source,string comparer):DistinctBase(番号,source,comparer);
 
+/*
+DistinctBase は source.Distinct(comparer) を HashSet で既出判定する enumerator/direct consume へ変換する。
+
+入力例:
+  source.Distinct()
+  source.Distinct(comparer)
+
+生成例:
+  while(source.TryGetNext(out var item)) {
+      if(seen.Add(item)) {
+          current = item;
+          return true;
+      }
+  }
+  return false;
+
+設計意図:
+  TryGetNonEnumeratedCount で HashSet capacity を見積もる。Consume 直結では TraversalSupport による
+  span/while ループを使い、current フィールド更新を省いて consumer.Consume(value) へ直接渡す。
+*/
 internal abstract class DistinctBase(int 番号,Enumerable source,string comparer):Enumerable(番号),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=>string.Empty;
@@ -53,6 +73,25 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
     }
 }
 
+/*
+DistinctByBase は keySelector(item) の結果を HashSet に入れ、初めて見た key の item だけを返す。
+
+入力例:
+  source.DistinctBy(x => x.Id, comparer)
+
+生成例:
+  while(source.TryGetNext(out var item)) {
+      var key = keySelector(item);
+      if(seenKeys.Add(key)) {
+          current = item;
+          return true;
+      }
+  }
+
+バリエーション:
+  - keySelector が identity かつ型/比較器が合う連続 DistinctBy は direct consume を前段へ統合できる。
+  - key の範囲が小さい int と分かる場合、HashSet ではなく bool[] seen を使う direct consume を生成する。
+*/
 internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer):Enumerable(番号),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     private FuncFragment KeySelector=>keySelector;

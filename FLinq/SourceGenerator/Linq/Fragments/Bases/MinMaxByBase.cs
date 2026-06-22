@@ -1,5 +1,28 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+MinMaxByBase は source.MinBy(keySelector) / MaxBy(keySelector) を、最良 key を持つ元要素へ変換する。
+
+入力例:
+  source.MaxBy(x => x.Score)
+
+生成例:
+  if(!source.MoveNext()) throw NoElements();
+  bestElement = source.Current;
+  bestKey = keySelector(bestElement);
+  while(source.MoveNext()) {
+      key = keySelector(item);
+      if(comparer.Compare(key, bestKey) is better) {
+          bestElement = item;
+          bestKey = key;
+      }
+  }
+  return bestElement;
+
+バリエーション:
+  - span source は最初に span path を使い、だめなら ComputeEnumerator に戻る。
+  - direction により > 0 / < 0 を切り替える。
+*/
 internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment keySelector,string resultType,string direction):BufferedScalar(番号,resultType){
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));

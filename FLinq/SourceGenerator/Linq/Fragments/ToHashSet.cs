@@ -1,5 +1,23 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+ToHashSetBase は ToHashSet overload 群の共通基底。
+
+入力例:
+  source.ToHashSet()
+  source.ToHashSet(comparer)
+
+生成例:
+  result = source.TryGetNonEnumeratedCount(out count)
+      ? new HashSet<T>(count, comparer)
+      : new HashSet<T>(comparer);
+  foreach(var item in spanOrEnumerator) result.Add(item);
+
+バリエーション:
+  - comparer なしは既定比較器。
+  - comparer ありは constructor/Compute に comparer を渡す。
+  - RangeRoot<int> は start+i を直接 Add する inline を生成する。
+*/
 public abstract class ToHashSetBase(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType){
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=>string.Empty;

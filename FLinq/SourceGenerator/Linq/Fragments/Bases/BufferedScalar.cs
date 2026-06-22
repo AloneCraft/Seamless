@@ -1,4 +1,31 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
+/*
+BufferedScalar は「Compute で先に結果を作り、TryGetNext はその結果を1回だけ返す」終端基底。
+
+入力例:
+  source.Count(predicate)
+  source.First()
+
+生成されるコード例:
+  private struct GeneratedScalar<TSourceEnumerator> {
+      public TResult Current { get; private set; }
+      private bool yielded;
+      public GeneratedScalar(TSourceEnumerator source) {
+          Current = Compute(source);
+      }
+      public bool TryGetNext(out TResult current) {
+          if(yielded) return false;
+          yielded = true;
+          current = Current;
+          return true;
+      }
+  }
+
+バリエーション:
+  - ComputeExpression は Count/First/ToArray など各終端が差し替える。
+  - ComputeMembers は span fast path、predicate 呼び出し、補助 Lookup 型などを追加する。
+  - RenderComputeInline は Compute 呼び出しだけを呼び出し元へ直接埋め込む。
+*/
 public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番号) {
     protected abstract string ComputeExpression { get; }
     protected virtual string ComputeMembers => string.Empty;

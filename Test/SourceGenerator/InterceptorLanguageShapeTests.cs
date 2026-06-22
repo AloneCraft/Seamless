@@ -25,6 +25,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     private static void SumStructInstance() { }
     private static void SumGeneratedHelper() { }
     private static void ToArrayConsume() { }
+    private static void QueryGroupByConsume() { }
     private static void MaterializeFastPaths() { }
     private static void ToArrayFast() { }
     private static void ToListFast() { }
@@ -192,6 +193,48 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             && result.GeneratedSource.Contains("foreach(var __item in __linq", StringComparison.Ordinal)
             && result.GeneratedSource.Contains(".Consume(__item);", StringComparison.Ordinal),
             "Scalar materialize terminal followed by Consume should expand to direct item consumption.",
+            result.GeneratedSource,
+            output);
+        AssertNoErrors(result.Diagnostics);
+    }
+
+    [Fact]
+    public void QueryGroupByConsume_ExpandsWithoutForwardingFailure()
+    {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed record Row(int Key, int Value);
+            public sealed class Consumer {
+                public List<object?> Items { get; } = [];
+                public void Consume<T>(T item) => Items.Add(item);
+            }
+            public static class ConsumerExtensions {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private readonly Consumer consumer = new();
+                private static Row[] Rows() => [new(1, 10), new(1, 20), new(2, 30)];
+                private void QueryGroupByConsume() =>
+                    (from row in Rows() group row by row.Key).Consume(this.consumer);
+                public void Run() => QueryGroupByConsume();
+                public static string TargetName => nameof(QueryGroupByConsume);
+            }
+            """;
+
+        var result = RunGeneratorAndCompile(("Container.cs", source));
+
+        AssertIntercepted(result.GeneratedSource, nameof(QueryGroupByConsume));
+        GeneratedSourceAssert.True(
+            !result.GeneratedSource.Contains("LinqInterceptorFailure", StringComparison.Ordinal)
+            && result.GeneratedSource.Contains("Tsavorite query lowered", StringComparison.Ordinal)
+            && result.GeneratedSource.Contains(".Consume(__cv", StringComparison.Ordinal),
+            "Query-lowered GroupBy followed by Consume should expand to direct item consumption.",
             result.GeneratedSource,
             output);
         AssertNoErrors(result.Diagnostics);

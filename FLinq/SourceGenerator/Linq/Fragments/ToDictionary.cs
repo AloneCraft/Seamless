@@ -1,5 +1,25 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+ToDictionaryBase は ToDictionary overload 群の direct enumerable fast path と共通設定を持つ基底。
+
+入力例:
+  source.ToDictionary(x => x.Id)
+  source.ToDictionary(x => x.Id, x => x.Name, comparer)
+
+生成例:
+  dictionary = capacity が分かれば new(count, comparer) する;
+  foreach(var item in source) {
+      key = keySelector(item);
+      value = elementSelector があれば elementSelector(item) else item;
+      dictionary.Add(key, value);
+  }
+
+バリエーション:
+  - array/list/ICollection 由来なら sourceExpression を直接 pattern match して capacity と span を使う。
+  - keySelector が identity の RangeRoot<int> は key/value を start+i で直接作る。
+  - comparer overload は Dictionary constructor と Compute 引数へ comparer を追加する。
+*/
 public abstract class ToDictionaryBase(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType){
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=>string.Empty;

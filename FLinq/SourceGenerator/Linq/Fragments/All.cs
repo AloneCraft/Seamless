@@ -1,4 +1,21 @@
 namespace Seamless.FLinq.Linq.Fragments;
+/*
+All_predicate は source.All(predicate) を、最初に false になった要素で短絡する Compute にする。
+
+入力例:
+  source.All(x => x.Valid)
+
+生成例:
+  foreach(var item in source) {
+      if(!predicate(item)) return false;
+  }
+  return true;
+
+バリエーション:
+  - 空 sequence は true。
+  - source が TryGetSpan 可能なら span loop を試し、だめなら MoveNext loop に戻る。
+  - Range + 単純 predicate は RangePredicateOptimizer でより短い inline にできる。
+*/
 public class All_predicate(int 番号, Enumerable source, FuncFragment predicate) : BufferedScalar(番号, "bool") {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));

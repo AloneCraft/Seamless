@@ -6,6 +6,25 @@ public class OrderByDescending(int 番号, Enumerable source, FuncFragment keySe
 public class OrderBy_comparer(int 番号, Enumerable source, FuncFragment keySelector, string comparer) : OrderingBase(番号, source, keySelector, comparer, descending: false) { }
 public class OrderByDescending_comparer(int 番号, Enumerable source, FuncFragment keySelector, string comparer) : OrderingBase(番号, source, keySelector, comparer, descending: true) { }
 
+/*
+OrderingBase は OrderBy/ThenBy 系を、全件 buffer + stable sort + buffer enumerator に変換する。
+
+入力例:
+  source.OrderBy(x => x.LastName).ThenBy(x => x.FirstName)
+
+生成例:
+  var items = new List<SortItem>();
+  foreach(var item in source) {
+      items.Add(new SortItem(item, keySelector(item), originalIndex++));
+  }
+  items.Sort((left, right) => CompareKeysThenOriginalIndex(left, right));
+  return items.Select(x => x.Value).ToList();
+
+バリエーション:
+  - descending=true なら比較結果の符号を反転する。
+  - source が既に OrderingBase の場合、一次 key と二次 key を SortItem に同居させる。
+  - originalIndex を最後に比較し、System.Linq と同じ安定ソートの結果にする。
+*/
 public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment keySelector, string comparer, bool descending) : BufferedSequence(番号, source.ElementType) {
     // チェーン（ThenBy）検出用に一次ソースを公開
     internal FuncFragment OwnKeySelector => keySelector;

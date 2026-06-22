@@ -1,5 +1,24 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+Sum は source.Sum() / Sum(selector) を checked 加算の Compute に変換する。
+
+入力例:
+  source.Sum()
+  source.Sum(x => x.Amount)
+
+生成例:
+  sum = default;
+  checked {
+      foreach(var item in source) sum += selectorOrItem(item);
+  }
+  return sum;
+
+バリエーション:
+  - source が TryGetSpan 可能なら span loop を優先する。
+  - selector 付きは各 item を FuncAssign で一時値へ写してから加算する。
+  - DirectEnumerableExpression + lambda 再表示可能なら System.Linq.Sum へ委譲できる。
+*/
 public class Sum(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;

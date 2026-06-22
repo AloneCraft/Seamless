@@ -3,6 +3,18 @@
 // 要素が匿名型（ElementType=="TResult"）のチェーンを materialize する ToList。
 // 匿名型の型名は生成コードに書けないため、Carrier の汎用 ToList へ型推論で委譲し
 // var 宣言の直接実行文として出力する（List の要素型は呼び出し側の推論で閉じる）。
+/*
+AnonymousExitToList は匿名型要素の ToList を direct execution だけで出す特殊終端。
+
+入力例:
+  source.Select(x => new { x.Id }).ToList()
+
+生成例:
+  var result = ValueEnumerableExtensions.ToList(sourceValueEnumerable);
+
+設計意図:
+  匿名型の名前は生成メソッドの戻り値型や補助 struct に書けないため、var と型推論に寄せる。
+*/
 internal sealed class AnonymousExitToList(int 番号,Enumerable source):Scalar(番号),DirectExecutionFragment{
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
@@ -13,6 +25,29 @@ internal sealed class AnonymousExitToList(int 番号,Enumerable source):Scalar(�
         $"var {actualVariableName}=global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.ToList({source.GetEnumerableExpression});";
 }
 
+/*
+ToList は source.ToList() を、capacity hint と Span copy を使う Compute に変換する。
+
+入力例:
+  source.ToList()
+
+生成例:
+  if(source.TryGetNonEnumeratedCount(out var count)) {
+      list = new List<T>(count);
+      CollectionsMarshal.SetCount(list, count);
+      if(!source.TryCopyTo(CollectionsMarshal.AsSpan(list), 0)) fill manually;
+  } else if(source.TryGetSpan(out var span)) {
+      list = new List<T>(span.Length);
+      copy span into internal array;
+  } else {
+      list = new List<T>();
+      while(source.MoveNext()) list.Add(source.Current);
+  }
+
+バリエーション:
+  - RangeRoot<int> は SetCount 後の Span に start+i を直接代入する。
+  - DirectEnumerableExpression が array/list/ICollection なら hybrid inline で余分な enumerator を避ける。
+*/
 public class ToList(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;

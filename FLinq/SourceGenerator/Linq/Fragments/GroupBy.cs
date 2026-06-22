@@ -1,5 +1,27 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+GroupBySupport は GroupBy 系 Fragment が共有する「全件を LookupBuilder に積んで、追加順 group を返す」
+コード片を組み立てる。
+
+入力例:
+  source.GroupBy(x => x.Category)
+
+生成例:
+  if(!built) {
+      foreach(var item in source) builder.Add(keySelector(item), elementSelector(item));
+      cursor = first = builder.GetRootGroupAndClear();
+  }
+  if(cursor == null) return false;
+  current = cursor;
+  cursor = cursor.NextGroupInAddOrder;
+  return true;
+
+バリエーション:
+  - elementSelector なしは item 自体を group 要素にする。
+  - resultSelector ありは current = resultSelector(group.Key, group) を返す。
+  - source が span を試せる場合は build loop 内だけ span/while の分岐を持つ。
+*/
 internal static class GroupBySupport{
     public static string GroupingType(string keyType,string elementType)=>
         $"global::Seamless.Collections.Tsavorite.Carrier.Linq.Grouping<{keyType}, {elementType}>";

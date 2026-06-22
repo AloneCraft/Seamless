@@ -1,5 +1,26 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+ToArray は source.ToArray() を、件数/Span/InlineArray/ArrayPool の順で最短コピーする Compute に変換する。
+
+入力例:
+  source.ToArray()
+
+生成例:
+  if(source.TryGetNonEnumeratedCount(out var count)) {
+      result = AllocateUninitializedArray<T>(count);
+      if(source.TryCopyTo(result, 0)) return result;
+      while(source.MoveNext()) result[i++] = source.Current;
+  } else if(source.TryGetSpan(out var span)) {
+      result = copy(span);
+  } else {
+      small buffer は InlineArray、溢れたら ArrayPool へ spill;
+  }
+
+バリエーション:
+  - RangeRoot<int> は count サイズの配列を確保して start+i を直接代入する。
+  - array/list/ICollection 由来の DirectEnumerableExpression は専用 hybrid inline を生成する。
+*/
 public class ToArray(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
     // スタック上で受ける InlineArray の要素数。これ以内なら ArrayPool に一切触れない。
     private const int InlineCapacity = 16;

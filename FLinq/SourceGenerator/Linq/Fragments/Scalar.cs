@@ -1,4 +1,26 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
+/*
+Scalar は Count/First/ToArray など「シーケンスから単一結果を返す」終端 Fragment の基底。
+
+入力例:
+  source.Count()
+  source.Where(x => x > 0).ToList()
+
+生成されるコード例:
+  Result result;
+  using(var sourceEnumerator = source.GetEnumerator()) {
+      result = Compute(sourceEnumerator);
+  }
+
+主な分岐:
+  - RenderInlineComputation が非 null なら単一要素 enumerator を生成せず、呼び出し元へ直接文を出す。
+  - DirectEnumerableExpression がある source は System.Linq.Enumerable への軽い委譲や配列/List 専用 fast path を選べる。
+  - それ以外は BufferedScalar などが Compute(...) を持つ struct を生成する。
+
+設計意図:
+  終端結果だけが必要な場面で Struct{番号}+TryGetNext の死にコードを避け、materialize 系では
+  TryGetNonEnumeratedCount/TryGetSpan/TryCopyTo を使って容量確保とコピーを最短化する。
+*/
 public abstract class Scalar(int 番号):Fragment(番号){
     // スカラー断片は内部に子 enumerator を持たないことも多いので既定は何もしない。
     protected virtual string GetEnumeratorDisposeBody => string.Empty;

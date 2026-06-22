@@ -39,6 +39,11 @@ public abstract class Methods1 : global::Benchmark.Shared.Base {
     private const int SourceShapeCount=60_000_000;
     private const int SelectManyOuterCount=12_000;
     private const int SelectManyInnerCount=1_280;
+    // [Diagnostic_Instant]
+    [BenchFact,Benchmark]
+    [BenchmarkCategory("Diagnostic")]
+    public void Diagnostic_Instant() => this.consumer.Consume(1);
+
     // [Aggregate_func]
     [BenchFact,Benchmark]
     public void Aggregate_func() => this.Aggregate_func_Impl();

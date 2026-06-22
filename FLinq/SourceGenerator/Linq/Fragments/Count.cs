@@ -1,5 +1,23 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+Count は Count/LongCount を件数取得 fast path 優先の Compute へ変換する。
+
+入力例:
+  source.Count()
+  source.LongCount()
+
+生成例:
+  if(source.TryGetNonEnumeratedCount(out var count)) return (TResult)count;
+  checked {
+      while(source.MoveNext()) count++;
+  }
+
+バリエーション:
+  - Range/Repeat は count 式をそのまま resultType へ cast して inline する。
+  - source が span を確実に返せる場合は span.Length を返す。
+  - LongCount では TryGetNonEnumeratedCount が int なので long へ拡張する。
+*/
 public class Count(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
@@ -57,6 +75,23 @@ public class Count(int 番号, Enumerable source, string resultType) : BufferedS
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
+/*
+Count_predicate は predicate が true の件数だけを checked で数える Compute を生成する。
+
+入力例:
+  source.Count(x => x.Enabled)
+
+生成例:
+  count = 0;
+  foreach(var item in source) {
+      if(predicate(item)) count++;
+  }
+  return count;
+
+バリエーション:
+  - Range + 単純 predicate は RangePredicateOptimizer が式や短い loop へ inline できる。
+  - predicate が直接 lambda として再表示できる場合は DirectEnumerableExpression 経由で System.Linq へ委譲できる。
+*/
 public class Count_predicate(int 番号, Enumerable source, FuncFragment predicate, string resultType) : BufferedScalar(番号, resultType) {
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;

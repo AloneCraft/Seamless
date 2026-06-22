@@ -7,7 +7,29 @@ namespace Seamless.FLinq.Linq.Fragments;
 
 public readonly record struct HoistedLocal(string Name,string TypeName,string ExpressionText);
 
+/*
+FuncFragment は predicate/selector/accumulator などの lambda を Fragment 内でどう呼ぶかを表す。
+
+入力例:
+  x => x.Price * rate
+  (x, index) => index % 2 == 0
+
+生成されるコード例:
+  // inline 可能な lambda
+  destination = item.Price * this.rate;
+
+  // 匿名型戻り値など型名を書けない lambda
+  destination = this.selectorDelegate.Invoke(item);
+
+主な分岐:
+  - CanInlineAssign: lambda 本体を代入文や式として直接展開する。
+  - RequiresStatementInlining: lambda 内 LINQ など複数文が必要な場合、一時変数経由で展開する。
+  - CanInvokeAsDelegate: 匿名型や delegate 保持が必要な場合、Enumerator のフィールドから Invoke する。
+  - HoistedLocals: struct 内メンバーとして保持した一時値を this. 接頭辞付きに書き換える。
+*/
 public abstract class FuncFragment {
+    private string? hoistedLocalReceiver;
+
     // delegate 戻り値型名。
     public string ReturnTypeName="void";
     // delegate 引数型名一覧。
@@ -51,6 +73,26 @@ public abstract class FuncFragment {
     // 条件式や Add 引数など、式位置へ inline 展開する具体実装を派生型に任せる。
     public virtual string RenderInlineExpression(params string[] arguments) {
         throw new InvalidOperationException("Inline expression is not supported.");
+    }
+
+    public string RenderInlineAssignWithHoistedReceiver(string receiver,string destination,int number,params string[] arguments) {
+        var previousReceiver=this.hoistedLocalReceiver;
+        this.hoistedLocalReceiver=receiver;
+        try {
+            return this.RenderInlineAssign(destination,number,arguments);
+        } finally {
+            this.hoistedLocalReceiver=previousReceiver;
+        }
+    }
+
+    public string RenderInlineExpressionWithHoistedReceiver(string receiver,params string[] arguments) {
+        var previousReceiver=this.hoistedLocalReceiver;
+        this.hoistedLocalReceiver=receiver;
+        try {
+            return this.RenderInlineExpression(arguments);
+        } finally {
+            this.hoistedLocalReceiver=previousReceiver;
+        }
     }
 
     // 匿名型ラムダなど型名を書けない場合にデリゲートとして保持するかどうか。
@@ -100,6 +142,7 @@ public abstract class FuncFragment {
             }
         }
 
+        rewrittenBody=this.QualifyHoistedLocalReferences(rewrittenBody);
         builder.Append($"{destination}={rewrittenBody};");
         this.ContainsAnchor |= AnchorAnalysis.LooksLikeAnchorText(rewrittenBody);
         return builder.ToString();
@@ -123,8 +166,26 @@ public abstract class FuncFragment {
             }
         }
 
+        rewrittenBody=this.QualifyHoistedLocalReferences(rewrittenBody);
         this.ContainsAnchor |= AnchorAnalysis.LooksLikeAnchorText(rewrittenBody);
         return CanOmitOuterParentheses(rewrittenBody) ? rewrittenBody : $"({rewrittenBody})";
+    }
+
+    private string QualifyHoistedLocalReferences(string text) {
+        if(string.IsNullOrEmpty(this.hoistedLocalReceiver) || this.HoistedLocals.Length==0) {
+            return text;
+        }
+
+        var rewritten=text;
+        foreach(var hoistedLocal in this.HoistedLocals) {
+            rewritten=Regex.Replace(
+                rewritten,
+                $@"(?<![\w\.]){Regex.Escape(hoistedLocal.Name)}\b",
+                $"{this.hoistedLocalReceiver}{hoistedLocal.Name}",
+                RegexOptions.CultureInvariant);
+        }
+
+        return rewritten;
     }
 
     protected static string ReplaceParameterReferences(string text,string[] parameterNames,string[] arguments) {

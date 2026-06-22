@@ -1,4 +1,20 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
+/*
+MinMaxBase は selector なし Min/Max を ValueEnumerableExtensions.Min/Max へつなぐ基底。
+
+入力例:
+  source.Min()
+  source.Max()
+
+生成例:
+  using var e = source.GetEnumerator();
+  result = direction == "greater" ? Max(e) : Min(e);
+
+バリエーション:
+  - direction=="greater" は Max、"less" は Min。
+  - RangeRoot<int> は最小/最大値を式で inline できる。
+  - DirectEnumerableExpression があれば System.Linq.Min/Max へ委譲する。
+*/
 public abstract class MinMaxBase(int 番号, Enumerable source, string resultType, string direction) : BufferedScalar(番号, resultType) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;

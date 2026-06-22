@@ -1,5 +1,21 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+First は source.First() を、最初の1要素だけ読む Compute に変換する。
+
+入力例:
+  source.First()
+  source.First(predicate)
+
+生成例:
+  if(source.MoveNext()) return source.Current;
+  throw NoElements();
+
+バリエーション:
+  - RangeRoot は start 式だけで inline できる。
+  - predicate 付きは predicate(item) が true の最初の item を返す。
+  - predicate が直接 lambda 化できる場合は DirectEnumerableExpression 経由で System.Linq.First へ委譲できる。
+*/
 public class First(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length == 0;
     protected override Enumerable PrimarySource => source;

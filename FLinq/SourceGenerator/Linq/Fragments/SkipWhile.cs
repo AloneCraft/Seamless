@@ -1,4 +1,24 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
+/*
+SkipWhile_predicate は predicate が true の間だけ読み捨て、その後は全要素を返す enumerator を生成する。
+
+入力例:
+  source.SkipWhile(x => x.IsHeader)
+
+生成例:
+  while(source.MoveNext()) {
+      var item = source.Current;
+      if(skipping && predicate(item)) continue;
+      skipping = false;
+      current = item;
+      return true;
+  }
+  return false;
+
+バリエーション:
+  - index overload は読み捨て中も返却後も source から読むたびに index を増やす。
+  - predicate が一度 false になると以後は predicate を見ずに要素を返す。
+*/
 public class SkipWhile_predicate(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         !(method.Parameters.Length > 0 &&

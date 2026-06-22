@@ -1,4 +1,4 @@
-namespace Benchmark.DotNet.Linq.Enumerable.Linq {
+namespace Benchmark.DotNet.Linq.Enumerable {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
     public class Linq():global::Shared.Linq.Enumerable.Methods1(3_200_000);
 }

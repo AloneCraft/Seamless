@@ -1,4 +1,22 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
+/*
+AggregateBy は key ごとに accumulator を持つ grouping 集約を生成する。
+
+入力例:
+  source.AggregateBy(x => x.GroupId, seed, (acc, item) => Step(acc, item))
+
+生成例:
+  foreach(var item in source) {
+      key = keySelector(item);
+      if(!map.TryGetValue(key, out acc)) acc = seed;
+      map[key] = func(acc, item);
+  }
+  foreach(var pair in map) current = pair;
+
+バリエーション:
+  - keySelector/func はそれぞれ FuncFragment として closure/delegate/inline に対応する。
+  - resultElementType は返す KeyValuePair 相当の要素型を決める。
+*/
 public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector, string seed, FuncFragment func, string resultElementType) : Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     private string KeyType => FuncReturnTypeName(keySelector);

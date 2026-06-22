@@ -1,4 +1,25 @@
 namespace Seamless.FLinq.Linq.Fragments;
+/*
+Last は source.Last() を、最後に見た値を保持する Compute に変換する。
+
+入力例:
+  source.Last()
+  source.Last(predicate)
+
+生成例:
+  found = false;
+  while(source.MoveNext()) {
+      found = true;
+      result = source.Current;
+  }
+  if(!found) throw NoElements();
+  return result;
+
+バリエーション:
+  - span source は span[^1] を返す。
+  - RangeRoot<int> は start + count - 1 を inline する。
+  - predicate 付き RangeRoot<int> は末尾側から逆向き loop を inline できる。
+*/
 public class Last(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length == 0;
     protected override Enumerable PrimarySource => source;

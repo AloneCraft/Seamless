@@ -1,5 +1,25 @@
 ﻿namespace Seamless.FLinq.Linq.Fragments;
 
+/*
+TakeWhile_predicate は predicate が false になった時点で永続的に終了する enumerator を生成する。
+
+入力例:
+  source.TakeWhile(x => x < limit)
+
+生成例:
+  if(done || !source.MoveNext()) return false;
+  var item = source.Current;
+  if(!predicate(item)) {
+      done = true;
+      return false;
+  }
+  current = item;
+  return true;
+
+バリエーション:
+  - predicate は inline/delegate/statement inline の各 FuncFragment 経路を使う。
+  - index overload は index フィールドを増やし predicate(item, index) を呼ぶ。
+*/
 public class TakeWhile_predicate(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         !(method.Parameters.Length > 0 &&

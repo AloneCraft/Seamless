@@ -227,14 +227,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
             return false;
         }
 
-        ExpressionSyntax? consumerExpression = null;
-        var normalizedLinqInvocation = NormalizeExpressionText(linqInvocation.ToString());
-        if(NormalizeExpressionText(memberAccess.Expression.ToString())==normalizedLinqInvocation) {
-            consumerExpression=consumeInvocation.ArgumentList.Arguments[0].Expression;
-        } else if(NormalizeExpressionText(consumeInvocation.ArgumentList.Arguments[0].Expression.ToString())==normalizedLinqInvocation) {
-            consumerExpression=memberAccess.Expression;
-        }
-        if(consumerExpression is null) {
+        if(!TryGetDirectConsumeConsumerExpression(consumeInvocation,linqInvocation,out var consumerExpression)) {
             return false;
         }
 
@@ -285,14 +278,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
             return false;
         }
 
-        ExpressionSyntax? consumerExpression = null;
-        var normalizedLinqInvocation = NormalizeExpressionText(linqInvocation.ToString());
-        if(NormalizeExpressionText(memberAccess.Expression.ToString())==normalizedLinqInvocation) {
-            consumerExpression=consumeInvocation.ArgumentList.Arguments[0].Expression;
-        } else if(NormalizeExpressionText(consumeInvocation.ArgumentList.Arguments[0].Expression.ToString())==normalizedLinqInvocation) {
-            consumerExpression=memberAccess.Expression;
-        }
-        if(consumerExpression is null) {
+        if(!TryGetDirectConsumeConsumerExpression(consumeInvocation,linqInvocation,out var consumerExpression)) {
             return false;
         }
 
@@ -361,6 +347,38 @@ public sealed partial class TsavoriteIncrementalGenerator {
         }
 
         return definition.Name is "ToArray" or "ToList" or "ToHashSet" or "ToDictionary" or "ToLookup";
+    }
+
+    private static bool TryGetDirectConsumeConsumerExpression(
+        InvocationExpressionSyntax consumeInvocation,
+        InvocationExpressionSyntax linqInvocation,
+        out ExpressionSyntax consumerExpression) {
+        consumerExpression=null!;
+        if(consumeInvocation.Expression is not MemberAccessExpressionSyntax memberAccess
+            || memberAccess.Name.Identifier.ValueText!="Consume"
+            || consumeInvocation.ArgumentList.Arguments.Count!=1) {
+            return false;
+        }
+
+        if(SyntaxExpressionMatches(memberAccess.Expression,linqInvocation)) {
+            consumerExpression=consumeInvocation.ArgumentList.Arguments[0].Expression;
+            return true;
+        }
+        if(SyntaxExpressionMatches(consumeInvocation.ArgumentList.Arguments[0].Expression,linqInvocation)) {
+            consumerExpression=memberAccess.Expression;
+            return true;
+        }
+        return false;
+    }
+
+    private static bool SyntaxExpressionMatches(ExpressionSyntax expression,ExpressionSyntax other) =>
+        NormalizeExpressionText(StripConsumeParentheses(expression).ToString())==NormalizeExpressionText(StripConsumeParentheses(other).ToString());
+
+    private static ExpressionSyntax StripConsumeParentheses(ExpressionSyntax expression) {
+        while(expression is ParenthesizedExpressionSyntax parenthesized) {
+            expression=parenthesized.Expression;
+        }
+        return expression;
     }
     /// <summary>
     /// 1 文を受け取り、対応するコードを <paramref name="builder"/> に生成する。
