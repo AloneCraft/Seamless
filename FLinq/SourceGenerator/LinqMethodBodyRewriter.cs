@@ -305,7 +305,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
             }
             fragment=enumerableFragmentFallback;
         }
-        if(fragment is not Enumerable enumerableFragment) {
+        if(fragment is not Enumerable && !IsScalarConsumeMaterializeTerminal(linqInvocation,semanticModel)) {
             uniqueNumber=snapshot;
             return false;
         }
@@ -319,10 +319,49 @@ public sealed partial class TsavoriteIncrementalGenerator {
 
         var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
         builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
-        builder.AppendLine(enumerableFragment.GetConsumeExecutionStatement(consumerName));
-        return true;
+        if(fragment is Enumerable enumerableFragment) {
+            builder.AppendLine(enumerableFragment.GetConsumeExecutionStatement(consumerName));
+            return true;
+        }
+
+        if(fragment is Scalar && IsScalarConsumeMaterializeTerminal(linqInvocation,semanticModel)) {
+            var resultTypeInfo = semanticModel.GetTypeInfo(linqInvocation);
+            var resultTypeName = (resultTypeInfo.Type ?? resultTypeInfo.ConvertedType)?.ToDisplayString()
+                ?? "object";
+            string scalarEnumeratorExpression;
+            try {
+                scalarEnumeratorExpression=fragment.GetEnumeratorExpression;
+            } catch(NotSupportedException) {
+                uniqueNumber=snapshot;
+                return false;
+            }
+
+            var scalarEnumeratorName = GetUniqueIdentifier($"e_{SanitizeIdentifier(tempName)}",usedNames);
+            builder.AppendLine($"{resultTypeName} {tempName}=default!;");
+            builder.AppendLine($"using var {scalarEnumeratorName}={scalarEnumeratorExpression};");
+            builder.AppendLine($"{scalarEnumeratorName}.TryGetNext(out {tempName});");
+            builder.AppendLine($"foreach(var __item in {tempName}) {{");
+            builder.AppendLine($"    {consumerName}.Consume(__item);");
+            builder.AppendLine("}");
+            return true;
+        }
+
+        uniqueNumber=snapshot;
+        return false;
     }
 
+    private static bool IsScalarConsumeMaterializeTerminal(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+        if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) {
+            return false;
+        }
+
+        var definition=method.ReducedFrom ?? method;
+        if(definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable") {
+            return false;
+        }
+
+        return definition.Name is "ToArray" or "ToList" or "ToHashSet" or "ToDictionary" or "ToLookup";
+    }
     /// <summary>
     /// 1 文を受け取り、対応するコードを <paramref name="builder"/> に生成する。
     /// <br/>文の種類に応じて専用メソッドへディスパッチする:
