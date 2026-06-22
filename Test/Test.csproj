@@ -46,6 +46,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DynamicLinq.Runner\DynamicLinq.Runner.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\Seamless.Collections.Abstractions\Seamless.Collections.Abstractions.csproj" />
     <ProjectReference Include="..\Seamless.Collections.Persisted\Seamless.Collections.Persisted.csproj" />
     <ProjectReference Include="..\Tsavorite.Collections\Seamless.Collections.Tsavorite.csproj" />

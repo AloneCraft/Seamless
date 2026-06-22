@@ -24,6 +24,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     private static void SumWithBlockPrivateHelper() { }
     private static void SumStructInstance() { }
     private static void SumGeneratedHelper() { }
+    private static void ToArrayConsume() { }
 
     [Fact]
     public void PartialClass_TwoFiles_DoesNotDuplicateGeneratedHelperType()
@@ -142,6 +143,45 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
         GeneratedSourceAssert.True(
             !result.GeneratedSource.Contains("LinqInterceptorFailure", StringComparison.Ordinal),
             "Generated source should not contain LinqInterceptorFailure.",
+            result.GeneratedSource,
+            output);
+        AssertNoErrors(result.Diagnostics);
+    }
+
+    [Fact]
+    public void ScalarMaterializeConsume_ExpandsWithoutForwardingFailure()
+    {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer {
+                public List<object?> Items { get; } = [];
+                public void Consume<T>(T item) => Items.Add(item);
+            }
+            public static class ConsumerExtensions {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private readonly Consumer consumer = new();
+                private void ToArrayConsume() => new[] { 1, 2, 3 }.ToArray().Consume(this.consumer);
+                public void Run() => ToArrayConsume();
+                public static string TargetName => nameof(ToArrayConsume);
+            }
+            """;
+
+        var result = RunGeneratorAndCompile(("Container.cs", source));
+
+        AssertIntercepted(result.GeneratedSource, nameof(ToArrayConsume));
+        GeneratedSourceAssert.True(
+            !result.GeneratedSource.Contains("LinqInterceptorFailure", StringComparison.Ordinal)
+            && result.GeneratedSource.Contains("foreach(var __item in __linq", StringComparison.Ordinal)
+            && result.GeneratedSource.Contains(".Consume(__item);", StringComparison.Ordinal),
+            "Scalar materialize terminal followed by Consume should expand to direct item consumption.",
             result.GeneratedSource,
             output);
         AssertNoErrors(result.Diagnostics);
