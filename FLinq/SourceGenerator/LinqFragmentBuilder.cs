@@ -1,11 +1,11 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
-using static Tsavorite.SourceGenerator.GeneratorHelpers;
+using static Seamless.FLinq.GeneratorHelpers;
 
-using Tsavorite.SourceGenerator.Linq.Fragments;
-using Enumerable = Tsavorite.SourceGenerator.Linq.Fragments.Enumerable;
+using Seamless.FLinq.Linq.Fragments;
+using Enumerable = Seamless.FLinq.Linq.Fragments.Enumerable;
 
-namespace Tsavorite.SourceGenerator;
+namespace Seamless.FLinq;
 
 public sealed partial class TsavoriteIncrementalGenerator {
 
@@ -68,7 +68,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 (ExpressionSyntax expression,ITypeSymbol delegateType,ref int number,out FuncFragment func) =>
                     関数式フラグメント生成(expression,delegateType,ref number,out func,semanticModel,containingType),
                 関数フラグメントが利用可能か,
-                expression=>RenderExpressionForGeneratedMethod(expression,semanticModel,containingType),
+                expression=>RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,unsafeAccessorCollector),
                 (ITypeSymbol type,out ITypeSymbol elementType)=>{
                     if(列挙要素型取得(type,out elementType,out _)) {
                         return true;
@@ -450,7 +450,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
 
             var argumentExpression = invocation.ArgumentList.Arguments[argumentIndex].Expression;
             if(parameter.ParameterType==typeof(string)) {
-                constructorArguments.Add(RenderExpressionForGeneratedMethod(argumentExpression,semanticModel,containingType));
+                constructorArguments.Add(RenderExpressionForGeneratedMethod(argumentExpression,semanticModel,containingType,unsafeAccessorCollector));
                 argumentIndex++;
                 continue;
             }
@@ -969,8 +969,11 @@ public sealed partial class TsavoriteIncrementalGenerator {
         var delegateTypeName=delegateType.ToDisplayString(完全修飾形式);
         var delegateFieldName=$"_del{uniqueNumber++}";
         string delegateConstructorArg;
+        var delegateConstructorAccessorCodes = Array.Empty<string>();
         if(semanticModel is not null && containingType is not null) {
-            delegateConstructorArg=RenderExpressionForGeneratedMethod(expression,semanticModel,containingType);
+            var delegateConstructorCollector = new List<string>();
+            delegateConstructorArg=RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,delegateConstructorCollector);
+            delegateConstructorAccessorCodes=delegateConstructorCollector.ToArray();
         }else{
             delegateConstructorArg=NormalizeExpressionText(expression.ToString());
         }
@@ -980,6 +983,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
             ParameterNames=invoke.Parameters.Select(static p=>p.Name).ToArray(),
             CanGenerateMethod=false,
             CanInlineAssign=false,
+            BodyUnsafeAccessorCodes=delegateConstructorAccessorCodes,
             ContainsAnchor=AnchorAnalysis.ContainsAnchor(expression,semanticModel),
         };
         return true;
@@ -1074,14 +1078,18 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 var allTypeNames = paramTypeNames.Append(returnTypeName);
                 var delegateTypeName = $"global::System.Func<{string.Join(", ", allTypeNames)}>";
                 var delegateFieldName = $"_anonDel{uniqueNumber++}";
-                var delegateConstructorArg = RenderExpressionForGeneratedMethod(lambda, semanticModel, containingType);
+                var delegateConstructorCollector = new List<string>();
+                var delegateConstructorArg = RenderExpressionForGeneratedMethod(lambda, semanticModel, containingType,delegateConstructorCollector);
                     fragment = new AnonymousDelegateFuncFragment(delegateTypeName, delegateFieldName, delegateConstructorArg) {
                     ReturnTypeName = returnTypeName,
                     ParameterTypeNames = paramTypeNames,
                     ParameterNames = lambdaParamNames,
                     CanGenerateMethod = false,
                     CapturedLocals = anonCapturedLocals,
-                    BodyUnsafeAccessorCodes = anonBodyAccessorCodes,
+                    BodyUnsafeAccessorCodes = anonBodyAccessorCodes
+                        .Concat(delegateConstructorCollector)
+                        .Distinct(StringComparer.Ordinal)
+                        .ToArray(),
                     ContainsAnchor = AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
                     CardinalityUpperBound = lambda.Body is ExpressionSyntax anonLambdaBody
                         ? CardinalityAnalysis.TryGetUpperBound(anonLambdaBody,semanticModel)
@@ -1162,6 +1170,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 && hoistedLocals.Length==0
                 && TryFindSystemLinqInvocation(lambdaBodyExpr,semanticModel,out var scalarInvocation,out var scalarMethod)) {
                 var snapshot = uniqueNumber;
+                var scalarUnsafeAccessorCollector = new List<string>();
                 if(呼び出し式からフラグメント生成(
                         semanticModel,
                         scalarInvocation,
@@ -1169,10 +1178,24 @@ public sealed partial class TsavoriteIncrementalGenerator {
                         ref snapshot,
                         out var scalarFragment,
                         out var scalarStaticMethods,
-                        null)
+                        scalarUnsafeAccessorCollector)
                     && scalarFragment is Scalar
                     && ScalarFragmentSupportsInlineEnumeration(scalarFragment)) {
                     uniqueNumber = snapshot;
+                    var bodyExpressionCollector = new List<string>();
+                    var renderedBodyExpression = RenderExpressionForGeneratedMethod(
+                        lambdaBodyExpr,
+                        semanticModel,
+                        containingType,
+                        bodyExpressionCollector,
+                        hoistReplacementMap);
+                    var scalarExpressionCollector = new List<string>();
+                    var renderedScalarExpression = RenderExpressionForGeneratedMethod(
+                        scalarInvocation,
+                        semanticModel,
+                        containingType,
+                        scalarExpressionCollector,
+                        hoistReplacementMap);
                     fragment = new InlinedScalarFunc(scalarFragment) {
                         ReturnTypeName = lambdaSpec.ReturnTypeName,
                         ParameterTypeNames = lambdaSpec.ParameterTypeNames,
@@ -1181,13 +1204,17 @@ public sealed partial class TsavoriteIncrementalGenerator {
                         CanInlineAssign = true,
                         RequiresStatementInlining = true,
                         InlineBody = string.Empty,
-                        BodyExpression = RenderExpressionForGeneratedMethod(lambdaBodyExpr,semanticModel,containingType),
-                        ScalarExpression = RenderExpressionForGeneratedMethod(scalarInvocation,semanticModel,containingType),
+                        BodyExpression = renderedBodyExpression,
+                        ScalarExpression = renderedScalarExpression,
                         ScalarReturnTypeName = semanticModel.GetTypeInfo(scalarInvocation).Type?.ToDisplayString(完全修飾形式) ?? scalarFragment.GetType().Name,
                         CapturedLocals = capturedLocals,
                         HoistedLocals = hoistedLocals,
                         BodyUnsafeAccessorCodes = bodyAccessorCodes
+                            .Concat(scalarUnsafeAccessorCollector)
+                            .Concat(bodyExpressionCollector)
+                            .Concat(scalarExpressionCollector)
                             .Concat(scalarFragment.CollectAllUnsafeAccessorCodes())
+                            .Distinct(StringComparer.Ordinal)
                             .ToArray(),
                         ScalarStaticMethods = scalarStaticMethods,
                         OuterParameterNames = lambdaSpec.ParameterNames,
@@ -1243,12 +1270,16 @@ public sealed partial class TsavoriteIncrementalGenerator {
                     var anonParamNames = GetAnonymousMethodParameters(anonymousMethod).ToArray();
                     var anonDelegateTypeName = $"global::System.Func<{string.Join(", ", anonParamTypeNames.Append(anonReturnTypeName))}>";
                     var anonFieldName = $"_anonDel{uniqueNumber++}";
-                    var anonCtorArg = RenderExpressionForGeneratedMethod(anonymousMethod, semanticModel, containingType);
+                    var anonCtorCollector = new List<string>();
+                    var anonCtorArg = RenderExpressionForGeneratedMethod(anonymousMethod, semanticModel, containingType,anonCtorCollector);
                     fragment = new AnonymousDelegateFuncFragment(anonDelegateTypeName, anonFieldName, anonCtorArg) {
                         ReturnTypeName = anonReturnTypeName,
                         ParameterTypeNames = anonParamTypeNames,
                         ParameterNames = anonParamNames,
                         CanGenerateMethod = false,
+                        BodyUnsafeAccessorCodes = anonCtorCollector
+                            .Distinct(StringComparer.Ordinal)
+                            .ToArray(),
                         ContainsAnchor = AnchorAnalysis.ContainsAnchor(anonymousMethod,semanticModel),
                         CardinalityUpperBound = CardinalityAnalysis.TryGetUpperBound(bodyExpression,semanticModel)
                     };
@@ -2212,10 +2243,13 @@ public sealed partial class TsavoriteIncrementalGenerator {
         }
 
         // return をプレースホルダ代入 + goto に書き換える。ネストした lambda/local function には降りない。
-        var rewritten = (BlockSyntax)new ReturnToResultRewriter().Visit(block)!;
+        var bodyAccessorCodes = new List<string>();
+        var rewritten = (BlockSyntax)new ReturnToResultRewriter(semanticModel,containingType,bodyAccessorCodes).Visit(block)!;
         var bodyText = string.Join(
             "\n",
-            rewritten.Statements.Select(statement=>NormalizeGeneratedExpressionText(statement.ToString())));
+            rewritten.Statements.Select(statement=>semanticModel is not null && containingType is not null
+                ? RenderStatementForGeneratedMethod(statement,semanticModel,containingType,bodyAccessorCodes)
+                : NormalizeGeneratedExpressionText(statement.ToString())));
 
         var capturedLocals = Array.Empty<(string Name, string TypeName)>();
         if(semanticModel is not null && block.Statements.Count>0) {
@@ -2241,22 +2275,62 @@ public sealed partial class TsavoriteIncrementalGenerator {
             RequiresStatementInlining = true,
             BlockBody = bodyText,
             CapturedLocals = capturedLocals,
+            BodyUnsafeAccessorCodes = bodyAccessorCodes
+                .Distinct(StringComparer.Ordinal)
+                .ToArray(),
         };
         return true;
     }
 
     // ブロック本体内の return 文を __Tsavorite_DEST__ = (expr); goto __Tsavorite_LABEL__; へ書き換える。
     // ネストした lambda / 匿名メソッド / local function の return は対象外（中へ降りない）。
-    private sealed class ReturnToResultRewriter : CSharpSyntaxRewriter {
+    private sealed class ReturnToResultRewriter(
+        SemanticModel? semanticModel,
+        INamedTypeSymbol? containingType,
+        List<string>? unsafeAccessorCollector) : CSharpSyntaxRewriter {
         public override SyntaxNode? VisitSimpleLambdaExpression(SimpleLambdaExpressionSyntax node)=>node;
         public override SyntaxNode? VisitParenthesizedLambdaExpression(ParenthesizedLambdaExpressionSyntax node)=>node;
         public override SyntaxNode? VisitAnonymousMethodExpression(AnonymousMethodExpressionSyntax node)=>node;
         public override SyntaxNode? VisitLocalFunctionStatement(LocalFunctionStatementSyntax node)=>node;
+        public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node)
+            => TryRewriteGeneratedExpression(node,out var rewritten)
+                ? rewritten
+                : base.VisitInvocationExpression(node);
+        public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
+            => TryRewriteGeneratedExpression(node,out var rewritten)
+                ? rewritten
+                : base.VisitMemberAccessExpression(node);
+        public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node)
+            => TryRewriteGeneratedExpression(node,out var rewritten)
+                ? rewritten
+                : base.VisitIdentifierName(node);
         public override SyntaxNode? VisitReturnStatement(ReturnStatementSyntax node) {
-            var statementText = node.Expression is { } expr
-                ? $"{{ __Tsavorite_DEST__ = ({expr}); goto __Tsavorite_LABEL__; }}"
+            var returnExpression = node.Expression is { } expr
+                ? semanticModel is not null && containingType is not null
+                    ? RenderExpressionForGeneratedMethod(expr,semanticModel,containingType,unsafeAccessorCollector)
+                    : NormalizeGeneratedExpressionText(expr.ToString())
+                : null;
+            var statementText = returnExpression is not null
+                ? $"{{ __Tsavorite_DEST__ = ({returnExpression}); goto __Tsavorite_LABEL__; }}"
                 : "{ goto __Tsavorite_LABEL__; }";
             return SyntaxFactory.ParseStatement(statementText);
+        }
+
+        private bool TryRewriteGeneratedExpression(ExpressionSyntax expression,out SyntaxNode? rewritten) {
+            rewritten=null;
+            if(semanticModel is null
+                || containingType is null
+                || !ReferenceEquals(expression.SyntaxTree,semanticModel.SyntaxTree)) {
+                return false;
+            }
+
+            var rendered = RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,unsafeAccessorCollector);
+            if(rendered==NormalizeGeneratedExpressionText(expression.ToString())) {
+                return false;
+            }
+
+            rewritten=SyntaxFactory.ParseExpression(rendered).WithTriviaFrom(expression);
+            return true;
         }
     }
 

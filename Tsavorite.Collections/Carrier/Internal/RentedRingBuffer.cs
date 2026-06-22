@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier.Internal;
+﻿namespace Seamless.Collections.Tsavorite.Carrier.Internal;
 
 [StructLayout(LayoutKind.Auto)]
 internal class RentedRingBuffer<T>(int capacity) : IDisposable

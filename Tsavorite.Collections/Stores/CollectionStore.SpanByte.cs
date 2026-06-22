@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Stores;
+﻿namespace Seamless.Collections.Tsavorite.Stores;
 
 public abstract partial class CollectionStore<TKey, TValue> {
     private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes) :

@@ -15,14 +15,14 @@ public sealed class SelectIdentityAndFusion:OptimizationTestBase{
         SelectSelectNoOptimized(expected);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void SelectSelectOptimized(dynamic expected) {
         var actual=new Consumer<int>();
                 Numbers().Select(static x => x+1).Select(static x => x*x).Consume(actual);
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void SelectSelectNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
                 Numbers().Select(static x => x+1).Select(static x => x*x).Consume(actual);
@@ -36,14 +36,14 @@ public sealed class SelectIdentityAndFusion:OptimizationTestBase{
         SelectSelectArithmeticNoOptimized(expected);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void SelectSelectArithmeticOptimized(dynamic expected) {
         var actual=new Consumer<int>();
                 Numbers().Select(static p => p+1).Select(static q => q*q).Consume(actual);
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void SelectSelectArithmeticNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
                 Numbers().Select(static p => p+1).Select(static q => q*q).Consume(actual);
@@ -58,7 +58,7 @@ public sealed class SelectIdentityAndFusion:OptimizationTestBase{
         IdentitySelectRemovedMidChainNoOptimized(expected);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void IdentitySelectRemovedMidChainOptimized(dynamic expected) {
                 // src.Select(x=>x).Where(p) -> src.Where(p)（中段の恒等 Select 除去。後続に Where あり）。
         var actual=new Consumer<int>();
@@ -66,7 +66,7 @@ public sealed class SelectIdentityAndFusion:OptimizationTestBase{
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void IdentitySelectRemovedMidChainNoOptimized(dynamic expected) {
                 // src.Select(x=>x).Where(p) -> src.Where(p)（中段の恒等 Select 除去。後続に Where あり）。
         var actual=new Consumer<int>();
@@ -82,7 +82,7 @@ public sealed class SelectIdentityAndFusion:OptimizationTestBase{
         IdentitySelectOutermostKeptNoOptimized(expected);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void IdentitySelectOutermostKeptOptimized(dynamic expected) {
                 // src.Where(p).Select(x=>x) -> 最外段の恒等 Select は除去されないが結果は不変。
         var actual=new Consumer<int>();
@@ -90,7 +90,7 @@ public sealed class SelectIdentityAndFusion:OptimizationTestBase{
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void IdentitySelectOutermostKeptNoOptimized(dynamic expected) {
                 // src.Where(p).Select(x=>x) -> 最外段の恒等 Select は除去されないが結果は不変。
         var actual=new Consumer<int>();

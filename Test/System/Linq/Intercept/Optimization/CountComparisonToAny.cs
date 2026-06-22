@@ -11,16 +11,16 @@ public sealed class CountComparisonToAny:OptimizationTestBase{
         Assert.Equal(EmptyNumbers().Count()>0,GreaterThanZero_EmptyNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool GreaterThanZero_NonEmptyOptimized() => Numbers().Count()>0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool GreaterThanZero_NonEmptyNoOptimized() => Numbers().Count()>0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool GreaterThanZero_EmptyOptimized() => EmptyNumbers().Count()>0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool GreaterThanZero_EmptyNoOptimized() => EmptyNumbers().Count()>0;
 
     [Fact,Trait("Category","Unit")]
@@ -31,16 +31,16 @@ public sealed class CountComparisonToAny:OptimizationTestBase{
         Assert.Equal(EmptyNumbers().Count()==0,EqualsZero_EmptyNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool EqualsZero_NonEmptyOptimized() => Numbers().Count()==0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool EqualsZero_NonEmptyNoOptimized() => Numbers().Count()==0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool EqualsZero_EmptyOptimized() => EmptyNumbers().Count()==0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool EqualsZero_EmptyNoOptimized() => EmptyNumbers().Count()==0;
 
     [Fact,Trait("Category","Unit")]
@@ -59,40 +59,40 @@ public sealed class CountComparisonToAny:OptimizationTestBase{
         Assert.Equal(0==EmptyNumbers().Count(),OtherForms_ZeroEqualsCountNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool OtherForms_GreaterThanOrEqualOneOptimized() => Numbers().Count()>=1;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool OtherForms_GreaterThanOrEqualOneNoOptimized() => Numbers().Count()>=1;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool OtherForms_NotEqualZeroOptimized() => Numbers().Count()!=0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool OtherForms_NotEqualZeroNoOptimized() => Numbers().Count()!=0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool OtherForms_LessThanOneOptimized() => EmptyNumbers().Count()<1;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool OtherForms_LessThanOneNoOptimized() => EmptyNumbers().Count()<1;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool OtherForms_LessThanOrEqualZeroOptimized() => EmptyNumbers().Count()<=0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool OtherForms_LessThanOrEqualZeroNoOptimized() => EmptyNumbers().Count()<=0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool OtherForms_ZeroLessThanCountOptimized() => 0<Numbers().Count();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool OtherForms_ZeroLessThanCountNoOptimized() => 0<Numbers().Count();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool OtherForms_ZeroEqualsCountOptimized() => 0==EmptyNumbers().Count();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool OtherForms_ZeroEqualsCountNoOptimized() => 0==EmptyNumbers().Count();
 
     [Fact,Trait("Category","Unit")]
@@ -101,10 +101,10 @@ public sealed class CountComparisonToAny:OptimizationTestBase{
         Assert.Equal(Numbers().LongCount()>0,LongCountFormNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool LongCountFormOptimized() => Numbers().LongCount()>0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool LongCountFormNoOptimized() => Numbers().LongCount()>0;
 
     [Fact,Trait("Category","Unit")]
@@ -117,21 +117,21 @@ public sealed class CountComparisonToAny:OptimizationTestBase{
         Assert.Equal(Numbers().Count(static x => x>4)>0,WithPredicate_CountPredicateNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool WithPredicate_WhereMatchOptimized() => Numbers().Where(static x => x>4).Count()>0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool WithPredicate_WhereMatchNoOptimized() => Numbers().Where(static x => x>4).Count()>0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool WithPredicate_WhereNoMatchOptimized() => Numbers().Where(static x => x>100).Count()>0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool WithPredicate_WhereNoMatchNoOptimized() => Numbers().Where(static x => x>100).Count()>0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool WithPredicate_CountPredicateOptimized() => Numbers().Count(static x => x>4)>0;
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool WithPredicate_CountPredicateNoOptimized() => Numbers().Count(static x => x>4)>0;
 }

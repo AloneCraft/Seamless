@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Collections;
+﻿namespace Seamless.Collections.Tsavorite;
 
 #pragma warning disable CS0660, CS0661
 public readonly struct EqualityEmpty {

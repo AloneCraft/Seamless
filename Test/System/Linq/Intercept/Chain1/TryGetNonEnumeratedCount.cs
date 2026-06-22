@@ -13,7 +13,7 @@ public sealed class TryGetNonEnumeratedCount(ITestOutputHelper output):LinqChain
         this.MeasureOptimized(nameof(countNoOptimized),()=>countNoOptimized(expectedResult,expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void countOptimized(bool expectedResult,int expected) {
         GeneratedInterceptorAssert.ContainsMethod<TryGetNonEnumeratedCount>(nameof(countOptimized));
         var actualResult=Source().TryGetNonEnumeratedCount(out var actual);
@@ -21,7 +21,7 @@ public sealed class TryGetNonEnumeratedCount(ITestOutputHelper output):LinqChain
         Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void countNoOptimized(bool expectedResult,int expected) {
         var actualResult=Source().TryGetNonEnumeratedCount(out var actual);
         Assert.Equal(expectedResult,actualResult);

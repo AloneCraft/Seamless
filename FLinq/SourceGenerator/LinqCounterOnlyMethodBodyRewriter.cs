@@ -2,9 +2,9 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Text;
-using static Tsavorite.SourceGenerator.GeneratorHelpers;
+using static Seamless.FLinq.GeneratorHelpers;
 
-namespace Tsavorite.SourceGenerator;
+namespace Seamless.FLinq;
 
 public sealed partial class TsavoriteIncrementalGenerator {
     private static bool TryBuildCounterOnlyLocalMethodBody(Linq傍受対象型 target,out string staticMethods,out string body,HashSet<string>? emittedUnsafeAccessors = null) {
@@ -265,7 +265,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
             .ToArray();
         wrappedExpression=
             $"(({delegateTypeName})(({string.Join(", ",argumentNames)}) => " +
-            $"global::Tsavorite.LinqCounterScope.Counter.RecordPhysicalDelegate((({delegateTypeName})({delegateExpression})).Invoke({string.Join(", ",argumentNames)}))))";
+            $"global::Seamless.Collections.Tsavorite.LinqCounterScope.Counter.RecordPhysicalDelegate((({delegateTypeName})({delegateExpression})).Invoke({string.Join(", ",argumentNames)}))))";
         return true;
     }
 }

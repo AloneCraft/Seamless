@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier.Internal;
+﻿namespace Seamless.Collections.Tsavorite.Carrier.Internal;
 
 // storing struct enumerator, with pooling(stack itself is node)
 internal sealed class RefStack<T> where T : IDisposable

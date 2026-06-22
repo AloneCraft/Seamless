@@ -1,4 +1,4 @@
-﻿namespace Tsavorite;
+﻿namespace Seamless.Collections.Tsavorite;
 
 public static class GeneratedCodeHelpers {
     public static InvalidOperationException LinqInterceptorFailure(string message) =>

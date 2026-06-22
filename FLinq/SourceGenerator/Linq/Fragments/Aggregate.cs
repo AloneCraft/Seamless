@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : Scalar(番号) {
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType){
@@ -13,7 +13,7 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
             ? $$"""
                 {{source.ElementType}} {{this.result}};
                 if({{srcVar}}.TryGetSpan(out var __span)){
-                    if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                    if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                     {{this.result}}=default!;
                     var __first=true;
                     foreach(var __item in __span){
@@ -25,7 +25,7 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
                         }
                     }
                 }else{
-                    if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                    if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                     {{this.result}}=__item;
                     while({{srcVar}}.TryGetNext(out __item)){
                         {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
@@ -33,7 +33,7 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
                 }
                 """
             : $$"""
-                if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 var {{this.result}}=__item;
                 while({{srcVar}}.TryGetNext(out __item)){
                     {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
@@ -70,7 +70,7 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
             this.{{this.yielded}} = true;
             {{source.ElementType}} {{this.result}};
             if({{this.e}}.TryGetSpan(out var __span)){
-                if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 {{this.result}}=default!;
                 var __first=true;
                 foreach(var __item in __span){
@@ -82,7 +82,7 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
                     }
                 }
             }else{
-                if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 {{this.result}}={{this.item}};
                 while({{this.e}}.TryGetNext(out {{this.item}})){
                     {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,this.item)}}
@@ -98,7 +98,7 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
                 return false;
             }
             this.{{this.yielded}} = true;
-            if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+            if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
             var {{this.result}}={{this.item}};
             while({{this.e}}.TryGetNext(out {{this.item}})){
                 {{this.FuncAssignIndented("    ",func,nameof(func),this.result,this.result,this.item)}}

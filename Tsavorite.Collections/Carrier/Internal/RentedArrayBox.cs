@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier.Internal;
+﻿namespace Seamless.Collections.Tsavorite.Carrier.Internal;
 
 // In order to manage state reliably on the heap by storing ArrayPool in struct fields, we ensure proper state management on the heap.
 // This prevents accidents such as returning to the ArrayPool multiple times due to incorrect usage of the struct.

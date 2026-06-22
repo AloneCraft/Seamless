@@ -2,8 +2,8 @@ using System.Collections;
 using System.Globalization;
 using System.Linq;
 
-using Tsavorite;
-using Tsavorite.SourceGenerator;
+using Seamless.Collections.Tsavorite;
+using Seamless.FLinq;
 using ZLinq;
 
 using SystemEnumerable = global::System.Linq.Enumerable;
@@ -90,7 +90,7 @@ public static class EnumerableComparisonCatalog {
         "Where",
         "Zip",
     ];
-    private static readonly HashSet<string> chain1ExcludedMethodNames =
+    private static readonly global::System.Collections.Generic.HashSet<string> chain1ExcludedMethodNames =
     [
         "AsEnumerable",
         "AsQueryable",

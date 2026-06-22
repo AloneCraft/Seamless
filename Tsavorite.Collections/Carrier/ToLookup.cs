@@ -5,7 +5,7 @@ using System.Buffers;
 using System.Collections;
 using System.Diagnostics;
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static ILookup<TKey,TSource> ToLookup<TEnumerator, TSource, TKey>(this ValueEnumerable<TEnumerator,TSource> source,Func<TSource,TKey> keySelector)
             where TEnumerator : struct, IValueEnumerator<TSource> {
@@ -62,7 +62,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     internal static class Lookup {
         // Enumerable.Join operation ignores null key
         public static Lookup<TKey,TSource> CreateForJoin<TEnumerator, TSource, TKey>(ref TEnumerator source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer)

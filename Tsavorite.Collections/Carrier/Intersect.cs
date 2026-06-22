@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static ValueEnumerable<Intersect<TEnumerator,TEnumerator2,TSource>,TSource> Intersect<TEnumerator, TEnumerator2, TSource>(this ValueEnumerable<TEnumerator,TSource> source,ValueEnumerable<TEnumerator2,TSource> second)
             where TEnumerator : struct, IValueEnumerator<TSource>
@@ -22,7 +22,7 @@
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct Intersect<TEnumerator, TEnumerator2, TSource>(TEnumerator source,ValueEnumerable<TEnumerator2,TSource> second,IEqualityComparer<TSource>? comparer)

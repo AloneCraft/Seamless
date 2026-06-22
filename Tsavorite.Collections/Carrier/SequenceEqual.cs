@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static Boolean SequenceEqual<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source,IEnumerable<TSource> second)
     where TEnumerator : struct, IValueEnumerator<TSource> {

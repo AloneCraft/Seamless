@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Linq;
+﻿namespace Seamless.Collections.Tsavorite.Linq;
 public sealed class LookupImpl<TKey,TElement>(IEqualityComparer<TKey>? Comparer):ILookup<TKey,TElement> {
     public LookupImpl():this(Comparer: EqualityComparer<TKey>.Default) { }
     public List<GroupingImpl<TKey,TElement>> Groups { get; }=[];

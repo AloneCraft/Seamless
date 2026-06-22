@@ -1,6 +1,6 @@
 using System.Linq;
 using Test.System.Linq.Intercept;
-using Tsavorite.Linq;
+using Seamless.Collections.Tsavorite.Linq;
 
 namespace Test.System.Linq.Intercept.Optimization;
 
@@ -15,16 +15,16 @@ public sealed class InvariantHoisting:OptimizationTestBase{
         AssertSequenceEqual(EmptyOuter().Select(static a => a+StaticCheck()).ToList(),GlobalInvariant_EmptyNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> GlobalInvariant_NonEmptyOptimized() => Outer().Select(static a => a+StaticCheck()).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> GlobalInvariant_NonEmptyNoOptimized() => Outer().Select(static a => a+StaticCheck()).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> GlobalInvariant_EmptyOptimized() => EmptyOuter().Select(static a => a+StaticCheck()).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> GlobalInvariant_EmptyNoOptimized() => EmptyOuter().Select(static a => a+StaticCheck()).ToList();
 
     [Fact,Trait("Category","Unit")]
@@ -35,19 +35,19 @@ public sealed class InvariantHoisting:OptimizationTestBase{
         AssertSequenceEqual(EmptyOuter().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).ToList(),IntermediateScopeInvariant_EmptyNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> IntermediateScopeInvariant_NonEmptyOptimized() =>
         Outer().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> IntermediateScopeInvariant_NonEmptyNoOptimized() =>
         Outer().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> IntermediateScopeInvariant_EmptyOptimized() =>
         EmptyOuter().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> IntermediateScopeInvariant_EmptyNoOptimized() =>
         EmptyOuter().SelectMany(static a => Inner().Select(b => (a+StaticCheck())-(b*StackCheck()))).ToList();
 
@@ -58,13 +58,13 @@ public sealed class InvariantHoisting:OptimizationTestBase{
         AssertSequenceEqual(Outer().Where(v => v<threshold).ToList(),CapturedLocalEliminatedToStructFieldNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> CapturedLocalEliminatedToStructFieldOptimized() {
         var threshold=3;
         return Outer().Where(v => v<threshold).ToList();
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> CapturedLocalEliminatedToStructFieldNoOptimized() {
         var threshold=3;
         return Outer().Where(v => v<threshold).ToList();
@@ -76,13 +76,13 @@ public sealed class InvariantHoisting:OptimizationTestBase{
         Assert.Empty(InvariantNotHoistedPastLazyGuardNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> InvariantNotHoistedPastLazyGuardOptimized() {
         var divisor=0;
         return EmptyOuter().Where(v => v>100/divisor).ToList();
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> InvariantNotHoistedPastLazyGuardNoOptimized() {
         var divisor=0;
         return EmptyOuter().Where(v => v>100/divisor).ToList();
@@ -127,33 +127,33 @@ public sealed class InvariantHoisting:OptimizationTestBase{
         Assert.Equal(0,mutatingCallCount);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> SelectPartialInvariantOptimized() {
         var x=3;
         return Outer().Select(p => p+x*x).ToList();
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> SelectPartialInvariantNoOptimized() {
         var x=3;
         return Outer().Select(p => p+x*x).ToList();
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> WherePartialInvariantOptimized() {
         var threshold=1;
         var offset=2;
         return Outer().Where(p => p>threshold+offset).ToList();
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> WherePartialInvariantNoOptimized() {
         var threshold=1;
         var offset=2;
         return Outer().Where(p => p>threshold+offset).ToList();
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> GroupByPartialInvariantOptimized() {
         var x=2;
         return Outers()
@@ -162,7 +162,7 @@ public sealed class InvariantHoisting:OptimizationTestBase{
             .ToList();
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> GroupByPartialInvariantNoOptimized() {
         var x=2;
         return Outers()
@@ -171,7 +171,7 @@ public sealed class InvariantHoisting:OptimizationTestBase{
             .ToList();
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> JoinPartialInvariantOptimized() {
         var x=2;
         var y=2;
@@ -181,7 +181,7 @@ public sealed class InvariantHoisting:OptimizationTestBase{
             .ToList();
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> JoinPartialInvariantNoOptimized() {
         var x=2;
         var y=2;
@@ -191,19 +191,19 @@ public sealed class InvariantHoisting:OptimizationTestBase{
             .ToList();
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> MutatingPartialInvariantOptimized() =>
         Outer().Select(p => p+MutatingValue()).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> MutatingPartialInvariantNoOptimized() =>
         Outer().Select(p => p+MutatingValue()).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> EmptySourceMutatingPartialInvariantOptimized() =>
         EmptyOuter().Select(p => p+MutatingValue()).ToList();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> AnchorMutatingPartialInvariantOptimized() =>
         EmptyOuter().Select(p => p+MutatingValue().Anchor).ToList();
 

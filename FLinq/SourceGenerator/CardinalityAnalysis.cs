@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Tsavorite.SourceGenerator;
+namespace Seamless.FLinq;
 
 internal static class CardinalityAnalysis {
     public readonly record struct IntegralRange(int Min,int Max) {

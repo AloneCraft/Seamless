@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 
 public class First(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length == 0;
@@ -17,7 +17,7 @@ public class First(int 番号, Enumerable source, string resultType) : BufferedS
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
             if(source.MoveNext()) return source.Current;
-            throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+            throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
         }
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
@@ -51,7 +51,7 @@ public class First_predicate(int 番号, Enumerable source, FuncFragment predica
                 {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                 if({{this.temp}}) return {{this.item}};
             }
-            throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+            throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
         }
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";

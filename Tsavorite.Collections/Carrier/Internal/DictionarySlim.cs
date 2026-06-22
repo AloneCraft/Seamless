@@ -1,5 +1,5 @@
 ﻿#pragma warning disable 0436
-namespace Tsavorite.Carrier.Internal;
+namespace Seamless.Collections.Tsavorite.Carrier.Internal;
 
 // Lightweight dictionary implementation optimized for performance
 // with minimal API surface focused on the specific use case

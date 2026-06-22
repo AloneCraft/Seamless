@@ -11,13 +11,13 @@ public sealed class Shuffle(ITestOutputHelper output):LinqChain1TestBase(output)
         this.MeasureOptimized(nameof(noArgNoOptimized),()=>noArgNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void noArgOptimized(dynamic expected) {
         var actual=SourceWithDuplicates().Shuffle().Order().ToList();
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void noArgNoOptimized(dynamic expected) {
         var actual=SourceWithDuplicates().Shuffle().Order().ToList();
         AssertSequenceEqual(expected,actual);

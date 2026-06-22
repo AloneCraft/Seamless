@@ -16,7 +16,7 @@ public sealed class RedundantAsEnumerable:OptimizationTestBase{
         LeadingAsEnumerableRemovedNoOptimized(expected);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void LeadingAsEnumerableRemovedOptimized(dynamic expected) {
                 // src.AsEnumerable().Where(p) -> src.Where(p)。
         var actual=new Consumer<int>();
@@ -24,7 +24,7 @@ public sealed class RedundantAsEnumerable:OptimizationTestBase{
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void LeadingAsEnumerableRemovedNoOptimized(dynamic expected) {
                 // src.AsEnumerable().Where(p) -> src.Where(p)。
         var actual=new Consumer<int>();
@@ -40,7 +40,7 @@ public sealed class RedundantAsEnumerable:OptimizationTestBase{
         MiddleAsEnumerableRemovedNoOptimized(expected);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void MiddleAsEnumerableRemovedOptimized(dynamic expected) {
                 // src.Where(p).AsEnumerable().Select(s) -> src.Where(p).Select(s)。
         var actual=new Consumer<int>();
@@ -48,7 +48,7 @@ public sealed class RedundantAsEnumerable:OptimizationTestBase{
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void MiddleAsEnumerableRemovedNoOptimized(dynamic expected) {
                 // src.Where(p).AsEnumerable().Select(s) -> src.Where(p).Select(s)。
         var actual=new Consumer<int>();
@@ -64,7 +64,7 @@ public sealed class RedundantAsEnumerable:OptimizationTestBase{
         OutermostAsEnumerableKeptNoOptimized(expected);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void OutermostAsEnumerableKeptOptimized(dynamic expected) {
                 // src.Where(p).AsEnumerable() -> 最外段の AsEnumerable は残るが結果は不変。
         var actual=new Consumer<int>();
@@ -72,7 +72,7 @@ public sealed class RedundantAsEnumerable:OptimizationTestBase{
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void OutermostAsEnumerableKeptNoOptimized(dynamic expected) {
                 // src.Where(p).AsEnumerable() -> 最外段の AsEnumerable は残るが結果は不変。
         var actual=new Consumer<int>();

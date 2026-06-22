@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 public interface ISetOperationStrategy{
     bool PreloadSecondFirst{get;}
@@ -24,36 +24,36 @@ public static class SetOperationStrategies{
         public bool PreloadSecondFirst=>false;
         public string SourceAcceptMethod=>"Add";
         public string GetEnumerableExpression(Enumerable source,Enumerable second,string comparer)=>
-            $"global::Tsavorite.Carrier.ValueEnumerableExtensions.Union({source.GetEnumerableExpression},{second.GetEnumerableExpression},{comparer})";
+            $"global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.Union({source.GetEnumerableExpression},{second.GetEnumerableExpression},{comparer})";
     }
     private sealed class ExceptStrategy : ISetOperationStrategy{
         public bool PreloadSecondFirst=>true;
         public string SourceAcceptMethod=>"Add";
         public string GetEnumerableExpression(Enumerable source,Enumerable second,string comparer)=>
-            $"global::Tsavorite.Carrier.ValueEnumerableExtensions.Except({source.GetEnumerableExpression},{second.GetEnumerableExpression},{comparer})";
+            $"global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.Except({source.GetEnumerableExpression},{second.GetEnumerableExpression},{comparer})";
     }
     private sealed class IntersectStrategy : ISetOperationStrategy{
         public bool PreloadSecondFirst=>true;
         public string SourceAcceptMethod=>"Remove";
         public string GetEnumerableExpression(Enumerable source,Enumerable second,string comparer)=>
-            $"global::Tsavorite.Carrier.ValueEnumerableExtensions.Intersect({source.GetEnumerableExpression},{second.GetEnumerableExpression},{comparer})";
+            $"global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.Intersect({source.GetEnumerableExpression},{second.GetEnumerableExpression},{comparer})";
     }
     private sealed class ByUnionStrategy : ISetByOperationStrategy{
         public bool PreloadSecondFirst=>false;
         public string SourceAcceptMethod=>"Add";
         public string GetEnumerableExpression(Enumerable source,Enumerable second,FuncFragment keySelector,string comparer)=>
-            $"global::Tsavorite.Carrier.ValueEnumerableExtensions.UnionBy({source.GetEnumerableExpression},{second.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
+            $"global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.UnionBy({source.GetEnumerableExpression},{second.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
     }
     private sealed class ByExceptStrategy : ISetByOperationStrategy{
         public bool PreloadSecondFirst=>true;
         public string SourceAcceptMethod=>"Add";
         public string GetEnumerableExpression(Enumerable source,Enumerable second,FuncFragment keySelector,string comparer)=>
-            $"global::Tsavorite.Carrier.ValueEnumerableExtensions.ExceptBy({source.GetEnumerableExpression},{second.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
+            $"global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.ExceptBy({source.GetEnumerableExpression},{second.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
     }
     private sealed class ByIntersectStrategy : ISetByOperationStrategy{
         public bool PreloadSecondFirst=>true;
         public string SourceAcceptMethod=>"Remove";
         public string GetEnumerableExpression(Enumerable source,Enumerable second,FuncFragment keySelector,string comparer)=>
-            $"global::Tsavorite.Carrier.ValueEnumerableExtensions.IntersectBy({source.GetEnumerableExpression},{second.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
+            $"global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.IntersectBy({source.GetEnumerableExpression},{second.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
     }
 }

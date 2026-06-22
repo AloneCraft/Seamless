@@ -10,13 +10,13 @@ public sealed class SequenceEqual(ITestOutputHelper output):LinqChain1TestBase(o
         this.MeasureOptimized(nameof(secondNoOptimized),()=>secondNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void secondOptimized(dynamic expected) {
         var actual=Source().SequenceEqual(EqualSource());
         Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void secondNoOptimized(dynamic expected) {
         var actual=Source().SequenceEqual(EqualSource());
         Assert.Equal(expected,actual);
@@ -29,13 +29,13 @@ public sealed class SequenceEqual(ITestOutputHelper output):LinqChain1TestBase(o
         this.MeasureOptimized(nameof(second_comparerNoOptimized),()=>second_comparerNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void second_comparerOptimized(dynamic expected) {
         var actual=Source().SequenceEqual(EqualSource(),EqualityComparer<int>.Default);
         Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void second_comparerNoOptimized(dynamic expected) {
         var actual=Source().SequenceEqual(EqualSource(),EqualityComparer<int>.Default);
         Assert.Equal(expected,actual);

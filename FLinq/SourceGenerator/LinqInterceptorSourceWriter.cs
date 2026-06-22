@@ -1,11 +1,11 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
-using static Tsavorite.SourceGenerator.GeneratorHelpers;
+using static Seamless.FLinq.GeneratorHelpers;
 
-using Tsavorite.SourceGenerator.Linq.Fragments;
-using Enumerable = Tsavorite.SourceGenerator.Linq.Fragments.Enumerable;
+using Seamless.FLinq.Linq.Fragments;
+using Enumerable = Seamless.FLinq.Linq.Fragments.Enumerable;
 
-namespace Tsavorite.SourceGenerator;
+namespace Seamless.FLinq;
 
 public sealed partial class TsavoriteIncrementalGenerator {
 
@@ -253,7 +253,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
         // Fragment クラスが存在しない Enumerable メソッドは、元実装へ黙って戻さず例外にする。
         // これにより「intercept 対象だったが未対応だった」ことを生成コードと実行時の両方で確認できる。
         var methodList = string.Join(", ",unsupportedMethods);
-        return $"throw global::Tsavorite.GeneratedCodeHelpers.LinqInterceptorFailure(\"Local method interception does not support System.Linq.Enumerable methods without Fragment implementations: {methodList}.\");";
+        return $"throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.LinqInterceptorFailure(\"Local method interception does not support System.Linq.Enumerable methods without Fragment implementations: {methodList}.\");";
     }
     private static string RenderUninlineableLocalMethodBody(Linq傍受対象型 target) {
         // Fragment クラス名は存在しても、source 形状や delegate 形状の都合で最終的に再構成できないことがある。
@@ -261,7 +261,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
         var methodName = target.Method.ToDisplayString(完全修飾形式)
             .Replace("\\","\\\\",StringComparison.Ordinal)
             .Replace("\"","\\\"",StringComparison.Ordinal);
-        return $"throw global::Tsavorite.GeneratedCodeHelpers.LinqInterceptorFailure(\"Local method interception could not inline '{methodName}'. Forwarding is disabled for methods that contain System.Linq.Enumerable calls.\");";
+        return $"throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.LinqInterceptorFailure(\"Local method interception could not inline '{methodName}'. Forwarding is disabled for methods that contain System.Linq.Enumerable calls.\");";
     }
     private static string RenderUnsupportedDirectMethodBody(Linq傍受対象型 target,string? detail = null) {
         var methodName = target.Method.ReducedFrom?.ToDisplayString(完全修飾形式) ?? target.Method.ToDisplayString(完全修飾形式);
@@ -272,6 +272,6 @@ public sealed partial class TsavoriteIncrementalGenerator {
         message=message
             .Replace("\\","\\\\",StringComparison.Ordinal)
             .Replace("\"","\\\"",StringComparison.Ordinal);
-        return $"throw global::Tsavorite.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\");";
+        return $"throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\");";
     }
 }

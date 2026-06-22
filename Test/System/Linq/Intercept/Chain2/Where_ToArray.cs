@@ -12,11 +12,11 @@ public sealed class Where_ToArray(ITestOutputHelper output):LinqChain2TestBase(o
         this.AssertOptimized(nameof(StaticNoOptimized),expected,()=>StaticNoOptimized());
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static int[] StaticOptimized() =>
         Source().Where(static v => v>2).ToArray();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static int[] StaticNoOptimized() =>
         Source().Where(static v => v>2).ToArray();
 }

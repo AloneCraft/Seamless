@@ -1,5 +1,5 @@
-﻿global using EqualityEmpty=Tsavorite.Collections.EqualityEmpty;
-namespace Tsavorite;
+﻿global using EqualityEmpty=Seamless.Collections.Tsavorite.EqualityEmpty;
+namespace Seamless.Collections.Tsavorite;
 
 public static class Const{
     public const int Chunk_Length=2;

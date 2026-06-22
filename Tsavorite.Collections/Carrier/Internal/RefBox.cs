@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier.Internal;
+﻿namespace Seamless.Collections.Tsavorite.Carrier.Internal;
 
 // store struct to heap
 internal sealed class RefBox<T>(T value): IDisposable

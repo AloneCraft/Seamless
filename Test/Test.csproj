@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TsavoriteTargetFramework Condition="'$(TsavoriteTargetFramework)' == ''">net10.0</TsavoriteTargetFramework>
     <TargetFramework>$(TsavoriteTargetFramework)</TargetFramework>
@@ -14,11 +14,11 @@
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Tsavorite\Collections\artifacts\**" />
-    <EmbeddedResource Remove="Tsavorite\Collections\artifacts\**" />
-    <EmbeddedResource Remove="Tsavorite\Collections\Garnet\**" />
-    <None Remove="Tsavorite\Collections\artifacts\**" />
-    <None Remove="Tsavorite\Collections\Garnet\**" />
+    <Compile Remove="Seamless\Collections\artifacts\**" />
+    <EmbeddedResource Remove="Seamless\Collections\artifacts\**" />
+    <EmbeddedResource Remove="Seamless\Collections\Garnet\**" />
+    <None Remove="Seamless\Collections\artifacts\**" />
+    <None Remove="Seamless\Collections\Garnet\**" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4">
@@ -46,7 +46,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Tsavorite.Collections\Tsavorite.Collections.csproj" />
+    <ProjectReference Include="..\Seamless.Collections.Abstractions\Seamless.Collections.Abstractions.csproj" />
+    <ProjectReference Include="..\Seamless.Collections.Persisted\Seamless.Collections.Persisted.csproj" />
+    <ProjectReference Include="..\Tsavorite.Collections\Seamless.Collections.Tsavorite.csproj" />
     <ProjectReference Include="..\FLinq\FLinq.csproj" />
     <ProjectReference Include="..\SourceGenerator.Shared\SourceGenerator.Shared.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\FLinq\FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />

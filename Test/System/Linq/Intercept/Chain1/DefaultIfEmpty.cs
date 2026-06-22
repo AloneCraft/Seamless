@@ -11,14 +11,14 @@ public sealed class DefaultIfEmpty(ITestOutputHelper output):LinqChain1TestBase(
         this.MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void NoDelegateOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         EmptySource().DefaultIfEmpty().Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void NoDelegateNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         EmptySource().DefaultIfEmpty().Consume(actual);
@@ -32,14 +32,14 @@ public sealed class DefaultIfEmpty(ITestOutputHelper output):LinqChain1TestBase(
         this.MeasureOptimized(nameof(defaultValueNoOptimized),()=>defaultValueNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void defaultValueOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         EmptySource().DefaultIfEmpty(42).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void defaultValueNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         EmptySource().DefaultIfEmpty(42).Consume(actual);

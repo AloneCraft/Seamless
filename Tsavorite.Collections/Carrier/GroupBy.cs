@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static ValueEnumerable<GroupBy<TEnumerator,TSource,TKey>,IGrouping<TKey,TSource>> GroupBy<TEnumerator, TSource, TKey>(this ValueEnumerable<TEnumerator,TSource> source,Func<TSource,TKey> keySelector)
             where TEnumerator : struct, IValueEnumerator<TSource>
@@ -35,7 +35,7 @@
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct GroupBy<TEnumerator, TSource, TKey>(TEnumerator source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer)

@@ -1,7 +1,7 @@
-﻿using Persistent.Collections;
-using Tsavorite.SessionFunctions;
-using Tsavorite.Stores;
-namespace Tsavorite.Collections;
+using Seamless.Collections.Persisted;
+using Seamless.Collections.Tsavorite.SessionFunctions;
+using Seamless.Collections.Tsavorite.Stores;
+namespace Seamless.Collections.Tsavorite;
 
 public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>:Collection<
     TKey,//TKey
@@ -15,32 +15,32 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     SpanByteStoreAllocator//TAllocator
 >    where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-    public sealed class KeyIterator:ScanIteratorFunctions_List<TKey,ListBase<TKey>>,ICreate<KeyIterator> {
+    public sealed class KeyIterator:ScanIteratorFunctions_List<TKey,PersistedList<TKey>>,ICreate<KeyIterator> {
         public static KeyIterator Create() => new();
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    private protected sealed class MemoryKeyIterator:MemoryScanIteratorFunctions<TKey,ListBase<TKey>> {
+    private protected sealed class MemoryKeyIterator:MemoryScanIteratorFunctions<TKey,PersistedList<TKey>> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    private protected sealed class ValueIterator:ScanIteratorFunctions_List<TValue,ListBase<TValue>>,ICreate<ValueIterator> {
+    private protected sealed class ValueIterator:ScanIteratorFunctions_List<TValue,PersistedList<TValue>>,ICreate<ValueIterator> {
         public static ValueIterator Create() => new();
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
-    private protected sealed class MemoryValueIterator:MemoryScanIteratorFunctions<TValue,ListBase<TValue>> {
+    private protected sealed class MemoryValueIterator:MemoryScanIteratorFunctions<TValue,PersistedList<TValue>> {
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
-    public sealed class KeyValueIterator:ScanIteratorFunctions_List<KeyValuePair<TKey,TValue>,ListBase<KeyValuePair<TKey,TValue>>> {
+    public sealed class KeyValueIterator:ScanIteratorFunctions_List<KeyValuePair<TKey,TValue>,PersistedList<KeyValuePair<TKey,TValue>>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
             var Key = TKeySerializer.Deserialize(logRecord.Key);
             var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
             return new(Key,Value);
         }
     }
-    private protected sealed class MemoryKeyValueIterator:MemoryScanIteratorFunctions<KeyValuePair<TKey,TValue>,ListBase<KeyValuePair<TKey,TValue>>> {
+    private protected sealed class MemoryKeyValueIterator:MemoryScanIteratorFunctions<KeyValuePair<TKey,TValue>,PersistedList<KeyValuePair<TKey,TValue>>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
             var Key = TKeySerializer.Deserialize(logRecord.Key);
             var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
@@ -48,7 +48,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
         }
     }
     public struct Enumerator<TIterator, T>:IEnumerator<T>
-        where TIterator : ScanIteratorFunctions_List<T,ListBase<T>> {
+        where TIterator : ScanIteratorFunctions_List<T,PersistedList<T>> {
         private long Cursor;
         private int Index = -1;
         private int Count;

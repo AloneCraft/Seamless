@@ -1,6 +1,6 @@
-﻿using System.Text.Json;
-using Tsavorite.Stores;
-namespace Tsavorite;
+using System.Text.Json;
+using Seamless.Collections.Tsavorite.Stores;
+namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
 /// Store ファクトリ。
@@ -279,19 +279,19 @@ public readonly struct Store {
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
     /// <summary>Memory Set</summary>
     public SetStore<TKey,TRecord> CreateSet<TKey, TRecord>()
-        where TRecord : Collections.IRecord<TKey> =>
+        where TRecord : Seamless.Collections.Tsavorite.IRecord<TKey> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Storage Set</summary>
     public SetStore<TKey,TRecord> CreateSet<TKey, TRecord>(
         IDevice LogDevice,
         IDevice ObjectLogDevice
     )
-        where TRecord : Collections.IRecord<TKey> =>
+        where TRecord : Seamless.Collections.Tsavorite.IRecord<TKey> =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
 
     /// <summary>Memory Set using blittable serialization.</summary>
     public SetStore<TKey,TRecord> CreateSet<TKey, TRecord>(BlittableStrategy _0)
-        where TRecord : unmanaged, Collections.IRecord<TKey>
+        where TRecord : unmanaged, Seamless.Collections.Tsavorite.IRecord<TKey>
         where TKey : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
     /// <summary>Storage Set using blittable serialization.</summary>
@@ -300,7 +300,7 @@ public readonly struct Store {
         IDevice ObjectLogDevice,
         BlittableStrategy _0
     )
-        where TRecord : unmanaged, Collections.IRecord<TKey>
+        where TRecord : unmanaged, Seamless.Collections.Tsavorite.IRecord<TKey>
         where TKey : unmanaged =>
         new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
 

@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 public class ElementAt(int 番号, Enumerable source, string index, string resultType) : BufferedScalar(番号, resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>

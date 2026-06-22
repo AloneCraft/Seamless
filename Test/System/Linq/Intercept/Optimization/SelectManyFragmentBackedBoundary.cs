@@ -13,7 +13,7 @@ public sealed class SelectManyFragmentBackedBoundary:OptimizationTestBase{
         SelectManyPrependJoinKeepsPrependedElementNoOptimized(expected);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void SelectManyPrependJoinKeepsPrependedElementOptimized(dynamic expected) {
         var actual=new Consumer<string>();
                 StringOuter()
@@ -30,7 +30,7 @@ public sealed class SelectManyFragmentBackedBoundary:OptimizationTestBase{
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void SelectManyPrependJoinKeepsPrependedElementNoOptimized(dynamic expected) {
         var actual=new Consumer<string>();
                 StringOuter()

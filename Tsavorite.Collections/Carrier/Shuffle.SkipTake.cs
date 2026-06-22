@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static ValueEnumerable<ShuffleSkipTake<TEnumerator,TSource>,TSource> Take<TEnumerator, TSource>(this ValueEnumerable<Shuffle<TEnumerator,TSource>,TSource> source,int count)
             where TEnumerator : struct, IValueEnumerator<TSource> {
@@ -24,7 +24,7 @@
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct ShuffleSkipTake<TEnumerator, TSource>(TEnumerator source,int skipCount,int takeCount)

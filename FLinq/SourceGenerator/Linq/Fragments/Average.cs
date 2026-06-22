@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 
 public class Average(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
     private bool UseDecimalAccumulator => source.ElementType=="decimal";
@@ -27,7 +27,7 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
                     private static {{resultType}} Compute(TEnum source) {
                         var sum=0m;
                         source.TryGetSpan(out var __span);
-                        if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                        if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                         foreach(var item in __span) sum+=item;
                         return ({{resultType}})(sum/__span.Length);
                     }
@@ -41,7 +41,7 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
                             sum+=source.Current;
                             count++;
                         }
-                        if(count==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                        if(count==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                         return ({{resultType}})(sum/count);
                     }
                     """;
@@ -53,8 +53,8 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
                         {{AggressiveInliningAttribute}}
                         private static {{resultType}} Compute(TEnum source) {
                             source.TryGetSpan(out var __span);
-                            if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
-                            return ({{resultType}})global::Tsavorite.Carrier.ValueEnumerableExtensions.AverageIntSimd(__span);
+                            if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
+                            return ({{resultType}})global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerableExtensions.AverageIntSimd(__span);
                         }
                         """
                     : $$"""
@@ -62,7 +62,7 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
                         private static {{resultType}} Compute(TEnum source) {
                             double sum=0;
                             source.TryGetSpan(out var __span);
-                            if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                            if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                             foreach(var item in __span) sum+=item;
                             return ({{resultType}})(sum/__span.Length);
                         }
@@ -76,7 +76,7 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
                             sum+=source.Current;
                             count++;
                         }
-                        if(count==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                        if(count==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                         return ({{resultType}})(sum/count);
                     }
                     """;
@@ -88,7 +88,7 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
                     long count=0;
                     {{resultType}} sum=default!;
                     source.TryGetSpan(out var __span);
-                    if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                    if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                     foreach(var item in __span){
                         sum+=item;
                         count++;
@@ -105,7 +105,7 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
                         sum+=source.Current;
                         count++;
                     }
-                    if(count==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                    if(count==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                     return sum/({{resultType}})count;
                 }
                 """;
@@ -145,7 +145,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                     private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                         var sum=0m;
                         source.TryGetSpan(out var __span);
-                        if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                        if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                         foreach(var {{this.item}} in __span){
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
                             {{this.FuncAssignStaticIndented("        ",selector,nameof(selector),this.temp,this.item)}}
@@ -166,7 +166,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                             sum+={{this.temp}};
                             count++;
                         }
-                        if(count==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                        if(count==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                         return ({{resultType}})(sum/count);
                     }
                     """;
@@ -178,7 +178,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                     private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                         double sum=0;
                         source.TryGetSpan(out var __span);
-                        if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                        if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                         foreach(var {{this.item}} in __span){
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
                             {{this.FuncAssignStaticIndented("        ",selector,nameof(selector),this.temp,this.item)}}
@@ -199,7 +199,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                             sum+={{this.temp}};
                             count++;
                         }
-                        if(count==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                        if(count==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                         return ({{resultType}})(sum/count);
                     }
                     """;
@@ -211,7 +211,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                     long count=0;
                     {{resultType}} sum=default!;
                     source.TryGetSpan(out var __span);
-                    if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                    if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                     foreach(var {{this.item}} in __span){
                         {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
                         {{this.FuncAssignStaticIndented("        ",selector,nameof(selector),this.temp,this.item)}}
@@ -233,7 +233,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
                         sum+={{this.temp}};
                         count++;
                     }
-                    if(count==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                    if(count==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                     return sum/({{resultType}})count;
                 }
                 """;

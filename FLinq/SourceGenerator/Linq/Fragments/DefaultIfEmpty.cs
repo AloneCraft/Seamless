@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 // DefaultIfEmpty(DefaultIfEmpty(s)) は DefaultIfEmpty(s) と等価（内側が要素≥1を保証するため
 // 外側の空判定は決して発火せず、最内の既定値が勝つ）。Take/TakeLast と同じ RootSource 畳み込みで

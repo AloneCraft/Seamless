@@ -1,6 +1,6 @@
 ﻿using GC = System.GC;
 
-namespace Tsavorite.Carrier;
+namespace Seamless.Collections.Tsavorite.Carrier;
 
 partial class ValueEnumerableExtensions {
     public static TSource[] ToArray<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source)

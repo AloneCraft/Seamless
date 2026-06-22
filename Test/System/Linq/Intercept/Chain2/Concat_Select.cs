@@ -13,14 +13,14 @@ public sealed class Concat_Select(ITestOutputHelper output):LinqChain2TestBase(o
         this.MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void StaticOptimized(dynamic expected) {
         var actual=new Consumer<int>();
                 Source().Concat(Second()).Select(static v => v+100).Consume(actual);
                 AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
                 Source().Concat(Second()).Select(static v => v+100).Consume(actual);

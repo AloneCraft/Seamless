@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static ValueEnumerable<Index<TEnumerator,TSource>,(int Index,TSource Item)> Index<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source)
             where TEnumerator : struct, IValueEnumerator<TSource>
@@ -7,7 +7,7 @@
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct Index<TEnumerator, TSource>(TEnumerator source)

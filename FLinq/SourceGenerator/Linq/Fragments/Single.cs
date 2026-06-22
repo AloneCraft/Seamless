@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 
 public class Single(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length == 0;
@@ -20,7 +20,7 @@ public class Single(int 番号, Enumerable source, string resultType) : Buffered
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source) {
                 source.TryGetSpan(out var __span);
-                if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 if(__span.Length>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
                 return __span[0];
             }
@@ -28,7 +28,7 @@ public class Single(int 番号, Enumerable source, string resultType) : Buffered
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source) {
-                if(!source.MoveNext()) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(!source.MoveNext()) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 {{resultType}} value = source.Current;
                 if(source.MoveNext()) throw new global::System.InvalidOperationException("Sequence contains more than one element");
                 return value;
@@ -76,7 +76,7 @@ public class Single_predicate(int 番号, Enumerable source, FuncFragment predic
                         found=true;
                     }
                 }
-                if(!found) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(!found) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 return value;
             }
             """
@@ -95,7 +95,7 @@ public class Single_predicate(int 番号, Enumerable source, FuncFragment predic
                         found = true;
                     }
                 }
-                if(!found) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(!found) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 return value;
             }
             """;

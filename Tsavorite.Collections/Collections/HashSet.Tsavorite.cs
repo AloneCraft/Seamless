@@ -1,6 +1,6 @@
-﻿using Tsavorite.SessionFunctions;
-using Tsavorite.Stores;
-namespace Tsavorite.Collections;
+using Seamless.Collections.Tsavorite.SessionFunctions;
+using Seamless.Collections.Tsavorite.Stores;
+namespace Seamless.Collections.Tsavorite;
 /// <summary>
 /// Tsavorite ��o�b�N�G���h�Ɏg���I�������� HashSet�B
 /// <see cref="System.Collections.Generic.ISet{T}"/> ��������A���p�҂� Tsavorite �̏ڍׂ�����Ȃ��B

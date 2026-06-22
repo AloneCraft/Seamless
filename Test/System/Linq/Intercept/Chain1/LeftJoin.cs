@@ -11,7 +11,7 @@ public sealed class LeftJoin(ITestOutputHelper output):LinqChain1TestBase(output
         this.MeasureOptimized(nameof(keySelectors_resultSelectorNoOptimized),()=>keySelectors_resultSelectorNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelectorOptimized(dynamic expected) {
         var actual=Rows()
             .LeftJoin(
@@ -23,7 +23,7 @@ public sealed class LeftJoin(ITestOutputHelper output):LinqChain1TestBase(output
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelectors_resultSelectorNoOptimized(dynamic expected) {
         var actual=Rows()
             .LeftJoin(

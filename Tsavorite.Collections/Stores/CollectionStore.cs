@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Stores;
+﻿namespace Seamless.Collections.Tsavorite.Stores;
 
 public abstract class CollectionStore{
     /// <summary>2の累乗かどうかを確認する</summary>

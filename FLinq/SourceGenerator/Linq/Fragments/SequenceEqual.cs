@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 public class SequenceEqual(int 番号,Enumerable source,Enumerable second,string resultType)
     :SequenceEqual_comparer(番号,source,second,"null",resultType);
@@ -7,7 +7,7 @@ public class SequenceEqual_comparer(int 番号, Enumerable source, Enumerable se
     public override string StructMethod => string.Empty;
     protected override string StructTypeParameters => "<TEnum1, TEnum2>";
     protected override string StructTypeConstraints =>
-        $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Tsavorite.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>, global::Tsavorite.Carrier.IValueEnumerator<{second.ElementType}>";
+        $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>, global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName => $"{this.Struct}<{source.EnumeratorTypeName}, {second.EnumeratorTypeName}>";
     protected override string StructSources => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression}, {comparer})";

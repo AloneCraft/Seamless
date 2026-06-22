@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 public class Zip(int 番号, Enumerable source, Enumerable second) : Enumerable(番号) {
     public override string StructMethod => string.Empty;

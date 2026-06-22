@@ -12,7 +12,7 @@ public sealed class ToHashSet {
         var actual=noArgImpl().OrderBy(static v => v).ToList();
         Assert.Equal(expected,actual);
     }
-    private static HashSet<int> noArgImpl(){
+    private static global::System.Collections.Generic.HashSet<int> noArgImpl(){
         return new[]{1,2,3,4}.ToHashSet();
     }
 
@@ -23,7 +23,7 @@ public sealed class ToHashSet {
         var actual=comparerImpl().OrderBy(static v => v).ToList();
         Assert.Equal(expected,actual);
     }
-    private static HashSet<int> comparerImpl(){
+    private static global::System.Collections.Generic.HashSet<int> comparerImpl(){
         return new[]{1,2,3,4}.ToHashSet(EqualityComparer<int>.Default);
     }
 
@@ -34,7 +34,7 @@ public sealed class ToHashSet {
         var actual=noArg_enumerableImpl().OrderBy(static v => v).ToList();
         Assert.Equal(expected,actual);
     }
-    private static HashSet<int> noArg_enumerableImpl(){
+    private static global::System.Collections.Generic.HashSet<int> noArg_enumerableImpl(){
         IEnumerable<int>src=[1,2,3,4];
         return src.ToHashSet();
     }
@@ -46,7 +46,7 @@ public sealed class ToHashSet {
         var actual=comparer_enumerableImpl().OrderBy(static v => v).ToList();
         Assert.Equal(expected,actual);
     }
-    private static HashSet<int> comparer_enumerableImpl(){
+    private static global::System.Collections.Generic.HashSet<int> comparer_enumerableImpl(){
         IEnumerable<int>src=[1,2,3,4];
         return src.ToHashSet(EqualityComparer<int>.Default);
     }

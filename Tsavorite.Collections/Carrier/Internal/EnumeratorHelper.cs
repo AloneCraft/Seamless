@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier.Internal;
+﻿namespace Seamless.Collections.Tsavorite.Carrier.Internal;
 
 // Intending to use internal, but making it public so it can be used as a helper when creating own operators.
 public static class EnumeratorHelper

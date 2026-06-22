@@ -1,7 +1,7 @@
-﻿using Tsavorite.Devices;
+﻿using Seamless.Collections.Tsavorite.Devices;
 
 
-namespace Tsavorite.Stores;
+namespace Seamless.Collections.Tsavorite.Stores;
 
 public class HashSetStore<TKey>:CollectionStore<TKey,EqualityEmpty> {
     internal HashSetStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes) :
@@ -15,6 +15,6 @@ public class HashSetStore<TKey>:CollectionStore<TKey,EqualityEmpty> {
         return set.GetLongCount();
     }
 
-    public Tsavorite.Collections.HashSet<TKey> Create() => new(this);
-    internal Tsavorite.Collections.HashSet<TKey> CreateOwned() => new(this,this);
+    public Seamless.Collections.Tsavorite.HashSet<TKey> Create() => new(this);
+    internal Seamless.Collections.Tsavorite.HashSet<TKey> CreateOwned() => new(this,this);
 }

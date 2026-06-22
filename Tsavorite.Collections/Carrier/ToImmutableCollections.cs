@@ -2,7 +2,7 @@
 
 using GC = System.GC;
 
-namespace Tsavorite.Carrier;
+namespace Seamless.Collections.Tsavorite.Carrier;
 
 partial class ValueEnumerableExtensions {
     // ImmutableArray

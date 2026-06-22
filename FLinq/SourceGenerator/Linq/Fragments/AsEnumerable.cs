@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 public class AsEnumerable(int 番号, Enumerable source) : Enumerable(番号) {
     protected override Enumerable PrimarySource => source;

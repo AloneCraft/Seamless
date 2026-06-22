@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier;
+﻿namespace Seamless.Collections.Tsavorite.Carrier;
 
 partial class ValueEnumerableExtensions {
     public static TSource Aggregate<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source,Func<TSource,TSource,TSource> func)

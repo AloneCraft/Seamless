@@ -1,5 +1,5 @@
 ﻿using Microsoft.CodeAnalysis.CSharp;
-namespace Tsavorite.SourceGenerator;
+namespace Seamless.FLinq;
 // method-chain を翻訳しやすい形に正規化する syntax rewriter。
 // 仕様: 匿名型→struct record(内部最適化用)→最適化→匿名型(最終出力用)
 //   1. AnonymousToRecordRewriter: new{p,q}→new __R(p:p,q:q) / new{p}→p(unwrap)

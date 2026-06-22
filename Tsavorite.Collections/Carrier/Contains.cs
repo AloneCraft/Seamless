@@ -1,7 +1,7 @@
 ﻿#if NET8_0_OR_GREATER
 #endif
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static Boolean Contains<TSource>(this ValueEnumerable<FromEnumerable<TSource>,TSource> source,TSource value) {
             // When a collection like HashSet internally holds an IEqualityComparer, it's necessary to call the collection's own Contains method.

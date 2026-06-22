@@ -1,5 +1,5 @@
 ﻿// ReSharper disable InvalidXmlDocComment
-namespace Tsavorite.Common
+namespace Seamless.Collections.Tsavorite.Common
 {
     [AttributeUsage(AttributeTargets.Method)]
     public sealed class PipelineAttribute(string Code): Attribute

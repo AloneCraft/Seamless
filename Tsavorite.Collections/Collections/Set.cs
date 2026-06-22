@@ -1,6 +1,6 @@
-﻿using Tsavorite.Stores;
+using Seamless.Collections.Tsavorite.Stores;
 
-namespace Tsavorite.Collections;
+namespace Seamless.Collections.Tsavorite;
 
 public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>>,ISet<TKey,TRecord>where TRecord:IRecord<TKey>{
     private readonly IDisposable? ownedStore;
@@ -156,12 +156,12 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
     }
 
     private static Set<TKey,TRecord> CreateOwnedResultSet() {
-        var store = global::Tsavorite.Store.Create().CreateSet<TKey,TRecord>();
+        var store = global::Seamless.Collections.Tsavorite.Store.Create().CreateSet<TKey,TRecord>();
         return new(store,store);
     }
 
     private static HashSet<TKey> CreateOwnedKeyResultSet() {
-        var store = global::Tsavorite.Store.Create().Create<TKey>();
+        var store = global::Seamless.Collections.Tsavorite.Store.Create().Create<TKey>();
         return store.CreateOwned();
     }
 

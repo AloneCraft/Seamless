@@ -1,4 +1,4 @@
-using Tsavorite.Linq;
+using Seamless.Collections.Tsavorite.Linq;
 
 namespace Benchmark.System.Linq.Enumerable.Intercept;
 
@@ -53,21 +53,21 @@ public class DistinctBy_keySelector():Base(1_800_000){
         return value%1000;
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private void AnchorOptimized()=>this.src(1)
         .DistinctBy(x=>this.CountedAnchorKey(x).Anchor)
         .DistinctBy(x=>this.CountedAnchorKey(x).Anchor)
         .Consume(this.consumer);
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private void FLinqNoOptimized1()=>this.Linq1();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private void FLinqNoOptimized2()=>this.Linq2();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private void FLinqNoOptimized3()=>this.Linq3();
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private void FLinqNoOptimized4()=>this.Linq4();
 }

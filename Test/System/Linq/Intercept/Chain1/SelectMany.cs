@@ -22,14 +22,14 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
         Static外だし先行評価AnchorNoOptimized(expected);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void Static外だし先行評価AnchorOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(static v => new[] { v,StaticFunc()}).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void Static外だし先行評価AnchorNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(static v => new[] { v,StaticFunc()}).Consume(actual);
@@ -45,14 +45,14 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(selector_StaticNoOptimized),()=>selector_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_StaticOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(static v => new[] { v,v+10 }).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(static v => new[] { v,v+10 }).Consume(actual);
@@ -66,14 +66,14 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(selector_QueryNoOptimized),()=>selector_QueryNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_QueryOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         (from v in Source() from sub in new[] { v,v+10 } select sub).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_QueryNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         (from v in Source() from sub in new[] { v,v+10 } select sub).Consume(actual);
@@ -87,14 +87,14 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(selector_index_StaticNoOptimized),()=>selector_index_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_index_StaticOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(static (v,i) => new[] { v,i }).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_index_StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(static (v,i) => new[] { v,i }).Consume(actual);
@@ -109,14 +109,14 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(collectionSelector_resultSelector_StaticNoOptimized),()=>collectionSelector_resultSelector_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void collectionSelector_resultSelector_StaticOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(static v => new[] { v,v+10 },static (v,sub) => sub+v).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void collectionSelector_resultSelector_StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(static v => new[] { v,v+10 },static (v,sub) => sub+v).Consume(actual);
@@ -131,14 +131,14 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(collectionSelector_index_resultSelector_StaticNoOptimized),()=>collectionSelector_index_resultSelector_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void collectionSelector_index_resultSelector_StaticOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(static (v,i) => new[] { v,i },static (v,sub) => sub+v).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void collectionSelector_index_resultSelector_StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(static (v,i) => new[] { v,i },static (v,sub) => sub+v).Consume(actual);
@@ -152,14 +152,14 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(selector_LambdaNoOptimized),()=>selector_LambdaNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_LambdaOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(v => new[] { v,v+10 }).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_LambdaNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(v => new[] { v,v+10 }).Consume(actual);
@@ -174,7 +174,7 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(selector_CapturedNoOptimized),()=>selector_CapturedNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_CapturedOptimized(dynamic expected) {
         var offset=10;
         var actual=new Consumer<int>();
@@ -182,7 +182,7 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_CapturedNoOptimized(dynamic expected) {
         var offset=10;
         var actual=new Consumer<int>();
@@ -197,14 +197,14 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(selector_DelegateSyntaxNoOptimized),()=>selector_DelegateSyntaxNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_DelegateSyntaxOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(delegate(int v) { return new[] { v,v+10 }; }).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_DelegateSyntaxNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().SelectMany(delegate(int v) { return new[] { v,v+10 }; }).Consume(actual);
@@ -219,7 +219,7 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
         this.MeasureOptimized(nameof(selector_VariableNoOptimized),()=>selector_VariableNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_VariableOptimized(dynamic expected) {
         Func<int,int[]> selector=v => [v,v+10];
         var actual=new Consumer<int>();
@@ -227,7 +227,7 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void selector_VariableNoOptimized(dynamic expected) {
         Func<int,int[]> selector=v => [v,v+10];
         var actual=new Consumer<int>();

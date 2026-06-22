@@ -1,11 +1,11 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Tsavorite.SourceGenerator;
+namespace Seamless.FLinq;
 
 public sealed partial class TsavoriteIncrementalGenerator {
     private const string SystemLinqEnumerableTypeName = "System.Linq.Enumerable";
-    private const string TsavoriteLinqEnumerableTypeName = "Tsavorite.Linq.Enumerable";
+    private const string TsavoriteLinqEnumerableTypeName = "Seamless.Collections.Tsavorite.Linq.Enumerable";
     private const string SystemMemoryExtensionsTypeName = "System.MemoryExtensions";
 
     private static bool IsSupportedLinqEnumerableMethod(IMethodSymbol method) {
@@ -33,7 +33,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
             MetadataName: "HashSet`1",
             TypeArguments.Length: 1
         } named
-            && ns.ToDisplayString()=="Tsavorite.Collections") {
+            && ns.ToDisplayString()=="Seamless.Collections.Tsavorite") {
             elementType=named.TypeArguments[0];
             return true;
         }

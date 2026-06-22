@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 public class Append(int 番号, Enumerable source, string element) : Enumerable(番号) {
     private Enumerable Source => source;

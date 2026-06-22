@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecutionFragment{
     // この enumerable 断片が流す要素型。
     public abstract string ElementType{ get; }
@@ -12,7 +12,7 @@ public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecu
     // TryGetSpan を実行時に試してよいか。false の可能性があるため呼び出し側は必ず fallback を持つ。
     public virtual bool CanTryProvideSpan => this.CanProvideSpan;
     // interceptor が IEnumerable<T> を返すときに使う ValueEnumerable 構築式。
-    public virtual string GetEnumerableExpression => $"new global::Tsavorite.Carrier.ValueEnumerable<{this.EnumeratorTypeName}, {this.ElementType}>({this.GetEnumeratorExpression})";
+    public virtual string GetEnumerableExpression => $"new global::Seamless.Collections.Tsavorite.Carrier.ValueEnumerable<{this.EnumeratorTypeName}, {this.ElementType}>({this.GetEnumeratorExpression})";
     // 既定では下流の enumerator を Dispose する。
     protected virtual string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
     // enumerable 系は要素型を Current とする enumerator struct を共通生成する。

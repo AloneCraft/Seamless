@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Collections;
+﻿namespace Seamless.Collections.Tsavorite;
 /// <summary>
 /// Tsavorite をバックエンドに使うオンメモリ HashSet。
 /// <see cref="System.Collections.Generic.ISet{T}"/> を実装し、利用者に Tsavorite の詳細を見せない。
@@ -53,7 +53,7 @@ public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<
         ArgumentNullException.ThrowIfNull(other);
         var workListPath = CreateTemporaryWorkListPath("hashset-intersect-ienumerable");
         try {
-            using var keysToRemove = new Persistent.Collections.List<TKey,AutoSerializer<TKey>>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            using var keysToRemove = new Seamless.Collections.Persisted.SerializedList<TKey,AutoSerializer<TKey>>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
             foreach(var item in this) {
                 if(!other.Contains(item))
                     keysToRemove.Add(item);

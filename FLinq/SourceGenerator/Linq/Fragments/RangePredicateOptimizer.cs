@@ -1,7 +1,7 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 
 internal static class RangePredicateOptimizer {
     public static string RenderAny(RangeRoot range,int number,string destVar,string destType) {
@@ -34,7 +34,7 @@ internal static class RangePredicateOptimizer {
             {
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
-                if({{count}}==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if({{count}}==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 {{destVar}}={{start}};
             }
             """;
@@ -48,7 +48,7 @@ internal static class RangePredicateOptimizer {
             {
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
-                if({{count}}==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if({{count}}==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 if({{count}}>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
                 {{destVar}}=({{destType}}){{start}};
             }
@@ -77,7 +77,7 @@ internal static class RangePredicateOptimizer {
             {
                 var {{value}}={{repeat.ValueExpression}};
                 var {{count}}={{repeat.CountExpression}};
-                if({{count}}==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if({{count}}==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 if({{count}}>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
                 {{destVar}}={{value}};
             }
@@ -115,7 +115,7 @@ internal static class RangePredicateOptimizer {
                 var {{count}}={{range.CountExpression}};
                 var {{last}}=(long){{start}} + {{count}} - 1L;
                 var {{value}}=(long)({{comparison.ValueExpression}});
-                if(!({{count}}>0 && {{value}}>=(long){{start}} && {{value}}<={{last}})) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(!({{count}}>0 && {{value}}>=(long){{start}} && {{value}}<={{last}})) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 {{destVar}}=({{destType}})(int){{value}};
             }
             """;
@@ -154,7 +154,7 @@ internal static class RangePredicateOptimizer {
             {
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
-                if({{count}}==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if({{count}}==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 {{destVar}}=({{destType}})(int)({{value}});
             }
             """;

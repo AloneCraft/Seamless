@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static ValueEnumerable<Shuffle<TEnumerator,TSource>,TSource> Shuffle<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source)
             where TEnumerator : struct, IValueEnumerator<TSource>
@@ -6,7 +6,7 @@
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct Shuffle<TEnumerator, TSource>(TEnumerator source)

@@ -12,13 +12,13 @@ public sealed class Sequence(ITestOutputHelper output):LinqChain1TestBase(output
         this.MeasureOptimized(nameof(start_end_stepNoOptimized),()=>start_end_stepNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void start_end_stepOptimized(dynamic expected) {
         var actual=Enumerable.Sequence(1L,9L,2L).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void start_end_stepNoOptimized(dynamic expected) {
         var actual=Enumerable.Sequence(1L,9L,2L).ToList();
         AssertSequenceEqual(expected,actual);
@@ -31,13 +31,13 @@ public sealed class Sequence(ITestOutputHelper output):LinqChain1TestBase(output
         this.MeasureOptimized(nameof(descendingNoOptimized),()=>descendingNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void descendingOptimized(dynamic expected) {
         var actual=Enumerable.Sequence(9L,1L,-2L).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void descendingNoOptimized(dynamic expected) {
         var actual=Enumerable.Sequence(9L,1L,-2L).ToList();
         AssertSequenceEqual(expected,actual);

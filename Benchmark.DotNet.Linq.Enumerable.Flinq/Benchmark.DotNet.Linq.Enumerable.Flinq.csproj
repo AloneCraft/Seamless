@@ -28,7 +28,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FLinq\FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
-    <ProjectReference Include="..\Tsavorite.Collections\Tsavorite.Collections.csproj" />
+    <ProjectReference Include="..\Tsavorite.Collections\Seamless.Collections.Tsavorite.csproj" />
   </ItemGroup>
   <Import Project="..\Benchmark.Shared\Benchmark.Linq.Enumerable.Core.projitems" Label="Shared" />
 </Project>

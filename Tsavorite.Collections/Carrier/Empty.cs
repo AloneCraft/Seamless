@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromEmpty<T>,T> Empty<T>() {
             return new(default);
@@ -6,7 +6,7 @@
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromEmpty<T>:IValueEnumerator<T> {

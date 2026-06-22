@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Stores;
+﻿namespace Seamless.Collections.Tsavorite.Stores;
 
 internal enum OverflowMutableStrategyKind:byte {
     Memory,

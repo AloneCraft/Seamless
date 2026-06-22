@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+﻿namespace Seamless.FLinq.Linq.Fragments;
 
 // Root は他の Fragment へ分解されない列挙ソースそのものを表す。
 // enumeratorTypeName には具象 GetEnumerator() 戻り値型名を渡す。
@@ -28,7 +28,7 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
     public override string GetEnumeratorStruct => useEnumerableInterface
         ? this.GetEnumerableInterfaceStruct()
         : $$"""
-        private struct {{this.Struct}}<TEnum> : global::Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}}<TEnum> : global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
             where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private TEnum {{this.e}};
@@ -68,7 +68,7 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
         """;
 
     private string GetEnumerableInterfaceStruct() => $$"""
-        private struct {{this.Struct}} : global::Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private global::System.Collections.Generic.IEnumerable<{{elementType}}> source;
             private global::System.Collections.Generic.IEnumerator<{{elementType}}>? {{this.e}};
@@ -164,7 +164,7 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
     public override string GetCurrentExpression => $"source[{this.e}]";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private {{elementType}}[] source;
             private int {{this.e}} = -1;
@@ -229,7 +229,7 @@ public class ListRoot(int 番号, string sourceExpression, string elementType) :
     public override string GetCurrentExpression => "Current";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private global::System.Collections.Generic.List<{{elementType}}> source;
             private int {{this.e}} = -1;
@@ -295,7 +295,7 @@ public class DuckTypingRoot(int 番号, string sourceExpression, string elementT
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private {{concreteEnumeratorType}} {{this.e}};
             public {{this.Struct}}({{concreteEnumeratorType}} {{this.e}}) { this.{{this.e}} = {{this.e}}; }
@@ -351,7 +351,7 @@ public sealed class RangeRoot(int 番号,string startExpression,string countExpr
     public override string GetCurrentExpression => "Current";
     public override string ElementType => "int";
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Tsavorite.Carrier.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
+        private struct {{this.Struct}} : global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
         {
             private int start;
             private int count;
@@ -416,7 +416,7 @@ public sealed class DescendingRangeRoot(int 番号,string startExpression,string
     public override string GetCurrentExpression => "Current";
     public override string ElementType => "int";
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Tsavorite.Carrier.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
+        private struct {{this.Struct}} : global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
         {
             private int start;
             private int count;
@@ -477,7 +477,7 @@ public sealed class EmptyRoot(int 番号,string elementType) : Enumerable(番号
     public override string GetCurrentExpression => "default!";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             public {{elementType}} Current => default!;
             object? global::System.Collections.IEnumerator.Current => default;
@@ -528,7 +528,7 @@ public sealed class RepeatRoot(int 番号,string valueExpression,string countExp
     public override string GetCurrentExpression => "Current";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private {{elementType}} value;
             private int count;

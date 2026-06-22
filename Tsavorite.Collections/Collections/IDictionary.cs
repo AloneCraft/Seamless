@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Collections;
+﻿namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
 /// Tsavorite �o�b�N�G���h������ Dictionary �̋��ʃC���^�[�t�F�[�X�B

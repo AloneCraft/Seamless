@@ -1,8 +1,8 @@
 ﻿#if NET8_0_OR_GREATER
 
-using Tsavorite.Carrier;
+using Seamless.Collections.Tsavorite.Carrier;
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromInfiniteSequence<T>,T> InfiniteSequence<T>(T start,T step)
             where T : IAdditionOperators<T,T,T> {
@@ -141,7 +141,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromInfiniteSequence<T>(T start,T step):IValueEnumerator<T>
@@ -249,7 +249,7 @@ namespace Tsavorite.Carrier.Linq {
 
 #endif
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromInt16InfiniteSequence(Int16 start,Int16 step):IValueEnumerator<Int16> {

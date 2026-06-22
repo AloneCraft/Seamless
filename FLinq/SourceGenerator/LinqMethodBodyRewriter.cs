@@ -1,11 +1,11 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
-using static Tsavorite.SourceGenerator.GeneratorHelpers;
+using static Seamless.FLinq.GeneratorHelpers;
 
-using Tsavorite.SourceGenerator.Linq.Fragments;
-using Enumerable = Tsavorite.SourceGenerator.Linq.Fragments.Enumerable;
+using Seamless.FLinq.Linq.Fragments;
+using Enumerable = Seamless.FLinq.Linq.Fragments.Enumerable;
 
-namespace Tsavorite.SourceGenerator;
+namespace Seamless.FLinq;
 
 public sealed partial class TsavoriteIncrementalGenerator {
 
@@ -77,7 +77,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
         本体=本体ビルダー
             .ToString()
             .TrimEnd()
-            .Replace("throw NoElements();","throw global::Tsavorite.GeneratedCodeHelpers.NoElements();",StringComparison.Ordinal);
+            .Replace("throw NoElements();","throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();",StringComparison.Ordinal);
 
         // 安全網: 匿名型→record struct 置換で取りこぼした生の匿名型表示が残ると不正な C# になるため、
         // その場合はインライン展開を諦めて呼び出し元の例外スタブ生成へフォールバックする。
@@ -944,7 +944,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
 
     private static string CounterCallForGeneratedMethod(SemanticModel semanticModel,SyntaxNode node,string methodName) =>
         IsCounterInstrumentationEnabled(semanticModel,node)
-            ? $"global::Tsavorite.LinqCounterScope.Counter.{methodName}();"
+            ? $"global::Seamless.Collections.Tsavorite.LinqCounterScope.Counter.{methodName}();"
             : string.Empty;
 
     /// <summary>

@@ -11,13 +11,13 @@ public sealed class ToDictionary(ITestOutputHelper output):LinqChain1TestBase(ou
         this.MeasureOptimized(nameof(keySelector_StaticNoOptimized),()=>keySelector_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_StaticOptimized(dynamic expected) {
         var actual=Rows().Take(3).ToDictionary(static row => row.Key);
         AssertDictionaryEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_StaticNoOptimized(dynamic expected) {
         var actual=Rows().Take(3).ToDictionary(static row => row.Key);
         AssertDictionaryEqual(expected,actual);
@@ -30,13 +30,13 @@ public sealed class ToDictionary(ITestOutputHelper output):LinqChain1TestBase(ou
         this.MeasureOptimized(nameof(keySelector_elementSelector_StaticNoOptimized),()=>keySelector_elementSelector_StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_elementSelector_StaticOptimized(dynamic expected) {
         var actual=Rows().Take(3).ToDictionary(static row => row.Key,static row => row.Value);
         AssertDictionaryEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_elementSelector_StaticNoOptimized(dynamic expected) {
         var actual=Rows().Take(3).ToDictionary(static row => row.Key,static row => row.Value);
         AssertDictionaryEqual(expected,actual);
@@ -49,13 +49,13 @@ public sealed class ToDictionary(ITestOutputHelper output):LinqChain1TestBase(ou
         this.MeasureOptimized(nameof(keySelector_comparerNoOptimized),()=>keySelector_comparerNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_comparerOptimized(dynamic expected) {
         var actual=Rows().Take(3).ToDictionary(static row => row.Key,EqualityComparer<int>.Default);
         AssertDictionaryEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_comparerNoOptimized(dynamic expected) {
         var actual=Rows().Take(3).ToDictionary(static row => row.Key,EqualityComparer<int>.Default);
         AssertDictionaryEqual(expected,actual);
@@ -68,13 +68,13 @@ public sealed class ToDictionary(ITestOutputHelper output):LinqChain1TestBase(ou
         this.MeasureOptimized(nameof(keySelector_elementSelector_comparerNoOptimized),()=>keySelector_elementSelector_comparerNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_elementSelector_comparerOptimized(dynamic expected) {
         var actual=Rows().Take(3).ToDictionary(static row => row.Key,static row => row.Value,EqualityComparer<int>.Default);
         AssertDictionaryEqual(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void keySelector_elementSelector_comparerNoOptimized(dynamic expected) {
         var actual=Rows().Take(3).ToDictionary(static row => row.Key,static row => row.Value,EqualityComparer<int>.Default);
         AssertDictionaryEqual(expected,actual);

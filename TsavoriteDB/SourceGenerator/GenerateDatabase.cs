@@ -1,8 +1,8 @@
 ﻿using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
-using static Tsavorite.SourceGenerator.GeneratorHelpers;
+using static Seamless.FLinq.GeneratorHelpers;
 
-namespace Database.Tsavorite.SourceGenerator;
+namespace Seamless.Database.SourceGenerator;
 
 [Generator]
 public sealed class TsavoriteSchemaGenerator : IIncrementalGenerator {
@@ -18,7 +18,7 @@ public sealed class TsavoriteSchemaGenerator : IIncrementalGenerator {
             if(!typeTargets.IsDefaultOrEmpty) {
                 var databaseSource = データベースソース構築(typeTargets);
                 if(databaseSource.Length>0) {
-                    productionContext.AddSource("Tsavorite.SourceGenerator.Schema.g.cs",SourceText.From(空行除去(databaseSource),Encoding.UTF8));
+                    productionContext.AddSource("Seamless.FLinq.Schema.g.cs",SourceText.From(空行除去(databaseSource),Encoding.UTF8));
                 }
             }
         });

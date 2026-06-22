@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Carrier {
+﻿namespace Seamless.Collections.Tsavorite.Carrier {
     partial class ValueEnumerableExtensions {
         public static List<TSource> ToList<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source)
             where TEnumerator : struct, IValueEnumerator<TSource> {

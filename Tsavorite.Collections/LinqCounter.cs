@@ -1,4 +1,4 @@
-namespace Tsavorite;
+namespace Seamless.Collections.Tsavorite;
 
 [Flags]
 public enum LinqCounterKind {

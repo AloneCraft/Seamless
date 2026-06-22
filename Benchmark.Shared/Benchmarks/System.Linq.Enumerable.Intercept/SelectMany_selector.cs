@@ -10,6 +10,6 @@ public class SelectMany_selector():Base(4_220_000){
     [Fact,Trait("Category","Unit"),TestPriority(100)]
     public void Results_match()=>this.AssertResults(this.Linq,this.FLinq,this.FLinqNoOptimized,this.ZLinq);
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private void FLinqNoOptimized()=>this.Linq();
 }

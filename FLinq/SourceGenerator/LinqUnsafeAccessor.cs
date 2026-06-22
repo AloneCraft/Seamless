@@ -1,11 +1,11 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
-using static Tsavorite.SourceGenerator.GeneratorHelpers;
+using static Seamless.FLinq.GeneratorHelpers;
 
-using Tsavorite.SourceGenerator.Linq.Fragments;
-using Enumerable = Tsavorite.SourceGenerator.Linq.Fragments.Enumerable;
+using Seamless.FLinq.Linq.Fragments;
+using Enumerable = Seamless.FLinq.Linq.Fragments.Enumerable;
 
-namespace Tsavorite.SourceGenerator;
+namespace Seamless.FLinq;
 
 public sealed partial class TsavoriteIncrementalGenerator {
     /// <summary>
@@ -55,19 +55,26 @@ public sealed partial class TsavoriteIncrementalGenerator {
         var delegateTypeName = delegateType.ToDisplayString(完全修飾形式);
         var declaringType = method.ContainingType.ToDisplayString(完全修飾形式);
         // public インスタンスメソッド: @this.Method として直接バインド（リフレクション不要）
-        if(!method.IsStatic && method.DeclaredAccessibility==Accessibility.Public) {
+        if(!method.IsStatic && CanAccessFromGeneratedCode(method)) {
             return $"(({delegateTypeName}){receiver}.{method.Name})";
         }
         // 非 public インスタンスメソッド: UnsafeAccessor 経由のラムダでデリゲート生成（リフレクション不要）
         if(!method.IsStatic) {
             var accessorName = GetDelegateAccessorMethodName(method);
+            var returnTypeName = method.ReturnsVoid ? "void" : method.ReturnType.ToDisplayString(完全修飾形式);
+            var paramParts = new List<string> { $"{declaringType} @this" };
+            foreach(var param in method.Parameters) {
+                paramParts.Add(ParameterDeclarationForAccessor(param));
+            }
+            var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"{method.Name}\")]\nprivate static extern {returnTypeName} {accessorName}({string.Join(", ",paramParts)});";
+            unsafeAccessorCollector?.Add(accessorCode);
             var paramNames = method.Parameters.Select(static (_, i)=>$"__a{i}").ToArray();
             var paramList = string.Join(", ",paramNames);
             var argList = string.Join(", ",new[] { receiver }.Concat(paramNames));
             return $"(({delegateTypeName})(({paramList})=>{accessorName}({argList})))";
         }
         // public static メソッド: 完全修飾名で直接参照（リフレクション不要）
-        if(method.DeclaredAccessibility==Accessibility.Public) {
+        if(CanAccessFromGeneratedCode(method)) {
             return $"(({delegateTypeName}){declaringType}.{method.Name})";
         }
         // 非 public static メソッド: UnsafeAccessor + lambda（リフレクション不要）

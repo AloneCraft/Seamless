@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 
 public sealed class TsavoriteHashSetScanTerminal(
     int 番号,
@@ -73,7 +73,7 @@ public sealed class TsavoriteHashSetScanTerminal(
             builder.AppendLine($"if({stateName}[0].Found) {{");
             builder.AppendLine($"    {actualVariableName}=({actualTypeName}){stateName}[0].Value!;");
             builder.AppendLine("} else {");
-            builder.AppendLine("    throw global::Tsavorite.GeneratedCodeHelpers.NoElements();");
+            builder.AppendLine("    throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();");
             builder.AppendLine("}");
         }
         return builder.ToString().TrimEnd();
@@ -190,7 +190,7 @@ public sealed class TsavoriteHashSetScanTerminal(
 
     private string UnsafeAccessorSource() => $$"""
         [global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = "{{this.UnsafeAccessorMethodName()}}")]
-        private static extern void {{this.AccessorMethodName}}([global::System.Runtime.CompilerServices.UnsafeAccessorType("Tsavorite.Collections.HashSetScanUnsafe, Tsavorite.Collections")] object? _,global::Tsavorite.Collections.HashSet<{{this.Root.ElementType}}> source,global::System.Func<object?,bool> body);
+        private static extern void {{this.AccessorMethodName}}([global::System.Runtime.CompilerServices.UnsafeAccessorType("Seamless.Collections.Tsavorite.HashSetScanUnsafe, Seamless.Collections.Tsavorite")] object? _,global::Seamless.Collections.Tsavorite.HashSet<{{this.Root.ElementType}}> source,global::System.Func<object?,bool> body);
         """;
 
     private string UnsafeAccessorMethodName() =>

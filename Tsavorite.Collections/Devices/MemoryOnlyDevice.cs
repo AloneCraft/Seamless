@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Devices;
+﻿namespace Seamless.Collections.Tsavorite.Devices;
 /// <summary>
 /// ディスクI/Oを行わず、退避ページをヒープ上のバイト配列に保持するデバイス。
 /// </summary>

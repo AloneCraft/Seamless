@@ -64,11 +64,11 @@ public class Base {
     protected void AssertResults(Action linq,Action flinq,Action noOptimized,Action zlinq) {
         var expected = this.CaptureResult(linq);
 #if TSAVORITE_LINQ_COUNTER
-        using var optimizedScope = global::Tsavorite.LinqCounterScope.Start();
+        using var optimizedScope = global::Seamless.Collections.Tsavorite.LinqCounterScope.Start();
 #endif
         var flinqResult = this.CaptureResult(flinq);
 #if TSAVORITE_LINQ_COUNTER
-        using var noOptimizedScope = global::Tsavorite.LinqCounterScope.Start();
+        using var noOptimizedScope = global::Seamless.Collections.Tsavorite.LinqCounterScope.Start();
 #endif
         var noOptimizedResult = this.CaptureResult(noOptimized);
         var zlinqResult = this.CaptureResult(zlinq);
@@ -87,11 +87,11 @@ public class Base {
     protected void AssertResults(Action linq,Action flinq,Action noOptimized) {
         var expected = this.CaptureResult(linq);
 #if TSAVORITE_LINQ_COUNTER
-        using var optimizedScope = global::Tsavorite.LinqCounterScope.Start();
+        using var optimizedScope = global::Seamless.Collections.Tsavorite.LinqCounterScope.Start();
 #endif
         var flinqResult = this.CaptureResult(flinq);
 #if TSAVORITE_LINQ_COUNTER
-        using var noOptimizedScope = global::Tsavorite.LinqCounterScope.Start();
+        using var noOptimizedScope = global::Seamless.Collections.Tsavorite.LinqCounterScope.Start();
 #endif
         var noOptimizedResult = this.CaptureResult(noOptimized);
 

@@ -11,13 +11,13 @@ public sealed class ElementAtOrDefault(ITestOutputHelper output):LinqChain1TestB
         this.MeasureOptimized(nameof(indexNoOptimized),()=>indexNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void indexOptimized(dynamic expected) {
         var actual=Source().ElementAtOrDefault(2);
         Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void indexNoOptimized(dynamic expected) {
         var actual=Source().ElementAtOrDefault(2);
         Assert.Equal(expected,actual);
@@ -30,13 +30,13 @@ public sealed class ElementAtOrDefault(ITestOutputHelper output):LinqChain1TestB
         this.MeasureOptimized(nameof(indexFromEndNoOptimized),()=>indexFromEndNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void indexFromEndOptimized(dynamic expected) {
         var actual=Source().ElementAtOrDefault(^1);
         Assert.Equal(expected,actual);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void indexFromEndNoOptimized(dynamic expected) {
         var actual=Source().ElementAtOrDefault(^1);
         Assert.Equal(expected,actual);

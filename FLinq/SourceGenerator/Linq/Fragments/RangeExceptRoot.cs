@@ -1,4 +1,4 @@
-namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 
 public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<RangeRoot> exclusions) : Enumerable(番号) {
     internal RangeRoot SourceRange => source;
@@ -45,7 +45,7 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
     }
     public override string GetCurrentExpression => "Current";
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Tsavorite.Carrier.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
+        private struct {{this.Struct}} : global::Seamless.Collections.Tsavorite.Carrier.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
         {
             private int start;
             private int count;

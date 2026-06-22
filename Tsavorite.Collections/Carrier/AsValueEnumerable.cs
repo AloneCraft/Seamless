@@ -1,7 +1,7 @@
-﻿#if NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
 #endif
 
-namespace Tsavorite.Carrier {
+namespace Seamless.Collections.Tsavorite.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromNonGenericEnumerable<object>,object> AsValueEnumerable(this IEnumerable source) {
             return new(new(Throws.IfNull(source)));
@@ -65,7 +65,7 @@ namespace Tsavorite.Carrier {
             return new(new(Throws.IfNull(source)));
         }
 
-        public static ValueEnumerable<FromHashSet<T>,T> AsValueEnumerable<T>(this HashSet<T> source) {
+        public static ValueEnumerable<FromHashSet<T>,T> AsValueEnumerable<T>(this global::System.Collections.Generic.HashSet<T> source) {
             return new(new(Throws.IfNull(source)));
         }
 
@@ -89,7 +89,7 @@ namespace Tsavorite.Carrier {
     }
 }
 
-namespace Tsavorite.Carrier.Linq {
+namespace Seamless.Collections.Tsavorite.Carrier.Linq {
     internal struct FromEnumerableContent(object source) {
         public object Source = source;
         public int Index;
@@ -793,12 +793,12 @@ namespace Tsavorite.Carrier.Linq {
     }
 
     [StructLayout(LayoutKind.Auto)]
-    public struct FromHashSet<T>(HashSet<T> source):IValueEnumerator<T> {
+    public struct FromHashSet<T>(global::System.Collections.Generic.HashSet<T> source):IValueEnumerator<T> {
         bool isInit;
-        HashSet<T>.Enumerator enumerator;
+        global::System.Collections.Generic.HashSet<T>.Enumerator enumerator;
 
         // for Contains, need to check ICollection of IEqualityComparer due to compatibility
-        internal HashSet<T> GetSource() => source;
+        internal global::System.Collections.Generic.HashSet<T> GetSource() => source;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=source.Count;

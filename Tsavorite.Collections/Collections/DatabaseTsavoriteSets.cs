@@ -1,4 +1,4 @@
-﻿namespace Database.Tsavorite.Collections;
+namespace Seamless.Collections.Tsavorite;
 
 public sealed class Set<TRecord>:IReadOnlyCollection<TRecord>, IDisposable {
     private readonly Func<TRecord,bool> add;
@@ -33,9 +33,9 @@ public sealed class Set<TRecord>:IReadOnlyCollection<TRecord>, IDisposable {
 }
 
 public sealed class ReadSet<TRecord>:IReadOnlyCollection<TRecord>, IDisposable {
-    private readonly Persistent.Collections.List<TRecord> source;
+    private readonly Seamless.Collections.Persisted.SerializedList<TRecord> source;
 
-    public ReadSet(Persistent.Collections.List<TRecord> source) {
+    public ReadSet(Seamless.Collections.Persisted.SerializedList<TRecord> source) {
         this.source=source;
     }
 

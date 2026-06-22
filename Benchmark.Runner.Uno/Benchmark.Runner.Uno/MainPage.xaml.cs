@@ -208,9 +208,6 @@ public sealed partial class MainPage:Page{
         }
 
         var selected = cpuCores.Where(shouldSelect).ToHashSet();
-        if(selected.Count==0){
-            selected.Add(cpuCores.OrderBy(static cpu => cpu.LogicalProcessorIndex).First());
-        }
 
         foreach(var cpu in cpuCores){
             var wasSelected = cpu.IsSelected;

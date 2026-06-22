@@ -1,4 +1,4 @@
-namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 
 public class Shuffle(int 番号, Enumerable source) : BufferedSequence(番号, source.ElementType) {
     protected override Enumerable PrimarySource => source;

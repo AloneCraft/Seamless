@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.SourceGenerator.Linq.Fragments;
+namespace Seamless.FLinq.Linq.Fragments;
 public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFragment selector, string resultType, string direction) : BufferedScalar(番号, resultType) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(selector)}>";
     protected override Enumerable PrimarySource => source;
@@ -25,7 +25,7 @@ public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFrag
                 var comparer=global::System.Collections.Generic.Comparer<{{resultType}}>.Default;
                 {{resultType}} result=default!;
                 if(source.TryGetSpan(out var __span)){
-                    if(__span.Length==0) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                    if(__span.Length==0) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                     var __first=true;
                     foreach(var {{this.item}} in __span){
                         {{resultType}} value=default!;
@@ -37,7 +37,7 @@ public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFrag
                     }
                 }else{
                     {{source.ElementType}} {{this.item}};
-                    if(!source.MoveNext()) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                    if(!source.MoveNext()) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                     {{this.item}}=source.Current;
                     {{this.FuncAssignIndented("        ",selector,nameof(selector),"result",this.item)}}
                     while(source.MoveNext()){
@@ -56,7 +56,7 @@ public abstract class MinMaxSelectorBase(int 番号, Enumerable source, FuncFrag
                 var comparer=global::System.Collections.Generic.Comparer<{{resultType}}>.Default;
                 {{source.ElementType}} {{this.item}};
                 {{resultType}} result=default!;
-                if(!source.MoveNext()) throw global::Tsavorite.GeneratedCodeHelpers.NoElements();
+                if(!source.MoveNext()) throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.NoElements();
                 {{this.item}}=source.Current;
                 {{this.FuncAssignIndented("    ",selector,nameof(selector),"result",this.item)}}
                 while(source.MoveNext()){

@@ -13,14 +13,14 @@ public sealed class AggregateBy_Select(ITestOutputHelper output):LinqChain2TestB
         this.MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void StaticOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Rows().AggregateBy(static row => row.Key,0,static (total,row) => total+row.Value).Select(static pair => pair.Key+pair.Value).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void StaticNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Rows().AggregateBy(static row => row.Key,0,static (total,row) => total+row.Value).Select(static pair => pair.Key+pair.Value).Consume(actual);
@@ -34,14 +34,14 @@ public sealed class AggregateBy_Select(ITestOutputHelper output):LinqChain2TestB
         this.MeasureOptimized(nameof(LambdaNoOptimized),()=>LambdaNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void LambdaOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Rows().AggregateBy(row => row.Key,0,(total,row) => total+row.Value).Select(pair => pair.Key+pair.Value).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void LambdaNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Rows().AggregateBy(row => row.Key,0,(total,row) => total+row.Value).Select(pair => pair.Key+pair.Value).Consume(actual);

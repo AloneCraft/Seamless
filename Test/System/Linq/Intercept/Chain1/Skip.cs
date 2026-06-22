@@ -13,14 +13,14 @@ public sealed class Skip(ITestOutputHelper output):LinqChain1TestBase(output) {
         this.MeasureOptimized(nameof(countNoOptimized),()=>countNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void countOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Skip(2).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void countNoOptimized(dynamic expected) {
         var actual=new Consumer<int>();
         Source().Skip(2).Consume(actual);

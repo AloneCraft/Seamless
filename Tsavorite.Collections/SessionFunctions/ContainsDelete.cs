@@ -1,5 +1,5 @@
-﻿using Tsavorite.Stores;
-namespace Tsavorite.SessionFunctions;
+﻿using Seamless.Collections.Tsavorite.Stores;
+namespace Seamless.Collections.Tsavorite.SessionFunctions;
 /// <summary>
 /// Read でキーの存在確認（Contains）、RMW で Tombstone 挿入による論理削除（Delete）を行うセッション関数。
 /// Tsavorite の Type-Based Dispatch により Read と RMW が独立してディスパッチされるため、

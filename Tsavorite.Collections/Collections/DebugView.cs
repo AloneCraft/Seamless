@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Collections;
+﻿namespace Seamless.Collections.Tsavorite;
 
 public abstract class DebugView<TKey> {
     /// <summary>

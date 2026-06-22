@@ -1,11 +1,11 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
-using static Tsavorite.SourceGenerator.GeneratorHelpers;
+using static Seamless.FLinq.GeneratorHelpers;
 
-using Tsavorite.SourceGenerator.Linq.Fragments;
-using Enumerable = Tsavorite.SourceGenerator.Linq.Fragments.Enumerable;
+using Seamless.FLinq.Linq.Fragments;
+using Enumerable = Seamless.FLinq.Linq.Fragments.Enumerable;
 
-namespace Tsavorite.SourceGenerator;
+namespace Seamless.FLinq;
 
 public sealed partial class TsavoriteIncrementalGenerator {
 
@@ -68,6 +68,76 @@ public sealed partial class TsavoriteIncrementalGenerator {
         return text
             .Replace("SystemEnumerable.","global::System.Linq.Enumerable.",StringComparison.Ordinal)
             .Replace("this.","@this.",StringComparison.Ordinal);
+    }
+    private static string RenderStatementForGeneratedMethod(
+        StatementSyntax statement,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        List<string>? unsafeAccessorCollector = null,
+        IReadOnlyDictionary<string,string>? replacementMap = null) {
+        var text = NormalizeGeneratedExpressionText(statement.ToString());
+        var processedExpressions = new HashSet<string>(StringComparer.Ordinal);
+        foreach(var expression in OutermostStatementExpressions(statement)
+            .OrderByDescending(static expression=>NormalizeGeneratedExpressionText(expression.ToString()).Length)) {
+            if(!ReferenceEquals(expression.SyntaxTree,semanticModel.SyntaxTree)) {
+                continue;
+            }
+
+            var expressionText = NormalizeGeneratedExpressionText(expression.ToString());
+            if(!processedExpressions.Add(expressionText)) {
+                continue;
+            }
+
+            var renderedExpression = RenderExpressionForGeneratedMethod(
+                expression,
+                semanticModel,
+                containingType,
+                unsafeAccessorCollector,
+                replacementMap);
+            text=ReplaceExpressionFragment(text,expressionText,renderedExpression);
+        }
+
+        if(replacementMap is not null) {
+            foreach(var pair in replacementMap.OrderByDescending(static pair=>pair.Key.Length)) {
+                text=text.Replace(pair.Key,pair.Value,StringComparison.Ordinal);
+            }
+        }
+
+        return text
+            .Replace("SystemEnumerable.","global::System.Linq.Enumerable.",StringComparison.Ordinal)
+            .Replace("this.","@this.",StringComparison.Ordinal);
+    }
+
+    private static IEnumerable<ExpressionSyntax> OutermostStatementExpressions(StatementSyntax statement) {
+        foreach(var expression in statement.DescendantNodes().OfType<ExpressionSyntax>()) {
+            if(expression is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax
+                || IsInsideNestedFunction(expression,statement)
+                || HasExpressionAncestorBefore(expression,statement)) {
+                continue;
+            }
+
+            yield return expression;
+        }
+    }
+
+    private static bool HasExpressionAncestorBefore(SyntaxNode node,SyntaxNode root) {
+        for(var current = node.Parent; current is not null && !ReferenceEquals(current,root); current=current.Parent) {
+            if(current is ExpressionSyntax) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsInsideNestedFunction(SyntaxNode node,SyntaxNode root) {
+        for(var current = node.Parent; current is not null && !ReferenceEquals(current,root); current=current.Parent) {
+            if(current is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax or LocalFunctionStatementSyntax) {
+                return true;
+            }
+        }
+
+        return false;
     }
     /// <summary>Fragment 識別番号をメソッドごとに 0 からリセットする。</summary>
     private static int フラグメント番号初期値取得()=>0;
@@ -335,11 +405,7 @@ public sealed partial class TsavoriteIncrementalGenerator {
 
         var text = NormalizeGeneratedExpressionText(expression.ToString());
 
-        if(replacementMap is not null) {
-            foreach(var pair in replacementMap.OrderByDescending(static pair=>pair.Key.Length)) {
-                text=text.Replace(NormalizeGeneratedExpressionText(pair.Key),pair.Value,StringComparison.Ordinal);
-            }
-        }
+        text=ApplyExpressionReplacementMap(text,replacementMap);
 
         // 仕様メモ:
         // - 拡張メソッド呼び出し（ReducedFrom != null, Enumerable以外）は本文を式へインライン化する。
@@ -385,7 +451,9 @@ public sealed partial class TsavoriteIncrementalGenerator {
             }
 
             // text は先頭で this. → @this. 変換済みなので invocationText も同様に変換する。
-            var invocationText = NormalizeGeneratedExpressionText(invocation.ToString());
+            var invocationText = ApplyExpressionReplacementMap(
+                NormalizeGeneratedExpressionText(invocation.ToString()),
+                replacementMap);
 
             // 同じ invocationText を2回以上処理すると二重置換が発生するため、1回だけ処理する。
             if(!processedInvocationTexts.Add(invocationText)) {
@@ -450,10 +518,19 @@ public sealed partial class TsavoriteIncrementalGenerator {
                 && methodGroup.MethodKind==MethodKind.Ordinary
                 && SymbolEqualityComparer.Default.Equals(methodGroup.ContainingType,containingType)) {
                 var methodGroupText=NormalizeExpressionText(identifier.ToString());
-                var replacement=$"@this.{methodGroup.Name}";
-                if(methodGroup.IsStatic) {
-                    replacement=$"{methodGroup.ContainingType.ToDisplayString(完全修飾形式)}.{methodGroup.Name}";
-                }else{
+                string replacement;
+                if(semanticModel.GetTypeInfo(identifier).ConvertedType is INamedTypeSymbol delegateType
+                    && IsInlineDelegateType(delegateType)) {
+                    replacement=RenderDelegateCreateExpression(
+                        methodGroup,
+                        delegateType,
+                        methodGroup.IsStatic ? null : "@this",
+                        unsafeAccessorCollector);
+                } else {
+                    replacement=$"@this.{methodGroup.Name}";
+                    if(methodGroup.IsStatic) {
+                        replacement=$"{methodGroup.ContainingType.ToDisplayString(完全修飾形式)}.{methodGroup.Name}";
+                    }
                 }
                 text=System.Text.RegularExpressions.Regex.Replace(
                     text,
@@ -587,6 +664,18 @@ public sealed partial class TsavoriteIncrementalGenerator {
     private static bool InvocationHasExplicitTypeArguments(InvocationExpressionSyntax invocation) =>
         invocation.Expression is GenericNameSyntax
         || invocation.Expression is MemberAccessExpressionSyntax { Name: GenericNameSyntax };
+
+    private static string ApplyExpressionReplacementMap(string text,IReadOnlyDictionary<string,string>? replacementMap) {
+        if(replacementMap is null) {
+            return text;
+        }
+
+        foreach(var pair in replacementMap.OrderByDescending(static pair=>pair.Key.Length)) {
+            text=text.Replace(NormalizeGeneratedExpressionText(pair.Key),pair.Value,StringComparison.Ordinal);
+        }
+
+        return text;
+    }
 
     /// <summary>
     /// 通常メソッド呼び出し（非拡張）を生成コード用にレンダリングする。
@@ -987,8 +1076,8 @@ public sealed partial class TsavoriteIncrementalGenerator {
     private static string RenderInlineFailureInvocationExpression(IMethodSymbol method) {
         var message = EscapeStringLiteral($"Local helper method '{method.Name}' could not be inlined. Forwarding is disabled.");
         return method.ReturnsVoid
-            ? $"((global::System.Action)(()=>throw global::Tsavorite.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\")))()"
-            : $"((global::System.Func<{method.ReturnType.ToDisplayString(完全修飾形式)}>)(()=>throw global::Tsavorite.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\")))()";
+            ? $"((global::System.Action)(()=>throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\")))()"
+            : $"((global::System.Func<{method.ReturnType.ToDisplayString(完全修飾形式)}>)(()=>throw global::Seamless.Collections.Tsavorite.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\")))()";
     }
 
     /// <summary>文字列リテラルに埋め込むために <c>\</c> と <c>"</c> をエスケープする。</summary>

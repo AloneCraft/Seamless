@@ -1,4 +1,4 @@
-﻿namespace Tsavorite.Stores;
+﻿namespace Seamless.Collections.Tsavorite.Stores;
 /// <summary>
 /// new() 制約の代替。リフレクションを回避し、静的ディスパッチでインスタンスを生成する。
 /// </summary>

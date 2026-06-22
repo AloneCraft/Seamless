@@ -13,14 +13,14 @@ public sealed class Chunk(ITestOutputHelper output):LinqChain1TestBase(output) {
         this.MeasureOptimized(nameof(sizeNoOptimized),()=>sizeNoOptimized(expected));
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(true,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void sizeOptimized(dynamic expected) {
         var actual=new Consumer<int[]>();
         Source().Chunk(2).Consume(actual);
         AssertNestedSequenceEqual(expected,actual.Items);
     }
 
-    [global::Tsavorite.SourceGenerator.LinqIntercept(false,global::Tsavorite.SourceGenerator.LinqInstrumentation.Counter)]
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void sizeNoOptimized(dynamic expected) {
         var actual=new Consumer<int[]>();
         Source().Chunk(2).Consume(actual);

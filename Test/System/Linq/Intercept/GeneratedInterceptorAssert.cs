@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Seamless.FLinq;
 
 namespace Test.System.Linq.Intercept;
 
@@ -24,7 +25,7 @@ internal static class GeneratedInterceptorAssert {
             if(!Regex.IsMatch(text,$@"(?<![A-Za-z0-9_])class {Regex.Escape(markerName)}(?![A-Za-z0-9_])")) {
                 continue;
             }
-            if(!Regex.IsMatch(text,$@"(?<![A-Za-z0-9_]){Regex.Escape(methodName)}")) {
+            if(!text.Contains($"<c>{methodName}()</c>",StringComparison.Ordinal)) {
                 continue;
             }
             matches.Add(text);
@@ -48,11 +49,18 @@ internal static class GeneratedInterceptorAssert {
         var projectDirectory = configurationDirectory.Parent?.Parent
             ?? throw new InvalidOperationException("Could not resolve project directory.");
 
+        var generatorAssemblyName = typeof(TsavoriteIncrementalGenerator).Assembly.GetName().Name
+            ?? throw new InvalidOperationException("Could not resolve generator assembly name.");
+        var generatorTypeName = typeof(TsavoriteIncrementalGenerator).FullName
+            ?? throw new InvalidOperationException("Could not resolve generator type name.");
+
         return Path.Combine(
             projectDirectory.FullName,
             "obj",
             configurationDirectory.Name,
             targetFrameworkDirectory.Name,
-            "generated");
+            "generated",
+            generatorAssemblyName,
+            generatorTypeName);
     }
 }
