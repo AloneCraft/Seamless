@@ -22,7 +22,7 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
     protected override string ComputeExpression => $"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeToListInline(destVar,destType)
-        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToList")
+        ?? this.RenderDirectEnumerableToListHybridInline(source,destVar,destType)
         ?? this.RenderComputeInline(destVar,destType);
     private string? RenderRangeToListInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
@@ -50,15 +50,29 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
-            global::System.Collections.Generic.List<{{source.ElementType}}> result;
-            if(source.TryGetNonEnumeratedCount(out var __count)) {
-                result=new(__count);
-            }else{
-                result=new();
-            }
             using var enumerator = source;
-            while(enumerator.MoveNext()) result.Add(enumerator.Current);
-            return result;
+            global::System.Collections.Generic.List<{{source.ElementType}}> __result;
+            if(enumerator.TryGetNonEnumeratedCount(out var __count)) {
+                __result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__count);
+                global::System.Runtime.InteropServices.CollectionsMarshal.SetCount(__result,__count);
+                var __destination=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(__result);
+                if(!enumerator.TryCopyTo(__destination,0)) {
+                    var __i=0;
+                    while(enumerator.MoveNext()) {
+                        __destination[__i++]=enumerator.Current;
+                    }
+                }
+                return __result;
+            }
+            if(enumerator.TryGetSpan(out var __sourceSpan)) {
+                __result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__sourceSpan.Length);
+                global::System.Runtime.InteropServices.CollectionsMarshal.SetCount(__result,__sourceSpan.Length);
+                __sourceSpan.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(__result));
+                return __result;
+            }
+            __result=new global::System.Collections.Generic.List<{{source.ElementType}}>();
+            while(enumerator.MoveNext()) __result.Add(enumerator.Current);
+            return __result;
         }
         """;
     protected override string GetEnumeratorDisposeBody => string.Empty;

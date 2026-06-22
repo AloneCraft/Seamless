@@ -1713,6 +1713,7 @@ public interface DirectExecutionFragment {
 }
 
 public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyList<PipelineStage> stages,string elementType):Enumerable(番号) {
+    private bool CountPreserving => stages.All(static stage => stage.Kind is PipelineStageKind.Select or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast);
     protected override Enumerable PrimarySource => source;
     public Enumerable Source => source;
     public IReadOnlyList<PipelineStage> Stages => stages;
@@ -1970,6 +1971,43 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         }
     }
     public override string GetTryGetNextBody => this.BuildLoop(this.e,"current = this.Current = {0};\nreturn true;","current = default!;\nreturn false;");
+    protected override string GetTryGetNonEnumeratedCountBody => this.CountPreserving
+        ? $"return this.{this.e}.TryGetNonEnumeratedCount(out count);"
+        : base.GetTryGetNonEnumeratedCountBody;
+    protected override string GetTryCopyToBody {
+        get {
+            if(!this.CountPreserving) {
+                return base.GetTryCopyToBody;
+            }
+
+            var success = """
+                if(__skip>0) {{
+                    __skip--;
+                    continue;
+                }}
+                destination[__i++] = {0};
+                if(__i==destination.Length) {{
+                    return true;
+                }}
+                """;
+            var body = this.BuildLoop(this.e,success,"return __i==destination.Length;");
+            return $$"""
+                if(!this.{{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+                    return false;
+                }
+                var __start = __offset.GetOffset(__count);
+                if(__start < 0 || __start > __count || destination.Length > __count - __start) {
+                    return false;
+                }
+                if(destination.Length==0) {
+                    return true;
+                }
+                var __skip = __start;
+                var __i = 0;
+                {{body}}
+                """;
+        }
+    }
     public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody {
         get {
@@ -3278,21 +3316,31 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
             builder.AppendLine($"{actualTypeName} {actualVariableName};");
             builder.AppendLine($"if({this.EnumeratorName()}.TryGetNonEnumeratedCount(out var __count{this.result})) {{");
             builder.AppendLine($"    {actualVariableName}=new(__count{this.result});");
+            builder.AppendLine($"    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},__count{this.result});");
+            builder.AppendLine($"    var __destination{this.result}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName});");
+            builder.AppendLine($"    if(!{this.EnumeratorName()}.TryCopyTo(__destination{this.result},0)) {{");
+            builder.AppendLine($"        var __index{this.result}=0;");
+            builder.AppendLine($"        while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) __destination{this.result}[__index{this.result}++]=__item{this.result};");
+            builder.AppendLine("    }");
             builder.AppendLine($"}}else{{");
             builder.AppendLine($"    {actualVariableName}=new();");
+            builder.AppendLine($"    while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {actualVariableName}.Add(__item{this.result});");
             builder.AppendLine($"}}");
-            builder.AppendLine($"while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {actualVariableName}.Add(__item{this.result});");
             return builder.ToString().TrimEnd();
         }
         if(terminalKind==PipelineTerminalKind.ToArray) {
             var listName = $"{actualVariableName}_list";
             var countName = $"{actualVariableName}_count";
             var indexName = $"{actualVariableName}_index";
+            var bufferName = $"{actualVariableName}_buffer";
+            var nName = $"{actualVariableName}_n";
+            var nextName = $"{actualVariableName}_next";
             var endLabel = $"__arrayEnd{this.result}";
             builder.AppendLine($"using var {this.EnumeratorName()}={pipeline.GetEnumeratorExpression};");
             builder.AppendLine($"{actualTypeName} {actualVariableName};");
             builder.AppendLine($"if({this.EnumeratorName()}.TryGetNonEnumeratedCount(out var {countName})) {{");
             builder.AppendLine($"    {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({countName});");
+            builder.AppendLine($"    if({this.EnumeratorName()}.TryCopyTo(global::System.MemoryExtensions.AsSpan({actualVariableName}),0)) goto {endLabel};");
             builder.AppendLine($"    var {indexName}=0;");
             builder.AppendLine($"    while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {{");
             builder.AppendLine($"        if((uint){indexName}>=(uint){actualVariableName}.Length) {{");
@@ -3307,9 +3355,29 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
             builder.AppendLine($"    }}");
             builder.AppendLine($"    if({indexName}!={actualVariableName}.Length) global::System.Array.Resize(ref {actualVariableName},{indexName});");
             builder.AppendLine($"}}else{{");
-            builder.AppendLine($"    var {listName}=new global::System.Collections.Generic.List<{pipeline.ElementType}>();");
-            builder.AppendLine($"    while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {listName}.Add(__item{this.result});");
-            builder.AppendLine($"    {actualVariableName}={listName}.ToArray();");
+            builder.AppendLine($"    {pipeline.ElementType}[]? {bufferName}=null;");
+            builder.AppendLine($"    var {nName}=0;");
+            builder.AppendLine($"    try {{");
+            builder.AppendLine($"        while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {{");
+            builder.AppendLine($"            if({bufferName} is null) {{");
+            builder.AppendLine($"                {bufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent(16);");
+            builder.AppendLine($"            }} else if({nName}=={bufferName}.Length) {{");
+            builder.AppendLine($"                var {nextName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({bufferName}.Length*2);");
+            builder.AppendLine($"                global::System.Array.Copy({bufferName},{nextName},{nName});");
+            builder.AppendLine($"                global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Return({bufferName},clearArray:true);");
+            builder.AppendLine($"                {bufferName}={nextName};");
+            builder.AppendLine($"            }}");
+            builder.AppendLine($"            {bufferName}[{nName}++]=__item{this.result};");
+            builder.AppendLine($"        }}");
+            builder.AppendLine($"        if({nName}==0) {{");
+            builder.AppendLine($"            {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+            builder.AppendLine($"        }} else {{");
+            builder.AppendLine($"            {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({nName});");
+            builder.AppendLine($"            global::System.Array.Copy({bufferName}!,{actualVariableName},{nName});");
+            builder.AppendLine($"        }}");
+            builder.AppendLine($"    }} finally {{");
+            builder.AppendLine($"        if({bufferName} is not null) global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Return({bufferName},clearArray:true);");
+            builder.AppendLine($"    }}");
             builder.AppendLine($"}}");
             builder.AppendLine($"{endLabel}:;");
             return builder.ToString().TrimEnd();

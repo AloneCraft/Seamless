@@ -18,7 +18,7 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
     protected override string ComputeExpression => $"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeToArrayInline(destVar,destType)
-        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToArray")
+        ?? this.RenderDirectEnumerableToArrayHybridInline(source,destVar,destType)
         ?? this.RenderComputeInline(destVar,destType);
     private string? RenderRangeToArrayInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
@@ -44,6 +44,28 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
             using var enumerator = source;
+            if(enumerator.TryGetNonEnumeratedCount(out var __count)) {
+                if(__count==0) {
+                    return global::System.Array.Empty<{{source.ElementType}}>();
+                }
+                var __result=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>(__count);
+                if(enumerator.TryCopyTo(global::System.MemoryExtensions.AsSpan(__result),0)) {
+                    return __result;
+                }
+                var __i=0;
+                while(enumerator.MoveNext()) {
+                    __result[__i++]=enumerator.Current;
+                }
+                return __result;
+            }
+            if(enumerator.TryGetSpan(out var __sourceSpan)) {
+                if(__sourceSpan.Length==0) {
+                    return global::System.Array.Empty<{{source.ElementType}}>();
+                }
+                var __result=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>(__sourceSpan.Length);
+                __sourceSpan.CopyTo(global::System.MemoryExtensions.AsSpan(__result));
+                return __result;
+            }
             // 要素数が InlineCapacity 以内ならスタック上の InlineArray だけで受け、ArrayPool/List の
             // ヒープ確保もスレッドセーフな Rent/Return も一切回避する。溢れたときだけ ArrayPool へスピルし、
             // 最後に正確なサイズの配列へ1回だけコピーする。MoveNext/Current のみで TEnum 制約に依存しない。

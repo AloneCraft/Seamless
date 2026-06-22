@@ -4,6 +4,8 @@ public class Where_predicate(int 番号, Enumerable source, FuncFragment predica
         !(method.Parameters.Length > 0 &&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
+    internal Enumerable Source => source;
+    internal FuncFragment Predicate => predicate;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}

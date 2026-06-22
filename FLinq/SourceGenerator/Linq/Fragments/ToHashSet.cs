@@ -14,7 +14,7 @@ public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSet
     protected override string ComputeExpression=>$"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType)=>
         this.RenderRangeToHashSetInline(destVar,destType)
-        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToHashSet")
+        ?? this.RenderDirectEnumerableToHashSetHybridInline(source,destVar,destType)
         ?? this.RenderComputeInline(destVar,destType);
     private string? RenderRangeToHashSetInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
@@ -66,7 +66,7 @@ public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,str
     protected override string ComputeExpression=>$"Compute({this.e},comparer)";
     public override string? RenderInlineComputation(string destVar,string destType)=>
         this.RenderRangeToHashSetInline(destVar,destType)
-        ?? this.RenderDirectEnumerableCallInline(source,destVar,destType,"ToHashSet",comparer)
+        ?? this.RenderDirectEnumerableToHashSetHybridInline(source,destVar,destType,comparer)
         ?? this.RenderComputeInline(destVar,destType,comparer);
     private string? RenderRangeToHashSetInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {

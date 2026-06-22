@@ -241,6 +241,8 @@ public abstract class Fragment(
     // enumerator struct の TryGetNonEnumeratedCount 本体。既定は非対応（false）。
     // bool 戻り値を呼び出し側が必ず確認する実行時 fast path のため、断片が安全に override 可能。
     protected virtual string GetTryGetNonEnumeratedCountBody => "count = 0;\nreturn false;";
+    protected virtual string GetTryGetSpanBody => "span = default;\nreturn false;";
+    protected virtual string GetTryCopyToBody => "return false;";
     // Enumerable 断片が List<T> へ結果を積む共通形。
     private protected static string var_List(string name,string ElementType) =>
         $"var {name}=new global::System.Collections.Generic.List<{ElementType}>();";
@@ -431,11 +433,12 @@ public abstract class Fragment(
                 }
                 {{AggressiveInliningAttribute}}
                 public bool TryGetSpan(out global::System.ReadOnlySpan<{{currentType}}> span) {
-                    span = default;
-                    return false;
+            {{IndentLines(this.GetTryGetSpanBody, "        ")}}
                 }
                 {{AggressiveInliningAttribute}}
-                public bool TryCopyTo(scoped global::System.Span<{{currentType}}> destination, global::System.Index offset) => false;
+                public bool TryCopyTo(scoped global::System.Span<{{currentType}}> destination, global::System.Index __offset) {
+            {{IndentLines(this.GetTryCopyToBody, "        ")}}
+                }
                 {{AggressiveInliningAttribute}}
                 public bool TryGetNext(out {{currentType}} current) {
             {{tryGetNextBody}}
