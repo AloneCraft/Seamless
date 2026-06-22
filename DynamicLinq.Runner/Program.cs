@@ -1,7 +1,8 @@
 using System.Diagnostics;
 using System.Globalization;
 
-using Seamless.Collections.Tsavorite;
+using Seamless.Linq;
+using Seamless.Tsavorite.Collections;
 
 using Test.System.Linq.Intercept;
 

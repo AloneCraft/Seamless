@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Seamless</RootNamespace>
+    <AssemblyName>Seamless.Persisted.Collections</AssemblyName>
+    <PackageId>Seamless.Persisted.Collections</PackageId>
+    <Title>Seamless Collections Persisted</Title>
+    <Description>File-backed persisted collections for Seamless.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Seamless.Abstractions\Seamless.Abstractions.csproj" />
+    <ProjectReference Include="..\Seamless.Linq\Seamless.Linq.csproj" />
+    <ProjectReference Include="..\Seamless.SourceGenerators\Seamless.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <SeamlessGenerateLinqEnumerable>true</SeamlessGenerateLinqEnumerable>
+    <SeamlessLinqEnumerableNamespace>Seamless.Persisted.Linq</SeamlessLinqEnumerableNamespace>
+    <SeamlessLinqEnumerableSourceType>global::Seamless.Collections.ISet&lt;TSource&gt;</SeamlessLinqEnumerableSourceType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="SeamlessGenerateLinqEnumerable" />
+    <CompilerVisibleProperty Include="SeamlessLinqEnumerableNamespace" />
+    <CompilerVisibleProperty Include="SeamlessLinqEnumerableSourceType" />
+  </ItemGroup>
+</Project>

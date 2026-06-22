@@ -1,6 +1,6 @@
 using System.Linq;
 
-using Seamless.Collections.Tsavorite;
+using Seamless.Tsavorite.Collections;
 using Seamless.FLinq;
 
 namespace Test.System.Linq.Intercept.Chain1;

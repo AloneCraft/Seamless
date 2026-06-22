@@ -23,7 +23,7 @@ review_status: draft
 
 | クラス/領域 | 責務 | 実装証拠 |
 |---|---|---|
-| `TsavoriteIncrementalGenerator` | incremental generator の入口。属性ソースと interceptor ソースを生成する。 | `FLinq/SourceGenerator/interceptor.cs:13`, `FLinq/SourceGenerator/interceptor.cs:55`, `FLinq/SourceGenerator/interceptor.cs:64`, `FLinq/SourceGenerator/interceptor.cs:69`, `FLinq/SourceGenerator/interceptor.cs:102` |
+| `FLinqIncrementalGenerator` | incremental generator の入口。属性ソースと interceptor ソースを生成する。 | `FLinq/SourceGenerator/interceptor.cs:13`, `FLinq/SourceGenerator/interceptor.cs:55`, `FLinq/SourceGenerator/interceptor.cs:64`, `FLinq/SourceGenerator/interceptor.cs:69`, `FLinq/SourceGenerator/interceptor.cs:102` |
 | `LinqTargetDiscovery` | LINQ 呼び出しを含むメソッドを interception target として生成する。 | `FLinq/SourceGenerator/LinqTargetDiscovery.cs:22`, `FLinq/SourceGenerator/LinqTargetDiscovery.cs:52` |
 | `LinqGeneratorModels` | target、parameter、per-file group、比較器、診断定義などの内部モデルを保持する。 | `FLinq/SourceGenerator/LinqGeneratorModels.cs:65`, `FLinq/SourceGenerator/LinqGeneratorModels.cs:79`, `FLinq/SourceGenerator/LinqGeneratorModels.cs:140`, `FLinq/SourceGenerator/LinqGeneratorModels.cs:175` |
 | `OptimizeVisitor` | query syntax 変換、extension/static 化、anonymous struct record 変換、式最適化を段階的に実行する。 | `FLinq/SourceGenerator/OptimizeVisitor.cs:5`, `FLinq/SourceGenerator/OptimizeVisitor.cs:294`, `FLinq/SourceGenerator/OptimizeVisitor.cs:301`, `FLinq/SourceGenerator/OptimizeVisitor.cs:310` |

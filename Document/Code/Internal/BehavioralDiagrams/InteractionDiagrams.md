@@ -18,7 +18,7 @@ review_status: draft
 ```mermaid
 sequenceDiagram
     participant Roslyn
-    participant Generator as TsavoriteIncrementalGenerator
+    participant Generator as FLinqIncrementalGenerator
     participant Discovery as LinqTargetDiscovery
     participant Optimizer as OptimizeVisitor/AlgebraicRewriter
     participant Fragments

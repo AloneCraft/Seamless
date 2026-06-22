@@ -19,7 +19,7 @@ review_status: draft
 
 | モジュール | サブモジュール | 責務 |
 |---|---|---|
-| Source generation | `FLinq`, `TsavoriteDB`, `SourceGenerator.Shared` | LINQ interceptor と schema record generation。 |
+| Source generation | `FLinq`, `Seamless.Database`, `Seamless.SourceGenerators` | LINQ interceptor と schema record generation。 |
 | Runtime collections | `Tsavorite.Collections/Stores`, `Collections`, `SessionFunctions`, `Linq`, `Devices` | Tsavorite-backed collection、serializer、LINQ extension、counter、device abstraction。 |
 | Benchmark infrastructure | `Benchmark.Shared`, `Benchmark.*` projects | System LINQ / FLinq / ZLinq / Tsavorite LINQ の比較 workload。 |
 | Benchmark UI/tool | `Benchmark.Runner.Uno` | CPU affinity 選択、worker process 実行、CSV/HTML report。 |
@@ -28,7 +28,7 @@ review_status: draft
 ## モジュール根拠
 
 - solution に source generator、runtime、benchmark、test project が明示されている（`Seamless.slnx:13`, `Seamless.slnx:26`, `Seamless.slnx:28`, `Seamless.slnx:29`, `Seamless.slnx:30`）。
-- `FLinq` と `TsavoriteDB` は Roslyn component である（`FLinq/FLinq.csproj:8`, `TsavoriteDB/TsavoriteDB.csproj:8`）。
+- `FLinq` と `Seamless.Database` は Roslyn component である（`FLinq/FLinq.csproj:8`, `Seamless.Database/Seamless.Database.csproj:8`）。
 - `Tsavorite.Collections` は MemoryPack と Microsoft.Garnet に依存する（`Tsavorite.Collections/Tsavorite.Collections.csproj:14`, `Tsavorite.Collections/Tsavorite.Collections.csproj:15`）。
 - Uno runner は benchmark projects を参照する（`Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj:34`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj:41`）。
 

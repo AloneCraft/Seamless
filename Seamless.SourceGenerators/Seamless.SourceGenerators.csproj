@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Seamless</RootNamespace>
+    <AssemblyName>Seamless.SourceGenerators</AssemblyName>
+    <PackageId>Seamless.SourceGenerators</PackageId>
+    <Title>Seamless Source Generators</Title>
+    <Description>Shared source generator helpers and build-time generators for Seamless.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

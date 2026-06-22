@@ -524,7 +524,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
         GeneratorDriver driver = Microsoft.CodeAnalysis.CSharp.CSharpGeneratorDriver.Create(
             generators: [
                 new GeneratedHelperGenerator(),
-                new global::Seamless.FLinq.TsavoriteIncrementalGenerator().AsSourceGenerator()
+                new global::Seamless.FLinq.FLinqIncrementalGenerator().AsSourceGenerator()
             ],
             parseOptions: GeneratorTestHelpers.ParseOptions);
         driver = driver.RunGenerators(comp);

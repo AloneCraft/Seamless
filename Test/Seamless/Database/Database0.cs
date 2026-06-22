@@ -1,7 +1,7 @@
 using System.Linq;
 using System.Linq.Expressions;
-using Seamless.Collections.Tsavorite;
-using Seamless.Collections.Tsavorite.Linq;
+using Seamless.Tsavorite.Collections;
+using Seamless.Linq;
 
 namespace Test.Seamless.Database.Database0 {
     static partial class DatabaseGenerator;
@@ -12,19 +12,19 @@ namespace Test.Seamless.Database.Database0 {
     /// </summary>
     [Optimize]
     public class Container {
-        public global::Seamless.Collections.Tsavorite.Generic.IEnumerable<int> Optimize無virtual無(global::Seamless.Collections.Tsavorite.Generic.IEnumerable<int> outer) {
-            new global::Seamless.Collections.Tsavorite.Generic.IEnumerable<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
-            var x = new global::Seamless.Collections.Tsavorite.Generic.IEnumerable<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
+        public global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Optimize無virtual無(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
+            new global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
+            var x = new global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
             return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
-        public virtual global::Seamless.Collections.Tsavorite.Generic.IEnumerable<int> Optimize無virtual有(global::Seamless.Collections.Tsavorite.Generic.IEnumerable<int> outer) {
+        public virtual global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Optimize無virtual有(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
             return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
-        //[Optimize]public global::Seamless.Collections.Tsavorite.Generic.IEnumerable<int> Optimize有virtual無(global::Seamless.Collections.Tsavorite.Generic.IEnumerable<int> outer) {
+        //[Optimize]public global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Optimize有virtual無(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
         //    return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         //}
         [Optimize]
-        public virtual global::Seamless.Collections.Tsavorite.Generic.IEnumerable<int> Optimize有virtual有(global::Seamless.Collections.Tsavorite.Generic.IEnumerable<int> outer) {
+        public virtual global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Optimize有virtual有(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
             return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
         [Optimize]
@@ -33,7 +33,7 @@ namespace Test.Seamless.Database.Database0 {
             var x = this.Select_Method(new int[3]);
         }
         [Optimize]
-        public virtual global::Seamless.Collections.Tsavorite.Generic.IEnumerable<int> Select_Method(global::Seamless.Collections.Tsavorite.Generic.IEnumerable<int> outer) {
+        public virtual global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Select_Method(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
             return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
         [Optimize]
@@ -135,7 +135,7 @@ namespace Test.Seamless.Database.Database0 {
         }
 
         [Optimize]
-        public virtual IEnumerable<(T0 o,T1 i)> Query2<T0, T1>(global::Seamless.Collections.Tsavorite.IHashSet<T0> outer,global::Seamless.Collections.Tsavorite.IHashSet<T1> inner)
+        public virtual IEnumerable<(T0 o,T1 i)> Query2<T0, T1>(global::Seamless.Tsavorite.Collections.IHashSet<T0> outer,global::Seamless.Tsavorite.Collections.IHashSet<T1> inner)
             where T0 : IEquatable<T0>
             where T1 : IEquatable<T1> {
             return global::System.Linq.Enumerable.SelectMany(outer,_ => inner,(o,i) => (o,i));

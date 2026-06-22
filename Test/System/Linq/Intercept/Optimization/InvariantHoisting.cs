@@ -1,6 +1,6 @@
 using System.Linq;
 using Test.System.Linq.Intercept;
-using Seamless.Collections.Tsavorite.Linq;
+using Seamless.Linq;
 
 namespace Test.System.Linq.Intercept.Optimization;
 

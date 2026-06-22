@@ -13,6 +13,7 @@ namespace Benchmark.Runner.Uno;
 
 internal static class BenchmarkWorkerHost{
     private const string WorkerModeArgument = "--worker";
+    private const string ElementScaleEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
 
     public static bool IsWorkerMode(string[] args){
         return args.Any(static arg => string.Equals(arg,WorkerModeArgument,StringComparison.OrdinalIgnoreCase));
@@ -77,10 +78,12 @@ internal static class BenchmarkWorkerHost{
         using var logWriter = new StringWriter(CultureInfo.InvariantCulture);
         var originalOut = Console.Out;
         var originalError = Console.Error;
+        var previousScale = Environment.GetEnvironmentVariable(ElementScaleEnvironmentVariable);
         Console.SetOut(logWriter);
         Console.SetError(logWriter);
         try{
             ApplyAffinity(logicalCpu);
+            Environment.SetEnvironmentVariable(ElementScaleEnvironmentVariable,string.IsNullOrWhiteSpace(task.ElementScale)?"1":task.ElementScale);
             var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
             var config = ManualConfig
                 .Create(DefaultConfig.Instance)
@@ -104,6 +107,7 @@ internal static class BenchmarkWorkerHost{
                 task.ArtifactFolder,
                 log);
         }finally{
+            Environment.SetEnvironmentVariable(ElementScaleEnvironmentVariable,previousScale);
             Console.SetOut(protocolOutput);
             Console.SetError(protocolError);
             originalOut.Flush();

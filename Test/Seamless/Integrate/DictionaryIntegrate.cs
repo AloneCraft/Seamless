@@ -1,4 +1,4 @@
-using Seamless.Collections.Tsavorite.Stores;
+using Seamless.Tsavorite.Collections.Stores;
 using Tsavorite.core;
 
 namespace Test.Seamless.Integrate;
@@ -93,7 +93,7 @@ public sealed class Dictionary(ITestOutputHelper output) {
         try { Directory.Delete(storeDir, true); } catch { }
     }
 
-    private void AssertContainsAll<TKey, TValue>(global::Seamless.Collections.Tsavorite.IDictionary<TKey, TValue> dict, int count, DictionaryScenario<TKey, TValue> scenario)
+    private void AssertContainsAll<TKey, TValue>(global::Seamless.Tsavorite.Collections.IDictionary<TKey, TValue> dict, int count, DictionaryScenario<TKey, TValue> scenario)
         where TKey : IEquatable<TKey>
         where TValue : IEquatable<TValue> {
         Assert.Equal(count, dict.Count);

@@ -1,7 +1,7 @@
 using Test.Seamless.Collections;
 
-using Seamless.Collections.Tsavorite;
-using Seamless.Collections.Tsavorite;
+using Seamless.Tsavorite.Collections;
+using Seamless.Tsavorite.Collections;
 using Tsavorite.core;
 
 namespace Test.Seamless.SessionFunctions;

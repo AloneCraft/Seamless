@@ -1,6 +1,6 @@
-using Seamless.Collections.Tsavorite;
-using Seamless.Collections.Tsavorite;
-using Seamless.Collections.Tsavorite.Stores;
+using Seamless.Tsavorite.Collections;
+using Seamless.Tsavorite.Collections;
+using Seamless.Tsavorite.Collections.Stores;
 using Tsavorite.core;
 
 namespace Test.Seamless.SessionFunctions;
@@ -19,12 +19,12 @@ public sealed class BlittableUpsert:AddTests<int,long>{
     protected override void FlushAndEvict(IDisposable store)=>
         ((CollectionStore<int,long>)store).Store.Log.FlushAndEvict(true);
     protected override TryAddResult TryAdd(global::System.Collections.Generic.IDictionary<int,long> dict,int key,long value)=>
-        ((global::Seamless.Collections.Tsavorite.IDictionary<int,long>)dict).TryAdd(key,value);
+        ((global::Seamless.Tsavorite.Collections.IDictionary<int,long>)dict).TryAdd(key,value);
 
     protected override void DoUpsert(){
 #if TSAVORITE1_1_1
         using var store=Store.Create().Create<int,long>();
-        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
+        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
         var bc=session.BasicContext;
         var key=200;
         var val=200L;
@@ -39,7 +39,7 @@ public sealed class BlittableUpsert:AddTests<int,long>{
     protected override void DoInPlaceWriter(){
 #if TSAVORITE1_1_1
         using var store=Store.Create().Create<int,long>();
-        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
+        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
         var bc=session.BasicContext;
         var key=200;
         var valFirst=200L;
@@ -60,7 +60,7 @@ public sealed class BlittableUpsert:AddTests<int,long>{
     protected override void DoRMW(){
 #if TSAVORITE1_1_1
         using var store=Store.Create().Create<int,long>();
-        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
+        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
         var key=1;
         var input0=100L;
         var input1=200L;
@@ -91,7 +91,7 @@ public sealed class BlittableUpsert:AddTests<int,long>{
     protected override void DoConcurrentWriter(){
 #if TSAVORITE1_1_1
         using var store=Store.Create().Create<int,long>();
-        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
+        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
         var bc=session.BasicContext;
         var key=300;
         var valFirst=300L;

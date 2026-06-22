@@ -1,4 +1,4 @@
-using Seamless.Collections.Tsavorite.Stores;
+using Seamless.Tsavorite.Collections.Stores;
 using System.Globalization;
 using System.Linq;
 using Tsavorite.core;
@@ -26,16 +26,16 @@ namespace Test.Seamless.Database.TPC_H {
             this.lineitems=this.CreateTable<Records.lineitem>();
         }
 
-        public global::Seamless.Collections.Tsavorite.HashSet<Records.region> regions { get; }
-        public global::Seamless.Collections.Tsavorite.HashSet<Records.nation> nations { get; }
-        public global::Seamless.Collections.Tsavorite.HashSet<Records.supplier> suppliers { get; }
-        public global::Seamless.Collections.Tsavorite.HashSet<Records.customer> customers { get; }
-        public global::Seamless.Collections.Tsavorite.HashSet<Records.part> parts { get; }
-        public global::Seamless.Collections.Tsavorite.HashSet<Records.partsupp> partsupps { get; }
-        public global::Seamless.Collections.Tsavorite.HashSet<Records.orders> orders { get; }
-        public global::Seamless.Collections.Tsavorite.HashSet<Records.lineitem> lineitems { get; }
+        public global::Seamless.Tsavorite.Collections.HashSet<Records.region> regions { get; }
+        public global::Seamless.Tsavorite.Collections.HashSet<Records.nation> nations { get; }
+        public global::Seamless.Tsavorite.Collections.HashSet<Records.supplier> suppliers { get; }
+        public global::Seamless.Tsavorite.Collections.HashSet<Records.customer> customers { get; }
+        public global::Seamless.Tsavorite.Collections.HashSet<Records.part> parts { get; }
+        public global::Seamless.Tsavorite.Collections.HashSet<Records.partsupp> partsupps { get; }
+        public global::Seamless.Tsavorite.Collections.HashSet<Records.orders> orders { get; }
+        public global::Seamless.Tsavorite.Collections.HashSet<Records.lineitem> lineitems { get; }
 
-        private global::Seamless.Collections.Tsavorite.HashSet<T> CreateTable<T>() {
+        private global::Seamless.Tsavorite.Collections.HashSet<T> CreateTable<T>() {
             var loadCheckpointDir = Path.Combine(Environment.CurrentDirectory,this.GetType().FullName!);
             Directory.CreateDirectory(loadCheckpointDir);
 
@@ -677,12 +677,12 @@ namespace Test.Seamless.Database.TPC_H {
         private void AssertStorageListRoundTrip(int query) {
             var expected = QueryRows(this.Container,query,false);
             var folder = TestPath.Directory<TpchTests>($"Q{query:D2}");
-            using(var list = global::Seamless.Collections.Persisted.Store.Create().Create<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
+            using(var list = global::Seamless.Persisted.Collections.Store.Create().Create<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
                 foreach(var row in expected) {
                     list.Add(row);
                 }
             }
-            using(var list = global::Seamless.Collections.Persisted.Store.Create().Create<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
+            using(var list = global::Seamless.Persisted.Collections.Store.Create().Create<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
                 var actual = list.OrderBy(row => row,StringComparer.Ordinal).ToArray();
                 Assert.Equal(expected,actual);
             }

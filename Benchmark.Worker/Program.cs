@@ -12,6 +12,7 @@ using BenchmarkDotNet.Toolchains.InProcess.Emit;
 
 Console.OutputEncoding=Encoding.UTF8;
 Console.InputEncoding=Encoding.UTF8;
+const string ElementScaleEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
 
 var logicalCpu = ReadRequiredIntArg(args,"--logical-cpu");
 var runRoot = ReadRequiredStringArg(args,"--run-root");
@@ -70,10 +71,12 @@ static WorkerResultMessage RunBenchmark(
     using var logWriter = new StringWriter(CultureInfo.InvariantCulture);
     var originalOut = Console.Out;
     var originalError = Console.Error;
+    var previousScale = Environment.GetEnvironmentVariable(ElementScaleEnvironmentVariable);
     Console.SetOut(logWriter);
     Console.SetError(logWriter);
     try{
         ApplyAffinity(logicalCpu);
+        Environment.SetEnvironmentVariable(ElementScaleEnvironmentVariable,string.IsNullOrWhiteSpace(task.ElementScale)?"1":task.ElementScale);
         var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
         var config = ManualConfig
             .Create(DefaultConfig.Instance)
@@ -97,6 +100,7 @@ static WorkerResultMessage RunBenchmark(
             task.ArtifactFolder,
             log);
     }finally{
+        Environment.SetEnvironmentVariable(ElementScaleEnvironmentVariable,previousScale);
         Console.SetOut(protocolOutput);
         Console.SetError(protocolError);
     }
@@ -175,6 +179,7 @@ internal sealed record WorkerTaskMessage(
     string AssemblyName,
     string TypeFullName,
     string MethodName,
+    string ElementScale,
     string ArtifactFolder);
 
 internal sealed record WorkerResultMessage(

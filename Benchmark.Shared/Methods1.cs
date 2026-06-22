@@ -2,10 +2,28 @@ namespace Shared.Linq.Enumerable;
 
 #if TSAVORITE
 public abstract class Methods1 : global::Benchmark.Shared.TsavoriteBase {
+#elif PERSISTED
+public abstract class Methods1 : global::Benchmark.Shared.PersistedBase {
 #else
 public abstract class Methods1 : global::Benchmark.Shared.Base {
 #endif
+#if BENCH_AS_TEST
+    private const int Any_iterationCount=100;
+    private const int Empty_iterationCount=100;
+    private const int First_iterationCount=100;
+    private const int FirstOrDefault_iterationCount=100;
+    private const int Single_iterationCount=100;
+    private const int SingleOrDefault_iterationCount=100;
+    private const int TryGetNonEnumeratedCount_iterationCount=100;
+#else
     private const int Any_iterationCount=800_000;
+    private const int Empty_iterationCount=25_000;
+    private const int First_iterationCount=5_000;
+    private const int FirstOrDefault_iterationCount=4_000;
+    private const int Single_iterationCount=6_000;
+    private const int SingleOrDefault_iterationCount=4_500;
+    private const int TryGetNonEnumeratedCount_iterationCount=2_000;
+#endif
     private const int Contains_value_iterationCount=3;
 #if BENCH_AS_TEST
     private const int ElementAt_index_iterationCount=1;
@@ -14,12 +32,6 @@ public abstract class Methods1 : global::Benchmark.Shared.Base {
     private const int ElementAt_index_iterationCount=3;
     private const int ElementAt_index_index=500_000;
 #endif
-    private const int Empty_iterationCount=25_000;
-    private const int First_iterationCount=5_000;
-    private const int FirstOrDefault_iterationCount=4_000;
-    private const int Single_iterationCount=6_000;
-    private const int SingleOrDefault_iterationCount=4_500;
-    private const int TryGetNonEnumeratedCount_iterationCount=2_000;
     private const int ImmediateShortCircuitCount=96_000_000;
     private const int ImmediateFullScanCount=96_000_000;
     private const int ImmediatePredicateScanCount=96_000_000;
@@ -744,7 +756,7 @@ public abstract class Methods1 : global::Benchmark.Shared.Base {
     private void Initialize() {
         this.outer=global::System.Linq.Enumerable.Range(0,this.CountForComparison(SelectManyOuterCount)).ToArray();
         this.inner=global::System.Linq.Enumerable.Range(0,this.CountForComparison(SelectManyInnerCount)).ToArray();
-        this.sourceCount=this.CountForComparison(SourceShapeCount);
+        this.sourceCount=this.CountForComparison(this.CountForTestTiming(SourceShapeCount));
         this.array=global::System.Linq.Enumerable.Range(1,this.sourceCount).ToArray();
         this.list=this.array.ToList();
     }

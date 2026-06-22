@@ -48,6 +48,7 @@ public sealed class BenchmarkProject:BindableObject{
 
 public sealed class BenchmarkItem:BindableObject{
     private bool isSelected;
+    private bool isCompleted;
 
     public BenchmarkItem(
         string methodName,
@@ -76,7 +77,20 @@ public sealed class BenchmarkItem:BindableObject{
         }
     }
 
+    public bool IsCompleted{
+        get => isCompleted;
+        set{
+            if(SetProperty(ref isCompleted,value)){
+                OnPropertyChanged(nameof(TextDecorations));
+            }
+        }
+    }
+
     public string CheckGlyph => isSelected?"X":string.Empty;
+    public Windows.UI.Text.TextDecorations TextDecorations =>
+        isCompleted
+            ? Windows.UI.Text.TextDecorations.Strikethrough
+            : Windows.UI.Text.TextDecorations.None;
 }
 
 public sealed record BenchmarkProjectMethod(
@@ -273,6 +287,7 @@ public sealed record WorkerTaskMessage(
     string AssemblyName,
     string TypeFullName,
     string MethodName,
+    string ElementScale,
     string ArtifactFolder);
 
 public sealed record WorkerResultMessage(
@@ -288,6 +303,8 @@ public sealed record WorkerResultMessage(
 public sealed record ReportRow(
     string Project,
     string Method,
+    string TypeFullName,
+    string FullFunctionName,
     string Status,
     string Mean,
     string Error,
@@ -295,6 +312,8 @@ public sealed record ReportRow(
     string LogicalCpu,
     string Core,
     string CpuDisplay,
+    string StartedAt,
+    string FinishedAt,
     string ArtifactFolder,
     int? ExitCode);
 

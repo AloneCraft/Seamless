@@ -10,7 +10,7 @@ using StoreAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunc
 #endif
 
 #if TSAVORITE2_0BETA3
-using Seamless.Collections.Tsavorite.Stores;
+using Seamless.Tsavorite.Collections.Stores;
 #endif
 
 namespace Test.Seamless.Database.Example {
@@ -52,7 +52,7 @@ namespace Test.Seamless.Database.Example {
 
             using var settings = new KVSettings<SpanByte,SpanByte> {
                 IndexSize=1L<<6,
-                MemorySize=global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,
+                MemorySize=global::Seamless.Tsavorite.Collections.Const.MinObjectLogCapacity,
                 PageSize=1L<<12,
                 SegmentSize=1L<<20,
                 MutableFraction=1,
