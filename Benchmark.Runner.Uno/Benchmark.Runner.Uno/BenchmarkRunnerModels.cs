@@ -13,12 +13,12 @@ public abstract class BindableObject:INotifyPropertyChanged{
         }
 
         field=value;
-        OnPropertyChanged(propertyName);
+        this.OnPropertyChanged(propertyName);
         return true;
     }
 
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null){
-        PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(propertyName));
+        this.PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(propertyName));
     }
 }
 
@@ -26,10 +26,10 @@ public sealed class BenchmarkProject:BindableObject{
     private bool isSelected;
 
     public BenchmarkProject(string displayName,Type benchmarkType,bool isSelected){
-        DisplayName=displayName;
-        BenchmarkType=benchmarkType;
-        AssemblyName=benchmarkType.Assembly.GetName().Name??benchmarkType.Assembly.FullName??string.Empty;
-        TypeFullName=benchmarkType.FullName??benchmarkType.Name;
+        this.DisplayName=displayName;
+        this.BenchmarkType=benchmarkType;
+        this.AssemblyName=benchmarkType.Assembly.GetName().Name??benchmarkType.Assembly.FullName??string.Empty;
+        this.TypeFullName=benchmarkType.FullName??benchmarkType.Name;
         this.isSelected=isSelected;
     }
 
@@ -37,29 +37,37 @@ public sealed class BenchmarkProject:BindableObject{
     public string AssemblyName { get; }
     public string TypeFullName { get; }
     public Type BenchmarkType { get; }
-    public string ProjectKey => TypeFullName;
+    public string ProjectKey => this.TypeFullName;
 
     public bool IsSelected{
-        get => isSelected;
-        set => SetProperty(ref isSelected,value);
+        get => this.isSelected;
+        set{
+            if(this.SetProperty(ref this.isSelected,value)){
+                this.OnPropertyChanged(nameof(this.ColumnOpacity));
+            }
+        }
     }
+
+    public double ColumnOpacity => this.isSelected ? 1.0 : 0.35;
 
 }
 
 public sealed class BenchmarkItem:BindableObject{
     private bool isSelected;
-    private bool isCompleted;
 
     public BenchmarkItem(
         string methodName,
         string displayName,
         string[] categories,
-        IReadOnlyDictionary<string,BenchmarkProjectMethod> projectMethods){
-        MethodName=methodName;
-        DisplayName=displayName;
-        Categories=categories;
-        ProjectMethods=projectMethods;
-        CategoryText=categories.Length==0?"-":string.Join(", ",categories);
+        IReadOnlyDictionary<string,BenchmarkProjectMethod> projectMethods,
+        IEnumerable<BenchmarkProject> projectColumns){
+        this.MethodName=methodName;
+        this.DisplayName=displayName;
+        this.Categories=categories;
+        this.ProjectMethods=projectMethods;
+        this.CategoryText=categories.Length==0?"-":string.Join(", ",categories);
+        this.ProjectStatuses=new global::System.Collections.ObjectModel.ObservableCollection<BenchmarkProjectStatusCell>(
+            projectColumns.Select(static project => new BenchmarkProjectStatusCell(project.ProjectKey,project.DisplayName,project.IsSelected)));
     }
 
     public string MethodName { get; }
@@ -67,30 +75,123 @@ public sealed class BenchmarkItem:BindableObject{
     public string[] Categories { get; }
     public string CategoryText { get; }
     public IReadOnlyDictionary<string,BenchmarkProjectMethod> ProjectMethods { get; }
+    public global::System.Collections.ObjectModel.ObservableCollection<BenchmarkProjectStatusCell> ProjectStatuses { get; }
 
     public bool IsSelected{
-        get => isSelected;
+        get => this.isSelected;
         set{
-            if(SetProperty(ref isSelected,value)){
-                OnPropertyChanged(nameof(CheckGlyph));
+            if(this.SetProperty(ref this.isSelected,value)){
+                this.OnPropertyChanged(nameof(this.CheckGlyph));
             }
         }
     }
 
-    public bool IsCompleted{
-        get => isCompleted;
-        set{
-            if(SetProperty(ref isCompleted,value)){
-                OnPropertyChanged(nameof(TextDecorations));
+    public string CheckGlyph => this.isSelected?"X":string.Empty;
+
+    public void SetProjectSelected(string projectKey,bool isProjectSelected){
+        var cell = this.ProjectStatuses.FirstOrDefault(cell => string.Equals(cell.ProjectKey,projectKey,StringComparison.Ordinal));
+        if(cell is not null){
+            cell.IsProjectSelected=isProjectSelected;
+            if(!isProjectSelected){
+                cell.Status=BenchmarkProjectRunStatus.NotSelected;
             }
         }
     }
 
-    public string CheckGlyph => isSelected?"X":string.Empty;
-    public Windows.UI.Text.TextDecorations TextDecorations =>
-        isCompleted
-            ? Windows.UI.Text.TextDecorations.Strikethrough
-            : Windows.UI.Text.TextDecorations.None;
+    public void ResetProjectStatuses(IEnumerable<BenchmarkProject> projects){
+        var selectedProjects = projects.ToDictionary(static project => project.ProjectKey,static project => project.IsSelected,StringComparer.Ordinal);
+        foreach(var cell in this.ProjectStatuses){
+            cell.IsProjectSelected=selectedProjects.TryGetValue(cell.ProjectKey,out var selected)&&selected;
+            cell.Status=cell.IsProjectSelected
+                ? BenchmarkProjectRunStatus.Pending
+                : BenchmarkProjectRunStatus.NotSelected;
+        }
+    }
+
+    public void SetProjectStatus(string projectKey,BenchmarkRunStatus status){
+        var cell = this.ProjectStatuses.FirstOrDefault(cell => string.Equals(cell.ProjectKey,projectKey,StringComparison.Ordinal));
+        if(cell is null){
+            return;
+        }
+
+        cell.Status = status switch{
+            BenchmarkRunStatus.Pending => BenchmarkProjectRunStatus.Pending,
+            BenchmarkRunStatus.Running => BenchmarkProjectRunStatus.Running,
+            BenchmarkRunStatus.Completed => BenchmarkProjectRunStatus.Completed,
+            BenchmarkRunStatus.Failed => BenchmarkProjectRunStatus.Failed,
+            BenchmarkRunStatus.Canceled => BenchmarkProjectRunStatus.Canceled,
+            _ => BenchmarkProjectRunStatus.Pending,
+        };
+    }
+}
+
+public enum BenchmarkProjectRunStatus{
+    NotSelected,
+    Pending,
+    Running,
+    Completed,
+    Failed,
+    Canceled,
+}
+
+public sealed class BenchmarkProjectStatusCell:BindableObject{
+    private bool isProjectSelected;
+    private BenchmarkProjectRunStatus status;
+
+    public BenchmarkProjectStatusCell(string projectKey,string displayName,bool isProjectSelected){
+        this.ProjectKey=projectKey;
+        this.DisplayName=displayName;
+        this.isProjectSelected=isProjectSelected;
+        this.status=isProjectSelected
+            ? BenchmarkProjectRunStatus.Pending
+            : BenchmarkProjectRunStatus.NotSelected;
+    }
+
+    public string ProjectKey { get; }
+    public string DisplayName { get; }
+
+    public bool IsProjectSelected{
+        get => this.isProjectSelected;
+        set{
+            if(this.SetProperty(ref this.isProjectSelected,value)){
+                this.OnVisualStateChanged();
+            }
+        }
+    }
+
+    public BenchmarkProjectRunStatus Status{
+        get => this.status;
+        set{
+            if(this.SetProperty(ref this.status,value)){
+                this.OnVisualStateChanged();
+            }
+        }
+    }
+
+    public string Glyph =>
+        this.Status switch{
+        BenchmarkProjectRunStatus.Completed => "✓",
+        BenchmarkProjectRunStatus.Failed => "X",
+        BenchmarkProjectRunStatus.Canceled => "-",
+        _ => string.Empty,
+    };
+
+    public double Opacity => this.IsProjectSelected ? 1.0 : 0.35;
+    public Microsoft.UI.Xaml.Visibility RunningVisibility =>
+        this.Status==BenchmarkProjectRunStatus.Running
+            ? Microsoft.UI.Xaml.Visibility.Visible
+            : Microsoft.UI.Xaml.Visibility.Collapsed;
+    public Microsoft.UI.Xaml.Visibility GlyphVisibility =>
+        string.IsNullOrEmpty(this.Glyph)
+            ? Microsoft.UI.Xaml.Visibility.Collapsed
+            : Microsoft.UI.Xaml.Visibility.Visible;
+
+    private void OnVisualStateChanged(){
+        this.OnPropertyChanged(nameof(this.Glyph));
+        this.OnPropertyChanged(nameof(this.Opacity));
+        this.OnPropertyChanged(nameof(this.RunningVisibility));
+        this.OnPropertyChanged(nameof(this.GlyphVisibility));
+    }
 }
 
 public sealed record BenchmarkProjectMethod(
@@ -99,71 +200,10 @@ public sealed record BenchmarkProjectMethod(
     string MethodName,
     string DisplayName,
     string[] Categories){
-    public string ExactFilter => string.IsNullOrWhiteSpace(TypeFullName)
-        ? "*."+MethodName
-        : "*"+TypeFullName+"."+MethodName;
+    public string ExactFilter => string.IsNullOrWhiteSpace(this.TypeFullName)
+        ? "*."+ this.MethodName
+        : "*"+ this.TypeFullName+"."+ this.MethodName;
 }
-
-public enum CpuCoreKind{
-    Performance,
-    Efficiency,
-    Unknown,
-}
-
-public sealed class CpuCoreInfo:BindableObject{
-    private bool isSelected;
-
-    public CpuCoreInfo(
-        int logicalProcessorIndex,
-        CpuCoreKind coreKind,
-        int physicalCoreIndex,
-        int kindCoreIndex,
-        long affinityMask,
-        bool supportsAffinity){
-        LogicalProcessorIndex=logicalProcessorIndex;
-        CoreKind=coreKind;
-        PhysicalCoreIndex=physicalCoreIndex;
-        KindCoreIndex=kindCoreIndex;
-        AffinityMask=affinityMask;
-        SupportsAffinity=supportsAffinity;
-        isSelected=false;
-    }
-
-    public int LogicalProcessorIndex { get; }
-    public CpuCoreKind CoreKind { get; }
-    public int PhysicalCoreIndex { get; }
-    public int KindCoreIndex { get; }
-    public long AffinityMask { get; }
-    public bool SupportsAffinity { get; }
-    public string GroupDisplayText => CoreLabel;
-    public string CpuDisplayText => $"{LogicalProcessorIndex}({GroupDisplayText})";
-
-    public bool IsSelected{
-        get => isSelected;
-        set{
-            if(SetProperty(ref isSelected,value)){
-                OnPropertyChanged(nameof(CheckGlyph));
-            }
-        }
-    }
-
-    public string DisplayText => CpuDisplayText;
-    public string CheckGlyph => isSelected?"X":string.Empty;
-    public string CoreLabel => CoreKind switch{
-        CpuCoreKind.Performance => $"P{KindCoreIndex}",
-        CpuCoreKind.Efficiency => $"E{KindCoreIndex}",
-        _ => $"Core {PhysicalCoreIndex}",
-    };
-    public string AffinityText => SupportsAffinity
-        ? $"mask {AffinityMask}"
-        : "affinity unsupported";
-}
-
-public sealed record CpuRowItem(
-    CpuCoreInfo? Column0,
-    CpuCoreInfo? Column1,
-    CpuCoreInfo? Column2,
-    CpuCoreInfo? Column3);
 
 public enum BenchmarkRunStatus{
     Pending,
@@ -187,88 +227,88 @@ public sealed class BenchmarkRunItem:BindableObject{
     private DateTimeOffset? finishedAt;
 
     public BenchmarkRunItem(BenchmarkProject project,BenchmarkItem method,BenchmarkProjectMethod projectMethod){
-        Project=project;
-        Method=method;
-        ProjectMethod=projectMethod;
+        this.Project=project;
+        this.Method=method;
+        this.ProjectMethod=projectMethod;
     }
 
     public BenchmarkProject Project { get; }
     public BenchmarkItem Method { get; }
     public BenchmarkProjectMethod ProjectMethod { get; }
 
-    public string ProjectDisplayName => Project.DisplayName;
-    public string MethodName => Method.MethodName;
+    public string ProjectDisplayName => this.Project.DisplayName;
+    public string MethodName => this.Method.MethodName;
 
     public BenchmarkRunStatus Status{
-        get => status;
+        get => this.status;
         set{
-            if(SetProperty(ref status,value)){
-                OnPropertyChanged(nameof(StatusText));
+            if(this.SetProperty(ref this.status,value)){
+                this.OnPropertyChanged(nameof(this.StatusText));
             }
         }
     }
 
     public CpuCoreInfo? AssignedCpu{
-        get => assignedCpu;
+        get => this.assignedCpu;
         set{
-            if(SetProperty(ref assignedCpu,value)){
-                OnPropertyChanged(nameof(CpuDisplay));
+            if(this.SetProperty(ref this.assignedCpu,value)){
+                this.OnPropertyChanged(nameof(this.CpuDisplay));
             }
         }
     }
 
     public int ProcessId{
-        get => processId;
+        get => this.processId;
         set{
-            if(SetProperty(ref processId,value)){
-                OnPropertyChanged(nameof(ProcessIdText));
+            if(this.SetProperty(ref this.processId,value)){
+                this.OnPropertyChanged(nameof(this.ProcessIdText));
             }
         }
     }
 
     public int Attempt{
-        get => attempt;
-        set => SetProperty(ref attempt,value);
+        get => this.attempt;
+        set => this.SetProperty(ref this.attempt,value);
     }
 
     public string? ArtifactFolder{
-        get => artifactFolder;
-        set => SetProperty(ref artifactFolder,value);
+        get => this.artifactFolder;
+        set => this.SetProperty(ref this.artifactFolder,value);
     }
 
     public string? Mean{
-        get => mean;
-        set => SetProperty(ref mean,value);
+        get => this.mean;
+        set => this.SetProperty(ref this.mean,value);
     }
 
     public string? Error{
-        get => error;
-        set => SetProperty(ref error,value);
+        get => this.error;
+        set => this.SetProperty(ref this.error,value);
     }
 
     public string? StdDev{
-        get => stdDev;
-        set => SetProperty(ref stdDev,value);
+        get => this.stdDev;
+        set => this.SetProperty(ref this.stdDev,value);
     }
 
     public int? ExitCode{
-        get => exitCode;
-        set => SetProperty(ref exitCode,value);
+        get => this.exitCode;
+        set => this.SetProperty(ref this.exitCode,value);
     }
 
     public DateTimeOffset? StartedAt{
-        get => startedAt;
-        set => SetProperty(ref startedAt,value);
+        get => this.startedAt;
+        set => this.SetProperty(ref this.startedAt,value);
     }
 
     public DateTimeOffset? FinishedAt{
-        get => finishedAt;
-        set => SetProperty(ref finishedAt,value);
+        get => this.finishedAt;
+        set => this.SetProperty(ref this.finishedAt,value);
     }
 
-    public string StatusText => Status.ToString();
-    public string CpuDisplay => AssignedCpu?.CpuDisplayText??"-";
-    public string ProcessIdText => ProcessId==0?"-":ProcessId.ToString();
+    public string StatusText => this.Status.ToString();
+    public string CpuDisplay => this.AssignedCpu?.CpuDisplayText??"-";
+    public string ProcessIdText => this.ProcessId==0?"-": this.ProcessId.ToString();
 }
 
 public sealed record BenchmarkListItem(
@@ -299,23 +339,6 @@ public sealed record WorkerResultMessage(
     int ExitCode,
     string ArtifactFolder,
     string Log);
-
-public sealed record ReportRow(
-    string Project,
-    string Method,
-    string TypeFullName,
-    string FullFunctionName,
-    string Status,
-    string Mean,
-    string Error,
-    string StdDev,
-    string LogicalCpu,
-    string Core,
-    string CpuDisplay,
-    string StartedAt,
-    string FinishedAt,
-    string ArtifactFolder,
-    int? ExitCode);
 
 public static class BenchmarkText{
     private static readonly Regex invalidPathChars = new("["+Regex.Escape(new string(Path.GetInvalidFileNameChars()))+"]",RegexOptions.Compiled);

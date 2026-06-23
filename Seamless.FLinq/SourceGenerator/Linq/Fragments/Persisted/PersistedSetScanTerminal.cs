@@ -3,12 +3,14 @@ using System.Text;
 namespace Seamless.FLinq.Linq.Fragments;
 
 /*
-PersistedSetScanTerminal 縺ｯ PersistedSetRoot + Where/Select/AsEnumerable + Count/Any/First 縺ｮ蠖｢繧・HashSet 蜀・Κ scan 縺ｸ direct execution 縺吶ｋ蟆ら畑邨らｫｯ縲・
-蜈･蜉帑ｾ・
-  tsavoriteSet.Where(x => x > threshold).Select(x => x + 1).First()
+PersistedSetScanTerminal は PersistedSetRoot + Where/Select/AsEnumerable + Count/Any/First の形を
+Set 内部 scan へ direct execution する専用終端。
 
-逕滓・萓・
-  var source = originalHashSetExpression;
+入力例:
+  persistedSet.Where(x => x > threshold).Select(x => x + 1).First()
+
+生成例:
+  var source = originalSetExpression;
   var state = new ScanState(captures...);
   ScanInt32(source, itemObject => ScanBody(ref state, itemObject));
   result = terminalKind switch {
@@ -17,15 +19,20 @@ PersistedSetScanTerminal 縺ｯ PersistedSetRoot + Where/Select/AsEnumerable + C
       First => state.Found ? state.Value : throw NoElements()
   };
 
-荳ｻ縺ｪ蛻ｶ邏・
-  - root 縺ｮ隕∫ｴ蝙九・ int縲・  - stage 縺ｯ Where/Select/AsEnumerable 縺ｮ縺ｿ縲・  - terminal 縺ｯ Count/Any/First 縺ｮ縺ｿ縲・  - statement inline 縺悟ｿ・ｦ√↑ FuncFragment 縺ｯ蟇ｾ雎｡螟悶・
-險ｭ險域э蝗ｳ:
-  騾壼ｸｸ enumerator 繧剃ｽ懊ｉ縺・UnsafeAccessor 縺ｧ Tsavorite 縺ｮ scan API 縺ｸ蜈･繧翫｜ody delegate 蜀・〒 pipeline stage 繧帝・↓隧穂ｾ｡縺吶ｋ縲・*/
+主な制約:
+  - root の要素型は int。
+  - stage は Where/Select/AsEnumerable のみ。
+  - terminal は Count/Any/First のみ。
+  - statement inline が必要な FuncFragment は対象外。
+
+設計意図:
+  通常 enumerator を作らず UnsafeAccessor で Persisted の scan API へ入り、body delegate 内で pipeline stage を順に評価する。
+*/
 public sealed class PersistedSetScanTerminal(
-    int 逡ｪ蜿ｷ,
+    int 番号,
     PipelineEnumerable pipeline,
     PipelineTerminalKind terminalKind)
-    : Scalar(逡ｪ蜿ｷ),DirectExecutionFragment {
+    : Scalar(番号),DirectExecutionFragment {
     private PersistedSetRoot Root => (PersistedSetRoot)pipeline.Source;
     private string StateTypeName => $"{this.Struct}_PersistedSetScanState";
     private string BodyMethodName => $"{this.Struct}_PersistedSetScanBody";
@@ -74,8 +81,8 @@ public sealed class PersistedSetScanTerminal(
     public override string GetCurrentExpression => string.Empty;
 
     public string GetDirectExecutionStatement(string actualVariableName,string actualTypeName) {
-        var sourceName=$"__persistedScanSource{逡ｪ蜿ｷ}";
-        var stateName=$"__persistedScanState{逡ｪ蜿ｷ}";
+        var sourceName=$"__persistedScanSource{番号}";
+        var stateName=$"__persistedScanState{番号}";
         var builder = new StringBuilder();
         builder.AppendLine($"var {sourceName}={this.Root.SourceExpression};");
         builder.AppendLine($"var {stateName}=new {this.StateTypeName}[] {{ new {this.StateTypeName}({this.ClosureArgumentList()}) }};");

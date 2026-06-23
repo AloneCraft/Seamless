@@ -669,13 +669,27 @@ public sealed partial class FLinqIncrementalGenerator {
         invocation.Expression is GenericNameSyntax
         || invocation.Expression is MemberAccessExpressionSyntax { Name: GenericNameSyntax };
 
+    /// <summary>
+    /// キーを長い順に置換する。値が他のキーの一部分（フィールドアクセサ名に元の識別子が
+    /// そのまま埋め込まれる等）を含むことがあるため、語境界 (<c>\b</c>) を必須にして
+    /// 既に置換済みの箇所を再置換してしまう事故（二重ラップ）を防ぐ。
+    /// </summary>
     private static string ApplyExpressionReplacementMap(string text,IReadOnlyDictionary<string,string>? replacementMap) {
         if(replacementMap is null) {
             return text;
         }
 
         foreach(var pair in replacementMap.OrderByDescending(static pair=>pair.Key.Length)) {
-            text=text.Replace(NormalizeGeneratedExpressionText(pair.Key),pair.Value,StringComparison.Ordinal);
+            var normalizedKey = NormalizeGeneratedExpressionText(pair.Key);
+            // \b は両端が単語文字であることを要求するため、`...Aggregate(x=>x)` のように
+            // キーが括弧などの非単語文字で終わる（メソッド呼び出し式は常にこの形）場合、
+            // 直後が `;`/`,`/`)`/文字列終端などの非単語文字だと \b が一致せず置換が無発火になる。
+            // 単語文字との境界のみを要求する (?<!\w) / (?!\w) に置き換えて両端の非単語文字同士は許容する。
+            text=System.Text.RegularExpressions.Regex.Replace(
+                text,
+                $@"(?<!\w){System.Text.RegularExpressions.Regex.Escape(normalizedKey)}(?!\w)",
+                pair.Value.Replace("$","$$",StringComparison.Ordinal),
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         }
 
         return text;

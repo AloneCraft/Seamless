@@ -69,13 +69,13 @@ public sealed class CpuPresetCatalogTests{
     [Fact]
     public void ReportFormatter_KeepsDetailedCsv_AndBuildsAggregatedHtml(){
         var rows = new[]{
-            new ReportRow("System LINQ","Method","Completed","1.0 ns","0.1","0.2","0","P0","0(P0)","artifact",0),
+            new ReportRow("System LINQ","Method","","Method","Completed","1.0 ns","0.1","0.2","0","P0","0(P0)","","","artifact",0),
         };
 
         var csv = BenchmarkReportFormatter.BuildCsv(rows);
         var html = BenchmarkReportFormatter.BuildHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
 
-        Assert.Contains("LogicalCpu,Core,CpuDisplay,ArtifactFolder,ExitCode",csv,StringComparison.Ordinal);
+        Assert.Contains("LogicalCpu,Core,CpuDisplay,StartedAt,FinishedAt,ArtifactFolder,ExitCode",csv,StringComparison.Ordinal);
         Assert.Contains("0(P0)",csv,StringComparison.Ordinal);
         Assert.Contains("<thead><tr><th>Method</th><th>linq</th><th>zlinq</th><th>flinq</th></tr></thead>",html,StringComparison.Ordinal);
         Assert.DoesNotContain("<th>Project</th>",html,StringComparison.Ordinal);
@@ -129,8 +129,8 @@ public sealed class CpuPresetCatalogTests{
         Assert.Contains("<tr><td>Where</td><td class=\"num\">2 ns</td><td class=\"num\"></td><td class=\"num\"></td></tr>",html,StringComparison.Ordinal);
         Assert.Contains("<tr><td>AllMissing</td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td></tr>",html,StringComparison.Ordinal);
         Assert.Contains("<div class=\"method\" title=\"AllMissing\">AllMissing</div>",chart,StringComparison.Ordinal);
-        Assert.Contains("<div class=\"segment zlinq\" style=\"width:0%\" title=\"zlinq:  (0.0%)\">",chart,StringComparison.Ordinal);
-        Assert.Contains("<div class=\"segment flinq\" style=\"width:0%\" title=\"flinq:  (0.0%)\">",chart,StringComparison.Ordinal);
+        Assert.Contains("<div class=\"segment zlinq\" data-key=\"zlinq\" data-value=\"0\" data-original=\"1\" style=\"width:0%\" title=\"zlinq:  (0.0%)\">",chart,StringComparison.Ordinal);
+        Assert.Contains("<div class=\"segment flinq\" data-key=\"flinq\" data-value=\"0\" data-original=\"2\" style=\"width:0%\" title=\"flinq:  (0.0%)\">",chart,StringComparison.Ordinal);
     }
 
     [Fact]
@@ -143,10 +143,16 @@ public sealed class CpuPresetCatalogTests{
 
         var chart = BenchmarkReportFormatter.BuildChartHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
 
-        Assert.Contains("<div class=\"segment linq\" style=\"width:20%\" title=\"linq: 2 ns (20.0%)\">",chart,StringComparison.Ordinal);
-        Assert.Contains("<div class=\"segment zlinq\" style=\"width:30%\" title=\"zlinq: 3 ns (30.0%)\">",chart,StringComparison.Ordinal);
-        Assert.Contains("<div class=\"segment flinq\" style=\"width:50%\" title=\"flinq: 5 ns (50.0%)\">",chart,StringComparison.Ordinal);
+        AssertSegment(chart,"linq","20","2 ns","20.0%");
+        AssertSegment(chart,"zlinq","30","3 ns","30.0%");
+        AssertSegment(chart,"flinq","50","5 ns","50.0%");
         Assert.Contains("<div class=\"axis\"><span>0</span><span>0.25</span><span>0.5</span><span>0.75</span><span>1</span></div>",chart,StringComparison.Ordinal);
+    }
+
+    private static void AssertSegment(string chart,string series,string expectedWidth,string expectedMean,string expectedPercent){
+        var escapedTitle = global::System.Text.RegularExpressions.Regex.Escape($"{series}: {expectedMean} ({expectedPercent})");
+        var pattern = $@"<div class=""segment {series}""[^>]*style=""width:{expectedWidth}%""[^>]*title=""{escapedTitle}""";
+        Assert.Matches(pattern,chart);
     }
 
     private static IReadOnlyList<CpuCoreInfo> CreateHybridCpuSet(){
@@ -170,6 +176,6 @@ public sealed class CpuPresetCatalogTests{
     }
 
     private static ReportRow CreateReportRow(string project,string method,string status,string mean){
-        return new ReportRow(project,method,status,mean,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,null);
+        return new ReportRow(project,method,string.Empty,string.Empty,status,mean,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,null);
     }
 }

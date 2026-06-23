@@ -1,10 +1,10 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
 public sealed class PersistedSetRoot(
-    int 逡ｪ蜿ｷ,
+    int 番号,
     string sourceExpression,
     string elementType,
     string enumeratorTypeName)
-    : Root(逡ｪ蜿ｷ,sourceExpression,elementType,enumeratorTypeName,useEnumerableInterface: false) {
+    : Root(番号,sourceExpression,elementType,enumeratorTypeName,useEnumerableInterface: false) {
     public string SourceExpression { get; } = sourceExpression;
 }

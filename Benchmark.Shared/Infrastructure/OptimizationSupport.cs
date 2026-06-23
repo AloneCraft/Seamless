@@ -1,4 +1,4 @@
-using global::System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 
 namespace Benchmark.Shared;
 

@@ -47,6 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DynamicLinq.Runner\DynamicLinq.Runner.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="..\Benchmark.Worker\Benchmark.Worker.csproj" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.Linq\Test.System.Linq.Enumerable.Linq.csproj" PrivateAssets="all" Aliases="BenchmarkLinq" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.FLinq\Test.System.Linq.Enumerable.FLinq.csproj" PrivateAssets="all" Aliases="BenchmarkFLinq" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.ZLinq\Test.System.Linq.Enumerable.ZLinq.csproj" PrivateAssets="all" Aliases="BenchmarkZLinq" />
@@ -58,11 +59,5 @@
     <ProjectReference Include="..\Seamless.SourceGenerators\Seamless.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="..\Benchmark.Runner.Uno\Benchmark.Runner.Uno\BenchmarkRunnerModels.cs" Link="Benchmark.Runner.Uno\BenchmarkRunnerModels.cs" />
-    <Compile Include="..\Benchmark.Runner.Uno\Benchmark.Runner.Uno\CpuPresetCatalog.cs" Link="Benchmark.Runner.Uno\CpuPresetCatalog.cs" />
-    <Compile Include="..\Benchmark.Runner.Uno\Benchmark.Runner.Uno\BenchmarkReportFormatter.cs" Link="Benchmark.Runner.Uno\BenchmarkReportFormatter.cs" />
-    <Compile Include="..\Benchmark.Runner.Uno\Benchmark.Runner.Uno\CsvStringBuilderExtensions.cs" Link="Benchmark.Runner.Uno\CsvStringBuilderExtensions.cs" />
   </ItemGroup>
 </Project>
