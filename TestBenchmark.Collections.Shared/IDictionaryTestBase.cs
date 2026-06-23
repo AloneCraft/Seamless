@@ -1,5 +1,5 @@
 using Seamless.Tsavorite.Collections;
-using global::System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Tsavorite.core;
 using Test.Seamless.Collections;
@@ -216,7 +216,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
         {
             // FlushAndEvict 後もコールドデータを読めること
-            var folder = this.CreateDiskFolder();
+            var folder = CreateDiskFolder();
             using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
             using var sh = TStrategy.CreateStorageStore(logDevice,objDevice);
@@ -371,7 +371,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     public void WouldOverflowMutable() {
         {
             // mutableFraction=0 でも格納できること
-            var folder = this.CreateDiskFolder();
+            var folder = CreateDiskFolder();
             using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
             using var sh = TStrategy.CreateStorageStore(logDevice,objDevice,memorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity,mutableFraction: 0);
@@ -393,7 +393,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     [Fact, Trait("Category","Unit")]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<保留中>")]
     public void SaveLoad() {
-        var folder = this.CreateDiskFolder();
+        var folder = CreateDiskFolder();
         var checkpointDir = folder+"_checkpoint";
         Guid token;
         {

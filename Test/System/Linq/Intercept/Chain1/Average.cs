@@ -9,8 +9,8 @@ public sealed class Average(ITestOutputHelper output):LinqChain1TestBase(output)
     [Fact, Trait("Category","Unit")]
     public void int_NoDelegate() {
         var expected=Source().Average();
-        this.AssertOptimized(expected,()=>int_NoDelegateOptimized(),0,0);
-        this.AssertOptimized(expected,()=>int_NoDelegateNoOptimized(),0,0);
+        AssertOptimized(expected,()=>int_NoDelegateOptimized(),0,0);
+        AssertOptimized(expected,()=>int_NoDelegateNoOptimized(),0,0);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -24,8 +24,8 @@ public sealed class Average(ITestOutputHelper output):LinqChain1TestBase(output)
     [Fact, Trait("Category","Unit")]
     public void selector_Nested() {
         var expected=Source().Average<int>(p => Source().Average(int (q) => q+p));
-        this.AssertOptimized(expected,()=>selector_NestedOptimized(),4,0);
-        this.AssertOptimized(expected,()=>selector_NestedNoOptimized(),4,4);
+        AssertOptimized(expected,()=>selector_NestedOptimized(),4,0);
+        AssertOptimized(expected,()=>selector_NestedNoOptimized(),4,4);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -39,8 +39,8 @@ public sealed class Average(ITestOutputHelper output):LinqChain1TestBase(output)
     [Fact, Trait("Category","Unit")]
     public void selector_Static() {
         var expected=Rows().Average(static row => row.Value);
-        this.AssertOptimized(expected,()=>selector_StaticOptimized(),4,0);
-        this.AssertOptimized(expected,()=>selector_StaticNoOptimized(),4,4);
+        AssertOptimized(expected,()=>selector_StaticOptimized(),4,0);
+        AssertOptimized(expected,()=>selector_StaticNoOptimized(),4,4);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -54,8 +54,8 @@ public sealed class Average(ITestOutputHelper output):LinqChain1TestBase(output)
     [Fact, Trait("Category","Unit")]
     public void selector_Lambda() {
         var expected=Rows().Average(row => row.Value);
-        this.AssertOptimized(expected,()=>selector_LambdaOptimized(),4,0);
-        this.AssertOptimized(expected,()=>selector_LambdaNoOptimized(),4,4);
+        AssertOptimized(expected,()=>selector_LambdaOptimized(),4,0);
+        AssertOptimized(expected,()=>selector_LambdaNoOptimized(),4,4);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -70,8 +70,8 @@ public sealed class Average(ITestOutputHelper output):LinqChain1TestBase(output)
     public void selector_Captured() {
         var offset=0;
         var expected=Rows().Average(row => row.Value+offset);
-        this.AssertOptimized(expected,()=>selector_CapturedOptimized(offset),4,0);
-        this.AssertOptimized(expected,()=>selector_CapturedNoOptimized(offset),4,4);
+        AssertOptimized(expected,()=>selector_CapturedOptimized(offset),4,0);
+        AssertOptimized(expected,()=>selector_CapturedNoOptimized(offset),4,4);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -85,8 +85,8 @@ public sealed class Average(ITestOutputHelper output):LinqChain1TestBase(output)
     [Fact, Trait("Category","Unit")]
     public void selector_DelegateSyntax() {
         var expected=Rows().Average(delegate(Chain1Row row) { return row.Value; });
-        this.AssertOptimized(expected,()=>selector_DelegateSyntaxOptimized(),4,0);
-        this.AssertOptimized(expected,()=>selector_DelegateSyntaxNoOptimized(),4,4);
+        AssertOptimized(expected,()=>selector_DelegateSyntaxOptimized(),4,0);
+        AssertOptimized(expected,()=>selector_DelegateSyntaxNoOptimized(),4,4);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -101,8 +101,8 @@ public sealed class Average(ITestOutputHelper output):LinqChain1TestBase(output)
     public void selector_Variable() {
         Func<Chain1Row,int> selector=row => row.Value;
         var expected=Rows().Average(selector);
-        this.AssertOptimized(expected,()=>selector_VariableOptimized(selector),4,4);
-        this.AssertOptimized(expected,()=>selector_VariableNoOptimized(selector),4,4);
+        AssertOptimized(expected,()=>selector_VariableOptimized(selector),4,4);
+        AssertOptimized(expected,()=>selector_VariableNoOptimized(selector),4,4);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]

@@ -8,8 +8,8 @@ public sealed class Where_Count(ITestOutputHelper output):LinqChain2TestBase(out
     [Fact, Trait("Category","Unit")]
     public void Static() {
         var expected=Source().Where(static v => v>2).Count();
-        this.MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
-        this.MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
+        MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
+        MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

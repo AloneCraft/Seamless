@@ -1,5 +1,5 @@
-using global::System.ComponentModel;
-using global::System.Runtime.CompilerServices;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Benchmark.Runner.Uno;
 

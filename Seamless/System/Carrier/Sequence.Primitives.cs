@@ -47,8 +47,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out Byte current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }
@@ -90,7 +90,7 @@ namespace Seamless.System.Carrier {
         public void Dispose() {
         }
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.CanOptimize()) {
+            if(CanOptimize()) {
                 count=(int)(endInclusive-currentValue+1); // currentValue is start if not strated yet.
                 return true;
             }
@@ -105,7 +105,7 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<Byte> destination,Index offset) {
-            if(this.TryGetNonEnumeratedCount(out var count)) {
+            if(TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
                     FillIncremental(destination.Slice(0,fillCount),(Byte)(currentValue+(Byte)fillStart));
                     return true;
@@ -202,8 +202,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out SByte current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }
@@ -245,7 +245,7 @@ namespace Seamless.System.Carrier {
         public void Dispose() {
         }
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.CanOptimize()) {
+            if(CanOptimize()) {
                 count=(int)(endInclusive-currentValue+1); // currentValue is start if not strated yet.
                 return true;
             }
@@ -260,7 +260,7 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<SByte> destination,Index offset) {
-            if(this.TryGetNonEnumeratedCount(out var count)) {
+            if(TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
                     FillIncremental(destination.Slice(0,fillCount),(SByte)(currentValue+(SByte)fillStart));
                     return true;
@@ -357,8 +357,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out UInt16 current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }
@@ -400,7 +400,7 @@ namespace Seamless.System.Carrier {
         public void Dispose() {
         }
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.CanOptimize()) {
+            if(CanOptimize()) {
                 count=(int)(endInclusive-currentValue+1); // currentValue is start if not strated yet.
                 return true;
             }
@@ -415,7 +415,7 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<UInt16> destination,Index offset) {
-            if(this.TryGetNonEnumeratedCount(out var count)) {
+            if(TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
                     FillIncremental(destination.Slice(0,fillCount),(UInt16)(currentValue+(UInt16)fillStart));
                     return true;
@@ -512,8 +512,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out Int16 current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }
@@ -555,7 +555,7 @@ namespace Seamless.System.Carrier {
         public void Dispose() {
         }
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.CanOptimize()) {
+            if(CanOptimize()) {
                 count=(int)(endInclusive-currentValue+1); // currentValue is start if not strated yet.
                 return true;
             }
@@ -570,7 +570,7 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<Int16> destination,Index offset) {
-            if(this.TryGetNonEnumeratedCount(out var count)) {
+            if(TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
                     FillIncremental(destination.Slice(0,fillCount),(Int16)(currentValue+(Int16)fillStart));
                     return true;
@@ -667,8 +667,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out UInt32 current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }
@@ -710,7 +710,7 @@ namespace Seamless.System.Carrier {
         public void Dispose() {
         }
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.CanOptimize()) {
+            if(CanOptimize()) {
                 count=(int)(endInclusive-currentValue+1); // currentValue is start if not strated yet.
                 return true;
             }
@@ -725,7 +725,7 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<UInt32> destination,Index offset) {
-            if(this.TryGetNonEnumeratedCount(out var count)) {
+            if(TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
                     FillIncremental(destination.Slice(0,fillCount),(UInt32)(currentValue+(UInt32)fillStart));
                     return true;
@@ -822,8 +822,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out Int32 current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }
@@ -865,7 +865,7 @@ namespace Seamless.System.Carrier {
         public void Dispose() {
         }
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.CanOptimize()) {
+            if(CanOptimize()) {
                 count=(int)(endInclusive-currentValue+1); // currentValue is start if not strated yet.
                 return true;
             }
@@ -880,7 +880,7 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<Int32> destination,Index offset) {
-            if(this.TryGetNonEnumeratedCount(out var count)) {
+            if(TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
                     FillIncremental(destination.Slice(0,fillCount),(Int32)(currentValue+(Int32)fillStart));
                     return true;
@@ -977,8 +977,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out UInt64 current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }
@@ -1020,7 +1020,7 @@ namespace Seamless.System.Carrier {
         public void Dispose() {
         }
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.CanOptimize()) {
+            if(CanOptimize()) {
                 count=(int)(endInclusive-currentValue+1); // currentValue is start if not strated yet.
                 return true;
             }
@@ -1035,7 +1035,7 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<UInt64> destination,Index offset) {
-            if(this.TryGetNonEnumeratedCount(out var count)) {
+            if(TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
                     FillIncremental(destination.Slice(0,fillCount),(UInt64)(currentValue+(UInt64)fillStart));
                     return true;
@@ -1132,8 +1132,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out Int64 current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }
@@ -1175,7 +1175,7 @@ namespace Seamless.System.Carrier {
         public void Dispose() {
         }
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.CanOptimize()) {
+            if(CanOptimize()) {
                 count=(int)(endInclusive-currentValue+1); // currentValue is start if not strated yet.
                 return true;
             }
@@ -1190,7 +1190,7 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<Int64> destination,Index offset) {
-            if(this.TryGetNonEnumeratedCount(out var count)) {
+            if(TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
                     FillIncremental(destination.Slice(0,fillCount),(Int64)(currentValue+(Int64)fillStart));
                     return true;
@@ -1287,8 +1287,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out Char current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }
@@ -1330,7 +1330,7 @@ namespace Seamless.System.Carrier {
         public void Dispose() {
         }
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.CanOptimize()) {
+            if(CanOptimize()) {
                 count=(int)(endInclusive-currentValue+1); // currentValue is start if not strated yet.
                 return true;
             }
@@ -1345,7 +1345,7 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<Char> destination,Index offset) {
-            if(this.TryGetNonEnumeratedCount(out var count)) {
+            if(TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
                     FillIncremental(destination.Slice(0,fillCount),(Char)(currentValue+(Char)fillStart));
                     return true;
@@ -1444,8 +1444,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out Single current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }
@@ -1546,8 +1546,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out Double current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }
@@ -1646,8 +1646,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out Decimal current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }

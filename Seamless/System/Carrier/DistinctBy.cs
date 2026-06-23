@@ -32,13 +32,13 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) => false;
 
         public bool TryGetNext(out TSource current) {
-            if(this.set==null) {
-                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator,TSource>(ref this.source);
-                this.set=hint>0 ? new HashSetSlim<TKey>(hint,comparer) : new HashSetSlim<TKey>(comparer);
+            if(set==null) {
+                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator,TSource>(ref source);
+                set=hint>0 ? new HashSetSlim<TKey>(hint,comparer) : new HashSetSlim<TKey>(comparer);
             }
 
-            while(this.source.TryGetNext(out var value)) {
-                if(this.set.Add(keySelector(value))) {
+            while(source.TryGetNext(out var value)) {
+                if(set.Add(keySelector(value))) {
                     current=value;
                     return true;
                 }
@@ -49,8 +49,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            this.set?.Dispose();
-            this.source.Dispose();
+            set?.Dispose();
+            source.Dispose();
         }
     }
 }

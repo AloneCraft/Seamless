@@ -32,29 +32,29 @@ public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumer
     private Enumerable Source => source;
     // 自身が表す既定値の式。最内でない場合は EffectiveDefaultValue 経由で無視される。
     protected abstract string OwnDefaultValue { get; }
-    private Enumerable RootSource => this.Source is DefaultIfEmptyBase d ? d.RootSource : this.Source;
-    private string EffectiveDefaultValue => this.Source is DefaultIfEmptyBase d ? d.EffectiveDefaultValue : this.OwnDefaultValue;
-    protected override Enumerable PrimarySource => this.RootSource;
+    private Enumerable RootSource => Source is DefaultIfEmptyBase d ? d.RootSource : Source;
+    private string EffectiveDefaultValue => Source is DefaultIfEmptyBase d ? d.EffectiveDefaultValue : OwnDefaultValue;
+    protected override Enumerable PrimarySource => RootSource;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""
-        {{this.RootSource.GetEnumeratorStruct}}
+        {{RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}, {this.EffectiveDefaultValue})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {this.RootSource.ElementType} defaultValue";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({RootSource.GetEnumeratorExpression}, {EffectiveDefaultValue})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {RootSource.ElementType} defaultValue";
     public override string GetEnumeratorFields => $$"""
-        private bool {{this.hasValue}};
-        private bool {{this.yielded}};
+        private bool {{hasValue}};
+        private bool {{yielded}};
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.MoveNext()) {
-            this.{{this.hasValue}}=true;
-            current=this.{{this.currentValue}}={{this.e}}.Current;
+        if({{e}}.MoveNext()) {
+            this.{{hasValue}}=true;
+            current=this.{{currentValue}}={{e}}.Current;
             return true;
         }
-        if(!this.{{this.hasValue}}&&!this.{{this.yielded}}) {
-            this.{{this.yielded}}=true;
-            current=this.{{this.currentValue}}=defaultValue;
+        if(!this.{{hasValue}}&&!this.{{yielded}}) {
+            this.{{yielded}}=true;
+            current=this.{{currentValue}}=defaultValue;
             return true;
         }
         current=default!;
@@ -63,7 +63,7 @@ public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumer
     // 非空なら RootSource の件数、空なら既定値1個ぶんの 1 を返す。
     // bool を呼び出し側が確認する実行時 fast path のため安全（CanProvideSpan は false のまま）。
     protected override string GetTryGetNonEnumeratedCountBody => $$"""
-        if({{this.e}}.TryGetNonEnumeratedCount(out var __c)) {
+        if({{e}}.TryGetNonEnumeratedCount(out var __c)) {
             if(__c==0) {
                 count=1;
             }else{
@@ -74,8 +74,8 @@ public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumer
         count=0;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
-    public override string ElementType => this.RootSource.ElementType;
+    public override string GetCurrentExpression => currentValue;
+    public override string ElementType => RootSource.ElementType;
 }
 
 public class DefaultIfEmpty(int 番号, Enumerable source) : DefaultIfEmptyBase(番号, source) {

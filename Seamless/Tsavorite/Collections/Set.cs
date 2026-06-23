@@ -1,15 +1,15 @@
 using Seamless.Tsavorite.Stores;
 namespace Seamless.Tsavorite.Collections;
 
-public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>>,Seamless.Collections.ISet<TKey,TRecord>, IMemoryCollection<TRecord>
-    where TRecord : Seamless.Collections.IRecord<TKey> {
+public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>>,ISet<TKey,TRecord>, IMemoryCollection<TRecord>
+    where TRecord : IRecord<TKey> {
     private readonly IDisposable? ownedStore;
     internal Set(CollectionStore<TKey,TRecord> collectionStore,IDisposable? ownedStore = null) : base(collectionStore) {
         this.ownedStore=ownedStore;
     }
     public bool IsReadOnly => false;
     public bool Add(TRecord item) {
-        var result = this.PrivateTryAdd(item.Key,item);
+        var result = PrivateTryAdd(item.Key,item);
         switch(result) {
             case TryAddResult.Success:
                 return true;
@@ -17,19 +17,19 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
                 return false;
             default:
                 Debug.Assert(result==TryAddResult.LogFull);
-                throw this.ThrowLogFull();
+                throw ThrowLogFull();
         }
     }
-    void ICollection<TRecord>.Add(TRecord item) => this.Add(item);
-    public bool Contains(TRecord item) => this.ContainsKey(item.Key);
+    void ICollection<TRecord>.Add(TRecord item) => Add(item);
+    public bool Contains(TRecord item) => ContainsKey(item.Key);
     public new bool ContainsKey(TKey key) => base.ContainsKey(key);
-    public bool Remove(TRecord item) => this.Remove(item.Key);
+    public bool Remove(TRecord item) => Remove(item.Key);
     public bool Remove(TKey key,[MaybeNullWhen(false)] out TRecord value) {
-        if(!this.TryGetValue(key,out value)) {
+        if(!TryGetValue(key,out value)) {
             value=default;
             return false;
         }
-        if(this.Remove(key))
+        if(Remove(key))
             return true;
         value=default;
         return false;
@@ -37,34 +37,34 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
     public void CopyTo(TRecord[] array,int arrayIndex) {
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
-        if(array.Length-arrayIndex<this.GetLongCount())
+        if(array.Length-arrayIndex<GetLongCount())
             throw new ArgumentException("The destination array is too small.");
         foreach(var item in this)
             array[arrayIndex++]=item;
     }
-    public void ExceptWith(Seamless.Collections.ISet<TKey,TRecord> other) => TsavoriteSetOperations.ExceptWith(this,other);
-    public void ExceptWith(Set<TKey,TRecord> other) => this.ExceptWith((Seamless.Collections.ISet<TKey,TRecord>)other);
-    public void IntersectWith(Seamless.Collections.ISet<TKey,TRecord> other) => TsavoriteSetOperations.IntersectWith(this,other);
-    public void IntersectWith(Set<TKey,TRecord> other) => this.IntersectWith((Seamless.Collections.ISet<TKey,TRecord>)other);
-    public bool IsSubsetOf(Seamless.Collections.ISet<TKey,TRecord> other) => TsavoriteSetOperations.IsSubsetOf(this,other);
-    public bool IsSubsetOf(Set<TKey,TRecord> other) => this.IsSubsetOf((Seamless.Collections.ISet<TKey,TRecord>)other);
-    public bool IsSupersetOf(Seamless.Collections.ISet<TKey,TRecord> other) => TsavoriteSetOperations.IsSupersetOf(this,other);
-    public bool IsSupersetOf(Set<TKey,TRecord> other) => this.IsSupersetOf((Seamless.Collections.ISet<TKey,TRecord>)other);
-    public bool IsProperSubsetOf(Seamless.Collections.ISet<TKey,TRecord> other) => TsavoriteSetOperations.IsProperSubsetOf(this,other);
-    public bool IsProperSubsetOf(Set<TKey,TRecord> other) => this.IsProperSubsetOf((Seamless.Collections.ISet<TKey,TRecord>)other);
-    public bool IsProperSupersetOf(Seamless.Collections.ISet<TKey,TRecord> other) => TsavoriteSetOperations.IsProperSupersetOf(this,other);
-    public bool IsProperSupersetOf(Set<TKey,TRecord> other) => this.IsProperSupersetOf((Seamless.Collections.ISet<TKey,TRecord>)other);
-    public bool Overlaps(Seamless.Collections.ISet<TKey,TRecord> other) => TsavoriteSetOperations.Overlaps(this,other);
-    public bool Overlaps(Set<TKey,TRecord> other) => this.Overlaps((Seamless.Collections.ISet<TKey,TRecord>)other);
-    public bool SetEquals(Seamless.Collections.ISet<TKey,TRecord> other) => TsavoriteSetOperations.SetEquals(this,other);
-    public bool SetEquals(Set<TKey,TRecord> other) => this.SetEquals((Seamless.Collections.ISet<TKey,TRecord>)other);
-    public void SymmetricExceptWith(Seamless.Collections.ISet<TKey,TRecord> other) => TsavoriteSetOperations.SymmetricExceptWith(this,other);
-    public void SymmetricExceptWith(Set<TKey,TRecord> other) => this.SymmetricExceptWith((Seamless.Collections.ISet<TKey,TRecord>)other);
-    public void UnionWith(Seamless.Collections.ISet<TKey,TRecord> other) => TsavoriteSetOperations.UnionWith(this,other);
-    public void UnionWith(Set<TKey,TRecord> other) => this.UnionWith((Seamless.Collections.ISet<TKey,TRecord>)other);
+    public void ExceptWith(ISet<TKey,TRecord> other) => TsavoriteSetOperations.ExceptWith(this,other);
+    public void ExceptWith(Set<TKey,TRecord> other) => ExceptWith((ISet<TKey,TRecord>)other);
+    public void IntersectWith(ISet<TKey,TRecord> other) => TsavoriteSetOperations.IntersectWith(this,other);
+    public void IntersectWith(Set<TKey,TRecord> other) => IntersectWith((ISet<TKey,TRecord>)other);
+    public bool IsSubsetOf(ISet<TKey,TRecord> other) => TsavoriteSetOperations.IsSubsetOf(this,other);
+    public bool IsSubsetOf(Set<TKey,TRecord> other) => IsSubsetOf((ISet<TKey,TRecord>)other);
+    public bool IsSupersetOf(ISet<TKey,TRecord> other) => TsavoriteSetOperations.IsSupersetOf(this,other);
+    public bool IsSupersetOf(Set<TKey,TRecord> other) => IsSupersetOf((ISet<TKey,TRecord>)other);
+    public bool IsProperSubsetOf(ISet<TKey,TRecord> other) => TsavoriteSetOperations.IsProperSubsetOf(this,other);
+    public bool IsProperSubsetOf(Set<TKey,TRecord> other) => IsProperSubsetOf((ISet<TKey,TRecord>)other);
+    public bool IsProperSupersetOf(ISet<TKey,TRecord> other) => TsavoriteSetOperations.IsProperSupersetOf(this,other);
+    public bool IsProperSupersetOf(Set<TKey,TRecord> other) => IsProperSupersetOf((ISet<TKey,TRecord>)other);
+    public bool Overlaps(ISet<TKey,TRecord> other) => TsavoriteSetOperations.Overlaps(this,other);
+    public bool Overlaps(Set<TKey,TRecord> other) => Overlaps((ISet<TKey,TRecord>)other);
+    public bool SetEquals(ISet<TKey,TRecord> other) => TsavoriteSetOperations.SetEquals(this,other);
+    public bool SetEquals(Set<TKey,TRecord> other) => SetEquals((ISet<TKey,TRecord>)other);
+    public void SymmetricExceptWith(ISet<TKey,TRecord> other) => TsavoriteSetOperations.SymmetricExceptWith(this,other);
+    public void SymmetricExceptWith(Set<TKey,TRecord> other) => SymmetricExceptWith((ISet<TKey,TRecord>)other);
+    public void UnionWith(ISet<TKey,TRecord> other) => TsavoriteSetOperations.UnionWith(this,other);
+    public void UnionWith(Set<TKey,TRecord> other) => UnionWith((ISet<TKey,TRecord>)other);
 
-    public Set<TKey,TRecord> Except(Set<TKey,TRecord> other) => this.Except((Seamless.Collections.ISet<TKey,TRecord>)other);
-    public Set<TKey,TRecord> Except(Seamless.Collections.ISet<TKey,TRecord> other) {
+    public Set<TKey,TRecord> Except(Set<TKey,TRecord> other) => Except((ISet<TKey,TRecord>)other);
+    public Set<TKey,TRecord> Except(ISet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this) {
@@ -73,7 +73,7 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
         }
         return result;
     }
-    public HashSet<TKey> Except(HashSet<TKey> other) => this.Except((IHashSet<TKey>)other);
+    public HashSet<TKey> Except(HashSet<TKey> other) => Except((IHashSet<TKey>)other);
     public HashSet<TKey> Except(IHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedKeyResultSet();
@@ -84,8 +84,8 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
         return result;
     }
 
-    public Set<TKey,TRecord> Intersect(Set<TKey,TRecord> other) => this.Intersect((Seamless.Collections.ISet<TKey,TRecord>)other);
-    public Set<TKey,TRecord> Intersect(Seamless.Collections.ISet<TKey,TRecord> other) {
+    public Set<TKey,TRecord> Intersect(Set<TKey,TRecord> other) => Intersect((ISet<TKey,TRecord>)other);
+    public Set<TKey,TRecord> Intersect(ISet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this) {
@@ -94,7 +94,7 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
         }
         return result;
     }
-    public HashSet<TKey> Intersect(HashSet<TKey> other) => this.Intersect((IHashSet<TKey>)other);
+    public HashSet<TKey> Intersect(HashSet<TKey> other) => Intersect((IHashSet<TKey>)other);
     public HashSet<TKey> Intersect(IHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedKeyResultSet();
@@ -105,8 +105,8 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
         return result;
     }
 
-    public Set<TKey,TRecord> SymmetricExcept(Set<TKey,TRecord> other) => this.SymmetricExcept((Seamless.Collections.ISet<TKey,TRecord>)other);
-    public Set<TKey,TRecord> SymmetricExcept(Seamless.Collections.ISet<TKey,TRecord> other) {
+    public Set<TKey,TRecord> SymmetricExcept(Set<TKey,TRecord> other) => SymmetricExcept((ISet<TKey,TRecord>)other);
+    public Set<TKey,TRecord> SymmetricExcept(ISet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this) {
@@ -114,12 +114,12 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
                 result.Add(item);
         }
         foreach(var item in other) {
-            if(!this.ContainsKey(item.Key))
+            if(!ContainsKey(item.Key))
                 result.Add(item);
         }
         return result;
     }
-    public HashSet<TKey> SymmetricExcept(HashSet<TKey> other) => this.SymmetricExcept((IHashSet<TKey>)other);
+    public HashSet<TKey> SymmetricExcept(HashSet<TKey> other) => SymmetricExcept((IHashSet<TKey>)other);
     public HashSet<TKey> SymmetricExcept(IHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedKeyResultSet();
@@ -128,14 +128,14 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
                 result.Add(item.Key);
         }
         foreach(var key in other) {
-            if(!this.ContainsKey(key))
+            if(!ContainsKey(key))
                 result.Add(key);
         }
         return result;
     }
 
-    public Set<TKey,TRecord> Union(Set<TKey,TRecord> other) => this.Union((Seamless.Collections.ISet<TKey,TRecord>)other);
-    public Set<TKey,TRecord> Union(Seamless.Collections.ISet<TKey,TRecord> other) {
+    public Set<TKey,TRecord> Union(Set<TKey,TRecord> other) => Union((ISet<TKey,TRecord>)other);
+    public Set<TKey,TRecord> Union(ISet<TKey,TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedResultSet();
         foreach(var item in this)
@@ -144,7 +144,7 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
             result.Add(item);
         return result;
     }
-    public HashSet<TKey> Union(HashSet<TKey> other) => this.Union((IHashSet<TKey>)other);
+    public HashSet<TKey> Union(HashSet<TKey> other) => Union((IHashSet<TKey>)other);
     public HashSet<TKey> Union(IHashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var result = CreateOwnedKeyResultSet();
@@ -165,20 +165,20 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
         return store.CreateOwned();
     }
 
-    public override bool IsDisposed => this.disposed;
+    public override bool IsDisposed => disposed;
     private bool disposed;
     protected override void Dispose(bool disposing) {
-        if(this.disposed)
+        if(disposed)
             return;
-        this.disposed=true;
+        disposed=true;
         base.Dispose(disposing);
         if(disposing)
-            this.ownedStore?.Dispose();
+            ownedStore?.Dispose();
     }
-    public IEnumerator<TRecord> GetEnumerator() => new Enumerator<ValueIterator,TRecord>(this.ReadSession,new(),this.Store.Log.TailAddress);
-    IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator() => this.GetEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
-    IEnumerator<TRecord> IMemoryCollection<TRecord>.GetEnumerator() => new Enumerator<MemoryValueIterator,TRecord>(this.ReadSession,new(),this.Store.Log.TailAddress);
+    public IEnumerator<TRecord> GetEnumerator() => new Enumerator<ValueIterator,TRecord>(ReadSession,new(),Store.Log.TailAddress);
+    IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator() => GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    IEnumerator<TRecord> IMemoryCollection<TRecord>.GetEnumerator() => new Enumerator<MemoryValueIterator,TRecord>(ReadSession,new(),Store.Log.TailAddress);
 }
 
 

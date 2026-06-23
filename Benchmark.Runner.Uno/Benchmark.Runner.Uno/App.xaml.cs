@@ -1,4 +1,4 @@
-using global::System;
+using System;
 using Microsoft.Extensions.Logging;
 using Uno.Resizetizer;
 using Windows.Graphics;

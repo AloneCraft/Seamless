@@ -22,52 +22,52 @@ Reverse は source.Reverse() を、初回に逆順で読める状態を作って
 */
 public class Reverse(int 番号, Enumerable source) : Enumerable(番号) {
     private Enumerable Source => source;
-    private Enumerable RootSource => this.Source is Reverse reverse ? reverse.RootSource : this.Source;
-    private bool IsIdentity => this.Source is Reverse reverse && !reverse.IsIdentity;
-    protected override Enumerable PrimarySource => this.RootSource;
+    private Enumerable RootSource => Source is Reverse reverse ? reverse.RootSource : Source;
+    private bool IsIdentity => Source is Reverse reverse && !reverse.IsIdentity;
+    protected override Enumerable PrimarySource => RootSource;
     public override string StructMethod => string.Empty;
     public override string GetEnumerableExpression =>
-        this.IsIdentity
-            ? this.RootSource.GetEnumerableExpression
-            : $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Reverse({this.RootSource.GetEnumerableExpression})";
+        IsIdentity
+            ? RootSource.GetEnumerableExpression
+            : $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Reverse({RootSource.GetEnumerableExpression})";
     public override string GetEnumeratorStruct => $$"""
-        {{this.RootSource.GetEnumeratorStruct}}
-        {{(this.IsIdentity ? string.Empty : base.GetEnumeratorStruct)}}
+        {{RootSource.GetEnumeratorStruct}}
+        {{(IsIdentity ? string.Empty : base.GetEnumeratorStruct)}}
         """;
-    public override string EnumeratorTypeName => this.IsIdentity
-        ? this.RootSource.EnumeratorTypeName
+    public override string EnumeratorTypeName => IsIdentity
+        ? RootSource.EnumeratorTypeName
         : base.EnumeratorTypeName;
-    public override string GetEnumeratorExpression => this.IsIdentity
-        ? this.RootSource.GetEnumeratorExpression
-        : $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    public override string GetEnumeratorExpression => IsIdentity
+        ? RootSource.GetEnumeratorExpression
+        : $"new {EnumeratorTypeName}({RootSource.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     public override string GetEnumeratorFields => $$"""
-        private int {{this.a}}=int.MinValue;
-        private global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>? {{this.group}};
+        private int {{a}}=int.MinValue;
+        private global::System.Collections.Generic.List<{{RootSource.ElementType}}>? {{group}};
         """;
-    public override string GetTryGetNextBody => this.RootSource.CanTryProvideSpan
+    public override string GetTryGetNextBody => RootSource.CanTryProvideSpan
         ? $$"""
-            // {{this.a}} は int.MinValue=未初期化 / -1=列挙完了 を区別する。
+            // {{a}} は int.MinValue=未初期化 / -1=列挙完了 を区別する。
             // -1 を未初期化扱いにすると、TryGetNext を完了後も呼ぶ消費側（TraversalSupport の while ループ等）で
             // 末尾到達ごとに Length-1 へ再初期化して無限ループになる。
-            if(this.{{this.a}}==int.MinValue) {
-                if({{this.e}}.TryGetSpan(out var __span0)) {
-                    this.{{this.a}}=__span0.Length-1;
+            if(this.{{a}}==int.MinValue) {
+                if({{e}}.TryGetSpan(out var __span0)) {
+                    this.{{a}}=__span0.Length-1;
                 }else{
-                    if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
-                        this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>(__count);
+                    if({{e}}.TryGetNonEnumeratedCount(out var __count)) {
+                        this.{{group}}=new global::System.Collections.Generic.List<{{RootSource.ElementType}}>(__count);
                     }else{
-                        this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>();
+                        this.{{group}}=new global::System.Collections.Generic.List<{{RootSource.ElementType}}>();
                     }
-                    while({{this.e}}.MoveNext()) this.{{this.group}}.Add({{this.e}}.Current);
-                    this.{{this.a}}=this.{{this.group}}.Count-1;
+                    while({{e}}.MoveNext()) this.{{group}}.Add({{e}}.Current);
+                    this.{{a}}=this.{{group}}.Count-1;
                 }
             }
-            if(this.{{this.a}}>=0) {
-                if({{this.e}}.TryGetSpan(out var __span)) {
-                    current=this.{{this.currentValue}}=__span[this.{{this.a}}--];
+            if(this.{{a}}>=0) {
+                if({{e}}.TryGetSpan(out var __span)) {
+                    current=this.{{currentValue}}=__span[this.{{a}}--];
                 }else{
-                    current=this.{{this.currentValue}}=this.{{this.group}}![this.{{this.a}}--];
+                    current=this.{{currentValue}}=this.{{group}}![this.{{a}}--];
                 }
                 return true;
             }
@@ -75,22 +75,22 @@ public class Reverse(int 番号, Enumerable source) : Enumerable(番号) {
             return false;
             """
         : $$"""
-            if(this.{{this.group}} is null) {
-                if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
-                    this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>(__count);
+            if(this.{{group}} is null) {
+                if({{e}}.TryGetNonEnumeratedCount(out var __count)) {
+                    this.{{group}}=new global::System.Collections.Generic.List<{{RootSource.ElementType}}>(__count);
                 }else{
-                    this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>();
+                    this.{{group}}=new global::System.Collections.Generic.List<{{RootSource.ElementType}}>();
                 }
-                while({{this.e}}.MoveNext()) this.{{this.group}}.Add({{this.e}}.Current);
-                this.{{this.a}}=this.{{this.group}}.Count-1;
+                while({{e}}.MoveNext()) this.{{group}}.Add({{e}}.Current);
+                this.{{a}}=this.{{group}}.Count-1;
             }
-            if(this.{{this.a}}>=0) {
-                current=this.{{this.currentValue}}=this.{{this.group}}[this.{{this.a}}--];
+            if(this.{{a}}>=0) {
+                current=this.{{currentValue}}=this.{{group}}[this.{{a}}--];
                 return true;
             }
             current=default!;
             return false;
             """;
-    public override string GetCurrentExpression => this.currentValue;
-    public override string ElementType => this.RootSource.ElementType;
+    public override string GetCurrentExpression => currentValue;
+    public override string ElementType => RootSource.ElementType;
 }

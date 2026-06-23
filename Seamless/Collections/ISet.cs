@@ -1,7 +1,7 @@
 namespace Seamless.Collections;
 
 public interface ISet<T> : IReadOnlySet<T> {
-    long GetLongCount() => this.Count;
+    long GetLongCount() => Count;
 
     bool IReadOnlySet<T>.IsSubsetOf(IEnumerable<T> other) {
         ArgumentNullException.ThrowIfNull(other);

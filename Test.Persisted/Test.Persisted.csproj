@@ -5,8 +5,8 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <RootNamespace>Test.Persisted.Collections</RootNamespace>
-    <AssemblyName>Test.Persisted.Collections</AssemblyName>
+    <RootNamespace>Test.Persisted</RootNamespace>
+    <AssemblyName>Test.Persisted</AssemblyName>
     <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup>
@@ -28,8 +28,5 @@
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Remove="Persisted\Collections\ListTestBase.cs;Persisted\Collections\ListTestStrategy.cs" />
-  </ItemGroup>
-  <Import Project="..\Collections.Shared\Collections.Shared.projitems" Label="Shared" />
+  <Import Project="..\TestBenchmark.Collections.Shared\TestBenchmark.Collections.Shared.projitems" Label="Shared" />
 </Project>

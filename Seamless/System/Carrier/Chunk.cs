@@ -28,7 +28,7 @@ namespace Seamless.System.Carrier {
         bool isCanGetSpan;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.source.TryGetNonEnumeratedCount(out var sourceCount)) {
+            if(source.TryGetNonEnumeratedCount(out var sourceCount)) {
                 count=(sourceCount+size-1)/size; // Calculate the total number of chunks
                 return true;
             }
@@ -45,67 +45,67 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TSource[]> destination,Index offset) => false;
 
         public bool TryGetNext(out TSource[] current) {
-            if(this.isCompleted) {
+            if(isCompleted) {
                 current=default!;
                 return false;
             }
 
-            if(!this.isInitialized) {
-                this.isInitialized=true;
+            if(!isInitialized) {
+                isInitialized=true;
 
-                if(this.source.TryGetNonEnumeratedCount(out var count)) {
+                if(source.TryGetNonEnumeratedCount(out var count)) {
                     size=Math.Min(size,count); // no needs large buffer
                 }
 
-                if(this.source.TryGetSpan(out var span)) {
-                    this.isCanGetSpan=true;
+                if(source.TryGetSpan(out var span)) {
+                    isCanGetSpan=true;
                     if(span.Length==0) {
-                        this.isCompleted=true;
+                        isCompleted=true;
                         current=default!;
                         return false;
                     }
                 }
             }
 
-            if(this.isCanGetSpan) {
-                if(!this.source.TryGetSpan(out var span)) {
+            if(isCanGetSpan) {
+                if(!source.TryGetSpan(out var span)) {
                     current=default!;
-                    this.isCompleted=true;
+                    isCompleted=true;
                     return false;
                 }
-                var currentSpan = span.Slice(this.index,Math.Min(size,span.Length-this.index));
-                this.index+=currentSpan.Length;
+                var currentSpan = span.Slice(index,Math.Min(size,span.Length-index));
+                index+=currentSpan.Length;
                 current=currentSpan.ToArray();
-                if(this.index==span.Length) {
-                    this.isCompleted=true;
+                if(index==span.Length) {
+                    isCompleted=true;
                 }
                 return true;
             }
             else // noSpan
             {
-                this.index=0;
+                index=0;
                 current=null!;
-                while(this.source.TryGetNext(out var value)) {
+                while(source.TryGetNext(out var value)) {
                     if(current==null) current=new TSource[size];
 
-                    current[this.index++]=value;
-                    if(this.index==size) {
-                        this.index=0;
+                    current[index++]=value;
+                    if(index==size) {
+                        index=0;
                         return true;
                     }
                 }
 
-                this.isCompleted=true;
+                isCompleted=true;
                 if(current==null) return false;
-                if(current.Length!=this.index) {
-                    Array.Resize(ref current,this.index);
+                if(current.Length!=index) {
+                    Array.Resize(ref current,index);
                 }
                 return true;
             }
         }
 
         public void Dispose() {
-            this.source.Dispose();
+            source.Dispose();
         }
     }
 

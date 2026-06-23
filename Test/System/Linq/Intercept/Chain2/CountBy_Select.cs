@@ -9,8 +9,8 @@ public sealed class CountBy_Select(ITestOutputHelper output):LinqChain2TestBase(
     [Fact, Trait("Category","Unit")]
     public void Static() {
         var expected=Rows().CountBy(static row => row.Key).Select(static pair => pair.Key+pair.Value).ToList();
-        this.MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
-        this.MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
+        MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
+        MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -30,8 +30,8 @@ public sealed class CountBy_Select(ITestOutputHelper output):LinqChain2TestBase(
     [Fact, Trait("Category","Unit")]
     public void Lambda() {
         var expected=Rows().CountBy(row => row.Key).Select(pair => pair.Key+pair.Value).ToList();
-        this.MeasureOptimized(nameof(LambdaOptimized),()=>LambdaOptimized(expected));
-        this.MeasureOptimized(nameof(LambdaNoOptimized),()=>LambdaNoOptimized(expected));
+        MeasureOptimized(nameof(LambdaOptimized),()=>LambdaOptimized(expected));
+        MeasureOptimized(nameof(LambdaNoOptimized),()=>LambdaNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

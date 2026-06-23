@@ -26,7 +26,7 @@ namespace Seamless.System.Carrier {
         bool firstCompleted;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.first.TryGetNonEnumeratedCount(out var count1)&&this.second.TryGetNonEnumeratedCount(out var count2)) {
+            if(first.TryGetNonEnumeratedCount(out var count1)&&second.TryGetNonEnumeratedCount(out var count2)) {
                 count=checked(count1+count2);
                 return true;
             }
@@ -48,17 +48,17 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out TSource current) {
-            if(!this.firstCompleted) {
+            if(!firstCompleted) {
                 // iterate first
-                if(this.first.TryGetNext(out current)) {
+                if(first.TryGetNext(out current)) {
                     return true;
                 }
-                this.first.Dispose();
-                this.firstCompleted=true;
+                first.Dispose();
+                firstCompleted=true;
             }
 
             // iterate second
-            if(this.second.TryGetNext(out current)) {
+            if(second.TryGetNext(out current)) {
                 return true;
             }
 
@@ -67,10 +67,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(!this.firstCompleted) {
-                this.first.Dispose();
+            if(!firstCompleted) {
+                first.Dispose();
             }
-            this.second.Dispose();
+            second.Dispose();
         }
     }
 }

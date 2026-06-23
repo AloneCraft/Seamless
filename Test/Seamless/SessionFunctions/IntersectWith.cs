@@ -9,10 +9,10 @@ public abstract class IntersectWith<TKey, TSet>:CommonWith<TKey,TSet>
     where TKey : IEquatable<TKey>
     where TSet : IHashSet<TKey>, IDisposable {
     [Fact, Trait("Category","Unit")]
-    public void IntersectWithAB() => this.RunWithAB();
+    public void IntersectWithAB() => RunWithAB();
 
     [Fact, Trait("Category","Unit")]
-    public void IntersectWithAA() => this.RunWithAA();
+    public void IntersectWithAA() => RunWithAA();
 }
 
 public sealed class ManagedIntersectWith:IntersectWith<string,global::Seamless.Tsavorite.Collections.HashSet<string>> {
@@ -40,13 +40,13 @@ public sealed class ManagedIntersectWith:IntersectWith<string,global::Seamless.T
         using var setB = storeB.Create();
 
         for(var i = 0;i<64;i++) {
-            Assert.True(setA.Add(this.CreateKey(i)));
+            Assert.True(setA.Add(CreateKey(i)));
             if((i&1)==0) {
-                Assert.True(setB.Add(this.CreateKey(i)));
+                Assert.True(setB.Add(CreateKey(i)));
             }
         }
         for(var i = 64;i<96;i++) {
-            Assert.True(setB.Add(this.CreateKey(i)));
+            Assert.True(setB.Add(CreateKey(i)));
         }
 
         storeA.Store.Log.FlushAndEvict(wait: true);
@@ -56,7 +56,7 @@ public sealed class ManagedIntersectWith:IntersectWith<string,global::Seamless.T
 
         Assert.Equal(32,setA.Count);
         for(var i = 0;i<64;i++) {
-            Assert.Equal((i&1)==0,setA.Contains(this.CreateKey(i)));
+            Assert.Equal((i&1)==0,setA.Contains(CreateKey(i)));
         }
     }
 #endif
@@ -87,13 +87,13 @@ public sealed class UnmanagedIntersectWith:IntersectWith<int,global::Seamless.Ts
         using var setB = storeB.Create();
 
         for(var i = 0;i<64;i++) {
-            Assert.True(setA.Add(this.CreateKey(i)));
+            Assert.True(setA.Add(CreateKey(i)));
             if((i&1)==0) {
-                Assert.True(setB.Add(this.CreateKey(i)));
+                Assert.True(setB.Add(CreateKey(i)));
             }
         }
         for(var i = 64;i<96;i++) {
-            Assert.True(setB.Add(this.CreateKey(i)));
+            Assert.True(setB.Add(CreateKey(i)));
         }
 
         storeA.Store.Log.FlushAndEvict(wait: true);
@@ -103,7 +103,7 @@ public sealed class UnmanagedIntersectWith:IntersectWith<int,global::Seamless.Ts
 
         Assert.Equal(32,setA.Count);
         for(var i = 0;i<64;i++) {
-            Assert.Equal((i&1)==0,setA.Contains(this.CreateKey(i)));
+            Assert.Equal((i&1)==0,setA.Contains(CreateKey(i)));
         }
     }
 #endif

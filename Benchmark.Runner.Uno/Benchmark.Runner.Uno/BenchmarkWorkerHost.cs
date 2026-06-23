@@ -1,9 +1,9 @@
 using global::System.Diagnostics;
-using global::System.Globalization;
-using global::System.Reflection;
-using global::System.Runtime.InteropServices;
-using global::System.Text;
-using global::System.Text.Json;
+using System.Globalization;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.Json;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
@@ -156,7 +156,7 @@ internal static class BenchmarkWorkerHost{
                 Process.GetCurrentProcess().ProcessorAffinity=new IntPtr(mask);
             }catch(PlatformNotSupportedException){
             }catch(InvalidOperationException){
-            }catch(global::System.ComponentModel.Win32Exception){
+            }catch(System.ComponentModel.Win32Exception){
             }
 
             SetThreadAffinityMask(GetCurrentThread(),new UIntPtr((ulong)mask));
@@ -165,7 +165,7 @@ internal static class BenchmarkWorkerHost{
                 Process.GetCurrentProcess().ProcessorAffinity=new IntPtr(mask);
             }catch(PlatformNotSupportedException){
             }catch(InvalidOperationException){
-            }catch(global::System.ComponentModel.Win32Exception){
+            }catch(System.ComponentModel.Win32Exception){
             }
         }
     }

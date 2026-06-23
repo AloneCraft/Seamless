@@ -17,7 +17,7 @@ namespace Seamless.System.Carrier {
         byte state;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.source.TryGetNonEnumeratedCount(out count)&&count<int.MaxValue) {
+            if(source.TryGetNonEnumeratedCount(out count)&&count<int.MaxValue) {
                 count++;
                 return true;
             }
@@ -32,7 +32,7 @@ namespace Seamless.System.Carrier {
 
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) {
             if(destination.Length==0) return false;
-            if(!this.source.TryGetNonEnumeratedCount(out var srcCount)) return false;
+            if(!source.TryGetNonEnumeratedCount(out var srcCount)) return false;
 
             var totalLength = srcCount+1; // +1 for the prepended element
             var start = offset.GetOffset(totalLength);
@@ -50,7 +50,7 @@ namespace Seamless.System.Carrier {
             if(elementsToCopy>0) {
                 var destinationOffset = includePrependedElement ? 1 : 0;
                 var destinationSlice = destination.Slice(destinationOffset,elementsToCopy);
-                if(!this.source.TryCopyTo(destinationSlice,sourceStart)) {
+                if(!source.TryCopyTo(destinationSlice,sourceStart)) {
                     return false;
                 }
             }
@@ -62,17 +62,17 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out TSource current) {
-            if(this.state==0) {
+            if(state==0) {
                 current=element;
-                this.state=1;
+                state=1;
                 return true;
             }
 
-            if(this.state==1) {
-                if(this.source.TryGetNext(out current)) {
+            if(state==1) {
+                if(source.TryGetNext(out current)) {
                     return true;
                 }
-                this.state=2;
+                state=2;
             }
 
             current=default!;
@@ -80,8 +80,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            this.state=2;
-            this.source.Dispose();
+            state=2;
+            source.Dispose();
         }
     }
 

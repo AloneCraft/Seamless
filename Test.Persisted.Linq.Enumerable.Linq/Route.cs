@@ -5,8 +5,8 @@ namespace Test.Persisted.Linq.Enumerable {
 
 namespace Shared.Linq.Enumerable {
     internal static class Route {
-        public static global::Seamless.Persisted.Collections.Set<T> AsX<T>(
-            this global::Seamless.Persisted.Collections.Set<T> source) => source;
+        public static Seamless.Persisted.Collections.Set<T> AsX<T>(
+            this Seamless.Persisted.Collections.Set<T> source) => source;
 
         public static IEnumerable<T> AsX<T>(this IEnumerable<T> source) => source;
     }

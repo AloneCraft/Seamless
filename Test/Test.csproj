@@ -17,7 +17,10 @@
     <Compile Remove="Seamless\Collections\artifacts\**" />
     <Compile Remove="Seamless\Persisted\Collections\**\*.cs" />
     <Compile Remove="Seamless\Tsavorite\Collections\**\*.cs" />
-    <Compile Include="..\Test.Tsavorite.Collections\Tsavorite\Collections\TestTypes.cs" Link="Seamless\Tsavorite\Collections\TestTypes.cs" />
+    <Compile Include="..\TestBenchmark.Collections.Shared\GlobalUsings.cs" Link="GlobalUsings.cs" />
+    <Compile Include="..\TestBenchmark.Collections.Shared\AssemblyInfo.cs" Link="AssemblyInfo.cs" />
+    <Compile Include="..\TestBenchmark.Collections.Shared\TestPath.cs" Link="TestPath.cs" />
+    <Compile Include="..\TestBenchmark.Collections.Shared\TestTypes.cs" Link="Seamless\Tsavorite\Collections\TestTypes.cs" />
     <EmbeddedResource Remove="Seamless\Collections\artifacts\**" />
     <EmbeddedResource Remove="Seamless\Collections\Garnet\**" />
     <None Remove="Seamless\Collections\artifacts\**" />

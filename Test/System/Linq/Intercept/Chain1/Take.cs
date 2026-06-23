@@ -9,8 +9,8 @@ public sealed class Take(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void count() {
         var expected=Source().Take(3).ToList();
-        this.MeasureOptimized(nameof(countOptimized),()=>countOptimized(expected));
-        this.MeasureOptimized(nameof(countNoOptimized),()=>countNoOptimized(expected));
+        MeasureOptimized(nameof(countOptimized),()=>countOptimized(expected));
+        MeasureOptimized(nameof(countNoOptimized),()=>countNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -30,8 +30,8 @@ public sealed class Take(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void range() {
         var expected=Source().Take(new global::System.Range(1,3)).ToList();
-        this.MeasureOptimized(nameof(rangeOptimized),()=>rangeOptimized(expected));
-        this.MeasureOptimized(nameof(rangeNoOptimized),()=>rangeNoOptimized(expected));
+        MeasureOptimized(nameof(rangeOptimized),()=>rangeOptimized(expected));
+        MeasureOptimized(nameof(rangeNoOptimized),()=>rangeNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

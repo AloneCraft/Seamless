@@ -14,33 +14,33 @@ internal unsafe ref struct ValueStringBuilder
 
     public ValueStringBuilder(Span<char> initialBuffer)
     {
-        this.arrayToReturnToPool = null;
-        this.chars = initialBuffer;
-        this.currentPosition = 0;
+        arrayToReturnToPool = null;
+        chars = initialBuffer;
+        currentPosition = 0;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Append(char value)
     {
-        var p = this.currentPosition;
-        var c = this.chars;
+        var p = currentPosition;
+        var c = chars;
 
         if (p >= c.Length)
         {
-            this.ExpandAndAppend(value);
+            ExpandAndAppend(value);
             return;
         }
 
         c[p] = value;
-        this.currentPosition = p + 1;
+        currentPosition = p + 1;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     void ExpandAndAppend(char value)
     {
-        this.Expand(1);
-        this.chars[this.currentPosition] = value;
-        this.currentPosition += 1;
+        Expand(1);
+        chars[currentPosition] = value;
+        currentPosition += 1;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -48,13 +48,13 @@ internal unsafe ref struct ValueStringBuilder
     {
         if (value == null) return;
 
-        if (this.currentPosition >this.chars.Length - value.Length)
+        if (currentPosition >chars.Length - value.Length)
         {
-            this.Expand(value.Length);
+            Expand(value.Length);
         }
 
-        value.CopyTo(this.chars.Slice(this.currentPosition));
-        this.currentPosition += value.Length;
+        value.CopyTo(chars.Slice(currentPosition));
+        currentPosition += value.Length;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -62,39 +62,39 @@ internal unsafe ref struct ValueStringBuilder
     {
         if (value == null) return;
 
-        var p = this.currentPosition;
-        var c = this.chars;
+        var p = currentPosition;
+        var c = chars;
 
         if (p >= c.Length)
         {
-            this.ExpandAndAppend(separator);
+            ExpandAndAppend(separator);
         }
         else
         {
             c[p] = separator;
-            this.currentPosition = p + 1;
+            currentPosition = p + 1;
         }
 
-        if (this.currentPosition >this.chars.Length - value.Length)
+        if (currentPosition >chars.Length - value.Length)
         {
-            this.Expand(value.Length);
+            Expand(value.Length);
         }
 
-        value.CopyTo(this.chars.Slice(this.currentPosition));
-        this.currentPosition += value.Length;
+        value.CopyTo(chars.Slice(currentPosition));
+        currentPosition += value.Length;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Append(scoped ReadOnlySpan<char> value)
     {
     AGAIN:
-        if (value.TryCopyTo(this.chars.Slice(this.currentPosition)))
+        if (value.TryCopyTo(chars.Slice(currentPosition)))
         {
-            this.currentPosition += value.Length;
+            currentPosition += value.Length;
         }
         else
         {
-            this.Expand(value.Length);
+            Expand(value.Length);
             goto AGAIN;
         }
     }
@@ -103,118 +103,118 @@ internal unsafe ref struct ValueStringBuilder
     {
         if (typeof(T) == typeof(string))
         {
-            this.Append(Unsafe.As<T, string>(ref value));
+            Append(Unsafe.As<T, string>(ref value));
         }
 #if NETSTANDARD2_1 || NET8_0_OR_GREATER
         else if (typeof(T) == typeof(byte))
         {
             const int CharMaxLength = 3;
             int charsWritten;
-            while (!Unsafe.As<T, byte>(ref value).TryFormat(this.chars.Slice(this.currentPosition), out charsWritten))
+            while (!Unsafe.As<T, byte>(ref value).TryFormat(chars.Slice(currentPosition), out charsWritten))
             {
-                this.Expand(CharMaxLength);
+                Expand(CharMaxLength);
             }
-            this.currentPosition += charsWritten;
+            currentPosition += charsWritten;
         }
         else if (typeof(T) == typeof(sbyte))
         {
             const int CharMaxLength = 4;
             int charsWritten;
-            while (!Unsafe.As<T, sbyte>(ref value).TryFormat(this.chars.Slice(this.currentPosition), out charsWritten))
+            while (!Unsafe.As<T, sbyte>(ref value).TryFormat(chars.Slice(currentPosition), out charsWritten))
             {
-                this.Expand(CharMaxLength);
+                Expand(CharMaxLength);
             }
-            this.currentPosition += charsWritten;
+            currentPosition += charsWritten;
         }
         else if (typeof(T) == typeof(short))
         {
             const int CharMaxLength = 6;
             int charsWritten;
-            while (!Unsafe.As<T, short>(ref value).TryFormat(this.chars.Slice(this.currentPosition), out charsWritten))
+            while (!Unsafe.As<T, short>(ref value).TryFormat(chars.Slice(currentPosition), out charsWritten))
             {
-                this.Expand(CharMaxLength);
+                Expand(CharMaxLength);
             }
-            this.currentPosition += charsWritten;
+            currentPosition += charsWritten;
         }
         else if (typeof(T) == typeof(ushort))
         {
             const int CharMaxLength = 5;
             int charsWritten;
-            while (!Unsafe.As<T, ushort>(ref value).TryFormat(this.chars.Slice(this.currentPosition), out charsWritten))
+            while (!Unsafe.As<T, ushort>(ref value).TryFormat(chars.Slice(currentPosition), out charsWritten))
             {
-                this.Expand(CharMaxLength);
+                Expand(CharMaxLength);
             }
-            this.currentPosition += charsWritten;
+            currentPosition += charsWritten;
         }
         else if (typeof(T) == typeof(int))
         {
             const int CharMaxLength = 11;
             int charsWritten;
-            while (!Unsafe.As<T, int>(ref value).TryFormat(this.chars.Slice(this.currentPosition), out charsWritten))
+            while (!Unsafe.As<T, int>(ref value).TryFormat(chars.Slice(currentPosition), out charsWritten))
             {
-                this.Expand(CharMaxLength);
+                Expand(CharMaxLength);
             }
-            this.currentPosition += charsWritten;
+            currentPosition += charsWritten;
         }
         else if (typeof(T) == typeof(uint))
         {
             const int CharMaxLength = 10;
             int charsWritten;
-            while (!Unsafe.As<T, uint>(ref value).TryFormat(this.chars.Slice(this.currentPosition), out charsWritten))
+            while (!Unsafe.As<T, uint>(ref value).TryFormat(chars.Slice(currentPosition), out charsWritten))
             {
-                this.Expand(CharMaxLength);
+                Expand(CharMaxLength);
             }
-            this.currentPosition += charsWritten;
+            currentPosition += charsWritten;
         }
         else if (typeof(T) == typeof(long))
         {
             const int CharMaxLength = 20;
             int charsWritten;
-            while (!Unsafe.As<T, long>(ref value).TryFormat(this.chars.Slice(this.currentPosition), out charsWritten))
+            while (!Unsafe.As<T, long>(ref value).TryFormat(chars.Slice(currentPosition), out charsWritten))
             {
-                this.Expand(CharMaxLength);
+                Expand(CharMaxLength);
             }
-            this.currentPosition += charsWritten;
+            currentPosition += charsWritten;
         }
         else if (typeof(T) == typeof(ulong))
         {
             const int CharMaxLength = 20;
             int charsWritten;
-            while (!Unsafe.As<T, ulong>(ref value).TryFormat(this.chars.Slice(this.currentPosition), out charsWritten))
+            while (!Unsafe.As<T, ulong>(ref value).TryFormat(chars.Slice(currentPosition), out charsWritten))
             {
-                this.Expand(CharMaxLength);
+                Expand(CharMaxLength);
             }
-            this.currentPosition += charsWritten;
+            currentPosition += charsWritten;
         }
         else if (typeof(T) == typeof(float))
         {
             const int CharMaxLength = 128; // reserved space for unknown culture specified format
             int charsWritten;
-            while (!Unsafe.As<T, float>(ref value).TryFormat(this.chars.Slice(this.currentPosition), out charsWritten))
+            while (!Unsafe.As<T, float>(ref value).TryFormat(chars.Slice(currentPosition), out charsWritten))
             {
-                this.Expand(CharMaxLength);
+                Expand(CharMaxLength);
             }
-            this.currentPosition += charsWritten;
+            currentPosition += charsWritten;
         }
         else if (typeof(T) == typeof(double))
         {
             const int CharMaxLength = 128; // reserved space for unknown culture specified format
             int charsWritten;
-            while (!Unsafe.As<T, double>(ref value).TryFormat(this.chars.Slice(this.currentPosition), out charsWritten))
+            while (!Unsafe.As<T, double>(ref value).TryFormat(chars.Slice(currentPosition), out charsWritten))
             {
-                this.Expand(CharMaxLength);
+                Expand(CharMaxLength);
             }
-            this.currentPosition += charsWritten;
+            currentPosition += charsWritten;
         }
         else if (typeof(T) == typeof(decimal))
         {
             const int CharMaxLength = 128; // reserved space for unknown culture specified format
             int charsWritten;
-            while (!Unsafe.As<T, decimal>(ref value).TryFormat(this.chars.Slice(this.currentPosition), out charsWritten))
+            while (!Unsafe.As<T, decimal>(ref value).TryFormat(chars.Slice(currentPosition), out charsWritten))
             {
-                this.Expand(CharMaxLength);
+                Expand(CharMaxLength);
             }
-            this.currentPosition += charsWritten;
+            currentPosition += charsWritten;
         }
 #endif
         else
@@ -226,12 +226,12 @@ internal unsafe ref struct ValueStringBuilder
             if (value is ISpanFormattable)
             {
                 int charsWritten;
-                while (!((ISpanFormattable)value).TryFormat(this.chars.Slice(this.currentPosition), out charsWritten, default, null))
+                while (!((ISpanFormattable)value).TryFormat(chars.Slice(currentPosition), out charsWritten, default, null))
                 {
-                    this.Expand(1);
+                    Expand(1);
                 }
 
-                this.currentPosition += charsWritten;
+                currentPosition += charsWritten;
                 return;
             }
 #endif
@@ -248,14 +248,14 @@ internal unsafe ref struct ValueStringBuilder
 
             if (s is not null)
             {
-                this.Append(s);
+                Append(s);
             }
         }
     }
 
     public string ToStringAndClear()
     {
-        var str = this.chars.Slice(0,this.currentPosition);
+        var str = chars.Slice(0,currentPosition);
 #if !NETSTANDARD2_0
         var result = new string(str);
 #else
@@ -269,7 +269,7 @@ internal unsafe ref struct ValueStringBuilder
         }
 #endif
 
-        char[]? toReturn = this.arrayToReturnToPool;
+        char[]? toReturn = arrayToReturnToPool;
         this = default; // defensive clear
         if (toReturn is not null)
         {
@@ -282,20 +282,20 @@ internal unsafe ref struct ValueStringBuilder
     [MethodImpl(MethodImplOptions.NoInlining)]
     void Expand(int appendSize)
     {
-        uint requiredMinCapacity = (uint)this.currentPosition + (uint)appendSize;
+        uint requiredMinCapacity = (uint)currentPosition + (uint)appendSize;
 
-        uint newCapacity = Math.Max(requiredMinCapacity, Math.Min((uint)this.chars.Length * 2, StringMaxLength));
+        uint newCapacity = Math.Max(requiredMinCapacity, Math.Min((uint)chars.Length * 2, StringMaxLength));
         var arraySize = (int)MathClamp(newCapacity, MinimumArrayPoolLength, int.MaxValue);
 
         var newChars = ArrayPool<char>.Shared.Rent(arraySize);
-        this.chars.Slice(0,this.currentPosition).CopyTo(newChars);
+        chars.Slice(0,currentPosition).CopyTo(newChars);
 
-        if (this.arrayToReturnToPool is not null)
+        if (arrayToReturnToPool is not null)
         {
-            ArrayPool<char>.Shared.Return(this.arrayToReturnToPool, clearArray: false);
+            ArrayPool<char>.Shared.Return(arrayToReturnToPool, clearArray: false);
         }
 
-        this.chars =this.arrayToReturnToPool = newChars;
+        chars =arrayToReturnToPool = newChars;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

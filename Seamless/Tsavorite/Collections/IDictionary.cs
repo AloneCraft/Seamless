@@ -18,11 +18,11 @@ public interface IDictionary<TKey, TValue>:global::System.Collections.Generic.ID
     /// <summary>�X�g�A�Ɋi�[����Ă���G���g�������擾����B</summary>
     long EntryCount { get; }
     /// <summary>�����Ăяo���݊��̂��߂� long �����擾���\�b�h�B</summary>
-    long GetLongCount() => this.EntryCount;
+    long GetLongCount() => EntryCount;
     /// <summary>�L�[�����݂��Ȃ��ꍇ�̂ݒǉ�����B</summary>
     TryAddResult TryAdd(TKey key,TValue value);
     /// <summary>�w�肵���L�[�����݂��邩�ǂ�����Ԃ��B</summary>
-    bool Contains(TKey key) => this.ContainsKey(key);
+    bool Contains(TKey key) => ContainsKey(key);
     /// <summary>�L�[���폜���A�폜���ꂽ�l��Ԃ��B</summary>
     bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value);
     // IDictionary<TKey,TValue> �� IReadOnlyDictionary<TKey,TValue> �̗����ɓ��������o�[�����݂��邽�߁A

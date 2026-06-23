@@ -10,28 +10,28 @@ public sealed class Dictionary(ITestOutputHelper output) {
 
     [Fact]
     public void FlushAndEvict_managed() {
-        this.FlushAndEvict(Managed, nameof(this.FlushAndEvict_managed));
+        FlushAndEvict(Managed, nameof(FlushAndEvict_managed));
     }
 
     [Fact]
     public void FlushAndEvict_unmanaged() {
-        this.FlushAndEvict(Unmanaged, nameof(this.FlushAndEvict_unmanaged));
+        FlushAndEvict(Unmanaged, nameof(FlushAndEvict_unmanaged));
     }
 
     [Fact]
     public void Checkpoint_managed() {
-        this.Checkpoint(Managed, nameof(this.Checkpoint_managed));
+        Checkpoint(Managed, nameof(Checkpoint_managed));
     }
 
     [Fact]
     public void Checkpoint_unmanaged() {
-        this.Checkpoint(Unmanaged, nameof(this.Checkpoint_unmanaged));
+        Checkpoint(Unmanaged, nameof(Checkpoint_unmanaged));
     }
 
     private void FlushAndEvict<TKey, TValue>(DictionaryScenario<TKey, TValue> scenario, string methodName)
         where TKey : IEquatable<TKey>
         where TValue : IEquatable<TValue> {
-        var storeDir = this.TestDir(scenario, methodName);
+        var storeDir = TestDir(scenario, methodName);
         Directory.CreateDirectory(storeDir);
 
         try {
@@ -44,12 +44,12 @@ public sealed class Dictionary(ITestOutputHelper output) {
                 dict.Add(scenario.MakeKey(i), scenario.MakeValue(i));
             }
 
-            this.AssertContainsAll(dict, DataSize, scenario);
+            AssertContainsAll(dict, DataSize, scenario);
             store.Store.Log.FlushAndEvict(wait: true);
             dict.Refresh();
 
-            this.AssertContainsAll(dict, DataSize, scenario);
-            this.output.WriteLine(
+            AssertContainsAll(dict, DataSize, scenario);
+            output.WriteLine(
                 $"Verified {DataSize} entries across storage flush/evict. scenario={scenario.Name}"
             );
         } finally {
@@ -60,7 +60,7 @@ public sealed class Dictionary(ITestOutputHelper output) {
     private void Checkpoint<TKey, TValue>(DictionaryScenario<TKey, TValue> scenario, string methodName)
         where TKey : IEquatable<TKey>
         where TValue : IEquatable<TValue> {
-        var storeDir = this.TestDir(scenario, methodName);
+        var storeDir = TestDir(scenario, methodName);
         var checkpointDir = Path.Combine(storeDir, "checkpoint");
         Directory.CreateDirectory(storeDir);
         Directory.CreateDirectory(checkpointDir);
@@ -84,10 +84,10 @@ public sealed class Dictionary(ITestOutputHelper output) {
         {
             store.Load(token);
             using var dict = store.Create();
-            this.AssertContainsAll(dict, DataSize, scenario);
+            AssertContainsAll(dict, DataSize, scenario);
         }
 
-        this.output.WriteLine(
+        output.WriteLine(
             $"Verified {DataSize} entries after checkpoint restore. scenario={scenario.Name}"
         );
         try { Directory.Delete(storeDir, true); } catch { }

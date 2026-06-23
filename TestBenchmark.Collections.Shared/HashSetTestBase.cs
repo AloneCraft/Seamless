@@ -288,7 +288,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             using var h = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
             h.Set.Add(TStrategy.Elem(2));
-            global::System.Collections.Generic.ISet<T> other = new global::System.Collections.Generic.HashSet<T> { TStrategy.Elem(2),TStrategy.Elem(3) };
+            ISet<T> other = new global::System.Collections.Generic.HashSet<T> { TStrategy.Elem(2),TStrategy.Elem(3) };
             h.Set.IntersectWith(other);
             Assert.Single(h.Set);
             Assert.True(h.Set.Contains(TStrategy.Elem(2)));

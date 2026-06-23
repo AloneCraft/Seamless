@@ -7,8 +7,8 @@ public sealed class Join(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void keySelectors_resultSelector_Static() {
         var expected=Source().Join(Second(),static outerValue => outerValue,static innerValue => innerValue,static (outerValue,innerValue) => outerValue+innerValue).ToList();
-        this.MeasureOptimized(nameof(keySelectors_resultSelector_StaticOptimized),()=>keySelectors_resultSelector_StaticOptimized(expected));
-        this.MeasureOptimized(nameof(keySelectors_resultSelector_StaticNoOptimized),()=>keySelectors_resultSelector_StaticNoOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_StaticOptimized),()=>keySelectors_resultSelector_StaticOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_StaticNoOptimized),()=>keySelectors_resultSelector_StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -28,8 +28,8 @@ public sealed class Join(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void keySelectors_resultSelector_Lambda() {
         var expected=Source().Join(Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,innerValue) => outerValue+innerValue).ToList();
-        this.MeasureOptimized(nameof(keySelectors_resultSelector_LambdaOptimized),()=>keySelectors_resultSelector_LambdaOptimized(expected));
-        this.MeasureOptimized(nameof(keySelectors_resultSelector_LambdaNoOptimized),()=>keySelectors_resultSelector_LambdaNoOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_LambdaOptimized),()=>keySelectors_resultSelector_LambdaOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_LambdaNoOptimized),()=>keySelectors_resultSelector_LambdaNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -49,8 +49,8 @@ public sealed class Join(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void keySelectors_resultSelector_Query() {
         var expected=Source().Join(Second(),outerValue => outerValue,innerValue => innerValue,(outerValue,innerValue) => outerValue+innerValue).ToList();
-        this.MeasureOptimized(nameof(keySelectors_resultSelector_QueryOptimized),()=>keySelectors_resultSelector_QueryOptimized(expected));
-        this.MeasureOptimized(nameof(keySelectors_resultSelector_QueryNoOptimized),()=>keySelectors_resultSelector_QueryNoOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_QueryOptimized),()=>keySelectors_resultSelector_QueryOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_QueryNoOptimized),()=>keySelectors_resultSelector_QueryNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -71,8 +71,8 @@ public sealed class Join(ITestOutputHelper output):LinqChain1TestBase(output) {
     public void keySelectors_resultSelector_Captured() {
         var offset=0;
         var expected=Source().Join(Second(),outerValue => outerValue+offset,innerValue => innerValue+offset,(outerValue,innerValue) => outerValue+innerValue+offset).ToList();
-        this.MeasureOptimized(nameof(keySelectors_resultSelector_CapturedOptimized),()=>keySelectors_resultSelector_CapturedOptimized(expected));
-        this.MeasureOptimized(nameof(keySelectors_resultSelector_CapturedNoOptimized),()=>keySelectors_resultSelector_CapturedNoOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_CapturedOptimized),()=>keySelectors_resultSelector_CapturedOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_CapturedNoOptimized),()=>keySelectors_resultSelector_CapturedNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -94,8 +94,8 @@ public sealed class Join(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void keySelectors_resultSelector_DelegateSyntax() {
         var expected=Source().Join(Second(),delegate(int outerValue) { return outerValue; },delegate(int innerValue) { return innerValue; },delegate(int outerValue,int innerValue) { return outerValue+innerValue; }).ToList();
-        this.MeasureOptimized(nameof(keySelectors_resultSelector_DelegateSyntaxOptimized),()=>keySelectors_resultSelector_DelegateSyntaxOptimized(expected));
-        this.MeasureOptimized(nameof(keySelectors_resultSelector_DelegateSyntaxNoOptimized),()=>keySelectors_resultSelector_DelegateSyntaxNoOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_DelegateSyntaxOptimized),()=>keySelectors_resultSelector_DelegateSyntaxOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_DelegateSyntaxNoOptimized),()=>keySelectors_resultSelector_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -118,8 +118,8 @@ public sealed class Join(ITestOutputHelper output):LinqChain1TestBase(output) {
         Func<int,int> innerKeySelector=innerValue => innerValue;
         Func<int,int,int> resultSelector=(outerValue,innerValue) => outerValue+innerValue;
         var expected=Source().Join(Second(),outerKeySelector,innerKeySelector,resultSelector).ToList();
-        this.MeasureOptimized(nameof(keySelectors_resultSelector_VariableOptimized),()=>keySelectors_resultSelector_VariableOptimized(expected));
-        this.MeasureOptimized(nameof(keySelectors_resultSelector_VariableNoOptimized),()=>keySelectors_resultSelector_VariableNoOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_VariableOptimized),()=>keySelectors_resultSelector_VariableOptimized(expected));
+        MeasureOptimized(nameof(keySelectors_resultSelector_VariableNoOptimized),()=>keySelectors_resultSelector_VariableNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

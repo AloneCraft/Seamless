@@ -9,8 +9,8 @@ public sealed class Prepend(ITestOutputHelper output):LinqChain1TestBase(output)
     [Fact, Trait("Category","Unit")]
     public void element() {
         var expected=Source().Prepend(0).ToList();
-        this.MeasureOptimized(nameof(elementOptimized),()=>elementOptimized(expected));
-        this.MeasureOptimized(nameof(elementNoOptimized),()=>elementNoOptimized(expected));
+        MeasureOptimized(nameof(elementOptimized),()=>elementOptimized(expected));
+        MeasureOptimized(nameof(elementNoOptimized),()=>elementNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

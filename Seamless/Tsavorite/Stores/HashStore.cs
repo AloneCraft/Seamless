@@ -1,4 +1,4 @@
-using global::System.Text.Json;
+using System.Text.Json;
 using Seamless.Tsavorite.Stores;
 namespace Seamless.Tsavorite.Collections;
 
@@ -62,21 +62,21 @@ public readonly struct Store {
     }
 
     public long ResolveRecoveryIndexSize(Guid? token = null,long minimumIndexSize = Const.IndexSize) {
-        var fallbackIndexSize = Math.Max(this.IndexSize,minimumIndexSize);
-        if(string.IsNullOrWhiteSpace(this.CheckpointDir)) {
+        var fallbackIndexSize = Math.Max(IndexSize,minimumIndexSize);
+        if(string.IsNullOrWhiteSpace(CheckpointDir)) {
             return fallbackIndexSize;
         }
 
-        return TryGetRecommendedIndexSize(this.CheckpointDir,token,fallbackIndexSize,out var indexSize)
+        return TryGetRecommendedIndexSize(CheckpointDir,token,fallbackIndexSize,out var indexSize)
             ? indexSize
             : fallbackIndexSize;
     }
 
     public Store WithRecoveryIndexSize(Guid? token = null,long minimumIndexSize = Const.IndexSize) {
-        var resolvedIndexSize = this.ResolveRecoveryIndexSize(token,minimumIndexSize);
-        return resolvedIndexSize==this.IndexSize
+        var resolvedIndexSize = ResolveRecoveryIndexSize(token,minimumIndexSize);
+        return resolvedIndexSize==IndexSize
             ? this
-            : new(resolvedIndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,this.StorageLimitFraction,this.StorageReserveBytes,this.CheckpointDir);
+            : new(resolvedIndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,StorageLimitFraction,StorageReserveBytes,CheckpointDir);
     }
 
     internal static void WriteRecoveryIndexMetadata(string checkpointDir,Guid token,long entryCount,long minimumIndexSize = Const.IndexSize) {
@@ -145,11 +145,11 @@ public readonly struct Store {
     /// <summary>Dictionary with the default serializer for each type.</summary>
     public DictionaryStore<TKey,TValue> Create<TKey, TValue>() =>
         new(
-            this.IndexSize,
-            this.PageSize,
-            this.SegmentSize,
-            this.MemorySize,
-            this.MutableFraction,
+            IndexSize,
+            PageSize,
+            SegmentSize,
+            MemorySize,
+            MutableFraction,
             keyUsesMemoryPackSerializer: UsesMemoryPackSerializer<TKey>(),
             valueUsesMemoryPackSerializer: UsesMemoryPackSerializer<TValue>());
 
@@ -160,25 +160,25 @@ public readonly struct Store {
     )
         where TKey : unmanaged
         where TValue : unmanaged =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,keyUsesMemoryPackSerializer: false,valueUsesMemoryPackSerializer: false);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,keyUsesMemoryPackSerializer: false,valueUsesMemoryPackSerializer: false);
 
     public DictionaryStore<TKey,TValue> Create<TKey, TValue>(
         MemoryPackSerializerStrategy _0,
         MemoryPackSerializerStrategy _1
     ) =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,keyUsesMemoryPackSerializer: true,valueUsesMemoryPackSerializer: true);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,keyUsesMemoryPackSerializer: true,valueUsesMemoryPackSerializer: true);
 
     public DictionaryStore<TKey,TValue> Create<TKey, TValue>(
         MemoryPackSerializerStrategy _0,
         BlittableStrategy _1
     ) where TValue : unmanaged =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,keyUsesMemoryPackSerializer: true,valueUsesMemoryPackSerializer: false);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,keyUsesMemoryPackSerializer: true,valueUsesMemoryPackSerializer: false);
 
     public DictionaryStore<TKey,TValue> Create<TKey, TValue>(
         BlittableStrategy _0,
         MemoryPackSerializerStrategy _1
     ) where TKey : unmanaged =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,keyUsesMemoryPackSerializer: false,valueUsesMemoryPackSerializer: true);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,keyUsesMemoryPackSerializer: false,valueUsesMemoryPackSerializer: true);
 
     // ── Storage Dictionary ─────────────────────────────────────────
     /// <summary>Storage Dictionary with the default serializer for each type.</summary>
@@ -187,16 +187,16 @@ public readonly struct Store {
         IDevice ObjectLogDevice
     ) =>
         new(
-            this.IndexSize,
-            this.PageSize,
-            this.SegmentSize,
-            this.MemorySize,
-            this.MutableFraction,
+            IndexSize,
+            PageSize,
+            SegmentSize,
+            MemorySize,
+            MutableFraction,
             LogDevice,
             ObjectLogDevice,
-            this.CheckpointDir,
-            this.StorageLimitFraction,
-            this.StorageReserveBytes,
+            CheckpointDir,
+            StorageLimitFraction,
+            StorageReserveBytes,
             keyUsesMemoryPackSerializer: UsesMemoryPackSerializer<TKey>(),
             valueUsesMemoryPackSerializer: UsesMemoryPackSerializer<TValue>());
 
@@ -209,7 +209,7 @@ public readonly struct Store {
     )
         where TKey : unmanaged
         where TValue : unmanaged =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes,keyUsesMemoryPackSerializer: false,valueUsesMemoryPackSerializer: false);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,StorageLimitFraction,StorageReserveBytes,keyUsesMemoryPackSerializer: false,valueUsesMemoryPackSerializer: false);
 
     public DictionaryStore<TKey,TValue> Create<TKey, TValue>(
         IDevice LogDevice,
@@ -217,7 +217,7 @@ public readonly struct Store {
         MemoryPackSerializerStrategy _0,
         MemoryPackSerializerStrategy _1
     ) =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes,keyUsesMemoryPackSerializer: true,valueUsesMemoryPackSerializer: true);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,StorageLimitFraction,StorageReserveBytes,keyUsesMemoryPackSerializer: true,valueUsesMemoryPackSerializer: true);
 
     public DictionaryStore<TKey,TValue> Create<TKey, TValue>(
         IDevice LogDevice,
@@ -225,7 +225,7 @@ public readonly struct Store {
         MemoryPackSerializerStrategy _0,
         BlittableStrategy _1
     ) where TValue : unmanaged =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes,keyUsesMemoryPackSerializer: true,valueUsesMemoryPackSerializer: false);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,StorageLimitFraction,StorageReserveBytes,keyUsesMemoryPackSerializer: true,valueUsesMemoryPackSerializer: false);
 
     public DictionaryStore<TKey,TValue> Create<TKey, TValue>(
         IDevice LogDevice,
@@ -233,22 +233,22 @@ public readonly struct Store {
         BlittableStrategy _0,
         MemoryPackSerializerStrategy _1
     ) where TKey : unmanaged =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes,keyUsesMemoryPackSerializer: false,valueUsesMemoryPackSerializer: true);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,StorageLimitFraction,StorageReserveBytes,keyUsesMemoryPackSerializer: false,valueUsesMemoryPackSerializer: true);
 
     // ── Managed HashSet ────────────────────────────────────────────
     /// <summary>Memory HashSet with the default serializer.</summary>
     public HashSetStore<TKey> Create<TKey>() =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction);
 
     /// <summary>Memory HashSet (named overload)</summary>
     public HashSetStore<TKey> CreateHashSet<TKey>() =>
-        this.Create<TKey>(new MemoryPackSerializerStrategy());
+        Create<TKey>(new MemoryPackSerializerStrategy());
     /// <summary>Storage HashSet</summary>
     public HashSetStore<TKey> Create<TKey>(
         IDevice LogDevice,
         IDevice ObjectLogDevice
     ) =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,StorageLimitFraction,StorageReserveBytes);
     //public HashSetStore<TKey> CreateHashSet<TKey>(
     //    IDevice LogDevice,
     //    IDevice ObjectLogDevice
@@ -257,10 +257,10 @@ public readonly struct Store {
 
     public HashSetStore<TKey> Create<TKey>(BlittableStrategy _0)
         where TKey : unmanaged =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction);
 
     public HashSetStore<TKey> Create<TKey>(MemoryPackSerializerStrategy _0) =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction);
 
     public HashSetStore<TKey> Create<TKey>(
         IDevice LogDevice,
@@ -268,39 +268,39 @@ public readonly struct Store {
         BlittableStrategy _0
     )
         where TKey : unmanaged =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,StorageLimitFraction,StorageReserveBytes);
 
     public HashSetStore<TKey> Create<TKey>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
         MemoryPackSerializerStrategy _0
     ) =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,StorageLimitFraction,StorageReserveBytes);
     /// <summary>Memory Set</summary>
     public SetStore<TKey,TRecord> CreateSet<TKey, TRecord>()
-        where TRecord : Seamless.Collections.IRecord<TKey> =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
+        where TRecord : IRecord<TKey> =>
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction);
     /// <summary>Storage Set</summary>
     public SetStore<TKey,TRecord> CreateSet<TKey, TRecord>(
         IDevice LogDevice,
         IDevice ObjectLogDevice
     )
-        where TRecord : Seamless.Collections.IRecord<TKey> =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
+        where TRecord : IRecord<TKey> =>
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,StorageLimitFraction,StorageReserveBytes);
 
     /// <summary>Memory Set using blittable serialization.</summary>
     public SetStore<TKey,TRecord> CreateSet<TKey, TRecord>(BlittableStrategy _0)
-        where TRecord : unmanaged, Seamless.Collections.IRecord<TKey>
+        where TRecord : unmanaged, IRecord<TKey>
         where TKey : unmanaged =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction);
     /// <summary>Storage Set using blittable serialization.</summary>
     public SetStore<TKey,TRecord> CreateSet<TKey, TRecord>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,
         BlittableStrategy _0
     )
-        where TRecord : unmanaged, Seamless.Collections.IRecord<TKey>
+        where TRecord : unmanaged, IRecord<TKey>
         where TKey : unmanaged =>
-        new(this.IndexSize,this.PageSize,this.SegmentSize,this.MemorySize,this.MutableFraction,LogDevice,ObjectLogDevice,this.CheckpointDir,this.StorageLimitFraction,this.StorageReserveBytes);
+        new(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,StorageLimitFraction,StorageReserveBytes);
 
 }

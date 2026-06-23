@@ -9,8 +9,8 @@ public sealed class Union(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void second() {
         var expected=Source().Union(Second()).ToList();
-        this.MeasureOptimized(nameof(secondOptimized),()=>secondOptimized(expected));
-        this.MeasureOptimized(nameof(secondNoOptimized),()=>secondNoOptimized(expected));
+        MeasureOptimized(nameof(secondOptimized),()=>secondOptimized(expected));
+        MeasureOptimized(nameof(secondNoOptimized),()=>secondNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -30,8 +30,8 @@ public sealed class Union(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void second_comparer() {
         var expected=Source().Union(Second(),EqualityComparer<int>.Default).ToList();
-        this.MeasureOptimized(nameof(second_comparerOptimized),()=>second_comparerOptimized(expected));
-        this.MeasureOptimized(nameof(second_comparerNoOptimized),()=>second_comparerNoOptimized(expected));
+        MeasureOptimized(nameof(second_comparerOptimized),()=>second_comparerOptimized(expected));
+        MeasureOptimized(nameof(second_comparerNoOptimized),()=>second_comparerNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

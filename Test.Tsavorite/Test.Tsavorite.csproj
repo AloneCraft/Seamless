@@ -5,8 +5,8 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <RootNamespace>Test.Tsavorite.Collections</RootNamespace>
-    <AssemblyName>Test.Tsavorite.Collections</AssemblyName>
+    <RootNamespace>Test.Tsavorite</RootNamespace>
+    <AssemblyName>Test.Tsavorite</AssemblyName>
     <DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
     <OutputType>Library</OutputType>
   </PropertyGroup>
@@ -30,8 +30,5 @@
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Remove="Tsavorite\Collections\TestTypes.cs;Tsavorite\Collections\StoreHandle.cs;Tsavorite\Collections\HashSetStrategy.cs;Tsavorite\Collections\DictionaryStrategy.cs;Tsavorite\Collections\HashSetTestBase.cs;Tsavorite\Collections\DictionaryTestBase.cs;Tsavorite\Collections\IDictionaryTestBase.cs" />
-  </ItemGroup>
-  <Import Project="..\Collections.Shared\Collections.Shared.projitems" Label="Shared" />
+  <Import Project="..\TestBenchmark.Collections.Shared\TestBenchmark.Collections.Shared.projitems" Label="Shared" />
 </Project>

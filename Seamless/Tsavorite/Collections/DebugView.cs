@@ -8,13 +8,13 @@ public abstract class DebugView<TKey> {
     private readonly IMemoryCollection<TKey> Collection;
     private protected DebugView(IMemoryCollection<TKey> collection) {
         ArgumentNullException.ThrowIfNull(collection);
-        this.Collection=collection;
+        Collection=collection;
     }
     [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
     public string[] Items {
         get {
-            var items = new global::System.Collections.Generic.List<string?>(Math.Min(64,MaxItems));
-            foreach(var item in this.Collection) {
+            var items = new List<string?>(Math.Min(64,MaxItems));
+            foreach(var item in Collection) {
                 if(items.Count>=MaxItems)
                     break;
                 Debug.Assert(item!=null,nameof(item)+" != null");

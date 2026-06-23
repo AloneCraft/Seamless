@@ -1,13 +1,14 @@
+﻿#if BENCH_AS_TEST
 using System.Diagnostics;
 using System.Reflection;
-using Xunit.v3;
+using Xunit.Sdk;
 
 [assembly:Benchmark.Shared.BenchmarkTiming]
 
 namespace Benchmark.Shared;
 
-// [Benchmark] が付いたテストメソチE��だけを対象に、RunCount 回実行して経過時間を計測しテスト�E力へ記録する、E// アセンブリ全体に適用するが、[Benchmark] が無ぁE��スト（通常のUnit等）には即座に何もしなぁE��Esealed class BenchmarkTimingAttribute:BeforeAfterTestAttribute{
-    public override void Before(MethodInfo methodUnderTest,IXunitTest test){
+sealed class BenchmarkTimingAttribute:BeforeAfterTestAttribute{
+    public override void Before(MethodInfo methodUnderTest){
         if(methodUnderTest.GetCustomAttribute<BenchmarkAttribute>()==null){
             return;
         }
@@ -15,11 +16,19 @@ namespace Benchmark.Shared;
         if(declaringType==null){
             return;
         }
-        var instance=Activator.CreateInstance(declaringType);
+        var targetType=declaringType;
+        var reflectedType=methodUnderTest.ReflectedType;
+        if(reflectedType!=null&&!reflectedType.IsAbstract){
+            targetType=reflectedType;
+        }
+        if(targetType==null||targetType.IsAbstract){
+            return;
+        }
+        var instance=Activator.CreateInstance(targetType);
         for(var i=0;i<BenchmarkParameters.WarmupCount;i++){
             methodUnderTest.Invoke(instance,null);
         }
-        var testIterations=declaringType.GetCustomAttribute<BenchmarkTestIterationsAttribute>()?.Count??1;
+        var testIterations=targetType.GetCustomAttribute<BenchmarkTestIterationsAttribute>()?.Count??1;
         var runCount=BenchmarkParameters.RunCount*testIterations;
         var sw=Stopwatch.StartNew();
         for(var i=0;i<runCount;i++){
@@ -27,12 +36,7 @@ namespace Benchmark.Shared;
         }
         sw.Stop();
         var totalMs=sw.Elapsed.TotalMilliseconds;
-        var line=$"{declaringType.Name}.{methodUnderTest.Name}: {runCount} run(s) total {totalMs:F3} ms avg {totalMs/runCount:F4} ms";
-        var output=TestContext.Current.TestOutputHelper;
-        if(output!=null){
-            output.WriteLine(line);
-        }else{
-            TestContext.Current.SendDiagnosticMessage(line);
-        }
+        Console.WriteLine($"{targetType.Name}.{methodUnderTest.Name}: {runCount} run(s) total {totalMs:F3} ms avg {totalMs/runCount:F4} ms");
     }
 }
+#endif

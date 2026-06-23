@@ -10,13 +10,13 @@ public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
     private readonly Dictionary<int,SourceHandle<int>> srcOneCache = [];
 
     protected new global::Seamless.Tsavorite.Collections.HashSet<int> src(int scale) =>
-        this.GetOrCreate(scale,this.srcCache,static length => CreateRange(1,length));
+        GetOrCreate(scale,srcCache,static length => CreateRange(1,length));
 
     protected new global::Seamless.Tsavorite.Collections.HashSet<int> srcCount(int elementCount) =>
-        this.GetOrCreateByLength(elementCount,this.srcCache,static length => CreateRange(1,length));
+        GetOrCreateByLength(elementCount,srcCache,static length => CreateRange(1,length));
 
     protected new global::Seamless.Tsavorite.Collections.HashSet<int> src2(int scale) =>
-        this.GetOrCreate(scale,this.src2Cache,static length => {
+        GetOrCreate(scale,src2Cache,static length => {
             var result = new int[length/2];
             var start = length/2+1;
             for(var index = 0;index<result.Length;index++) {
@@ -26,7 +26,7 @@ public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
         });
 
     protected new global::Seamless.Tsavorite.Collections.HashSet<int> src2Count(int elementCount) =>
-        this.GetOrCreateByLength(elementCount,this.src2Cache,static length => {
+        GetOrCreateByLength(elementCount,src2Cache,static length => {
             var result = new int[length/2];
             var start = length/2+1;
             for(var index = 0;index<result.Length;index++) {
@@ -36,16 +36,16 @@ public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
         });
 
     protected new global::Seamless.Tsavorite.Collections.HashSet<int> srcOne(int scale) =>
-        this.GetOrCreate(scale,this.srcOneCache,static _ => [0]);
+        GetOrCreate(scale,srcOneCache,static _ => [0]);
 
     [GlobalCleanup]
     public void Cleanup() {
-        DisposeAll(this.srcCache);
-        DisposeAll(this.src2Cache);
-        DisposeAll(this.srcOneCache);
+        DisposeAll(srcCache);
+        DisposeAll(src2Cache);
+        DisposeAll(srcOneCache);
     }
 
-    public void Dispose() => this.Cleanup();
+    public void Dispose() => Cleanup();
 
     private static int NormalizeCount(int count) {
 #if BENCH_AS_TEST
@@ -59,7 +59,7 @@ public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
         int scale,
         Dictionary<int,SourceHandle<int>> cache,
         Func<int,int[]> factory) {
-        var length=this.CountForComparison(this.CountForTestTiming(this.count*scale));
+        var length=CountForComparison(CountForTestTiming(count*scale));
         if(cache.TryGetValue(length,out var handle)) {
             return handle.Set;
         }
@@ -74,7 +74,7 @@ public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
         int length,
         Dictionary<int,SourceHandle<int>> cache,
         Func<int,int[]> factory) {
-        var effectiveLength=this.CountForComparison(this.CountForTestTiming(length));
+        var effectiveLength=CountForComparison(CountForTestTiming(length));
         if(cache.TryGetValue(effectiveLength,out var handle)) {
             return handle.Set;
         }
@@ -96,8 +96,8 @@ public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
     private static SourceHandle<T> CreateSet<T>(IEnumerable<T> values)
         where T : unmanaged, IEquatable<T> {
         var count = values.TryGetNonEnumeratedCount(out var knownCount) ? knownCount : 80_000;
-        var store = global::Seamless.Tsavorite.Collections.Store.Create(
-            IndexSize: global::Seamless.Tsavorite.Collections.Store.GetIndexSizeForCapacity(count),
+        var store = Seamless.Tsavorite.Collections.Store.Create(
+            IndexSize: Seamless.Tsavorite.Collections.Store.GetIndexSizeForCapacity(count),
             MemorySize: GetMemorySize(count))
             .Create<T>();
         var set = store.Create();
@@ -131,7 +131,7 @@ public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
         public global::Seamless.Tsavorite.Collections.HashSet<T> Set { get; } = set;
 
         public void Dispose() {
-            this.Set.Dispose();
+            Set.Dispose();
             store.Dispose();
         }
     }

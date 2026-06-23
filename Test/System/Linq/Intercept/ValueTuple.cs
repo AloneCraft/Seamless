@@ -1,6 +1,6 @@
 using System.Linq;
 
-using NonGenericEnumerable = global::System.Collections.IEnumerable;
+using NonGenericEnumerable = System.Collections.IEnumerable;
 
 namespace Test.System.Linq.Intercept;
 

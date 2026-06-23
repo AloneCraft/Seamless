@@ -5,37 +5,37 @@ public class SkipLast(int 番号, Enumerable source, string skipCount) : Enumera
         method.Parameters.Length==1 && method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
     private Enumerable Source => source;
     private string SkipCountExpression => skipCount;
-    private Enumerable RootSource => this.Source is SkipLast skipLast ? skipLast.RootSource : this.Source;
-    private string EffectiveSkipCount => this.Source is SkipLast skipLast
-        ? $"(int)global::System.Math.Min(int.MaxValue,(long)({skipLast.EffectiveSkipCount})+({this.SkipCountExpression}))"
-        : this.SkipCountExpression;
-    protected override Enumerable PrimarySource => this.RootSource;
+    private Enumerable RootSource => Source is SkipLast skipLast ? skipLast.RootSource : Source;
+    private string EffectiveSkipCount => Source is SkipLast skipLast
+        ? $"(int)global::System.Math.Min(int.MaxValue,(long)({skipLast.EffectiveSkipCount})+({SkipCountExpression}))"
+        : SkipCountExpression;
+    protected override Enumerable PrimarySource => RootSource;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""
-        {{this.RootSource.GetEnumeratorStruct}}
+        {{RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}, {this.EffectiveSkipCount})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int count";
-    public override string GetEnumeratorFields => this.RootSource.CanTryProvideSpan
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({RootSource.GetEnumeratorExpression}, {EffectiveSkipCount})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int count";
+    public override string GetEnumeratorFields => RootSource.CanTryProvideSpan
         ? $$"""
-            private int {{this.a}};
-            private int {{this.temp}}=-1;
-            private global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>? {{this.lookup}};
-            private bool {{this.yielded}};
+            private int {{a}};
+            private int {{temp}}=-1;
+            private global::System.Collections.Generic.Queue<{{RootSource.ElementType}}>? {{lookup}};
+            private bool {{yielded}};
             """
         : $$"""
-            private global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>? {{this.lookup}};
-            private bool {{this.yielded}};
+            private global::System.Collections.Generic.Queue<{{RootSource.ElementType}}>? {{lookup}};
+            private bool {{yielded}};
             """;
-    public override string GetTryGetNextBody => this.RootSource.CanTryProvideSpan
+    public override string GetTryGetNextBody => RootSource.CanTryProvideSpan
         ? $$"""
-            if({{this.e}}.TryGetSpan(out var __span)) {
-                if(this.{{this.temp}}<0) {
-                    this.{{this.temp}}=__span.Length-global::System.Math.Min(count<0?0:count,__span.Length);
+            if({{e}}.TryGetSpan(out var __span)) {
+                if(this.{{temp}}<0) {
+                    this.{{temp}}=__span.Length-global::System.Math.Min(count<0?0:count,__span.Length);
                 }
-                if((uint)this.{{this.a}}<(uint)this.{{this.temp}}) {
-                    current=this.{{this.currentValue}}=__span[this.{{this.a}}++];
+                if((uint)this.{{a}}<(uint)this.{{temp}}) {
+                    current=this.{{currentValue}}=__span[this.{{a}}++];
                     return true;
                 }
                 current=default!;
@@ -43,21 +43,21 @@ public class SkipLast(int 番号, Enumerable source, string skipCount) : Enumera
             }
             var __c=count<0?0:count;
             if(__c==0) {
-                if({{this.e}}.MoveNext()) {
-                    current=this.{{this.currentValue}}={{this.e}}.Current;
+                if({{e}}.MoveNext()) {
+                    current=this.{{currentValue}}={{e}}.Current;
                     return true;
                 }
                 current=default!;
                 return false;
             }
-            if(!this.{{this.yielded}}) {
-                this.{{this.lookup}}=new global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>(__c+1);
-                while(this.{{this.lookup}}.Count<__c&&{{this.e}}.MoveNext()) this.{{this.lookup}}.Enqueue({{this.e}}.Current);
-                this.{{this.yielded}}=true;
+            if(!this.{{yielded}}) {
+                this.{{lookup}}=new global::System.Collections.Generic.Queue<{{RootSource.ElementType}}>(__c+1);
+                while(this.{{lookup}}.Count<__c&&{{e}}.MoveNext()) this.{{lookup}}.Enqueue({{e}}.Current);
+                this.{{yielded}}=true;
             }
-            if(this.{{this.lookup}} is not null&&{{this.e}}.MoveNext()) {
-                this.{{this.lookup}}.Enqueue({{this.e}}.Current);
-                current=this.{{this.currentValue}}=this.{{this.lookup}}.Dequeue();
+            if(this.{{lookup}} is not null&&{{e}}.MoveNext()) {
+                this.{{lookup}}.Enqueue({{e}}.Current);
+                current=this.{{currentValue}}=this.{{lookup}}.Dequeue();
                 return true;
             }
             current=default!;
@@ -66,26 +66,26 @@ public class SkipLast(int 番号, Enumerable source, string skipCount) : Enumera
         : $$"""
             var __c=count<0?0:count;
             if(__c==0) {
-                if({{this.e}}.MoveNext()) {
-                    current=this.{{this.currentValue}}={{this.e}}.Current;
+                if({{e}}.MoveNext()) {
+                    current=this.{{currentValue}}={{e}}.Current;
                     return true;
                 }
                 current=default!;
                 return false;
             }
-            if(!this.{{this.yielded}}) {
-                this.{{this.lookup}}=new global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>(__c+1);
-                while(this.{{this.lookup}}.Count<__c&&{{this.e}}.MoveNext()) this.{{this.lookup}}.Enqueue({{this.e}}.Current);
-                this.{{this.yielded}}=true;
+            if(!this.{{yielded}}) {
+                this.{{lookup}}=new global::System.Collections.Generic.Queue<{{RootSource.ElementType}}>(__c+1);
+                while(this.{{lookup}}.Count<__c&&{{e}}.MoveNext()) this.{{lookup}}.Enqueue({{e}}.Current);
+                this.{{yielded}}=true;
             }
-            if(this.{{this.lookup}} is not null&&{{this.e}}.MoveNext()) {
-                this.{{this.lookup}}.Enqueue({{this.e}}.Current);
-                current=this.{{this.currentValue}}=this.{{this.lookup}}.Dequeue();
+            if(this.{{lookup}} is not null&&{{e}}.MoveNext()) {
+                this.{{lookup}}.Enqueue({{e}}.Current);
+                current=this.{{currentValue}}=this.{{lookup}}.Dequeue();
                 return true;
             }
             current=default!;
             return false;
             """;
-    public override string GetCurrentExpression => this.currentValue;
-    public override string ElementType => this.RootSource.ElementType;
+    public override string GetCurrentExpression => currentValue;
+    public override string ElementType => RootSource.ElementType;
 }

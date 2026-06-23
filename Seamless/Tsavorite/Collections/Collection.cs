@@ -1,4 +1,4 @@
-using Seamless.Persisted.Collections;
+﻿using Seamless.Persisted.Collections;
 using Seamless.Tsavorite.SessionFunctions;
 using Seamless.Tsavorite.Stores;
 namespace Seamless.Tsavorite.Collections;
@@ -37,10 +37,10 @@ public abstract class Collection<
         TStoreFunctions
     > {
     /// <summary>
-    /// IterateLookup 驍ｵ・�E�繝ｻ・�E�驛｢・�E�繝ｻ・�E�驛｢譎�E樟邵�E�繝ｻ・�E�・�E�繝ｻ・�E�髯�E�闌ｨ・�E�・�E�驛｢譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�驛｢譎｢・�E�・�E�驛｢譎擾�E��E�・�E�繝ｻ繝ｻ1 驛｢譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�驛｢譏ｴ繝ｻ(= 髯�E�・�E�繝ｻ・�E�驍ｵ・�E�繝ｻ・�E�髯�E�繝ｻ・�E�・�E�驍ｵ・�E�隲�E�諛翫・驍ｵ・�E�隴�E�・�E�繝ｻ・�E�繝ｻ・�E�驍ｵ・�E�陷�E�・�E�繝ｻ・�E�・つ髫�E�蠑ｱ繝ｻList/List) 驍ｵ・�E�繝ｻ・�E�髮趣�E��E�遶丞､�E�・�E�・�E�鬮�E�雜｣・�E�・�E�驛｢・�E�・つ驍ｵ・�E�雋�E∞�E�E�竏ｫ・�E�・�E�繝ｻ・�E�
-    /// IScanIteratorFunctions 髯橸�E��E�雋�E�E��E�繝ｻ・�E�郢晢�E��E�郢晢�E��E�驛｢・�E�繝ｻ・�E�驛｢譏ｴ繝ｻ・取ｨ抵�E��E�譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�髯憺屮・�E�・�E�髯滓�E・�E�譚ｿ�E�郢�E�繝ｻ閠�E� *Iterator 髯懷姓�E�E�譏ｴ繝ｻ驍ｵ・�E�髦�E�蜷�E�繝ｻ驛｢・�E�繝ｻ・�E�驛｢譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�驛｢・�E�陜｣・�E�繝ｻ・�E�陷�E�諠�E�・�E�・�E�驍ｵ・�E�陷会ｽ�E�遯�E�・�E�
-    /// <see cref="Deserialize{TSourceLogRecord}"/> 驛｢・�E�髮区�E��E�・�E�・�E�雋�E�E��E�繝ｻ・�E�郢晢�E��E�隨倥・・�E�・�E�闕ｵ謨鳴郢晢�E��E�numerator 髫�E�蝣�E�霍昴・・�E�騾匁E���E�陷・�E��E�驍ｵ・�E�繝ｻ・�E�
-    /// <see cref="SetList"/> 驍ｵ・�E�繝ｻ・�E�髯�E�繝ｻ・�E�・�E�髯�E�迚呻�E��E�蟶吶・驛｢譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�驛｢譎�E樟繝ｻ螳壽�E��E�繝ｻ・�E�驍ｵ・�E�髣埼屮・�E�・�E�繝ｻ・�E�驛｢・�E�・つ驍ｵ・�E�郢晢�E��E�
+    /// IterateLookup 驍ｵ・�E�繝ｻ・�E�驛｢・�E�繝ｻ・�E�驛｢譎�E樟邵�E�繝ｻ・�E�・�E�繝ｻ・�E�髯�E�闌ｨ・�E�・�E�驛｢譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�驛｢譎｢・�E�・�E�驛｢譎擾�E��E�・�E�繝ｻ繝ｻ1 驛｢譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�驛｢譏ｴ繝ｻ(= 髯�E�・�E�繝ｻ・�E�驍ｵ・�E�繝ｻ・�E�髯�E�繝ｻ・�E�・�E�驍ｵ・�E�隲�E�諛翫・驍ｵ・�E�隴�E�・�E�繝ｻ・�E�繝ｻ・�E�驍ｵ・�E�陷�E�・�E�繝ｻ・�E�・つ髫�E�蠑ｱ繝ｻList/List) 驍ｵ・�E�繝ｻ・�E�髮趣�E��E�遶丞､�E�・�E�・�E�鬮�E�雜｣・�E�・�E�驛｢・�E�・つ驍ｵ・�E�雋�E∞�E�E�竏ｫ・�E�・�E�繝ｻ・�E�
+    /// IScanIteratorFunctions 髯橸�E��E�雋�E�E��E�繝ｻ・�E�郢晢�E��E�郢晢�E��E�驛｢・�E�繝ｻ・�E�驛｢譏ｴ繝ｻ・取ｨ抵�E��E�譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�髯憺屮・�E�・�E�髯滓�E・�E�譚ｿ�E�郢�E�繝ｻ閠�E� *Iterator 髯懷姓�E�E�譏ｴ繝ｻ驍ｵ・�E�髦�E�蜷�E�繝ｻ驛｢・�E�繝ｻ・�E�驛｢譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�驛｢・�E�陜｣・�E�繝ｻ・�E�陷�E�諠�E�・�E�・�E�驍ｵ・�E�陷会ｽ�E�遯�E�・�E�
+    /// <see cref="Deserialize{TSourceLogRecord}"/> 驛｢・�E�髮区�E��E�・�E�・�E�雋�E�E��E�繝ｻ・�E�郢晢�E��E�隨倥・・�E�・�E�闕ｵ謨鳴郢晢�E��E�numerator 髫�E�蝣�E�霍昴・・�E�騾匁E���E�陷・�E��E�驍ｵ・�E�繝ｻ・�E�
+    /// <see cref="SetList"/> 驍ｵ・�E�繝ｻ・�E�髯�E�繝ｻ・�E�・�E�髯�E�迚呻�E��E�蟶吶・驛｢譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�驛｢譎�E樟繝ｻ螳壽�E��E�繝ｻ・�E�驍ｵ・�E�髣埼屮・�E�・�E�繝ｻ・�E�驛｢・�E�・つ驍ｵ・�E�郢晢�E��E�
     /// </summary>
     public abstract class ScanIteratorFunctions_List<T, TList>:IScanIteratorFunctions
         where TList : PersistedList<T> {
@@ -50,10 +50,10 @@ public abstract class Collection<
         public bool HasPendingItem => false;
         private TList? List;
         private readonly Lock Sync = new();
-        public void SetList(TList list) => this.List=list;
+        public void SetList(TList list) => List=list;
         public void ResetChunk() {
-            lock(this.Sync)
-                this.Count=0;
+            lock(Sync)
+                Count=0;
         }
         private protected virtual bool ShouldRead<TSourceLogRecord>(in TSourceLogRecord logRecord)
             where TSourceLogRecord : ISourceLogRecord => true;
@@ -61,24 +61,24 @@ public abstract class Collection<
             where TSourceLogRecord : ISourceLogRecord;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            if(!this.ShouldRead(logRecord)||logRecord.Info.Tombstone) {
+            if(!ShouldRead(logRecord)||logRecord.Info.Tombstone) {
                 cursorRecordResult=CursorRecordResult.Skip;
                 return true;
             }
-            if(this.List is { } list) {
-                lock(this.Sync)
-                    list.Add(this.Deserialize(logRecord));
+            if(List is { } list) {
+                lock(Sync)
+                    list.Add(Deserialize(logRecord));
                 cursorRecordResult=CursorRecordResult.Accept;
                 return true;
             }
 
-            lock(this.Sync) {
-                if(this.Count>=this.Chunk.Length) {
+            lock(Sync) {
+                if(Count>=Chunk.Length) {
                     cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
                     return true;
                 }
 
-                this.Chunk[this.Count++]=this.Deserialize(logRecord);
+                Chunk[Count++]=Deserialize(logRecord);
                 cursorRecordResult=CursorRecordResult.Accept;
                 return true;
             }
@@ -128,29 +128,29 @@ public abstract class Collection<
         TStoreFunctions,
         TAllocator
     > CollectionStore;
-    private protected TsavoriteKV<TStoreFunctions,TAllocator> Store => this.CollectionStore.Store;
-    public TryAddResult TryAdd(TKey Key,TValue Value) => this.PrivateTryAdd(Key,Value);
+    private protected TsavoriteKV<TStoreFunctions,TAllocator> Store => CollectionStore.Store;
+    public TryAddResult TryAdd(TKey Key,TValue Value) => PrivateTryAdd(Key,Value);
     public void Add(TKey Key,TValue Value) {
-        var Result = this.TryAdd(Key,Value);
+        var Result = TryAdd(Key,Value);
         switch(Result) {
             case TryAddResult.LogFull:
-                throw this.ThrowLogFull();
+                throw ThrowLogFull();
             case TryAddResult.KeyAlreadyExists:
                 throw new ArgumentException($"An item with the same key has already been added. Key: {Key}");
         }
         Debug.Assert(Result==TryAddResult.Success);
     }
-    //todo 霑ｴ・�E�陜ｨ・�E�邵�E�・�E�郢晁�E繝ｻ郢�E�・�E�郢晢�E��E�郢晢�E��E�邵�E�・�E�邵�E�・�E�struct邵�E�・�E�邵�E�・�E�隴厁E���E�隴・�E��E�邵�E�・�E�邵�E�髦�E�竊�E�E��E�繝ｻ�E�繝ｻ
+    //todo 霑ｴ・�E�陜ｨ・�E�邵�E�・�E�郢晁�E繝ｻ郢�E�・�E�郢晢�E��E�郢晢�E��E�邵�E�・�E�邵�E�・�E�struct邵�E�・�E�邵�E�・�E�隴厁E���E�隴・�E��E�邵�E�・�E�邵�E�髦�E�竊�E�E��E�繝ｻ�E�繝ｻ
     internal sealed class CounterIterator:IScanIteratorFunctions {
         public long Counter;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
             cursorRecordResult=CursorRecordResult.Accept;
-            this.Counter++;
+            Counter++;
             return true;
         }
         public bool OnStart(long beginAddress,long endAddress) {
-            this.Counter=0;
+            Counter=0;
             return true;
         }
         public void OnException(Exception exception,long numberOfRecords) {
@@ -161,12 +161,12 @@ public abstract class Collection<
     public long GetLongCount() {
         var iterator = new CounterIterator();
         var cursor = 0L;
-        this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
-        this.ReadSession.BasicContext.CompletePending(wait: true);
+        ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+        ReadSession.BasicContext.CompletePending(wait: true);
         return iterator.Counter;
     }
     private protected unsafe bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes) {
-        var Session = this.ContainsDeleteSession;
+        var Session = ContainsDeleteSession;
         var Output = false;
         Status Status;
         // FixedSpanByteKey requires the key span to stay fixed through any pending completion.
@@ -186,25 +186,25 @@ public abstract class Collection<
         > CollectionStore
     ) {
         this.CollectionStore=CollectionStore;
-        this.RecreateCoreSessions();
+        RecreateCoreSessions();
     }
     private void RecreateCoreSessions() {
-        var Store = this.CollectionStore.Store;
-        this.ReadSession=Store.NewSession<
+        var Store = CollectionStore.Store;
+        ReadSession=Store.NewSession<
             FixedSpanByteKey,
             EqualityEmpty,
             TReadOutput,
             EqualityEmpty,
             TReadFunctions
         >(TReadFunctions.Create());
-        this.Add_ClientSession=Store.NewSession<
+        Add_ClientSession=Store.NewSession<
             FixedSpanByteKey,
             TAddInput,
             bool,
             EqualityEmpty,
             TAddFunctions
         >(TAddFunctions.Create());
-        this.ContainsDeleteSession=Store.NewSession<
+        ContainsDeleteSession=Store.NewSession<
             FixedSpanByteKey,
             EqualityEmpty,
             bool,
@@ -213,9 +213,9 @@ public abstract class Collection<
         >(TContainsDeleteFunctions.Create());
     }
     private void DisposeCoreSessions() {
-        CompletePendingAndDispose(this.ReadSession);
-        CompletePendingAndDispose(this.Add_ClientSession);
-        CompletePendingAndDispose(this.ContainsDeleteSession);
+        CompletePendingAndDispose(ReadSession);
+        CompletePendingAndDispose(Add_ClientSession);
+        CompletePendingAndDispose(ContainsDeleteSession);
     }
     private protected virtual void DisposeAdditionalSessions() {
     }
@@ -240,22 +240,22 @@ public abstract class Collection<
         session.Dispose();
     }
     public void Clear() {
-        this.DisposeAdditionalSessions();
-        this.DisposeCoreSessions();
-        this.CollectionStore.Store.Reset();
-        this.RecreateCoreSessions();
-        this.RecreateAdditionalSessions();
+        DisposeAdditionalSessions();
+        DisposeCoreSessions();
+        CollectionStore.Store.Reset();
+        RecreateCoreSessions();
+        RecreateAdditionalSessions();
     }
     public virtual void Refresh() {
-        // Tsavorite 驍ｵ・�E�繝ｻ・�E� log truncation/segment deletion 驍ｵ・�E�繝ｻ・�E�驍ｵ・�E�遶乗剌閹夐し・�E�郢晢�E��E�session 驍ｵ・�E�陟包�E��E�繝ｻ・�E�隴弱・莠憺し�E�E�陷�E�・�E�繝ｻ繝ｻepoch 髣匁E���E�驍丞�E・�E�・�E�繝ｻ・�E�髯�E�・�E�郢�E�蟲�E�繝ｻ驍ｵ・�E�繝ｻ・�E�髯溷私�E�E�・�E�鬯�E�・�E�繝ｻ・�E�驍ｵ・�E�髴郁E���E�・�E�讙趣�E��E�・�E�闕ｵ謨鳴郢晢�E��E�
-        // session 驛｢・�E�髮区�E��E�・�E�・�E�繝ｻ・�E�驛｢・�E�鬯・�E��E�・�E�蟶�E�・�E�・�E�陋ｹ・�E�遯�E�・�E� pending 驛｢・�E�陞ｳ螟ｲ・�E�・�E�繝ｻ・�E�髮趣�E��E�陋ｹ・�E�繝ｻ・�E�驍ｵ・�E�遶乗剌閹夐し・�E�郢晢�E��E�繝ｻ・�E�驍丞�E・�E�・�E�繝ｻ・�E�驛｢・�E�陷�E�閧�E�繝ｻ髫�E�・�E�繝ｻ・�E�驍ｵ・�E�陷�E�・�E�・つ郢晢�E��E�
-        this.DisposeAdditionalSessions();
-        this.DisposeCoreSessions();
-        this.RecreateCoreSessions();
-        this.RecreateAdditionalSessions();
+        // Tsavorite 驍ｵ・�E�繝ｻ・�E� log truncation/segment deletion 驍ｵ・�E�繝ｻ・�E�驍ｵ・�E�遶乗剌閹夐し・�E�郢晢�E��E�session 驍ｵ・�E�陟包�E��E�繝ｻ・�E�隴弱・莠憺し�E�E�陷�E�・�E�繝ｻ繝ｻepoch 髣匁E���E�驍丞�E・�E�・�E�繝ｻ・�E�髯�E�・�E�郢�E�蟲�E�繝ｻ驍ｵ・�E�繝ｻ・�E�髯溷私�E�E�・�E�鬯�E�・�E�繝ｻ・�E�驍ｵ・�E�髴郁E���E�・�E�讙趣�E��E�・�E�闕ｵ謨鳴郢晢�E��E�
+        // session 驛｢・�E�髮区�E��E�・�E�・�E�繝ｻ・�E�驛｢・�E�鬯・�E��E�・�E�蟶�E�・�E�・�E�陋ｹ・�E�遯�E�・�E� pending 驛｢・�E�陞ｳ螟ｲ・�E�・�E�繝ｻ・�E�髮趣�E��E�陋ｹ・�E�繝ｻ・�E�驍ｵ・�E�遶乗剌閹夐し・�E�郢晢�E��E�繝ｻ・�E�驍丞�E・�E�・�E�繝ｻ・�E�驛｢・�E�陷�E�閧�E�繝ｻ髫�E�・�E�繝ｻ・�E�驍ｵ・�E�陷�E�・�E�・つ郢晢�E��E�
+        DisposeAdditionalSessions();
+        DisposeCoreSessions();
+        RecreateCoreSessions();
+        RecreateAdditionalSessions();
     }
     public bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
-        var Status = this.Read(Key,out Value);
+        var Status = Read(Key,out Value);
         if(Status.NotFound) {
             Value=default;
             return false;
@@ -388,7 +388,7 @@ public abstract class Collection<
         public TStrategy Strategy = strategy;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            return TStrategy.Reader(ref this.Strategy,in logRecord,recordMetadata,numberOfRecords,out cursorRecordResult);
+            return TStrategy.Reader(ref Strategy,in logRecord,recordMetadata,numberOfRecords,out cursorRecordResult);
         }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) {
@@ -545,43 +545,43 @@ public abstract class Collection<
             return true;
         }
     }
-    private long LogMemorySize => this.CollectionStore.LogMemorySize;
-    private double MutableFraction => this.CollectionStore.MutableFraction;
+    private long LogMemorySize => CollectionStore.LogMemorySize;
+    private double MutableFraction => CollectionStore.MutableFraction;
     private protected OutOfMemoryException ThrowLogFull() {
-        var Log = this.CollectionStore.Store.Log;
+        var Log = CollectionStore.Store.Log;
         return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private protected bool WouldOverflowMutable(int KeyLength,int ValueLength) {
-        Debug.Assert(this.LogMemorySize>=8192);
-        var Log = this.CollectionStore.Store.Log;
-        return this.CollectionStore.OverflowMutableStrategyKind switch {
-            OverflowMutableStrategyKind.Memory => MemoryOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
-            OverflowMutableStrategyKind.Storage => this.CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(Log.TailAddress,KeyLength,ValueLength),
+        Debug.Assert(LogMemorySize>=8192);
+        var Log = CollectionStore.Store.Log;
+        return CollectionStore.OverflowMutableStrategyKind switch {
+            OverflowMutableStrategyKind.Memory => MemoryOverflowMutableStrategy.WouldOverflowMutable(LogMemorySize,MutableFraction,Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
+            OverflowMutableStrategyKind.Storage => CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(Log.TailAddress,KeyLength,ValueLength),
             _ => throw new UnreachableException(),
         };
     }
-    public int Count => checked((int)this.GetLongCount());
-    public long EntryCount => this.CollectionStore.Store.EntryCount;
+    public int Count => checked((int)GetLongCount());
+    public long EntryCount => CollectionStore.Store.EntryCount;
     private protected abstract Status Read(TKey Key,out TValue Output);
     public abstract bool IsDisposed { get; }
     private bool disposed;
     public void Dispose() {
-        this.Dispose(true);
-        global::System.GC.SuppressFinalize(this);
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
     protected virtual void Dispose(bool disposing) {
-        if(this.disposed)
+        if(disposed)
             return;
         if(disposing) {
-            this.DisposeAdditionalSessions();
-            this.DisposeCoreSessions();
+            DisposeAdditionalSessions();
+            DisposeCoreSessions();
         }
         else {
         }
-        this.disposed=true;
+        disposed=true;
     }
-    ~Collection() => this.Dispose(false);
+    ~Collection() => Dispose(false);
     private struct ScanIteratorFunctions_IsSubsetOf<TCollection>(TCollection other):IScanIteratorFunctions
         where TCollection : Collection<
             TKey,
@@ -597,7 +597,7 @@ public abstract class Collection<
         public bool IsSubset = true;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            if(!this.IsSubset) {
+            if(!IsSubset) {
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
                 return true;
             }
@@ -605,7 +605,7 @@ public abstract class Collection<
                 cursorRecordResult=CursorRecordResult.Accept;
                 return true;
             }
-            this.IsSubset=false;
+            IsSubset=false;
             cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
             return true;
         }
@@ -628,12 +628,12 @@ public abstract class Collection<
         public bool FoundOverlap = false;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            if(this.FoundOverlap) {
+            if(FoundOverlap) {
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
                 return true;
             }
             if(self.PrivateProtectedContainsKey(logRecord.Key)) {
-                this.FoundOverlap=true;
+                FoundOverlap=true;
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
                 return true;
             }
@@ -754,7 +754,7 @@ public abstract class Collection<
         return IsSubsetOfSet(Self,Other);
     }
     /// <summary>
-    /// HashSet,HashSet驍ｵ・�E�陟包�E��E�繝ｻ・�E�繝ｻ・�E�驍ｵ・�E�郢晢�E��E�
+    /// HashSet,HashSet驍ｵ・�E�陟包�E��E�繝ｻ・�E�繝ｻ・�E�驍ｵ・�E�郢晢�E��E�
     /// </summary>
     /// <typeparam name="TCollection"></typeparam>
     /// <param name="self"></param>
@@ -790,8 +790,8 @@ public abstract class Collection<
         try {
             using var keysToExpire = new SerializedList<byte[],RawByteArraySerializer>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
             var Iterator = new ScanIteratorFunctions_IntersectWith<TCollection>(other,keysToExpire);
-            // IntersectWith 驍ｵ・�E�繝ｻ・�E�髫俶誓�E�E�・�E�髫�E�貊ゑ�E��E�・�E�驍ｵ・�E�陷会ｽ�E�遶企�E・�E�・�E�陟暮�E�会ｽ�E�繝ｻRMW 驍ｵ・�E�繝ｻ・�E� tombstone 驛｢・�E�陞ｳ螟ｲ・�E�・�E�繝ｻ・�E�鬮�E�・�E�陋滂ｽ�E�隨倥・・�E�・�E�闕ｵ譏ｶ陞ｺ驛｢・�E�遶丞仰郢晢�E��E�
-            // 髫俶誓�E�E�・�E�髫�E�貊ゑ�E��E�・�E�鬯�E�・�E�陷�E�・�E�繝ｻ・�E�陋ｹ・�E�陷・�E��E�驍ｵ・�E�繝ｻ・�E� TailAddress 驛｢・�E�陷代・・�E�・�E�闔ｨ竏晏�E�憺し�E�E�繝ｻ・�E�髯懈圜・�E�・�E�髯橸�E��E�陞｢・�E�繝ｻ・�E�驍ｵ・�E�繝ｻ・�E�髫�E�繝ｻ・�E�・�E�鬮�E�蜍溯㊥繝ｻ・�E�繝ｻ・�E�鬮�E�・�E�闔ｨ諛翫・驛｢・�E�髮区�E��E�繝ｻ髫俶誓�E�E�・�E�髫�E�貊ゑ�E��E�・�E�驍ｵ・�E�陷会ｽ�E�遶企�E・�E�・�E�郢晢�E��E�・つ郢晢�E��E�
+            // IntersectWith 驍ｵ・�E�繝ｻ・�E�髫俶誓�E�E�・�E�髫�E�貊ゑ�E��E�・�E�驍ｵ・�E�陷会ｽ�E�遶企�E・�E�・�E�陟暮�E�会ｽ�E�繝ｻRMW 驍ｵ・�E�繝ｻ・�E� tombstone 驛｢・�E�陞ｳ螟ｲ・�E�・�E�繝ｻ・�E�鬮�E�・�E�陋滂ｽ�E�隨倥・・�E�・�E�闕ｵ譏ｶ陞ｺ驛｢・�E�遶丞仰郢晢�E��E�
+            // 髫俶誓�E�E�・�E�髫�E�貊ゑ�E��E�・�E�鬯�E�・�E�陷�E�・�E�繝ｻ・�E�陋ｹ・�E�陷・�E��E�驍ｵ・�E�繝ｻ・�E� TailAddress 驛｢・�E�陷代・・�E�・�E�闔ｨ竏晏�E�憺し�E�E�繝ｻ・�E�髯懈圜・�E�・�E�髯橸�E��E�陞｢・�E�繝ｻ・�E�驍ｵ・�E�繝ｻ・�E�髫�E�繝ｻ・�E�・�E�鬮�E�蜍溯㊥繝ｻ・�E�繝ｻ・�E�鬮�E�・�E�闔ｨ諛翫・驛｢・�E�髮区�E��E�繝ｻ髫俶誓�E�E�・�E�髫�E�貊ゑ�E��E�・�E�驍ｵ・�E�陷会ｽ�E�遶企�E・�E�・�E�郢晢�E��E�・つ郢晢�E��E�
     var Cursor = 0L;
             ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
             ReadSession.BasicContext.CompletePending(wait: true);
@@ -1013,87 +1013,87 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
         > session,
         TIterator iterator,
         long untilAddress) {
-            this._session=session;
-            this._untilAddress=untilAddress;
-            this._iterator=iterator;
-            this.Cursor=0;
-            this.Index=-1;
-            this.Count=0;
-            this.Done=false;
-            this.CurrentValue=default!;
+            _session=session;
+            _untilAddress=untilAddress;
+            _iterator=iterator;
+            Cursor=0;
+            Index=-1;
+            Count=0;
+            Done=false;
+            CurrentValue=default!;
         }
-        public readonly T Current => this.CurrentValue;
-        readonly object? IEnumerator.Current => this.Current;
+        public readonly T Current => CurrentValue;
+        readonly object? IEnumerator.Current => Current;
         public bool MoveNext() {
-            var nextIndex = this.Index+1;
-            if(nextIndex<this.Count) {
-                this.Index=nextIndex;
-                this.CurrentValue=this._iterator.Chunk[this.Index];
+            var nextIndex = Index+1;
+            if(nextIndex<Count) {
+                Index=nextIndex;
+                CurrentValue=_iterator.Chunk[Index];
                 return true;
             }
 
-            if(this.Done) {
-                this.Index=-1;
-                this.CurrentValue=default!;
+            if(Done) {
+                Index=-1;
+                CurrentValue=default!;
                 return false;
             }
 
             while(true) {
-                this._iterator.ResetChunk();
-                var scanFunctions = this._iterator;
-                var mayHaveMore = this._session.ScanCursor(
-                    ref this.Cursor,
-                    this._iterator.Chunk.Length,
+                _iterator.ResetChunk();
+                var scanFunctions = _iterator;
+                var mayHaveMore = _session.ScanCursor(
+                    ref Cursor,
+                    _iterator.Chunk.Length,
                     scanFunctions,
-                    this._untilAddress,
+                    _untilAddress,
                     true,
-                    this._untilAddress,
+                    _untilAddress,
                     false,
                     false);
-                this._session.BasicContext.CompletePending(wait: true);
-                this.Count=this._iterator.Count;
+                _session.BasicContext.CompletePending(wait: true);
+                Count=_iterator.Count;
 
-                if(!mayHaveMore&&!this._iterator.HasPendingItem)
-                    this.Done=true;
+                if(!mayHaveMore&&!_iterator.HasPendingItem)
+                    Done=true;
 
-                if(this.Count==0) {
-                    this.Done=true;
-                    this.Index=-1;
-                    this.CurrentValue=default!;
+                if(Count==0) {
+                    Done=true;
+                    Index=-1;
+                    CurrentValue=default!;
                     return false;
                 }
 
-                this.Index=0;
-                this.CurrentValue=this._iterator.Chunk[0];
+                Index=0;
+                CurrentValue=_iterator.Chunk[0];
                 return true;
             }
         }
         public void Reset() {
-            this.Cursor=0;
-            this.Count=0;
-            this.Index=-1;
-            this.Done=false;
-            this.CurrentValue=default!;
-            this._iterator.ResetChunk();
+            Cursor=0;
+            Count=0;
+            Index=-1;
+            Done=false;
+            CurrentValue=default!;
+            _iterator.ResetChunk();
         }
         public void Dispose() {
-            this.Done=true;
-            this.Index=-1;
-            this.Count=0;
-            this.CurrentValue=default!;
+            Done=true;
+            Index=-1;
+            Count=0;
+            CurrentValue=default!;
         }
     }
     private protected Collection(CollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
     }
     public bool ContainsKey(TKey Key) {
-        return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
+        return PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     }
     public bool Contains(TKey Key) {
-        return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
+        return PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     }
     private protected override unsafe Status Read(TKey Key,out TValue Value) {
         var KeyBytes = TKeySerializer.Serialize(ref Key);
-        var Session = this.ReadSession;
+        var Session = ReadSession;
         TValue Output = default!;
         Status Status;
         fixed(byte* _ = KeyBytes) {
@@ -1109,7 +1109,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
         return Status;
     }
     public unsafe bool Remove(TKey key) {
-        var ClientSession = this.ContainsDeleteSession;
+        var ClientSession = ContainsDeleteSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var Input = default(EqualityEmpty);
         var Output = false;
@@ -1124,9 +1124,9 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     private protected override unsafe TryAddResult PrivateTryAdd(TKey key,TValue value) {
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var serializedValueSize = TValueSerializer.Serialize(ref value).Length;
-        if(this.WouldOverflowMutable(KeyBytes.Length,serializedValueSize))
+        if(WouldOverflowMutable(KeyBytes.Length,serializedValueSize))
             return TryAddResult.LogFull;
-        var ClientSession = this.Add_ClientSession;
+        var ClientSession = Add_ClientSession;
         var Output = false;
         Status Status;
         fixed(byte* _ = KeyBytes) {
@@ -1143,9 +1143,9 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     private protected unsafe void PrivateUpsert(TKey key,TValue value) {
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var ValueBytes = TValueSerializer.Serialize(ref value);
-        if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
-            throw this.ThrowLogFull();
-        var ClientSession = this.Add_ClientSession;
+        if(WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
+            throw ThrowLogFull();
+        var ClientSession = Add_ClientSession;
         Status Status;
         fixed(byte* _ = KeyBytes) {
             var FixedKey = (FixedSpanByteKey)KeyBytes;

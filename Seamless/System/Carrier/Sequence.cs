@@ -68,8 +68,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }

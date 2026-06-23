@@ -41,8 +41,8 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
     [Fact,Trait("Category","Unit")]
     public void selector_Static() {
         var expected=Source().SelectMany(static v => new[] { v,v+10 }).ToList();
-        this.MeasureOptimized(nameof(selector_StaticOptimized),()=>selector_StaticOptimized(expected));
-        this.MeasureOptimized(nameof(selector_StaticNoOptimized),()=>selector_StaticNoOptimized(expected));
+        MeasureOptimized(nameof(selector_StaticOptimized),()=>selector_StaticOptimized(expected));
+        MeasureOptimized(nameof(selector_StaticNoOptimized),()=>selector_StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -62,8 +62,8 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
     [Fact,Trait("Category","Unit")]
     public void selector_Query() {
         var expected=Source().SelectMany(v => new[] { v,v+10 }).ToList();
-        this.MeasureOptimized(nameof(selector_QueryOptimized),()=>selector_QueryOptimized(expected));
-        this.MeasureOptimized(nameof(selector_QueryNoOptimized),()=>selector_QueryNoOptimized(expected));
+        MeasureOptimized(nameof(selector_QueryOptimized),()=>selector_QueryOptimized(expected));
+        MeasureOptimized(nameof(selector_QueryNoOptimized),()=>selector_QueryNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -83,8 +83,8 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
     [Fact,Trait("Category","Unit")]
     public void selector_index_Static() {
         var expected=Source().SelectMany(static (v,i) => new[] { v,i }).ToList();
-        this.MeasureOptimized(nameof(selector_index_StaticOptimized),()=>selector_index_StaticOptimized(expected));
-        this.MeasureOptimized(nameof(selector_index_StaticNoOptimized),()=>selector_index_StaticNoOptimized(expected));
+        MeasureOptimized(nameof(selector_index_StaticOptimized),()=>selector_index_StaticOptimized(expected));
+        MeasureOptimized(nameof(selector_index_StaticNoOptimized),()=>selector_index_StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -105,8 +105,8 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
     public void collectionSelector_resultSelector_Static() {
         var expected=Source().SelectMany(static v => new[] { v,v+10 },static (v,sub) => sub+v)
             .ToList();
-        this.MeasureOptimized(nameof(collectionSelector_resultSelector_StaticOptimized),()=>collectionSelector_resultSelector_StaticOptimized(expected));
-        this.MeasureOptimized(nameof(collectionSelector_resultSelector_StaticNoOptimized),()=>collectionSelector_resultSelector_StaticNoOptimized(expected));
+        MeasureOptimized(nameof(collectionSelector_resultSelector_StaticOptimized),()=>collectionSelector_resultSelector_StaticOptimized(expected));
+        MeasureOptimized(nameof(collectionSelector_resultSelector_StaticNoOptimized),()=>collectionSelector_resultSelector_StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -127,8 +127,8 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
     public void collectionSelector_index_resultSelector_Static() {
         var expected=Source().SelectMany(static (v,i) => new[] { v,i },static (v,sub) => sub+v)
             .ToList();
-        this.MeasureOptimized(nameof(collectionSelector_index_resultSelector_StaticOptimized),()=>collectionSelector_index_resultSelector_StaticOptimized(expected));
-        this.MeasureOptimized(nameof(collectionSelector_index_resultSelector_StaticNoOptimized),()=>collectionSelector_index_resultSelector_StaticNoOptimized(expected));
+        MeasureOptimized(nameof(collectionSelector_index_resultSelector_StaticOptimized),()=>collectionSelector_index_resultSelector_StaticOptimized(expected));
+        MeasureOptimized(nameof(collectionSelector_index_resultSelector_StaticNoOptimized),()=>collectionSelector_index_resultSelector_StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -148,8 +148,8 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
     [Fact,Trait("Category","Unit")]
     public void selector_Lambda() {
         var expected=Source().SelectMany(v => new[] { v,v+10 }).ToList();
-        this.MeasureOptimized(nameof(selector_LambdaOptimized),()=>selector_LambdaOptimized(expected));
-        this.MeasureOptimized(nameof(selector_LambdaNoOptimized),()=>selector_LambdaNoOptimized(expected));
+        MeasureOptimized(nameof(selector_LambdaOptimized),()=>selector_LambdaOptimized(expected));
+        MeasureOptimized(nameof(selector_LambdaNoOptimized),()=>selector_LambdaNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -170,8 +170,8 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
     public void selector_Captured() {
         var offset=10;
         var expected=Source().SelectMany(v => new[] { v,v+offset }).ToList();
-        this.MeasureOptimized(nameof(selector_CapturedOptimized),()=>selector_CapturedOptimized(expected));
-        this.MeasureOptimized(nameof(selector_CapturedNoOptimized),()=>selector_CapturedNoOptimized(expected));
+        MeasureOptimized(nameof(selector_CapturedOptimized),()=>selector_CapturedOptimized(expected));
+        MeasureOptimized(nameof(selector_CapturedNoOptimized),()=>selector_CapturedNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -193,8 +193,8 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
     [Fact,Trait("Category","Unit")]
     public void selector_DelegateSyntax() {
         var expected=Source().SelectMany(delegate(int v) { return new[] { v,v+10 }; }).ToList();
-        this.MeasureOptimized(nameof(selector_DelegateSyntaxOptimized),()=>selector_DelegateSyntaxOptimized(expected));
-        this.MeasureOptimized(nameof(selector_DelegateSyntaxNoOptimized),()=>selector_DelegateSyntaxNoOptimized(expected));
+        MeasureOptimized(nameof(selector_DelegateSyntaxOptimized),()=>selector_DelegateSyntaxOptimized(expected));
+        MeasureOptimized(nameof(selector_DelegateSyntaxNoOptimized),()=>selector_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -215,8 +215,8 @@ public sealed class SelectMany(ITestOutputHelper output):LinqChain1TestBase(outp
     public void selector_Variable() {
         Func<int,int[]> selector=v => [v,v+10];
         var expected=Source().SelectMany(selector).ToList();
-        this.MeasureOptimized(nameof(selector_VariableOptimized),()=>selector_VariableOptimized(expected));
-        this.MeasureOptimized(nameof(selector_VariableNoOptimized),()=>selector_VariableNoOptimized(expected));
+        MeasureOptimized(nameof(selector_VariableOptimized),()=>selector_VariableOptimized(expected));
+        MeasureOptimized(nameof(selector_VariableNoOptimized),()=>selector_VariableNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

@@ -59,43 +59,43 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<IGrouping<TKey,TSource>> destination,Index offset) => false;
 
         public bool TryGetNext(out IGrouping<TKey,TSource> current) {
-            if(!this.init) {
-                this.init=true;
-                this.rootGrouping=this.BuildRoot();
-                if(this.rootGrouping!=null) {
-                    current=this.rootGrouping;
-                    this.currentGrouping=this.rootGrouping;
+            if(!init) {
+                init=true;
+                rootGrouping=BuildRoot();
+                if(rootGrouping!=null) {
+                    current=rootGrouping;
+                    currentGrouping=rootGrouping;
                     return true;
                 }
             }
 
-            this.currentGrouping=this.currentGrouping?.NextGroupInAddOrder;
+            currentGrouping=currentGrouping?.NextGroupInAddOrder;
 
-            if(this.currentGrouping==null||this.currentGrouping==this.rootGrouping) {
+            if(currentGrouping==null||currentGrouping==rootGrouping) {
                 current=default!;
                 return false;
             }
             else {
-                current=this.currentGrouping;
+                current=currentGrouping;
                 return true;
             }
         }
 
         public void Dispose() {
-            this.source.Dispose();
+            source.Dispose();
         }
 
         Grouping<TKey,TSource>? BuildRoot() {
             var lookupBuilder = new LookupBuilder<TKey,TSource>(comparer??EqualityComparer<TKey>.Default);
 
-            if(this.source.TryGetSpan(out var span)) {
+            if(source.TryGetSpan(out var span)) {
                 foreach(var item in span) {
                     lookupBuilder.Add(keySelector(item),item);
                 }
             }
             else {
-                using(this.source) {
-                    while(this.source.TryGetNext(out var item)) {
+                using(source) {
+                    while(source.TryGetNext(out var item)) {
                         lookupBuilder.Add(keySelector(item),item);
                     }
                 }
@@ -128,43 +128,43 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<IGrouping<TKey,TElement>> destination,Index offset) => false;
 
         public bool TryGetNext(out IGrouping<TKey,TElement> current) {
-            if(!this.init) {
-                this.init=true;
-                this.rootGrouping=this.BuildRoot();
-                if(this.rootGrouping!=null) {
-                    current=this.rootGrouping;
-                    this.currentGrouping=this.rootGrouping;
+            if(!init) {
+                init=true;
+                rootGrouping=BuildRoot();
+                if(rootGrouping!=null) {
+                    current=rootGrouping;
+                    currentGrouping=rootGrouping;
                     return true;
                 }
             }
 
-            this.currentGrouping=this.currentGrouping?.NextGroupInAddOrder;
+            currentGrouping=currentGrouping?.NextGroupInAddOrder;
 
-            if(this.currentGrouping==null||this.currentGrouping==this.rootGrouping) {
+            if(currentGrouping==null||currentGrouping==rootGrouping) {
                 current=default!;
                 return false;
             }
             else {
-                current=this.currentGrouping;
+                current=currentGrouping;
                 return true;
             }
         }
 
         public void Dispose() {
-            this.source.Dispose();
+            source.Dispose();
         }
 
         Grouping<TKey,TElement>? BuildRoot() {
             var lookupBuilder = new LookupBuilder<TKey,TElement>(comparer??EqualityComparer<TKey>.Default);
 
-            if(this.source.TryGetSpan(out var span)) {
+            if(source.TryGetSpan(out var span)) {
                 foreach(var item in span) {
                     lookupBuilder.Add(keySelector(item),elementSelector(item));
                 }
             }
             else {
-                using(this.source) {
-                    while(this.source.TryGetNext(out var item)) {
+                using(source) {
+                    while(source.TryGetNext(out var item)) {
                         lookupBuilder.Add(keySelector(item),elementSelector(item));
                     }
                 }
@@ -197,43 +197,43 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            if(!this.init) {
-                this.init=true;
-                this.rootGrouping=this.BuildRoot();
-                if(this.rootGrouping!=null) {
-                    current=resultSelector(this.rootGrouping.Key,this.rootGrouping);
-                    this.currentGrouping=this.rootGrouping;
+            if(!init) {
+                init=true;
+                rootGrouping=BuildRoot();
+                if(rootGrouping!=null) {
+                    current=resultSelector(rootGrouping.Key,rootGrouping);
+                    currentGrouping=rootGrouping;
                     return true;
                 }
             }
 
-            this.currentGrouping=this.currentGrouping?.NextGroupInAddOrder;
+            currentGrouping=currentGrouping?.NextGroupInAddOrder;
 
-            if(this.currentGrouping==null||this.currentGrouping==this.rootGrouping) {
+            if(currentGrouping==null||currentGrouping==rootGrouping) {
                 current=default!;
                 return false;
             }
             else {
-                current=resultSelector(this.currentGrouping.Key,this.currentGrouping);
+                current=resultSelector(currentGrouping.Key,currentGrouping);
                 return true;
             }
         }
 
         public void Dispose() {
-            this.source.Dispose();
+            source.Dispose();
         }
 
         Grouping<TKey,TSource>? BuildRoot() {
             var lookupBuilder = new LookupBuilder<TKey,TSource>(comparer??EqualityComparer<TKey>.Default);
 
-            if(this.source.TryGetSpan(out var span)) {
+            if(source.TryGetSpan(out var span)) {
                 foreach(var item in span) {
                     lookupBuilder.Add(keySelector(item),item);
                 }
             }
             else {
-                using(this.source) {
-                    while(this.source.TryGetNext(out var item)) {
+                using(source) {
+                    while(source.TryGetNext(out var item)) {
                         lookupBuilder.Add(keySelector(item),item);
                     }
                 }
@@ -266,43 +266,43 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            if(!this.init) {
-                this.init=true;
-                this.rootGrouping=this.BuildRoot();
-                if(this.rootGrouping!=null) {
-                    current=resultSelector(this.rootGrouping.Key,this.rootGrouping);
-                    this.currentGrouping=this.rootGrouping;
+            if(!init) {
+                init=true;
+                rootGrouping=BuildRoot();
+                if(rootGrouping!=null) {
+                    current=resultSelector(rootGrouping.Key,rootGrouping);
+                    currentGrouping=rootGrouping;
                     return true;
                 }
             }
 
-            this.currentGrouping=this.currentGrouping?.NextGroupInAddOrder;
+            currentGrouping=currentGrouping?.NextGroupInAddOrder;
 
-            if(this.currentGrouping==null||this.currentGrouping==this.rootGrouping) {
+            if(currentGrouping==null||currentGrouping==rootGrouping) {
                 current=default!;
                 return false;
             }
             else {
-                current=resultSelector(this.currentGrouping.Key,this.currentGrouping);
+                current=resultSelector(currentGrouping.Key,currentGrouping);
                 return true;
             }
         }
 
         public void Dispose() {
-            this.source.Dispose();
+            source.Dispose();
         }
 
         Grouping<TKey,TElement>? BuildRoot() {
             var lookupBuilder = new LookupBuilder<TKey,TElement>(comparer??EqualityComparer<TKey>.Default);
 
-            if(this.source.TryGetSpan(out var span)) {
+            if(source.TryGetSpan(out var span)) {
                 foreach(var item in span) {
                     lookupBuilder.Add(keySelector(item),elementSelector(item));
                 }
             }
             else {
-                using(this.source) {
-                    while(this.source.TryGetNext(out var item)) {
+                using(source) {
+                    while(source.TryGetNext(out var item)) {
                         lookupBuilder.Add(keySelector(item),elementSelector(item));
                     }
                 }

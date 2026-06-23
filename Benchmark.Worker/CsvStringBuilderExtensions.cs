@@ -1,4 +1,4 @@
-using global::System.Text;
+using System.Text;
 
 namespace Benchmark.Runner.Uno;
 

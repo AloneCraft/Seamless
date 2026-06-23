@@ -7,8 +7,8 @@ public sealed class InfiniteSequence(ITestOutputHelper output):LinqChain1TestBas
     [Fact,Trait("Category","Unit")]
     public void start_step() {
         var expected=Enumerable.InfiniteSequence(1L,2L).Take(5).ToList();
-        this.MeasureOptimized(nameof(start_stepOptimized),()=>start_stepOptimized(expected));
-        this.MeasureOptimized(nameof(start_stepNoOptimized),()=>start_stepNoOptimized(expected));
+        MeasureOptimized(nameof(start_stepOptimized),()=>start_stepOptimized(expected));
+        MeasureOptimized(nameof(start_stepNoOptimized),()=>start_stepNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

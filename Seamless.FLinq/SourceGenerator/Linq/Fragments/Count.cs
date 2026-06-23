@@ -22,9 +22,9 @@ public class Count(int 番号, Enumerable source, string resultType) : BufferedS
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    protected override string ComputeExpression => $"Compute({this.e})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    protected override string ComputeExpression => $"Compute({e})";
     public override string? RenderInlineComputation(string destVar,string destType) {
         if(source is RangeRoot range) {
             return $"{destType} {destVar}=({destType})({range.CountExpression});";
@@ -33,12 +33,12 @@ public class Count(int 番号, Enumerable source, string resultType) : BufferedS
             return $"{destType} {destVar}=({destType})({repeat.CountExpression});";
         }
         if(source.DirectEnumerableExpression is not { } sourceExpression) {
-            return this.RenderComputeInline(destVar,destType);
+            return RenderComputeInline(destVar,destType);
         }
         if(resultType is not ("long" or "global::System.Int64")) {
-            return this.RenderDirectEnumerableCallInline(source,destVar,destType,"Count");
+            return RenderDirectEnumerableCallInline(source,destVar,destType,"Count");
         }
-        var sourceVar=$"__src{this.result}";
+        var sourceVar=$"__src{result}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -72,7 +72,7 @@ public class Count(int 番号, Enumerable source, string resultType) : BufferedS
                 return count;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
 /*
@@ -95,39 +95,39 @@ Count_predicate は predicate が true の件数だけを checked で数える C
 public class Count_predicate(int 番号, Enumerable source, FuncFragment predicate, string resultType) : BufferedScalar(番号, resultType) {
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
+    public override string StructMethod => FuncSupport(predicate,nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+        $"Compute({e}{ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorConstructor =>
-        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
+        $"this.Current = Compute({e}{ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) {
         var methodName = resultType is "long" or "global::System.Int64" ? "LongCount" : "Count";
         return source is RangeRoot range
             ? RangePredicateOptimizer.RenderCount(range,predicate,番号,destVar,destType)
                 ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
-                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,rangeLambda)
-                    : this.RenderComputeInline(destVar,destType))
+                    ? RenderDirectEnumerableCallInline(source,destVar,destType,methodName,rangeLambda)
+                    : RenderComputeInline(destVar,destType))
         : TryRenderDirectLambda(predicate) is { } lambda
-            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda)
-            : this.RenderComputeInline(destVar,destType);
+            ? RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda)
+            : RenderComputeInline(destVar,destType);
     }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
                 source.TryGetSpan(out var __span);
                 {{resultType}} count = 0;
                 checked{
                     for(var __i = 0; __i < __span.Length; __i++) {
-                        var {{this.item}} = __span[__i];
-                        bool {{this.temp}} = default!;
-                        {{this.FuncAssignStaticIndented("            ",predicate,nameof(predicate),this.temp,this.item)}}
-                        if({{this.temp}}) count++;
+                        var {{item}} = __span[__i];
+                        bool {{temp}} = default!;
+                        {{FuncAssignStaticIndented("            ",predicate,nameof(predicate),temp,item)}}
+                        if({{temp}}) count++;
                     }
                 }
                 return count;
@@ -135,18 +135,18 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
                 {{resultType}} count = 0;
                 checked{
                     while(source.MoveNext()) {
-                        var {{this.item}} = source.Current;
-                        bool {{this.temp}} = default!;
-                        {{this.FuncAssignStaticIndented("            ",predicate,nameof(predicate),this.temp,this.item)}}
-                        if({{this.temp}}) count++;
+                        var {{item}} = source.Current;
+                        bool {{temp}} = default!;
+                        {{FuncAssignStaticIndented("            ",predicate,nameof(predicate),temp,item)}}
+                        if({{temp}}) count++;
                     }
                 }
                 return count;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }

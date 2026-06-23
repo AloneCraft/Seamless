@@ -1,6 +1,6 @@
 using global::System.Diagnostics;
-using global::System.Globalization;
-using global::System.Runtime.InteropServices;
+using System.Globalization;
+using System.Runtime.InteropServices;
 
 namespace Benchmark.Runner.Uno;
 

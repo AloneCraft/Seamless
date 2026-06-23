@@ -12,7 +12,7 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
                 args.Add(exclusion.StartExpression);
                 args.Add(exclusion.CountExpression);
             }
-            return $"new {this.EnumeratorTypeName}({string.Join(", ",args)})";
+            return $"new {EnumeratorTypeName}({string.Join(", ",args)})";
         }
     }
     public override string GetEnumeratorPrimaryConstructorParameters {
@@ -25,12 +25,12 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
             return string.Join(", ",parameters);
         }
     }
-    public override string GetEnumeratorFields => $"private int {this.e} = -1;";
+    public override string GetEnumeratorFields => $"private int {e} = -1;";
     public override string GetTryGetNextBody {
         get {
             var builder = new StringBuilder();
-            builder.AppendLine($"while(++{this.e} < count) {{");
-            builder.AppendLine($"    var __value=start + {this.e};");
+            builder.AppendLine($"while(++{e} < count) {{");
+            builder.AppendLine($"    var __value=start + {e};");
             for(var index = 0; index<exclusions.Count; index++) {
                 builder.AppendLine($"    var __excludedEnd{index}=(long)excludedStart{index} + excludedCount{index};");
                 builder.AppendLine($"    if((long)__value >= excludedStart{index} && (long)__value < __excludedEnd{index}) continue;");
@@ -45,16 +45,16 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
     }
     public override string GetCurrentExpression => "Current";
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
+        private struct {{Struct}} : global::Seamless.System.Carrier.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
         {
             private int start;
             private int count;
-            {{this.ExclusionFields}}
-            private int {{this.e}} = -1;
-            public {{this.Struct}}({{this.GetEnumeratorPrimaryConstructorParameters}}) {
+            {{ExclusionFields}}
+            private int {{e}} = -1;
+            public {{Struct}}({{GetEnumeratorPrimaryConstructorParameters}}) {
                 this.start = start;
                 this.count = count;
-                {{this.ExclusionAssignments}}
+                {{ExclusionAssignments}}
             }
             public int Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
@@ -76,7 +76,7 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
             public bool TryCopyTo(scoped global::System.Span<int> destination, global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out int current) {
-                {{this.GetTryGetNextBody}}
+                {{GetTryGetNextBody}}
             }
             {{AggressiveInliningAttribute}}
             public void Dispose() { }

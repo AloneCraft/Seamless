@@ -7,8 +7,8 @@ public sealed class Shuffle(ITestOutputHelper output):LinqChain1TestBase(output)
     [Fact,Trait("Category","Unit")]
     public void noArg() {
         var expected=SourceWithDuplicates().Shuffle().Order().ToList();
-        this.MeasureOptimized(nameof(noArgOptimized),()=>noArgOptimized(expected));
-        this.MeasureOptimized(nameof(noArgNoOptimized),()=>noArgNoOptimized(expected));
+        MeasureOptimized(nameof(noArgOptimized),()=>noArgOptimized(expected));
+        MeasureOptimized(nameof(noArgNoOptimized),()=>noArgNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

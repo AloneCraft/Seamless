@@ -24,9 +24,9 @@ public partial class Dictionary<
     IDictionary<TKey,TValue>    where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
     public bool IsReadOnly => false;
-    public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
+    public void Add(KeyValuePair<TKey,TValue> item) => Add(item.Key,item.Value);
     bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item) {
-        var status = this.Read(item.Key,out var output);
+        var status = Read(item.Key,out var output);
         if(status.NotFound)
             return false;
         return EqualityComparer<TValue>.Default.Equals(output,item.Value);
@@ -34,36 +34,36 @@ public partial class Dictionary<
     public void CopyTo(KeyValuePair<TKey,TValue>[] array,int arrayIndex) {
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
-        if(array.Length-arrayIndex<this.GetLongCount())
+        if(array.Length-arrayIndex<GetLongCount())
             throw new ArgumentException("The destination array is too small.");
         foreach(var kvp in this) {
             array[arrayIndex++]=kvp;
         }
     }
-    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
-    IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
-    public global::System.Collections.Generic.List<KeyValuePair<TKey,TValue>> ToList() {
-        using var Enumerator = this.GetEnumerator();
-        var capacity=checked((int)Math.Min(this.EntryCount,int.MaxValue));
-        var List=new global::System.Collections.Generic.List<KeyValuePair<TKey,TValue>>(capacity);
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => GetEnumerator();
+    public List<KeyValuePair<TKey,TValue>> ToList() {
+        using var Enumerator = GetEnumerator();
+        var capacity=checked((int)Math.Min(EntryCount,int.MaxValue));
+        var List=new List<KeyValuePair<TKey,TValue>>(capacity);
         while(Enumerator.MoveNext()) {
             List.Add(Enumerator.Current);
         }
         return List;
     }
-    public ICollection<TKey> Keys => this.CreateCollectionView<KeyIterator,TKey>();
-    public ICollection<TValue> Values => this.CreateCollectionView<ValueIterator,TValue>();
-    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => this.Keys;
-    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => this.Values;
-    public override bool IsDisposed => this.disposed;
+    public ICollection<TKey> Keys => CreateCollectionView<KeyIterator,TKey>();
+    public ICollection<TValue> Values => CreateCollectionView<ValueIterator,TValue>();
+    IEnumerable<TKey> IReadOnlyDictionary<TKey,TValue>.Keys => Keys;
+    IEnumerable<TValue> IReadOnlyDictionary<TKey,TValue>.Values => Values;
+    public override bool IsDisposed => disposed;
     private bool disposed;
     protected override void Dispose(bool disposing) {
-        if(this.disposed)
+        if(disposed)
             return;
-        this.disposed=true;
+        disposed=true;
         if(disposing) {
-            this.Remove_TKey_TValue_ClientSession.Dispose();
-            this.Remove_KeyValuePair_ClientSession.Dispose();
+            Remove_TKey_TValue_ClientSession.Dispose();
+            Remove_KeyValuePair_ClientSession.Dispose();
         }
         base.Dispose(disposing);
     }
@@ -91,25 +91,25 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         SpanByteStoreAllocator//TAllocator
     > Remove_KeyValuePair_ClientSession { get; set; } = null!;
     internal Dictionary(CollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
-        this.CreateAdditionalSessions();
+        CreateAdditionalSessions();
     }
     private protected override void DisposeAdditionalSessions() {
-        CompletePendingAndDispose(this.Remove_TKey_TValue_ClientSession);
-        CompletePendingAndDispose(this.Remove_KeyValuePair_ClientSession);
+        CompletePendingAndDispose(Remove_TKey_TValue_ClientSession);
+        CompletePendingAndDispose(Remove_KeyValuePair_ClientSession);
     }
     private protected override void RecreateAdditionalSessions() {
-        this.CreateAdditionalSessions();
+        CreateAdditionalSessions();
     }
     private void CreateAdditionalSessions() {
         var Store = this.Store;
-        this.Remove_TKey_TValue_ClientSession=Store.NewSession<
+        Remove_TKey_TValue_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
             EqualityEmpty,//TInput
             TValue,//TOutput
             EqualityEmpty,//TContext
             Remove_TKey_TValue<TValue,TValueSerializer>//TFunctions
         >(new());
-        this.Remove_KeyValuePair_ClientSession=Store.NewSession<
+        Remove_KeyValuePair_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
             TValue,//TInput
             bool,//TOutput
@@ -118,7 +118,7 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         >(new());
     }
     public unsafe bool Remove(KeyValuePair<TKey,TValue> item) {
-        var Session = this.Remove_KeyValuePair_ClientSession;
+        var Session = Remove_KeyValuePair_ClientSession;
         var Key0 = item.Key;
         var Value0 = item.Value;
         var KeyBytes = TKeySerializer.Serialize(ref Key0);
@@ -132,7 +132,7 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         return Output;
     }
     public unsafe bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value) {
-        var Session = this.Remove_TKey_TValue_ClientSession;
+        var Session = Remove_TKey_TValue_ClientSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var Input = default(EqualityEmpty);
         TValue Output = default!;
@@ -152,8 +152,8 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
     public Enumerator<
         KeyValueIterator,
         KeyValuePair<TKey,TValue>
-    > GetEnumerator() => new(this.ReadSession,new(),this.Store.Log.TailAddress);
-    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new(),this.Store.Log.TailAddress);
+    > GetEnumerator() => new(ReadSession,new(),Store.Log.TailAddress);
+    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(ReadSession,new(),Store.Log.TailAddress);
     private ReadOnlyCollectionView<TIterator,T> CreateCollectionView<TIterator,T>()
         where TIterator : ScanIteratorFunctions_List<T,PersistedList<T>>,ICreate<TIterator> =>
         new(this);
@@ -169,7 +169,7 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         public bool Remove(T item) => throw new NotSupportedException();
         public bool Contains(T item) {
             var comparer = EqualityComparer<T>.Default;
-            using var e = this.GetEnumerator();
+            using var e = GetEnumerator();
             while(e.MoveNext()) {
                 if(comparer.Equals(e.Current,item))
                     return true;
@@ -179,29 +179,29 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         public void CopyTo(T[] array,int arrayIndex) {
             ArgumentNullException.ThrowIfNull(array);
             ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
-            if(array.Length-arrayIndex<this.Count)
+            if(array.Length-arrayIndex<Count)
                 throw new ArgumentException("The destination array is too small.");
-            using var e = this.GetEnumerator();
+            using var e = GetEnumerator();
             while(e.MoveNext()) {
                 array[arrayIndex++]=e.Current;
             }
         }
         public Enumerator<TIterator,T> GetEnumerator() => new(dictionary.ReadSession,TIterator.Create(),dictionary.Store.Log.TailAddress);
-        IEnumerator<T> IEnumerable<T>.GetEnumerator() => this.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+        IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
     public TValue this[TKey key] {
         get {
-            if(this.TryGetValue(key,out var value))
+            if(TryGetValue(key,out var value))
                 return value;
             throw new KeyNotFoundException();
         }
         set {
             var KeyBytes = TKeySerializer.Serialize(ref key);
             var ValueBytes = TValueSerializer.Serialize(ref value);
-            if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
-                throw this.ThrowLogFull();
-            var ClientSession = this.Add_ClientSession;
+            if(WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
+                throw ThrowLogFull();
+            var ClientSession = Add_ClientSession;
             Status Status;
             unsafe {
                 fixed(byte* _ = KeyBytes) {

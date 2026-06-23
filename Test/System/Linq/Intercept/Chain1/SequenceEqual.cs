@@ -1,4 +1,4 @@
-using SystemEnumerable = global::System.Linq.Enumerable;
+using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.System.Linq.Intercept.Chain1;
 
@@ -6,8 +6,8 @@ public sealed class SequenceEqual(ITestOutputHelper output):LinqChain1TestBase(o
     [Fact, Trait("Category","Unit")]
     public void second() {
         var expected=Source().SequenceEqual(EqualSource());
-        this.MeasureOptimized(nameof(secondOptimized),()=>secondOptimized(expected));
-        this.MeasureOptimized(nameof(secondNoOptimized),()=>secondNoOptimized(expected));
+        MeasureOptimized(nameof(secondOptimized),()=>secondOptimized(expected));
+        MeasureOptimized(nameof(secondNoOptimized),()=>secondNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -25,8 +25,8 @@ public sealed class SequenceEqual(ITestOutputHelper output):LinqChain1TestBase(o
     [Fact, Trait("Category","Unit")]
     public void second_comparer() {
         var expected=Source().SequenceEqual(EqualSource(),EqualityComparer<int>.Default);
-        this.MeasureOptimized(nameof(second_comparerOptimized),()=>second_comparerOptimized(expected));
-        this.MeasureOptimized(nameof(second_comparerNoOptimized),()=>second_comparerNoOptimized(expected));
+        MeasureOptimized(nameof(second_comparerOptimized),()=>second_comparerOptimized(expected));
+        MeasureOptimized(nameof(second_comparerNoOptimized),()=>second_comparerNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

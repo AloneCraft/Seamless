@@ -10,24 +10,24 @@ public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<
     private IDisposable? ownedStore;
     public bool IsReadOnly => false;
     public bool Add(TKey item) {
-        if(this.Contains(item))
+        if(Contains(item))
             return false;
-        this.PrivateUpsert(item,EqualityEmpty.Default);
+        PrivateUpsert(item,EqualityEmpty.Default);
         return true;
     }
-    void ICollection<TKey>.Add(TKey item) => this.Add(item);
+    void ICollection<TKey>.Add(TKey item) => Add(item);
     public void CopyTo(TKey[] array,int arrayIndex) {
         ArgumentNullException.ThrowIfNull(array);
         ArgumentOutOfRangeException.ThrowIfNegative(arrayIndex);
-        if(array.Length-arrayIndex<this.GetLongCount())
+        if(array.Length-arrayIndex<GetLongCount())
             throw new ArgumentException("The destination array is too small.");
         foreach(var item in this) {
             array[arrayIndex++]=item;
         }
     }
     public partial void ExceptWith(HashSet<TKey> other);
-    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
-    IEnumerator<TKey> IEnumerable<TKey>.GetEnumerator() => this.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    IEnumerator<TKey> IEnumerable<TKey>.GetEnumerator() => GetEnumerator();
     public partial bool IsProperSubsetOf(HashSet<TKey> other);
     public partial bool IsProperSupersetOf(HashSet<TKey> other);
     public partial bool IsSubsetOf(HashSet<TKey> other);
@@ -61,26 +61,26 @@ public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<
     public void ExceptWith(global::System.Collections.Generic.ISet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         foreach(var item in other)
-            this.Remove(item);
+            Remove(item);
     }
 
     public void ExceptWith(IEnumerable<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         foreach(var item in other)
-            this.Remove(item);
+            Remove(item);
     }
 
     public void IntersectWith(global::System.Collections.Generic.ISet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         var workListPath = CreateTemporaryWorkListPath("hashset-intersect-ienumerable");
         try {
-            using var keysToRemove = new Seamless.Persisted.Collections.SerializedList<TKey,AutoSerializer<TKey>>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            using var keysToRemove = new SerializedList<TKey,AutoSerializer<TKey>>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
             foreach(var item in this) {
                 if(!other.Contains(item))
                     keysToRemove.Add(item);
             }
             foreach(var item in keysToRemove)
-                this.Remove(item);
+                Remove(item);
         }
         finally {
             DeleteTemporaryWorkListPath(workListPath);
@@ -90,56 +90,56 @@ public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<
     public void IntersectWith(IEnumerable<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         if(other is global::System.Collections.Generic.ISet<TKey> set) {
-            this.IntersectWith(set);
+            IntersectWith(set);
             return;
         }
         var materialized = new global::System.Collections.Generic.HashSet<TKey>(other);
-        this.IntersectWith(materialized);
+        IntersectWith(materialized);
     }
 
     public void SymmetricExceptWith(global::System.Collections.Generic.ISet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         foreach(var item in other) {
-            if(!this.Remove(item))
-                this.Add(item);
+            if(!Remove(item))
+                Add(item);
         }
     }
 
     public void SymmetricExceptWith(IEnumerable<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         if(other is global::System.Collections.Generic.ISet<TKey> set) {
-            this.SymmetricExceptWith(set);
+            SymmetricExceptWith(set);
             return;
         }
         var materialized = new global::System.Collections.Generic.HashSet<TKey>(other);
-        this.SymmetricExceptWith(materialized);
+        SymmetricExceptWith(materialized);
     }
 
     public void UnionWith(global::System.Collections.Generic.ISet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         foreach(var item in other)
-            this.Add(item);
+            Add(item);
     }
 
     public void UnionWith(IEnumerable<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
         foreach(var item in other)
-            this.Add(item);
+            Add(item);
     }
-    public override bool IsDisposed => this.disposed;
+    public override bool IsDisposed => disposed;
     private bool disposed;
     protected override void Dispose(bool disposing) {
-        if(this.disposed) return;
+        if(disposed) return;
         if(disposing) {
-            this.IntersectWith_ClientSession.Dispose();
-            this.SymmetricExceptWith_ClientSession.Dispose();
+            IntersectWith_ClientSession.Dispose();
+            SymmetricExceptWith_ClientSession.Dispose();
         }
         else {
         }
-        this.disposed=true;
+        disposed=true;
         base.Dispose(disposing);
         if(disposing)
-            this.ownedStore?.Dispose();
+            ownedStore?.Dispose();
     }
 }
 
@@ -155,20 +155,20 @@ public partial class HashSet<TKey> {
         where TStrategy : struct, IHashSetScanStrategy<TStrategy,TKey> {
         var state = new ScanState<TStrategy>(strategy);
         var adapter = new ScanAdapter<TStrategy>(state);
-        this.RunScanCursor(adapter,()=>adapter.Stop);
+        RunScanCursor(adapter,()=>adapter.Stop);
         strategy=state.Strategy;
     }
 
     internal void ScanUnsafeDelegate(Func<object?,bool> body) {
         var adapter = new UnsafeDelegateScanAdapter(body);
-        this.RunScanCursor(adapter,()=>adapter.Stop);
+        RunScanCursor(adapter,()=>adapter.Stop);
     }
 
     private void RunScanCursor(IScanIteratorFunctions adapter,Func<bool> shouldStop) {
         var cursor = 0L;
-        var untilAddress = this.Store.Log.TailAddress;
+        var untilAddress = Store.Log.TailAddress;
         while(!shouldStop()) {
-            var mayHaveMore = this.ReadSession.ScanCursor(
+            var mayHaveMore = ReadSession.ScanCursor(
                 ref cursor,
                 Const.Chunk_Length,
                 adapter,
@@ -177,7 +177,7 @@ public partial class HashSet<TKey> {
                 untilAddress,
                 false,
                 false);
-            this.ReadSession.BasicContext.CompletePending(wait: true);
+            ReadSession.BasicContext.CompletePending(wait: true);
             if(!mayHaveMore) {
                 break;
             }
@@ -200,12 +200,12 @@ public partial class HashSet<TKey> {
             out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
             var item = AutoSerializer<TKey>.Deserialize(logRecord.Key);
-            if(TStrategy.Invoke(ref this.state.Strategy,item)) {
+            if(TStrategy.Invoke(ref state.Strategy,item)) {
                 cursorRecordResult=CursorRecordResult.Accept;
                 return true;
             }
 
-            this.Stop=true;
+            Stop=true;
             cursorRecordResult=CursorRecordResult.Accept;
             return false;
         }
@@ -230,12 +230,12 @@ public partial class HashSet<TKey> {
             out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
             var item = AutoSerializer<TKey>.Deserialize(logRecord.Key);
-            if(this.body(item)) {
+            if(body(item)) {
                 cursorRecordResult=CursorRecordResult.Accept;
                 return true;
             }
 
-            this.Stop=true;
+            Stop=true;
             cursorRecordResult=CursorRecordResult.Accept;
             return false;
         }
@@ -295,33 +295,33 @@ public partial class HashSet<TKey> {
     > SymmetricExceptWith_ClientSession = null!;
     internal HashSet(CollectionStore<TKey,EqualityEmpty> CollectionStore,IDisposable? ownedStore = null) : base(CollectionStore) {
         this.ownedStore=ownedStore;
-        this.CreateAdditionalSessions();
+        CreateAdditionalSessions();
     }
     private protected override void DisposeAdditionalSessions() {
-        CompletePendingAndDispose(this.ExceptWith_ClientSession);
-        CompletePendingAndDispose(this.IntersectWith_ClientSession);
-        CompletePendingAndDispose(this.SymmetricExceptWith_ClientSession);
+        CompletePendingAndDispose(ExceptWith_ClientSession);
+        CompletePendingAndDispose(IntersectWith_ClientSession);
+        CompletePendingAndDispose(SymmetricExceptWith_ClientSession);
     }
     private protected override void RecreateAdditionalSessions() {
-        this.CreateAdditionalSessions();
+        CreateAdditionalSessions();
     }
     private void CreateAdditionalSessions() {
         var Store = this.Store;
-        this.ExceptWith_ClientSession=Store.NewSession<
+        ExceptWith_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
             EqualityEmpty,//TInput
             EqualityEmpty,//TOutput
             EqualityEmpty,//TContext
             ExceptWith//TFunctions
         >(new());
-        this.IntersectWith_ClientSession=Store.NewSession<
+        IntersectWith_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
             EqualityEmpty,//TInput
             EqualityEmpty,//TOutput
             EqualityEmpty,//TContext
             IntersectWith//TFunctions
         >(new());
-        this.SymmetricExceptWith_ClientSession=Store.NewSession<
+        SymmetricExceptWith_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
             EqualityEmpty,//TInput
             EqualityEmpty,//TOutput
@@ -332,21 +332,21 @@ public partial class HashSet<TKey> {
     public Enumerator<
         KeyIterator,
         TKey
-    > GetEnumerator() => new(this.ReadSession,new(),this.Store.Log.TailAddress);
-    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<MemoryKeyIterator,TKey>(this.ReadSession,new(),this.Store.Log.TailAddress);
+    > GetEnumerator() => new(ReadSession,new(),Store.Log.TailAddress);
+    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<MemoryKeyIterator,TKey>(ReadSession,new(),Store.Log.TailAddress);
     public partial void ExceptWith(HashSet<TKey> other) {
-        base.ExceptWith(other,this.ExceptWith_ClientSession);
+        base.ExceptWith(other,ExceptWith_ClientSession);
     }
     public partial void IntersectWith(HashSet<TKey> other) {
-        this.IntersectWith(this,other,this.IntersectWith_ClientSession);
+        IntersectWith(this,other,IntersectWith_ClientSession);
     }
     public partial bool IsProperSubsetOf(HashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
-        return this.Count<other.Count&&this.IsSubsetOf(other);
+        return Count<other.Count&&IsSubsetOf(other);
     }
     public partial bool IsProperSupersetOf(HashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
-        return this.Count>other.Count&&this.IsSupersetOf(other);
+        return Count>other.Count&&IsSupersetOf(other);
     }
     public partial bool IsSubsetOf(HashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
@@ -370,12 +370,12 @@ public partial class HashSet<TKey> {
     }
     public partial bool SetEquals(HashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
-        return this.Count==other.Count&&this.IsSubsetOf(other);
+        return Count==other.Count&&IsSubsetOf(other);
     }
     public partial void SymmetricExceptWith(HashSet<TKey> other) {
-        base.SymmetricExceptWith(other,this.SymmetricExceptWith_ClientSession);
+        base.SymmetricExceptWith(other,SymmetricExceptWith_ClientSession);
     }
     public partial void UnionWith(HashSet<TKey> other) {
-        base.UnionWith(other,this.Add_ClientSession);
+        base.UnionWith(other,Add_ClientSession);
     }
 }

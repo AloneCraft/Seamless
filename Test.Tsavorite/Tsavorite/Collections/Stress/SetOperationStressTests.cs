@@ -39,10 +39,10 @@ public class SetOperationStressTests {
             var objB = Path.Combine(temp,"objB");
             var probeKeys = new global::System.Collections.Generic.HashSet<int>(keysA);
             probeKeys.UnionWith(keysB);
-            using(var logDevA = global::Tsavorite.core.Devices.CreateLogDevice(logA))
-            using(var objDevA = global::Tsavorite.core.Devices.CreateLogDevice(objA))
-            using(var logDevB = global::Tsavorite.core.Devices.CreateLogDevice(logB))
-            using(var objDevB = global::Tsavorite.core.Devices.CreateLogDevice(objB))
+            using(var logDevA = Devices.CreateLogDevice(logA))
+            using(var objDevA = Devices.CreateLogDevice(objA))
+            using(var logDevB = Devices.CreateLogDevice(logB))
+            using(var objDevB = Devices.CreateLogDevice(objB))
             using(var storeA = Store.Create().Create<int>(logDevA,objDevA))
             using(var storeB = Store.Create().Create<int>(logDevB,objDevB))
             using(var setA = storeA.Create())
@@ -130,10 +130,10 @@ public class SetOperationStressTests {
             var objB = Path.Combine(temp,"objB");
             var probeKeys = new global::System.Collections.Generic.HashSet<string>(keysA,StringComparer.Ordinal);
             probeKeys.UnionWith(keysB);
-            using(var logDevA = global::Tsavorite.core.Devices.CreateLogDevice(logA))
-            using(var objDevA = global::Tsavorite.core.Devices.CreateLogDevice(objA))
-            using(var logDevB = global::Tsavorite.core.Devices.CreateLogDevice(logB))
-            using(var objDevB = global::Tsavorite.core.Devices.CreateLogDevice(objB))
+            using(var logDevA = Devices.CreateLogDevice(logA))
+            using(var objDevA = Devices.CreateLogDevice(objA))
+            using(var logDevB = Devices.CreateLogDevice(logB))
+            using(var objDevB = Devices.CreateLogDevice(objB))
             using(var storeA = Store.Create().Create<string>(logDevA,objDevA,new MemoryPackSerializerStrategy()))
             using(var storeB = Store.Create().Create<string>(logDevB,objDevB,new MemoryPackSerializerStrategy()))
             using(var setA = storeA.Create())

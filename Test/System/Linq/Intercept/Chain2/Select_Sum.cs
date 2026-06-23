@@ -8,8 +8,8 @@ public sealed class Select_Sum(ITestOutputHelper output):LinqChain2TestBase(outp
     [Fact, Trait("Category","Unit")]
     public void Static() {
         var expected=Source().Select(static v => v*2).Sum();
-        this.MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
-        this.MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
+        MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
+        MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

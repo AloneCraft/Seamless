@@ -18,49 +18,49 @@ public abstract class RemoveTKeyTValueTests<TKey, TValue>
 
     [Fact, Trait("Category","Unit")]
     public void RemoveReturnsValue() {
-        var (dict,store)=this.CreateMemory();
+        var (dict,store)=CreateMemory();
         using var _store = store;
         using var _dict = dict;
-        dict[this.Key(1)]=this.Value(1);
-        Assert.True(dict.Remove(this.Key(1),out var value));
-        Assert.Equal(this.Value(1),value);
+        dict[Key(1)]=Value(1);
+        Assert.True(dict.Remove(Key(1),out var value));
+        Assert.Equal(Value(1),value);
     }
 
     [Fact, Trait("Category","Unit")]
     public void RemoveMissingReturnsFalse() {
-        var (dict,store)=this.CreateMemory();
+        var (dict,store)=CreateMemory();
         using var _store = store;
         using var _dict = dict;
-        Assert.False(dict.Remove(this.Key(999),out _));
+        Assert.False(dict.Remove(Key(999),out _));
     }
 
     [Fact, Trait("Category","Unit")]
     [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification = "test-only device creation")]
     public void RemoveAfterDiskSpill() {
-        var folder = this.CreateDiskFolder();
+        var folder = CreateDiskFolder();
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        var (dict,store)=this.CreateDiskSpill(logDevice,objDevice);
+        var (dict,store)=CreateDiskSpill(logDevice,objDevice);
         using var _store = store;
         using var _dict = dict;
-        for(var a = 0; a<300; a++) dict[this.Key(a)]=this.Value(a);
-        Assert.True(dict.Remove(this.Key(0),out var value));
-        Assert.Equal(this.Value(0),value);
+        for(var a = 0; a<300; a++) dict[Key(a)]=Value(a);
+        Assert.True(dict.Remove(Key(0),out var value));
+        Assert.Equal(Value(0),value);
     }
 
     [Fact, Trait("Category","Unit")]
     [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification = "test-only device creation")]
     public void RemoveAfterFlushAndEvict() {
-        var folder = this.CreateDiskFolder();
+        var folder = CreateDiskFolder();
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        var (dict,store)=this.CreateDisk(logDevice,objDevice);
+        var (dict,store)=CreateDisk(logDevice,objDevice);
         using var _store = store;
         using var _dict = dict;
-        dict[this.Key(0)]=this.Value(0);
-        this.FlushAndEvict(store);
-        Assert.True(dict.Remove(this.Key(0),out var value));
-        Assert.Equal(this.Value(0),value);
+        dict[Key(0)]=Value(0);
+        FlushAndEvict(store);
+        Assert.True(dict.Remove(Key(0),out var value));
+        Assert.Equal(Value(0),value);
     }
 }
 

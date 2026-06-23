@@ -1,5 +1,5 @@
 using System.Linq;
-using global::System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 
 namespace Test.Seamless.Persisted.Collections;
 

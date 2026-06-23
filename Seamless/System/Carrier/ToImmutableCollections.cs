@@ -1,6 +1,6 @@
 #if NET8_0_OR_GREATER
 
-using GC = global::System.GC;
+using GC = System.GC;
 
 namespace Seamless.System.Carrier;
 

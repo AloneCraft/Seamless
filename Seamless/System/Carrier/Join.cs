@@ -50,41 +50,41 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            if(this.innerLookup==null) {
+            if(innerLookup==null) {
                 try {
-                    this.innerLookup=Lookup.CreateForJoin(ref this.inner,innerKeySelector,comparer);
+                    innerLookup=Lookup.CreateForJoin(ref inner,innerKeySelector,comparer);
                 }
                 finally {
-                    this.inner.Dispose();
+                    inner.Dispose();
                 }
             }
 
-            if(this.innerLookup.Count==0) {
+            if(innerLookup.Count==0) {
                 goto END;
             }
 
             // iterating group
         ITERATE:
-            if(this.currentGroup!=null) {
-                if(this.currentGroupIndex<this.currentGroup.Count) {
-                    current=resultSelector(this.currentOuter,this.currentGroup[this.currentGroupIndex]);
-                    this.currentGroupIndex++;
+            if(currentGroup!=null) {
+                if(currentGroupIndex<currentGroup.Count) {
+                    current=resultSelector(currentOuter,currentGroup[currentGroupIndex]);
+                    currentGroupIndex++;
                     return true;
                 }
                 else {
-                    this.currentGroup=null;
+                    currentGroup=null;
                 }
             }
 
-            while(this.source.TryGetNext(out var value)) {
+            while(source.TryGetNext(out var value)) {
                 var key = outerKeySelector(value);
                 if(key is not null) // Enumerable.Join ignores null keys
                 {
-                    var group = this.innerLookup.GetGroup(key);
+                    var group = innerLookup.GetGroup(key);
                     if(group!=null) {
-                        this.currentOuter=value;
-                        this.currentGroup=group;
-                        this.currentGroupIndex=0;
+                        currentOuter=value;
+                        currentGroup=group;
+                        currentGroupIndex=0;
                         goto ITERATE;
                     }
                 }
@@ -96,10 +96,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(this.innerLookup==null) {
-                this.inner.Dispose();
+            if(innerLookup==null) {
+                inner.Dispose();
             }
-            this.source.Dispose();
+            source.Dispose();
         }
     }
 }

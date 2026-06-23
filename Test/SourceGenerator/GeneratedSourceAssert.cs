@@ -1,4 +1,4 @@
-using global::System.Text;
+using System.Text;
 using Microsoft.CodeAnalysis;
 using Xunit.Abstractions;
 

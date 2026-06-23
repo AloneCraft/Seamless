@@ -1,5 +1,5 @@
 using System;
-using global::System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Seamless.Linq;
 
@@ -64,13 +64,13 @@ public readonly struct Select<TSource, TResult> : IEnumerable<TResult> {
 
     public Select(IEnumerable<TSource> source, Func<TSource, int, TResult> selector) {
         this.source = source;
-        this.selectorWithIndex = selector;
+        selectorWithIndex = selector;
     }
 
     public IEnumerator<TResult> GetEnumerator() =>
-        new Enumerator(this.source, this.selector, this.selectorWithIndex);
+        new Enumerator(source, selector, selectorWithIndex);
 
-    global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
 public struct Enumerator(IEnumerable<TSource> source, Func<TSource, TResult>? selector, Func<TSource, int, TResult>? selectorWithIndex = null): IEnumerator<TResult> {
     IEnumerator<TSource> source = source.GetEnumerator();
@@ -79,22 +79,22 @@ public struct Enumerator(IEnumerable<TSource> source, Func<TSource, TResult>? se
     int index;
     TResult current;
 
-        public TResult Current => this.current!;
+        public TResult Current => current!;
 
-        object global::System.Collections.IEnumerator.Current => this.current!;
+        object IEnumerator.Current => current!;
 
     public bool MoveNext() {
-        while(this.source.MoveNext()) {
-            var value = this.source.Current;
-            this.current = this.selectorWithIndex is not null
-                ? this.selectorWithIndex(value, this.index++)
-                : this.selector!.Invoke(value);
+        while(source.MoveNext()) {
+            var value = source.Current;
+            current = selectorWithIndex is not null
+                ? selectorWithIndex(value, index++)
+                : selector!.Invoke(value);
             return true;
         }
         return false;
     }
 
-        public void Dispose() => this.source.Dispose();
+        public void Dispose() => source.Dispose();
         public void Reset() => throw new NotSupportedException();
     }
 }
@@ -114,9 +114,9 @@ public readonly struct Where<TSource> : IEnumerable<TSource> {
     }
 
     public IEnumerator<TSource> GetEnumerator() =>
-        new Enumerator(this.source, this.predicate, this.predicateWithIndex);
+        new Enumerator(source, predicate, predicateWithIndex);
 
-    global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
 public struct Enumerator(IEnumerable<TSource> source, Func<TSource, bool>? predicate, Func<TSource, int, bool>? predicateWithIndex = null): IEnumerator<TSource> {
     IEnumerator<TSource> source = source.GetEnumerator();
@@ -125,23 +125,23 @@ public struct Enumerator(IEnumerable<TSource> source, Func<TSource, bool>? predi
     int index;
     TSource current;
 
-        public TSource Current => this.current!;
+        public TSource Current => current!;
 
-        object global::System.Collections.IEnumerator.Current => this.current!;
+        object IEnumerator.Current => current!;
 
     public bool MoveNext() {
-        while(this.source.MoveNext()) {
-            var item = this.source.Current;
-            var currentIndex = this.index++;
-            if((this.predicateWithIndex is not null ? this.predicateWithIndex(item, currentIndex) : this.predicate!(item))) {
-                this.current=item;
+        while(source.MoveNext()) {
+            var item = source.Current;
+            var currentIndex = index++;
+            if((predicateWithIndex is not null ? predicateWithIndex(item, currentIndex) : predicate!(item))) {
+                current=item;
                 return true;
             }
         }
         return false;
     }
 
-        public void Dispose() => this.source.Dispose();
+        public void Dispose() => source.Dispose();
         public void Reset() => throw new NotSupportedException();
     }
 }

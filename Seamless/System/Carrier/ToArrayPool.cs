@@ -82,38 +82,38 @@ public struct PooledArray<TSource>:IDisposable {
     // for compatibility, we choose Size instead of Length/Count.
     public int Size {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => this.size;
+        get => size;
     }
 
     public Span<TSource> Span {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => this.array.AsSpan(0,this.size);
+        get => array.AsSpan(0,size);
     }
 
     public Memory<TSource> Memory {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => this.array.AsMemory(0,this.size);
+        get => array.AsMemory(0,size);
     }
 
     public ArraySegment<TSource> ArraySegment {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => new ArraySegment<TSource>(this.array,0,this.size);
+        get => new ArraySegment<TSource>(array,0,size);
     }
 
     public IEnumerable<TSource> AsEnumerable() {
-        return this.ArraySegment.AsEnumerable();
+        return ArraySegment.AsEnumerable();
     }
 
 #if NET9_0_OR_GREATER
     public ValueEnumerable<FromMemory<TSource>,TSource> AsValueEnumerable() {
-        return this.Memory.AsValueEnumerable();
+        return Memory.AsValueEnumerable();
     }
 #endif
 
     // for compatibility
 
     // get raw array.
-    public TSource[] Array => this.array;
+    public TSource[] Array => array;
 
     public void Deconstruct(out TSource[] array,out int size) {
         array=this.array;
@@ -124,9 +124,9 @@ public struct PooledArray<TSource>:IDisposable {
     }
 
     public void Dispose() {
-        if(this.array!=null) {
-            ArrayPool<TSource>.Shared.Return(this.array,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TSource>());
-            this.array=null!;
+        if(array!=null) {
+            ArrayPool<TSource>.Shared.Return(array,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TSource>());
+            array=null!;
         }
     }
 }

@@ -1,4 +1,4 @@
-using global::System.IO.MemoryMappedFiles;
+using System.IO.MemoryMappedFiles;
 
 namespace Seamless.Persisted.Collections;
 
@@ -29,13 +29,13 @@ public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
     public long Capacity { get; protected set; }
     public bool IsDisposed { get; private set; }
 
-    int IReadOnlyCollection<T>.Count => checked((int)this.Count);
+    int IReadOnlyCollection<T>.Count => checked((int)Count);
     T IReadOnlyList<T>.this[int index] => this[index];
 
     // out 引数を持つため FLinq の傍受対象外。System.Linq.Enumerable は IReadOnlyCollection<T> を
     // 高速 count として認識しないため、インスタンスメソッドで拡張メソッドを上書きして O(1) で返す。
     public bool TryGetNonEnumeratedCount(out int count){
-        count=checked((int)this.Count);
+        count=checked((int)Count);
         return true;
     }
 
@@ -43,35 +43,35 @@ public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
 
     public T this[long index] {
         get {
-            this.ThrowIfDisposed();
-            if((ulong)index>=(ulong)this.Count)
+            ThrowIfDisposed();
+            if((ulong)index>=(ulong)Count)
                 throw new ArgumentOutOfRangeException(nameof(index));
-            return this.GetItem(index);
+            return GetItem(index);
         }
     }
 
     public ReadOnlySpan<T> AsSpan(long start) {
-        this.ThrowIfDisposed();
-        if((ulong)start>(ulong)this.Count)
+        ThrowIfDisposed();
+        if((ulong)start>(ulong)Count)
             throw new ArgumentOutOfRangeException(nameof(start));
-        return this.AsSpan(start,checked((int)(this.Count-start)));
+        return AsSpan(start,checked((int)(Count-start)));
     }
 
     public virtual ReadOnlySpan<T> AsSpan(long start,int length) {
-        this.ThrowIfDisposed();
-        this.ValidateSpanRange(start,length);
+        ThrowIfDisposed();
+        ValidateSpanRange(start,length);
         if(length==0)
             return ReadOnlySpan<T>.Empty;
 
         var items = new T[length];
         for(var index = 0; index<length; index++) {
-            items[index]=this.GetItem(start+index);
+            items[index]=GetItem(start+index);
         }
         return items;
     }
 
     protected PersistedList() {
-        this.Path=string.Empty;
+        Path=string.Empty;
     }
 
     protected PersistedList(string path) {
@@ -82,20 +82,20 @@ public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
             Directory.CreateDirectory(directoryPath);
         }
 
-        this.Path=path;
+        Path=path;
     }
-    public long GetLongCount() => this.Count;
+    public long GetLongCount() => Count;
     public abstract void Add(T item);
 
     public abstract FileAccess OptimizationMode { get; }
     public abstract FileOptions AccessPattern { get; }
-    public TempListTuning Tuning => new(this.OptimizationMode,this.AccessPattern);
+    public TempListTuning Tuning => new(OptimizationMode,AccessPattern);
     public void SetOptimizationMode(FileAccess optimizationMode) {
-        this.SetTuning(new(optimizationMode,this.AccessPattern));
+        SetTuning(new(optimizationMode,AccessPattern));
     }
 
     public void SetAccessPattern(FileOptions accessPattern) {
-        this.SetTuning(new(this.OptimizationMode,accessPattern));
+        SetTuning(new(OptimizationMode,accessPattern));
     }
 
     public abstract void SetTuning(TempListTuning tuning);
@@ -105,31 +105,31 @@ public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
     //public abstract void Add(global::Tsavorite.core.SpanByte item);
 
     public bool Remove() {
-        this.ThrowIfDisposed();
-        if(this.Count==0)
+        ThrowIfDisposed();
+        if(Count==0)
             return false;
-        this.Count--;
-        this.OnCountChanged();
+        Count--;
+        OnCountChanged();
         return true;
     }
 
     public Enumerator GetEnumerator() {
-        this.ThrowIfDisposed();
+        ThrowIfDisposed();
         return new(this);
     }
 
-    IEnumerator<T> IEnumerable<T>.GetEnumerator() => this.GetEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
     public void Dispose() {
-        if(this.IsDisposed)
+        if(IsDisposed)
             return;
-        this.IsDisposed=true;
-        this.DisposeCore();
+        IsDisposed=true;
+        DisposeCore();
     }
 
     protected void ThrowIfDisposed() {
-        ObjectDisposedException.ThrowIf(this.IsDisposed,this);
+        ObjectDisposedException.ThrowIf(IsDisposed,this);
     }
 
     protected void ValidateSpanRange(long start,int length) {
@@ -137,9 +137,9 @@ public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
             throw new ArgumentOutOfRangeException(nameof(start));
         if(length<0)
             throw new ArgumentOutOfRangeException(nameof(length));
-        if(start>this.Count)
+        if(start>Count)
             throw new ArgumentOutOfRangeException(nameof(start));
-        if(length>this.Count-start)
+        if(length>Count-start)
             throw new ArgumentOutOfRangeException(nameof(length));
     }
 
@@ -149,17 +149,17 @@ public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
 
     public struct Enumerator(PersistedList<T> list,bool ownsList = false,Action? disposeAction = null):IEnumerator<T> {
         private long index = -1;
-        public T Current => list[this.index];
-        object IEnumerator.Current => this.Current!;
+        public T Current => list[index];
+        object IEnumerator.Current => Current!;
         public bool MoveNext() {
-            var nextIndex = this.index+1;
+            var nextIndex = index+1;
             if(nextIndex>=list.Count)
                 return false;
-            this.index=nextIndex;
+            index=nextIndex;
             return true;
         }
         public void Reset() {
-            this.index=-1;
+            index=-1;
         }
         public readonly void Dispose() {
             if(ownsList) {

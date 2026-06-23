@@ -1,5 +1,5 @@
-using global::System.Globalization;
-using global::System.Text;
+using System.Globalization;
+using System.Text;
 
 namespace Benchmark.Runner.Uno;
 

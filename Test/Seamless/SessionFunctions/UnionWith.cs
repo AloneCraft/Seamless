@@ -6,10 +6,10 @@ public abstract class UnionWith<TKey, TSet>:CommonWith<TKey,TSet>
     where TKey : IEquatable<TKey>
     where TSet : IHashSet<TKey>, IDisposable {
     [Fact, Trait("Category","Unit")]
-    public void UnionWithAB() => this.RunWithAB();
+    public void UnionWithAB() => RunWithAB();
 
     [Fact, Trait("Category","Unit")]
-    public void UnionWithAA() => this.RunWithAA();
+    public void UnionWithAA() => RunWithAA();
 }
 
 public sealed class ManagedUnionWith:UnionWith<string,global::Seamless.Tsavorite.Collections.HashSet<string>> {

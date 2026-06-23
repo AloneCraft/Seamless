@@ -38,8 +38,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out DateTime current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }
@@ -140,8 +140,8 @@ namespace Seamless.System.Carrier {
         bool calledGetNext;
 
         public bool TryGetNext(out DateTimeOffset current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=currentValue;
                 return true;
             }

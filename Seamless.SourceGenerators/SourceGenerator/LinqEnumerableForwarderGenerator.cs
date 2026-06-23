@@ -24,7 +24,7 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
     }
 
     private static string Generate(string targetNamespace) {
-        var methods = typeof(System.Linq.Enumerable)
+        var methods = typeof(Enumerable)
             .GetMethods(BindingFlags.Public|BindingFlags.Static)
             .Where(IsApplicable)
             .OrderBy(static method => method.Name,StringComparer.Ordinal)

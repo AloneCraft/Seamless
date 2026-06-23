@@ -42,20 +42,20 @@ internal static class RandomShared
             {
                 rng.GetBytes(array);
                 var ulongSpan = MemoryMarshal.Cast<byte, ulong>(array);
-                this._s3 = ulongSpan[3];
-                this._s0 = ulongSpan[0];
-                this._s1 = ulongSpan[1];
-                this._s2 = ulongSpan[2];
-            } while (this._s0 == 0 &&this._s1 == 0 &&this._s2 == 0 &&this._s3 == 0);
+                _s3 = ulongSpan[3];
+                _s0 = ulongSpan[0];
+                _s1 = ulongSpan[1];
+                _s2 = ulongSpan[2];
+            } while (_s0 == 0 &&_s1 == 0 &&_s2 == 0 &&_s3 == 0);
 #endif
         }
 
         public ulong NextUInt64()
         {
-            ulong s0 = this._s0;
-            ulong s1 = this._s1;
-            ulong s2 = this._s2;
-            ulong s3 = this._s3;
+            ulong s0 = _s0;
+            ulong s1 = _s1;
+            ulong s2 = _s2;
+            ulong s3 = _s3;
 
 #if NETCOREAPP3_0_OR_GREATER
             ulong result = BitOperations.RotateLeft(s1 * 5, 7) * 9;
@@ -79,10 +79,10 @@ internal static class RandomShared
             s3 = s3 << 45 ^ s3 >> -45;
 #endif
 
-            this._s0 = s0;
-            this._s1 = s1;
-            this._s2 = s2;
-            this._s3 = s3;
+            _s0 = s0;
+            _s1 = s1;
+            _s2 = s2;
+            _s3 = s3;
 
             return result;
         }
@@ -115,7 +115,7 @@ internal static class RandomShared
 
         public ulong NextUInt64(ulong maxExclusive)
         {
-            ulong r = this.NextUInt64();
+            ulong r = NextUInt64();
             ulong rhi = BigMul(r, maxExclusive, out ulong rlo);
 
             if (rlo < maxExclusive)
@@ -123,7 +123,7 @@ internal static class RandomShared
                 ulong mod = (0 - maxExclusive) % maxExclusive;
                 while (rlo < mod)
                 {
-                    r =this.NextUInt64();
+                    r =NextUInt64();
                     rhi = BigMul(r, maxExclusive, out rlo);
                 }
             }
@@ -142,7 +142,7 @@ internal static class RandomShared
 
             for (int i = 1; i < values.Length;)
             {
-                ulong r = this.NextUInt64();
+                ulong r = NextUInt64();
 
                 // Correct r to be unbiased.
                 // Ensure that the result of `BigMul(r, bound, out _)` is
@@ -163,7 +163,7 @@ internal static class RandomShared
                         // +     0 . [thi] [tlo]  -> t * bound; upper thi, lower tlo
                         // ---------------------
                         //   [carry.  sum] [tlo]  -> rhi + carry is the result
-                        ulong t = this.NextUInt64();
+                        ulong t = NextUInt64();
                         ulong thi = BigMul(t, bound, out ulong tlo);
                         sum = rbound + thi;
                         carry = sum < rbound ? 1ul : 0ul;
@@ -241,14 +241,14 @@ internal static class RandomShared
                 }
 
                 // Correct r to be unbiased.
-                ulong r = this.NextUInt64();
+                ulong r = NextUInt64();
                 ulong rbound = r * bound;
                 if (rbound > 0 - bound)
                 {
                     ulong sum, carry;
                     do
                     {
-                        ulong t = this.NextUInt64();
+                        ulong t = NextUInt64();
                         ulong thi = BigMul(t, bound, out ulong tlo);
                         sum = rbound + thi;
                         carry = sum < rbound ? 1ul : 0ul;

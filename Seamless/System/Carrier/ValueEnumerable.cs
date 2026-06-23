@@ -8,10 +8,10 @@ public readonly struct ValueEnumerable<TEnumerator, T>(TEnumerator enumerator):I
     // internal operator should use this
     public readonly TEnumerator Enumerator = enumerator;
     // Cast and OfType are implemented as instance methods rather than extension methods to simplify type specification.
-    public ValueEnumerable<Cast<TEnumerator,T,TResult>,TResult> Cast<TResult>() => new(new(this.Enumerator));
-    public ValueEnumerable<OfType<TEnumerator,T,TResult>,TResult> OfType<TResult>() => new(new(this.Enumerator));
-    public IEnumerator<T> GetEnumerator() => new ValueEnumerator<TEnumerator,T>(this.Enumerator);
-    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    public ValueEnumerable<Cast<TEnumerator,T,TResult>,TResult> Cast<TResult>() => new(new(Enumerator));
+    public ValueEnumerable<OfType<TEnumerator,T,TResult>,TResult> OfType<TResult>() => new(new(Enumerator));
+    public IEnumerator<T> GetEnumerator() => new ValueEnumerator<TEnumerator,T>(Enumerator);
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     string DebuggerDisplay => ValueEnumerableDebuggerDisplayHelper.BuildDisplayText(typeof(TEnumerator));
 }
 // all implement types must be struct
@@ -46,16 +46,16 @@ public struct ValueEnumerator<TEnumerator, T>(TEnumerator enumerator):IEnumerato
     T current = default!;
     public T Current {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => this.current;
+        get => current;
     }
-    object IEnumerator.Current => this.current!;
+    object IEnumerator.Current => current!;
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool MoveNext() {
-        if(this.enumerator.TryGetNext(out this.current)) {
+        if(enumerator.TryGetNext(out current)) {
             return true;
         }
         else {
-            this.current=default!;
+            current=default!;
             return false;
         }
     }
@@ -63,7 +63,7 @@ public struct ValueEnumerator<TEnumerator, T>(TEnumerator enumerator):IEnumerato
     public void Reset() => throw new NotSupportedException();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Dispose() => this.enumerator.Dispose();
+    public void Dispose() => enumerator.Dispose();
 }
 
 public static partial class ValueEnumerableExtensions {
@@ -139,10 +139,10 @@ internal struct ValueEnumerableDebugView<TEnumerator, T>(ValueEnumerable<TEnumer
     [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
     public T[] Items {
         get {
-            if(this.items==null) {
-                this.items=this.source.Take(100000).ToArray(); // max 100000 to avoid infinite call
+            if(items==null) {
+                items=source.Take(100000).ToArray(); // max 100000 to avoid infinite call
             }
-            return this.items;
+            return items;
         }
     }
 }

@@ -7,28 +7,28 @@ internal struct ValueQueue<T>(int capacity): IDisposable
     private int tail = 0;
     private int size = 0;
 
-    public int Count => this.size;
+    public int Count => size;
 
     public void Enqueue(T item)
     {
-        if (this.items.Length ==this.size)
+        if (items.Length ==size)
         {
-            this.Grow();
+            Grow();
         }
 
-        this.items[this.tail] = item;
-        this.tail = (this.tail + 1) %this.items.Length;
-        this.size++;
+        items[tail] = item;
+        tail = (tail + 1) %items.Length;
+        size++;
     }
 
     public T Dequeue()
     {
-        if (this.size == 0) Throw();
+        if (size == 0) Throw();
 
-        T removed = this.items[this.head];
-        this.items[this.head] = default!;
-        this.head = (this.head + 1) %this.items.Length;
-        this.size--;
+        T removed = items[head];
+        items[head] = default!;
+        head = (head + 1) %items.Length;
+        size--;
         return removed;
     }
 
@@ -36,31 +36,31 @@ internal struct ValueQueue<T>(int capacity): IDisposable
 
     void Grow()
     {
-        T[] newArray = ArrayPool<T>.Shared.Rent(this.items.Length * 2);
-        if (this.size > 0)
+        T[] newArray = ArrayPool<T>.Shared.Rent(items.Length * 2);
+        if (size > 0)
         {
-            if (this.head <this.tail)
+            if (head <tail)
             {
-                Array.Copy(this.items,this.head, newArray, 0,this.size);
+                Array.Copy(items,head, newArray, 0,size);
             }
             else
             {
-                Array.Copy(this.items,this.head, newArray, 0,this.items.Length -this.head);
-                Array.Copy(this.items, 0, newArray,this.items.Length -this.head,this.tail);
+                Array.Copy(items,head, newArray, 0,items.Length -head);
+                Array.Copy(items, 0, newArray,items.Length -head,tail);
             }
         }
-        ArrayPool<T>.Shared.Return(this.items, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
-        this.items = newArray;
-        this.head = 0;
-        this.tail =this.size;
+        ArrayPool<T>.Shared.Return(items, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+        items = newArray;
+        head = 0;
+        tail =size;
     }
 
     public void Dispose()
     {
-        if (this.items != null)
+        if (items != null)
         {
-            ArrayPool<T>.Shared.Return(this.items, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
-            this.items = null!;
+            ArrayPool<T>.Shared.Return(items, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+            items = null!;
         }
     }
 }

@@ -8,7 +8,7 @@ public class FLinqNativeScanTests {
 
     [Fact, Trait("Category","Unit")]
     public void TsavoriteHashSetRoot_UsesNativeScanTerminalForCount() {
-        using var store = global::Seamless.Tsavorite.Collections.Store.Create().CreateHashSet<int>();
+        using var store = Store.Create().CreateHashSet<int>();
         using var set = store.Create();
         foreach(var value in new[] { 1,2,3,4 })
             set.Add(value);

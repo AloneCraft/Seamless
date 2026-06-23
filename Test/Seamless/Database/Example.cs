@@ -1,5 +1,5 @@
-using global::System.Buffers;
-using global::System.Runtime.CompilerServices;
+using System.Buffers;
+using System.Runtime.CompilerServices;
 using MemoryPack;
 using Test.Seamless.Database.Example.Keys;
 
@@ -210,7 +210,7 @@ namespace Test.Seamless.Database.Example {
             }
             public readonly ref struct Stack {
                 private readonly ReadOnlySpan<byte> data;
-                public Stack(ReadOnlySpan<byte> input) => this.data=input;
+                public Stack(ReadOnlySpan<byte> input) => data=input;
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 public static implicit operator Key0(Stack view) =>
@@ -229,7 +229,7 @@ namespace Test.Seamless.Database.Example {
 
             public readonly ref struct Stack {
                 private readonly ReadOnlySpan<byte> data;
-                public Stack(ReadOnlySpan<byte> input) => this.data=input;
+                public Stack(ReadOnlySpan<byte> input) => data=input;
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 public static implicit operator Type0(Stack view) =>

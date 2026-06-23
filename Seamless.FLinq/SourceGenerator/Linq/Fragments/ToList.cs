@@ -52,13 +52,13 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    protected override string ComputeExpression => $"Compute({this.e})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    protected override string ComputeExpression => $"Compute({e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderRangeToListInline(destVar,destType)
-        ?? this.RenderDirectEnumerableToListHybridInline(source,destVar,destType)
-        ?? this.RenderComputeInline(destVar,destType);
+        RenderRangeToListInline(destVar,destType)
+        ?? RenderDirectEnumerableToListHybridInline(source,destVar,destType)
+        ?? RenderComputeInline(destVar,destType);
     private string? RenderRangeToListInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;

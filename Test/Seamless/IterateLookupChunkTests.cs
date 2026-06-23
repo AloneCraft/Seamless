@@ -1,9 +1,9 @@
-using global::System.Buffers.Binary;
+using System.Buffers.Binary;
 using Garnet.common;
 using global::System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using global::System.Runtime.CompilerServices;
-using global::System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Tsavorite.core;
 
 // ファイルスコープ型エイリアス
@@ -272,10 +272,10 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
             long numberOfRecords,
             out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            var index = Interlocked.Increment(ref this.Count)-1;
+            var index = Interlocked.Increment(ref Count)-1;
             if(index>=global::Seamless.Tsavorite.Const.Chunk_Length) {
-                Volatile.Write(ref this.Count,global::Seamless.Tsavorite.Const.Chunk_Length);
-                var lastAcceptedAddress = Volatile.Read(ref this.LastAcceptedAddress);
+                Volatile.Write(ref Count,global::Seamless.Tsavorite.Const.Chunk_Length);
+                var lastAcceptedAddress = Volatile.Read(ref LastAcceptedAddress);
                 if(recordMetadata.Address==lastAcceptedAddress) {
                     cursorRecordResult=
                         CursorRecordResult.Skip|
@@ -289,15 +289,15 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
                 }
                 return true;
             }
-            this.Chunk[index]=this.Deserialize(logRecord);
-            Volatile.Write(ref this.LastAcceptedAddress,recordMetadata.Address);
+            Chunk[index]=Deserialize(logRecord);
+            Volatile.Write(ref LastAcceptedAddress,recordMetadata.Address);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
 
         public bool OnStart(long beginAddress,long endAddress) {
-            Volatile.Write(ref this.Count,0);
-            Volatile.Write(ref this.LastAcceptedAddress,0);
+            Volatile.Write(ref Count,0);
+            Volatile.Write(ref LastAcceptedAddress,0);
             return true;
         }
         public void OnStop(bool completed,long numberOfRecords) { }
@@ -317,33 +317,33 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         private long Cursor = 0, Count;
         private int Index = -1;
         private bool Done;
-        public readonly T Current => Iterator.Chunk[this.Index];
-        readonly object? IEnumerator.Current => this.Current;
+        public readonly T Current => Iterator.Chunk[Index];
+        readonly object? IEnumerator.Current => Current;
         public bool MoveNext() {
-            if(++this.Index<this.Count)
+            if(++Index<Count)
                 return true;
-            if(this.Done) {
-                this.Index=-1;
+            if(Done) {
+                Index=-1;
                 return false;
             }
             Iterator.Count=0;
-            var まだデータがある = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
+            var まだデータがある = Session.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
             Session.BasicContext.CompletePending(wait: true);
-            this.Count=Iterator.Count;
-            if(!まだデータがある&&this.Count==0)
-                this.Done=true;
-            if(this.Count==0) {
-                this.Index=-1;
+            Count=Iterator.Count;
+            if(!まだデータがある&&Count==0)
+                Done=true;
+            if(Count==0) {
+                Index=-1;
                 return false;
             }
-            this.Index=0;
+            Index=0;
             return true;
         }
         public void Reset() {
-            this.Cursor=0;
-            this.Count=0;
-            this.Index=-1;
-            this.Done=false;
+            Cursor=0;
+            Count=0;
+            Index=-1;
+            Done=false;
         }
         public readonly void Dispose() {
         }
@@ -477,7 +477,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void DiskBacked_Enumerator_PowerOfTwoDataSizes(int totalKeys) {
         var folder = Path.Combine(Environment.CurrentDirectory,nameof(DiskBacked_Enumerator_PowerOfTwoDataSizes));
-        using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: false,preallocateFile: true);
+        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: false,preallocateFile: true);
         using var settings = new KVSettings {
             IndexSize=64,
             PageSize=1L<<12,       // 4 KB
@@ -548,7 +548,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void DiskSpill_UpsertFromChunk_PendingHandled(int Count) {
         var folder = Path.Combine(Environment.CurrentDirectory,nameof(DiskSpill_UpsertFromChunk_PendingHandled));
-        using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: false,preallocateFile: true);
+        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: false,preallocateFile: true);
         using var settings = new KVSettings {
             IndexSize=64,
             PageSize=1L<<12,    // 4 KB

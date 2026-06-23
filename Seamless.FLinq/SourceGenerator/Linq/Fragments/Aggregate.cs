@@ -22,39 +22,39 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
     public override string? RenderInlineComputation(string destVar,string destType){
         string srcExpr;
         try { srcExpr = source.GetEnumeratorExpression; }
-        catch(System.NotSupportedException) { return null; }
+        catch(NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
         var funcVar = $"__aggFunc{番号}";
         var funcSetup = this.DelegateLocal(func,funcVar);
         if(funcSetup is null) return null;
         var fold = source.CanTryProvideSpan
             ? $$"""
-                {{source.ElementType}} {{this.result}};
+                {{source.ElementType}} {{result}};
                 if({{srcVar}}.TryGetSpan(out var __span)){
                     if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                    {{this.result}}=default!;
+                    {{result}}=default!;
                     var __first=true;
                     foreach(var __item in __span){
                         if(__first){
-                            {{this.result}}=__item;
+                            {{result}}=__item;
                             __first=false;
                         }else{
-                            {{this.FuncAssignInlineIndented("            ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                            {{this.FuncAssignInlineIndented("            ",func,nameof(func),funcVar,result,result,"__item")}}
                         }
                     }
                 }else{
                     if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                    {{this.result}}=__item;
+                    {{result}}=__item;
                     while({{srcVar}}.TryGetNext(out __item)){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,result,result,"__item")}}
                     }
                 }
                 """
             : $$"""
                 if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                var {{this.result}}=__item;
+                var {{result}}=__item;
                 while({{srcVar}}.TryGetNext(out __item)){
-                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,result,result,"__item")}}
                 }
                 """;
         return $$"""
@@ -62,71 +62,71 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
             {{funcSetup}}
             using(var {{srcVar}}={{srcExpr}}){
                 {{fold}}
-                {{destVar}}={{this.result}};
+                {{destVar}}={{result}};
             }
             """;
     }
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => this.FuncSupport(func,nameof(func));
+    public override string StructMethod => FuncSupport(func,nameof(func));
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(func)})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(func)})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
-        {{this.DefineScalarEnumeratorStruct(source.ElementType)}}
+        {{DefineScalarEnumeratorStruct(source.ElementType)}}
         """;
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(func)}";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(func)}";
     public override string GetEnumeratorFields => $$"""
-        private bool {{this.yielded}} = false;
+        private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => source.CanTryProvideSpan
         ? $$"""
-            if(this.{{this.yielded}}) {
+            if(this.{{yielded}}) {
                 current = default!;
                 return false;
             }
-            this.{{this.yielded}} = true;
-            {{source.ElementType}} {{this.result}};
-            if({{this.e}}.TryGetSpan(out var __span)){
+            this.{{yielded}} = true;
+            {{source.ElementType}} {{result}};
+            if({{e}}.TryGetSpan(out var __span)){
                 if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                {{this.result}}=default!;
+                {{result}}=default!;
                 var __first=true;
                 foreach(var __item in __span){
                     if(__first){
-                        {{this.result}}=__item;
+                        {{result}}=__item;
                         __first=false;
                     }else{
-                        {{this.FuncAssignIndented("            ",func,nameof(func),this.result,this.result,"__item")}}
+                        {{FuncAssignIndented("            ",func,nameof(func),result,result,"__item")}}
                     }
                 }
             }else{
-                if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                {{this.result}}={{this.item}};
-                while({{this.e}}.TryGetNext(out {{this.item}})){
-                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,this.item)}}
+                if(!{{e}}.TryGetNext(out var {{item}})) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                {{result}}={{item}};
+                while({{e}}.TryGetNext(out {{item}})){
+                    {{FuncAssignIndented("        ",func,nameof(func),result,result,item)}}
                 }
             }
-            this.{{this.currentValue}}={{this.result}};
-            current=this.{{this.currentValue}};
+            this.{{currentValue}}={{result}};
+            current=this.{{currentValue}};
             return true;
             """
         : $$"""
-            if(this.{{this.yielded}}) {
+            if(this.{{yielded}}) {
                 current = default!;
                 return false;
             }
-            this.{{this.yielded}} = true;
-            if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-            var {{this.result}}={{this.item}};
-            while({{this.e}}.TryGetNext(out {{this.item}})){
-                {{this.FuncAssignIndented("    ",func,nameof(func),this.result,this.result,this.item)}}
+            this.{{yielded}} = true;
+            if(!{{e}}.TryGetNext(out var {{item}})) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+            var {{result}}={{item}};
+            while({{e}}.TryGetNext(out {{item}})){
+                {{FuncAssignIndented("    ",func,nameof(func),result,result,item)}}
             }
-            this.{{this.currentValue}}={{this.result}};
-            current=this.{{this.currentValue}};
+            this.{{currentValue}}={{result}};
+            current=this.{{currentValue}};
             return true;
             """;
-    public override string GetCurrentExpression => this.currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    public override string GetCurrentExpression => currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
 /*
@@ -150,7 +150,7 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
     public override string? RenderInlineComputation(string destVar,string destType){
         string srcExpr;
         try { srcExpr = source.GetEnumeratorExpression; }
-        catch(System.NotSupportedException) { return null; }
+        catch(NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
         var funcVar = $"__aggFunc{番号}";
         var funcSetup = this.DelegateLocal(func,funcVar);
@@ -159,79 +159,79 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
             ? $$"""
                 if({{srcVar}}.TryGetSpan(out var __span)){
                     foreach(var __item in __span){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,result,result,"__item")}}
                     }
                 }else{
                     while({{srcVar}}.TryGetNext(out var __item)){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,result,result,"__item")}}
                     }
                 }
                 """
             : $$"""
                 while({{srcVar}}.TryGetNext(out var __item)){
-                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,result,result,"__item")}}
                 }
                 """;
         return $$"""
             {{destType}} {{destVar}};
             {{funcSetup}}
             using(var {{srcVar}}={{srcExpr}}){
-                var {{this.result}} = {{seed}};
+                var {{result}} = {{seed}};
                 {{fold}}
-                {{destVar}}={{this.result}};
+                {{destVar}}={{result}};
             }
             """;
     }
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => this.FuncSupport(func,nameof(func));
+    public override string StructMethod => FuncSupport(func,nameof(func));
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(func)})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(func)})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
-        {{this.DefineScalarEnumeratorStruct(FuncParameterTypeName(func,0))}}
+        {{DefineScalarEnumeratorStruct(FuncParameterTypeName(func,0))}}
         """;
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(func)}";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(func)}";
     public override string GetEnumeratorFields => $$"""
-        private bool {{this.yielded}} = false;
+        private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => source.CanTryProvideSpan
         ? $$"""
-            if(this.{{this.yielded}}) {
+            if(this.{{yielded}}) {
                 current = default!;
                 return false;
             }
-            this.{{this.yielded}} = true;
-            var {{this.result}} = {{seed}};
-            if({{this.e}}.TryGetSpan(out var __span)){
+            this.{{yielded}} = true;
+            var {{result}} = {{seed}};
+            if({{e}}.TryGetSpan(out var __span)){
                 foreach(var __item in __span){
-                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,"__item")}}
+                    {{FuncAssignIndented("        ",func,nameof(func),result,result,"__item")}}
                 }
             }else{
-                while({{this.e}}.TryGetNext(out var {{this.item}})){
-                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,this.item)}}
+                while({{e}}.TryGetNext(out var {{item}})){
+                    {{FuncAssignIndented("        ",func,nameof(func),result,result,item)}}
                 }
             }
-            this.{{this.currentValue}}={{this.result}};
-            current=this.{{this.currentValue}};
+            this.{{currentValue}}={{result}};
+            current=this.{{currentValue}};
             return true;
             """
         : $$"""
-            if(this.{{this.yielded}}) {
+            if(this.{{yielded}}) {
                 current = default!;
                 return false;
             }
-            this.{{this.yielded}} = true;
-            var {{this.result}} = {{seed}};
-            while({{this.e}}.TryGetNext(out var {{this.item}})){
-                {{this.FuncAssignIndented("    ",func,nameof(func),this.result,this.result,this.item)}}
+            this.{{yielded}} = true;
+            var {{result}} = {{seed}};
+            while({{e}}.TryGetNext(out var {{item}})){
+                {{FuncAssignIndented("    ",func,nameof(func),result,result,item)}}
             }
-            this.{{this.currentValue}}={{this.result}};
-            current=this.{{this.currentValue}};
+            this.{{currentValue}}={{result}};
+            current=this.{{currentValue}};
             return true;
             """;
-    public override string GetCurrentExpression => this.currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    public override string GetCurrentExpression => currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
 /*
@@ -254,7 +254,7 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
     public override string? RenderInlineComputation(string destVar,string destType){
         string srcExpr;
         try { srcExpr = source.GetEnumeratorExpression; }
-        catch(System.NotSupportedException) { return null; }
+        catch(NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
         var funcVar = $"__aggFunc{番号}";
         var resultSelectorVar = $"__aggResultSelector{番号}";
@@ -265,17 +265,17 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
             ? $$"""
                 if({{srcVar}}.TryGetSpan(out var __span)){
                     foreach(var __item in __span){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,result,result,"__item")}}
                     }
                 }else{
                     while({{srcVar}}.TryGetNext(out var __item)){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,result,result,"__item")}}
                     }
                 }
                 """
             : $$"""
                 while({{srcVar}}.TryGetNext(out var __item)){
-                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
+                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,result,result,"__item")}}
                 }
                 """;
         return $$"""
@@ -283,65 +283,65 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
             {{funcSetup}}
             {{resultSelectorSetup}}
             using(var {{srcVar}}={{srcExpr}}){
-                var {{this.result}} = {{seed}};
+                var {{result}} = {{seed}};
                 {{fold}}
-                {{this.FuncAssignInlineIndented("    ",resultSelector,nameof(resultSelector),resultSelectorVar,destVar,this.result)}}
+                {{this.FuncAssignInlineIndented("    ",resultSelector,nameof(resultSelector),resultSelectorVar,destVar,result)}}
             }
             """;
     }
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => $$"""
-        {{this.FuncSupport(func,nameof(func))}}
-        {{this.FuncSupport(resultSelector,nameof(resultSelector))}}
+        {{FuncSupport(func,nameof(func))}}
+        {{FuncSupport(resultSelector,nameof(resultSelector))}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(func,resultSelector)})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(func,resultSelector)})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
-        {{this.DefineScalarEnumeratorStruct(FuncReturnTypeName(resultSelector))}}
+        {{DefineScalarEnumeratorStruct(FuncReturnTypeName(resultSelector))}}
         """;
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(func,resultSelector)}";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(func,resultSelector)}";
     public override string GetEnumeratorFields => $$"""
-        private bool {{this.yielded}} = false;
+        private bool {{yielded}} = false;
         """;
     public override string GetTryGetNextBody => source.CanTryProvideSpan
         ? $$"""
-            if(this.{{this.yielded}}) {
+            if(this.{{yielded}}) {
                 current = default!;
                 return false;
             }
-            this.{{this.yielded}} = true;
-            var {{this.result}} = {{seed}};
-            if({{this.e}}.TryGetSpan(out var __span)){
+            this.{{yielded}} = true;
+            var {{result}} = {{seed}};
+            if({{e}}.TryGetSpan(out var __span)){
                 foreach(var __item in __span){
-                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,"__item")}}
+                    {{FuncAssignIndented("        ",func,nameof(func),result,result,"__item")}}
                 }
             }else{
-                while({{this.e}}.TryGetNext(out var {{this.item}})){
-                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,this.item)}}
+                while({{e}}.TryGetNext(out var {{item}})){
+                    {{FuncAssignIndented("        ",func,nameof(func),result,result,item)}}
                 }
             }
-            {{this.FuncAssignIndented("",resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.result)}}
-            current=this.{{this.currentValue}};
+            {{FuncAssignIndented("",resultSelector,nameof(resultSelector),$"this.{currentValue}",result)}}
+            current=this.{{currentValue}};
             return true;
             """
         : $$"""
-            if(this.{{this.yielded}}) {
+            if(this.{{yielded}}) {
                 current = default!;
                 return false;
             }
-            this.{{this.yielded}} = true;
-            var {{this.result}} = {{seed}};
-            while({{this.e}}.TryGetNext(out var {{this.item}})){
-                {{this.FuncAssignIndented("    ",func,nameof(func),this.result,this.result,this.item)}}
+            this.{{yielded}} = true;
+            var {{result}} = {{seed}};
+            while({{e}}.TryGetNext(out var {{item}})){
+                {{FuncAssignIndented("    ",func,nameof(func),result,result,item)}}
             }
-            {{this.FuncAssignIndented("",resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.result)}}
-            current=this.{{this.currentValue}};
+            {{FuncAssignIndented("",resultSelector,nameof(resultSelector),$"this.{currentValue}",result)}}
+            current=this.{{currentValue}};
             return true;
             """;
-    public override string GetCurrentExpression => this.currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    public override string GetCurrentExpression => currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
 file static class AggregateInlineDelegateSupport {

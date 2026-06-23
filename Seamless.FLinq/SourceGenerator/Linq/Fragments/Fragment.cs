@@ -173,8 +173,8 @@ public abstract class Fragment(
     // ContainingTypeName をこの断片と全子断片に再帰的に伝播する。
     // リフレクションで Fragment 型フィールドを走査するため、個別の override は不要。
     public virtual void PropagateContainingTypeName(string? name) {
-        this.ContainingTypeName = name;
-        foreach(var field in EnumerateInstanceFields(this.GetType())) {
+        ContainingTypeName = name;
+        foreach(var field in EnumerateInstanceFields(GetType())) {
             if(typeof(Fragment).IsAssignableFrom(field.FieldType) && field.GetValue(this) is Fragment child) {
                 child.PropagateContainingTypeName(name);
             }
@@ -186,8 +186,8 @@ public abstract class Fragment(
     }
 
     public virtual void SetCounterInstrumentation(bool enabled) {
-        this.CounterInstrumentationEnabled = enabled;
-        foreach(var field in EnumerateInstanceFields(this.GetType())) {
+        CounterInstrumentationEnabled = enabled;
+        foreach(var field in EnumerateInstanceFields(GetType())) {
             if(typeof(Fragment).IsAssignableFrom(field.FieldType) && field.GetValue(this) is Fragment child) {
                 child.SetCounterInstrumentation(enabled);
             }
@@ -199,24 +199,24 @@ public abstract class Fragment(
     }
 
     private protected string CounterCall(string methodName) =>
-        this.CounterInstrumentationEnabled
+        CounterInstrumentationEnabled
             ? $"global::Seamless.Linq.LinqCounterScope.Counter.{methodName}();"
             : string.Empty;
 
     private protected string CountLogicalDelegateExpression(string expression) =>
-        this.CounterInstrumentationEnabled
+        CounterInstrumentationEnabled
             ? $"global::Seamless.Linq.LinqCounterScope.Counter.RecordLogicalDelegate({expression})"
             : expression;
 
     private protected string CountPhysicalDelegateExpression(string expression) =>
-        this.CounterInstrumentationEnabled
+        CounterInstrumentationEnabled
             ? $"global::Seamless.Linq.LinqCounterScope.Counter.RecordPhysicalDelegate({expression})"
             : expression;
 
     // UnsafeAccessor コードを断片ツリー全体から収集する。
     // リフレクションで FuncFragment / Fragment 型フィールドを再帰的に走査する。
     public IEnumerable<string> CollectAllUnsafeAccessorCodes() {
-        foreach(var field in EnumerateInstanceFields(this.GetType())) {
+        foreach(var field in EnumerateInstanceFields(GetType())) {
             if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
                 && field.GetValue(this) is FuncFragment funcFrag) {
                 // ラムダ本体内のフィールド/static メソッドアクセス用 UnsafeAccessor
@@ -255,9 +255,9 @@ public abstract class Fragment(
     public abstract string GetCurrentExpression { get; }
     // 生成した enumerator struct の型名。PrimarySource が設定されると自動でジェネリック型名を返す。
     public virtual string EnumeratorTypeName =>
-        this.PrimarySource is { } src ? $"{this.Struct}<{src.EnumeratorTypeName}>" : this.Struct;
+        PrimarySource is { } src ? $"{Struct}<{src.EnumeratorTypeName}>" : Struct;
     // Enumerable を直接返す interceptor 用の new Enumerator(...) 式。
-    public virtual string GetEnumeratorExpression => throw new NotSupportedException($"{this.GetType().Name} does not support Enumerator mode expression generation.");
+    public virtual string GetEnumeratorExpression => throw new NotSupportedException($"{GetType().Name} does not support Enumerator mode expression generation.");
     // primary constructor を使う enumerator struct の引数一覧。空なら通常 struct 宣言。
     public virtual string GetEnumeratorPrimaryConstructorParameters => string.Empty;
     // enumerator struct が持つ追加フィールド定義。
@@ -279,10 +279,10 @@ public abstract class Fragment(
     // キャプチャ変数付きラムダもインライン展開可能（キャプチャ変数はインターセプト先メソッドのスコープに存在する）。
     private protected string FuncInvoke(FuncFragment func,string methodName,params string[] arguments) {
         if(func.CanInvokeAsDelegate) {
-            return this.CountPhysicalDelegateExpression($"this.{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})");
+            return CountPhysicalDelegateExpression($"this.{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})");
         }
         if(func.CanInlineAssign) {
-            return this.CountLogicalDelegateExpression(this.RenderInlineExpression(func,arguments));
+            return CountLogicalDelegateExpression(RenderInlineExpression(func,arguments));
         }
         throw LambdaInlineUnsupported(func,methodName);
     }
@@ -290,48 +290,48 @@ public abstract class Fragment(
     // 代入文が必要なときの共通ヘルパー。
     private protected string FuncAssign(FuncFragment func,string methodName,string destination,params string[] arguments) {
         if(func.RequiresStatementInlining) {
-            return $"{this.CounterCall("IncrementLogicalDelegate")}\n{this.RenderInlineAssign(func,destination,arguments)}";
+            return $"{CounterCall("IncrementLogicalDelegate")}\n{RenderInlineAssign(func,destination,arguments)}";
         }
         if(func.CanInvokeAsDelegate) {
-            return $"{destination}={this.CountPhysicalDelegateExpression($"this.{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})")};";
+            return $"{destination}={CountPhysicalDelegateExpression($"this.{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})")};";
         }
         if(func.CanInlineAssign) {
-            return $"{this.CounterCall("IncrementLogicalDelegate")}\n{this.RenderInlineAssign(func,destination,arguments)}";
+            return $"{CounterCall("IncrementLogicalDelegate")}\n{RenderInlineAssign(func,destination,arguments)}";
         }
         if(func is LambdaFunc) {
             throw LambdaInlineUnsupported(func,methodName);
         }
-        return $"{destination}={this.FuncInvoke(func,methodName,arguments)};";
+        return $"{destination}={FuncInvoke(func,methodName,arguments)};";
     }
     private protected string FuncAssignIndented(string indent,FuncFragment func,string methodName,string destination,params string[] arguments) =>
-        IndentGeneratedStatement(this.FuncAssign(func,methodName,destination,arguments),indent);
+        IndentGeneratedStatement(FuncAssign(func,methodName,destination,arguments),indent);
 
     private string RenderInlineAssign(FuncFragment func,string destination,params string[] arguments) =>
-        this.renderingInstanceMember
+        renderingInstanceMember
             ? func.RenderInlineAssignWithHoistedReceiver("this.",destination,番号,arguments)
             : func.RenderInlineAssign(destination,番号,arguments);
 
     private string RenderInlineExpression(FuncFragment func,params string[] arguments) =>
-        this.renderingInstanceMember
+        renderingInstanceMember
             ? func.RenderInlineExpressionWithHoistedReceiver("this.",arguments)
             : func.RenderInlineExpression(arguments);
 
     private string RenderInstanceMember(Func<string> render) {
-        var previous=this.renderingInstanceMember;
-        this.renderingInstanceMember=true;
+        var previous=renderingInstanceMember;
+        renderingInstanceMember=true;
         try {
             return render();
         } finally {
-            this.renderingInstanceMember=previous;
+            renderingInstanceMember=previous;
         }
     }
 
     internal string FuncAssignForAggregateInline(FuncFragment func,string methodName,string destination,string? delegateLocalName,params string[] arguments) {
         if(func.CanInvokeAsDelegate && delegateLocalName is { Length: > 0 }) {
-            return $"{destination}={this.CountPhysicalDelegateExpression($"{delegateLocalName}.Invoke({string.Join(", ", arguments)})")};";
+            return $"{destination}={CountPhysicalDelegateExpression($"{delegateLocalName}.Invoke({string.Join(", ", arguments)})")};";
         }
 
-        return this.FuncAssign(func,methodName,destination,arguments);
+        return FuncAssign(func,methodName,destination,arguments);
     }
 
     // TryGetNext 内で destination フィールドと out current の両方を設定する複合代入を生成する。
@@ -339,13 +339,13 @@ public abstract class Fragment(
     // RequiresStatementInlining またはデリゲート呼び出しの場合は FuncAssign の後に current = destination; を付加する。
     private protected string FuncAssignCurrent(FuncFragment func,string methodName,string destination,params string[] arguments) {
         if(func.RequiresStatementInlining || (!func.CanInlineAssign && !func.CanInvokeAsDelegate)) {
-            return $"{this.FuncAssign(func,methodName,destination,arguments)}\ncurrent = {destination};";
+            return $"{FuncAssign(func,methodName,destination,arguments)}\ncurrent = {destination};";
         }
-        var expr = this.FuncInvoke(func,methodName,arguments);
+        var expr = FuncInvoke(func,methodName,arguments);
         return $"current = {destination} = {expr};";
     }
     private protected string FuncAssignCurrentIndented(string indent,FuncFragment func,string methodName,string destination,params string[] arguments) =>
-        IndentGeneratedStatement(this.FuncAssignCurrent(func,methodName,destination,arguments),indent);
+        IndentGeneratedStatement(FuncAssignCurrent(func,methodName,destination,arguments),indent);
 
     private protected static string WrapConditionExpression(string conditionExpr) =>
         $"({TrimSingleOuterParentheses(conditionExpr)})";
@@ -385,17 +385,17 @@ public abstract class Fragment(
         if(func.RequiresStatementInlining) {
             // InlinedScalarFunc など複数文が必要な場合は一時変数経由
             var declaration = $"{func.ReturnTypeName} {tempVar} = default!;";
-            var assignStatement = this.RenderInlineAssign(func,tempVar,arguments);
-            var counterCall = this.CounterCall("IncrementLogicalDelegate");
+            var assignStatement = RenderInlineAssign(func,tempVar,arguments);
+            var counterCall = CounterCall("IncrementLogicalDelegate");
             var pre = thisShadow.Length > 0 ? $"{thisShadow}\n{counterCall}\n{declaration}\n{assignStatement}" : $"{counterCall}\n{declaration}\n{assignStatement}";
             return (pre, tempVar);
         }
         if(func.CanInvokeAsDelegate) {
-            return (string.Empty, this.CountPhysicalDelegateExpression($"this.{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})"));
+            return (string.Empty, CountPhysicalDelegateExpression($"this.{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})"));
         }
         if(func.CanInlineAssign) {
             // 単純ラムダなら直接式として展開
-            return (thisShadow, this.CountLogicalDelegateExpression(this.RenderInlineExpression(func,arguments)));
+            return (thisShadow, CountLogicalDelegateExpression(RenderInlineExpression(func,arguments)));
         }
         throw LambdaInlineUnsupported(func,methodName);
     }
@@ -405,14 +405,14 @@ public abstract class Fragment(
         if(func.RequiresStatementInlining) {
             var declaration = $"{func.ReturnTypeName} {tempVar} = default!;";
             var assignStatement = func.RenderInlineAssign(tempVar,番号,arguments);
-            var counterCall = this.CounterCall("IncrementLogicalDelegate");
+            var counterCall = CounterCall("IncrementLogicalDelegate");
             return ($"{counterCall}\n{declaration}\n{assignStatement}", tempVar);
         }
         if(func.CanInvokeAsDelegate) {
-            return (string.Empty, this.CountPhysicalDelegateExpression($"{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})"));
+            return (string.Empty, CountPhysicalDelegateExpression($"{func.DelegateFieldName}.Invoke({string.Join(", ", arguments)})"));
         }
         if(func.CanInlineAssign) {
-            return (string.Empty, this.CountLogicalDelegateExpression(func.RenderInlineExpression(arguments)));
+            return (string.Empty, CountLogicalDelegateExpression(func.RenderInlineExpression(arguments)));
         }
         throw LambdaInlineUnsupported(func,methodName);
     }
@@ -422,7 +422,7 @@ public abstract class Fragment(
     // 各断片が持つ Current/TryGetNext/Dispose を IValueEnumerator struct にまとめる。
     // Current プロパティの宣言文。BufferedScalar はオートプロパティを GetEnumeratorFields で宣言するためこのメソッドを空文字列に override する。
     protected virtual string GetCurrentPropertyDeclaration(string currentType) =>
-        $"public {currentType} Current {{ get; private set; }} = {this.GetCurrentPropertyDefaultExpression};";
+        $"public {currentType} Current {{ get; private set; }} = {GetCurrentPropertyDefaultExpression};";
 
     private protected static IEnumerable<(string TypeExpr, string Name)> ParseCtorParams(string paramList) {
         if(string.IsNullOrWhiteSpace(paramList)) yield break;
@@ -441,29 +441,29 @@ public abstract class Fragment(
     }
 
     private protected string DefineEnumeratorStructCore(string currentType,string disposeBody) {
-        var ctorParams = ParseCtorParams(this.GetEnumeratorPrimaryConstructorParameters).ToArray();
+        var ctorParams = ParseCtorParams(GetEnumeratorPrimaryConstructorParameters).ToArray();
         var ctorParamFields = ctorParams.Length > 0
             ? string.Join("\n", ctorParams.Select(static p => $"private {p.TypeExpr} {p.Name};"))
             : string.Empty;
         string ctorDecl = string.Empty;
         if(ctorParams.Length > 0) {
             var assignments = string.Join("\n    ", ctorParams.Select(static p => $"this.{p.Name} = {p.Name};"));
-            var extraBody = this.GetEnumeratorConstructor;
+            var extraBody = GetEnumeratorConstructor;
             var ctorBody = string.IsNullOrWhiteSpace(extraBody)
                 ? "    " + assignments
                 : "    " + assignments + "\n    " + IndentLines(extraBody.Trim(), "    ");
-            ctorDecl = $"public {this.Struct}({this.GetEnumeratorPrimaryConstructorParameters}) {{\n{ctorBody}\n}}";
+            ctorDecl = $"public {Struct}({GetEnumeratorPrimaryConstructorParameters}) {{\n{ctorBody}\n}}";
         }
 
-        var tryGetNextBody = IndentLines(this.RenderInstanceMember(() => this.GetTryGetNextBody), "        ");
+        var tryGetNextBody = IndentLines(RenderInstanceMember(() => GetTryGetNextBody), "        ");
         var dispose = IndentLines(disposeBody, "        ");
         var fieldsFromParams = IndentLines(ctorParamFields, "    ");
-        var fields = IndentLines(this.GetEnumeratorFields, "    ");
+        var fields = IndentLines(GetEnumeratorFields, "    ");
         var ctor = IndentLines(ctorDecl, "    ");
-        var currentPropDecl = this.GetCurrentPropertyDeclaration(currentType);
+        var currentPropDecl = GetCurrentPropertyDeclaration(currentType);
 
         return $$"""
-            {{this.GetEnumeratorStructDeclaration($"global::Seamless.System.Carrier.IValueEnumerator<{currentType}>, global::System.Collections.Generic.IEnumerator<{currentType}>")}}
+            {{GetEnumeratorStructDeclaration($"global::Seamless.System.Carrier.IValueEnumerator<{currentType}>, global::System.Collections.Generic.IEnumerator<{currentType}>")}}
             {{fieldsFromParams}}
             {{fields}}
             {{ctor}}
@@ -475,15 +475,15 @@ public abstract class Fragment(
                 public bool MoveNext() => TryGetNext(out _);
                 {{AggressiveInliningAttribute}}
                 public bool TryGetNonEnumeratedCount(out int count) {
-            {{IndentLines(this.RenderInstanceMember(() => this.GetTryGetNonEnumeratedCountBody), "        ")}}
+            {{IndentLines(RenderInstanceMember(() => GetTryGetNonEnumeratedCountBody), "        ")}}
                 }
                 {{AggressiveInliningAttribute}}
                 public bool TryGetSpan(out global::System.ReadOnlySpan<{{currentType}}> span) {
-            {{IndentLines(this.RenderInstanceMember(() => this.GetTryGetSpanBody), "        ")}}
+            {{IndentLines(RenderInstanceMember(() => GetTryGetSpanBody), "        ")}}
                 }
                 {{AggressiveInliningAttribute}}
                 public bool TryCopyTo(scoped global::System.Span<{{currentType}}> destination, global::System.Index __offset) {
-            {{IndentLines(this.RenderInstanceMember(() => this.GetTryCopyToBody), "        ")}}
+            {{IndentLines(RenderInstanceMember(() => GetTryCopyToBody), "        ")}}
                 }
                 {{AggressiveInliningAttribute}}
                 public bool TryGetNext(out {{currentType}} current) {
@@ -521,28 +521,28 @@ public abstract class Fragment(
     protected virtual Enumerable? PrimarySource => null;
 
     // 生成 struct に付ける型パラメータ（"<TEnum>" 等）。PrimarySource が設定されると "<TEnum>" になる。
-    protected virtual string StructTypeParameters => this.PrimarySource is not null ? "<TEnum>" : string.Empty;
+    protected virtual string StructTypeParameters => PrimarySource is not null ? "<TEnum>" : string.Empty;
     // 生成 struct に付ける where 制約。PrimarySource が設定されると struct 制約付きの where 句になる。
     protected virtual string StructTypeConstraints =>
-        this.PrimarySource is { } src
+        PrimarySource is { } src
             ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{src.ElementType}>, global::Seamless.System.Carrier.IValueEnumerator<{src.ElementType}>"
             : string.Empty;
 
     private protected string GetEnumeratorStructDeclaration(string interfaceType) {
-        var tp = this.StructTypeParameters;
-        var tc = string.IsNullOrEmpty(this.StructTypeConstraints) ? "" : $"\n    {this.StructTypeConstraints}";
-        return $"private struct {this.Struct}{tp} : {interfaceType}{tc} {{";
+        var tp = StructTypeParameters;
+        var tc = string.IsNullOrEmpty(StructTypeConstraints) ? "" : $"\n    {StructTypeConstraints}";
+        return $"private struct {Struct}{tp} : {interfaceType}{tc} {{";
     }
 
     private protected string GetGenericEnumeratorStructDeclaration(string typeParameters,string interfaceType) {
-        var tc = string.IsNullOrEmpty(this.StructTypeConstraints) ? "" : $"\n    {this.StructTypeConstraints}";
-        return $"private struct {this.Struct}{typeParameters} : {interfaceType}{tc} {{";
+        var tc = string.IsNullOrEmpty(StructTypeConstraints) ? "" : $"\n    {StructTypeConstraints}";
+        return $"private struct {Struct}{typeParameters} : {interfaceType}{tc} {{";
     }
 
     // struct の TryGetNext 内で使う。static ラムダまたはキャプチャ変数付きラムダならインライン展開する。
     private protected string FuncInvokeField(FuncFragment func,string methodName,params string[] arguments) {
         if(func.CanInlineAssign) {
-            return this.CountLogicalDelegateExpression(func.RenderInlineExpressionWithHoistedReceiver("this.",arguments));
+            return CountLogicalDelegateExpression(func.RenderInlineExpressionWithHoistedReceiver("this.",arguments));
         }
         throw LambdaInlineUnsupported(func,methodName);
     }
@@ -550,10 +550,10 @@ public abstract class Fragment(
     // static メソッド本体内（this. が使えない文脈）でのデリゲート呼び出し生成。
     private protected string FuncInvokeStatic(FuncFragment func,string methodName,params string[] arguments){
         if(func.CanInvokeAsDelegate){
-            return this.CountPhysicalDelegateExpression($"{func.DelegateFieldName}.Invoke({string.Join(", ",arguments)})");
+            return CountPhysicalDelegateExpression($"{func.DelegateFieldName}.Invoke({string.Join(", ",arguments)})");
         }
         if(func.CanInlineAssign){
-            return this.CountLogicalDelegateExpression(func.RenderInlineExpression(arguments));
+            return CountLogicalDelegateExpression(func.RenderInlineExpression(arguments));
         }
         throw LambdaInlineUnsupported(func,methodName);
     }
@@ -561,18 +561,18 @@ public abstract class Fragment(
     // static メソッド本体内（this. が使えない文脈）での代入文生成。
     private protected string FuncAssignStatic(FuncFragment func,string methodName,string destination,params string[] arguments){
         if(func.RequiresStatementInlining){
-            return $"{this.CounterCall("IncrementLogicalDelegate")}\n{func.RenderInlineAssign(destination,番号,arguments)}";
+            return $"{CounterCall("IncrementLogicalDelegate")}\n{func.RenderInlineAssign(destination,番号,arguments)}";
         }
         if(func.CanInvokeAsDelegate){
-            return $"{destination}={this.CountPhysicalDelegateExpression($"{func.DelegateFieldName}.Invoke({string.Join(", ",arguments)})")};";
+            return $"{destination}={CountPhysicalDelegateExpression($"{func.DelegateFieldName}.Invoke({string.Join(", ",arguments)})")};";
         }
         if(func.CanInlineAssign){
-            return $"{this.CounterCall("IncrementLogicalDelegate")}\n{func.RenderInlineAssign(destination,番号,arguments)}";
+            return $"{CounterCall("IncrementLogicalDelegate")}\n{func.RenderInlineAssign(destination,番号,arguments)}";
         }
         throw LambdaInlineUnsupported(func,methodName);
     }
     private protected string FuncAssignStaticIndented(string indent,FuncFragment func,string methodName,string destination,params string[] arguments) =>
-        IndentGeneratedStatement(this.FuncAssignStatic(func,methodName,destination,arguments),indent);
+        IndentGeneratedStatement(FuncAssignStatic(func,methodName,destination,arguments),indent);
 
     private protected static string IndentGeneratedStatement(string text,string indent) =>
         IndentLines(text.Trim(),indent);
@@ -611,7 +611,7 @@ public abstract class Fragment(
     // 型推論用ファクトリメソッドの名前。
     // "_Factory" サフィックスは 補助メンバーをメソッド専用クラスへ退避() の Struct{番号} リネーム正規表現に対応している。
     // 例: Struct0_Factory → {prefix}Struct0_Factory （メソッドごとにユニークな名前に変換される）。
-    private protected string FactoryMethodName => $"{this.Struct}_Factory";
+    private protected string FactoryMethodName => $"{Struct}_Factory";
 
     // ファクトリメソッド本体のコンストラクタ呼び出し引数サフィックス。
     // ClosureArgsSuffix と異なり、DelegateConstructorArg（ラムダ式）ではなく DelegateFieldName（フィールド名）を使う。

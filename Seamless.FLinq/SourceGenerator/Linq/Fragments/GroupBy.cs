@@ -105,23 +105,23 @@ internal class GroupBy_keySelector(int 番号, Enumerable source, FuncFragment k
     protected override Enumerable PrimarySource => source;
     public override string GetEnumerableExpression =>
         $"global::Seamless.System.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()})";
-    public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
+    public override string StructMethod => FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector)})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorFields =>
-        GroupBySupport.Fields(this.KeyType,source.ElementType,this.group,this.lookup,this.hasValue);
-    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,source.ElementType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),"",this.item,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
+        GroupBySupport.Fields(KeyType,source.ElementType,group,lookup,hasValue);
+    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(e,source.CanTryProvideSpan,KeyType,source.ElementType,FuncAssign(keySelector,nameof(keySelector),key,item),"",item,group,lookup,hasValue,item,key)+$$"""
         current=this.Current=__cur;
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
-    public override string ElementType => $"global::System.Linq.IGrouping<{this.KeyType}, {source.ElementType}>";
+    public override string GetCurrentExpression => currentValue;
+    public override string ElementType => $"global::System.Linq.IGrouping<{KeyType}, {source.ElementType}>";
 }
 
 internal class GroupBy_keySelector_resultSelector(
@@ -136,42 +136,42 @@ internal class GroupBy_keySelector_resultSelector(
     protected override Enumerable PrimarySource => source;
     private string KeyType => FuncReturnTypeName(keySelector);
     private bool UseResultTypeParam => resultSelector.RequiresResultTypeParameter;
-    public override string ElementType => this.UseResultTypeParam ? "TResult" : FuncReturnTypeName(resultSelector);
+    public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(resultSelector);
     protected override string StructTypeParameters =>
-        this.UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
+        UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
     protected override string StructTypeConstraints =>
-        this.UseResultTypeParam
+        UseResultTypeParam
             ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.System.Carrier.IValueEnumerator<{source.ElementType}>"
             : base.StructTypeConstraints;
     public override string EnumeratorTypeName =>
-        this.UseResultTypeParam ? $"{this.Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
-    private string FactorySource => !this.UseResultTypeParam ? string.Empty : $$"""
+        UseResultTypeParam ? $"{Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
+    private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
-        private static global::Seamless.System.Carrier.ValueEnumerable<{{this.Struct}}<TEnum, TResult>, TResult> {{this.FactoryMethodName}}<TEnum, TResult>(TEnum source{{this.ClosurePrimaryCtorSuffix(keySelector, resultSelector)}})
+        private static global::Seamless.System.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum source{{ClosurePrimaryCtorSuffix(keySelector, resultSelector)}})
             where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.System.Carrier.IValueEnumerator<{{source.ElementType}}>
-            => new(new {{this.Struct}}<TEnum, TResult>(source{{this.ClosureArgsSuffixForFactory(keySelector, resultSelector)}}));
+            => new(new {{Struct}}<TEnum, TResult>(source{{ClosureArgsSuffixForFactory(keySelector, resultSelector)}}));
         """;
-    public override string StructMethod => JoinStaticMethods(JoinStaticMethods(this.FuncSupport(keySelector, nameof(keySelector)),this.FuncSupport(resultSelector, nameof(resultSelector))),this.FactorySource);
+    public override string StructMethod => JoinStaticMethods(JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)),FuncSupport(resultSelector, nameof(resultSelector))),FactorySource);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        this.UseResultTypeParam
-            ? throw new NotSupportedException($"{this.GetType().Name} does not support direct GetEnumeratorExpression for anonymous result type; use GetEnumerableExpression.")
-            : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector, resultSelector)})";
+        UseResultTypeParam
+            ? throw new NotSupportedException($"{GetType().Name} does not support direct GetEnumeratorExpression for anonymous result type; use GetEnumerableExpression.")
+            : $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector, resultSelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector, resultSelector)}";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector, resultSelector)}";
     public override string GetEnumeratorFields =>
-        GroupBySupport.Fields(this.KeyType,source.ElementType,this.group,this.lookup,this.hasValue);
-    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,source.ElementType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),"",this.item,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
-        {{this.FuncAssignCurrentIndented("",resultSelector,nameof(resultSelector),this.currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{source.ElementType}>)__cur")}}
+        GroupBySupport.Fields(KeyType,source.ElementType,group,lookup,hasValue);
+    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(e,source.CanTryProvideSpan,KeyType,source.ElementType,FuncAssign(keySelector,nameof(keySelector),key,item),"",item,group,lookup,hasValue,item,key)+$$"""
+        {{FuncAssignCurrentIndented("",resultSelector,nameof(resultSelector),currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{source.ElementType}>)__cur")}}
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
+    public override string GetCurrentExpression => currentValue;
     public override string GetEnumerableExpression =>
-        this.UseResultTypeParam
-            ? $"{this.FactoryMethodName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector, resultSelector)})"
+        UseResultTypeParam
+            ? $"{FactoryMethodName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector, resultSelector)})"
             : $"global::Seamless.System.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {resultSelector.DelegateConstructorArg ?? resultSelector.RenderAsLambda()})";
 }
 
@@ -189,23 +189,23 @@ internal class GroupBy_keySelector_elementSelector(
     private string ElemType => FuncReturnTypeName(elementSelector);
     public override string GetEnumerableExpression =>
         $"global::Seamless.System.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {elementSelector.DelegateConstructorArg ?? elementSelector.RenderAsLambda()})";
-    public override string StructMethod => JoinStaticMethods(this.FuncSupport(keySelector, nameof(keySelector)),this.FuncSupport(elementSelector, nameof(elementSelector)));
+    public override string StructMethod => JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)),FuncSupport(elementSelector, nameof(elementSelector)));
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector, elementSelector)})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector, elementSelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector, elementSelector)}";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector, elementSelector)}";
     public override string GetEnumeratorFields =>
-        GroupBySupport.Fields(this.KeyType,this.ElemType,this.group,this.lookup,this.hasValue);
-    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,this.ElemType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),$"{this.ElemType} {this.a}=default!;\n{this.FuncAssign(elementSelector,nameof(elementSelector),this.a,this.item)}",this.a,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
+        GroupBySupport.Fields(KeyType,ElemType,group,lookup,hasValue);
+    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(e,source.CanTryProvideSpan,KeyType,ElemType,FuncAssign(keySelector,nameof(keySelector),key,item),$"{ElemType} {a}=default!;\n{FuncAssign(elementSelector,nameof(elementSelector),a,item)}",a,group,lookup,hasValue,item,key)+$$"""
         current=this.Current=__cur;
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
-    public override string ElementType => $"global::System.Linq.IGrouping<{this.KeyType}, {this.ElemType}>";
+    public override string GetCurrentExpression => currentValue;
+    public override string ElementType => $"global::System.Linq.IGrouping<{KeyType}, {ElemType}>";
 }
 
 internal class GroupBy_keySelector_elementSelector_resultSelector(
@@ -222,41 +222,41 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
     private bool UseResultTypeParam => resultSelector.RequiresResultTypeParameter;
     private string KeyType => FuncReturnTypeName(keySelector);
     private string ElemType => FuncReturnTypeName(elementSelector);
-    public override string ElementType => this.UseResultTypeParam ? "TResult" : FuncReturnTypeName(resultSelector);
+    public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(resultSelector);
     protected override string StructTypeParameters =>
-        this.UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
+        UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
     protected override string StructTypeConstraints =>
-        this.UseResultTypeParam
+        UseResultTypeParam
             ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.System.Carrier.IValueEnumerator<{source.ElementType}>"
             : base.StructTypeConstraints;
     public override string EnumeratorTypeName =>
-        this.UseResultTypeParam ? $"{this.Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
-    private string FactorySource => !this.UseResultTypeParam ? string.Empty : $$"""
+        UseResultTypeParam ? $"{Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
+    private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
-        private static global::Seamless.System.Carrier.ValueEnumerable<{{this.Struct}}<TEnum, TResult>, TResult> {{this.FactoryMethodName}}<TEnum, TResult>(TEnum source{{this.ClosurePrimaryCtorSuffix(keySelector, elementSelector, resultSelector)}})
+        private static global::Seamless.System.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum source{{ClosurePrimaryCtorSuffix(keySelector, elementSelector, resultSelector)}})
             where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.System.Carrier.IValueEnumerator<{{source.ElementType}}>
-            => new(new {{this.Struct}}<TEnum, TResult>(source{{this.ClosureArgsSuffixForFactory(keySelector, elementSelector, resultSelector)}}));
+            => new(new {{Struct}}<TEnum, TResult>(source{{ClosureArgsSuffixForFactory(keySelector, elementSelector, resultSelector)}}));
         """;
-    public override string StructMethod => JoinStaticMethods(JoinStaticMethods(JoinStaticMethods(this.FuncSupport(keySelector, nameof(keySelector)),this.FuncSupport(elementSelector, nameof(elementSelector))),this.FuncSupport(resultSelector, nameof(resultSelector))),this.FactorySource);
+    public override string StructMethod => JoinStaticMethods(JoinStaticMethods(JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)),FuncSupport(elementSelector, nameof(elementSelector))),FuncSupport(resultSelector, nameof(resultSelector))),FactorySource);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        this.UseResultTypeParam
-            ? throw new NotSupportedException($"{this.GetType().Name} does not support direct GetEnumeratorExpression for anonymous result type; use GetEnumerableExpression.")
-            : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector, elementSelector, resultSelector)})";
+        UseResultTypeParam
+            ? throw new NotSupportedException($"{GetType().Name} does not support direct GetEnumeratorExpression for anonymous result type; use GetEnumerableExpression.")
+            : $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector, elementSelector, resultSelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector, elementSelector, resultSelector)}";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector, elementSelector, resultSelector)}";
     public override string GetEnumeratorFields =>
-        GroupBySupport.Fields(this.KeyType,this.ElemType,this.group,this.lookup,this.hasValue);
-    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,this.ElemType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),$"{this.ElemType} {this.a}=default!;\n{this.FuncAssign(elementSelector,nameof(elementSelector),this.a,this.item)}",this.a,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
-        {{this.FuncAssignCurrentIndented("",resultSelector,nameof(resultSelector),this.currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{this.ElemType}>)__cur")}}
+        GroupBySupport.Fields(KeyType,ElemType,group,lookup,hasValue);
+    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(e,source.CanTryProvideSpan,KeyType,ElemType,FuncAssign(keySelector,nameof(keySelector),key,item),$"{ElemType} {a}=default!;\n{FuncAssign(elementSelector,nameof(elementSelector),a,item)}",a,group,lookup,hasValue,item,key)+$$"""
+        {{FuncAssignCurrentIndented("",resultSelector,nameof(resultSelector),currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{ElemType}>)__cur")}}
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
+    public override string GetCurrentExpression => currentValue;
     public override string GetEnumerableExpression =>
-        this.UseResultTypeParam
-            ? $"{this.FactoryMethodName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector, elementSelector, resultSelector)})"
+        UseResultTypeParam
+            ? $"{FactoryMethodName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector, elementSelector, resultSelector)})"
             : $"global::Seamless.System.Carrier.ValueEnumerableExtensions.GroupBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {elementSelector.DelegateConstructorArg ?? elementSelector.RenderAsLambda()}, {resultSelector.DelegateConstructorArg ?? resultSelector.RenderAsLambda()})";
 }

@@ -9,8 +9,8 @@ public sealed class Concat_Select(ITestOutputHelper output):LinqChain2TestBase(o
     [Fact, Trait("Category","Unit")]
     public void Static() {
         var expected=Source().Concat(Second()).Select(static v => v+100).ToList();
-        this.MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
-        this.MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
+        MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
+        MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

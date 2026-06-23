@@ -37,7 +37,7 @@ public readonly struct Store {
     public PersistedList<T> CreateTemp<T>(
         long initialCapacity = 16,
         long initialDataCapacity = 4096
-    ) => this.Create<T>(this.CreateTemporaryPath(),initialCapacity,initialDataCapacity);
+    ) => Create<T>(CreateTemporaryPath(),initialCapacity,initialDataCapacity);
 
     [OverloadResolutionPriority(1)]
     public BlittableList<T> CreateTemp<T>(
@@ -45,7 +45,7 @@ public readonly struct Store {
         BlittableStrategy _ = default
     )
         where T : unmanaged =>
-        this.Create<T>(this.CreateTemporaryPath(),initialCapacity,_);
+        Create<T>(CreateTemporaryPath(),initialCapacity,_);
 
     public AppendOnlyList<T> CreateAppendOnly<T>(
         string path,
@@ -53,7 +53,7 @@ public readonly struct Store {
     ) => new(path,initialDataCapacity);
 
     public AppendOnlyList<T> CreateTempAppendOnly<T>(long initialDataCapacity = 4096) =>
-        this.CreateAppendOnly<T>(this.CreateTemporaryPath(),initialDataCapacity);
+        CreateAppendOnly<T>(CreateTemporaryPath(),initialDataCapacity);
 
     private static PersistedList<T> CreateBlittableList<T>(string path,long initialCapacity) =>
         (PersistedList<T>)Activator.CreateInstance(
@@ -62,9 +62,9 @@ public readonly struct Store {
             initialCapacity)!;
 
     private string CreateTemporaryPath() {
-        var root = string.IsNullOrWhiteSpace(this.temporaryRoot)
+        var root = string.IsNullOrWhiteSpace(temporaryRoot)
             ? Path.Combine(Path.GetTempPath(),"Seamless","Persisted")
-            : this.temporaryRoot!;
+            : temporaryRoot!;
         var directory = Path.Combine(root,Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         return Path.Combine(directory,"items.dat");

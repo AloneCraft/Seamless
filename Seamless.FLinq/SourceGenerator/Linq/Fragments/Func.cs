@@ -76,22 +76,22 @@ public abstract class FuncFragment {
     }
 
     public string RenderInlineAssignWithHoistedReceiver(string receiver,string destination,int number,params string[] arguments) {
-        var previousReceiver=this.hoistedLocalReceiver;
-        this.hoistedLocalReceiver=receiver;
+        var previousReceiver=hoistedLocalReceiver;
+        hoistedLocalReceiver=receiver;
         try {
-            return this.RenderInlineAssign(destination,number,arguments);
+            return RenderInlineAssign(destination,number,arguments);
         } finally {
-            this.hoistedLocalReceiver=previousReceiver;
+            hoistedLocalReceiver=previousReceiver;
         }
     }
 
     public string RenderInlineExpressionWithHoistedReceiver(string receiver,params string[] arguments) {
-        var previousReceiver=this.hoistedLocalReceiver;
-        this.hoistedLocalReceiver=receiver;
+        var previousReceiver=hoistedLocalReceiver;
+        hoistedLocalReceiver=receiver;
         try {
-            return this.RenderInlineExpression(arguments);
+            return RenderInlineExpression(arguments);
         } finally {
-            this.hoistedLocalReceiver=previousReceiver;
+            hoistedLocalReceiver=previousReceiver;
         }
     }
 
@@ -108,22 +108,22 @@ public abstract class FuncFragment {
     // Enumerator struct のコンストラクタに渡すデリゲート引数（ラムダ式テキスト）。
     public virtual string? DelegateConstructorArg => null;
     public virtual string RenderAsLambda() {
-        if(this.DelegateConstructorArg is { } delegateConstructorArg) {
+        if(DelegateConstructorArg is { } delegateConstructorArg) {
             return delegateConstructorArg;
         }
-        if(this.RequiresStatementInlining || string.IsNullOrWhiteSpace(this.InlineBody)) {
+        if(RequiresStatementInlining || string.IsNullOrWhiteSpace(InlineBody)) {
             throw new InvalidOperationException("Lambda expression rendering is not supported.");
         }
-        var parameters = this.ParameterNames.Length==1
-            ? this.ParameterNames[0]
-            : $"({string.Join(", ",this.ParameterNames)})";
-        return $"{parameters}=>{this.InlineBody}";
+        var parameters = ParameterNames.Length==1
+            ? ParameterNames[0]
+            : $"({string.Join(", ",ParameterNames)})";
+        return $"{parameters}=>{InlineBody}";
     }
 
     // 代入文向け inline 展開の共通処理。
     protected string RenderInlineAssignCore(string destination,int number,params string[] arguments) {
         var builder = new StringBuilder();
-        var rewrittenBody= this.InlineBody;
+        var rewrittenBody= InlineBody;
         for(var index = 0; index<arguments.Length; index++) {
             var arg = arguments[index];
             string replacement;
@@ -137,14 +137,14 @@ public abstract class FuncFragment {
                 builder.AppendLine($"var {tempName}={arg};");
                 replacement = tempName;
             }
-            if(index<this.ParameterNames.Length && !string.IsNullOrWhiteSpace(this.ParameterNames[index])) {
-                rewrittenBody=ReplaceParameterReference(rewrittenBody,this.ParameterNames[index],replacement);
+            if(index<ParameterNames.Length && !string.IsNullOrWhiteSpace(ParameterNames[index])) {
+                rewrittenBody=ReplaceParameterReference(rewrittenBody,ParameterNames[index],replacement);
             }
         }
 
-        rewrittenBody=this.QualifyHoistedLocalReferences(rewrittenBody);
+        rewrittenBody=QualifyHoistedLocalReferences(rewrittenBody);
         builder.Append($"{destination}={rewrittenBody};");
-        this.ContainsAnchor |= AnchorAnalysis.LooksLikeAnchorText(rewrittenBody);
+        ContainsAnchor |= AnchorAnalysis.LooksLikeAnchorText(rewrittenBody);
         return builder.ToString();
     }
 
@@ -154,34 +154,34 @@ public abstract class FuncFragment {
 
     // 式位置向け inline 展開の共通処理。
     protected string RenderInlineExpressionCore(params string[] arguments) {
-        var rewrittenBody= this.InlineBody;
+        var rewrittenBody= InlineBody;
         for(var index = 0; index<arguments.Length; index++) {
-            if(index<this.ParameterNames.Length && !string.IsNullOrWhiteSpace(this.ParameterNames[index])) {
+            if(index<ParameterNames.Length && !string.IsNullOrWhiteSpace(ParameterNames[index])) {
                 // 条件式や Add 引数のような「式の中」に埋め込む場合は、
                 // helper メソッド呼び出し `StructX_selector.selector(value)` を残さず、
                 // ラムダ引数名を実引数へ直接置換して式そのものを作る。
                 // こうしておくと生成コードを読んだときに元の LINQ の意味が追いやすく、
                 // JIT にも普通の式として見せられる。
-                rewrittenBody=ReplaceParameterReference(rewrittenBody,this.ParameterNames[index],FormatInlineArgument(arguments[index]));
+                rewrittenBody=ReplaceParameterReference(rewrittenBody,ParameterNames[index],FormatInlineArgument(arguments[index]));
             }
         }
 
-        rewrittenBody=this.QualifyHoistedLocalReferences(rewrittenBody);
-        this.ContainsAnchor |= AnchorAnalysis.LooksLikeAnchorText(rewrittenBody);
+        rewrittenBody=QualifyHoistedLocalReferences(rewrittenBody);
+        ContainsAnchor |= AnchorAnalysis.LooksLikeAnchorText(rewrittenBody);
         return CanOmitOuterParentheses(rewrittenBody) ? rewrittenBody : $"({rewrittenBody})";
     }
 
     private string QualifyHoistedLocalReferences(string text) {
-        if(string.IsNullOrEmpty(this.hoistedLocalReceiver) || this.HoistedLocals.Length==0) {
+        if(string.IsNullOrEmpty(hoistedLocalReceiver) || HoistedLocals.Length==0) {
             return text;
         }
 
         var rewritten=text;
-        foreach(var hoistedLocal in this.HoistedLocals) {
+        foreach(var hoistedLocal in HoistedLocals) {
             rewritten=Regex.Replace(
                 rewritten,
                 $@"(?<![\w\.]){Regex.Escape(hoistedLocal.Name)}\b",
-                $"{this.hoistedLocalReceiver}{hoistedLocal.Name}",
+                $"{hoistedLocalReceiver}{hoistedLocal.Name}",
                 RegexOptions.CultureInvariant);
         }
 
@@ -207,7 +207,7 @@ public abstract class FuncFragment {
     public virtual bool IsIdentity => false;
 
     public bool TryGetSmallIntegralRange(int maxCount,out int min,out int max) {
-        if(this.IntegralRangeMin is { } explicitMin && this.IntegralRangeMax is { } explicitMax) {
+        if(IntegralRangeMin is { } explicitMin && IntegralRangeMax is { } explicitMax) {
             if(IsSmallRange(explicitMin,explicitMax,maxCount)) {
                 min=explicitMin;
                 max=explicitMax;
@@ -218,8 +218,8 @@ public abstract class FuncFragment {
             return false;
         }
 
-        if(!string.IsNullOrWhiteSpace(this.InlineBody)) {
-            var expression=SyntaxFactory.ParseExpression(this.InlineBody);
+        if(!string.IsNullOrWhiteSpace(InlineBody)) {
+            var expression=SyntaxFactory.ParseExpression(InlineBody);
             if(CardinalityAnalysis.TryGetIntegralRange(expression,null) is { } parsedRange
                 && IsSmallRange(parsedRange.Min,parsedRange.Max,maxCount)) {
                 min=parsedRange.Min;

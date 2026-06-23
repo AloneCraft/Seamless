@@ -26,18 +26,18 @@ public class Skip(int 番号, Enumerable source, string skipCount) : Enumerable(
         method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_Int32;
     private Enumerable Source => source;
     private string SkipCountExpression => skipCount;
-    private Enumerable RootSource => this.Source is Skip skip ? skip.RootSource : this.Source;
-    private string EffectiveSkipCount => this.Source is Skip skip
-        ? $"(int)global::System.Math.Min(int.MaxValue,(long)({skip.EffectiveSkipCount})+({this.SkipCountExpression}))"
-        : this.SkipCountExpression;
-    protected override Enumerable PrimarySource => this.RootSource;
+    private Enumerable RootSource => Source is Skip skip ? skip.RootSource : Source;
+    private string EffectiveSkipCount => Source is Skip skip
+        ? $"(int)global::System.Math.Min(int.MaxValue,(long)({skip.EffectiveSkipCount})+({SkipCountExpression}))"
+        : SkipCountExpression;
+    protected override Enumerable PrimarySource => RootSource;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""
-        {{this.RootSource.GetEnumeratorStruct}}
+        {{RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}, {this.EffectiveSkipCount})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int count";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({RootSource.GetEnumeratorExpression}, {EffectiveSkipCount})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int count";
     public override string GetEnumeratorFields => $$"""
         private bool skipped = false;
         """;
@@ -46,17 +46,17 @@ public class Skip(int 番号, Enumerable source, string skipCount) : Enumerable(
         if(!this.skipped) {
             this.skipped = true;
             var remaining = this.count;
-            while(remaining > 0 && {{this.e}}.MoveNext()) {
+            while(remaining > 0 && {{e}}.MoveNext()) {
                 remaining--;
             }
         }
-        if({{this.e}}.MoveNext()) {
-            current = this.{{this.currentValue}} = {{this.e}}.Current;
+        if({{e}}.MoveNext()) {
+            current = this.{{currentValue}} = {{e}}.Current;
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
-    public override string ElementType => this.Source.ElementType;
+    public override string GetCurrentExpression => currentValue;
+    public override string ElementType => Source.ElementType;
 }

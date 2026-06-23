@@ -1,6 +1,6 @@
 using System.Linq;
 
-using SystemEnumerable = global::System.Linq.Enumerable;
+using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.System.Linq.Intercept.Chain1;
 
@@ -8,8 +8,8 @@ public sealed class Repeat(ITestOutputHelper output):LinqChain1TestBase(output) 
     [Fact, Trait("Category","Unit")]
     public void element_count() {
         var expected=SystemEnumerable.Repeat(7,3).ToList();
-        this.MeasureOptimized(nameof(element_countOptimized),()=>element_countOptimized(expected));
-        this.MeasureOptimized(nameof(element_countNoOptimized),()=>element_countNoOptimized(expected));
+        MeasureOptimized(nameof(element_countOptimized),()=>element_countOptimized(expected));
+        MeasureOptimized(nameof(element_countNoOptimized),()=>element_countNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

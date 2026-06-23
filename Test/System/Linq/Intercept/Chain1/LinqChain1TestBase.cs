@@ -27,7 +27,7 @@ public abstract class LinqChain1TestBase(ITestOutputHelper output) {
     }
 
     public void AssertOptimized<T>(T expected,Func<T> actualFactory,long logicalDelegate,long physicalDelegate,[global::System.Runtime.CompilerServices.CallerMemberName] string label="") {
-        this.AssertOptimized(label,expected,actualFactory,logicalDelegate,physicalDelegate);
+        AssertOptimized(label,expected,actualFactory,logicalDelegate,physicalDelegate);
     }
 
     public void AssertOptimized<T>(string label,T expected,Func<T> actualFactory,long logicalDelegate,long physicalDelegate) {
@@ -36,7 +36,7 @@ public abstract class LinqChain1TestBase(ITestOutputHelper output) {
         EmitCounterDiagnostics(label,logicalDelegate,physicalDelegate,scope.Counter);
         var message=$"{label}: delegate expected(log/phys)={logicalDelegate}/{physicalDelegate}, actual(log/phys)={scope.Counter.LogicalDelegate}/{scope.Counter.PhysicalDelegate}; logical ops={scope.Counter.LogicalOperations}, moveNext={scope.Counter.PhysicalMoveNext}";
         output.WriteLine(message);
-        global::System.Console.WriteLine(message);
+        Console.WriteLine(message);
         global::System.Diagnostics.Trace.WriteLine(message);
         Assert.Equal(expected,actual);
         Assert.Equal(logicalDelegate,scope.Counter.LogicalDelegate);
@@ -49,7 +49,7 @@ public abstract class LinqChain1TestBase(ITestOutputHelper output) {
         LinqCounterDiagnostics.EmitActual(label,scope.Counter);
         var message=$"{label}: delegate(log/phys)={scope.Counter.LogicalDelegate}/{scope.Counter.PhysicalDelegate}; logical ops={scope.Counter.LogicalOperations}, moveNext={scope.Counter.PhysicalMoveNext}";
         output.WriteLine(message);
-        global::System.Console.WriteLine(message);
+        Console.WriteLine(message);
         global::System.Diagnostics.Trace.WriteLine(message);
     }
 

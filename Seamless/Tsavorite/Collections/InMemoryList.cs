@@ -5,11 +5,11 @@ namespace Seamless.Tsavorite.Collections;
 /// </summary>
 /// <typeparam name="T"></typeparam>
 public sealed class InMemoryList<T>:PersistedList<T> {
-    private readonly global::System.Collections.Generic.List<T> items;
+    private readonly List<T> items;
     private TempListTuning tuning = new(FileAccess.ReadWrite,FileOptions.SequentialScan);
 
-    public override FileAccess OptimizationMode => this.tuning.OptimizationMode;
-    public override FileOptions AccessPattern => this.tuning.AccessPattern;
+    public override FileAccess OptimizationMode => tuning.OptimizationMode;
+    public override FileOptions AccessPattern => tuning.AccessPattern;
 
     public InMemoryList(long initialCapacity = 16) {
         if(initialCapacity<1)
@@ -17,20 +17,20 @@ public sealed class InMemoryList<T>:PersistedList<T> {
         if(initialCapacity>int.MaxValue)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity));
 
-        this.items=new(checked((int)initialCapacity));
-        this.Capacity=this.items.Capacity;
+        items=new(checked((int)initialCapacity));
+        Capacity=items.Capacity;
     }
 
     public override void Add(T item) {
-        this.ThrowIfDisposed();
+        ThrowIfDisposed();
 
-        this.items.Add(item);
-        this.Count=this.items.Count;
-        this.Capacity=this.items.Capacity;
+        items.Add(item);
+        Count=items.Count;
+        Capacity=items.Capacity;
     }
 
     public override void SetTuning(TempListTuning tuning) {
-        this.ThrowIfDisposed();
+        ThrowIfDisposed();
         this.tuning=tuning;
     }
 
@@ -38,32 +38,32 @@ public sealed class InMemoryList<T>:PersistedList<T> {
 
     public new ref T this[long index] {
         get {
-            this.ThrowIfDisposed();
-            if((ulong)index>=(ulong)this.Count)
+            ThrowIfDisposed();
+            if((ulong)index>=(ulong)Count)
                 throw new ArgumentOutOfRangeException(nameof(index));
-            return ref CollectionsMarshal.AsSpan(this.items)[checked((int)index)];
+            return ref CollectionsMarshal.AsSpan(items)[checked((int)index)];
         }
     }
 
     public override ReadOnlySpan<T> AsSpan(long start,int length) {
-        this.ThrowIfDisposed();
-        this.ValidateSpanRange(start,length);
-        return CollectionsMarshal.AsSpan(this.items).Slice(checked((int)start),length);
+        ThrowIfDisposed();
+        ValidateSpanRange(start,length);
+        return CollectionsMarshal.AsSpan(items).Slice(checked((int)start),length);
     }
 
     protected override T GetItem(long index) =>
-        this.items[checked((int)index)];
+        items[checked((int)index)];
 
     protected override void OnCountChanged() {
-        var targetCount = checked((int)this.Count);
-        if(targetCount<this.items.Count) {
-            this.items.RemoveRange(targetCount,this.items.Count-targetCount);
+        var targetCount = checked((int)Count);
+        if(targetCount<items.Count) {
+            items.RemoveRange(targetCount,items.Count-targetCount);
         }
-        this.Capacity=Math.Max(this.Capacity,this.items.Capacity);
+        Capacity=Math.Max(Capacity,items.Capacity);
     }
 
     protected override void DisposeCore() {
-        this.items.Clear();
-        this.Count=0;
+        items.Clear();
+        Count=0;
     }
 }

@@ -1,5 +1,5 @@
-using SystemCollections = global::System.Collections;
-using SystemCollectionsGeneric = global::System.Collections.Generic;
+using SystemCollections = System.Collections;
+using SystemCollectionsGeneric = System.Collections.Generic;
 
 namespace Seamless.Tsavorite.Collections.Generic;
 
@@ -12,10 +12,10 @@ public sealed class IEnumerable<T>:SystemCollectionsGeneric.IEnumerable<T> {
     }
 
     public static implicit operator IEnumerable<T>(T[] source) => new(source);
-    public static implicit operator IEnumerable<T>(SystemCollectionsGeneric.List<T> source) => new(source);
-    public static implicit operator IEnumerable<T>(Seamless.Persisted.Collections.SerializedList<T> source) => new(source);
+    public static implicit operator IEnumerable<T>(List<T> source) => new(source);
+    public static implicit operator IEnumerable<T>(SerializedList<T> source) => new(source);
 
-    public IEnumerator<T> GetEnumerator() => this.source.GetEnumerator();
+    public IEnumerator<T> GetEnumerator() => source.GetEnumerator();
 
-    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

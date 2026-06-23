@@ -46,12 +46,12 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) => false;
 
         public bool TryGetNext(out TSource current) {
-            if(this.set==null) {
-                this.set=this.second.ToHashSetSlim(comparer);
+            if(set==null) {
+                set=second.ToHashSetSlim(comparer);
             }
 
-            while(this.source.TryGetNext(out var value)) {
-                if(this.set.Remove(value)) {
+            while(source.TryGetNext(out var value)) {
+                if(set.Remove(value)) {
                     current=value;
                     return true;
                 }
@@ -62,8 +62,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            this.set?.Dispose();
-            this.source.Dispose();
+            set?.Dispose();
+            source.Dispose();
         }
     }
 

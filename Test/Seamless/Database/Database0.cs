@@ -12,25 +12,25 @@ namespace Test.Seamless.Database.Database0 {
     /// </summary>
     public class Container {
         public global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Optimize無virtual無(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
-            new global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
-            var x = new global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
-            return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
+            new global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int>(Enumerable.Select(outer,static p => p+p));
+            var x = new global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int>(Enumerable.Select(outer,static p => p+p));
+            return new(Enumerable.Select(outer,static p => p+p));
         }
         public virtual global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Optimize無virtual有(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
-            return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
+            return new(Enumerable.Select(outer,static p => p+p));
         }
         //[Optimize]public global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Optimize有virtual無(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
         //    return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         //}
         public virtual global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Optimize有virtual有(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
-            return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
+            return new(Enumerable.Select(outer,static p => p+p));
         }
         [Fact]
         public virtual void Call() {
-            var x = this.Select_Method(new int[3]);
+            var x = Select_Method(new int[3]);
         }
         public virtual global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Select_Method(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
-            return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
+            return new(Enumerable.Select(outer,static p => p+p));
         }
         public virtual IEnumerable<int> SelectSelect_Method(IEnumerable<int> outer) {
             return outer.Select(p => p+p).Select(p => p*p);
@@ -87,38 +87,38 @@ namespace Test.Seamless.Database.Database0 {
         }
 
         public virtual IEnumerable<(int outerKey,int innerValue)> JoinQuery(int minimumColumn1) {
-            return from outerRow in this.Type0Table
-                   join innerRow in this.Type0Table
+            return from outerRow in Type0Table
+                   join innerRow in Type0Table
                        on outerRow.Column0 equals innerRow.Column0
                    select (outerRow.Column0,innerRow.Column1);
         }
 
         public virtual IEnumerable<(int outerKey,int innerValue)> JoinIntoQuery(int minimumColumn1) {
-            return from outerRow in this.Type0Table
-                   join innerRow in this.Type0Table
+            return from outerRow in Type0Table
+                   join innerRow in Type0Table
                        on outerRow.Column0 equals innerRow.Column0 into matches
                    from match in matches
                    select (outerRow.Column0,match.Column1);
         }
 
         public virtual IEnumerable<int> OrderByQuery() {
-            return from row in this.Type0Table
+            return from row in Type0Table
                    orderby row.Column1 descending, row.Column0
                    select row.Column0;
         }
 
         public virtual IEnumerable<(int key,int value)> GroupQuery() {
-            return from row in this.Type0Table
+            return from row in Type0Table
                    group row.Column1 by row.Column0%2 into grouped
                    orderby grouped.Key
                    from value in grouped
                    select (grouped.Key,value);
         }
 
-        public virtual IEnumerable<(T0 o,T1 i)> Query2<T0, T1>(global::Seamless.Tsavorite.Collections.IHashSet<T0> outer,global::Seamless.Tsavorite.Collections.IHashSet<T1> inner)
+        public virtual IEnumerable<(T0 o,T1 i)> Query2<T0, T1>(IHashSet<T0> outer,IHashSet<T1> inner)
             where T0 : IEquatable<T0>
             where T1 : IEquatable<T1> {
-            return global::System.Linq.Enumerable.SelectMany(outer,_ => inner,(o,i) => (o,i));
+            return Enumerable.SelectMany(outer,_ => inner,(o,i) => (o,i));
         }
 
         public virtual T AggregateMethod<T>(IEnumerable<T> outer) {
@@ -155,8 +155,8 @@ namespace Test.Seamless.Database.Database0 {
 
         //[Optimize]
         public virtual IEnumerable<int> FusedJoinSelectSequence() {
-            return this.Type0Table
-                .Join(this.Type0Table,outer => outer.Column0,inner => inner.Column0,(outer,inner) => (Outer: outer.Column1,Inner: inner.Column1))
+            return Type0Table
+                .Join(Type0Table,outer => outer.Column0,inner => inner.Column0,(outer,inner) => (Outer: outer.Column1,Inner: inner.Column1))
                 .Select(pair => pair.Outer+pair.Inner);
         }
 
@@ -171,37 +171,37 @@ namespace Test.Seamless.Database.Database0 {
         }
 
         public virtual IEnumerable<int> WhereAfterAnonymousSelect(int minimumColumn1) {
-            return this.Type0Table
+            return Type0Table
                 .Select(row => new { row.Column0,row.Column1 })
                 .Where(row => row.Column1>=minimumColumn1)
                 .Select(row => row.Column0);
         }
 
         public virtual IEnumerable<int> WhereAfterTupleSelect(int minimumColumn1) {
-            return this.Type0Table
+            return Type0Table
                 .Select(row => (row.Column0,row.Column1))
                 .Where(row => row.Column1>=minimumColumn1)
                 .Select(row => row.Column0);
         }
 
         public virtual IEnumerable<int> WhereAfterJoin(int minimumColumn1) {
-            return this.Type0Table
-                .Join(this.Type0Table,outer => outer.Column0,inner => inner.Column0,(outer,inner) => new { outer,inner })
+            return Type0Table
+                .Join(Type0Table,outer => outer.Column0,inner => inner.Column0,(outer,inner) => new { outer,inner })
                 .Where(pair => pair.outer.Column1>=minimumColumn1)
                 .Select(pair => pair.inner.Column1);
         }
 
         public virtual IEnumerable<int> WhereAfterExcept(int minimumColumn1) {
-            return this.Type0Table
+            return Type0Table
                 .Select(row => row.Column1)
-                .Except(this.Type0Table.Select(row => row.Column0))
+                .Except(Type0Table.Select(row => row.Column0))
                 .Where(value => value>=minimumColumn1);
         }
 
         internal Records.Type0[] Type0Table => [new(1,10),new(2,20),new(3,30)];
 
         private IEnumerable<Records.Type0> FilterType0(int minimumColumn1) =>
-            from row in this.Type0Table
+            from row in Type0Table
             where row.Column1>=minimumColumn1
             select row;
     }
