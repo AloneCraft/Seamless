@@ -1,6 +1,6 @@
 using Seamless.Tsavorite.Collections;
 using Seamless.Tsavorite.Collections;
-using Seamless.Tsavorite.Collections.Stores;
+using Seamless.Tsavorite.Stores;
 using Tsavorite.core;
 
 namespace Test.Seamless.SessionFunctions;
@@ -13,7 +13,7 @@ public sealed class BlittableUpsert:AddTests<int,long>{
         return(store.Create(),store);
     }
     protected override(global::System.Collections.Generic.IDictionary<int,long> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice){
-        var store=Store.Create(MemorySize:Const.MinObjectLogCapacity).Create<int,long>(logDevice,objDevice);
+        var store=Store.Create(MemorySize:global::Seamless.Tsavorite.Const.MinObjectLogCapacity).Create<int,long>(logDevice,objDevice);
         return(store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store)=>
@@ -24,7 +24,7 @@ public sealed class BlittableUpsert:AddTests<int,long>{
     protected override void DoUpsert(){
 #if TSAVORITE1_1_1
         using var store=Store.Create().Create<int,long>();
-        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
+        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
         var bc=session.BasicContext;
         var key=200;
         var val=200L;
@@ -39,7 +39,7 @@ public sealed class BlittableUpsert:AddTests<int,long>{
     protected override void DoInPlaceWriter(){
 #if TSAVORITE1_1_1
         using var store=Store.Create().Create<int,long>();
-        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
+        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
         var bc=session.BasicContext;
         var key=200;
         var valFirst=200L;
@@ -60,7 +60,7 @@ public sealed class BlittableUpsert:AddTests<int,long>{
     protected override void DoRMW(){
 #if TSAVORITE1_1_1
         using var store=Store.Create().Create<int,long>();
-        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
+        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
         var key=1;
         var input0=100L;
         var input1=200L;
@@ -91,7 +91,7 @@ public sealed class BlittableUpsert:AddTests<int,long>{
     protected override void DoConcurrentWriter(){
 #if TSAVORITE1_1_1
         using var store=Store.Create().Create<int,long>();
-        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
+        using var session=store.Store.NewSession<long,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert<long,BlittableSerializer<long>>>(new());
         var bc=session.BasicContext;
         var key=300;
         var valFirst=300L;
@@ -108,8 +108,8 @@ public sealed class BlittableUpsert:AddTests<int,long>{
     protected override void DoSingleReader(){
 #if TSAVORITE1_1_1
         var folder=CreateDiskFolder();
-        using var logDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var objDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
+        using var logDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var objDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
         var (dict,store)=this.CreateDisk(logDevice,objDevice);
         using var _store=store;
         using var _dict=(IDisposable)dict;

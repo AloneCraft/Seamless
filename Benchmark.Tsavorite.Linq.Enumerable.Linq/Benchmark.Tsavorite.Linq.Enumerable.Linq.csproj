@@ -23,7 +23,7 @@
     <Using Include="Benchmark.Shared" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Seamless.Tsavorite.Collections\Seamless.Tsavorite.Collections.csproj" />
+    <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
   <Import Project="..\Benchmark.Shared\Benchmark.Linq.Enumerable.Core.projitems" Label="Shared" />
 </Project>

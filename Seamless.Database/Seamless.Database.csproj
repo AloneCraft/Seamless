@@ -8,7 +8,7 @@
     <AssemblyName>Seamless.Database</AssemblyName>
     <PackageId>Seamless.Database</PackageId>
     <Title>Seamless Database</Title>
-    <Description>Database schema source generator for Seamless.</Description>
+    <Description>Database schema boilerplate source generator for Seamless.</Description>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <NoWarn>$(NoWarn);RS1041;RS2008</NoWarn>
@@ -23,7 +23,6 @@
     <ProjectReference Include="..\Seamless.SourceGenerators\Seamless.SourceGenerators.csproj" />
   </ItemGroup>
 
-  <!-- Roslyn �A�i���C�U�[�Ƃ��ĎQ�ƃv���W�F�N�g��ꏏ�Ƀ��[�h���� -->
   <Target Name="GetDependencyTargetPaths" DependsOnTargets="ResolveReferences">
     <ItemGroup>
       <TargetPathWithTargetPlatformMoniker Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)'=='ProjectReference'" />

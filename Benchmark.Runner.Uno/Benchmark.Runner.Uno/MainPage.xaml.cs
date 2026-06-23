@@ -940,7 +940,7 @@ public sealed partial class MainPage:Page{
 
     private static IReadOnlyList<BenchmarkProject> LoadBenchmarkProjects(){
         // Collect candidate assembly files from the base directory and a small number of parent directories
-        var paths = new List<string>();
+    var paths = new List<string>();
         try{
             paths.AddRange(Directory.GetFiles(AppContext.BaseDirectory, "Benchmark.*.dll", global::System.IO.SearchOption.TopDirectoryOnly));
         }catch{

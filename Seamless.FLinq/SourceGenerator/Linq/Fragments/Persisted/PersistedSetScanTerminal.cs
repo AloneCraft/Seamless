@@ -213,7 +213,7 @@ public sealed class PersistedSetScanTerminal(
 
     private string UnsafeAccessorSource() => $$"""
         [global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = "{{this.UnsafeAccessorMethodName()}}")]
-        private static extern void {{this.AccessorMethodName}}<TElement>([global::System.Runtime.CompilerServices.UnsafeAccessorType("Seamless.Persisted.Collections.PersistedSetScanUnsafe, Seamless.Persisted.Collections")] object? _,global::Seamless.Persisted.Collections.Set<TElement> source,global::System.Func<object?,bool> body);
+        private static extern void {{this.AccessorMethodName}}<TElement>([global::System.Runtime.CompilerServices.UnsafeAccessorType("Seamless.Persisted.Collections.PersistedSetScanUnsafe, Seamless")] object? _,global::Seamless.Persisted.Collections.Set<TElement> source,global::System.Func<object?,bool> body);
         """;
 
     private string UnsafeAccessorMethodName() => "Scan";

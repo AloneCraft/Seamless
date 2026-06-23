@@ -1,4 +1,4 @@
-using Seamless.Tsavorite.Collections.Stores;
+using Seamless.Tsavorite.Stores;
 
 namespace Test.Seamless.Stores;
 

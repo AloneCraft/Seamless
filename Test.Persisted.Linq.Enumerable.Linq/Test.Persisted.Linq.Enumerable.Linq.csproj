@@ -31,7 +31,7 @@
     <Using Include="Benchmark.Shared" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Seamless.Persisted.Collections\Seamless.Persisted.Collections.csproj" />
+    <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
   <Import Project="..\Benchmark.Shared\Benchmark.Linq.Enumerable.Core.projitems" Label="Shared" />
 </Project>

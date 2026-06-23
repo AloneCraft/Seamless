@@ -156,13 +156,17 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("  <h1>Benchmark Comparison</h1>");
         writer.AppendLine($"  <p>Generated: {EscapeHtml(generatedAt.ToString("yyyy-MM-dd HH:mm:ss zzz",CultureInfo.InvariantCulture))}</p>");
         writer.AppendLine("  <table>");
-        writer.AppendLine("    <thead><tr><th>Method</th><th>linq</th><th>zlinq</th><th>flinq</th></tr></thead>");
+        writer.AppendLine("    <thead><tr><th>Method</th><th>linq</th><th>zlinq</th><th>flinq</th><th>persistedlinq</th><th>persistedflinq</th><th>tsavoritelinq</th><th>tsavoriteflinq</th></tr></thead>");
         writer.AppendLine("    <tbody>");
         foreach(var row in comparisonRows){
             writer.Append("      <tr><td>").Append(EscapeHtml(row.Method)).Append("</td><td class=\"num\">");
             writer.Append(EscapeHtml(row.Linq.Mean)).Append("</td><td class=\"num\">");
             writer.Append(EscapeHtml(row.ZLinq.Mean)).Append("</td><td class=\"num\">");
-            writer.Append(EscapeHtml(row.FLinq.Mean)).AppendLine("</td></tr>");
+            writer.Append(EscapeHtml(row.FLinq.Mean)).Append("</td><td class=\"num\">");
+            writer.Append(EscapeHtml(row.PersistedLinq.Mean)).Append("</td><td class=\"num\">");
+            writer.Append(EscapeHtml(row.PersistedFLinq.Mean)).Append("</td><td class=\"num\">");
+            writer.Append(EscapeHtml(row.TsavoriteLinq.Mean)).Append("</td><td class=\"num\">");
+            writer.Append(EscapeHtml(row.TsavoriteFLinq.Mean)).AppendLine("</td></tr>");
         }
         writer.AppendLine("    </tbody>");
         writer.AppendLine("  </table>");
@@ -184,7 +188,7 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("  <title>Benchmark Charts</title>");
         writer.AppendLine("  <script src=\"https://cdn.jsdelivr.net/npm/apexcharts\"></script>");
         writer.AppendLine("  <style>");
-        writer.AppendLine("    :root{color-scheme:light;--bg:#fffefa;--ink:#202020;--muted:#5b625f;--line:#d5d1c4;--panel:#fbfaf4;--head:#f0ede4;--linq:#3a6ea5;--zlinq:#5b8c5a;--flinq:#c06c3e;}");
+        writer.AppendLine("    :root{color-scheme:light;--bg:#fffefa;--ink:#202020;--muted:#5b625f;--line:#d5d1c4;--panel:#fbfaf4;--head:#f0ede4;--linq:#3a6ea5;--zlinq:#5b8c5a;--flinq:#c06c3e;--persistedlinq:#8a63a8;--persistedflinq:#b7792f;--tsavoritelinq:#2f7f86;--tsavoriteflinq:#b94b48;}");
         writer.AppendLine("    body{font-family:Segoe UI,Arial,sans-serif;margin:20px;color:var(--ink);background:var(--bg);}");
         writer.AppendLine("    h1{font-size:22px;margin:0 0 8px;}p{margin:0 0 16px;color:var(--muted);}");
         writer.AppendLine("    .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px;border-bottom:1px solid var(--line);}");
@@ -211,9 +215,9 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("  <script>");
         writer.Append("    const comparisonRows=").Append(comparisonJson).AppendLine(";");
         writer.Append("    const runRows=").Append(runRowsJson).AppendLine(";");
-        writer.AppendLine("    const seriesKeys=['linq','zlinq','flinq'];");
-        writer.AppendLine("    const names={linq:'linq',zlinq:'zlinq',flinq:'flinq'};");
-        writer.AppendLine("    const colors={linq:'#3a6ea5',zlinq:'#5b8c5a',flinq:'#c06c3e'};");
+        writer.AppendLine("    const seriesKeys=['linq','zlinq','flinq','persistedlinq','persistedflinq','tsavoritelinq','tsavoriteflinq'];");
+        writer.AppendLine("    const names={linq:'linq',zlinq:'zlinq',flinq:'flinq',persistedlinq:'persistedlinq',persistedflinq:'persistedflinq',tsavoritelinq:'tsavoritelinq',tsavoriteflinq:'tsavoriteflinq'};");
+        writer.AppendLine("    const colors={linq:'#3a6ea5',zlinq:'#5b8c5a',flinq:'#c06c3e',persistedlinq:'#8a63a8',persistedflinq:'#b7792f',tsavoritelinq:'#2f7f86',tsavoriteflinq:'#b94b48'};");
         writer.AppendLine("    const tabDefinitions={");
         writer.AppendLine("      overview:[['winnerHeatmap','Winner heatmap'],['pareto','Pareto'],['treemap','Treemap'],['summaryTable','Summary table']],");
         writer.AppendLine("      compare:[['groupedBar','Grouped bars'],['relativeBar','Relative speed'],['scatter','LINQ vs FLinq scatter'],['stackedShare','100% share']],");
@@ -228,7 +232,7 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("    function categoryOf(method){const p=String(method||'').split('_')[0];return p||'Other';}");
         writer.AppendLine("    function completedRows(){return runRows.filter(row=>row.status==='Completed'&&row.meanValue>0);}");
         writer.AppendLine("    function clearChart(){if(chart){chart.destroy();chart=null;}document.querySelector('#chart').innerHTML='';}");
-        writer.AppendLine("    function renderMetrics(){const completed=completedRows();const methods=new Set(comparisonRows.map(row=>row.method));const failed=runRows.filter(row=>row.status!=='Completed').length;const winners={linq:0,zlinq:0,flinq:0};comparisonRows.forEach(row=>{const winner=winnerOf(row);if(winner)winners[winner]++;});document.querySelector('#metrics').innerHTML=[['Methods',methods.size],['Completed tasks',completed.length],['Failed tasks',failed],['Top winner',Object.entries(winners).sort((a,b)=>b[1]-a[1])[0]?.join(' ')||'-']].map(item=>`<div class=\"metric\"><strong>${item[1]}</strong><span>${item[0]}</span></div>`).join('');}");
+        writer.AppendLine("    function renderMetrics(){const completed=completedRows();const methods=new Set(comparisonRows.map(row=>row.method));const failed=runRows.filter(row=>row.status!=='Completed').length;const winners=Object.fromEntries(seriesKeys.map(key=>[key,0]));comparisonRows.forEach(row=>{const winner=winnerOf(row);if(winner)winners[winner]++;});document.querySelector('#metrics').innerHTML=[['Methods',methods.size],['Completed tasks',completed.length],['Failed tasks',failed],['Top winner',Object.entries(winners).sort((a,b)=>b[1]-a[1])[0]?.join(' ')||'-']].map(item=>`<div class=\"metric\"><strong>${item[1]}</strong><span>${item[0]}</span></div>`).join('');}");
         writer.AppendLine("    function winnerOf(row){let best=null;seriesKeys.forEach(key=>{const v=value(row,key);if(v>0&&(!best||v<best.value)){best={key,value:v};}});return best?.key||null;}");
         writer.AppendLine("    function makeChart(options){clearChart();chart=new ApexCharts(document.querySelector('#chart'),options);chart.render();}");
         writer.AppendLine("    function baseBarOptions(series,categories,stacked=false,stackType=null){return {series,categories,colors:series.map(s=>colors[s.name]||'#6c6f78'),chart:{type:'bar',height:Math.max(440,categories.length*28+150),stacked,stackType,toolbar:{show:true}},plotOptions:{bar:{horizontal:true}},xaxis:{categories},dataLabels:{enabled:false},legend:{position:'top'},tooltip:{y:{formatter:fmt}}};}");
@@ -269,7 +273,7 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("    function renderSankey(){clearChart();const chartEl=document.querySelector('#chart');const winners={};comparisonRows.forEach(row=>{const cat=categoryOf(row.method);const winner=winnerOf(row)||'n/a';const key=cat+'|'+winner;winners[key]=(winners[key]||0)+1;});const cats=[...new Set(Object.keys(winners).map(k=>k.split('|')[0]))].sort();const targets=[...new Set(Object.keys(winners).map(k=>k.split('|')[1]))].sort();const width=Math.max(900,chartEl.clientWidth-30),height=Math.max(520,cats.length*28+80);const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('class','sankey');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);chartEl.appendChild(svg);const leftX=120,rightX=width-180;cats.forEach((cat,i)=>drawNode(svg,leftX,40+i*28,150,20,cat));targets.forEach((target,i)=>drawNode(svg,rightX,80+i*80,130,26,target));Object.entries(winners).forEach(([key,count])=>{const [cat,target]=key;const y1=50+cats.indexOf(cat)*28;const y2=93+targets.indexOf(target)*80;const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',`M ${leftX+150} ${y1} C ${width*.45} ${y1}, ${width*.55} ${y2}, ${rightX} ${y2}`);path.setAttribute('class','flow');path.setAttribute('stroke',colors[target]||'#6c6f78');path.setAttribute('stroke-width',String(Math.max(2,count*2)));path.appendChild(document.createElementNS(svg.namespaceURI,'title')).textContent=`${cat} -> ${target}: ${count}`;svg.insertBefore(path,svg.firstChild);});note('Derived flow: method category to fastest implementation. Width is method count.');}");
         writer.AppendLine("    function renderAlluvial(){renderSankey();note('Alluvial-like view using the same category-to-winner flow. Future data can add stability bands as a third axis.');}");
         writer.AppendLine("    function drawNode(svg,x,y,w,h,label){const r=document.createElementNS(svg.namespaceURI,'rect');r.setAttribute('x',x);r.setAttribute('y',y);r.setAttribute('width',w);r.setAttribute('height',h);r.setAttribute('rx','3');r.setAttribute('class','node');svg.appendChild(r);const t=document.createElementNS(svg.namespaceURI,'text');t.setAttribute('x',x+6);t.setAttribute('y',y+h*.68);t.setAttribute('class','node-label');t.textContent=label;svg.appendChild(t);}");
-        writer.AppendLine("    function renderSummaryTable(){table(['Method','linq','zlinq','flinq','Winner'],comparisonRows.map(row=>[row.method,fmt(value(row,'linq')),fmt(value(row,'zlinq')),fmt(value(row,'flinq')),winnerOf(row)||'-']));note('Exact values behind the comparison charts.');}");
+        writer.AppendLine("    function renderSummaryTable(){table(['Method','linq','zlinq','flinq','persistedlinq','persistedflinq','tsavoritelinq','tsavoriteflinq','Winner'],comparisonRows.map(row=>[row.method,fmt(value(row,'linq')),fmt(value(row,'zlinq')),fmt(value(row,'flinq')),fmt(value(row,'persistedlinq')),fmt(value(row,'persistedflinq')),fmt(value(row,'tsavoritelinq')),fmt(value(row,'tsavoriteflinq')),winnerOf(row)||'-']));note('Exact values behind the comparison charts.');}");
         writer.AppendLine("    function renderSunburstTable(){const grouped={};completedRows().forEach(row=>{const cat=categoryOf(row.method);grouped[cat]??={};grouped[cat][row.project]=(grouped[cat][row.project]||0)+row.meanValue;});table(['Category','Project','Total Mean'],Object.entries(grouped).flatMap(([cat,projects])=>Object.entries(projects).map(([project,total])=>[cat,project,fmt(total)])));note('Tabular hierarchy placeholder for a future sunburst/icicle view.');}");
         writer.AppendLine("    function table(headers,rows){clearChart();document.querySelector('#chart').innerHTML='<div class=\"fallback\"><table><thead><tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(cell=>`<td>${cell}</td>`).join('')+'</tr>').join('')+'</tbody></table></div>';}");
         writer.AppendLine("    function tableMessage(text){clearChart();document.querySelector('#chart').innerHTML=`<p style=\"margin:12px\">${text}</p>`;}");
@@ -308,6 +312,10 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("    .linq{background:#3a6ea5;}");
         writer.AppendLine("    .zlinq{background:#5b8c5a;}");
         writer.AppendLine("    .flinq{background:#c06c3e;}");
+        writer.AppendLine("    .persistedlinq{background:#8a63a8;}");
+        writer.AppendLine("    .persistedflinq{background:#b7792f;}");
+        writer.AppendLine("    .tsavoritelinq{background:#2f7f86;}");
+        writer.AppendLine("    .tsavoriteflinq{background:#b94b48;}");
         writer.AppendLine("    .chart{display:grid;grid-template-columns:minmax(180px,28%) 1fr;gap:6px 12px;font-size:13px;}");
         writer.AppendLine("    .method{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:5px 0;}");
         writer.AppendLine("    .bar{height:24px;border:1px solid #d5d1c4;background:#f8f6ed;display:flex;overflow:hidden;}");
@@ -322,26 +330,34 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("<body>");
         writer.AppendLine("  <h1>Benchmark Comparison Chart</h1>");
         writer.AppendLine($"  <p>Generated: {EscapeHtml(generatedAt.ToString("yyyy-MM-dd HH:mm:ss zzz",CultureInfo.InvariantCulture))}</p>");
-        writer.AppendLine("  <div class=\"toolbar\"><label for=\"seriesOrder\">Segment order</label><select id=\"seriesOrder\"><option value=\"default\">linq, zlinq, flinq</option><option value=\"asc\">Smallest ratio first</option><option value=\"desc\">Largest ratio first</option><option value=\"linq,zlinq,flinq\">linq, zlinq, flinq</option><option value=\"linq,flinq,zlinq\">linq, flinq, zlinq</option><option value=\"zlinq,linq,flinq\">zlinq, linq, flinq</option><option value=\"zlinq,flinq,linq\">zlinq, flinq, linq</option><option value=\"flinq,linq,zlinq\">flinq, linq, zlinq</option><option value=\"flinq,zlinq,linq\">flinq, zlinq, linq</option></select></div>");
-        writer.AppendLine("  <div class=\"legend\"><span><i class=\"swatch linq\"></i>linq</span><span><i class=\"swatch zlinq\"></i>zlinq</span><span><i class=\"swatch flinq\"></i>flinq</span></div>");
+        writer.AppendLine("  <div class=\"toolbar\"><label for=\"seriesOrder\">Segment order</label><select id=\"seriesOrder\"><option value=\"default\">linq, zlinq, flinq, persistedlinq, persistedflinq, tsavoritelinq, tsavoriteflinq</option><option value=\"asc\">Smallest ratio first</option><option value=\"desc\">Largest ratio first</option><option value=\"linq,zlinq,flinq,persistedlinq,persistedflinq,tsavoritelinq,tsavoriteflinq\">linq, zlinq, flinq, persistedlinq, persistedflinq, tsavoritelinq, tsavoriteflinq</option><option value=\"linq,flinq,zlinq,persistedlinq,persistedflinq,tsavoritelinq,tsavoriteflinq\">linq, flinq, zlinq, persistedlinq, persistedflinq, tsavoritelinq, tsavoriteflinq</option><option value=\"persistedlinq,persistedflinq,tsavoritelinq,tsavoriteflinq,linq,zlinq,flinq\">persisted and tsavorite first</option></select></div>");
+        writer.AppendLine("  <div class=\"legend\"><span><i class=\"swatch linq\"></i>linq</span><span><i class=\"swatch zlinq\"></i>zlinq</span><span><i class=\"swatch flinq\"></i>flinq</span><span><i class=\"swatch persistedlinq\"></i>persistedlinq</span><span><i class=\"swatch persistedflinq\"></i>persistedflinq</span><span><i class=\"swatch tsavoritelinq\"></i>tsavoritelinq</span><span><i class=\"swatch tsavoriteflinq\"></i>tsavoriteflinq</span></div>");
         writer.AppendLine("  <div class=\"chart\">");
         writer.AppendLine("    <div class=\"axis-label\"></div><div class=\"axis-label\">ratio</div>");
         foreach(var row in comparisonRows){
             var linqRatio = GetRatio(row.Linq,row);
             var zlinqRatio = GetRatio(row.ZLinq,row);
             var flinqRatio = GetRatio(row.FLinq,row);
+            var persistedLinqRatio = GetRatio(row.PersistedLinq,row);
+            var persistedFLinqRatio = GetRatio(row.PersistedFLinq,row);
+            var tsavoriteLinqRatio = GetRatio(row.TsavoriteLinq,row);
+            var tsavoriteFLinqRatio = GetRatio(row.TsavoriteFLinq,row);
             writer.Append("    <div class=\"method\" title=\"").Append(EscapeHtml(row.Method)).Append("\">").Append(EscapeHtml(row.Method)).AppendLine("</div>");
             writer.AppendLine("    <div class=\"bar\">");
             AppendSegment(writer,"linq","linq",row.Linq,linqRatio,0);
             AppendSegment(writer,"zlinq","zlinq",row.ZLinq,zlinqRatio,1);
             AppendSegment(writer,"flinq","flinq",row.FLinq,flinqRatio,2);
+            AppendSegment(writer,"persistedlinq","persistedlinq",row.PersistedLinq,persistedLinqRatio,3);
+            AppendSegment(writer,"persistedflinq","persistedflinq",row.PersistedFLinq,persistedFLinqRatio,4);
+            AppendSegment(writer,"tsavoritelinq","tsavoritelinq",row.TsavoriteLinq,tsavoriteLinqRatio,5);
+            AppendSegment(writer,"tsavoriteflinq","tsavoriteflinq",row.TsavoriteFLinq,tsavoriteFLinqRatio,6);
             writer.AppendLine("    </div>");
         }
         writer.AppendLine("    <div></div><div class=\"axis\"><span>0</span><span>0.25</span><span>0.5</span><span>0.75</span><span>1</span></div>");
         writer.AppendLine("  </div>");
         writer.AppendLine("  <script>");
         writer.AppendLine("    const select=document.getElementById('seriesOrder');");
-        writer.AppendLine("    const fixedOrders={default:['linq','zlinq','flinq']};");
+        writer.AppendLine("    const fixedOrders={default:['linq','zlinq','flinq','persistedlinq','persistedflinq','tsavoritelinq','tsavoriteflinq']};");
         writer.AppendLine("    function applyOrder(){");
         writer.AppendLine("      const value=select.value;");
         writer.AppendLine("      document.querySelectorAll('.bar').forEach(bar=>{");
@@ -396,7 +412,7 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("<body>");
         writer.AppendLine("  <h1>Benchmark Comparison Chart.js</h1>");
         writer.AppendLine($"  <p>Generated: {EscapeHtml(generatedAt.ToString("yyyy-MM-dd HH:mm:ss zzz",CultureInfo.InvariantCulture))}</p>");
-        writer.AppendLine("  <div class=\"toolbar\"><label for=\"seriesOrder\">Series order</label><select id=\"seriesOrder\"><option value=\"default\">linq, zlinq, flinq</option><option value=\"totalAsc\">Total: fastest first</option><option value=\"totalDesc\">Total: slowest first</option><option value=\"linq,zlinq,flinq\">linq, zlinq, flinq</option><option value=\"linq,flinq,zlinq\">linq, flinq, zlinq</option><option value=\"zlinq,linq,flinq\">zlinq, linq, flinq</option><option value=\"zlinq,flinq,linq\">zlinq, flinq, linq</option><option value=\"flinq,linq,zlinq\">flinq, linq, zlinq</option><option value=\"flinq,zlinq,linq\">flinq, zlinq, linq</option></select></div>");
+        writer.AppendLine("  <div class=\"toolbar\"><label for=\"seriesOrder\">Series order</label><select id=\"seriesOrder\"><option value=\"default\">linq, zlinq, flinq, persistedlinq, persistedflinq, tsavoritelinq, tsavoriteflinq</option><option value=\"totalAsc\">Total: fastest first</option><option value=\"totalDesc\">Total: slowest first</option><option value=\"linq,zlinq,flinq,persistedlinq,persistedflinq,tsavoritelinq,tsavoriteflinq\">linq, zlinq, flinq, persistedlinq, persistedflinq, tsavoritelinq, tsavoriteflinq</option><option value=\"linq,flinq,zlinq,persistedlinq,persistedflinq,tsavoritelinq,tsavoriteflinq\">linq, flinq, zlinq, persistedlinq, persistedflinq, tsavoritelinq, tsavoriteflinq</option><option value=\"persistedlinq,persistedflinq,tsavoritelinq,tsavoriteflinq,linq,zlinq,flinq\">persisted and tsavorite first</option></select></div>");
         writer.AppendLine("  <div id=\"chart\"></div>");
         writer.AppendLine("  <script>");
         writer.AppendLine("    const rows=[");
@@ -408,13 +424,21 @@ public static class BenchmarkReportFormatter{
                 .Append(GetPositiveValue(row.ZLinq).ToString("0.###",CultureInfo.InvariantCulture))
                 .Append(",flinq:")
                 .Append(GetPositiveValue(row.FLinq).ToString("0.###",CultureInfo.InvariantCulture))
+                .Append(",persistedlinq:")
+                .Append(GetPositiveValue(row.PersistedLinq).ToString("0.###",CultureInfo.InvariantCulture))
+                .Append(",persistedflinq:")
+                .Append(GetPositiveValue(row.PersistedFLinq).ToString("0.###",CultureInfo.InvariantCulture))
+                .Append(",tsavoritelinq:")
+                .Append(GetPositiveValue(row.TsavoriteLinq).ToString("0.###",CultureInfo.InvariantCulture))
+                .Append(",tsavoriteflinq:")
+                .Append(GetPositiveValue(row.TsavoriteFLinq).ToString("0.###",CultureInfo.InvariantCulture))
                 .Append('}');
             writer.AppendLine(i+1<comparisonRows.Count ? "," : string.Empty);
         }
         writer.AppendLine("    ];");
-        writer.AppendLine("    const seriesKeys=['linq','zlinq','flinq'];");
-        writer.AppendLine("    const names={linq:'linq',zlinq:'zlinq',flinq:'flinq'};");
-        writer.AppendLine("    const colors={linq:'#3a6ea5',zlinq:'#5b8c5a',flinq:'#c06c3e'};");
+        writer.AppendLine("    const seriesKeys=['linq','zlinq','flinq','persistedlinq','persistedflinq','tsavoritelinq','tsavoriteflinq'];");
+        writer.AppendLine("    const names={linq:'linq',zlinq:'zlinq',flinq:'flinq',persistedlinq:'persistedlinq',persistedflinq:'persistedflinq',tsavoritelinq:'tsavoritelinq',tsavoriteflinq:'tsavoriteflinq'};");
+        writer.AppendLine("    const colors={linq:'#3a6ea5',zlinq:'#5b8c5a',flinq:'#c06c3e',persistedlinq:'#8a63a8',persistedflinq:'#b7792f',tsavoritelinq:'#2f7f86',tsavoriteflinq:'#b94b48'};");
         writer.AppendLine("    function orderedKeys(value){");
         writer.AppendLine("      if(value==='totalAsc'||value==='totalDesc'){");
         writer.AppendLine("        const totals=seriesKeys.map(key=>({key,total:rows.reduce((sum,row)=>sum+row[key],0)}));");
@@ -482,6 +506,10 @@ public static class BenchmarkReportFormatter{
             AppendJsonNumber(writer,",\"linq\":",GetPositiveValue(row.Linq));
             AppendJsonNumber(writer,",\"zlinq\":",GetPositiveValue(row.ZLinq));
             AppendJsonNumber(writer,",\"flinq\":",GetPositiveValue(row.FLinq));
+            AppendJsonNumber(writer,",\"persistedlinq\":",GetPositiveValue(row.PersistedLinq));
+            AppendJsonNumber(writer,",\"persistedflinq\":",GetPositiveValue(row.PersistedFLinq));
+            AppendJsonNumber(writer,",\"tsavoritelinq\":",GetPositiveValue(row.TsavoriteLinq));
+            AppendJsonNumber(writer,",\"tsavoriteflinq\":",GetPositiveValue(row.TsavoriteFLinq));
             writer.Append('}');
         }
         writer.Append(']');
@@ -545,7 +573,7 @@ public static class BenchmarkReportFormatter{
     }
 
     private static double GetRatio(ComparisonValue value,ComparisonRow row){
-        var total = GetPositiveValue(row.Linq)+GetPositiveValue(row.ZLinq)+GetPositiveValue(row.FLinq);
+        var total = GetPositiveValue(row.Linq)+GetPositiveValue(row.ZLinq)+GetPositiveValue(row.FLinq)+GetPositiveValue(row.PersistedLinq)+GetPositiveValue(row.PersistedFLinq)+GetPositiveValue(row.TsavoriteLinq)+GetPositiveValue(row.TsavoriteFLinq);
         return total>0
             ? GetPositiveValue(value)/total
             : 0;
@@ -566,7 +594,7 @@ public static class BenchmarkReportFormatter{
             }
 
             if(!valuesByMethod.TryGetValue(row.Method,out var values)){
-                values = [ComparisonValue.Empty,ComparisonValue.Empty,ComparisonValue.Empty];
+                values = [ComparisonValue.Empty,ComparisonValue.Empty,ComparisonValue.Empty,ComparisonValue.Empty,ComparisonValue.Empty,ComparisonValue.Empty,ComparisonValue.Empty];
                 valuesByMethod.Add(row.Method,values);
             }
 
@@ -575,7 +603,7 @@ public static class BenchmarkReportFormatter{
 
         return valuesByMethod
             .OrderBy(static pair => pair.Key,StringComparer.OrdinalIgnoreCase)
-            .Select(static pair => new ComparisonRow(pair.Key,pair.Value[0],pair.Value[1],pair.Value[2]))
+            .Select(static pair => new ComparisonRow(pair.Key,pair.Value[0],pair.Value[1],pair.Value[2],pair.Value[3],pair.Value[4],pair.Value[5],pair.Value[6]))
             .ToArray();
     }
 
@@ -611,6 +639,10 @@ public static class BenchmarkReportFormatter{
             var value when string.Equals(value,"System LINQ",StringComparison.OrdinalIgnoreCase) => ReportSeries.Linq,
             var value when string.Equals(value,"System ZLinq",StringComparison.OrdinalIgnoreCase) => ReportSeries.ZLinq,
             var value when string.Equals(value,"System FLinq",StringComparison.OrdinalIgnoreCase) => ReportSeries.FLinq,
+            var value when string.Equals(value,"Persisted LINQ",StringComparison.OrdinalIgnoreCase) => ReportSeries.PersistedLinq,
+            var value when string.Equals(value,"Persisted FLinq",StringComparison.OrdinalIgnoreCase) => ReportSeries.PersistedFLinq,
+            var value when string.Equals(value,"Tsavorite LINQ",StringComparison.OrdinalIgnoreCase) => ReportSeries.TsavoriteLinq,
+            var value when string.Equals(value,"Tsavorite FLinq",StringComparison.OrdinalIgnoreCase) => ReportSeries.TsavoriteFLinq,
             _ => null,
         };
     }
@@ -620,6 +652,10 @@ public static class BenchmarkReportFormatter{
             ReportSeries.Linq => "linq",
             ReportSeries.ZLinq => "zlinq",
             ReportSeries.FLinq => "flinq",
+            ReportSeries.PersistedLinq => "persistedlinq",
+            ReportSeries.PersistedFLinq => "persistedflinq",
+            ReportSeries.TsavoriteLinq => "tsavoritelinq",
+            ReportSeries.TsavoriteFLinq => "tsavoriteflinq",
             _ => project,
         };
     }
@@ -689,13 +725,21 @@ public static class BenchmarkReportFormatter{
         Linq,
         ZLinq,
         FLinq,
+        PersistedLinq,
+        PersistedFLinq,
+        TsavoriteLinq,
+        TsavoriteFLinq,
     }
 
     private sealed record ComparisonRow(
         string Method,
         ComparisonValue Linq,
         ComparisonValue ZLinq,
-        ComparisonValue FLinq);
+        ComparisonValue FLinq,
+        ComparisonValue PersistedLinq,
+        ComparisonValue PersistedFLinq,
+        ComparisonValue TsavoriteLinq,
+        ComparisonValue TsavoriteFLinq);
 
     private sealed record ComparisonValue(string Mean,double? NumericMean){
         public static readonly ComparisonValue Empty = new(string.Empty,null);

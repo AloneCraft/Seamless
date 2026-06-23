@@ -5,7 +5,7 @@ namespace Seamless.FLinq;
 
 internal static class AnchorAnalysis {
     private const string AnchorPropertyName = "Anchor";
-    private const string AnchorExtensionsTypeName = "Seamless.Tsavorite.Collections.Linq.AnchorExtensions";
+    private const string AnchorExtensionsTypeName = "Seamless.Linq.AnchorExtensions";
 
     public static bool ContainsAnchor(ExpressionSyntax expression,SemanticModel? semanticModel) =>
         expression.DescendantNodesAndSelf()
@@ -32,7 +32,7 @@ internal static class AnchorAnalysis {
 
     public static bool LooksLikeAnchorText(string expression) =>
         expression.Contains(".Anchor",StringComparison.Ordinal)
-        || expression.Contains("Seamless.Tsavorite.Collections.Linq.AnchorExtensions.Anchor",StringComparison.Ordinal)
+        || expression.Contains("Seamless.Linq.AnchorExtensions.Anchor",StringComparison.Ordinal)
         || expression.Contains("global::Seamless.Linq.AnchorExtensions.Anchor",StringComparison.Ordinal);
 
     private static bool IsAnchorProperty(IPropertySymbol property) =>

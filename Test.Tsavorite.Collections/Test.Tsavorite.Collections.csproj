@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Test.Tsavorite.Collections</RootNamespace>
+    <AssemblyName>Test.Tsavorite.Collections</AssemblyName>
+    <DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="MemoryPack" Version="1.*" />
+    <PackageReference Include="Microsoft.Garnet" Version="2.0.1-beta.5" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="xunit" Version="2.9.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Seamless\Seamless.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Tsavorite\Collections\TestTypes.cs;Tsavorite\Collections\StoreHandle.cs;Tsavorite\Collections\HashSetStrategy.cs;Tsavorite\Collections\DictionaryStrategy.cs;Tsavorite\Collections\HashSetTestBase.cs;Tsavorite\Collections\DictionaryTestBase.cs;Tsavorite\Collections\IDictionaryTestBase.cs" />
+  </ItemGroup>
+  <Import Project="..\Collections.Shared\Collections.Shared.projitems" Label="Shared" />
+</Project>

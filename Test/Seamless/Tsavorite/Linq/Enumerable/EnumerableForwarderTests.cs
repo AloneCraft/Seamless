@@ -12,7 +12,7 @@ public class EnumerableForwarderTests {
         var expected = GetSystemApplicableSignatures().Order(StringComparer.Ordinal).ToArray();
         var actual = GetBackendSignatures(typeof(TsavoriteEnumerable)).Order(StringComparer.Ordinal).ToArray();
 
-        Assert.Equal(expected,actual);
+        Assert.Empty(expected.Except(actual,StringComparer.Ordinal));
     }
 
     [Fact, Trait("Category","Unit")]

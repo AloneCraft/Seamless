@@ -22,7 +22,7 @@ internal sealed class AnonymousExitToList(int 番号,Enumerable source):Scalar(�
     public override string GetTryGetNextBody => string.Empty;
     public override string GetCurrentExpression => string.Empty;
     public string GetDirectExecutionStatement(string actualVariableName,string actualTypeName) =>
-        $"var {actualVariableName}=global::Seamless.Linq.ValueEnumerableExtensions.ToList({source.GetEnumerableExpression});";
+        $"var {actualVariableName}=global::Seamless.System.Carrier.ValueEnumerableExtensions.ToList({source.GetEnumerableExpression});";
 }
 
 /*

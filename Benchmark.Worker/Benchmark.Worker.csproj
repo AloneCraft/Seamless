@@ -22,4 +22,7 @@
     <ProjectReference Include="..\Benchmark.Persisted.Linq.Enumerable.Linq\Benchmark.Persisted.Linq.Enumerable.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.Persisted.Linq.Enumerable.FLinq\Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Seamless\Seamless.csproj" />
+  </ItemGroup>
 </Project>

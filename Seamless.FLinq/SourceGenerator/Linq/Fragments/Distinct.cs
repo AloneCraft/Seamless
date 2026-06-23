@@ -27,7 +27,7 @@ DistinctBase は source.Distinct(comparer) を HashSet で既出判定する enu
 internal abstract class DistinctBase(int 番号,Enumerable source,string comparer):Enumerable(番号),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=>string.Empty;
-    public override string GetEnumerableExpression=>$"global::Seamless.Linq.ValueEnumerableExtensions.Distinct({source.GetEnumerableExpression},{comparer})";
+    public override string GetEnumerableExpression=>$"global::Seamless.System.Carrier.ValueEnumerableExtensions.Distinct({source.GetEnumerableExpression},{comparer})";
     public override string GetEnumeratorStruct=>$$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -97,7 +97,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
     private FuncFragment KeySelector=>keySelector;
     private string Comparer=>comparer;
     public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumerableExpression=>$"global::Seamless.Linq.ValueEnumerableExtensions.DistinctBy({source.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
+    public override string GetEnumerableExpression=>$"global::Seamless.System.Carrier.ValueEnumerableExtensions.DistinctBy({source.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
     public override string GetEnumeratorStruct=>$$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}

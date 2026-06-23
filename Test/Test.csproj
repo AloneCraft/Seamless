@@ -15,6 +15,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Seamless\Collections\artifacts\**" />
+    <Compile Remove="Seamless\Persisted\Collections\**\*.cs" />
+    <Compile Remove="Seamless\Tsavorite\Collections\**\*.cs" />
+    <Compile Include="..\Test.Tsavorite.Collections\Tsavorite\Collections\TestTypes.cs" Link="Seamless\Tsavorite\Collections\TestTypes.cs" />
     <EmbeddedResource Remove="Seamless\Collections\artifacts\**" />
     <EmbeddedResource Remove="Seamless\Collections\Garnet\**" />
     <None Remove="Seamless\Collections\artifacts\**" />
@@ -51,13 +54,12 @@
     <ProjectReference Include="..\Test.System.Linq.Enumerable.Linq\Test.System.Linq.Enumerable.Linq.csproj" PrivateAssets="all" Aliases="BenchmarkLinq" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.FLinq\Test.System.Linq.Enumerable.FLinq.csproj" PrivateAssets="all" Aliases="BenchmarkFLinq" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.ZLinq\Test.System.Linq.Enumerable.ZLinq.csproj" PrivateAssets="all" Aliases="BenchmarkZLinq" />
-    <ProjectReference Include="..\Seamless.Abstractions\Seamless.Abstractions.csproj" />
-    <ProjectReference Include="..\Seamless.Linq\Seamless.Linq.csproj" />
-    <ProjectReference Include="..\Seamless.Persisted.Collections\Seamless.Persisted.Collections.csproj" />
-    <ProjectReference Include="..\Seamless.Tsavorite.Collections\Seamless.Tsavorite.Collections.csproj" />
     <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" />
     <ProjectReference Include="..\Seamless.SourceGenerators\Seamless.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
-    <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
 </Project>

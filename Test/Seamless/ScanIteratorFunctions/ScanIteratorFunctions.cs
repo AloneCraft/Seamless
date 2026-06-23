@@ -1,5 +1,5 @@
 using Seamless.Tsavorite.Collections;
-using Seamless.Tsavorite.Collections.Stores;
+using Seamless.Tsavorite.Stores;
 namespace Test.Seamless.ScanIteratorFunctions;
 
 public class ScanIteratorFunctions{

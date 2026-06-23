@@ -6,9 +6,7 @@ using Xunit.v3;
 
 namespace Benchmark.Shared;
 
-// [Benchmark] が付いたテストメソッドだけを対象に、RunCount 回実行して経過時間を計測しテスト出力へ記録する。
-// アセンブリ全体に適用するが、[Benchmark] が無いテスト（通常のUnit等）には即座に何もしない。
-sealed class BenchmarkTimingAttribute:BeforeAfterTestAttribute{
+// [Benchmark] が付いたテストメソチE��だけを対象に、RunCount 回実行して経過時間を計測しテスト�E力へ記録する、E// アセンブリ全体に適用するが、[Benchmark] が無ぁE��スト（通常のUnit等）には即座に何もしなぁE��Esealed class BenchmarkTimingAttribute:BeforeAfterTestAttribute{
     public override void Before(MethodInfo methodUnderTest,IXunitTest test){
         if(methodUnderTest.GetCustomAttribute<BenchmarkAttribute>()==null){
             return;

@@ -4,7 +4,7 @@ using MemoryPack;
 
 using Seamless.Tsavorite.Collections;
 using Seamless.Tsavorite.Collections;
-using Seamless.Tsavorite.Collections.Stores;
+using Seamless.Tsavorite.Stores;
 using Tsavorite.core;
 
 namespace Test.Seamless.SessionFunctions;
@@ -29,7 +29,7 @@ public sealed class Upsert:AddTests<int,string> {
         return (store.Create(),store);
     }
     protected override (global::System.Collections.Generic.IDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice){
-        var store=Store.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(logDevice,objDevice);
+        var store=Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity).Create<int,string>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store) =>
@@ -39,9 +39,9 @@ public sealed class Upsert:AddTests<int,string> {
     protected override void DoUpsert(){
         using var store=Store.Create().Create<int,string>();
 #if TSAVORITE2_0BETA3
-        using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
+        using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
 #elif TSAVORITE1_1_1
-        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert>(new());
+        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert>(new());
 #endif
         var bc=session.BasicContext;
         var key=MakeKey(SerInt(200));
@@ -62,9 +62,9 @@ public sealed class Upsert:AddTests<int,string> {
     protected override void DoInPlaceWriter(){
         using var store=Store.Create().Create<int,string>();
 #if TSAVORITE2_0BETA3
-        using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
+        using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
 #elif TSAVORITE1_1_1
-        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert>(default);
+        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert>(default);
 #endif
         var bc=session.BasicContext;
         var key=MakeKey(SerInt(200));
@@ -110,7 +110,7 @@ public sealed class Upsert:AddTests<int,string> {
     [Fact, Trait("Category","Unit")]
     public void UpsertHeapObject(){
         using var store=Store.Create().Create<int,string>();
-        using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
+        using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
         var bc=session.BasicContext;
         var key=MakeKey(SerInt(500));
         // �V�K�L�[ �� GetUpsertFieldInfo(IHeapObject), InitialWriter(IHeapObject)
@@ -125,7 +125,7 @@ public sealed class Upsert:AddTests<int,string> {
         bc.Upsert(key2,(IHeapObject)new DummyHeapObject());
         // PostInitialWriter(IHeapObject)��SpanByteAllocator�ł͓��B���Ȃ����ߒ��ڌĂяo���ibody����Ȃ̂�default�����ň��S�j
         {
-            var f=new global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>();
+            var f=new global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>();
             var lr=default(LogRecord);
             var si=default(RecordSizeInfo);
             string inp=null!;
@@ -144,7 +144,7 @@ public sealed class Upsert:AddTests<int,string> {
             string,//TInput
             bool,
             EqualityEmpty,
-            global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>,
+            global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>,
             StoreFunctions<SpanByteComparer,DefaultRecordTriggers>,
             SpanByteAllocator<
                 StoreFunctions<
@@ -184,7 +184,7 @@ public sealed class Upsert:AddTests<int,string> {
             string,//TInput
             bool,
             EqualityEmpty,
-            global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>
+            global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>
         >(new());
         var addr1=store.Store.Log.TailAddress;
         session.BasicContext.Upsert(MakeKey(SerInt(600)),SerStr("log"));
@@ -202,11 +202,11 @@ public sealed class Upsert:AddTests<int,string> {
         using var store=Store.Create().Create<int,string>();
         var key=MakeKey(SerInt(1));
 #if TSAVORITE2_0BETA3
-        using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
+        using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
         var input0="v1";
         var input1="v2";
 #elif TSAVORITE1_1_1
-        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert>(default);
+        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert>(default);
         var input0=SpanByte.FromPinnedSpan(SerStr("v1"));
         var input1=SpanByte.FromPinnedSpan(SerStr("v2"));
 #endif
@@ -243,9 +243,9 @@ public sealed class Upsert:AddTests<int,string> {
     [Fact, Trait("Category","Unit")]
     public void TryAddAfterFlushReportsExisting_Managed(){
         var folder= this.CreateDiskFolder();
-        using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store=Store.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
+        using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var store=Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
         using var dict=store.Create();
         dict.Add(0,"target");
         store.Store.Log.FlushAndEvict(true);
@@ -254,9 +254,9 @@ public sealed class Upsert:AddTests<int,string> {
     [Fact, Trait("Category","Unit")]
     public void ReadAfterFlush_Managed(){
         var folder= this.CreateDiskFolder();
-        using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store=Store.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
+        using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var store=Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
         using var dict=store.Create();
         dict[0]="target";
         store.Store.Log.FlushAndEvict(true);
@@ -267,7 +267,7 @@ public sealed class Upsert:AddTests<int,string> {
 #if TSAVORITE1_1_1
         // �����l�ŏ���Upsert��A�Z���l�ō�Upsert �� src.Length<=dst.Length �� in-place �R�s�[�����ʂ�
         using var store=Store.Create().Create<int,string>();
-        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert>(default);
+        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert>(default);
         var bc=session.BasicContext;
         var key=MakeKey(SerInt(300));
         var valLong=MakeKey(SerStr("hello_world_test"));
@@ -284,10 +284,10 @@ public sealed class Upsert:AddTests<int,string> {
 #if TSAVORITE1_1_1
         // ShiftReadOnlyAddress �̓y�[�W�t���b�V���𔺂����� ManagedLocalStorageDevice ���K�v
         var folder=CreateDiskFolder();
-        using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var store=Store.Create(MemorySize: Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
-        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert>(default);
+        using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var store=Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
+        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert>(default);
         var bc=session.BasicContext;
         var key1=MakeKey(SerInt(400));
         var val1=MakeKey(SerStr("single"));
@@ -317,7 +317,7 @@ public sealed class Upsert:AddTests<int,string> {
 #if TSAVORITE1_1_1
         // mutable �̈�ɋ�l��u���� Read �� ConcurrentReader �� Span.IsEmpty=true �����ʂ�
         using var store=Store.Create().Create<int,string>();
-        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.Collections.SessionFunctions.Upsert>(default);
+        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert>(default);
         var bc=session.BasicContext;
         var key=MakeKey(SerInt(500));
         var empty=default(SpanByte);

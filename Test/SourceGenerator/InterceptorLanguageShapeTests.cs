@@ -1,6 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
-using System.Text;
+using global::System.Text;
 using Xunit.Abstractions;
 
 namespace Test.SourceGenerator;
