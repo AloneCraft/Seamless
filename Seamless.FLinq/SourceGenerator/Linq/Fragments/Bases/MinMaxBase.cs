@@ -22,8 +22,8 @@ public abstract class MinMaxBase(int 番号, Enumerable source, string resultTyp
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => direction=="greater"
-        ? $"global::Seamless.Linq.ValueEnumerableExtensions.Max(new global::Seamless.Linq.ValueEnumerable<TEnum, {source.ElementType}>({this.e}))"
-        : $"global::Seamless.Linq.ValueEnumerableExtensions.Min(new global::Seamless.Linq.ValueEnumerable<TEnum, {source.ElementType}>({this.e}))";
+        ? $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Max(new global::Seamless.System.Carrier.ValueEnumerable<TEnum, {source.ElementType}>({this.e}))"
+        : $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Min(new global::Seamless.System.Carrier.ValueEnumerable<TEnum, {source.ElementType}>({this.e}))";
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 
     // 素の Min/Max は Compute メソッドを持たず、ライブラリ拡張＋ジェネリック TEnum を使うため独自インライン。

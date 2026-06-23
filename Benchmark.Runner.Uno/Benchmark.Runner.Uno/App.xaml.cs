@@ -24,7 +24,7 @@ public partial class App : Application
 
         // Do not repeat app initialization when the Window already has content,
         // just ensure that the window is active
-        if (MainWindow.Content is not Frame rootFrame)
+    if (MainWindow.Content is not Frame rootFrame)
         {
             // Create a Frame to act as the navigation context and navigate to the first page
             rootFrame = new Frame();
@@ -71,8 +71,7 @@ public partial class App : Application
         // desktop targets, you can use URL or command line parameters to enable it.
         //
         // For more performance documentation: https://platform.uno/docs/articles/Uno-UI-Performance.html
-
-        var factory = LoggerFactory.Create(builder =>
+    var factory = LoggerFactory.Create(builder =>
         {
 #if __WASM__
             builder.AddProvider(new global::Uno.Extensions.Logging.WebAssembly.WebAssemblyConsoleLoggerProvider());
@@ -80,16 +79,16 @@ public partial class App : Application
             builder.AddProvider(new global::Uno.Extensions.Logging.OSLogLoggerProvider());
 
             // Log to the Visual Studio Debug console
-            builder.AddConsole();
+    builder.AddConsole();
 #else
             builder.AddConsole();
 #endif
 
             // Exclude logs below this level
-            builder.SetMinimumLevel(LogLevel.Information);
+    builder.SetMinimumLevel(LogLevel.Information);
 
             // Default filters for Uno Platform namespaces
-            builder.AddFilter("Uno", LogLevel.Warning);
+    builder.AddFilter("Uno", LogLevel.Warning);
             builder.AddFilter("Windows", LogLevel.Warning);
             builder.AddFilter("Microsoft", LogLevel.Warning);
 

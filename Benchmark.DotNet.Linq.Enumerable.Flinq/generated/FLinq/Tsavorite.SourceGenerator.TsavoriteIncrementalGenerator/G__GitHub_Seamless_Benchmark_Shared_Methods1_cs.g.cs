@@ -1743,9 +1743,9 @@ namespace Intercept.Shared.Linq.Enumerable {
             private global::System.Collections.Generic.IEqualityComparer<int>? comparer;
             private global::System.Collections.Generic.HashSet<int> __lk0;
             private static global::System.Collections.Generic.HashSet<int> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<int>? comparer){
-                // Distinct は列挙途中で set を更新し続けるため、ここでは root の型に応じた span 判定を入れない。
-                // 生成時点で root が span 直走査できる場合は上位の consumer 専用 lowering が選ばれ、それ以外はこの enumerator 経路に落ちる。
-                if(source.TryGetNonEnumeratedCount(out var __cnt0)){
+                // Distinct は列挙途中で set を更新し続けるため、ここでは root の型に応じぁEspan 判定を入れなぁE��E
+                // 生�E時点で root ぁEspan 直走査できる場合�E上位�E consumer 専用 lowering が選ばれ、それ以外�Eこ�E enumerator 経路に落ちる、E
+    if(source.TryGetNonEnumeratedCount(out var __cnt0)){
                     return new global::System.Collections.Generic.HashSet<int>(__cnt0,comparer);
                 }else{
                     return new global::System.Collections.Generic.HashSet<int>(comparer);
@@ -1864,9 +1864,9 @@ namespace Intercept.Shared.Linq.Enumerable {
             private global::System.Collections.Generic.IEqualityComparer<int>? comparer;
             private global::System.Collections.Generic.HashSet<int> __lk0;
             private static global::System.Collections.Generic.HashSet<int> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<int>? comparer){
-                // DistinctBy も同じで、span 走査かどうかの判定はここではしない。
-                // コンパイル時に root 形状が分かる場合は上位で専用生成されるため、ここは汎用経路として最小状態だけを保持する。
-                return new global::System.Collections.Generic.HashSet<int>(1999,comparer);
+                // DistinctBy も同じで、span 走査かどぁE��の判定�EここではしなぁE��E
+                // コンパイル時に root 形状が�Eかる場合�E上位で専用生�Eされるため、ここ�E汎用経路として最小状態だけを保持する、E
+    return new global::System.Collections.Generic.HashSet<int>(1999,comparer);
             }
             public OptimizedLinq_DistinctBy_keySelector_Impl_Methods1_DistinctBy_keySelector_178_45_補助0_Struct0(TEnum __e0,global::System.Collections.Generic.IEqualityComparer<int>? comparer) {
                 this.__e0 = __e0;
@@ -6387,10 +6387,10 @@ namespace Intercept.Shared.Linq.Enumerable {
             public bool TryCopyTo(scoped global::System.Span<int> destination, global::System.Index offset) => false;
             [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             public bool TryGetNext(out int current) {
-                // __a0 は int.MinValue=未初期化 / -1=列挙完了 を区別する。
-                // -1 を未初期化扱いにすると、TryGetNext を完了後も呼ぶ消費側（TraversalSupport の while ループ等）で
-                // 末尾到達ごとに Length-1 へ再初期化して無限ループになる。
-                if(this.__a0==int.MinValue) {
+                // __a0 は int.MinValue=未初期匁E/ -1=列挙完亁Eを区別する、E
+                // -1 を未初期化扱ぁE��すると、TryGetNext を完亁E��も呼ぶ消費側�E�EraversalSupport の while ループ等）で
+                // 末尾到達ごとに Length-1 へ再�E期化して無限ループになる、E
+    if(this.__a0==int.MinValue) {
                     if(__e0.TryGetSpan(out var __span0)) {
                         this.__a0=__span0.Length-1;
                     }else{
@@ -7679,9 +7679,9 @@ namespace Intercept.Shared.Linq.Enumerable {
             [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             internal static int[] Compute(TEnum source) {
                 using var enumerator = source;
-                // 要素数が InlineCapacity 以内ならスタック上の InlineArray だけで受け、ArrayPool/List の
-                // ヒープ確保もスレッドセーフな Rent/Return も一切回避する。溢れたときだけ ArrayPool へスピルし、
-                // 最後に正確なサイズの配列へ1回だけコピーする。MoveNext/Current のみで TEnum 制約に依存しない。
+                // 要素数ぁEInlineCapacity 以冁E��らスタチE��上�E InlineArray だけで受け、ArrayPool/List の
+                // ヒ�Eプ確保もスレチE��セーフな Rent/Return も一刁E��避する。溢れたときだぁEArrayPool へスピルし、E
+                // 最後に正確なサイズの配�Eへ1回だけコピ�Eする、EoveNext/Current のみで TEnum 制紁E��依存しなぁE��E
                 OptimizedLinq_Single_predicate_Impl_Methods1_Single_predicate_526_39_補助0_Struct0_Buf __inline = default;
                 global::System.Span<int> __stack = __inline;
                 int[]? __heap = null;
@@ -7693,7 +7693,7 @@ namespace Intercept.Shared.Linq.Enumerable {
                                 __stack[n++] = enumerator.Current;
                                 continue;
                             }
-                            // スタックバッファが満杯になったので ArrayPool へ移行する。
+                            // スタチE��バッファが満杯になった�Eで ArrayPool へ移行する、E
                             __heap = global::System.Buffers.ArrayPool<int>.Shared.Rent(16 * 2);
                             __stack.CopyTo(__heap);
                         } else if(n == __heap.Length) {
@@ -9424,9 +9424,9 @@ namespace Intercept.Shared.Linq.Enumerable {
             [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             internal static int[] Compute(TEnum source) {
                 using var enumerator = source;
-                // 要素数が InlineCapacity 以内ならスタック上の InlineArray だけで受け、ArrayPool/List の
-                // ヒープ確保もスレッドセーフな Rent/Return も一切回避する。溢れたときだけ ArrayPool へスピルし、
-                // 最後に正確なサイズの配列へ1回だけコピーする。MoveNext/Current のみで TEnum 制約に依存しない。
+                // 要素数ぁEInlineCapacity 以冁E��らスタチE��上�E InlineArray だけで受け、ArrayPool/List の
+                // ヒ�Eプ確保もスレチE��セーフな Rent/Return も一刁E��避する。溢れたときだぁEArrayPool へスピルし、E
+                // 最後に正確なサイズの配�Eへ1回だけコピ�Eする、EoveNext/Current のみで TEnum 制紁E��依存しなぁE��E
                 OptimizedLinq_ToArray_Impl_Methods1_ToArray_634_30_補助0_Struct0_Buf __inline = default;
                 global::System.Span<int> __stack = __inline;
                 int[]? __heap = null;
@@ -9438,7 +9438,7 @@ namespace Intercept.Shared.Linq.Enumerable {
                                 __stack[n++] = enumerator.Current;
                                 continue;
                             }
-                            // スタックバッファが満杯になったので ArrayPool へ移行する。
+                            // スタチE��バッファが満杯になった�Eで ArrayPool へ移行する、E
                             __heap = global::System.Buffers.ArrayPool<int>.Shared.Rent(16 * 2);
                             __stack.CopyTo(__heap);
                         } else if(n == __heap.Length) {

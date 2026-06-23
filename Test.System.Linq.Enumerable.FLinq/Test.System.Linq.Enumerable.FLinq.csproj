@@ -33,10 +33,12 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
-    <ProjectReference Include="..\Seamless.Tsavorite.Collections\Seamless.Tsavorite.Collections.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
   <Import Project="..\Benchmark.Shared\Benchmark.Linq.Enumerable.Core.projitems" Label="Shared" />
 </Project>

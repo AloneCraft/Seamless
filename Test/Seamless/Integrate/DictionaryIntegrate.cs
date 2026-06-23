@@ -1,4 +1,4 @@
-using Seamless.Tsavorite.Collections.Stores;
+using Seamless.Tsavorite.Stores;
 using Tsavorite.core;
 
 namespace Test.Seamless.Integrate;

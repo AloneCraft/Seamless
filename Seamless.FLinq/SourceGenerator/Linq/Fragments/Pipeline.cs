@@ -1785,9 +1785,9 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
     }
     protected override string StructTypeConstraints {
         get {
-            var constraints = new List<string> { $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.IValueEnumerator<{source.ElementType}>" };
+            var constraints = new List<string> { $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.System.Carrier.IValueEnumerator<{source.ElementType}>" };
             foreach(var (second,index) in this.SecondSources.Select(static (second,index) => (second,index))) {
-                constraints.Add($"where {SecondTypeParameterName(index)} : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>, global::Seamless.Linq.IValueEnumerator<{second.ElementType}>");
+                constraints.Add($"where {SecondTypeParameterName(index)} : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>, global::Seamless.System.Carrier.IValueEnumerator<{second.ElementType}>");
             }
             return string.Join("\n    ",constraints);
         }

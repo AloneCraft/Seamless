@@ -26,7 +26,7 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
         {{this.FuncSupport(func,nameof(func))}}
         """;
     public override string GetEnumerableExpression =>
-        $"global::Seamless.Linq.ValueEnumerableExtensions.AggregateBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {seed}, {func.DelegateConstructorArg ?? func.RenderAsLambda()})";
+        $"global::Seamless.System.Carrier.ValueEnumerableExtensions.AggregateBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {seed}, {func.DelegateConstructorArg ?? func.RenderAsLambda()})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}

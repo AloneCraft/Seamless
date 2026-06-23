@@ -26,7 +26,7 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
     public override string StructMethod=>string.Empty;
     protected override string StructTypeParameters=>"<TEnum1,TEnum2>";
     protected override string StructTypeConstraints=>
-        $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Seamless.Linq.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Seamless.Linq.IValueEnumerator<{second.ElementType}>";
+        $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName=>$"{this.Struct}<{source.EnumeratorTypeName},{second.EnumeratorTypeName}>";
     public override string GetEnumeratorStruct=>$$"""
         {{source.GetEnumeratorStruct}}
@@ -153,7 +153,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
     public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
     protected override string StructTypeParameters=>"<TEnum1,TEnum2>";
     protected override string StructTypeConstraints=>
-        $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Seamless.Linq.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Seamless.Linq.IValueEnumerator<{second.ElementType}>";
+        $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName=>$"{this.Struct}<{source.EnumeratorTypeName},{second.EnumeratorTypeName}>";
     public override string GetEnumeratorStruct=>$$"""
         {{source.GetEnumeratorStruct}}

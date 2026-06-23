@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using global::System.Text.RegularExpressions;
 using Seamless.FLinq;
 using Xunit.Abstractions;
 

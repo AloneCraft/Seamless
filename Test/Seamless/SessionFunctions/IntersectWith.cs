@@ -2,7 +2,7 @@ using Test.Seamless.Collections;
 
 using Seamless.Tsavorite.Collections;
 using Seamless.Tsavorite.Collections;
-using Seamless.Tsavorite.Collections.Stores;
+using Seamless.Tsavorite.Stores;
 namespace Test.Seamless.SessionFunctions;
 
 public abstract class IntersectWith<TKey, TSet>:CommonWith<TKey,TSet>
@@ -30,12 +30,12 @@ public sealed class ManagedIntersectWith:IntersectWith<string,global::Seamless.T
     public void FlushAndEvict後もIntersectWithで共通要素だけ残る() {
         var folderA = TestPath.Directory(this,"A");
         var folderB = TestPath.Directory(this,"B");
-        using var logDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var objDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var logDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var objDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var storeA = Store.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceA,objDeviceA,new MemoryPackSerializerStrategy());
-        using var storeB = Store.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceB,objDeviceB,new MemoryPackSerializerStrategy());
+        using var logDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var objDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var logDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var objDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var storeA = Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceA,objDeviceA,new MemoryPackSerializerStrategy());
+        using var storeB = Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceB,objDeviceB,new MemoryPackSerializerStrategy());
         using var setA = storeA.Create();
         using var setB = storeB.Create();
 
@@ -77,12 +77,12 @@ public sealed class UnmanagedIntersectWith:IntersectWith<int,global::Seamless.Ts
     public void FlushAndEvict後もIntersectWithで共通要素だけ残る() {
         var folderA = TestPath.Directory(this,"A");
         var folderB = TestPath.Directory(this,"B");
-        using var logDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var objDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var logDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var objDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: Const.MinObjectLogCapacity);
-        using var storeA = Store.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceA,objDeviceA,new BlittableStrategy());
-        using var storeB = Store.Create(MemorySize: Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceB,objDeviceB,new BlittableStrategy());
+        using var logDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var objDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var logDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var objDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var storeA = Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceA,objDeviceA,new BlittableStrategy());
+        using var storeB = Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceB,objDeviceB,new BlittableStrategy());
         using var setA = storeA.Create();
         using var setB = storeB.Create();
 
