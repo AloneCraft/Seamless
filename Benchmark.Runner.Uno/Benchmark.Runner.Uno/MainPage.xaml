@@ -105,29 +105,39 @@
               CornerRadius="6">
         <Grid RowDefinitions="Auto,*">
           <Grid Padding="6,2"
-                ColumnDefinitions="24,2*,*,Auto">
+                ColumnDefinitions="24,220,Auto">
             <TextBlock Grid.Column="1"
                        Text="Benchmark"
                        FontSize="11"
                        FontWeight="SemiBold" />
-            <TextBlock Grid.Column="2"
-                       Text="Category"
-                       FontSize="11"
-                       FontWeight="SemiBold" />
-            <TextBlock Grid.Column="3"
-                       Text="Method"
-                       FontSize="11"
-                       FontWeight="SemiBold" />
+            <ItemsControl x:Name="BenchmarkProjectHeaderItemsControl"
+                          Grid.Column="2">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:BenchmarkProject">
+                  <TextBlock Text="{Binding DisplayName}"
+                             Width="92"
+                             FontSize="11"
+                             FontWeight="SemiBold"
+                             TextTrimming="CharacterEllipsis"
+                             Opacity="{Binding ColumnOpacity}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
           </Grid>
         <ScrollViewer Grid.Row="1"
                       VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled">
+                      HorizontalScrollBarVisibility="Auto">
           <ItemsControl x:Name="BenchmarkItemsControl">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="local:BenchmarkItem">
                 <Grid Height="18"
                       Padding="6,0"
-                      ColumnDefinitions="24,2*,*,Auto"
+                      ColumnDefinitions="24,220,Auto"
                       Tag="{Binding}"
                       Tapped="OnBenchmarkRowTapped"
                       Background="Transparent">
@@ -149,23 +159,39 @@
                   </Border>
                   <TextBlock Grid.Column="1"
                              Text="{Binding DisplayName}"
-                             TextDecorations="{Binding TextDecorations}"
                              FontSize="11"
                              TextTrimming="CharacterEllipsis"
                              VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="2"
-                             Text="{Binding CategoryText}"
-                             TextDecorations="{Binding TextDecorations}"
-                             FontSize="11"
-                             TextTrimming="CharacterEllipsis"
-                             VerticalAlignment="Center"
-                             Foreground="#676B67" />
-                  <TextBlock Grid.Column="3"
-                             Text="{Binding MethodName}"
-                             TextDecorations="{Binding TextDecorations}"
-                             FontSize="11"
-                             VerticalAlignment="Center"
-                             Foreground="#676B67" />
+                  <ItemsControl Grid.Column="2"
+                                ItemsSource="{Binding ProjectStatuses}"
+                                IsHitTestVisible="False">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="local:BenchmarkProjectStatusCell">
+                        <Grid Width="92"
+                              Height="18"
+                              Opacity="{Binding Opacity}">
+                          <ProgressRing Width="12"
+                                        Height="12"
+                                        IsActive="True"
+                                        Visibility="{Binding RunningVisibility}"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center" />
+                          <TextBlock Text="{Binding Glyph}"
+                                     Visibility="{Binding GlyphVisibility}"
+                                     FontSize="11"
+                                     FontWeight="SemiBold"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center"
+                                     Foreground="#202020" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
                 </Grid>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
@@ -411,10 +437,16 @@
           RowSpacing="6"
           RowDefinitions="Auto,Auto,160">
       <Grid ColumnSpacing="12"
-            ColumnDefinitions="*,Auto,Auto">
-        <TextBlock x:Name="StatusText"
-                   Text="Ready"
-                   Foreground="#3D4540" />
+            ColumnDefinitions="*,Auto,Auto,Auto">
+        <StackPanel Spacing="2">
+          <TextBlock x:Name="StatusText"
+                     Text="Ready"
+                     Foreground="#3D4540" />
+          <TextBlock x:Name="RunTimeText"
+                     Text="Run time: -"
+                     FontSize="12"
+                     Foreground="#5D625E" />
+        </StackPanel>
         <HyperlinkButton x:Name="HtmlReportLinkButton"
                          Grid.Column="1"
                          Content="HTML"

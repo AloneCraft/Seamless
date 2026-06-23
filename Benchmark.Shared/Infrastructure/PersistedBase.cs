@@ -10,14 +10,14 @@ public class PersistedBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
     private readonly Dictionary<int,SourceHandle<int>> srcOneCache = [];
     private readonly string rootPath = Path.Combine(AppContext.BaseDirectory,"persisted-benchmark",Guid.NewGuid().ToString("N"));
 
-    protected new global::Seamless.Persisted.Collections.Set<int> src(int scale) =>
-        this.GetOrCreate(scale,this.srcCache,static length => CreateRange(1,length));
+    protected new Seamless.Persisted.Collections.Set<int> src(int scale) =>
+        GetOrCreate(scale,srcCache,static length => CreateRange(1,length));
 
-    protected new global::Seamless.Persisted.Collections.Set<int> srcCount(int elementCount) =>
-        this.GetOrCreateByLength(elementCount,this.srcCache,static length => CreateRange(1,length));
+    protected new Seamless.Persisted.Collections.Set<int> srcCount(int elementCount) =>
+        GetOrCreateByLength(elementCount,srcCache,static length => CreateRange(1,length));
 
-    protected new global::Seamless.Persisted.Collections.Set<int> src2(int scale) =>
-        this.GetOrCreate(scale,this.src2Cache,static length => {
+    protected new Seamless.Persisted.Collections.Set<int> src2(int scale) =>
+        GetOrCreate(scale,src2Cache,static length => {
             var result = new int[length/2];
             var start = length/2+1;
             for(var index = 0;index<result.Length;index++) {
@@ -26,8 +26,8 @@ public class PersistedBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
             return result;
         });
 
-    protected new global::Seamless.Persisted.Collections.Set<int> src2Count(int elementCount) =>
-        this.GetOrCreateByLength(elementCount,this.src2Cache,static length => {
+    protected new Seamless.Persisted.Collections.Set<int> src2Count(int elementCount) =>
+        GetOrCreateByLength(elementCount,src2Cache,static length => {
             var result = new int[length/2];
             var start = length/2+1;
             for(var index = 0;index<result.Length;index++) {
@@ -36,18 +36,18 @@ public class PersistedBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
             return result;
         });
 
-    protected new global::Seamless.Persisted.Collections.Set<int> srcOne(int scale) =>
-        this.GetOrCreate(scale,this.srcOneCache,static _ => [0]);
+    protected new Seamless.Persisted.Collections.Set<int> srcOne(int scale) =>
+        GetOrCreate(scale,srcOneCache,static _ => [0]);
 
     [GlobalCleanup]
     public void Cleanup() {
-        DisposeAll(this.srcCache);
-        DisposeAll(this.src2Cache);
-        DisposeAll(this.srcOneCache);
-        TryDeleteDirectory(this.rootPath);
+        DisposeAll(srcCache);
+        DisposeAll(src2Cache);
+        DisposeAll(srcOneCache);
+        TryDeleteDirectory(rootPath);
     }
 
-    public void Dispose() => this.Cleanup();
+    public void Dispose() => Cleanup();
 
     private static int NormalizeCount(int count) {
 #if BENCH_AS_TEST
@@ -57,39 +57,39 @@ public class PersistedBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
 #endif
     }
 
-    private global::Seamless.Persisted.Collections.Set<int> GetOrCreate(
+    private Seamless.Persisted.Collections.Set<int> GetOrCreate(
         int scale,
         Dictionary<int,SourceHandle<int>> cache,
         Func<int,int[]> factory) {
-        var length=this.CountForComparison(this.CountForTestTiming(this.count*scale));
+        var length=CountForComparison(CountForTestTiming(count*scale));
         if(cache.TryGetValue(length,out var handle)) {
             return handle.Set;
         }
 
-        handle=this.CreateSet(factory(length));
+        handle=CreateSet(factory(length));
         cache.Add(length,handle);
         return handle.Set;
     }
 
-    private global::Seamless.Persisted.Collections.Set<int> GetOrCreateByLength(
+    private Seamless.Persisted.Collections.Set<int> GetOrCreateByLength(
         int length,
         Dictionary<int,SourceHandle<int>> cache,
         Func<int,int[]> factory) {
-        var effectiveLength=this.CountForComparison(this.CountForTestTiming(length));
+        var effectiveLength=CountForComparison(CountForTestTiming(length));
         if(cache.TryGetValue(effectiveLength,out var handle)) {
             return handle.Set;
         }
 
-        handle=this.CreateSet(factory(effectiveLength));
+        handle=CreateSet(factory(effectiveLength));
         cache.Add(effectiveLength,handle);
         return handle.Set;
     }
 
     private SourceHandle<T> CreateSet<T>(IEnumerable<T> values) {
-        var path = Path.Combine(this.rootPath,Guid.NewGuid().ToString("N"),"items.dat");
+        var path = Path.Combine(rootPath,Guid.NewGuid().ToString("N"),"items.dat");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var count = values.TryGetNonEnumeratedCount(out var knownCount) ? knownCount : 80_000;
-        var set = new global::Seamless.Persisted.Collections.Set<T>(
+        var set = new Seamless.Persisted.Collections.Set<T>(
             path,
             initialCapacity: Math.Max(1,count),
             initialDataCapacity: Math.Max(4096,count*16));
@@ -128,11 +128,11 @@ public class PersistedBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
 
     public sealed class SourceHandle<T>(
         string path,
-        global::Seamless.Persisted.Collections.Set<T> set):IDisposable {
-        public global::Seamless.Persisted.Collections.Set<T> Set { get; } = set;
+        Seamless.Persisted.Collections.Set<T> set):IDisposable {
+        public Seamless.Persisted.Collections.Set<T> Set { get; } = set;
 
         public void Dispose() {
-            this.Set.Dispose();
+            Set.Dispose();
             TryDeleteDirectory(Path.GetDirectoryName(path)!);
         }
     }

@@ -23,11 +23,6 @@
     <ProjectReference Include="..\Seamless.SourceGenerators\Seamless.SourceGenerators.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Remove="StaticSources\**\*.cs" />
-    <None Include="StaticSources\**\*.cs" Pack="true" PackagePath="buildTransitive\StaticSources\" />
-  </ItemGroup>
-
   <!-- Roslyn �A�i���C�U�[�Ƃ��ĎQ�ƃv���W�F�N�g��ꏏ�Ƀ��[�h���� -->
   <Target Name="GetDependencyTargetPaths" DependsOnTargets="ResolveReferences">
     <ItemGroup>

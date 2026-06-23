@@ -1,8 +1,8 @@
 namespace Benchmark.Runner.Uno;
 
-internal sealed record CpuPresetDefinition(string Key,string Label,IReadOnlyList<int> LogicalProcessorIndexes);
+public sealed record CpuPresetDefinition(string Key,string Label,IReadOnlyList<int> LogicalProcessorIndexes);
 
-internal static class CpuPresetCatalog{
+public static class CpuPresetCatalog{
     public static IReadOnlyList<CpuPresetDefinition> Build(IReadOnlyList<CpuCoreInfo> cpuCores){
         if(cpuCores.Count==0){
             return [];

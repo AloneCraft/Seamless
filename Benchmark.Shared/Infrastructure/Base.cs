@@ -13,7 +13,7 @@ public sealed class BenchmarkTestIterationsAttribute(int count):Attribute {
 public static class BenchmarkExecutionMode {
     private const string TestModeKey = "Benchmark.Shared.TestMode";
     private const string ElementScaleKey = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
-    private static readonly System.Threading.AsyncLocal<int?> ComparisonElementLimit = new();
+    private static readonly AsyncLocal<int?> ComparisonElementLimit = new();
     private static readonly Lazy<double> ElementScale = new(ReadElementScale);
 
     public static bool IsTestMode =>
@@ -61,7 +61,7 @@ public static class BenchmarkExecutionMode {
 
     private static double ReadElementScale() {
         var text = Environment.GetEnvironmentVariable(ElementScaleKey);
-        return double.TryParse(text,global::System.Globalization.NumberStyles.Float,global::System.Globalization.CultureInfo.InvariantCulture,out var scale)
+        return double.TryParse(text,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var scale)
             &&double.IsFinite(scale)
             &&scale>0
             ? scale
@@ -77,35 +77,35 @@ public sealed class Consumer {
     private DigestCapture? digestCapture;
 
     public void Consume<T>(T value) {
-        if(this.captureEnabled) {
-            this.captured.Add(value);
+        if(captureEnabled) {
+            captured.Add(value);
         }
 
-        this.digestCapture?.Add(value);
-        this.inner.Consume(value);
+        digestCapture?.Add(value);
+        inner.Consume(value);
     }
 
     internal void BeginCapture() {
-        this.captured.Clear();
-        this.captureEnabled=true;
+        captured.Clear();
+        captureEnabled=true;
     }
 
     internal object?[] EndCapture() {
-        this.captureEnabled=false;
-        return this.captured.ToArray();
+        captureEnabled=false;
+        return captured.ToArray();
     }
 
     internal void BeginDigestCapture(Func<object?,string> normalize) {
-        if(this.digestCapture is not null) {
+        if(digestCapture is not null) {
             throw new InvalidOperationException("Digest capture is already active.");
         }
 
-        this.digestCapture=new DigestCapture(normalize);
+        digestCapture=new DigestCapture(normalize);
     }
 
     internal string EndDigestCapture() {
-        var capture=this.digestCapture??throw new InvalidOperationException("Digest capture is not active.");
-        this.digestCapture=null;
+        var capture=digestCapture??throw new InvalidOperationException("Digest capture is not active.");
+        digestCapture=null;
         return capture.End();
     }
 
@@ -124,29 +124,29 @@ public sealed class Consumer {
 
         public void Add(object? value) {
             var normalized=normalize(value);
-            this.count++;
-            if(this.first.Count<DigestSampleCount) {
-                this.first.Add(normalized);
+            count++;
+            if(first.Count<DigestSampleCount) {
+                first.Add(normalized);
             }
-            if(this.last.Count==DigestSampleCount) {
-                this.last.Dequeue();
+            if(last.Count==DigestSampleCount) {
+                last.Dequeue();
             }
-            this.last.Enqueue(normalized);
+            last.Enqueue(normalized);
 
             var bytes=System.Text.Encoding.UTF8.GetBytes(normalized);
             var lengthBytes=new byte[4];
             System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(lengthBytes,bytes.Length);
-            this.hash.AppendData(lengthBytes);
-            this.hash.AppendData(bytes);
+            hash.AppendData(lengthBytes);
+            hash.AppendData(bytes);
         }
 
         public string End() {
-            var hashText=Convert.ToHexString(this.hash.GetHashAndReset());
-            this.hash.Dispose();
-            return "count="+this.count
+            var hashText=Convert.ToHexString(hash.GetHashAndReset());
+            hash.Dispose();
+            return "count="+count
                 +";sha256="+hashText
-                +";first="+Format(this.first)
-                +";last="+Format(this.last);
+                +";first="+Format(first)
+                +";last="+Format(last);
         }
 
         private static string Format(IEnumerable<string> values) =>
@@ -169,7 +169,7 @@ public class Base {
         this.count=count>=0?count:(BenchmarkExecutionMode.IsTestMode?TestDefaultCount:BenchmarkDefaultCount);
 
     private protected int CountForTestTiming(int benchmarkCount) =>
-        BenchmarkExecutionMode.ScaleElementCount(BenchmarkExecutionMode.IsTestMode?this.count:benchmarkCount);
+        BenchmarkExecutionMode.ScaleElementCount(BenchmarkExecutionMode.IsTestMode?count:benchmarkCount);
 
     private protected int CountForComparison(int elementCount) =>
         BenchmarkExecutionMode.LimitForComparison(elementCount);
@@ -180,11 +180,11 @@ public class Base {
         }
 
         var method=invokeImpl
-            ? FindInstanceMethodInHierarchy(this.GetType(),methodName+"_Impl",nonPublic:true)
-            : FindBenchmarkMethod(this.GetType(),methodName);
+            ? FindInstanceMethodInHierarchy(GetType(),methodName+"_Impl",nonPublic:true)
+            : FindBenchmarkMethod(GetType(),methodName);
 
-        this.Result=MissingResult;
-        this.consumer.BeginDigestCapture(Normalize);
+        Result=MissingResult;
+        consumer.BeginDigestCapture(Normalize);
         object? returnValue=null;
         Exception? invocationError=null;
         var consumed=string.Empty;
@@ -193,7 +193,7 @@ public class Base {
         } catch(System.Reflection.TargetInvocationException ex) when(ex.InnerException is not null) {
             invocationError=ex.InnerException;
         } finally {
-            consumed=this.consumer.EndDigestCapture();
+            consumed=consumer.EndDigestCapture();
         }
 
         if(invocationError is not null) {
@@ -201,8 +201,8 @@ public class Base {
             throw new InvalidOperationException("Unreachable.");
         }
 
-        if(!ReferenceEquals(MissingResult,this.Result)) {
-            return Consumer.CreateSingleDigest(Normalize(this.Result));
+        if(!ReferenceEquals(MissingResult,Result)) {
+            return Consumer.CreateSingleDigest(Normalize(Result));
         }
         if(method.ReturnType!=typeof(void)) {
             return Consumer.CreateSingleDigest(Normalize(returnValue));
@@ -211,16 +211,16 @@ public class Base {
     }
 
     protected void AssertResults(Action linq,Action flinq,Action noOptimized,Action zlinq) {
-        var expected = this.CaptureResult(linq);
+        var expected = CaptureResult(linq);
 #if TSAVORITE_LINQ_COUNTER
         using var optimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
-        var flinqResult = this.CaptureResult(flinq);
+        var flinqResult = CaptureResult(flinq);
 #if TSAVORITE_LINQ_COUNTER
         using var noOptimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
-        var noOptimizedResult = this.CaptureResult(noOptimized);
-        var zlinqResult = this.CaptureResult(zlinq);
+        var noOptimizedResult = CaptureResult(noOptimized);
+        var zlinqResult = CaptureResult(zlinq);
 
         AssertEqual(expected,flinqResult,"FLinq result differs from LINQ.");
         AssertEqual(expected,noOptimizedResult,"Non-optimized FLinq result differs from LINQ.");
@@ -234,15 +234,15 @@ public class Base {
     }
 
     protected void AssertResults(Action linq,Action flinq,Action noOptimized) {
-        var expected = this.CaptureResult(linq);
+        var expected = CaptureResult(linq);
 #if TSAVORITE_LINQ_COUNTER
         using var optimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
-        var flinqResult = this.CaptureResult(flinq);
+        var flinqResult = CaptureResult(flinq);
 #if TSAVORITE_LINQ_COUNTER
         using var noOptimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
-        var noOptimizedResult = this.CaptureResult(noOptimized);
+        var noOptimizedResult = CaptureResult(noOptimized);
 
         AssertEqual(expected,flinqResult,"FLinq result differs from LINQ.");
         AssertEqual(expected,noOptimizedResult,"Non-optimized FLinq result differs from LINQ.");
@@ -255,12 +255,12 @@ public class Base {
     }
 
     private string CaptureResult(Action action) {
-        this.Result=MissingResult;
-        this.consumer.BeginCapture();
+        Result=MissingResult;
+        consumer.BeginCapture();
         action();
-        var consumed=this.consumer.EndCapture();
-        return !ReferenceEquals(MissingResult,this.Result)
-            ? Normalize(this.Result)
+        var consumed=consumer.EndCapture();
+        return !ReferenceEquals(MissingResult,Result)
+            ? Normalize(Result)
             : Normalize(consumed);
     }
 
@@ -285,22 +285,22 @@ public class Base {
         if(value is string text) {
             return text;
         }
-        if(TryGetKey(value,out var key)&&value is global::System.Collections.IEnumerable keyedEnumerable) {
+        if(TryGetKey(value,out var key)&&value is System.Collections.IEnumerable keyedEnumerable) {
             return "{"+Normalize(key)+":"+NormalizeEnumerable(keyedEnumerable)+"}";
         }
-        if(value is global::System.Collections.IDictionary dictionary) {
+        if(value is System.Collections.IDictionary dictionary) {
             return NormalizeDictionary(dictionary);
         }
-        if(value is global::System.Collections.IEnumerable enumerable) {
+        if(value is System.Collections.IEnumerable enumerable) {
             return NormalizeEnumerable(enumerable);
         }
         if(value is IFormattable formattable) {
-            return formattable.ToString(null,global::System.Globalization.CultureInfo.InvariantCulture);
+            return formattable.ToString(null,System.Globalization.CultureInfo.InvariantCulture);
         }
         return value.ToString()??string.Empty;
     }
 
-    private static string NormalizeEnumerable(global::System.Collections.IEnumerable enumerable) {
+    private static string NormalizeEnumerable(System.Collections.IEnumerable enumerable) {
         var values=new List<string>();
         foreach(var item in enumerable) {
             values.Add(Normalize(item));
@@ -308,9 +308,9 @@ public class Base {
         return "["+string.Join(",",values)+"]";
     }
 
-    private static string NormalizeDictionary(global::System.Collections.IDictionary dictionary) {
+    private static string NormalizeDictionary(System.Collections.IDictionary dictionary) {
         var values=new List<string>();
-        foreach(global::System.Collections.DictionaryEntry entry in dictionary) {
+        foreach(System.Collections.DictionaryEntry entry in dictionary) {
             values.Add(Normalize(entry.Key)+"="+Normalize(entry.Value));
         }
         values.Sort(StringComparer.Ordinal);
@@ -363,7 +363,7 @@ public class Base {
     }
 
     protected IEnumerable<int> srcMinusPlus(int scale) {
-        var length=this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(count*scale));
+        var length=CountForComparison(BenchmarkExecutionMode.ScaleElementCount(count*scale));
         for(var a = 0;a<length;a+=2) {
             yield return -a;
             yield return +a;
@@ -371,7 +371,7 @@ public class Base {
     }
 
     protected IEnumerable<int> srcMinusPlusCount(int elementCount) {
-        var length=this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
+        var length=CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
         for(var a = 0;a<length;a+=2) {
             yield return -a;
             yield return +a;
@@ -379,7 +379,7 @@ public class Base {
     }
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> src(int scale) => global::System.Linq.Enumerable.AsEnumerable(this.GetOrCreate(scale,this.srcCache,static length => {
+    protected IEnumerable<int> src(int scale) => System.Linq.Enumerable.AsEnumerable(GetOrCreate(scale,srcCache,static length => {
         var values = new int[length];
         for(var i = 0;i<values.Length;i++) {
             values[i]=i+1;
@@ -388,7 +388,7 @@ public class Base {
     }));
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> srcCount(int elementCount) => global::System.Linq.Enumerable.AsEnumerable(this.GetOrCreateByLength(elementCount,this.srcCache,static length => {
+    protected IEnumerable<int> srcCount(int elementCount) => System.Linq.Enumerable.AsEnumerable(GetOrCreateByLength(elementCount,srcCache,static length => {
         var values = new int[length];
         for(var i = 0;i<values.Length;i++) {
             values[i]=i+1;
@@ -397,7 +397,7 @@ public class Base {
     }));
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> src2(int scale) => global::System.Linq.Enumerable.AsEnumerable(this.GetOrCreate(scale,this.src2Cache,static length => {
+    protected IEnumerable<int> src2(int scale) => System.Linq.Enumerable.AsEnumerable(GetOrCreate(scale,src2Cache,static length => {
         var values = new int[length/2];
         var start = length/2+1;
         for(var i = 0;i<values.Length;i++) {
@@ -407,7 +407,7 @@ public class Base {
     }));
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> src2Count(int elementCount) => global::System.Linq.Enumerable.AsEnumerable(this.GetOrCreateByLength(elementCount,this.src2Cache,static length => {
+    protected IEnumerable<int> src2Count(int elementCount) => System.Linq.Enumerable.AsEnumerable(GetOrCreateByLength(elementCount,src2Cache,static length => {
         var values = new int[length/2];
         var start = length/2+1;
         for(var i = 0;i<values.Length;i++) {
@@ -420,7 +420,7 @@ public class Base {
     protected IEnumerable<int> srcOne(int scale) => [0];
 
     private int[] GetOrCreate(int scale,Dictionary<int,int[]> cache,Func<int,int[]> factory) {
-        var length=this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(count*scale));
+        var length=CountForComparison(BenchmarkExecutionMode.ScaleElementCount(count*scale));
         if(cache.TryGetValue(length,out var values)) {
             return values;
         }
@@ -431,7 +431,7 @@ public class Base {
     }
 
     private int[] GetOrCreateByLength(int length,Dictionary<int,int[]> cache,Func<int,int[]> factory) {
-        var effectiveLength=this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(length));
+        var effectiveLength=CountForComparison(BenchmarkExecutionMode.ScaleElementCount(length));
         if(cache.TryGetValue(effectiveLength,out var values)) {
             return values;
         }
@@ -443,13 +443,13 @@ public class Base {
 
     [LinqIntercept(false)]
     protected IEnumerable<IEnumerable<int>> srcNested(int scale) {
-        var side = (int)Math.Sqrt(this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(count*scale)));
-        return global::System.Linq.Enumerable.Range(1,side).Select(_ => global::System.Linq.Enumerable.Range(1,side));
+        var side = (int)Math.Sqrt(CountForComparison(BenchmarkExecutionMode.ScaleElementCount(count*scale)));
+        return System.Linq.Enumerable.Range(1,side).Select(_ => System.Linq.Enumerable.Range(1,side));
     }
 
     [LinqIntercept(false)]
     protected IEnumerable<IEnumerable<int>> srcNestedCount(int elementCount) {
-        var side = (int)Math.Sqrt(this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount)));
-        return global::System.Linq.Enumerable.Range(1,side).Select(_ => global::System.Linq.Enumerable.Range(1,side));
+        var side = (int)Math.Sqrt(CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount)));
+        return System.Linq.Enumerable.Range(1,side).Select(_ => System.Linq.Enumerable.Range(1,side));
     }
 }

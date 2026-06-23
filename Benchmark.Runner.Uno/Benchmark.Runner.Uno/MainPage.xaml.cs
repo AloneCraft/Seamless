@@ -17,7 +17,7 @@ public sealed partial class MainPage:Page{
     private readonly ObservableCollection<CpuCoreInfo> cpuCores = [];
     private readonly ObservableCollection<CpuRowItem> cpuRows = [];
     private readonly ObservableCollection<BenchmarkRunItem> runningItems = [];
-    private readonly object runGate = new();
+    private readonly Lock runGate = new();
     private readonly Queue<BenchmarkRunItem> pendingRunItems = new();
     private readonly List<BenchmarkRunItem> allRunItems = [];
     private readonly Dictionary<int,Task> cpuWorkers = [];
@@ -27,12 +27,14 @@ public sealed partial class MainPage:Page{
     private readonly Dictionary<string,IReadOnlyList<BenchmarkProjectMethod>> methodCache = new(StringComparer.Ordinal);
     private readonly List<CpuPresetDefinition> cpuPresets = [];
     private readonly IReadOnlyList<BenchmarkProject> benchmarkProjects = LoadBenchmarkProjects();
-    private BenchmarkProject canonicalMethodProject => benchmarkProjects[0];
+    private BenchmarkProject canonicalMethodProject => this.benchmarkProjects[0];
 
     private CancellationTokenSource? runCancellation;
     private string? htmlReportPath;
     private string? chartReportPath;
     private string? currentRunRoot;
+    private DateTimeOffset? currentRunStartedAt;
+    private DateTimeOffset? currentRunFinishedAt;
     private int? selectionAnchorIndex;
     private bool isShiftDown;
     private bool isControlDown;
@@ -46,28 +48,29 @@ public sealed partial class MainPage:Page{
         string? ChartHtmlPath);
 
     public MainPage(){
-        InitializeComponent();
+        this.InitializeComponent();
     }
 
     private async void OnPageLoaded(object sender,RoutedEventArgs e){
-        InitializeProjectGrid();
-        InitializeCpuList();
-        BenchmarkItemsControl.ItemsSource=benchmarks;
-        CpuItemsControl.ItemsSource=cpuRows;
-        RunningItemsControl.ItemsSource=runningItems;
-        UpdateSelectionSummary();
-        UpdateProgress();
-        UpdateCommandState();
-        await LoadSelectedProjectsAsync(CancellationToken.None);
+        this.InitializeProjectGrid();
+        this.InitializeCpuList();
+        this.BenchmarkItemsControl.ItemsSource= this.benchmarks;
+        this.BenchmarkProjectHeaderItemsControl.ItemsSource= this.benchmarkProjects;
+        this.CpuItemsControl.ItemsSource= this.cpuRows;
+        this.RunningItemsControl.ItemsSource= this.runningItems;
+        this.UpdateSelectionSummary();
+        this.UpdateProgress();
+        this.UpdateCommandState();
+        await this.LoadSelectedProjectsAsync(CancellationToken.None);
     }
 
     private void InitializeProjectGrid(){
-        if(ProjectGrid.Children.Count>0){
+        if(this.ProjectGrid.Children.Count>0){
             return;
         }
 
-        for(var i=0;i<benchmarkProjects.Count;i++){
-            var project = benchmarkProjects[i];
+        for(var i=0;i< this.benchmarkProjects.Count;i++){
+            var project = this.benchmarkProjects[i];
             var checkBox = new CheckBox{
                 Content=new TextBlock{
                     Text=project.DisplayName,
@@ -81,34 +84,35 @@ public sealed partial class MainPage:Page{
                 MinHeight=20,
                 DataContext=project,
             };
-            checkBox.Click+=OnProjectCheckBoxClick;
+            checkBox.Click+= this.OnProjectCheckBoxClick;
             Grid.SetColumn(checkBox,i/4);
             Grid.SetRow(checkBox,i%4);
-            ProjectGrid.Children.Add(checkBox);
+            this.ProjectGrid.Children.Add(checkBox);
         }
     }
 
     private void InitializeCpuList(){
-        if(cpuCores.Count>0){
+        if(this.cpuCores.Count>0){
             return;
         }
 
         foreach(var cpu in CpuTopologyProvider.Load()){
-            cpuCores.Add(cpu);
+            this.cpuCores.Add(cpu);
         }
-        RebuildCpuRows();
-        InitializeCpuPresetButtons();
-        var first = cpuCores.OrderBy(static item => item.LogicalProcessorIndex).FirstOrDefault();
-        ApplyCpuSelection(cpu => cpu==first,updateWorkers:false);
+
+        this.RebuildCpuRows();
+        this.InitializeCpuPresetButtons();
+        var first = this.cpuCores.OrderBy(static item => item.LogicalProcessorIndex).FirstOrDefault();
+        this.ApplyCpuSelection(cpu => cpu==first,updateWorkers:false);
     }
 
     private void RebuildCpuRows(){
-        cpuRows.Clear();
-        var ordered = cpuCores
+        this.cpuRows.Clear();
+        var ordered = this.cpuCores
             .OrderBy(static cpu => cpu.LogicalProcessorIndex)
             .ToArray();
         for(var i=0;i<ordered.Length;i+=4){
-            cpuRows.Add(new CpuRowItem(
+            this.cpuRows.Add(new CpuRowItem(
                 i<ordered.Length ? ordered[i] : null,
                 i+1<ordered.Length ? ordered[i+1] : null,
                 i+2<ordered.Length ? ordered[i+2] : null,
@@ -117,36 +121,36 @@ public sealed partial class MainPage:Page{
     }
 
     private void InitializeCpuPresetButtons(){
-        cpuPresets.Clear();
-        cpuPresets.AddRange(CpuPresetCatalog.Build(cpuCores));
+        this.cpuPresets.Clear();
+        this.cpuPresets.AddRange(CpuPresetCatalog.Build(this.cpuCores));
 
-        CpuPresetGrid.Children.Clear();
-        CpuPresetGrid.ColumnDefinitions.Clear();
-        for(var i=0;i<cpuPresets.Count;i++){
-            CpuPresetGrid.ColumnDefinitions.Add(new ColumnDefinition{
+        this.CpuPresetGrid.Children.Clear();
+        this.CpuPresetGrid.ColumnDefinitions.Clear();
+        for(var i=0;i< this.cpuPresets.Count;i++){
+            this.CpuPresetGrid.ColumnDefinitions.Add(new ColumnDefinition{
                 Width = GridLength.Auto,
             });
 
-            var preset = cpuPresets[i];
+            var preset = this.cpuPresets[i];
             var button = new Button{
                 Content=preset.Label,
                 Tag=preset,
                 MinWidth=48,
             };
-            button.Click+=OnCpuPresetClick;
+            button.Click+= this.OnCpuPresetClick;
             Grid.SetColumn(button,i);
-            CpuPresetGrid.Children.Add(button);
+            this.CpuPresetGrid.Children.Add(button);
         }
     }
 
     private void OnConfigurationSelectionChanged(object sender,SelectionChangedEventArgs e){
-        if(ConfigurationComboBox is null||isBusy){
+        if(this.ConfigurationComboBox is null|| this.isBusy){
             return;
         }
 
-        RefreshBenchmarksFromCache();
-        UpdateSelectionSummary();
-        UpdateCommandState();
+        this.RefreshBenchmarksFromCache();
+        this.UpdateSelectionSummary();
+        this.UpdateCommandState();
     }
 
     private void OnProjectCheckBoxClick(object sender,RoutedEventArgs e){
@@ -154,9 +158,10 @@ public sealed partial class MainPage:Page{
             project.IsSelected=checkBox.IsChecked==true;
         }
 
-        RefreshBenchmarksFromCache();
-        UpdateSelectionSummary();
-        UpdateCommandState();
+        this.UpdateBenchmarkProjectSelectionStates();
+        this.RefreshBenchmarksFromCache();
+        this.UpdateSelectionSummary();
+        this.UpdateCommandState();
     }
 
     private void OnCpuCheckBoxClick(object sender,RoutedEventArgs e){
@@ -169,7 +174,7 @@ public sealed partial class MainPage:Page{
             return;
         }
 
-        SetCpuSelected(cpu,checkBox.IsChecked==true);
+        this.SetCpuSelected(cpu,checkBox.IsChecked==true);
     }
 
     private void OnCpuCellTapped(object sender,TappedRoutedEventArgs e){
@@ -177,26 +182,26 @@ public sealed partial class MainPage:Page{
             return;
         }
 
-        SetCpuSelected(cpu,!cpu.IsSelected);
+        this.SetCpuSelected(cpu,!cpu.IsSelected);
     }
 
     private void SetCpuSelected(CpuCoreInfo cpu,bool shouldSelect){
-        if(!shouldSelect&&cpuCores.All(item => item==cpu||!item.IsSelected)){
+        if(!shouldSelect&& this.cpuCores.All(item => item==cpu||!item.IsSelected)){
             cpu.IsSelected=true;
-            SetStatus("Select at least one CPU.");
-            UpdateCpuSummary();
+            this.SetStatus("Select at least one CPU.");
+            this.UpdateCpuSummary();
             return;
         }
 
         cpu.IsSelected=shouldSelect;
-        if(isRunning&&shouldSelect){
-            StartWorkerForCpu(cpu);
-        }else if(isRunning){
-            StopCpuAndRequeue(cpu.LogicalProcessorIndex);
+        if(this.isRunning&&shouldSelect){
+            this.StartWorkerForCpu(cpu);
+        }else if(this.isRunning){
+            this.StopCpuAndRequeue(cpu.LogicalProcessorIndex);
         }
 
-        UpdateCpuSummary();
-        UpdateProgress();
+        this.UpdateCpuSummary();
+        this.UpdateProgress();
     }
 
     private void OnCpuPresetClick(object sender,RoutedEventArgs e){
@@ -205,17 +210,17 @@ public sealed partial class MainPage:Page{
         }
 
         var selected = preset.LogicalProcessorIndexes.ToHashSet();
-        ApplyCpuSelection(cpu => selected.Contains(cpu.LogicalProcessorIndex),updateWorkers:true);
+        this.ApplyCpuSelection(cpu => selected.Contains(cpu.LogicalProcessorIndex),updateWorkers:true);
     }
 
     private void ApplyCpuSelection(Func<CpuCoreInfo,bool> shouldSelect,bool updateWorkers){
-        if(cpuCores.Count==0){
+        if(this.cpuCores.Count==0){
             return;
         }
 
-        var selected = cpuCores.Where(shouldSelect).ToHashSet();
+        var selected = this.cpuCores.Where(shouldSelect).ToHashSet();
 
-        foreach(var cpu in cpuCores){
+        foreach(var cpu in this.cpuCores){
             var wasSelected = cpu.IsSelected;
             var isSelected = selected.Contains(cpu);
             if(wasSelected==isSelected){
@@ -223,80 +228,80 @@ public sealed partial class MainPage:Page{
             }
 
             cpu.IsSelected=isSelected;
-            if(updateWorkers&&isRunning){
+            if(updateWorkers&& this.isRunning){
                 if(isSelected){
-                    StartWorkerForCpu(cpu);
+                    this.StartWorkerForCpu(cpu);
                 }else{
-                    StopCpuAndRequeue(cpu.LogicalProcessorIndex);
+                    this.StopCpuAndRequeue(cpu.LogicalProcessorIndex);
                 }
             }
         }
 
-        UpdateCpuSummary();
-        UpdateProgress();
+        this.UpdateCpuSummary();
+        this.UpdateProgress();
     }
 
     private void OnSelectAllClick(object sender,RoutedEventArgs e){
-        foreach(var benchmark in benchmarks){
+        foreach(var benchmark in this.benchmarks){
             benchmark.IsSelected=true;
         }
 
-        selectionAnchorIndex=benchmarks.Count>0?0:null;
-        UpdateSelectionSummary();
-        UpdateCommandState();
+        this.selectionAnchorIndex= this.benchmarks.Count>0?0:null;
+        this.UpdateSelectionSummary();
+        this.UpdateCommandState();
     }
 
     private void OnClearSelectionClick(object sender,RoutedEventArgs e){
-        foreach(var benchmark in benchmarks){
+        foreach(var benchmark in this.benchmarks){
             benchmark.IsSelected=false;
         }
 
-        selectionAnchorIndex=null;
-        UpdateSelectionSummary();
-        UpdateCommandState();
+        this.selectionAnchorIndex=null;
+        this.UpdateSelectionSummary();
+        this.UpdateCommandState();
     }
 
     private async void OnRunClick(object sender,RoutedEventArgs e){
-        var projects = GetSelectedProjects();
+        var projects = this.GetSelectedProjects();
         if(projects.Count==0){
-            SetStatus("Select at least one project.");
+            this.SetStatus("Select at least one project.");
             return;
         }
 
-        if(projectSelectionDirty||benchmarks.Count==0){
-            await LoadSelectedProjectsAsync(CancellationToken.None);
+        if(this.projectSelectionDirty|| this.benchmarks.Count==0){
+            await this.LoadSelectedProjectsAsync(CancellationToken.None);
         }
 
-        var selected = benchmarks.Where(static benchmark => benchmark.IsSelected).ToArray();
+        var selected = this.benchmarks.Where(static benchmark => benchmark.IsSelected).ToArray();
         if(selected.Length==0){
-            SetStatus("Select at least one benchmark.");
+            this.SetStatus("Select at least one benchmark.");
             return;
         }
 
-        if(cpuCores.All(static cpu => !cpu.IsSelected)){
-            SetStatus("Select at least one CPU.");
+        if(this.cpuCores.All(static cpu => !cpu.IsSelected)){
+            this.SetStatus("Select at least one CPU.");
             return;
         }
 
-        await RunBenchmarksAsync(projects,selected);
+        await this.RunBenchmarksAsync(projects,selected);
     }
 
     private void OnCancelClick(object sender,RoutedEventArgs e){
-        runCancellation?.Cancel();
-        KillAllRunningProcesses(requeue:false);
+        this.runCancellation?.Cancel();
+        this.KillAllRunningProcesses(requeue:false);
     }
 
     private void OnOpenHtmlReportClick(object sender,RoutedEventArgs e){
-        OpenReport(htmlReportPath);
+        this.OpenReport(this.htmlReportPath);
     }
 
     private void OnOpenChartReportClick(object sender,RoutedEventArgs e){
-        OpenReport(chartReportPath);
+        this.OpenReport(this.chartReportPath);
     }
 
     private void OpenReport(string? path){
         if(string.IsNullOrWhiteSpace(path)||!File.Exists(path)){
-            SetStatus("Report file was not found.");
+            this.SetStatus("Report file was not found.");
             return;
         }
 
@@ -311,149 +316,164 @@ public sealed partial class MainPage:Page{
             return;
         }
 
-        var index = benchmarks.IndexOf(benchmark);
+        var index = this.benchmarks.IndexOf(benchmark);
         if(index<0){
             return;
         }
 
         var isSelected = !benchmark.IsSelected;
-        if(isShiftDown&&selectionAnchorIndex is { } anchorIndex){
+        if(this.isShiftDown&& this.selectionAnchorIndex is { } anchorIndex){
             var start = Math.Min(anchorIndex,index);
             var end = Math.Max(anchorIndex,index);
             for(var i=start;i<=end;i++){
-                benchmarks[i].IsSelected=isSelected;
+                this.benchmarks[i].IsSelected=isSelected;
             }
         }else{
             benchmark.IsSelected=isSelected;
-            selectionAnchorIndex=index;
+            this.selectionAnchorIndex=index;
         }
 
-        if(isControlDown){
-            selectionAnchorIndex=index;
+        if(this.isControlDown){
+            this.selectionAnchorIndex=index;
         }
 
-        UpdateSelectionSummary();
-        UpdateCommandState();
+        this.UpdateSelectionSummary();
+        this.UpdateCommandState();
     }
 
     private void OnPageKeyDown(object sender,KeyRoutedEventArgs e){
         if(e.Key==Windows.System.VirtualKey.Shift){
-            isShiftDown=true;
+            this.isShiftDown=true;
         }else if(e.Key==Windows.System.VirtualKey.Control){
-            isControlDown=true;
+            this.isControlDown=true;
         }
     }
 
     private void OnPageKeyUp(object sender,KeyRoutedEventArgs e){
         if(e.Key==Windows.System.VirtualKey.Shift){
-            isShiftDown=false;
+            this.isShiftDown=false;
         }else if(e.Key==Windows.System.VirtualKey.Control){
-            isControlDown=false;
+            this.isControlDown=false;
         }
     }
 
     private Task LoadSelectedProjectsAsync(CancellationToken cancellationToken){
-        var projects = GetSelectedProjects();
+        var projects = this.GetSelectedProjects();
         if(projects.Count==0){
-            SetStatus("Select at least one project.");
+            this.SetStatus("Select at least one project.");
             return Task.CompletedTask;
         }
 
-        SetBusy(true,allowCpuChanges:false);
-        var selectedMethodNames = GetSelectedMethodNames();
-        benchmarks.Clear();
-        selectionAnchorIndex=null;
-        SetReportPaths(null,null);
-        LogTextBox.Text=string.Empty;
-        SetStatus("Loading canonical method list...");
+        this.SetBusy(true,allowCpuChanges:false);
+        var selectedMethodNames = this.GetSelectedMethodNames();
+        this.benchmarks.Clear();
+        this.selectionAnchorIndex=null;
+        this.SetReportPaths(null,null);
+        this.LogTextBox.Text=string.Empty;
+        this.SetStatus("Loading canonical method list...");
 
         try{
             cancellationToken.ThrowIfCancellationRequested();
-            var configuration = GetConfiguration();
-            var canonicalCacheKey = GetMethodCacheKey(configuration,canonicalMethodProject);
-            if(!methodCache.ContainsKey(canonicalCacheKey)){
-                SetStatus($"Loading methods from {canonicalMethodProject.DisplayName}...");
-                methodCache[canonicalCacheKey]=LoadBenchmarkMethods(canonicalMethodProject.BenchmarkType);
+            var configuration = this.GetConfiguration();
+            var canonicalCacheKey = GetMethodCacheKey(configuration, this.canonicalMethodProject);
+            if(!this.methodCache.ContainsKey(canonicalCacheKey)){
+                this.SetStatus($"Loading methods from {this.canonicalMethodProject.DisplayName}...");
+                this.methodCache[canonicalCacheKey]=LoadBenchmarkMethods(this.canonicalMethodProject.BenchmarkType);
             }
 
-            RefreshBenchmarksFromCache(selectedMethodNames);
-            SetStatus($"Loaded {benchmarks.Count} common methods for {projects.Count} selected project(s).");
+            this.RefreshBenchmarksFromCache(selectedMethodNames);
+            this.SetStatus($"Loaded {this.benchmarks.Count} common methods for {projects.Count} selected project(s).");
         }catch(OperationCanceledException){
-            SetStatus("Load canceled.");
-            AppendLog("Canceled.");
+            this.SetStatus("Load canceled.");
+            this.AppendLog("Canceled.");
         }catch(Exception ex){
-            SetStatus(ex.Message);
-            AppendLog(ex.ToString());
+            this.SetStatus(ex.Message);
+            this.AppendLog(ex.ToString());
         }finally{
-            SetBusy(false,allowCpuChanges:false);
-            UpdateSelectionSummary();
-            UpdateCommandState();
+            this.SetBusy(false,allowCpuChanges:false);
+            this.UpdateSelectionSummary();
+            this.UpdateCommandState();
         }
 
         return Task.CompletedTask;
     }
 
     private async Task RunBenchmarksAsync(IReadOnlyList<BenchmarkProject> projects,IReadOnlyList<BenchmarkItem> selectedMethods){
-        runCancellation=new CancellationTokenSource();
-        currentRunRoot=CreateRunRoot(GetConfiguration());
-        SetReportPaths(null,null);
-        SetBusy(true,allowCpuChanges:true);
-        SetStatus($"Preparing {projects.Count} project(s) x {selectedMethods.Count} method(s) = {projects.Count*selectedMethods.Count} task(s), element scale {GetSelectedElementScale()}...");
-        runningItems.Clear();
+        this.runCancellation=new CancellationTokenSource();
+        this.currentRunRoot= this.CreateRunRoot(this.GetConfiguration());
+        this.currentRunStartedAt=DateTimeOffset.Now;
+        this.currentRunFinishedAt=null;
+        this.SetReportPaths(null,null);
+        this.UpdateRunTimeDisplay();
+        this.AppendLog($"Benchmark started: {FormatRunTimestamp(this.currentRunStartedAt.Value)}");
+        this.SetBusy(true,allowCpuChanges:true);
+        this.SetStatus($"Preparing {projects.Count} project(s) x {selectedMethods.Count} method(s) = {projects.Count*selectedMethods.Count} task(s), element scale {this.GetSelectedElementScale()}...");
+        this.runningItems.Clear();
 
-        lock(runGate){
-            pendingRunItems.Clear();
-            allRunItems.Clear();
-            runningProcesses.Clear();
-            runningRunItems.Clear();
-            requeueOnProcessExit.Clear();
-            cpuWorkers.Clear();
+        lock(this.runGate){
+            this.pendingRunItems.Clear();
+            this.allRunItems.Clear();
+            this.runningProcesses.Clear();
+            this.runningRunItems.Clear();
+            this.requeueOnProcessExit.Clear();
+            this.cpuWorkers.Clear();
         }
 
         try{
-            PrepareRunQueue(projects,selectedMethods);
-            UpdateProgress();
-            StartWorkersForSelectedCpus();
-            await WaitForRunCompletionAsync(runCancellation.Token);
-            var reportPaths = CreateRunReport(currentRunRoot,includeHtml:true);
-            SetReportPaths(reportPaths.HtmlPath,reportPaths.ChartHtmlPath);
-            var failed = allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Failed);
-            SetStatus(failed==0
+            this.PrepareRunQueue(projects,selectedMethods);
+            this.UpdateProgress();
+            this.StartWorkersForSelectedCpus();
+            await this.WaitForRunCompletionAsync(this.runCancellation.Token);
+            var reportPaths = this.CreateRunReport(this.currentRunRoot,includeHtml:true);
+            this.SetReportPaths(reportPaths.HtmlPath,reportPaths.ChartHtmlPath);
+            var failed = this.allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Failed);
+            this.RecordRunFinished(failed==0?"Completed":$"Completed with {failed} failed task(s)",reportPaths);
+            this.SetStatus(failed==0
                 ? "Benchmarks completed."
                 : $"Benchmarks completed with {failed} failed task(s).");
         }catch(OperationCanceledException){
-            var reportPaths = CreateRunReport(currentRunRoot,includeHtml:true);
-            SetReportPaths(reportPaths.HtmlPath,reportPaths.ChartHtmlPath);
-            SetStatus("Benchmark canceled. Partial report was written.");
-            AppendLog("Canceled.");
+            var reportPaths = this.CreateRunReport(this.currentRunRoot,includeHtml:true);
+            this.SetReportPaths(reportPaths.HtmlPath,reportPaths.ChartHtmlPath);
+            this.RecordRunFinished("Canceled",reportPaths);
+            this.SetStatus("Benchmark canceled. Partial report was written.");
+            this.AppendLog("Canceled.");
         }catch(Exception ex){
-            var reportPaths = CreateRunReport(currentRunRoot,includeHtml:true);
-            SetReportPaths(reportPaths.HtmlPath,reportPaths.ChartHtmlPath);
-            SetStatus(ex.Message);
-            AppendLog(ex.ToString());
+            var reportPaths = this.CreateRunReport(this.currentRunRoot,includeHtml:true);
+            this.SetReportPaths(reportPaths.HtmlPath,reportPaths.ChartHtmlPath);
+            this.RecordRunFinished("Failed",reportPaths);
+            this.SetStatus(ex.Message);
+            this.AppendLog(ex.ToString());
         }finally{
-            KillAllRunningProcesses(requeue:false);
-            runCancellation?.Dispose();
-            runCancellation=null;
-            isRunning=false;
-            SetBusy(false,allowCpuChanges:false);
-            UpdateCommandState();
-            UpdateProgress();
+            this.KillAllRunningProcesses(requeue:false);
+            this.runCancellation?.Dispose();
+            this.runCancellation=null;
+            this.isRunning=false;
+            this.SetBusy(false,allowCpuChanges:false);
+            this.UpdateCommandState();
+            this.UpdateProgress();
         }
     }
 
+    private void RecordRunFinished(string status,RunReportPaths reportPaths){
+        this.currentRunFinishedAt=DateTimeOffset.Now;
+        this.UpdateRunTimeDisplay();
+        this.AppendLog($"Benchmark finished: {FormatRunTimestamp(this.currentRunFinishedAt.Value)}");
+        this.AppendLog($"Elapsed: {FormatRunElapsed(this.currentRunStartedAt,this.currentRunFinishedAt)}");
+        this.WriteRunSummary(status,reportPaths);
+    }
+
     private void PrepareRunQueue(IReadOnlyList<BenchmarkProject> projects,IReadOnlyList<BenchmarkItem> selectedMethods){
-        if(currentRunRoot is null){
+        if(this.currentRunRoot is null){
             throw new InvalidOperationException("Run root was not created.");
         }
 
-        foreach(var benchmark in benchmarks){
-            benchmark.IsCompleted=false;
+        foreach(var benchmark in this.benchmarks){
+            benchmark.ResetProjectStatuses(this.benchmarkProjects);
         }
 
-        lock(runGate){
-            pendingRunItems.Clear();
-            allRunItems.Clear();
+        lock(this.runGate){
+            this.pendingRunItems.Clear();
+            this.allRunItems.Clear();
             foreach(var method in selectedMethods){
                 foreach(var project in projects){
                     if(!method.ProjectMethods.TryGetValue(project.ProjectKey,out var projectMethod)){
@@ -461,41 +481,41 @@ public sealed partial class MainPage:Page{
                     }
 
                     var item = new BenchmarkRunItem(project,method,projectMethod);
-                    pendingRunItems.Enqueue(item);
-                    allRunItems.Add(item);
+                    this.pendingRunItems.Enqueue(item);
+                    this.allRunItems.Add(item);
                 }
             }
         }
     }
 
     private void RefreshBenchmarksFromCache(IReadOnlySet<string>? selectedMethodNames = null){
-        var projects = GetSelectedProjects();
-        selectedMethodNames ??= GetSelectedMethodNames();
-        benchmarks.Clear();
-        selectionAnchorIndex=null;
+        var projects = this.GetSelectedProjects();
+        selectedMethodNames ??= this.GetSelectedMethodNames();
+        this.benchmarks.Clear();
+        this.selectionAnchorIndex=null;
         if(projects.Count==0){
-            projectSelectionDirty=true;
-            SetStatus("Select at least one project.");
+            this.projectSelectionDirty=true;
+            this.SetStatus("Select at least one project.");
             return;
         }
 
-        if(!methodCache.TryGetValue(GetMethodCacheKey(GetConfiguration(),canonicalMethodProject),out var canonicalMethods)){
-            projectSelectionDirty=true;
-            SetStatus("Loading method list...");
+        if(!this.methodCache.TryGetValue(GetMethodCacheKey(this.GetConfiguration(), this.canonicalMethodProject),out var canonicalMethods)){
+            this.projectSelectionDirty=true;
+            this.SetStatus("Loading method list...");
             return;
         }
 
-        foreach(var item in CreateBenchmarkItemsFromCanonicalMethods(projects,canonicalMethods)){
+        foreach(var item in CreateBenchmarkItemsFromCanonicalMethods(this.benchmarkProjects,canonicalMethods)){
             item.IsSelected=selectedMethodNames.Contains(item.MethodName);
-            benchmarks.Add(item);
+            this.benchmarks.Add(item);
         }
 
-        projectSelectionDirty=false;
-        SetStatus($"Loaded {benchmarks.Count} common methods for {projects.Count} selected project(s).");
+        this.projectSelectionDirty=false;
+        this.SetStatus($"Loaded {this.benchmarks.Count} common methods for {projects.Count} selected project(s).");
     }
 
     private HashSet<string> GetSelectedMethodNames(){
-        return benchmarks
+        return this.benchmarks
             .Where(static benchmark => benchmark.IsSelected)
             .Select(static benchmark => benchmark.MethodName)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -510,9 +530,9 @@ public sealed partial class MainPage:Page{
     }
 
     private static IReadOnlyList<BenchmarkItem> CreateBenchmarkItemsFromCanonicalMethods(
-        IReadOnlyList<BenchmarkProject> projects,
+        IReadOnlyList<BenchmarkProject> projectColumns,
         IReadOnlyList<BenchmarkProjectMethod> canonicalMethods){
-        if(projects.Count==0){
+        if(projectColumns.Count==0){
             return [];
         }
 
@@ -521,7 +541,7 @@ public sealed partial class MainPage:Page{
             .Select(static group => group.First())
             .OrderBy(static method => method.MethodName,StringComparer.OrdinalIgnoreCase)
             .Select(method => {
-                var methodsByProject = projects.ToDictionary(
+                var methodsByProject = projectColumns.ToDictionary(
                     static project => project.ProjectKey,
                     project => new BenchmarkProjectMethod(
                         project.BenchmarkType.Name,
@@ -530,45 +550,59 @@ public sealed partial class MainPage:Page{
                         method.MethodName,
                         method.Categories),
                     StringComparer.Ordinal);
-                return new BenchmarkItem(method.MethodName,method.MethodName,method.Categories,methodsByProject);
+                return new BenchmarkItem(method.MethodName,method.MethodName,method.Categories,methodsByProject,projectColumns);
             })
             .ToArray();
     }
 
     private void StartWorkersForSelectedCpus(){
-        isRunning=true;
-        foreach(var cpu in cpuCores.Where(static cpu => cpu.IsSelected)){
-            StartWorkerForCpu(cpu);
+        this.isRunning=true;
+        foreach(var cpu in this.cpuCores.Where(static cpu => cpu.IsSelected)){
+            this.StartWorkerForCpu(cpu);
         }
-        UpdateCpuSummary();
+
+        this.UpdateCpuSummary();
+    }
+
+    private void UpdateBenchmarkProjectSelectionStates(){
+        foreach(var benchmark in this.benchmarks){
+            foreach(var project in this.benchmarkProjects){
+                benchmark.SetProjectSelected(project.ProjectKey,project.IsSelected);
+            }
+        }
+    }
+
+    private static void SetRunItemStatus(BenchmarkRunItem item,BenchmarkRunStatus status){
+        item.Status=status;
+        item.Method.SetProjectStatus(item.Project.ProjectKey,status);
     }
 
     private void StartWorkerForCpu(CpuCoreInfo cpu){
-        if(runCancellation is null){
+        if(this.runCancellation is null){
             return;
         }
 
-        lock(runGate){
-            if(cpuWorkers.TryGetValue(cpu.LogicalProcessorIndex,out var existing)&&!existing.IsCompleted){
+        lock(this.runGate){
+            if(this.cpuWorkers.TryGetValue(cpu.LogicalProcessorIndex,out var existing)&&!existing.IsCompleted){
                 return;
             }
 
-            cpuWorkers[cpu.LogicalProcessorIndex]=Task.Run(() => CpuWorkerLoopAsync(cpu,runCancellation.Token));
+            this.cpuWorkers[cpu.LogicalProcessorIndex]=Task.Run(() => this.CpuWorkerLoopAsync(cpu, this.runCancellation.Token));
         }
     }
 
     private async Task CpuWorkerLoopAsync(CpuCoreInfo cpu,CancellationToken cancellationToken){
         Process? worker = null;
         try{
-            worker=StartBenchmarkWorker(cpu);
-            lock(runGate){
-                runningProcesses[cpu.LogicalProcessorIndex]=worker;
+            worker= this.StartBenchmarkWorker(cpu);
+            lock(this.runGate){
+                this.runningProcesses[cpu.LogicalProcessorIndex]=worker;
             }
 
             while(!cancellationToken.IsCancellationRequested&&cpu.IsSelected){
                 BenchmarkRunItem? item;
-                lock(runGate){
-                    item=pendingRunItems.Count>0 ? pendingRunItems.Dequeue() : null;
+                lock(this.runGate){
+                    item= this.pendingRunItems.Count>0 ? this.pendingRunItems.Dequeue() : null;
                 }
 
                 if(item is null){
@@ -576,18 +610,18 @@ public sealed partial class MainPage:Page{
                 }
 
                 try{
-                    await RunSingleBenchmarkAsync(worker,item,cpu,cancellationToken);
+                    await this.RunSingleBenchmarkAsync(worker,item,cpu,cancellationToken);
                 }catch(OperationCanceledException){
                     throw;
                 }catch(Exception ex){
-                    AppendLog(ex.ToString());
-                    await RunOnUiAsync(() => {
-                        runningItems.Remove(item);
+                    this.AppendLog(ex.ToString());
+                    await this.RunOnUiAsync(() => {
+                        this.runningItems.Remove(item);
                         item.ProcessId=0;
                         item.FinishedAt=DateTimeOffset.Now;
-                        item.Status=BenchmarkRunStatus.Failed;
+            SetRunItemStatus(item,BenchmarkRunStatus.Failed);
                     });
-                    UpdateProgress();
+                    this.UpdateProgress();
                     if(worker is null||worker.HasExited){
                         return;
                     }
@@ -596,41 +630,40 @@ public sealed partial class MainPage:Page{
 
             await StopWorkerGracefullyAsync(worker);
         }finally{
-            lock(runGate){
-                cpuWorkers.Remove(cpu.LogicalProcessorIndex);
-                runningProcesses.Remove(cpu.LogicalProcessorIndex);
-                runningRunItems.Remove(cpu.LogicalProcessorIndex);
-                requeueOnProcessExit.Remove(cpu.LogicalProcessorIndex);
+            lock(this.runGate){
+                this.cpuWorkers.Remove(cpu.LogicalProcessorIndex);
+                this.runningProcesses.Remove(cpu.LogicalProcessorIndex);
+                this.runningRunItems.Remove(cpu.LogicalProcessorIndex);
+                this.requeueOnProcessExit.Remove(cpu.LogicalProcessorIndex);
             }
             KillProcess(worker);
         }
     }
 
     private async Task RunSingleBenchmarkAsync(Process worker,BenchmarkRunItem item,CpuCoreInfo cpu,CancellationToken cancellationToken){
-        if(currentRunRoot is null){
+        if(this.currentRunRoot is null){
             throw new InvalidOperationException("Run root was not created.");
         }
 
         var attempt = item.Attempt+1;
-        var artifactFolder = Path.Combine(
-            currentRunRoot,
+        var artifactFolder = Path.Combine(this.currentRunRoot,
             "artifacts",
             BenchmarkText.SanitizePathPart(item.Project.AssemblyName),
             BenchmarkText.SanitizePathPart(item.MethodName),
             $"cpu{cpu.LogicalProcessorIndex}-attempt{attempt}");
         Directory.CreateDirectory(artifactFolder);
 
-        await RunOnUiAsync(() => {
+        await this.RunOnUiAsync(() => {
             item.Attempt=attempt;
             item.ArtifactFolder=artifactFolder;
             item.AssignedCpu=cpu;
             item.ProcessId=worker.Id;
             item.StartedAt=DateTimeOffset.Now;
             item.FinishedAt=null;
-            item.Status=BenchmarkRunStatus.Running;
-            runningItems.Add(item);
+            SetRunItemStatus(item,BenchmarkRunStatus.Running);
+            this.runningItems.Add(item);
         });
-        UpdateProgress();
+        this.UpdateProgress();
 
         var taskId = Guid.NewGuid().ToString("N");
         var message = new WorkerTaskMessage(
@@ -638,47 +671,47 @@ public sealed partial class MainPage:Page{
             taskId,
             item.Project.AssemblyName,
             item.Project.TypeFullName,
-            item.MethodName,
-            GetSelectedElementScale(),
+            item.MethodName, this.GetSelectedElementScale(),
             artifactFolder);
         WorkerResultMessage? result = null;
         Exception? workerException = null;
         var requeue = false;
         try{
-            lock(runGate){
-                runningRunItems[cpu.LogicalProcessorIndex]=item;
+            lock(this.runGate){
+                this.runningRunItems[cpu.LogicalProcessorIndex]=item;
             }
-            result = await SendWorkerTaskAsync(worker,message,cancellationToken);
+            result = await this.SendWorkerTaskAsync(worker,message,cancellationToken);
         }catch(OperationCanceledException){
-            await RunOnUiAsync(() => {
-                runningItems.Remove(item);
+            await this.RunOnUiAsync(() => {
+                this.runningItems.Remove(item);
                 item.ProcessId=0;
                 item.FinishedAt=DateTimeOffset.Now;
-                item.Status=BenchmarkRunStatus.Canceled;
+                SetRunItemStatus(item,BenchmarkRunStatus.Canceled);
             });
             throw;
         }catch(Exception ex){
             workerException=ex;
         }finally{
-            lock(runGate){
-                runningRunItems.Remove(cpu.LogicalProcessorIndex);
-                requeue=requeueOnProcessExit.Remove(cpu.LogicalProcessorIndex);
+            lock(this.runGate){
+                this.runningRunItems.Remove(cpu.LogicalProcessorIndex);
+                requeue= this.requeueOnProcessExit.Remove(cpu.LogicalProcessorIndex);
             }
         }
 
-        await RunOnUiAsync(() => runningItems.Remove(item));
+        await this.RunOnUiAsync(() => this.runningItems.Remove(item));
 
         if(requeue&&!cancellationToken.IsCancellationRequested){
-            await RunOnUiAsync(() => {
-                item.Status=BenchmarkRunStatus.Pending;
+            await this.RunOnUiAsync(() => {
+                SetRunItemStatus(item,BenchmarkRunStatus.Pending);
                 item.ProcessId=0;
                 item.AssignedCpu=null;
                 item.FinishedAt=null;
             });
-            lock(runGate){
-                pendingRunItems.Enqueue(item);
+            lock(this.runGate){
+                this.pendingRunItems.Enqueue(item);
             }
-            UpdateProgress();
+
+            this.UpdateProgress();
             return;
         }
 
@@ -691,29 +724,30 @@ public sealed partial class MainPage:Page{
         }
 
         item.ExitCode=result.ExitCode;
-        await RunOnUiAsync(() => {
+        await this.RunOnUiAsync(() => {
             item.ExitCode=result.ExitCode;
             item.Mean=result.Mean;
             item.Error=result.Error;
             item.StdDev=result.StdDev;
             item.FinishedAt=DateTimeOffset.Now;
             item.ProcessId=0;
-            item.Status=result.ExitCode==0 ? BenchmarkRunStatus.Completed : BenchmarkRunStatus.Failed;
+            SetRunItemStatus(item,result.ExitCode==0 ? BenchmarkRunStatus.Completed : BenchmarkRunStatus.Failed);
         });
         if(!string.IsNullOrWhiteSpace(result.Log)){
-            AppendLog(result.Log);
+            this.AppendLog(result.Log);
         }
-        UpdateProgress();
+
+        this.UpdateProgress();
     }
 
     private Process StartBenchmarkWorker(CpuCoreInfo cpu){
-        if(currentRunRoot is null){
+        if(this.currentRunRoot is null){
             throw new InvalidOperationException("Run root was not created.");
         }
 
-        var (workerDirectory,workerExe,workerDll) = ResolveBenchmarkWorkerHostPaths();
+        var (workerDirectory,workerExe,workerDll) = this.ResolveBenchmarkWorkerHostPaths();
         var startInfo = new ProcessStartInfo{
-            WorkingDirectory = Directory.Exists(workerDirectory)?workerDirectory:repositoryRoot,
+            WorkingDirectory = Directory.Exists(workerDirectory)?workerDirectory: this.repositoryRoot,
             UseShellExecute = false,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
@@ -736,7 +770,7 @@ public sealed partial class MainPage:Page{
         startInfo.ArgumentList.Add("--logical-cpu");
         startInfo.ArgumentList.Add(cpu.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture));
         startInfo.ArgumentList.Add("--run-root");
-        startInfo.ArgumentList.Add(currentRunRoot);
+        startInfo.ArgumentList.Add(this.currentRunRoot);
 
         var process = new Process{
             StartInfo = startInfo,
@@ -744,18 +778,18 @@ public sealed partial class MainPage:Page{
         };
         process.ErrorDataReceived+=(sender,e) => {
             if(!string.IsNullOrWhiteSpace(e.Data)){
-                AppendLog(e.Data);
+                this.AppendLog(e.Data);
             }
         };
         process.Start();
         process.BeginErrorReadLine();
         WaitForWorkerReady(process);
-        AppendLog($"> worker CPU {cpu.LogicalProcessorIndex}: {process.Id}");
+        this.AppendLog($"> worker CPU {cpu.LogicalProcessorIndex}: {process.Id}");
         return process;
     }
 
     private (string Directory,string ExePath,string DllPath) ResolveBenchmarkWorkerHostPaths(){
-        foreach(var workerDirectory in EnumerateBenchmarkWorkerDirectories()){
+        foreach(var workerDirectory in this.EnumerateBenchmarkWorkerDirectories()){
             var workerExe = Path.Combine(workerDirectory,OperatingSystem.IsWindows()?"Benchmark.Worker.exe":"Benchmark.Worker");
             var workerDll = Path.Combine(workerDirectory,"Benchmark.Worker.dll");
             if(File.Exists(workerExe)||File.Exists(workerDll)){
@@ -773,15 +807,15 @@ public sealed partial class MainPage:Page{
     private IEnumerable<string> EnumerateBenchmarkWorkerDirectories(){
         yield return AppContext.BaseDirectory;
 
-        var configuration = GetConfiguration();
-        yield return Path.Combine(repositoryRoot,"Benchmark.Worker","bin",configuration,TargetFramework);
+        var configuration = this.GetConfiguration();
+        yield return Path.Combine(this.repositoryRoot,"Benchmark.Worker","bin",configuration,TargetFramework);
 
         if(!string.Equals(configuration,"Debug",StringComparison.OrdinalIgnoreCase)){
-            yield return Path.Combine(repositoryRoot,"Benchmark.Worker","bin","Debug",TargetFramework);
+            yield return Path.Combine(this.repositoryRoot,"Benchmark.Worker","bin","Debug",TargetFramework);
         }
 
         if(!string.Equals(configuration,"Release",StringComparison.OrdinalIgnoreCase)){
-            yield return Path.Combine(repositoryRoot,"Benchmark.Worker","bin","Release",TargetFramework);
+            yield return Path.Combine(this.repositoryRoot,"Benchmark.Worker","bin","Release",TargetFramework);
         }
     }
 
@@ -827,12 +861,12 @@ public sealed partial class MainPage:Page{
                 var result = JsonSerializer.Deserialize<WorkerResultMessage>(line);
                 if(result is not null){
                     if(!string.Equals(result.TaskId,message.TaskId,StringComparison.Ordinal)){
-                        AppendLog($"> worker task id mismatch. expected={message.TaskId} actual={result.TaskId}");
+                        this.AppendLog($"> worker task id mismatch. expected={message.TaskId} actual={result.TaskId}");
                     }
                     return result;
                 }
             }catch(JsonException){
-                AppendLog(line);
+                this.AppendLog(line);
             }
         }
     }
@@ -841,19 +875,19 @@ public sealed partial class MainPage:Page{
         while(true){
             cancellationToken.ThrowIfCancellationRequested();
             Task[] workers;
-            lock(runGate){
-                if(pendingRunItems.Count==0&&runningProcesses.Count==0&&cpuWorkers.Count==0){
+            lock(this.runGate){
+                if(this.pendingRunItems.Count==0&& this.runningProcesses.Count==0&& this.cpuWorkers.Count==0){
                     return;
                 }
 
-                workers=cpuWorkers.Values.ToArray();
+                workers= this.cpuWorkers.Values.ToArray();
             }
 
-            if(cpuCores.All(static cpu => !cpu.IsSelected)){
-                SetStatus("Paused. Select at least one CPU to resume.");
+            if(this.cpuCores.All(static cpu => !cpu.IsSelected)){
+                this.SetStatus("Paused. Select at least one CPU to resume.");
             }else{
-                foreach(var cpu in cpuCores.Where(static cpu => cpu.IsSelected)){
-                    StartWorkerForCpu(cpu);
+                foreach(var cpu in this.cpuCores.Where(static cpu => cpu.IsSelected)){
+                    this.StartWorkerForCpu(cpu);
                 }
             }
 
@@ -867,10 +901,10 @@ public sealed partial class MainPage:Page{
 
     private void StopCpuAndRequeue(int logicalProcessorIndex){
         Process? process = null;
-        lock(runGate){
-            if(runningProcesses.TryGetValue(logicalProcessorIndex,out process)){
-                if(runningRunItems.ContainsKey(logicalProcessorIndex)){
-                    requeueOnProcessExit.Add(logicalProcessorIndex);
+        lock(this.runGate){
+            if(this.runningProcesses.TryGetValue(logicalProcessorIndex,out process)){
+                if(this.runningRunItems.ContainsKey(logicalProcessorIndex)){
+                    this.requeueOnProcessExit.Add(logicalProcessorIndex);
                 }
             }
         }
@@ -880,13 +914,13 @@ public sealed partial class MainPage:Page{
 
     private void KillAllRunningProcesses(bool requeue){
         Process[] processes;
-        lock(runGate){
+        lock(this.runGate){
             if(requeue){
-                foreach(var key in runningRunItems.Keys){
-                    requeueOnProcessExit.Add(key);
+                foreach(var key in this.runningRunItems.Keys){
+                    this.requeueOnProcessExit.Add(key);
                 }
             }
-            processes=runningProcesses.Values.ToArray();
+            processes= this.runningProcesses.Values.ToArray();
         }
 
         foreach(var process in processes){
@@ -1078,20 +1112,20 @@ public sealed partial class MainPage:Page{
     }
 
     private IReadOnlyList<BenchmarkProject> GetSelectedProjects(){
-        return benchmarkProjects.Where(static project => project.IsSelected).ToArray();
+        return this.benchmarkProjects.Where(static project => project.IsSelected).ToArray();
     }
 
     private string GetConfiguration(){
-        return (ConfigurationComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString()??"Release";
+        return (this.ConfigurationComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString()??"Release";
     }
 
     private string GetSelectedElementScale(){
-        return (ElementScaleComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString()??"1";
+        return (this.ElementScaleComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString()??"1";
     }
 
     private string CreateRunRoot(string configuration){
         var runId = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss",CultureInfo.InvariantCulture);
-        var path = Path.Combine(repositoryRoot,"Benchmark",configuration,TargetFramework,"UnoRuns",runId);
+        var path = Path.Combine(this.repositoryRoot,"Benchmark",configuration,TargetFramework,"UnoRuns",runId);
         Directory.CreateDirectory(path);
         return path;
     }
@@ -1103,7 +1137,7 @@ public sealed partial class MainPage:Page{
         CancellationToken cancellationToken,
         long? processorAffinity = null,
         Action<Process>? onStarted = null){
-        AppendLog("> dotnet "+string.Join(" ",arguments.Select(QuoteArgument)));
+        this.AppendLog("> dotnet "+string.Join(" ",arguments.Select(QuoteArgument)));
 
         var standardOutput = new StringBuilder();
         var standardError = new StringBuilder();
@@ -1236,7 +1270,7 @@ public sealed partial class MainPage:Page{
         }
 
         Directory.CreateDirectory(runRoot);
-        var rows = allRunItems
+        var rows = this.allRunItems
             .Where(static item => item.Status is BenchmarkRunStatus.Completed or BenchmarkRunStatus.Failed)
             .Select(static item => new ReportRow(
                 item.ProjectDisplayName,
@@ -1261,7 +1295,7 @@ public sealed partial class MainPage:Page{
         var csvPath = Path.Combine(runRoot,"BenchmarkComparison.csv");
         WriteRunCsv(csvPath,rows);
         if(!includeHtml){
-            AppendLog($"Comparison CSV: {csvPath}");
+            this.AppendLog($"Comparison CSV: {csvPath}");
             return new RunReportPaths(csvPath,null,null);
         }
 
@@ -1269,8 +1303,8 @@ public sealed partial class MainPage:Page{
         var chartHtmlPath = Path.Combine(runRoot,"BenchmarkComparisonCharts.html");
         WriteRunHtml(htmlPath,rows);
         WriteRunChartsHtml(chartHtmlPath,rows);
-        AppendLog($"Comparison report: {htmlPath}");
-        AppendLog($"Comparison charts: {chartHtmlPath}");
+        this.AppendLog($"Comparison report: {htmlPath}");
+        this.AppendLog($"Comparison charts: {chartHtmlPath}");
         return new RunReportPaths(csvPath,htmlPath,chartHtmlPath);
     }
 
@@ -1286,119 +1320,150 @@ public sealed partial class MainPage:Page{
         File.WriteAllText(path,BenchmarkReportFormatter.BuildChartsHtml(rows,DateTimeOffset.Now),Encoding.UTF8);
     }
 
+    private void WriteRunSummary(string status,RunReportPaths reportPaths){
+        if(string.IsNullOrWhiteSpace(this.currentRunRoot)){
+            return;
+        }
+
+        Directory.CreateDirectory(this.currentRunRoot);
+        var summaryPath = Path.Combine(this.currentRunRoot,"BenchmarkRunSummary.txt");
+        var builder = new StringBuilder();
+        builder.AppendLine($"Status: {status}");
+        builder.AppendLine($"StartedAt: {this.currentRunStartedAt?.ToString("O",CultureInfo.InvariantCulture)??string.Empty}");
+        builder.AppendLine($"FinishedAt: {this.currentRunFinishedAt?.ToString("O",CultureInfo.InvariantCulture)??string.Empty}");
+        builder.AppendLine($"Elapsed: {FormatRunElapsed(this.currentRunStartedAt,this.currentRunFinishedAt)}");
+        builder.AppendLine($"TotalTasks: {this.allRunItems.Count}");
+        builder.AppendLine($"CompletedTasks: {this.allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Completed)}");
+        builder.AppendLine($"FailedTasks: {this.allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Failed)}");
+        builder.AppendLine($"CanceledTasks: {this.allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Canceled)}");
+        builder.AppendLine($"CsvReport: {reportPaths.CsvPath??string.Empty}");
+        builder.AppendLine($"HtmlReport: {reportPaths.HtmlPath??string.Empty}");
+        builder.AppendLine($"ChartReport: {reportPaths.ChartHtmlPath??string.Empty}");
+        File.WriteAllText(summaryPath,builder.ToString(),Encoding.UTF8);
+        this.AppendLog($"Run summary: {summaryPath}");
+    }
+
     private void SetBusy(bool value,bool allowCpuChanges){
-        isBusy=value;
-        BusyRing.IsActive=value;
-        foreach(var child in ProjectGrid.Children.OfType<Control>()){
+        this.isBusy=value;
+        this.BusyRing.IsActive=value;
+        foreach(var child in this.ProjectGrid.Children.OfType<Control>()){
             child.IsEnabled=!value;
         }
-        ConfigurationComboBox.IsEnabled=!value;
-        ElementScaleComboBox.IsEnabled=!value;
-        foreach(var child in CpuPresetGrid.Children.OfType<Control>()){
+
+        this.ConfigurationComboBox.IsEnabled=!value;
+        this.ElementScaleComboBox.IsEnabled=!value;
+        foreach(var child in this.CpuPresetGrid.Children.OfType<Control>()){
             child.IsEnabled=!value||allowCpuChanges;
         }
-        CpuItemsControl.IsEnabled=!value||allowCpuChanges;
-        CancelButton.IsEnabled=value&&runCancellation is not null;
-        UpdateCommandState();
+
+        this.CpuItemsControl.IsEnabled=!value||allowCpuChanges;
+        this.CancelButton.IsEnabled=value&& this.runCancellation is not null;
+        this.UpdateCommandState();
     }
 
     private void SetReportPaths(string? htmlPath,string? chartHtmlPath){
-        RunOnUi(() => {
-            htmlReportPath=htmlPath;
-            chartReportPath=chartHtmlPath;
-            HtmlReportLinkButton.Visibility=string.IsNullOrWhiteSpace(htmlPath)
+        this.RunOnUi(() => {
+            this.htmlReportPath=htmlPath;
+            this.chartReportPath=chartHtmlPath;
+            this.HtmlReportLinkButton.Visibility=string.IsNullOrWhiteSpace(htmlPath)
                 ? Visibility.Collapsed
                 : Visibility.Visible;
-            ChartReportLinkButton.Visibility=string.IsNullOrWhiteSpace(chartHtmlPath)
+            this.ChartReportLinkButton.Visibility=string.IsNullOrWhiteSpace(chartHtmlPath)
                 ? Visibility.Collapsed
                 : Visibility.Visible;
         });
     }
 
     private void UpdateCommandState(){
-        var hasSelectedBenchmark = benchmarks.Any(static benchmark => benchmark.IsSelected);
-        var hasSelectedProject = benchmarkProjects.Any(static project => project.IsSelected);
-        RunButton.IsEnabled=!isBusy&&hasSelectedProject&&hasSelectedBenchmark;
+        var hasSelectedBenchmark = this.benchmarks.Any(static benchmark => benchmark.IsSelected);
+        var hasSelectedProject = this.benchmarkProjects.Any(static project => project.IsSelected);
+        this.RunButton.IsEnabled=!this.isBusy&&hasSelectedProject&&hasSelectedBenchmark;
     }
 
     private void UpdateSelectionSummary(){
-        var selectedCount = benchmarks.Count(static benchmark => benchmark.IsSelected);
-        SelectionSummaryText.Text=$"{selectedCount} / {benchmarks.Count} selected";
+        var selectedCount = this.benchmarks.Count(static benchmark => benchmark.IsSelected);
+        this.SelectionSummaryText.Text=$"{selectedCount} / {this.benchmarks.Count} selected";
     }
 
     private void UpdateProgress(){
-        RunOnUi(() => {
-            var total = allRunItems.Count;
-            var done = allRunItems.Count(static item => item.Status is BenchmarkRunStatus.Completed or BenchmarkRunStatus.Failed);
-            var totalMethods = allRunItems
+        this.RunOnUi(() => {
+            var total = this.allRunItems.Count;
+            var done = this.allRunItems.Count(static item => item.Status is BenchmarkRunStatus.Completed or BenchmarkRunStatus.Failed);
+            var totalMethods = this.allRunItems
                 .Select(static item => item.MethodName)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Count();
-            var doneMethods = allRunItems
+            var doneMethods = this.allRunItems
                 .GroupBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
                 .Count(static group => group.All(static item => item.Status is BenchmarkRunStatus.Completed or BenchmarkRunStatus.Failed));
-            var failed = allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Failed);
-            var running = allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Running);
+            var failed = this.allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Failed);
+            var running = this.allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Running);
             var remaining = Math.Max(0,total-done);
-            ProgressBar.Maximum=Math.Max(1,totalMethods);
-            ProgressBar.Value=doneMethods;
-            ProgressText.Text=total==0
+            this.ProgressBar.Maximum=Math.Max(1,totalMethods);
+            this.ProgressBar.Value=doneMethods;
+            this.ProgressText.Text=total==0
                 ? "No run queued"
                 : $"{doneMethods} / {totalMethods} methods done ({done} / {total} tasks, {remaining} remaining, {running} running, {failed} failed)";
-            UpdateBenchmarkCompletionState();
-            UpdateCpuSummary();
+            this.UpdateCpuSummary();
         });
     }
 
-    private void UpdateBenchmarkCompletionState(){
-        if(allRunItems.Count==0){
-            return;
-        }
-
-        var completedMethods = allRunItems
-            .GroupBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
-            .Where(static group => group.All(static item => item.Status is BenchmarkRunStatus.Completed or BenchmarkRunStatus.Failed))
-            .Select(static group => group.Key)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach(var benchmark in benchmarks){
-            benchmark.IsCompleted=completedMethods.Contains(benchmark.MethodName);
-        }
+    private void UpdateCpuSummary(){
+        var selected = this.cpuCores.Count(static cpu => cpu.IsSelected);
+        this.CpuSummaryText.Text=$"{selected} / {this.cpuCores.Count} CPU selected";
     }
 
-    private void UpdateCpuSummary(){
-        var selected = cpuCores.Count(static cpu => cpu.IsSelected);
-        CpuSummaryText.Text=$"{selected} / {cpuCores.Count} CPU selected";
+    private void UpdateRunTimeDisplay(){
+        this.RunOnUi(() => {
+            this.RunTimeText.Text=this.currentRunStartedAt is null
+                ? "Run time: -"
+                : this.currentRunFinishedAt is null
+                    ? $"Run time: {FormatRunTimestamp(this.currentRunStartedAt.Value)} -> running"
+                    : $"Run time: {FormatRunTimestamp(this.currentRunStartedAt.Value)} -> {FormatRunTimestamp(this.currentRunFinishedAt.Value)} ({FormatRunElapsed(this.currentRunStartedAt,this.currentRunFinishedAt)})";
+        });
+    }
+
+    private static string FormatRunTimestamp(DateTimeOffset timestamp){
+        return timestamp.ToString("yyyy-MM-dd HH:mm:ss zzz",CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatRunElapsed(DateTimeOffset? startedAt,DateTimeOffset? finishedAt){
+        if(startedAt is null||finishedAt is null){
+            return string.Empty;
+        }
+
+        return (finishedAt.Value-startedAt.Value).ToString(@"hh\:mm\:ss",CultureInfo.InvariantCulture);
     }
 
     private void SetStatus(string text){
-        RunOnUi(() => StatusText.Text=text);
+        this.RunOnUi(() => this.StatusText.Text=text);
     }
 
     private void AppendLog(string text){
-        RunOnUi(() => AppendLogCore(text));
+        this.RunOnUi(() => this.AppendLogCore(text));
     }
 
     private void AppendLogCore(string text){
-        LogTextBox.Text+=text+Environment.NewLine;
-        LogTextBox.SelectionStart=LogTextBox.Text.Length;
+        this.LogTextBox.Text+=text+Environment.NewLine;
+        this.LogTextBox.SelectionStart= this.LogTextBox.Text.Length;
     }
 
     private void RunOnUi(Action action){
-        if(DispatcherQueue.HasThreadAccess){
+        if(this.DispatcherQueue.HasThreadAccess){
             action();
         }else{
-            DispatcherQueue.TryEnqueue(() => action());
+            this.DispatcherQueue.TryEnqueue(() => action());
         }
     }
 
     private Task RunOnUiAsync(Action action){
-        if(DispatcherQueue.HasThreadAccess){
+        if(this.DispatcherQueue.HasThreadAccess){
             action();
             return Task.CompletedTask;
         }
 
         var source = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        if(!DispatcherQueue.TryEnqueue(() => {
+        if(!this.DispatcherQueue.TryEnqueue(() => {
             try{
                 action();
                 source.SetResult();

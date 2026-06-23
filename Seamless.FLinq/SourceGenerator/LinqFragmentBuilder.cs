@@ -2079,14 +2079,7 @@ public sealed partial class FLinqIncrementalGenerator {
         List<string>? unsafeAccessorCollector,
         IReadOnlyDictionary<string,string>? replacementMap) {
         var text = RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,unsafeAccessorCollector);
-        if(replacementMap is null) {
-            return text;
-        }
-
-        foreach(var pair in replacementMap.OrderByDescending(static pair=>pair.Key.Length)) {
-            text=text.Replace(NormalizeGeneratedExpressionText(pair.Key),pair.Value,StringComparison.Ordinal);
-        }
-        return text;
+        return ApplyExpressionReplacementMap(text,replacementMap);
     }
 
     private static bool TryBuildEnumerableRootFromExpressionWithReplacement(
@@ -2247,8 +2240,7 @@ public sealed partial class FLinqIncrementalGenerator {
             if(bodySemanticModel.GetSymbolInfo(memberAccess).Symbol is IFieldSymbol field
                 && !field.IsStatic
                 && field.DeclaredAccessibility!=Accessibility.Public) {
-                var memberText = NormalizeGeneratedExpressionText(memberAccess.ToString())
-                    .Replace("this.","@this.",StringComparison.Ordinal);
+                var memberText = NormalizeExpressionText(memberAccess.ToString());
                 replacementMap[memberText]=RenderFieldAccessorCall(field,receiverText,unsafeAccessorCollector);
             }
         }
