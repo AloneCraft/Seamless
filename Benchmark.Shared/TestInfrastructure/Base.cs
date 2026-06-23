@@ -154,16 +154,26 @@ public sealed class Consumer {
     }
 }
 
+public enum SourceKind {
+    Src,
+    SrcCount,
+    Src2,
+    Src2Count,
+    SrcOne
+}
+
+public readonly record struct SourceCacheKey(SourceKind Kind, int Length);
+
 public class Base {
     private const int BenchmarkDefaultCount = 10_000_000;
     private const int TestDefaultCount = 80_000;
     private static readonly object MissingResult = new();
+    private static readonly object SourceCacheSync = new();
+    private static readonly Dictionary<SourceCacheKey,int[]> SourceCache = [];
 
     protected readonly Consumer consumer = new();
     private protected object? Result;
     private protected readonly int count;
-    private readonly Dictionary<int,int[]> srcCache = [];
-    private readonly Dictionary<int,int[]> src2Cache = [];
 
     protected Base(int count = -1) =>
         this.count=count>=0?count:(BenchmarkExecutionMode.IsTestMode?TestDefaultCount:BenchmarkDefaultCount);
@@ -379,7 +389,7 @@ public class Base {
     }
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> src(int scale) => System.Linq.Enumerable.AsEnumerable(GetOrCreate(scale,srcCache,static length => {
+    protected IEnumerable<int> src(int scale) => System.Linq.Enumerable.AsEnumerable(GetOrCreate(scale,SourceKind.Src,static length => {
         var values = new int[length];
         for(var i = 0;i<values.Length;i++) {
             values[i]=i+1;
@@ -388,7 +398,7 @@ public class Base {
     }));
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> srcCount(int elementCount) => System.Linq.Enumerable.AsEnumerable(GetOrCreateByLength(elementCount,srcCache,static length => {
+    protected IEnumerable<int> srcCount(int elementCount) => System.Linq.Enumerable.AsEnumerable(GetOrCreateByLength(elementCount,SourceKind.SrcCount,static length => {
         var values = new int[length];
         for(var i = 0;i<values.Length;i++) {
             values[i]=i+1;
@@ -397,7 +407,7 @@ public class Base {
     }));
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> src2(int scale) => System.Linq.Enumerable.AsEnumerable(GetOrCreate(scale,src2Cache,static length => {
+    protected IEnumerable<int> src2(int scale) => System.Linq.Enumerable.AsEnumerable(GetOrCreate(scale,SourceKind.Src2,static length => {
         var values = new int[length/2];
         var start = length/2+1;
         for(var i = 0;i<values.Length;i++) {
@@ -407,7 +417,7 @@ public class Base {
     }));
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> src2Count(int elementCount) => System.Linq.Enumerable.AsEnumerable(GetOrCreateByLength(elementCount,src2Cache,static length => {
+    protected IEnumerable<int> src2Count(int elementCount) => System.Linq.Enumerable.AsEnumerable(GetOrCreateByLength(elementCount,SourceKind.Src2Count,static length => {
         var values = new int[length/2];
         var start = length/2+1;
         for(var i = 0;i<values.Length;i++) {
@@ -417,28 +427,30 @@ public class Base {
     }));
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> srcOne(int scale) => [0];
+    protected IEnumerable<int> srcOne(int scale) => System.Linq.Enumerable.AsEnumerable(GetOrCreate(
+        new SourceCacheKey(SourceKind.SrcOne,1),
+        static _ => [0]));
 
-    private int[] GetOrCreate(int scale,Dictionary<int,int[]> cache,Func<int,int[]> factory) {
+    private int[] GetOrCreate(int scale,SourceKind kind,Func<int,int[]> factory) {
         var length=CountForComparison(BenchmarkExecutionMode.ScaleElementCount(count*scale));
-        if(cache.TryGetValue(length,out var values)) {
-            return values;
-        }
-
-        values=factory(length);
-        cache.Add(length,values);
-        return values;
+        return GetOrCreate(new SourceCacheKey(kind,length),factory);
     }
 
-    private int[] GetOrCreateByLength(int length,Dictionary<int,int[]> cache,Func<int,int[]> factory) {
-        var effectiveLength=CountForComparison(BenchmarkExecutionMode.ScaleElementCount(length));
-        if(cache.TryGetValue(effectiveLength,out var values)) {
+    private int[] GetOrCreateByLength(int elementCount,SourceKind kind,Func<int,int[]> factory) {
+        var effectiveLength=CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
+        return GetOrCreate(new SourceCacheKey(kind,effectiveLength),factory);
+    }
+
+    private static int[] GetOrCreate(SourceCacheKey key,Func<int,int[]> factory) {
+        lock(SourceCacheSync) {
+            if(SourceCache.TryGetValue(key,out var values)) {
+                return values;
+            }
+
+            values=factory(key.Length);
+            SourceCache.Add(key,values);
             return values;
         }
-
-        values=factory(effectiveLength);
-        cache.Add(effectiveLength,values);
-        return values;
     }
 
     [LinqIntercept(false)]
