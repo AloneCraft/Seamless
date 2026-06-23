@@ -6,7 +6,7 @@
     <Project Path="Benchmark.Persisted.Collection/Benchmark.Persisted.Collection.csproj" />
     <Project Path="Benchmark.Persisted.Linq.Enumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark.Persisted.Linq.Enumerable.Linq/Benchmark.Persisted.Linq.Enumerable.Linq.csproj" />
-    <Project Path="Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj" />
+    <Project Path="Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj" />
     <Project Path="Benchmark.Shared/Benchmark.Shared.shproj" />
     <Project Path="Benchmark.Tsavorite.Collection/Benchmark.Tsavorite.Collection.csproj" />
     <Project Path="Benchmark.Tsavorite.Linq.Enumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.FLinq.csproj" />
