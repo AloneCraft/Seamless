@@ -7,14 +7,14 @@ internal sealed class RefBox<T>(T value): IDisposable
     T value = value;
     bool isDisposed;
 
-    public ref T GetValueRef() => ref this.value;
+    public ref T GetValueRef() => ref value;
 
     public void Dispose()
     {
-        if (!this.isDisposed)
+        if (!isDisposed)
         {
-            this.isDisposed = true;
-            this.value.Dispose();
+            isDisposed = true;
+            value.Dispose();
         }
     }
 }

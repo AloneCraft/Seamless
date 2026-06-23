@@ -1,4 +1,4 @@
-using global::System.Globalization;
+using System.Globalization;
 using Microsoft.UI.Xaml.Data;
 
 namespace Benchmark.Runner.Uno;

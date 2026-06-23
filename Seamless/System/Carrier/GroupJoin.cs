@@ -47,19 +47,19 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            if(this.innerLookup==null) {
+            if(innerLookup==null) {
                 try {
-                    this.innerLookup=Lookup.CreateForJoin(ref this.inner,innerKeySelector,comparer);
+                    innerLookup=Lookup.CreateForJoin(ref inner,innerKeySelector,comparer);
                 }
                 finally {
-                    this.inner.Dispose();
+                    inner.Dispose();
                 }
             }
 
-            while(this.source.TryGetNext(out var value)) {
+            while(source.TryGetNext(out var value)) {
                 var key = outerKeySelector(value);
                 // Enumerable.GroupJoin allows null unlike Join
-                var group = this.innerLookup.GetGroup(key);
+                var group = innerLookup.GetGroup(key);
                 if(group!=null) {
                     current=resultSelector(value,group);
                     return true;
@@ -76,10 +76,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(this.innerLookup==null) {
-                this.inner.Dispose();
+            if(innerLookup==null) {
+                inner.Dispose();
             }
-            this.source.Dispose();
+            source.Dispose();
         }
     }
 }

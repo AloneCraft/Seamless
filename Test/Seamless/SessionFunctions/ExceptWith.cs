@@ -8,12 +8,12 @@ public abstract class ExceptWith<TKey, TSet>:CommonWith<TKey,TSet>
     where TSet : IHashSet<TKey>, IDisposable {
     [Fact, Trait("Category","Unit")]
     public void ExceptWithAB() {
-        this.RunWithAB();
+        RunWithAB();
     }
 
     [Fact, Trait("Category","Unit")]
     public void ExceptWithAA() {
-        this.RunWithAA();
+        RunWithAA();
     }
 }
 

@@ -62,8 +62,8 @@ public class ParallelRandomStressTests {
                 if(removeMaskFlat[i])
                     expectedAfterRemove.Remove(keys[i]);
             }
-            using(var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath))
-            using(var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath))
+            using(var logDevice = Devices.CreateLogDevice(logPath))
+            using(var objDevice = Devices.CreateLogDevice(objPath))
             using(var store = Store.Create().Create<int,int>(logDevice,objDevice)) {
                 for(var r = 0; r<repeat; r++) {
                     using(var dict = store.Create()) {
@@ -136,8 +136,8 @@ public class ParallelRandomStressTests {
                 if(removeMaskFlat[i])
                     expectedAfterRemove.Remove(keys[i]);
             }
-            using(var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath))
-            using(var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath))
+            using(var logDevice = Devices.CreateLogDevice(logPath))
+            using(var objDevice = Devices.CreateLogDevice(objPath))
             using(var store = Store.Create().Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy())) {
                 for(var r = 0; r<repeat; r++) {
                     using(var dict = store.Create()) {
@@ -199,8 +199,8 @@ public class ParallelRandomStressTests {
                 if(removeMaskFlat[i])
                     expectedAfterRemove.Remove(keys[i]);
             }
-            using(var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath))
-            using(var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath))
+            using(var logDevice = Devices.CreateLogDevice(logPath))
+            using(var objDevice = Devices.CreateLogDevice(objPath))
             using(var store = Store.Create().Create<int>(logDevice,objDevice)) {
                 for(var r = 0; r<repeat; r++) {
                     using(var set = store.Create()) {
@@ -252,8 +252,8 @@ public class ParallelRandomStressTests {
                 if(removeMaskFlat[i])
                     expectedAfterRemove.Remove(keys[i]);
             }
-            using(var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath))
-            using(var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath))
+            using(var logDevice = Devices.CreateLogDevice(logPath))
+            using(var objDevice = Devices.CreateLogDevice(objPath))
             using(var store = Store.Create().Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy())) {
                 for(var r = 0; r<repeat; r++) {
                     using(var set = store.Create()) {

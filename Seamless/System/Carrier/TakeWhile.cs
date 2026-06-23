@@ -32,7 +32,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) => false;
 
         public bool TryGetNext(out TSource current) {
-            if(this.source.TryGetNext(out current)&&predicate(current)) {
+            if(source.TryGetNext(out current)&&predicate(current)) {
                 return true;
             }
 
@@ -41,7 +41,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            this.source.Dispose();
+            source.Dispose();
         }
     }
 
@@ -66,7 +66,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) => false;
 
         public bool TryGetNext(out TSource current) {
-            if(this.source.TryGetNext(out current)&&predicate(current,this.index++)) {
+            if(source.TryGetNext(out current)&&predicate(current,index++)) {
                 return true;
             }
 
@@ -75,7 +75,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            this.source.Dispose();
+            source.Dispose();
         }
     }
 }

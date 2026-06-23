@@ -2,71 +2,71 @@ namespace Seamless.FLinq.Linq.Fragments;
 
 internal class LeftJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer)
     : JoinBase(番号,outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer) {
-    public override string ElementType=> this.UseResultTypeParam ? "TResult" : FuncReturnTypeName(this.resultSelector);
-    protected override string StructTypeParameters=> this.UseResultTypeParam ? "<TOuterEnum,TInnerEnum,TResult>" : "<TOuterEnum,TInnerEnum>";
+    public override string ElementType=> UseResultTypeParam ? "TResult" : FuncReturnTypeName(resultSelector);
+    protected override string StructTypeParameters=> UseResultTypeParam ? "<TOuterEnum,TInnerEnum,TResult>" : "<TOuterEnum,TInnerEnum>";
     protected override string StructTypeConstraints=>
-        $"where TOuterEnum:struct,global::System.Collections.Generic.IEnumerator<{this.outerSource.ElementType}>\n    where TInnerEnum:struct,global::System.Collections.Generic.IEnumerator<{this.innerSource.ElementType}>";
-    public override string EnumeratorTypeName=> this.UseResultTypeParam ? $"{this.Struct}<{this.outerSource.EnumeratorTypeName},{this.innerSource.EnumeratorTypeName},TResult>" : $"{this.Struct}<{this.outerSource.EnumeratorTypeName},{this.innerSource.EnumeratorTypeName}>";
-    private string FactorySource=>!this.UseResultTypeParam ? string.Empty : $$"""
+        $"where TOuterEnum:struct,global::System.Collections.Generic.IEnumerator<{outerSource.ElementType}>\n    where TInnerEnum:struct,global::System.Collections.Generic.IEnumerator<{innerSource.ElementType}>";
+    public override string EnumeratorTypeName=> UseResultTypeParam ? $"{Struct}<{outerSource.EnumeratorTypeName},{innerSource.EnumeratorTypeName},TResult>" : $"{Struct}<{outerSource.EnumeratorTypeName},{innerSource.EnumeratorTypeName}>";
+    private string FactorySource=>!UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
-        private static global::Seamless.System.Carrier.ValueEnumerable<{{this.Struct}}<TOuterEnum,TInnerEnum,TResult>,TResult> {{this.FactoryMethodName}}<TOuterEnum,TInnerEnum,TResult>(TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.innerKey)}}>? comparer{{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}})
-            where TOuterEnum:struct,global::System.Collections.Generic.IEnumerator<{{this.outerSource.ElementType}}>
-            where TInnerEnum:struct,global::System.Collections.Generic.IEnumerator<{{this.innerSource.ElementType}}>
-            => new(new {{this.Struct}}<TOuterEnum,TInnerEnum,TResult>(outer,inner,comparer{{this.ClosureArgsSuffixForFactory(this.outerKey,this.innerKey,this.resultSelector)}}));
+        private static global::Seamless.System.Carrier.ValueEnumerable<{{Struct}}<TOuterEnum,TInnerEnum,TResult>,TResult> {{FactoryMethodName}}<TOuterEnum,TInnerEnum,TResult>(TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(innerKey)}}>? comparer{{ClosurePrimaryCtorSuffix(outerKey,innerKey,resultSelector)}})
+            where TOuterEnum:struct,global::System.Collections.Generic.IEnumerator<{{outerSource.ElementType}}>
+            where TInnerEnum:struct,global::System.Collections.Generic.IEnumerator<{{innerSource.ElementType}}>
+            => new(new {{Struct}}<TOuterEnum,TInnerEnum,TResult>(outer,inner,comparer{{ClosureArgsSuffixForFactory(outerKey,innerKey,resultSelector)}}));
         """;
     public override string StructMethod=>JoinStaticMethods(JoinStaticMethods(JoinStaticMethods(
-        this.FuncSupport(this.outerKey,nameof(this.outerKey)),
-        this.FuncSupport(this.innerKey,nameof(this.innerKey))),
-        this.FuncSupport(this.resultSelector,nameof(this.resultSelector))),
-        this.FactorySource);
+        FuncSupport(outerKey,nameof(outerKey)),
+        FuncSupport(innerKey,nameof(innerKey))),
+        FuncSupport(resultSelector,nameof(resultSelector))),
+        FactorySource);
     public override string GetEnumeratorStruct=>$$"""
-        {{this.outerSource.GetEnumeratorStruct}}
-        {{this.innerSource.GetEnumeratorStruct}}
+        {{outerSource.GetEnumeratorStruct}}
+        {{innerSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({this.outerSource.GetEnumeratorExpression},{this.innerSource.GetEnumeratorExpression},{this.comparerExpression}{this.ClosureArgsSuffix(this.outerKey,this.innerKey,this.resultSelector)})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TOuterEnum {this.e},TInnerEnum {this.innerEnumerator},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(this.innerKey)}>? comparer{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}";
-    public override string GetEnumerableExpression=> this.UseResultTypeParam ? $"{this.FactoryMethodName}({this.outerSource.GetEnumeratorExpression},{this.innerSource.GetEnumeratorExpression},{this.comparerExpression}{this.ClosureArgsSuffix(this.outerKey,this.innerKey,this.resultSelector)})" : base.GetEnumerableExpression;
-    public override string GetEnumeratorConstructor=>$"this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});";
+    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({outerSource.GetEnumeratorExpression},{innerSource.GetEnumeratorExpression},{comparerExpression}{ClosureArgsSuffix(outerKey,innerKey,resultSelector)})";
+    public override string GetEnumeratorPrimaryConstructorParameters=>$"TOuterEnum {e},TInnerEnum {innerEnumerator},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(innerKey)}>? comparer{ClosurePrimaryCtorSuffix(outerKey,innerKey,resultSelector)}";
+    public override string GetEnumerableExpression=> UseResultTypeParam ? $"{FactoryMethodName}({outerSource.GetEnumeratorExpression},{innerSource.GetEnumeratorExpression},{comparerExpression}{ClosureArgsSuffix(outerKey,innerKey,resultSelector)})" : base.GetEnumerableExpression;
+    public override string GetEnumeratorConstructor=>$"this.{lookup}=BuildLookup(this.{innerEnumerator},this.comparer{ClosureArgsSuffixForCtorBody(outerKey,innerKey,resultSelector)});";
     public override string GetEnumeratorFields=>$$"""
-        private global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(this.innerKey)}},global::System.Collections.Generic.List<{{this.innerSource.ElementType}}>> {{this.lookup}};
-        private global::System.Collections.Generic.List<{{this.innerSource.ElementType}}>? {{this.group}};
-        private int {{this.groupIndex}};
-        private int {{this.state}};
-        private {{this.outerSource.ElementType}} {{this.outerValue}};
+        private global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(innerKey)}},global::System.Collections.Generic.List<{{innerSource.ElementType}}>> {{lookup}};
+        private global::System.Collections.Generic.List<{{innerSource.ElementType}}>? {{group}};
+        private int {{groupIndex}};
+        private int {{state}};
+        private {{outerSource.ElementType}} {{outerValue}};
         private static bool IsNullKey<T>(T key){
             return key is null;
         }
-        {{this.BuildLookupBody(true,"IncrementLogicalLeftJoinInner")}}
+        {{BuildLookupBody(true,"IncrementLogicalLeftJoinInner")}}
         """;
     public override string GetTryGetNextBody=>$$"""
-        {{this.Start}}:
-        if({{this.state}}==1&&{{this.group}} is not null){
-            if({{this.groupIndex}}<{{this.group}}.Count){
-                var {{this.item}}={{this.group}}[{{this.groupIndex}}++];
-                {{this.FuncAssignCurrentIndented("        ",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,this.item)}}
+        {{Start}}:
+        if({{state}}==1&&{{group}} is not null){
+            if({{groupIndex}}<{{group}}.Count){
+                var {{item}}={{group}}[{{groupIndex}}++];
+                {{FuncAssignCurrentIndented("        ",resultSelector,nameof(resultSelector),$"this.{currentValue}",outerValue,item)}}
                 return true;
             }
-            {{this.group}}=null;
-            {{this.state}}=0;
+            {{group}}=null;
+            {{state}}=0;
         }
-        if(!{{this.e}}.MoveNext()){
+        if(!{{e}}.MoveNext()){
             current=default!;
             return false;
         }
-        {{this.CounterCall("IncrementLogicalLeftJoinOuter")}}
-        {{this.outerValue}}={{this.e}}.Current;
-        {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
-        {{this.FuncAssignIndented("",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
-        {{this.CounterCall("IncrementHashProbe")}}
-        if(!IsNullKey({{this.key}})&&{{this.lookup}}.TryGetValue({{this.key}},out {{this.group}})){
-            {{this.groupIndex}}=0;
-            {{this.state}}=1;
-            goto {{this.Start}};
+        {{CounterCall("IncrementLogicalLeftJoinOuter")}}
+        {{outerValue}}={{e}}.Current;
+        {{FuncReturnTypeName(outerKey)}} {{key}}=default!;
+        {{FuncAssignIndented("",outerKey,nameof(outerKey),key,outerValue)}}
+        {{CounterCall("IncrementHashProbe")}}
+        if(!IsNullKey({{key}})&&{{lookup}}.TryGetValue({{key}},out {{group}})){
+            {{groupIndex}}=0;
+            {{state}}=1;
+            goto {{Start}};
         }
-        {{this.FuncAssignCurrentIndented("",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,$"default({this.innerSource.ElementType})")}}
+        {{FuncAssignCurrentIndented("",resultSelector,nameof(resultSelector),$"this.{currentValue}",outerValue,$"default({innerSource.ElementType})")}}
         return true;
         """;
-    public override string GetCurrentExpression=> this.currentValue;
-    protected override string GetEnumeratorDisposeBody=>$"{this.e}.Dispose();";
+    public override string GetCurrentExpression=> currentValue;
+    protected override string GetEnumeratorDisposeBody=>$"{e}.Dispose();";
 }

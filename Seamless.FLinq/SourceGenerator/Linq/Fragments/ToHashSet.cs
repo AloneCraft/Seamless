@@ -27,13 +27,13 @@ public abstract class ToHashSetBase(int 番号,Enumerable source,string resultTy
 
 public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSetBase(番号,source,resultType){
     public static bool IsApplicableOverload(IMethodSymbol method)=>method.Parameters.Length==0;
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e}";
-    protected override string ComputeExpression=>$"Compute({this.e})";
+    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {e}";
+    protected override string ComputeExpression=>$"Compute({e})";
     public override string? RenderInlineComputation(string destVar,string destType)=>
-        this.RenderRangeToHashSetInline(destVar,destType)
-        ?? this.RenderDirectEnumerableToHashSetHybridInline(source,destVar,destType)
-        ?? this.RenderComputeInline(destVar,destType);
+        RenderRangeToHashSetInline(destVar,destType)
+        ?? RenderDirectEnumerableToHashSetHybridInline(source,destVar,destType)
+        ?? RenderComputeInline(destVar,destType);
     private string? RenderRangeToHashSetInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;
@@ -78,14 +78,14 @@ public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSet
 public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,string resultType):ToHashSetBase(番号,source,resultType){
     public static bool IsApplicableOverload(IMethodSymbol method)=>
         method.Parameters.Length==1&&method.Parameters[0].Name=="comparer";
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{comparer})";
+    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression},{comparer})";
     public override string GetEnumeratorPrimaryConstructorParameters=>
-        $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
-    protected override string ComputeExpression=>$"Compute({this.e},comparer)";
+        $"TEnum {e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
+    protected override string ComputeExpression=>$"Compute({e},comparer)";
     public override string? RenderInlineComputation(string destVar,string destType)=>
-        this.RenderRangeToHashSetInline(destVar,destType)
-        ?? this.RenderDirectEnumerableToHashSetHybridInline(source,destVar,destType,comparer)
-        ?? this.RenderComputeInline(destVar,destType,comparer);
+        RenderRangeToHashSetInline(destVar,destType)
+        ?? RenderDirectEnumerableToHashSetHybridInline(source,destVar,destType,comparer)
+        ?? RenderComputeInline(destVar,destType,comparer);
     private string? RenderRangeToHashSetInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;

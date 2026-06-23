@@ -6,7 +6,7 @@ using Seamless.Tsavorite.Collections;
 using Seamless.FLinq;
 using ZLinq;
 
-using SystemEnumerable = global::System.Linq.Enumerable;
+using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.System.Linq.Intercept;
 
@@ -119,7 +119,7 @@ public static class EnumerableComparisonCatalog {
             "Contains" => source.Contains(3),
             "Count" => source.Count(static value => value>2),
             "CountBy" => sourceWithDuplicates.CountBy(static value => value).ToArray(),
-            "DefaultIfEmpty" => global::System.Array.Empty<int>().DefaultIfEmpty(42).ToArray(),
+            "DefaultIfEmpty" => Array.Empty<int>().DefaultIfEmpty(42).ToArray(),
             "Distinct" => sourceWithDuplicates.Distinct().ToArray(),
             "DistinctBy" => rows.DistinctBy(static row => row.Key).Select(static row => row.Name).ToArray(),
             "ElementAt" => source.ElementAt(2),

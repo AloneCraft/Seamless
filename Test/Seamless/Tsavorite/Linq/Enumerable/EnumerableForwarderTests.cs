@@ -17,7 +17,7 @@ public class EnumerableForwarderTests {
 
     [Fact, Trait("Category","Unit")]
     public void GeneratedEnumerable_RepresentativeResults_MatchSystemEnumerable() {
-        using var store = global::Seamless.Tsavorite.Collections.Store.Create().CreateHashSet<int>();
+        using var store = Store.Create().CreateHashSet<int>();
         using var source = store.Create();
         foreach(var value in new[] { 1,2,3,4 })
             source.Add(value);

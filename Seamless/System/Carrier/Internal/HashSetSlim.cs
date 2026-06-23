@@ -26,24 +26,24 @@ internal sealed class HashSetSlim<T> : IDisposable
         capacity = Math.Max((int)BitOperations.RoundUpToPowerOf2((uint)capacity), MinimumSize);
 
         this.comparer = comparer ?? EqualityComparer<T>.Default;
-        this.buckets = ArrayPool<int>.Shared.Rent(capacity);
-        this.entries = ArrayPool<Entry>.Shared.Rent(capacity);
-        this.bucketsLength = capacity;
-        this.resizeThreshold = (int)(this.bucketsLength * LoadFactor);
-        this.buckets.AsSpan().Clear(); // 0-clear.
+        buckets = ArrayPool<int>.Shared.Rent(capacity);
+        entries = ArrayPool<Entry>.Shared.Rent(capacity);
+        bucketsLength = capacity;
+        resizeThreshold = (int)(bucketsLength * LoadFactor);
+        buckets.AsSpan().Clear(); // 0-clear.
     }
 
     public bool Add(T item)
     {
-        var hashCode = this.InternalGetHashCode(item);
-        ref var bucket = ref this.buckets[this.GetBucketIndex(hashCode)];
+        var hashCode = InternalGetHashCode(item);
+        ref var bucket = ref buckets[GetBucketIndex(hashCode)];
         var index = bucket - 1;
 
         // lookup phase
         while (index != -1)
         {
-            ref var entry = ref this.entries[index];
-            if (entry.HashCode == hashCode &&this.comparer.Equals(entry.Value, item))
+            ref var entry = ref entries[index];
+            if (entry.HashCode == hashCode &&comparer.Equals(entry.Value, item))
             {
                 return false;
             }
@@ -51,40 +51,40 @@ internal sealed class HashSetSlim<T> : IDisposable
         }
 
         // add phase
-        if (this.entryIndex >this.resizeThreshold)
+        if (entryIndex >resizeThreshold)
         {
-            this.Resize();
+            Resize();
             // Need to recalculate bucket after resize
-            bucket = ref this.buckets[this.GetBucketIndex(hashCode)];
+            bucket = ref buckets[GetBucketIndex(hashCode)];
         }
 
-        ref var newEntry = ref this.entries[this.entryIndex];
+        ref var newEntry = ref entries[entryIndex];
         newEntry.HashCode = hashCode;
         newEntry.Value = item;
         newEntry.Next = bucket - 1;
 
-        bucket =this.entryIndex + 1;
-        this.entryIndex++;
+        bucket =entryIndex + 1;
+        entryIndex++;
 
         return true;
     }
 
     void Resize()
     {
-        var newSize = BitOperations.RoundUpToPowerOf2((uint)this.entries.Length * 2);
+        var newSize = BitOperations.RoundUpToPowerOf2((uint)entries.Length * 2);
         var newEntries = ArrayPool<Entry>.Shared.Rent((int)newSize);
         var newBuckets = ArrayPool<int>.Shared.Rent((int)newSize);
-        this.bucketsLength = (int)newSize; // guarantees PowerOf2
-        this.resizeThreshold = (int)(this.bucketsLength * LoadFactor);
+        bucketsLength = (int)newSize; // guarantees PowerOf2
+        resizeThreshold = (int)(bucketsLength * LoadFactor);
         newBuckets.AsSpan().Clear(); // 0-clear.
 
         // Copy entries
-        Array.Copy(this.entries, newEntries,this.entryIndex);
+        Array.Copy(entries, newEntries,entryIndex);
 
-        for (int i = 0; i <this.entryIndex; i++)
+        for (int i = 0; i <entryIndex; i++)
         {
             ref var entry = ref newEntries[i];
-            var bucketIndex = this.GetBucketIndex(entry.HashCode);
+            var bucketIndex = GetBucketIndex(entry.HashCode);
 
             ref var bucket = ref newBuckets[bucketIndex];
             entry.Next = bucket - 1;
@@ -92,27 +92,27 @@ internal sealed class HashSetSlim<T> : IDisposable
         }
 
         // return old arrays
-        ArrayPool<int>.Shared.Return(this.buckets, clearArray: false);
-        ArrayPool<Entry>.Shared.Return(this.entries, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<Entry>());
+        ArrayPool<int>.Shared.Return(buckets, clearArray: false);
+        ArrayPool<Entry>.Shared.Return(entries, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<Entry>());
 
         // assign new arrays
-        this.entries = newEntries;
-        this.buckets = newBuckets;
+        entries = newEntries;
+        buckets = newBuckets;
     }
 
     // special use case for Intercept, only call after completely constructed(don't call Add after Remove called).
     public bool Remove(T item)
     {
-        var hashCode = this.InternalGetHashCode(item);
-        ref var bucket = ref this.buckets[this.GetBucketIndex(hashCode)];
+        var hashCode = InternalGetHashCode(item);
+        ref var bucket = ref buckets[GetBucketIndex(hashCode)];
         var index = bucket - 1;
         var lastIndex = -1;
 
         // lookup phase
         while (index != -1)
         {
-            ref var entry = ref this.entries[index];
-            if (entry.HashCode == hashCode &&this.comparer.Equals(entry.Value, item))
+            ref var entry = ref entries[index];
+            if (entry.HashCode == hashCode &&comparer.Equals(entry.Value, item))
             {
                 if (lastIndex == -1)
                 {
@@ -122,7 +122,7 @@ internal sealed class HashSetSlim<T> : IDisposable
                 else
                 {
                     // Link the previous entry to the next one, skipping this entry
-                    this.entries[lastIndex].Next = entry.Next;
+                    entries[lastIndex].Next = entry.Next;
                 }
 
                 // Clear the removed entry's value
@@ -145,27 +145,27 @@ internal sealed class HashSetSlim<T> : IDisposable
     uint InternalGetHashCode(T key)
     {
         // allows null.
-        return (uint)((key is null) ? 0 : this.comparer.GetHashCode(key) & 0x7FFFFFFF);
+        return (uint)((key is null) ? 0 : comparer.GetHashCode(key) & 0x7FFFFFFF);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     int GetBucketIndex(uint hashCode)
     {
-        return (int)(hashCode & (this.bucketsLength - 1));
+        return (int)(hashCode & (bucketsLength - 1));
     }
 
     // return to pool
     public void Dispose()
     {
-        if (this.buckets != null)
+        if (buckets != null)
         {
-            ArrayPool<int>.Shared.Return(this.buckets, clearArray: false);
-            this.buckets = null!;
+            ArrayPool<int>.Shared.Return(buckets, clearArray: false);
+            buckets = null!;
         }
-        if (this.entries != null)
+        if (entries != null)
         {
-            ArrayPool<Entry>.Shared.Return(this.entries, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<Entry>());
-            this.entries = null!;
+            ArrayPool<Entry>.Shared.Return(entries, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<Entry>());
+            entries = null!;
         }
     }
 

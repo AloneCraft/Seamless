@@ -1,9 +1,8 @@
-namespace Benchmark.Shared;
+﻿namespace Benchmark.Shared;
 
-// ベンチ�Eークをテストとして簡易計測する際�Eパラメーター、E// チE��ト�Eの既定�E1回実行。環墁E��数で上書きできる、Estatic class BenchmarkParameters{
-    // 吁E�Eンチ�EークメソチE��の計測実行回数。既宁E回、E
+// Parameters used when lightweight benchmarks are executed as tests.
+static class BenchmarkParameters{
     public static int RunCount{get;}=Read("SEAMLESS_BENCHMARK_RUN_COUNT",1,1);
-    // 計測前�EウォームアチE�E回数。既宁E回、E
     public static int WarmupCount{get;}=Read("SEAMLESS_BENCHMARK_WARMUP_COUNT",0,0);
 
     static int Read(string name,int fallback,int min){

@@ -24,7 +24,7 @@ public abstract class ToDictionaryBase(int 番号,Enumerable source,string resul
     protected override Enumerable PrimarySource=>source;
     public override string StructMethod=>string.Empty;
     protected override string StructSources=>source.GetEnumeratorStruct;
-    protected override string GetEnumeratorDisposeBody=>$"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody=>$"{e}.Dispose();";
 
     protected string? RenderDirectEnumerableToDictionaryHybridInline(
         string destVar,
@@ -41,14 +41,14 @@ public abstract class ToDictionaryBase(int 番号,Enumerable source,string resul
         var keyType = FuncReturnTypeName(keySelector);
         var valueType = elementSelector is null ? source.ElementType : FuncReturnTypeName(elementSelector);
         var comparer = comparerExpression ?? "null";
-        var sourceVar=$"__src{this.result}";
-        var arrayVar=$"__array{this.result}";
-        var listVar=$"__list{this.result}";
-        var collectionVar=$"__collection{this.result}";
-        var spanVar=$"__span{this.result}";
-        var itemVar=$"__item{this.result}";
-        var keySelectorVar=$"__keySelector{this.result}";
-        var elementSelectorVar=$"__elementSelector{this.result}";
+        var sourceVar=$"__src{result}";
+        var arrayVar=$"__array{result}";
+        var listVar=$"__list{result}";
+        var collectionVar=$"__collection{result}";
+        var spanVar=$"__span{result}";
+        var itemVar=$"__item{result}";
+        var keySelectorVar=$"__keySelector{result}";
+        var elementSelectorVar=$"__elementSelector{result}";
         var addValue = elementSelector is null ? itemVar : $"{elementSelectorVar}({itemVar})";
         var elementSelectorDeclaration = elementSelector is null
             ? string.Empty
@@ -91,14 +91,14 @@ public abstract class ToDictionaryBase(int 番号,Enumerable source,string resul
 
 public class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragment keySelector,string resultType):ToDictionaryBase(番号,source,resultType){
     public static bool IsApplicableOverload(IMethodSymbol method)=>method.Parameters.Length==1&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
-    public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector)})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
-    protected override string ComputeExpression=>$"Compute({this.e}{this.ClosureArgsSuffix(keySelector)})";
+    public override string StructMethod=> FuncSupport(keySelector,nameof(keySelector));
+    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector)})";
+    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector)}";
+    protected override string ComputeExpression=>$"Compute({e}{ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType)=>
-        this.RenderRangeIdentityToDictionaryInline(destVar,destType)
-        ?? this.RenderDirectEnumerableToDictionaryHybridInline(destVar,destType,keySelector,null)
-        ?? this.RenderComputeInline(destVar,destType);
+        RenderRangeIdentityToDictionaryInline(destVar,destType)
+        ?? RenderDirectEnumerableToDictionaryHybridInline(destVar,destType,keySelector,null)
+        ?? RenderComputeInline(destVar,destType);
     private string? RenderRangeIdentityToDictionaryInline(string destVar,string destType) {
         if(source is not RangeRoot range
             || source.ElementType!="int"
@@ -126,16 +126,16 @@ public class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragment 
     }
     protected override string ComputeMembers=>$$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
+        private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(keySelector)}}){
             {{resultType}} result;
             var __hasSpan=source.TryGetSpan(out var __span);
             if(__hasSpan){
                 result=new(__span.Length);
                 for(var __i=0; __i<__span.Length; __i++){
-                    var {{this.item}}=__span[__i];
-                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    result.Add({{this.key}},{{this.item}});
+                    var {{item}}=__span[__i];
+                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                    {{FuncAssignIndented("            ",keySelector,nameof(keySelector),key,item)}}
+                    result.Add({{key}},{{item}});
                 }
             }else if(source.TryGetNonEnumeratedCount(out var __count)){
                 result=new(__count);
@@ -144,10 +144,10 @@ public class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragment 
             }
             if(!__hasSpan){
                 while(source.MoveNext()){
-                    var {{this.item}}=source.Current;
-                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    result.Add({{this.key}},{{this.item}});
+                    var {{item}}=source.Current;
+                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                    {{FuncAssignIndented("            ",keySelector,nameof(keySelector),key,item)}}
+                    result.Add({{key}},{{item}});
                 }
             }
             return result;
@@ -157,14 +157,14 @@ public class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragment 
 
 public class ToDictionary_keySelector_elementSelector(int 番号,Enumerable source,FuncFragment keySelector,FuncFragment elementSelector,string resultType):ToDictionaryBase(番号,source,resultType){
     public static bool IsApplicableOverload(IMethodSymbol method)=>method.Parameters.Length==2&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate&&method.Parameters[1].Type.TypeKind==TypeKind.Delegate;
-    public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
-    protected override string ComputeExpression=>$"Compute({this.e}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
+    public override string StructMethod=> FuncSupport(keySelector,nameof(keySelector));
+    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector,elementSelector)})";
+    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
+    protected override string ComputeExpression=>$"Compute({e}{ClosureArgsSuffix(keySelector,elementSelector)})";
     public override string? RenderInlineComputation(string destVar,string destType)=>
-        this.RenderRangeIdentityToDictionaryInline(destVar,destType)
-        ?? this.RenderDirectEnumerableToDictionaryHybridInline(destVar,destType,keySelector,elementSelector)
-        ?? this.RenderComputeInline(destVar,destType);
+        RenderRangeIdentityToDictionaryInline(destVar,destType)
+        ?? RenderDirectEnumerableToDictionaryHybridInline(destVar,destType,keySelector,elementSelector)
+        ?? RenderComputeInline(destVar,destType);
     private string? RenderRangeIdentityToDictionaryInline(string destVar,string destType) {
         if(source is not RangeRoot range
             || source.ElementType!="int"
@@ -189,7 +189,7 @@ public class ToDictionary_keySelector_elementSelector(int 番号,Enumerable sour
                 for(var {{index}}=0;{{index}}<{{count}};{{index}}++) {
                     var {{value}}={{start}} + {{index}};
                     {{FuncReturnTypeName(elementSelector)}} {{element}}=default!;
-            {{IndentLines(this.FuncAssign(elementSelector,nameof(elementSelector),element,value),"        ")}}
+            {{IndentLines(FuncAssign(elementSelector,nameof(elementSelector),element,value),"        ")}}
                     {{destVar}}.Add({{value}},{{element}});
                 }
             }
@@ -197,18 +197,18 @@ public class ToDictionary_keySelector_elementSelector(int 番号,Enumerable sour
     }
     protected override string ComputeMembers=>$$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
+        private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
             {{resultType}} result;
             var __hasSpan=source.TryGetSpan(out var __span);
             if(__hasSpan){
                 result=new(__span.Length);
                 for(var __i=0; __i<__span.Length; __i++){
-                    var {{this.item}}=__span[__i];
-                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    {{FuncReturnTypeName(elementSelector)}} {{this.temp}}=default!;
-                    {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
-                    result.Add({{this.key}},{{this.temp}});
+                    var {{item}}=__span[__i];
+                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                    {{FuncAssignIndented("            ",keySelector,nameof(keySelector),key,item)}}
+                    {{FuncReturnTypeName(elementSelector)}} {{temp}}=default!;
+                    {{FuncAssignIndented("            ",elementSelector,nameof(elementSelector),temp,item)}}
+                    result.Add({{key}},{{temp}});
                 }
             }else if(source.TryGetNonEnumeratedCount(out var __count)){
                 result=new(__count);
@@ -217,12 +217,12 @@ public class ToDictionary_keySelector_elementSelector(int 番号,Enumerable sour
             }
             if(!__hasSpan){
                 while(source.MoveNext()){
-                    var {{this.item}}=source.Current;
-                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    {{FuncReturnTypeName(elementSelector)}} {{this.temp}}=default!;
-                    {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
-                    result.Add({{this.key}},{{this.temp}});
+                    var {{item}}=source.Current;
+                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                    {{FuncAssignIndented("            ",keySelector,nameof(keySelector),key,item)}}
+                    {{FuncReturnTypeName(elementSelector)}} {{temp}}=default!;
+                    {{FuncAssignIndented("            ",elementSelector,nameof(elementSelector),temp,item)}}
+                    result.Add({{key}},{{temp}});
                 }
             }
             return result;
@@ -232,14 +232,14 @@ public class ToDictionary_keySelector_elementSelector(int 番号,Enumerable sour
 
 public class ToDictionary_keySelector_comparer(int 番号,Enumerable source,FuncFragment keySelector,string comparer,string resultType):ToDictionaryBase(番号,source,resultType){
     public static bool IsApplicableOverload(IMethodSymbol method)=>method.Parameters.Length==2&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate&&method.Parameters[1].Type.TypeKind!=TypeKind.Delegate&&method.Parameters[1].Name=="comparer";
-    public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{this.ClosureArgsSuffix(keySelector)})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
-    protected override string ComputeExpression=>$"Compute({this.e}, comparer{this.ClosureArgsSuffix(keySelector)})";
+    public override string StructMethod=> FuncSupport(keySelector,nameof(keySelector));
+    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{ClosureArgsSuffix(keySelector)})";
+    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{ClosurePrimaryCtorSuffix(keySelector)}";
+    protected override string ComputeExpression=>$"Compute({e}, comparer{ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType)=>
-        this.RenderRangeIdentityToDictionaryInline(destVar,destType)
-        ?? this.RenderDirectEnumerableToDictionaryHybridInline(destVar,destType,keySelector,null,comparer)
-        ?? this.RenderComputeInline(destVar,destType,$"{comparer}{this.ClosureArgsSuffix(keySelector)}");
+        RenderRangeIdentityToDictionaryInline(destVar,destType)
+        ?? RenderDirectEnumerableToDictionaryHybridInline(destVar,destType,keySelector,null,comparer)
+        ?? RenderComputeInline(destVar,destType,$"{comparer}{ClosureArgsSuffix(keySelector)}");
     private string? RenderRangeIdentityToDictionaryInline(string destVar,string destType) {
         if(source is not RangeRoot range
             || source.ElementType!="int"
@@ -269,16 +269,16 @@ public class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Func
     }
     protected override string ComputeMembers=>$$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector)}}){
+        private static {{resultType}} Compute(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{ClosureMethodParameterSuffix(keySelector)}}){
             {{resultType}} result;
             var __hasSpan=source.TryGetSpan(out var __span);
             if(__hasSpan){
                 result=new(__span.Length,comparer);
                 for(var __i=0; __i<__span.Length; __i++){
-                    var {{this.item}}=__span[__i];
-                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    result.Add({{this.key}},{{this.item}});
+                    var {{item}}=__span[__i];
+                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                    {{FuncAssignIndented("            ",keySelector,nameof(keySelector),key,item)}}
+                    result.Add({{key}},{{item}});
                 }
             }else if(source.TryGetNonEnumeratedCount(out var __count)){
                 result=new(__count,comparer);
@@ -287,10 +287,10 @@ public class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Func
             }
             if(!__hasSpan){
                 while(source.MoveNext()){
-                    var {{this.item}}=source.Current;
-                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    result.Add({{this.key}},{{this.item}});
+                    var {{item}}=source.Current;
+                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                    {{FuncAssignIndented("            ",keySelector,nameof(keySelector),key,item)}}
+                    result.Add({{key}},{{item}});
                 }
             }
             return result;
@@ -300,27 +300,27 @@ public class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Func
 
 public class ToDictionary_keySelector_elementSelector_comparer(int 番号,Enumerable source,FuncFragment keySelector,FuncFragment elementSelector,string comparer,string resultType):ToDictionaryBase(番号,source,resultType){
     public static bool IsApplicableOverload(IMethodSymbol method)=>method.Parameters.Length==3&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate&&method.Parameters[1].Type.TypeKind==TypeKind.Delegate&&method.Parameters[2].Name=="comparer";
-    public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
-    protected override string ComputeExpression=>$"Compute({this.e}, comparer{this.ClosureArgsSuffix(keySelector,elementSelector)})";
+    public override string StructMethod=> FuncSupport(keySelector,nameof(keySelector));
+    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{ClosureArgsSuffix(keySelector,elementSelector)})";
+    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
+    protected override string ComputeExpression=>$"Compute({e}, comparer{ClosureArgsSuffix(keySelector,elementSelector)})";
     public override string? RenderInlineComputation(string destVar,string destType)=>
-        this.RenderDirectEnumerableToDictionaryHybridInline(destVar,destType,keySelector,elementSelector,comparer)
-        ?? this.RenderComputeInline(destVar,destType,$"{comparer}{this.ClosureArgsSuffix(keySelector,elementSelector)}");
+        RenderDirectEnumerableToDictionaryHybridInline(destVar,destType,keySelector,elementSelector,comparer)
+        ?? RenderComputeInline(destVar,destType,$"{comparer}{ClosureArgsSuffix(keySelector,elementSelector)}");
     protected override string ComputeMembers=>$$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
+        private static {{resultType}} Compute(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
             {{resultType}} result;
             var __hasSpan=source.TryGetSpan(out var __span);
             if(__hasSpan){
                 result=new(__span.Length,comparer);
                 for(var __i=0; __i<__span.Length; __i++){
-                    var {{this.item}}=__span[__i];
-                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    {{FuncReturnTypeName(elementSelector)}} {{this.temp}}=default!;
-                    {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
-                    result.Add({{this.key}},{{this.temp}});
+                    var {{item}}=__span[__i];
+                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                    {{FuncAssignIndented("            ",keySelector,nameof(keySelector),key,item)}}
+                    {{FuncReturnTypeName(elementSelector)}} {{temp}}=default!;
+                    {{FuncAssignIndented("            ",elementSelector,nameof(elementSelector),temp,item)}}
+                    result.Add({{key}},{{temp}});
                 }
             }else if(source.TryGetNonEnumeratedCount(out var __count)){
                 result=new(__count,comparer);
@@ -329,12 +329,12 @@ public class ToDictionary_keySelector_elementSelector_comparer(int 番号,Enumer
             }
             if(!__hasSpan){
                 while(source.MoveNext()){
-                    var {{this.item}}=source.Current;
-                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    {{FuncReturnTypeName(elementSelector)}} {{this.temp}}=default!;
-                    {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
-                    result.Add({{this.key}},{{this.temp}});
+                    var {{item}}=source.Current;
+                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
+                    {{FuncAssignIndented("            ",keySelector,nameof(keySelector),key,item)}}
+                    {{FuncReturnTypeName(elementSelector)}} {{temp}}=default!;
+                    {{FuncAssignIndented("            ",elementSelector,nameof(elementSelector),temp,item)}}
+                    result.Add({{key}},{{temp}});
                 }
             }
             return result;

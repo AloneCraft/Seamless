@@ -2,7 +2,7 @@ using System.Linq;
 
 using Test.System.Linq.Intercept;
 
-using SystemEnumerable = global::System.Linq.Enumerable;
+using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.System.Linq.Intercept.FragmentCoverage;
 

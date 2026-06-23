@@ -9,7 +9,7 @@ internal static class TsavoriteSetOperations {
 
     public static void IntersectWith<TRecord>(ICollection<TRecord> target,Seamless.Collections.ISet<TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
-        var toRemove = new global::System.Collections.Generic.List<TRecord>();
+        var toRemove = new List<TRecord>();
         foreach(var item in target) {
             if(!other.Contains(item))
                 toRemove.Add(item);
@@ -64,8 +64,8 @@ internal static class TsavoriteSetOperations {
 
     public static void SymmetricExceptWith<TRecord>(ICollection<TRecord> target,Seamless.Collections.ISet<TRecord> other) {
         ArgumentNullException.ThrowIfNull(other);
-        var toAdd = new global::System.Collections.Generic.List<TRecord>();
-        var toRemove = new global::System.Collections.Generic.List<TRecord>();
+        var toAdd = new List<TRecord>();
+        var toRemove = new List<TRecord>();
         foreach(var item in other) {
             if(target.Contains(item))
                 toRemove.Add(item);

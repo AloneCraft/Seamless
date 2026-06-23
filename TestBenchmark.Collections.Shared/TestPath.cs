@@ -1,4 +1,4 @@
-using global::System.Diagnostics;
+using System.Diagnostics;
 using System.Reflection;
 
 namespace Test;
@@ -78,3 +78,4 @@ internal static class TestPath {
         return type;
     }
 }
+

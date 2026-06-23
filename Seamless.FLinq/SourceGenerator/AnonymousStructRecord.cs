@@ -57,12 +57,12 @@ public sealed partial class FLinqIncrementalGenerator {
         // 既に割り当てた TypeId 集合（別キーへの衝突回避用）
         private readonly HashSet<string> _usedIds = new(StringComparer.Ordinal);
 
-        public bool IsEmpty => this._shapes.Count==0;
+        public bool IsEmpty => _shapes.Count==0;
 
         private sealed class Shape {
             public required string TypeId { get; init; }
             public required string[] MemberNames { get; init; }
-            public int Arity => this.MemberNames.Length;
+            public int Arity => MemberNames.Length;
         }
 
         /// <summary>型に匿名型が含まれるかを再帰的に判定する。</summary>
@@ -76,23 +76,23 @@ public sealed partial class FLinqIncrementalGenerator {
         public string ResolveClosedName(ITypeSymbol type) {
             if(type.IsAnonymousType && type is INamedTypeSymbol anon) {
                 var members = AnonymousMembers(anon);
-                var shape = this.RegisterShape(members.Select(static m => m.Name).ToArray());
+                var shape = RegisterShape(members.Select(static m => m.Name).ToArray());
                 if(shape.Arity==0) {
-                    return $"global::{this._holderName}.{shape.TypeId}";
+                    return $"global::{_holderName}.{shape.TypeId}";
                 }
-                var args = string.Join(", ",members.Select(m => this.ResolveClosedName(m.Type)));
-                return $"global::{this._holderName}.{shape.TypeId}<{args}>";
+                var args = string.Join(", ",members.Select(m => ResolveClosedName(m.Type)));
+                return $"global::{_holderName}.{shape.TypeId}<{args}>";
             }
             if(type is IArrayTypeSymbol arrayType) {
                 // 多次元は元の表現に任せる（匿名要素配列は稀）。1 次元のみ特別扱い。
                 if(arrayType.Rank==1) {
-                    return $"{this.ResolveClosedName(arrayType.ElementType)}[]";
+                    return $"{ResolveClosedName(arrayType.ElementType)}[]";
                 }
                 return type.ToDisplayString(完全修飾形式);
             }
             if(type is INamedTypeSymbol named && named.TypeArguments.Any(ContainsAnonymousType)) {
                 var open = OpenGenericTypeName(named);
-                var args = string.Join(", ",named.TypeArguments.Select(this.ResolveClosedName));
+                var args = string.Join(", ",named.TypeArguments.Select(ResolveClosedName));
                 return $"{open}<{args}>";
             }
             return type.ToDisplayString(完全修飾形式);
@@ -112,15 +112,15 @@ public sealed partial class FLinqIncrementalGenerator {
             if(semanticModel.GetTypeInfo(node).Type is not INamedTypeSymbol sym) {
                 return "default!";
             }
-            var shape = this.RegisterShape(AnonymousMembers(sym).Select(static m => m.Name).ToArray());
+            var shape = RegisterShape(AnonymousMembers(sym).Select(static m => m.Name).ToArray());
             var args = node.Initializers.Select(init => {
                 var value = StripParentheses(init.Expression);
                 if(value is AnonymousObjectCreationExpressionSyntax innerAnon) {
-                    return this.RenderAnonymousCreation(innerAnon,semanticModel,renderLeaf);
+                    return RenderAnonymousCreation(innerAnon,semanticModel,renderLeaf);
                 }
                 return renderLeaf(init.Expression);
             });
-            return $"global::{this._holderName}.{FactoryName(shape)}({string.Join(", ",args)})";
+            return $"global::{_holderName}.{FactoryName(shape)}({string.Join(", ",args)})";
         }
 
         /// <summary>
@@ -128,12 +128,12 @@ public sealed partial class FLinqIncrementalGenerator {
         /// 何も割り当てられていなければ空文字列。
         /// </summary>
         public string RenderHolder() {
-            if(this.IsEmpty) {
+            if(IsEmpty) {
                 return string.Empty;
             }
             var builder = new StringBuilder();
-            builder.AppendLine($"internal static class {this._holderName} {{");
-            foreach(var shape in this._shapes.Values.OrderBy(static s => s.TypeId,StringComparer.Ordinal)) {
+            builder.AppendLine($"internal static class {_holderName} {{");
+            foreach(var shape in _shapes.Values.OrderBy(static s => s.TypeId,StringComparer.Ordinal)) {
                 if(shape.Arity==0) {
                     builder.AppendLine($"    internal readonly record struct {shape.TypeId}();");
                     builder.AppendLine($"    internal static {shape.TypeId} {FactoryName(shape)}() => new {shape.TypeId}();");
@@ -162,7 +162,7 @@ public sealed partial class FLinqIncrementalGenerator {
             var members = AnonymousMembers(anon);
             var parts = members.Select(m => {
                 var memberAccess = $"{structRecordExpr}.{EscapeIdentifier(m.Name)}";
-                return $"{EscapeIdentifier(m.Name)}={this.ReconstructAnonymousCreation(m.Type,memberAccess)}";
+                return $"{EscapeIdentifier(m.Name)}={ReconstructAnonymousCreation(m.Type,memberAccess)}";
             });
             return $"new{{{string.Join(",",parts)}}}";
         }
@@ -185,7 +185,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 var memberName = members[i].Name;
                 var value = StripParentheses(init.Expression);
                 var rendered = value is AnonymousObjectCreationExpressionSyntax inner
-                    ? this.RenderAnonymousCreationRaw(inner,semanticModel,renderLeaf)
+                    ? RenderAnonymousCreationRaw(inner,semanticModel,renderLeaf)
                     : renderLeaf(init.Expression);
                 return $"{EscapeIdentifier(memberName)}={rendered}";
             });
@@ -194,17 +194,17 @@ public sealed partial class FLinqIncrementalGenerator {
 
         private Shape RegisterShape(string[] memberNames) {
             var key = string.Join("|",memberNames);
-            if(this._shapes.TryGetValue(key,out var existing)) {
+            if(_shapes.TryGetValue(key,out var existing)) {
                 return existing;
             }
             var baseId = $"__Anon{memberNames.Length}_{string.Join("_",memberNames.Select(SanitizeIdentifier))}";
             var id = baseId;
             var counter = 1;
-            while(!this._usedIds.Add(id)) {
+            while(!_usedIds.Add(id)) {
                 id = $"{baseId}_{counter++}";
             }
             var shape = new Shape { TypeId = id,MemberNames = memberNames };
-            this._shapes.Add(key,shape);
+            _shapes.Add(key,shape);
             return shape;
         }
 

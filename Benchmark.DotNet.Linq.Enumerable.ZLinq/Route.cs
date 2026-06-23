@@ -5,7 +5,7 @@ namespace Benchmark.DotNet.Linq.Enumerable {
 
 namespace Shared.Linq.Enumerable {
     internal static class Route {
-        public static ZLinq.ValueEnumerable<ZLinq.Linq.FromEnumerable<T>, T> AsX<T>(this IEnumerable<T> source) => source.AsValueEnumerable();
+        public static ValueEnumerable<ZLinq.Linq.FromEnumerable<T>, T> AsX<T>(this IEnumerable<T> source) => source.AsValueEnumerable();
     }
 }
 

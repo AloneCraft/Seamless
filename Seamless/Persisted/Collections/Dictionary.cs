@@ -63,21 +63,21 @@ public class SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
         : base(path,initialCapacity,initialDataCapacity) {
     }
 
-    public IEnumerable<TKey> Keys => this.EnumerateLatest().Select(static pair => pair.Key);
-    public IEnumerable<TValue> Values => this.EnumerateLatest().Select(static pair => pair.Value);
-    public new int Count => checked((int)this.EnumerateLatest().LongCount());
+    public IEnumerable<TKey> Keys => EnumerateLatest().Select(static pair => pair.Key);
+    public IEnumerable<TValue> Values => EnumerateLatest().Select(static pair => pair.Value);
+    public new int Count => checked((int)EnumerateLatest().LongCount());
 
-    public TValue this[TKey key] => this.TryGetValue(key,out var value)
+    public TValue this[TKey key] => TryGetValue(key,out var value)
         ? value
         : throw new KeyNotFoundException();
 
-    public void Add(TKey key,TValue value) => this.Add(new Entry(key,value));
+    public void Add(TKey key,TValue value) => Add(new Entry(key,value));
 
-    public bool ContainsKey(TKey key) => this.TryGetValue(key,out _);
+    public bool ContainsKey(TKey key) => TryGetValue(key,out _);
 
     public bool TryGetValue(TKey key,[MaybeNullWhen(false)] out TValue value) {
         var comparer = EqualityComparer<TKey>.Default;
-        for(var index = this.GetLongCount()-1; index>=0; index--) {
+        for(var index = GetLongCount()-1; index>=0; index--) {
             var entry = this[index];
             if(comparer.Equals(entry.Key,key)) {
                 value=entry.Value;
@@ -89,7 +89,7 @@ public class SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
     }
 
     public SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer> Compact() {
-        var latest = new global::System.Collections.Generic.Dictionary<TKey,TValue>();
+        var latest = new Dictionary<TKey,TValue>();
         foreach(var entry in this) {
             latest[entry.Key]=entry.Value;
         }
@@ -97,15 +97,15 @@ public class SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
             .Select(static pair => new Entry(pair.Key,pair.Value))
             .OrderBy(static entry => entry.Key,new SerializedKeyComparer())
             .ToArray();
-        this.Rewrite(entries);
+        Rewrite(entries);
         return this;
     }
 
-    IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.EnumerateLatest().GetEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => this.EnumerateLatest().GetEnumerator();
+    IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => EnumerateLatest().GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => EnumerateLatest().GetEnumerator();
 
     private IEnumerable<KeyValuePair<TKey,TValue>> EnumerateLatest() {
-        var latest = new global::System.Collections.Generic.Dictionary<TKey,TValue>();
+        var latest = new Dictionary<TKey,TValue>();
         foreach(var entry in (IEnumerable<Entry>)this) {
             latest[entry.Key]=entry.Value;
         }

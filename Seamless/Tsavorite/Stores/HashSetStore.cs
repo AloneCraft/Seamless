@@ -11,12 +11,12 @@ public class HashSetStore<TKey>:CollectionStore<TKey,EqualityEmpty> {
         base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory) { }
 
     private protected override long GetRecoveryEntryCount() {
-        using var set = this.Create();
+        using var set = Create();
         return set.GetLongCount();
     }
 
-    public Seamless.Tsavorite.Collections.HashSet<TKey> Create() => new(this);
-    public Seamless.Tsavorite.Collections.Set<TKey> CreateSet() => new(this);
-    internal Seamless.Tsavorite.Collections.HashSet<TKey> CreateOwned() => new(this,this);
-    internal Seamless.Tsavorite.Collections.Set<TKey> CreateOwnedSet() => new(this,this);
+    public Collections.HashSet<TKey> Create() => new(this);
+    public Collections.Set<TKey> CreateSet() => new(this);
+    internal Collections.HashSet<TKey> CreateOwned() => new(this,this);
+    internal Collections.Set<TKey> CreateOwnedSet() => new(this,this);
 }

@@ -5,16 +5,16 @@ public class SingleOrDefault(int 番号, Enumerable source, string resultType) :
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    protected override string ComputeExpression => $"Compute({this.e})";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    protected override string ComputeExpression => $"Compute({e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderSingleOrDefault(range,番号,destVar,destType)
         : source is RepeatRoot repeat
             ? RangePredicateOptimizer.RenderSingleOrDefault(repeat,番号,destVar,destType)
-            : this.RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault")
-        ?? this.RenderComputeInline(destVar,destType);
+            : RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault")
+        ?? RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -34,7 +34,7 @@ public class SingleOrDefault(int 番号, Enumerable source, string resultType) :
                 return value;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
 public class SingleOrDefault_defaultValue(int 番号, Enumerable source, string defaultValue, string resultType) : BufferedScalar(番号, resultType) {
@@ -43,16 +43,16 @@ public class SingleOrDefault_defaultValue(int 番号, Enumerable source, string 
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {defaultValue})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {resultType} defaultValue";
-    protected override string ComputeExpression => $"Compute({this.e}, defaultValue)";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {defaultValue})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {resultType} defaultValue";
+    protected override string ComputeExpression => $"Compute({e}, defaultValue)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderSingleOrDefault(range,番号,destVar,destType,defaultValue)
         : source is RepeatRoot repeat
             ? RangePredicateOptimizer.RenderSingleOrDefault(repeat,番号,destVar,destType,defaultValue)
-            : this.RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",defaultValue)
-        ?? this.RenderComputeInline(destVar,destType);
+            : RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",defaultValue)
+        ?? RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -72,45 +72,45 @@ public class SingleOrDefault_defaultValue(int 番号, Enumerable source, string 
                 return value;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }
 
 public class SingleOrDefault_predicate(int 番号, Enumerable source, FuncFragment predicate, string resultType) : BufferedScalar(番号, resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length > 0 && method.Parameters[0].Type.TypeKind == TypeKind.Delegate;
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => this.FuncSupport(predicate, nameof(predicate));
+    public override string StructMethod => FuncSupport(predicate, nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
+        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
+        $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+        $"Compute({e}{ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorConstructor =>
-        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
+        $"this.Current = Compute({e}{ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderSingleOrDefault(range,predicate,番号,destVar,destType)
                 ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
-                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",rangeLambda)
-                    : this.RenderComputeInline(destVar,destType))
+                    ? RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",rangeLambda)
+                    : RenderComputeInline(destVar,destType))
         : TryRenderDirectLambda(predicate) is { } lambda
-            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",lambda)
-            : this.RenderComputeInline(destVar,destType);
+            ? RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",lambda)
+            : RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
                 {{resultType}} value = default!;
                 bool found = false;
                 source.TryGetSpan(out var __span);
-                foreach(var {{this.item}} in __span){
-                    bool {{this.temp}}=default!;
-                    {{this.FuncAssignStaticIndented("        ",predicate, nameof(predicate),this.temp,this.item)}}
-                    if({{this.temp}}) {
+                foreach(var {{item}} in __span){
+                    bool {{temp}}=default!;
+                    {{FuncAssignStaticIndented("        ",predicate, nameof(predicate),temp,item)}}
+                    if({{temp}}) {
                         if(found) throw new global::System.InvalidOperationException("Sequence contains more than one matching element");
-                        value={{this.item}};
+                        value={{item}};
                         found=true;
                     }
                 }
@@ -119,21 +119,21 @@ public class SingleOrDefault_predicate(int 番号, Enumerable source, FuncFragme
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
                 {{resultType}} value = default!;
                 bool found = false;
                 while(source.MoveNext()) {
-                    var {{this.item}} = source.Current;
-                    bool {{this.temp}} = default!;
-                    {{this.FuncAssignStaticIndented("        ",predicate, nameof(predicate),this.temp,this.item)}}
-                    if({{this.temp}}) {
+                    var {{item}} = source.Current;
+                    bool {{temp}} = default!;
+                    {{FuncAssignStaticIndented("        ",predicate, nameof(predicate),temp,item)}}
+                    if({{temp}}) {
                         if(found) throw new global::System.InvalidOperationException("Sequence contains more than one matching element");
-                        value = {{this.item}};
+                        value = {{item}};
                         found = true;
                     }
                 }
                 return value;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 }

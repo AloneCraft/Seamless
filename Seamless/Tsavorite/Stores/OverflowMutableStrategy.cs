@@ -52,29 +52,29 @@ internal readonly struct StorageOverflowMutableStrategy {
 
     internal long LimitBytes {
         get {
-            if(this.storageCapacity<0) {
+            if(storageCapacity<0) {
                 return long.MaxValue;
             }
 
             long fractionLimit;
-            if(this.limitFraction>=1.0) {
-                fractionLimit=this.storageCapacity;
+            if(limitFraction>=1.0) {
+                fractionLimit=storageCapacity;
             }
             else {
-                fractionLimit=(long)(this.storageCapacity*this.limitFraction);
+                fractionLimit=(long)(storageCapacity*limitFraction);
             }
-            var reserveLimit = this.storageCapacity-this.reserveBytes;
+            var reserveLimit = storageCapacity-reserveBytes;
             return Math.Min(fractionLimit,reserveLimit);
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool WouldOverflowMutable(long tailAddress,int keyLength,int valueLength) {
-        if(this.storageCapacity<0) {
+        if(storageCapacity<0) {
             return false;
         }
 
         var required = MemoryOverflowMutableStrategy.GetRequiredBytes(keyLength,valueLength);
-        return MemoryOverflowMutableStrategy.WouldExceedLimit(tailAddress,required,this.LimitBytes);
+        return MemoryOverflowMutableStrategy.WouldExceedLimit(tailAddress,required,LimitBytes);
     }
 }

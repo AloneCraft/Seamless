@@ -17,8 +17,8 @@ namespace Seamless.System.Carrier {
         RefBox<ValueQueue<TSource>>? buffer;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.source.TryGetNonEnumeratedCount(out count)) {
-                count=Math.Max(0,count-this.skipCount);
+            if(source.TryGetNonEnumeratedCount(out count)) {
+                count=Math.Max(0,count-skipCount);
                 return true;
             }
 
@@ -27,12 +27,12 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetSpan(out ReadOnlySpan<TSource> span) {
-            if(this.source.TryGetSpan(out span)) {
-                if(span.Length<=this.skipCount) {
+            if(source.TryGetSpan(out span)) {
+                if(span.Length<=skipCount) {
                     span=default;
                     return true;
                 }
-                span=span[..^this.skipCount]; // Slice from start to (length - skipCount)
+                span=span[..^skipCount]; // Slice from start to (length - skipCount)
                 return true;
             }
 
@@ -41,8 +41,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) {
-            if(this.source.TryGetNonEnumeratedCount(out var count)) {
-                var actualSkipCount = Math.Min(count,this.skipCount);
+            if(source.TryGetNonEnumeratedCount(out var count)) {
+                var actualSkipCount = Math.Min(count,skipCount);
 
                 var remainingCount = count-actualSkipCount;
 
@@ -66,37 +66,37 @@ namespace Seamless.System.Carrier {
                     return false;
                 }
 
-                return this.source.TryCopyTo(destination.Slice(0,elementsToCopy),sourceOffset);
+                return source.TryCopyTo(destination.Slice(0,elementsToCopy),sourceOffset);
             }
 
             return false;
         }
 
         public bool TryGetNext(out TSource current) {
-            if(this.skipCount==0) {
-                return this.source.TryGetNext(out current);
+            if(skipCount==0) {
+                return source.TryGetNext(out current);
             }
 
-            if(this.buffer==null) {
-                this.buffer=new RefBox<ValueQueue<TSource>>(new ValueQueue<TSource>(4));
+            if(buffer==null) {
+                buffer=new RefBox<ValueQueue<TSource>>(new ValueQueue<TSource>(4));
 
                 // Fill the buffer with initial items
-                while(this.buffer.GetValueRef().Count<this.skipCount&&this.source.TryGetNext(out var item)) {
-                    this.buffer.GetValueRef().Enqueue(item);
+                while(buffer.GetValueRef().Count<skipCount&&source.TryGetNext(out var item)) {
+                    buffer.GetValueRef().Enqueue(item);
                 }
 
                 // If we couldn't fill the buffer, there aren't enough items
-                if(this.buffer.GetValueRef().Count<this.skipCount) {
+                if(buffer.GetValueRef().Count<skipCount) {
                     Unsafe.SkipInit(out current);
                     return false;
                 }
             }
 
             // Try to get the next item from the source
-            if(this.source.TryGetNext(out var next)) {
+            if(source.TryGetNext(out var next)) {
                 // Return the oldest item from buffer and add the new one
-                current=this.buffer.GetValueRef().Dequeue();
-                this.buffer.GetValueRef().Enqueue(next);
+                current=buffer.GetValueRef().Dequeue();
+                buffer.GetValueRef().Enqueue(next);
                 return true;
             }
 
@@ -105,8 +105,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            this.buffer?.Dispose();
-            this.source.Dispose();
+            buffer?.Dispose();
+            source.Dispose();
         }
     }
 }

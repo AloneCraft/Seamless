@@ -124,9 +124,9 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(Span<int> destination,Index offset) {
-            if(EnumeratorHelper.TryGetSliceRange(this.count,offset,destination.Length,out var fillStart,
+            if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,
                    out var fillCount)) {
-                FillIncremental(destination.Slice(0,fillCount),this.start+fillStart);
+                FillIncremental(destination.Slice(0,fillCount),start+fillStart);
                 return true;
             }
 
@@ -134,9 +134,9 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out int current) {
-            if(this.value<this.to) {
-                current=this.value;
-                this.value++;
+            if(value<to) {
+                current=value;
+                value++;
                 return true;
             }
 
@@ -212,15 +212,15 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if(this.index<this.count) {
-                if(this.index!=0) {
+            if(index<count) {
+                if(index!=0) {
                     checked {
-                        this.value+=this.step;
+                        value+=step;
                     }
                 }
 
-                current=this.value;
-                this.index++;
+                current=value;
+                index++;
                 return true;
             }
 
@@ -258,15 +258,15 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out DateTime current) {
-            if(this.index<this.count) {
-                if(this.index!=0) {
+            if(index<count) {
+                if(index!=0) {
                     checked {
-                        this.value+=step;
+                        value+=step;
                     }
                 }
 
-                current=this.value;
-                this.index++;
+                current=value;
+                index++;
                 return true;
             }
 
@@ -303,15 +303,15 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out DateTimeOffset current) {
-            if(this.index<this.count) {
-                if(this.index!=0) {
+            if(index<count) {
+                if(index!=0) {
                     checked {
-                        this.value+=step;
+                        value+=step;
                     }
                 }
 
-                current=this.value;
-                this.index++;
+                current=value;
+                index++;
                 return true;
             }
 
@@ -338,7 +338,7 @@ namespace Seamless.System.Carrier {
         int value = start;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(this.isInfinite) {
+            if(isInfinite) {
                 count=0;
                 return false;
             }
@@ -353,11 +353,11 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(Span<int> destination,Index offset) {
-            if(this.isInfinite) return false;
+            if(isInfinite) return false;
 
-            if(EnumeratorHelper.TryGetSliceRange(this.count,offset,destination.Length,out var fillStart,
+            if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,
                    out var fillCount)) {
-                FromRange.FillIncremental(destination.Slice(0,fillCount),this.start+fillStart);
+                FromRange.FillIncremental(destination.Slice(0,fillCount),start+fillStart);
                 return true;
             }
 
@@ -365,10 +365,10 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out int current) {
-            if(this.value<this.to) {
-                current=this.value;
+            if(value<to) {
+                current=value;
                 checked {
-                    this.value++;
+                    value++;
                 }
 
                 return true;
@@ -412,25 +412,25 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if(this.first) {
-                current=this.value;
-                this.first=false;
+            if(first) {
+                current=value;
+                first=false;
                 return true;
             }
 
             checked {
-                this.value+=this.step;
+                value+=step;
             }
 
-            if(this.forward) {
-                if(this.value<this.end||(this.rightBound==RightBound.Inclusive&&this.value<=this.end)) {
-                    current=this.value;
+            if(forward) {
+                if(value<end||(rightBound==RightBound.Inclusive&&value<=end)) {
+                    current=value;
                     return true;
                 }
             }
             else {
-                if(this.value>this.end||(this.rightBound==RightBound.Inclusive&&this.value>=this.end)) {
-                    current=this.value;
+                if(value>end||(rightBound==RightBound.Inclusive&&value>=end)) {
+                    current=value;
                     return true;
                 }
             }
@@ -473,25 +473,25 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out DateTime current) {
-            if(this.first) {
-                current=this.value;
-                this.first=false;
+            if(first) {
+                current=value;
+                first=false;
                 return true;
             }
 
             checked {
-                this.value+=this.step;
+                value+=step;
             }
 
-            if(this.forward) {
-                if(this.value<this.end||(this.rightBound==RightBound.Inclusive&&this.value<=this.end)) {
-                    current=this.value;
+            if(forward) {
+                if(value<end||(rightBound==RightBound.Inclusive&&value<=end)) {
+                    current=value;
                     return true;
                 }
             }
             else {
-                if(this.value>this.end||(this.rightBound==RightBound.Inclusive&&this.value>=this.end)) {
-                    current=this.value;
+                if(value>end||(rightBound==RightBound.Inclusive&&value>=end)) {
+                    current=value;
                     return true;
                 }
             }
@@ -531,25 +531,25 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out DateTimeOffset current) {
-            if(this.first) {
-                current=this.value;
-                this.first=false;
+            if(first) {
+                current=value;
+                first=false;
                 return true;
             }
 
             checked {
-                this.value+=this.step;
+                value+=step;
             }
 
-            if(this.forward) {
-                if(this.value<this.end||(this.rightBound==RightBound.Inclusive&&this.value<=this.end)) {
-                    current=this.value;
+            if(forward) {
+                if(value<end||(rightBound==RightBound.Inclusive&&value<=end)) {
+                    current=value;
                     return true;
                 }
             }
             else {
-                if(this.value>this.end||(this.rightBound==RightBound.Inclusive&&this.value>=this.end)) {
-                    current=this.value;
+                if(value>end||(rightBound==RightBound.Inclusive&&value>=end)) {
+                    current=value;
                     return true;
                 }
             }

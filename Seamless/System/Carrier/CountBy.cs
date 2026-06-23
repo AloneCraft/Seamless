@@ -40,17 +40,17 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<KeyValuePair<TKey,int>> destination,Index offset) => false;
 
         public bool TryGetNext(out KeyValuePair<TKey,int> current) {
-            if(this.dictionary==null) {
+            if(dictionary==null) {
                 // if empty, don't create dictionary.
-                if(this.source.TryGetNonEnumeratedCount(out var count)&&count==0) {
+                if(source.TryGetNonEnumeratedCount(out var count)&&count==0) {
                     Unsafe.SkipInit(out current);
                     return false;
                 }
 
-                this.Initialize();
+                Initialize();
             }
 
-            if(this.enumerator.TryGetNext(out current)) {
+            if(enumerator.TryGetNext(out current)) {
                 return true;
             }
 
@@ -63,8 +63,8 @@ namespace Seamless.System.Carrier {
                 ? new DictionarySlim<TKey,int>(keyComparer)
                 : new DictionarySlim<TKey,int>();
 
-            using(this.source) {
-                if(this.source.TryGetSpan(out var span)) {
+            using(source) {
+                if(source.TryGetSpan(out var span)) {
                     foreach(var item in span) {
                         var key = keySelector(item);
                         ref var count = ref dict.GetValueRefOrAddDefault(key,out var exists);
@@ -72,7 +72,7 @@ namespace Seamless.System.Carrier {
                     }
                 }
                 else {
-                    while(this.source.TryGetNext(out var item)) {
+                    while(source.TryGetNext(out var item)) {
                         var key = keySelector(item);
                         ref var count = ref dict.GetValueRefOrAddDefault(key,out var exists);
                         checked { count+=1; }
@@ -80,13 +80,13 @@ namespace Seamless.System.Carrier {
                 }
             }
 
-            this.dictionary=dict;
-            this.enumerator=this.dictionary.GetEnumerator();
+            dictionary=dict;
+            enumerator=dictionary.GetEnumerator();
         }
 
         public void Dispose() {
-            this.dictionary?.Dispose();
-            this.source.Dispose();
+            dictionary?.Dispose();
+            source.Dispose();
         }
     }
 }

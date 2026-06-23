@@ -32,7 +32,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
         }
         {
             // コールドデータ読み込み後の重複追加でも KeyAlreadyExists
-            var folder = this.CreateDiskFolder();
+            var folder = CreateDiskFolder();
             using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
             using var sh = TStrategy.CreateStorageStore(logDevice,objDevice);

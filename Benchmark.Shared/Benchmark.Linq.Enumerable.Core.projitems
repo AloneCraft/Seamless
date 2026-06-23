@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildThisFileDirectory)Benchmark.TestInfrastructure.projitems" />
   <PropertyGroup>
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
@@ -7,11 +8,6 @@
     <DefineConstants Condition="'$(Persisted)' == 'true'">$(DefineConstants);PERSISTED</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)Infrastructure\**\*.cs" />
-    <Compile Remove="$(MSBuildThisFileDirectory)Infrastructure\TsavoriteBase.cs" Condition="'$(Tsavorite)'!='true'" />
-    <Compile Remove="$(MSBuildThisFileDirectory)Infrastructure\TsavoriteConsumerExtensions.cs" Condition="'$(Tsavorite)'!='true'" />
-    <Compile Remove="$(MSBuildThisFileDirectory)Infrastructure\PersistedBase.cs" Condition="'$(Persisted)'!='true'" />
-    <Compile Remove="$(MSBuildThisFileDirectory)Infrastructure\PersistedConsumerExtensions.cs" Condition="'$(Persisted)'!='true'" />
     <Compile Include="$(MSBuildThisFileDirectory)Methods1.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Linq.Enumerable\**\*.cs" />
   </ItemGroup>

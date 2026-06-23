@@ -60,8 +60,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out UInt16 current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -93,8 +93,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out SByte current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -126,8 +126,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out Byte current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -163,8 +163,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -197,8 +197,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out DateTime current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -232,8 +232,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out DateTimeOffset current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -270,8 +270,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out Int16 current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -310,8 +310,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out UInt32 current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -350,8 +350,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out Int32 current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -390,8 +390,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out UInt64 current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -430,8 +430,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out Int64 current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -470,8 +470,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out Char current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -510,8 +510,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out Single current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -550,8 +550,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out Double current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }
@@ -590,8 +590,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out Decimal current) {
-            if(!this.calledGetNext) {
-                this.calledGetNext=true;
+            if(!calledGetNext) {
+                calledGetNext=true;
                 current=start;
                 return true;
             }

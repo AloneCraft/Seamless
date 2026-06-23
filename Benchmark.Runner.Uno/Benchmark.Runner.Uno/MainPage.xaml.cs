@@ -1,9 +1,9 @@
-using global::System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using global::System.Diagnostics;
-using global::System.Globalization;
-using global::System.Reflection;
-using global::System.Text;
-using global::System.Text.Json;
+using System.Globalization;
+using System.Reflection;
+using System.Text;
+using System.Text.Json;
 using Microsoft.VisualBasic.FileIO;
 using Microsoft.UI.Xaml.Input;
 
@@ -934,7 +934,7 @@ public sealed partial class MainPage:Page{
                 process.Kill(entireProcessTree:true);
             }
         }catch(InvalidOperationException){
-        }catch(global::System.ComponentModel.Win32Exception){
+        }catch(System.ComponentModel.Win32Exception){
         }
     }
 
@@ -942,7 +942,7 @@ public sealed partial class MainPage:Page{
         // Collect candidate assembly files from the base directory and a small number of parent directories
     var paths = new List<string>();
         try{
-            paths.AddRange(Directory.GetFiles(AppContext.BaseDirectory, "Benchmark.*.dll", global::System.IO.SearchOption.TopDirectoryOnly));
+            paths.AddRange(Directory.GetFiles(AppContext.BaseDirectory, "Benchmark.*.dll", System.IO.SearchOption.TopDirectoryOnly));
         }catch{
         }
 
@@ -950,7 +950,7 @@ public sealed partial class MainPage:Page{
         for(var depth = 0; parent is not null && depth < 6; depth++, parent = parent.Parent){
             try{
                 // Search subdirectories under each parent to find built benchmark assemblies in sibling project output folders
-                paths.AddRange(Directory.GetFiles(parent.FullName, "Benchmark.*.dll", global::System.IO.SearchOption.AllDirectories));
+                paths.AddRange(Directory.GetFiles(parent.FullName, "Benchmark.*.dll", System.IO.SearchOption.AllDirectories));
             }catch{
                 // ignore inaccessible folders
             }
@@ -1186,7 +1186,7 @@ public sealed partial class MainPage:Page{
                 process.ProcessorAffinity=new IntPtr(affinity);
             }catch(PlatformNotSupportedException){
             }catch(InvalidOperationException){
-            }catch(global::System.ComponentModel.Win32Exception){
+            }catch(System.ComponentModel.Win32Exception){
             }
         }
 
@@ -1228,7 +1228,7 @@ public sealed partial class MainPage:Page{
 
     private static (string Mean,string Error,string StdDev) ReadResultValues(string artifactFolder,string methodName){
         var csvFile = Directory.Exists(artifactFolder)
-            ? Directory.GetFiles(artifactFolder,"*-report.csv",global::System.IO.SearchOption.AllDirectories)
+            ? Directory.GetFiles(artifactFolder,"*-report.csv",System.IO.SearchOption.AllDirectories)
                 .Select(static path => new FileInfo(path))
                 .OrderByDescending(static file => file.LastWriteTimeUtc)
                 .FirstOrDefault()

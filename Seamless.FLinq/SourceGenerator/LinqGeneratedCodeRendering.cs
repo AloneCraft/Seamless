@@ -1081,7 +1081,7 @@ public sealed partial class FLinqIncrementalGenerator {
         private readonly IReadOnlyDictionary<string,string> replacements = replacements;
 
         public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
-            if(!this.replacements.TryGetValue(node.Identifier.ValueText,out var replacement)
+            if(!replacements.TryGetValue(node.Identifier.ValueText,out var replacement)
                 || node.Parent is MemberAccessExpressionSyntax { Name: var memberName } && ReferenceEquals(memberName,node)
                 || node.Parent is MemberBindingExpressionSyntax { Name: var bindingName } && ReferenceEquals(bindingName,node)
                 || node.Parent is NameColonSyntax

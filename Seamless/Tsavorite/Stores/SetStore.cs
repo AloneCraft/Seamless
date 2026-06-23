@@ -4,7 +4,7 @@ using Seamless.Tsavorite.Devices;
 namespace Seamless.Tsavorite.Stores;
 
 public class SetStore<TKey, TRecord>:CollectionStore<TKey,TRecord>
-    where TRecord : Seamless.Collections.IRecord<TKey> {
+    where TRecord : IRecord<TKey> {
     internal SetStore(long indexSize,long pageSize,long segmentSize,long memorySize,double mutableFraction) :
         base(indexSize,pageSize,segmentSize,memorySize,mutableFraction,new MemoryOnlyDevice(segmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory) {
     }
@@ -14,7 +14,7 @@ public class SetStore<TKey, TRecord>:CollectionStore<TKey,TRecord>
     }
 
     private protected override long GetRecoveryEntryCount() {
-        using var set = this.Create();
+        using var set = Create();
         return set.GetLongCount();
     }
 

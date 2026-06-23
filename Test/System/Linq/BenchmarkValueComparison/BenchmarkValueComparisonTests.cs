@@ -120,22 +120,22 @@ public sealed class BenchmarkValueComparisonTests {
         private readonly MethodInfo captureResult;
 
         private BenchmarkTarget(Assembly assembly,Type type) {
-            this.Assembly=assembly;
-            this.Type=type;
-            this.benchmarkExecutionModeType=assembly.GetType(BenchmarkExecutionModeTypeName,throwOnError:true)!;
-            this.enableComparisonMode=this.benchmarkExecutionModeType.GetMethod(
+            Assembly=assembly;
+            Type=type;
+            benchmarkExecutionModeType=assembly.GetType(BenchmarkExecutionModeTypeName,throwOnError:true)!;
+            enableComparisonMode=benchmarkExecutionModeType.GetMethod(
                 "EnableComparisonMode",
                 BindingFlags.Static|BindingFlags.Public,
                 binder:null,
                 types:[typeof(int)],
                 modifiers:null)!;
-            this.disableComparisonMode=this.benchmarkExecutionModeType.GetMethod(
+            disableComparisonMode=benchmarkExecutionModeType.GetMethod(
                 "DisableComparisonMode",
                 BindingFlags.Static|BindingFlags.Public,
                 binder:null,
                 types:Type.EmptyTypes,
                 modifiers:null)!;
-            this.captureResult=type.GetMethod(
+            captureResult=type.GetMethod(
                 "CaptureBenchmarkMethodResult",
                 BindingFlags.Instance|BindingFlags.Public,
                 binder:null,
@@ -154,18 +154,18 @@ public sealed class BenchmarkValueComparisonTests {
         }
 
         public void EnableComparisonMode(int elementCount) =>
-            Invoke(this.enableComparisonMode,null,[elementCount]);
+            Invoke(enableComparisonMode,null,[elementCount]);
 
         public void DisableComparisonMode() =>
-            Invoke(this.disableComparisonMode,null,null);
+            Invoke(disableComparisonMode,null,null);
 
         public object CreateInstance() =>
-            Activator.CreateInstance(this.Type)
-            ??throw new InvalidOperationException("Could not create "+this.Type.FullName+".");
+            Activator.CreateInstance(Type)
+            ??throw new InvalidOperationException("Could not create "+Type.FullName+".");
 
         public string Capture(object instance,string methodName,bool invokeImpl) =>
-            (string)(Invoke(this.captureResult,instance,[methodName,invokeImpl])
-                ??throw new InvalidOperationException("Capture returned null for "+this.Type.FullName+"."+methodName+"."));
+            (string)(Invoke(captureResult,instance,[methodName,invokeImpl])
+                ??throw new InvalidOperationException("Capture returned null for "+Type.FullName+"."+methodName+"."));
 
         private static Assembly LoadAssembly(string assemblyName) {
             foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies()) {

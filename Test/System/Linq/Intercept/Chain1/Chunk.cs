@@ -9,8 +9,8 @@ public sealed class Chunk(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void size() {
         var expected=Source().Chunk(2).ToList();
-        this.MeasureOptimized(nameof(sizeOptimized),()=>sizeOptimized(expected));
-        this.MeasureOptimized(nameof(sizeNoOptimized),()=>sizeNoOptimized(expected));
+        MeasureOptimized(nameof(sizeOptimized),()=>sizeOptimized(expected));
+        MeasureOptimized(nameof(sizeNoOptimized),()=>sizeNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

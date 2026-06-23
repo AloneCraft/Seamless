@@ -8,8 +8,8 @@ public sealed class LastOrDefault(ITestOutputHelper output):LinqChain1TestBase(o
     [Fact, Trait("Category","Unit")]
     public void NoDelegate() {
         var expected=Source().LastOrDefault();
-        this.AssertOptimized(expected,()=>NoDelegateOptimized(),0,0);
-        this.AssertOptimized(expected,()=>NoDelegateNoOptimized(),0,0);
+        AssertOptimized(expected,()=>NoDelegateOptimized(),0,0);
+        AssertOptimized(expected,()=>NoDelegateNoOptimized(),0,0);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -23,8 +23,8 @@ public sealed class LastOrDefault(ITestOutputHelper output):LinqChain1TestBase(o
     [Fact, Trait("Category","Unit")]
     public void defaultValue() {
         var expected=EmptySource().LastOrDefault(42);
-        this.AssertOptimized(expected,()=>defaultValueOptimized(),0,0);
-        this.AssertOptimized(expected,()=>defaultValueNoOptimized(),0,0);
+        AssertOptimized(expected,()=>defaultValueOptimized(),0,0);
+        AssertOptimized(expected,()=>defaultValueNoOptimized(),0,0);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -38,8 +38,8 @@ public sealed class LastOrDefault(ITestOutputHelper output):LinqChain1TestBase(o
     [Fact, Trait("Category","Unit")]
     public void predicate_Static() {
         var expected=Source().LastOrDefault(static v => v>2);
-        this.AssertOptimized(expected,()=>predicate_StaticOptimized(),1,0);
-        this.AssertOptimized(expected,()=>predicate_StaticNoOptimized(),1,1);
+        AssertOptimized(expected,()=>predicate_StaticOptimized(),1,0);
+        AssertOptimized(expected,()=>predicate_StaticNoOptimized(),1,1);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -53,8 +53,8 @@ public sealed class LastOrDefault(ITestOutputHelper output):LinqChain1TestBase(o
     [Fact, Trait("Category","Unit")]
     public void predicate_Lambda() {
         var expected=Source().LastOrDefault(v => v>2);
-        this.AssertOptimized(expected,()=>predicate_LambdaOptimized(),1,0);
-        this.AssertOptimized(expected,()=>predicate_LambdaNoOptimized(),1,1);
+        AssertOptimized(expected,()=>predicate_LambdaOptimized(),1,0);
+        AssertOptimized(expected,()=>predicate_LambdaNoOptimized(),1,1);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -69,8 +69,8 @@ public sealed class LastOrDefault(ITestOutputHelper output):LinqChain1TestBase(o
     public void predicate_Captured() {
         var threshold=2;
         var expected=Source().LastOrDefault(v => v>threshold);
-        this.AssertOptimized(expected,()=>predicate_CapturedOptimized(threshold),1,0);
-        this.AssertOptimized(expected,()=>predicate_CapturedNoOptimized(threshold),1,1);
+        AssertOptimized(expected,()=>predicate_CapturedOptimized(threshold),1,0);
+        AssertOptimized(expected,()=>predicate_CapturedNoOptimized(threshold),1,1);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -84,8 +84,8 @@ public sealed class LastOrDefault(ITestOutputHelper output):LinqChain1TestBase(o
     [Fact, Trait("Category","Unit")]
     public void predicate_DelegateSyntax() {
         var expected=Source().LastOrDefault(delegate(int v) { return v>2; });
-        this.AssertOptimized(expected,()=>predicate_DelegateSyntaxOptimized(),1,0);
-        this.AssertOptimized(expected,()=>predicate_DelegateSyntaxNoOptimized(),1,1);
+        AssertOptimized(expected,()=>predicate_DelegateSyntaxOptimized(),1,0);
+        AssertOptimized(expected,()=>predicate_DelegateSyntaxNoOptimized(),1,1);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -100,8 +100,8 @@ public sealed class LastOrDefault(ITestOutputHelper output):LinqChain1TestBase(o
     public void predicate_Variable() {
         Func<int,bool> predicate=v => v>2;
         var expected=Source().LastOrDefault(predicate);
-        this.AssertOptimized(expected,()=>predicate_VariableOptimized(predicate),1,1);
-        this.AssertOptimized(expected,()=>predicate_VariableNoOptimized(predicate),1,1);
+        AssertOptimized(expected,()=>predicate_VariableOptimized(predicate),1,1);
+        AssertOptimized(expected,()=>predicate_VariableNoOptimized(predicate),1,1);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]

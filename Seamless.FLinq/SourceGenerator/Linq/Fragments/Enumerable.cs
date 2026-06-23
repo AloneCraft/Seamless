@@ -33,13 +33,13 @@ public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecu
     // ソース生成時に確定する（ArrayRoot/ListRoot のみ true）。span fast path を分岐なしで生成するために使う。
     public virtual bool CanProvideSpan => false;
     // TryGetSpan を実行時に試してよいか。false の可能性があるため呼び出し側は必ず fallback を持つ。
-    public virtual bool CanTryProvideSpan => this.CanProvideSpan;
+    public virtual bool CanTryProvideSpan => CanProvideSpan;
     // interceptor が IEnumerable<T> を返すときに使う ValueEnumerable 構築式。
-    public virtual string GetEnumerableExpression => $"new global::Seamless.System.Carrier.ValueEnumerable<{this.EnumeratorTypeName}, {this.ElementType}>({this.GetEnumeratorExpression})";
+    public virtual string GetEnumerableExpression => $"new global::Seamless.System.Carrier.ValueEnumerable<{EnumeratorTypeName}, {ElementType}>({GetEnumeratorExpression})";
     // 既定では下流の enumerator を Dispose する。
-    protected virtual string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    protected virtual string GetEnumeratorDisposeBody => $"{e}.Dispose();";
     // enumerable 系は要素型を Current とする enumerator struct を共通生成する。
-    public override string GetEnumeratorStruct => this.DefineEnumeratorStructCore(this.ElementType,this.GetEnumeratorDisposeBody);
+    public override string GetEnumeratorStruct => DefineEnumeratorStructCore(ElementType,GetEnumeratorDisposeBody);
 
     // expr.Consume(consumer) 文に対する直接実行コード片。
     // この enumerable を列挙し各要素を consumer へ渡す。各 LINQ 演算子の意味は自分の enumerator が表現するため、
@@ -51,8 +51,8 @@ public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecu
         var builder=new StringBuilder();
         var enumeratorName=$"__ce{番号}";
         var valueName=$"__cv{番号}";
-        builder.AppendLine($"using var {enumeratorName}={this.GetEnumeratorExpression};");
-        TraversalSupport.AppendTraversalLoop(builder,enumeratorName,this.ElementType,valueName,$"{consumerName}.Consume({valueName});",this.CanTryProvideSpan);
+        builder.AppendLine($"using var {enumeratorName}={GetEnumeratorExpression};");
+        TraversalSupport.AppendTraversalLoop(builder,enumeratorName,ElementType,valueName,$"{consumerName}.Consume({valueName});",CanTryProvideSpan);
         return builder.ToString().TrimEnd();
     }
 }

@@ -27,7 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
-  <Import Project="..\Collections.Shared\Collections.Shared.projitems" Label="Shared" />
+  <Import Project="..\TestBenchmark.Collections.Shared\TestBenchmark.Collections.Shared.projitems" Label="Shared" />
   <ItemGroup>
     <Compile Include="..\Test\Seamless\Tsavorite\Collections\**\*.cs" Exclude="..\Test\Seamless\Tsavorite\Collections\TestTypes.cs;..\Test\Seamless\Tsavorite\Collections\StoreHandle.cs;..\Test\Seamless\Tsavorite\Collections\HashSetStrategy.cs;..\Test\Seamless\Tsavorite\Collections\DictionaryStrategy.cs;..\Test\Seamless\Tsavorite\Collections\HashSetTestBase.cs;..\Test\Seamless\Tsavorite\Collections\DictionaryTestBase.cs;..\Test\Seamless\Tsavorite\Collections\IDictionaryTestBase.cs" />
   </ItemGroup>

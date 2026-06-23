@@ -48,40 +48,40 @@ internal sealed class RefStack<T> where T : IDisposable
 
     RefStack(int initialSize)
     {
-        this.array = initialSize == 0 ? [] : new T[initialSize];
-        this.size = 0;
+        array = initialSize == 0 ? [] : new T[initialSize];
+        size = 0;
     }
 
     public void Push(T value)
     {
-        if (this.size ==this.array.Length)
+        if (size ==array.Length)
         {
-            Array.Resize(ref this.array,this.array.Length * 2); // I don't care if the stack is not deep enough to overflow.
+            Array.Resize(ref array,array.Length * 2); // I don't care if the stack is not deep enough to overflow.
         }
-        this.array[this.size++] = value;
+        array[size++] = value;
     }
 
     public void Pop()
     {
-        this.size--;
+        size--;
     }
 
     public ref T PeekRefOrNullRef()
     {
-        if (this.size == 0)
+        if (size == 0)
         {
             return ref Unsafe.NullRef<T>();
         }
-        return ref this.array[this.size - 1];
+        return ref array[size - 1];
     }
 
     public void Reset()
     {
-        for (int i = 0; i <this.size; i++)
+        for (int i = 0; i <size; i++)
         {
-            this.array[i].Dispose();
+            array[i].Dispose();
         }
 
-        this.size = 0;
+        size = 0;
     }
 }

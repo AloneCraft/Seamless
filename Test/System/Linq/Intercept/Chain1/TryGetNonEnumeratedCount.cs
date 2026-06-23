@@ -9,8 +9,8 @@ public sealed class TryGetNonEnumeratedCount(ITestOutputHelper output):LinqChain
     [Fact, Trait("Category","Unit")]
     public void count() {
         var expectedResult=Source().TryGetNonEnumeratedCount(out var expected);
-        this.MeasureOptimized(nameof(countOptimized),()=>countOptimized(expectedResult,expected));
-        this.MeasureOptimized(nameof(countNoOptimized),()=>countNoOptimized(expectedResult,expected));
+        MeasureOptimized(nameof(countOptimized),()=>countOptimized(expectedResult,expected));
+        MeasureOptimized(nameof(countNoOptimized),()=>countNoOptimized(expectedResult,expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

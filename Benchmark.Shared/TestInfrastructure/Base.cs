@@ -453,3 +453,4 @@ public class Base {
         return System.Linq.Enumerable.Range(1,side).Select(_ => System.Linq.Enumerable.Range(1,side));
     }
 }
+

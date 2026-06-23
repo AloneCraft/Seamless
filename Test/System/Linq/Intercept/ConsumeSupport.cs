@@ -13,7 +13,7 @@ namespace Test.System.Linq.Intercept;
 internal sealed class Consumer<T>{
     public List<T>Items{get;}=[];
     public void Consume(T item){
-        this.Items.Add(item);
+        Items.Add(item);
     }
 }
 

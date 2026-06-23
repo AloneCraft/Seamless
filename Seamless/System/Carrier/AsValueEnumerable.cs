@@ -95,7 +95,7 @@ namespace Seamless.System.Carrier {
         public int Index;
         [MethodImpl]
         public void ThrowIfNoEnumerable() {
-            if(this.Index>=0) return;
+            if(Index>=0) return;
             Throw();
             return;
 
@@ -112,50 +112,50 @@ namespace Seamless.System.Carrier {
 
         public FromEnumerable(IEnumerable<T> source) {
             if(source.GetType()==typeof(T[])) {
-                this.iterator=ArrayIterator<T>.Instance;
+                iterator=ArrayIterator<T>.Instance;
             }
             else if(source.GetType()==typeof(List<T>)) {
-                this.iterator=ListIterator<T>.Instance;
+                iterator=ListIterator<T>.Instance;
             }
             else if(source is IReadOnlyList<T>) {
-                this.iterator=IReadOnlyListIterator<T>.Instance;
+                iterator=IReadOnlyListIterator<T>.Instance;
             }
             else if(source is IList<T>) {
-                this.iterator=IListIterator<T>.Instance;
+                iterator=IListIterator<T>.Instance;
             }
             else {
-                this.iterator=EnumerableIterator<T>.Instance;
+                iterator=EnumerableIterator<T>.Instance;
             }
 
-            this.content=new(source);
+            content=new(source);
         }
 
         // for Contains, need to check ICollection of IEqualityComparer due to compatibility
         internal IEnumerable<T> GetSource() {
-            this.content.ThrowIfNoEnumerable();
-            return Unsafe.As<IEnumerable<T>>(this.content.Source);
+            content.ThrowIfNoEnumerable();
+            return Unsafe.As<IEnumerable<T>>(content.Source);
         }
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            this.content.ThrowIfNoEnumerable();
-            return this.iterator.TryGetNonEnumeratedCount(Unsafe.As<IEnumerable<T>>(this.content.Source),out count);
+            content.ThrowIfNoEnumerable();
+            return iterator.TryGetNonEnumeratedCount(Unsafe.As<IEnumerable<T>>(content.Source),out count);
         }
 
         public bool TryGetSpan(out ReadOnlySpan<T> span) {
-            this.content.ThrowIfNoEnumerable();
-            return this.iterator.TryGetSpan(Unsafe.As<IEnumerable<T>>(this.content.Source),out span);
+            content.ThrowIfNoEnumerable();
+            return iterator.TryGetSpan(Unsafe.As<IEnumerable<T>>(content.Source),out span);
         }
 
         public bool TryCopyTo(Span<T> destination,Index offset) {
-            this.content.ThrowIfNoEnumerable();
-            return this.iterator.TryCopyTo(Unsafe.As<IEnumerable<T>>(this.content.Source),destination,offset);
+            content.ThrowIfNoEnumerable();
+            return iterator.TryCopyTo(Unsafe.As<IEnumerable<T>>(content.Source),destination,offset);
         }
 
-        public bool TryGetNext(out T current) => this.iterator.TryGetNext(ref this.content,out current);
+        public bool TryGetNext(out T current) => iterator.TryGetNext(ref content,out current);
 
         public void Dispose() {
-            if(this.content.Index>=0) return;
-            Unsafe.As<IEnumerator<T>>(this.content.Source).Dispose();
+            if(content.Index>=0) return;
+            Unsafe.As<IEnumerator<T>>(content.Source).Dispose();
         }
     }
 
@@ -374,12 +374,12 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if(this.enumerator==null) {
-                this.enumerator=source.GetEnumerator();
+            if(enumerator==null) {
+                enumerator=source.GetEnumerator();
             }
 
-            if(this.enumerator.MoveNext()) {
-                var value = this.enumerator.Current;
+            if(enumerator.MoveNext()) {
+                var value = enumerator.Current;
                 current=(T)value;
                 return true;
             }
@@ -389,7 +389,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(this.enumerator is IDisposable d) {
+            if(enumerator is IDisposable d) {
                 d.Dispose();
             }
         }
@@ -428,9 +428,9 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if((uint)this.index<(uint)source.Length) {
-                current=source[this.index];
-                this.index++;
+            if((uint)index<(uint)source.Length) {
+                current=source[index];
+                index++;
                 return true;
             }
 
@@ -449,12 +449,12 @@ namespace Seamless.System.Carrier {
         int index;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            count=this.source.Length;
+            count=source.Length;
             return true;
         }
 
         public bool TryCopyTo(scoped Span<T> destination,Index offset) {
-            var span = this.source.Span;
+            var span = source.Span;
             if(EnumeratorHelper.TryGetSlice<T>(span,offset,destination.Length,out var slice)) {
                 slice.CopyTo(destination);
                 return true;
@@ -463,14 +463,14 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetSpan(out ReadOnlySpan<T> span) {
-            span=this.source.Span;
+            span=source.Span;
             return true;
         }
 
         public bool TryGetNext(out T current) {
-            if((uint)this.index<(uint)this.source.Length) {
-                current=this.source.Span[this.index];
-                this.index++;
+            if((uint)index<(uint)source.Length) {
+                current=source.Span[index];
+                index++;
                 return true;
             }
 
@@ -510,9 +510,9 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if((uint)this.index<(uint)source.Count) {
-                current=source[this.index];
-                this.index++;
+            if((uint)index<(uint)source.Count) {
+                current=source[index];
+                index++;
                 return true;
             }
 
@@ -543,13 +543,13 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(Span<KeyValuePair<TKey,TValue>> destination,Index offset) => false;
 
         public bool TryGetNext(out KeyValuePair<TKey,TValue> current) {
-            if(!this.isInit) {
-                this.isInit=true;
-                this.enumerator=source.GetEnumerator();
+            if(!isInit) {
+                isInit=true;
+                enumerator=source.GetEnumerator();
             }
 
-            if(this.enumerator.MoveNext()) {
-                current=this.enumerator.Current;
+            if(enumerator.MoveNext()) {
+                current=enumerator.Current;
                 return true;
             }
 
@@ -558,8 +558,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(this.isInit) {
-                this.enumerator.Dispose();
+            if(isInit) {
+                enumerator.Dispose();
             }
         }
     }
@@ -583,13 +583,13 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(Span<KeyValuePair<TKey,TValue>> destination,Index offset) => false;
 
         public bool TryGetNext(out KeyValuePair<TKey,TValue> current) {
-            if(!this.isInit) {
-                this.isInit=true;
-                this.enumerator=source.GetEnumerator();
+            if(!isInit) {
+                isInit=true;
+                enumerator=source.GetEnumerator();
             }
 
-            if(this.enumerator.MoveNext()) {
-                current=this.enumerator.Current;
+            if(enumerator.MoveNext()) {
+                current=enumerator.Current;
                 return true;
             }
 
@@ -598,8 +598,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(this.isInit) {
-                this.enumerator.Dispose();
+            if(isInit) {
+                enumerator.Dispose();
             }
         }
     }
@@ -650,18 +650,18 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if(!this.isInit) {
-                this.isInit=true;
-                this.sequenceEnumerator=source.GetEnumerator();
+            if(!isInit) {
+                isInit=true;
+                sequenceEnumerator=source.GetEnumerator();
             }
 
         MOVE_NEXT:
-            if(this.enumerator.TryGetNext(out current)) {
+            if(enumerator.TryGetNext(out current)) {
                 return true;
             }
 
-            if(this.sequenceEnumerator.MoveNext()) {
-                this.enumerator=this.sequenceEnumerator.Current.AsValueEnumerable().Enumerator;
+            if(sequenceEnumerator.MoveNext()) {
+                enumerator=sequenceEnumerator.Current.AsValueEnumerable().Enumerator;
                 goto MOVE_NEXT;
             }
 
@@ -693,13 +693,13 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(Span<T> destination,Index offset) => false;
 
         public bool TryGetNext(out T current) {
-            if(!this.isInit) {
-                this.isInit=true;
-                this.enumerator=source.GetEnumerator();
+            if(!isInit) {
+                isInit=true;
+                enumerator=source.GetEnumerator();
             }
 
-            if(this.enumerator.MoveNext()) {
-                current=this.enumerator.Current;
+            if(enumerator.MoveNext()) {
+                current=enumerator.Current;
                 return true;
             }
 
@@ -708,8 +708,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(this.isInit) {
-                this.enumerator.Dispose();
+            if(isInit) {
+                enumerator.Dispose();
             }
         }
     }
@@ -732,13 +732,13 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(Span<T> destination,Index offset) => false;
 
         public bool TryGetNext(out T current) {
-            if(!this.isInit) {
-                this.isInit=true;
-                this.enumerator=source.GetEnumerator();
+            if(!isInit) {
+                isInit=true;
+                enumerator=source.GetEnumerator();
             }
 
-            if(this.enumerator.MoveNext()) {
-                current=this.enumerator.Current;
+            if(enumerator.MoveNext()) {
+                current=enumerator.Current;
                 return true;
             }
 
@@ -747,8 +747,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(this.isInit) {
-                this.enumerator.Dispose();
+            if(isInit) {
+                enumerator.Dispose();
             }
         }
     }
@@ -771,13 +771,13 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(Span<T> destination,Index offset) => false;
 
         public bool TryGetNext(out T current) {
-            if(!this.isInit) {
-                this.isInit=true;
-                this.enumerator=source.GetEnumerator();
+            if(!isInit) {
+                isInit=true;
+                enumerator=source.GetEnumerator();
             }
 
-            if(this.enumerator.MoveNext()) {
-                current=this.enumerator.Current;
+            if(enumerator.MoveNext()) {
+                current=enumerator.Current;
                 return true;
             }
 
@@ -786,8 +786,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(this.isInit) {
-                this.enumerator.Dispose();
+            if(isInit) {
+                enumerator.Dispose();
             }
         }
     }
@@ -813,13 +813,13 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(Span<T> destination,Index offset) => false;
 
         public bool TryGetNext(out T current) {
-            if(!this.isInit) {
-                this.isInit=true;
-                this.enumerator=source.GetEnumerator();
+            if(!isInit) {
+                isInit=true;
+                enumerator=source.GetEnumerator();
             }
 
-            if(this.enumerator.MoveNext()) {
-                current=this.enumerator.Current;
+            if(enumerator.MoveNext()) {
+                current=enumerator.Current;
                 return true;
             }
 
@@ -828,8 +828,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(this.isInit) {
-                this.enumerator.Dispose();
+            if(isInit) {
+                enumerator.Dispose();
             }
         }
     }
@@ -855,13 +855,13 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(Span<T> destination,Index offset) => false;
 
         public bool TryGetNext(out T current) {
-            if(!this.isInit) {
-                this.isInit=true;
-                this.enumerator=source.GetEnumerator();
+            if(!isInit) {
+                isInit=true;
+                enumerator=source.GetEnumerator();
             }
 
-            if(this.enumerator.MoveNext()) {
-                current=this.enumerator.Current;
+            if(enumerator.MoveNext()) {
+                current=enumerator.Current;
                 return true;
             }
 
@@ -870,8 +870,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(this.isInit) {
-                this.enumerator.Dispose();
+            if(isInit) {
+                enumerator.Dispose();
             }
         }
     }
@@ -900,9 +900,9 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if((uint)this.index<(uint)source.Length) {
-                current=source[this.index];
-                this.index++;
+            if((uint)index<(uint)source.Length) {
+                current=source[index];
+                index++;
                 return true;
             }
 
@@ -934,13 +934,13 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(Span<T> destination,Index offset) => false;
 
         public bool TryGetNext(out T current) {
-            if(!this.isInit) {
-                this.isInit=true;
-                this.enumerator=source.GetEnumerator();
+            if(!isInit) {
+                isInit=true;
+                enumerator=source.GetEnumerator();
             }
 
-            if(this.enumerator.MoveNext()) {
-                current=this.enumerator.Current;
+            if(enumerator.MoveNext()) {
+                current=enumerator.Current;
                 return true;
             }
 
@@ -949,8 +949,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(this.isInit) {
-                this.enumerator.Dispose();
+            if(isInit) {
+                enumerator.Dispose();
             }
         }
     }

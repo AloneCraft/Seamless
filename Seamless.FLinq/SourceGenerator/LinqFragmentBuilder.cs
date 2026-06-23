@@ -545,7 +545,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         var stages = predicate is null
-            ? global::System.Array.Empty<PipelineStage>()
+            ? Array.Empty<PipelineStage>()
             : [new PipelineStage(PipelineStageKind.Where,predicate,null,source.ElementType,source.ElementType)];
         var pipeline = new PipelineEnumerable(number,source,stages,source.ElementType);
         if(TsavoriteHashSetScanTerminal.TryCreate(number,pipeline,terminalKind.Value,out var tsavoriteTerminal)) {
@@ -920,7 +920,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         public override SyntaxNode? Visit(SyntaxNode? node) {
             if(node is ExpressionSyntax expression
-                && this.replacements.TryGetValue(expression,out var replacement)) {
+                && replacements.TryGetValue(expression,out var replacement)) {
                 return SyntaxFactory.IdentifierName(replacement).WithTriviaFrom(expression);
             }
             return base.Visit(node);
@@ -2144,7 +2144,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        var elementTypeName=elementType.ToDisplayString(global::Microsoft.CodeAnalysis.SymbolDisplayFormat.FullyQualifiedFormat);
+        var elementTypeName=elementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         if(collectionExpression.Elements.Count==0) {
             fragment=new EmptyRoot(uniqueNumber++,elementTypeName);
             return true;

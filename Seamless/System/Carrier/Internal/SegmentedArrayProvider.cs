@@ -13,63 +13,63 @@ internal ref struct SegmentedArrayProvider<T>
     int segmentsCount;
     int countInFinishedSegments;
 
-    public int Count => checked(this.countInFinishedSegments +this.countInCurrentSegment);
+    public int Count => checked(countInFinishedSegments +countInCurrentSegment);
 
-    public bool IsInitialBufferOnly => this.segmentsCount == 0;
+    public bool IsInitialBufferOnly => segmentsCount == 0;
 
     public SegmentedArrayProvider(Span<T> initialBuffer)
     {
-        this.initialBuffer =this.currentSegment = initialBuffer;
+        this.initialBuffer =currentSegment = initialBuffer;
     }
 
     public Span<T> GetSpan()
     {
-        var span = this.currentSegment;
-        var index = this.countInCurrentSegment;
+        var span = currentSegment;
+        var index = countInCurrentSegment;
         if ((uint)index < (uint)span.Length)
         {
             return span.Slice(index);
         }
         else
         {
-            this.Expand();
-            return this.currentSegment;
+            Expand();
+            return currentSegment;
         }
     }
 
     public void Advance(int count)
     {
-        this.countInCurrentSegment += count;
+        countInCurrentSegment += count;
     }
 
     void Expand()
     {
-        var currentSegmentLength = this.currentSegment.Length;
-        checked { this.countInFinishedSegments += currentSegmentLength; }
+        var currentSegmentLength = currentSegment.Length;
+        checked { countInFinishedSegments += currentSegmentLength; }
 
-        if (this.countInFinishedSegments > ArrayMaxLength)
+        if (countInFinishedSegments > ArrayMaxLength)
         {
             throw new OutOfMemoryException();
         }
 
         var newSegmentLength = (int)Math.Min(Math.Max(16, currentSegmentLength) * 2L, ArrayMaxLength);
-        this.currentSegment =
+        currentSegment =
 #if NET8_0_OR_GREATER
-            this.segments[this.segmentsCount]
+            segments[segmentsCount]
 #else
             InlineArrayMarshal.ElementRef<InlineArray27<T[]>, T[]>(ref segments, segmentsCount)
 #endif
             = ArrayPool<T>.Shared.Rent(newSegmentLength);
-        this.countInCurrentSegment = 0;
-        this.segmentsCount++;
+        countInCurrentSegment = 0;
+        segmentsCount++;
     }
 
     public void CopyToAndClear(Span<T> destination)
     {
-        int segmentIndex = this.segmentsCount;
+        int segmentIndex = segmentsCount;
         if (segmentIndex != 0)
         {
-            var first = this.initialBuffer;
+            var first = initialBuffer;
             first.CopyTo(destination);
             destination = destination.Slice(first.Length);
 
@@ -77,7 +77,7 @@ internal ref struct SegmentedArrayProvider<T>
             if (segmentIndex != 0) // skip for last
             {
 #if NET8_0_OR_GREATER
-                ReadOnlySpan<T[]> segmentSpan = ((ReadOnlySpan<T[]>)this.segments).Slice(0, segmentIndex);
+                ReadOnlySpan<T[]> segmentSpan = ((ReadOnlySpan<T[]>)segments).Slice(0, segmentIndex);
 #else
                 ReadOnlySpan<T[]> segmentSpan = segments.AsSpan().Slice(0, segmentIndex);
 #endif
@@ -97,14 +97,14 @@ internal ref struct SegmentedArrayProvider<T>
             }
 
             // copy current(last) buffer
-            var lastSegment = this.segments[segmentIndex];
-            lastSegment.AsSpan(0,this.countInCurrentSegment).CopyTo(destination);
+            var lastSegment = segments[segmentIndex];
+            lastSegment.AsSpan(0,countInCurrentSegment).CopyTo(destination);
             ArrayPool<T>.Shared.Return(lastSegment, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
         }
         else
         {
             // only copy initial buffer
-            this.currentSegment.Slice(0,this.countInCurrentSegment).CopyTo(destination);
+            currentSegment.Slice(0,countInCurrentSegment).CopyTo(destination);
         }
     }
 }

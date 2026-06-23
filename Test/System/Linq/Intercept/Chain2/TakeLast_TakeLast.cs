@@ -8,8 +8,8 @@ public sealed class TakeLast_TakeLast(ITestOutputHelper output):LinqChain2TestBa
     public void SpanFusion() {
                 //span経路(配列)・引数違いでmin融合になること
         var expected=Source().TakeLast(3).TakeLast(2).ToList();
-        this.MeasureOptimized(nameof(SpanFusionOptimized),()=>SpanFusionOptimized(expected));
-        this.MeasureOptimized(nameof(SpanFusionNoOptimized),()=>SpanFusionNoOptimized(expected));
+        MeasureOptimized(nameof(SpanFusionOptimized),()=>SpanFusionOptimized(expected));
+        MeasureOptimized(nameof(SpanFusionNoOptimized),()=>SpanFusionNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -32,8 +32,8 @@ public sealed class TakeLast_TakeLast(ITestOutputHelper output):LinqChain2TestBa
     public void SpanChain3() {
                 //span経路・3段連鎖
         var expected=Source().TakeLast(2).TakeLast(3).TakeLast(4).ToList();
-        this.MeasureOptimized(nameof(SpanChain3Optimized),()=>SpanChain3Optimized(expected));
-        this.MeasureOptimized(nameof(SpanChain3NoOptimized),()=>SpanChain3NoOptimized(expected));
+        MeasureOptimized(nameof(SpanChain3Optimized),()=>SpanChain3Optimized(expected));
+        MeasureOptimized(nameof(SpanChain3NoOptimized),()=>SpanChain3NoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -56,8 +56,8 @@ public sealed class TakeLast_TakeLast(ITestOutputHelper output):LinqChain2TestBa
     public void NonSpanQueuePath() {
                 //非span経路(Where挟みでQueue経路)
         var expected=Source().Where(p => p>0).TakeLast(3).TakeLast(2).ToList();
-        this.MeasureOptimized(nameof(NonSpanQueuePathOptimized),()=>NonSpanQueuePathOptimized(expected));
-        this.MeasureOptimized(nameof(NonSpanQueuePathNoOptimized),()=>NonSpanQueuePathNoOptimized(expected));
+        MeasureOptimized(nameof(NonSpanQueuePathOptimized),()=>NonSpanQueuePathOptimized(expected));
+        MeasureOptimized(nameof(NonSpanQueuePathNoOptimized),()=>NonSpanQueuePathNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

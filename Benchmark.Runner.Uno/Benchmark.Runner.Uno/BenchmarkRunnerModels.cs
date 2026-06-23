@@ -1,6 +1,6 @@
-using global::System.ComponentModel;
-using global::System.Text.RegularExpressions;
-using global::System.Runtime.CompilerServices;
+using System.ComponentModel;
+using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
 
 namespace Benchmark.Runner.Uno;
 
@@ -66,7 +66,7 @@ public sealed class BenchmarkItem:BindableObject{
         this.Categories=categories;
         this.ProjectMethods=projectMethods;
         this.CategoryText=categories.Length==0?"-":string.Join(", ",categories);
-        this.ProjectStatuses=new global::System.Collections.ObjectModel.ObservableCollection<BenchmarkProjectStatusCell>(
+        this.ProjectStatuses=new System.Collections.ObjectModel.ObservableCollection<BenchmarkProjectStatusCell>(
             projectColumns.Select(static project => new BenchmarkProjectStatusCell(project.ProjectKey,project.DisplayName,project.IsSelected)));
     }
 
@@ -75,7 +75,7 @@ public sealed class BenchmarkItem:BindableObject{
     public string[] Categories { get; }
     public string CategoryText { get; }
     public IReadOnlyDictionary<string,BenchmarkProjectMethod> ProjectMethods { get; }
-    public global::System.Collections.ObjectModel.ObservableCollection<BenchmarkProjectStatusCell> ProjectStatuses { get; }
+    public System.Collections.ObjectModel.ObservableCollection<BenchmarkProjectStatusCell> ProjectStatuses { get; }
 
     public bool IsSelected{
         get => this.isSelected;
@@ -177,14 +177,14 @@ public sealed class BenchmarkProjectStatusCell:BindableObject{
     };
 
     public double Opacity => this.IsProjectSelected ? 1.0 : 0.35;
-    public Microsoft.UI.Xaml.Visibility RunningVisibility =>
+    public Visibility RunningVisibility =>
         this.Status==BenchmarkProjectRunStatus.Running
-            ? Microsoft.UI.Xaml.Visibility.Visible
-            : Microsoft.UI.Xaml.Visibility.Collapsed;
-    public Microsoft.UI.Xaml.Visibility GlyphVisibility =>
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    public Visibility GlyphVisibility =>
         string.IsNullOrEmpty(this.Glyph)
-            ? Microsoft.UI.Xaml.Visibility.Collapsed
-            : Microsoft.UI.Xaml.Visibility.Visible;
+            ? Visibility.Collapsed
+            : Visibility.Visible;
 
     private void OnVisualStateChanged(){
         this.OnPropertyChanged(nameof(this.Glyph));

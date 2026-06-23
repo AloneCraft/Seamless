@@ -18,7 +18,7 @@ namespace Seamless.System.Carrier {
         TEnumerator source = source;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            return this.source.TryGetNonEnumeratedCount(out count);
+            return source.TryGetNonEnumeratedCount(out count);
         }
 
         public bool TryGetSpan(out ReadOnlySpan<TResult> span) {
@@ -29,7 +29,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            while(this.source.TryGetNext(out var value)) {
+            while(source.TryGetNext(out var value)) {
                 current=(TResult)(object)value!;
                 return true;
             }
@@ -39,7 +39,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            this.source.Dispose();
+            source.Dispose();
         }
     }
 }

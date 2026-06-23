@@ -17,9 +17,9 @@ public sealed class BlockFunc : FuncFragment {
     public override string RenderInlineAssign(string destination,int number,params string[] arguments) {
         var label = $"__blockEnd_{number}_{SanitizeLocalName(destination)}";
         var prelude = new StringBuilder();
-        var body = this.BlockBody;
-        for(var index = 0; index<arguments.Length && index<this.ParameterNames.Length; index++) {
-            if(string.IsNullOrWhiteSpace(this.ParameterNames[index])) {
+        var body = BlockBody;
+        for(var index = 0; index<arguments.Length && index<ParameterNames.Length; index++) {
+            if(string.IsNullOrWhiteSpace(ParameterNames[index])) {
                 continue;
             }
 
@@ -37,7 +37,7 @@ public sealed class BlockFunc : FuncFragment {
 
             body = Regex.Replace(
                 body,
-                $@"\b{Regex.Escape(this.ParameterNames[index])}\b",
+                $@"\b{Regex.Escape(ParameterNames[index])}\b",
                 replacement,
                 RegexOptions.CultureInvariant);
         }

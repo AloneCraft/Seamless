@@ -36,7 +36,7 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if(this.index++<_count) {
+            if(index++<_count) {
                 current=_element;
                 return true;
             }

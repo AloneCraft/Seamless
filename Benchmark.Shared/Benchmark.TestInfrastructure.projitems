@@ -6,5 +6,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\**\*.cs" />
+    <Compile Remove="$(MSBuildThisFileDirectory)TestInfrastructure\TsavoriteBase.cs" Condition="'$(Tsavorite)'!='true'" />
+    <Compile Remove="$(MSBuildThisFileDirectory)TestInfrastructure\TsavoriteConsumerExtensions.cs" Condition="'$(Tsavorite)'!='true'" />
+    <Compile Remove="$(MSBuildThisFileDirectory)TestInfrastructure\PersistedBase.cs" Condition="'$(Persisted)'!='true'" />
+    <Compile Remove="$(MSBuildThisFileDirectory)TestInfrastructure\PersistedConsumerExtensions.cs" Condition="'$(Persisted)'!='true'" />
   </ItemGroup>
 </Project>

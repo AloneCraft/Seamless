@@ -1,12 +1,12 @@
-using Seamless.Tsavorite.Collections;
+﻿using Seamless.Tsavorite.Collections;
 using Seamless.Tsavorite.Stores;
 namespace Seamless.Tsavorite.SessionFunctions;
 
 using global::System.Diagnostics.CodeAnalysis;
 
 /// <summary>
-/// Collection 用セチE�E��E�ョン関数、EanagedAdd は RMW と Upsert の両方で使われる。RMWではAddセマンチE�E��E�クス�E�E�E�キー既存時は拒否�E�E�E�、E
-/// 冁E�E��E�でシリアライズするため、呼び側で PinnedSpanByte めEGCHandle のピン止めが不要、E
+/// Collection 用セチE�E��E�ョン関数、EanagedAdd は RMW と Upsert の両方で使われる。RMWではAddセマンチE�E��E�クス�E�E�E�キー既存時は拒否�E�E�E�、E
+/// 冁E�E��E�でシリアライズするため、呼び側で PinnedSpanByte めEGCHandle のピン止めが不要、E
 /// </summary>
 public readonly struct Upsert<TValue, TStrategy>:
     ISessionFunctions<TValue,bool,EqualityEmpty>,
@@ -15,19 +15,19 @@ public readonly struct Upsert<TValue, TStrategy>:
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static void ThrowReadDeleteEntryPoint() {
-        // Upsert は RMW / Upsert にだけバインドされる。直接 Read / Delete のコールバックには到達しなぁE�E��E�E
+        // Upsert は RMW / Upsert にだけバインドされる。直接 Read / Delete のコールバックには到達しなぁE�E��E�E
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static T ThrowReadDeleteEntryPoint<T>() {
-        // Upsert は RMW / Upsert にだけバインドされる。直接 Read / Delete のコールバックには到達しなぁE�E��E�E
+        // Upsert は RMW / Upsert にだけバインドされる。直接 Read / Delete のコールバックには到達しなぁE�E��E�E
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static T ThrowCopyUpdateEntryPoint<T>() {
-        // NeedCopyUpdate が常に false のため、CopyUpdater 系には到達しなぁE�E��E�E
+        // NeedCopyUpdate が常に false のため、CopyUpdater 系には到達しなぁE�E��E�E
     throw new NotSupportedException();
     }
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref ReadInfo readInfo)
@@ -63,20 +63,20 @@ public readonly struct Upsert<TValue, TStrategy>:
     }
 
     public bool InPlaceWriter(ref LogRecord logRecord,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        RecordSizeInfo sizeInfo=new(){ FieldInfo=this.GetUpsertFieldInfo(logRecord,srcValue,ref input) };
+        RecordSizeInfo sizeInfo=new(){ FieldInfo=GetUpsertFieldInfo(logRecord,srcValue,ref input) };
         logRecord.PopulateRecordSizeInfoForIPU(ref sizeInfo);
         return logRecord.TrySetValueSpanAndPrepareOptionals(srcValue,in sizeInfo);
     }
 
     public bool InPlaceWriter(ref LogRecord logRecord,ref TValue input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        RecordSizeInfo sizeInfo=new(){ FieldInfo=this.GetUpsertFieldInfo(logRecord,srcValue,ref input) };
+        RecordSizeInfo sizeInfo=new(){ FieldInfo=GetUpsertFieldInfo(logRecord,srcValue,ref input) };
         logRecord.PopulateRecordSizeInfoForIPU(ref sizeInfo);
         return logRecord.TrySetValueObjectAndPrepareOptionals(srcValue,in sizeInfo);
     }
 
     public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,ref TValue input,in TSourceLogRecord inputLogRecord,ref bool output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        RecordSizeInfo sizeInfo=new(){ FieldInfo=this.GetUpsertFieldInfo(dstLogRecord,in inputLogRecord,ref input) };
+        RecordSizeInfo sizeInfo=new(){ FieldInfo=GetUpsertFieldInfo(dstLogRecord,in inputLogRecord,ref input) };
         dstLogRecord.PopulateRecordSizeInfoForIPU(ref sizeInfo);
         return dstLogRecord.TryCopyFrom(in inputLogRecord,in sizeInfo);
     }
@@ -151,7 +151,7 @@ public readonly struct Upsert<TValue, TStrategy>:
     }
 
     /// <summary>
-    /// キー既存時は InPlaceUpdater=false で更新を拒否�E�E�E�Eutput は default(false) のまま�E�E�E�失敗！E
+    /// キー既存時は InPlaceUpdater=false で更新を拒否�E�E�E�Eutput は default(false) のまま�E�E�E�失敗！E
     /// </summary>
     public bool InPlaceUpdater(ref LogRecord logRecord,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
         return false;

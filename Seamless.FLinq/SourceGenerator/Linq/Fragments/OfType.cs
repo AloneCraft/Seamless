@@ -5,40 +5,40 @@ public class OfType(int 番号, Enumerable source, string resultElementType) : E
     private bool IsIdentityType => string.Equals(resultElementType,source.ElementType,StringComparison.Ordinal);
     internal Enumerable Source => source;
     internal string ResultElementType => resultElementType;
-    internal bool IsIdentity => this.IsIdentityType;
+    internal bool IsIdentity => IsIdentityType;
     public override string StructMethod => string.Empty;
-    public override string? DirectEnumerableExpression => this.IsIdentityType
+    public override string? DirectEnumerableExpression => IsIdentityType
         ? source.DirectEnumerableExpression
         : source.DirectEnumerableExpression is { } sourceExpression
         ? $"global::System.Linq.Enumerable.OfType<{resultElementType}>({sourceExpression})"
         : null;
-    public override string GetEnumerableExpression => this.IsIdentityType
+    public override string GetEnumerableExpression => IsIdentityType
         ? source.GetEnumerableExpression
-        : this.DirectEnumerableExpression ?? base.GetEnumerableExpression;
+        : DirectEnumerableExpression ?? base.GetEnumerableExpression;
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
-        while({{this.e}}.MoveNext()) {
-            if({{this.e}}.Current is {{resultElementType}} {{this.item}}) {
-                current = this.{{this.currentValue}} = {{this.item}};
+        while({{e}}.MoveNext()) {
+            if({{e}}.Current is {{resultElementType}} {{item}}) {
+                current = this.{{currentValue}} = {{item}};
                 return true;
             }
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
+    public override string GetCurrentExpression => currentValue;
     public override string ElementType => resultElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {
-        if(this.IsIdentityType) {
+        if(IsIdentityType) {
             return source.GetConsumeExecutionStatement(consumerName);
         }
-        if(this.DirectEnumerableExpression is not { } directEnumerable) {
+        if(DirectEnumerableExpression is not { } directEnumerable) {
             return base.GetConsumeExecutionStatement(consumerName);
         }
         var valueName=$"__cv{番号}";

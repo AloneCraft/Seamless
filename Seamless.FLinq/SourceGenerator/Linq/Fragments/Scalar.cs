@@ -25,7 +25,7 @@ public abstract class Scalar(int 番号):Fragment(番号){
     // スカラー断片は内部に子 enumerator を持たないことも多いので既定は何もしない。
     protected virtual string GetEnumeratorDisposeBody => string.Empty;
     // bool/int/T など単一結果を返す enumerator struct を共通生成する。
-    protected string DefineScalarEnumeratorStruct(string resultType) => this.DefineEnumeratorStructCore(resultType,this.GetEnumeratorDisposeBody);
+    protected string DefineScalarEnumeratorStruct(string resultType) => DefineEnumeratorStructCore(resultType,GetEnumeratorDisposeBody);
 
     // スカラー終端は呼び出し側で 1 回だけ TryGetNext される。単一要素 enumerator struct（Struct{番号}）を
     // 生成すると __yd0 ガード・Current・到達不能な IValueEnumerator 各メンバ等が丸ごと死にコードになる。
@@ -34,11 +34,11 @@ public abstract class Scalar(int 番号):Fragment(番号){
     public virtual string? RenderInlineComputation(string destVar,string destType) => null;
     // RenderInlineComputation がインライン展開を返すとき、補助クラスへ積む補助メンバ群。
     // Struct{番号}（単一要素 enumerator）を含まない点が GetEnumeratorStruct と異なる。
-    public virtual string InlineSupportingMembers => this.GetEnumeratorStruct;
+    public virtual string InlineSupportingMembers => GetEnumeratorStruct;
 
     protected string? RenderDirectEnumerableCallInline(Enumerable source,string destVar,string destType,string methodName,params string[] arguments) {
         if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
-        var sourceVar=$"__src{this.result}";
+        var sourceVar=$"__src{result}";
         var argumentList=arguments.Length==0 ? string.Empty : ", "+string.Join(", ",arguments);
         return $$"""
             {{destType}} {{destVar}};
@@ -52,12 +52,12 @@ public abstract class Scalar(int 番号):Fragment(番号){
     protected string? RenderDirectEnumerableToArrayHybridInline(Enumerable source,string destVar,string destType) {
         if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
         var elementType = source.ElementType;
-        var sourceVar=$"__src{this.result}";
-        var arrayVar=$"__array{this.result}";
-        var listVar=$"__list{this.result}";
-        var collectionVar=$"__collection{this.result}";
-        var spanVar=$"__span{this.result}";
-        var countVar=$"__count{this.result}";
+        var sourceVar=$"__src{result}";
+        var arrayVar=$"__array{result}";
+        var listVar=$"__list{result}";
+        var collectionVar=$"__collection{result}";
+        var spanVar=$"__span{result}";
+        var countVar=$"__count{result}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -95,12 +95,12 @@ public abstract class Scalar(int 番号):Fragment(番号){
     protected string? RenderDirectEnumerableToListHybridInline(Enumerable source,string destVar,string destType) {
         if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
         var elementType = source.ElementType;
-        var sourceVar=$"__src{this.result}";
-        var arrayVar=$"__array{this.result}";
-        var listVar=$"__list{this.result}";
-        var collectionVar=$"__collection{this.result}";
-        var sourceSpanVar=$"__sourceSpan{this.result}";
-        var resultSpanVar=$"__resultSpan{this.result}";
+        var sourceVar=$"__src{result}";
+        var arrayVar=$"__array{result}";
+        var listVar=$"__list{result}";
+        var collectionVar=$"__collection{result}";
+        var sourceSpanVar=$"__sourceSpan{result}";
+        var resultSpanVar=$"__resultSpan{result}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -128,12 +128,12 @@ public abstract class Scalar(int 番号):Fragment(番号){
         if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
         var elementType = source.ElementType;
         var comparer = comparerExpression ?? "null";
-        var sourceVar=$"__src{this.result}";
-        var arrayVar=$"__array{this.result}";
-        var listVar=$"__list{this.result}";
-        var collectionVar=$"__collection{this.result}";
-        var spanVar=$"__span{this.result}";
-        var itemVar=$"__item{this.result}";
+        var sourceVar=$"__src{result}";
+        var arrayVar=$"__array{result}";
+        var listVar=$"__list{result}";
+        var collectionVar=$"__collection{result}";
+        var spanVar=$"__span{result}";
+        var itemVar=$"__item{result}";
         return $$"""
             {{destType}} {{destVar}};
             {

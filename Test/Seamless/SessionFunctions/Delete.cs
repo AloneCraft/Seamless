@@ -18,40 +18,40 @@ public abstract class DeleteTests<TKey, TValue>
 
     [Fact, Trait("Category","Unit")]
     public void RemoveInMemory() {
-        var (dict,store)=this.CreateMemory();
+        var (dict,store)=CreateMemory();
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        dict[this.Key(1)]=this.Value(1);
-        Assert.True(dict.Remove(this.Key(1)));
-        Assert.False(dict.Remove(this.Key(1)));
+        dict[Key(1)]=Value(1);
+        Assert.True(dict.Remove(Key(1)));
+        Assert.False(dict.Remove(Key(1)));
     }
 
     [Fact, Trait("Category","Unit")]
     [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification = "test-only device creation")]
     public void RemoveAfterDiskSpill() {
-        var folder = this.CreateDiskFolder();
+        var folder = CreateDiskFolder();
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        var (dict,store)=this.CreateDiskSpill(logDevice,objDevice);
+        var (dict,store)=CreateDiskSpill(logDevice,objDevice);
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        for(var a = 0; a<300; a++) dict[this.Key(a)]=this.Value(a);
-        Assert.True(dict.Remove(this.Key(0)));
-        Assert.False(dict.Remove(this.Key(99999)));
+        for(var a = 0; a<300; a++) dict[Key(a)]=Value(a);
+        Assert.True(dict.Remove(Key(0)));
+        Assert.False(dict.Remove(Key(99999)));
     }
 
     [Fact, Trait("Category","Unit")]
     [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification = "test-only device creation")]
     public void RemoveAfterFlushAndEvict() {
-        var folder = this.CreateDiskFolder();
+        var folder = CreateDiskFolder();
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: TestMemorySize);
-        var (dict,store)=this.CreateDisk(logDevice,objDevice);
+        var (dict,store)=CreateDisk(logDevice,objDevice);
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        dict.Add(this.Key(0),this.Value(0));
-        this.FlushAndEvict(store);
-        dict.Remove(this.Key(0));
+        dict.Add(Key(0),Value(0));
+        FlushAndEvict(store);
+        dict.Remove(Key(0));
     }
 }
 

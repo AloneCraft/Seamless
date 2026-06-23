@@ -24,43 +24,43 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
         this.valueUsesMemoryPackSerializer=valueUsesMemoryPackSerializer;
     }
 
-    public Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> Create() {
-        if(this.keyUsesMemoryPackSerializer) {
-            if(this.valueUsesMemoryPackSerializer) {
+    public Collections.IDictionary<TKey,TValue> Create() {
+        if(keyUsesMemoryPackSerializer) {
+            if(valueUsesMemoryPackSerializer) {
                 return new Dictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(this);
             }
 
-            return this.CreateDictionary(
+            return CreateDictionary(
                 typeof(Dictionary<,,,>),
                 typeof(MemoryPackSerializer<>),
                 typeof(BlittableSerializer<>));
         }
 
-        if(this.valueUsesMemoryPackSerializer) {
-            return this.CreateDictionary(
+        if(valueUsesMemoryPackSerializer) {
+            return CreateDictionary(
                 typeof(Dictionary<,,,>),
                 typeof(BlittableSerializer<>),
                 typeof(MemoryPackSerializer<>));
         }
 
-        return this.CreateDictionary(
+        return CreateDictionary(
             typeof(Dictionary<,,,>),
             typeof(BlittableSerializer<>),
             typeof(BlittableSerializer<>));
     }
 
     private protected override long GetRecoveryEntryCount() {
-        using var dictionary = this.Create();
+        using var dictionary = Create();
         return dictionary.GetLongCount();
     }
 
-    private Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> CreateDictionary(Type dictionaryOpenType,Type keySerializerOpenType,Type valueSerializerOpenType) {
+    private Collections.IDictionary<TKey,TValue> CreateDictionary(Type dictionaryOpenType,Type keySerializerOpenType,Type valueSerializerOpenType) {
         var dictionaryType = dictionaryOpenType.MakeGenericType(
             typeof(TKey),
             typeof(TValue),
             keySerializerOpenType.MakeGenericType(typeof(TKey)),
             valueSerializerOpenType.MakeGenericType(typeof(TValue)));
-        return (Seamless.Tsavorite.Collections.IDictionary<TKey,TValue>)Activator.CreateInstance(
+        return (Collections.IDictionary<TKey,TValue>)Activator.CreateInstance(
             dictionaryType,
             BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic,
             binder: null,

@@ -1,9 +1,9 @@
 #pragma warning disable
 
 using System;
-using global::System.Buffers;
-using global::System.Collections;
-using global::System.Diagnostics;
+using System.Buffers;
+using System.Collections;
+using System.Diagnostics;
 
 namespace Seamless.System.Carrier {
     partial class ValueEnumerableExtensions {
@@ -103,8 +103,8 @@ namespace Seamless.System.Carrier {
         int groupCount;
 
         public LookupBuilder(IEqualityComparer<TKey>? comparer) {
-            this.last=null;
-            this.groupCount=0;
+            last=null;
+            groupCount=0;
             this.comparer=comparer??EqualityComparer<TKey>.Default;
         }
 
@@ -213,7 +213,7 @@ namespace Seamless.System.Carrier {
                 return;
             }
 
-            var newSize = global::System.Numerics.BitOperations.RoundUpToPowerOf2((uint)(bucketsLength*2));
+            var newSize = BitOperations.RoundUpToPowerOf2((uint)(bucketsLength*2));
             ArrayPool<Grouping<TKey,TElement>>.Shared.Return(buckets,clearArray: true);
 
             var newBuckets = ArrayPool<Grouping<TKey,TElement>>.Shared.Rent((int)newSize);
@@ -258,22 +258,22 @@ namespace Seamless.System.Carrier {
 
         Lookup() // for empty
         {
-            this.groups=null;
-            this.last=null;
-            this.count=0;
-            this.comparer=null!;
+            groups=null;
+            last=null;
+            count=0;
+            comparer=null!;
         }
 
         internal Lookup(Grouping<TKey,TElement>[]? groupings,Grouping<TKey,TElement>? last,int count,IEqualityComparer<TKey> comparer) {
             if(groupings==null) {
-                this.groups=null;
+                groups=null;
                 this.last=null;
                 this.count=0;
                 this.comparer=comparer;
                 return;
             }
 
-            this.groups=groupings;
+            groups=groupings;
             this.count=count;
             this.last=last;
             this.comparer=comparer;
@@ -348,7 +348,7 @@ namespace Seamless.System.Carrier {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         int GetBucketIndex(uint hashCode) {
-            var buckets = this.groups;
+            var buckets = groups;
             Debug.Assert(buckets is not null);
             return (int)(hashCode&(buckets.Length-1));
         }
@@ -410,8 +410,8 @@ namespace Seamless.System.Carrier {
         public Grouping(TKey key,uint hashCode,TElement value) {
             this.key=key;
             this.hashCode=hashCode;
-            this.elements= [value];
-            this.count=1;
+            elements= [value];
+            count=1;
         }
 
         public TKey Key => key;

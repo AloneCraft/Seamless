@@ -25,7 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
-  <Import Project="..\Collections.Shared\Collections.Shared.projitems" Label="Shared" />
+  <Import Project="..\TestBenchmark.Collections.Shared\TestBenchmark.Collections.Shared.projitems" Label="Shared" />
   <ItemGroup>
     <Compile Include="..\Test\Seamless\Persisted\Collections\**\*.cs" Exclude="..\Test\Seamless\Persisted\Collections\ListTestBase.cs;..\Test\Seamless\Persisted\Collections\ListTestStrategy.cs" />
   </ItemGroup>

@@ -33,20 +33,20 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) {
             if(destination.Length==1&&offset.Value==0) // as TryGetFirst
             {
-                return this.source.TryCopyTo(destination,offset);
+                return source.TryCopyTo(destination,offset);
             }
 
             return false;
         }
 
         public bool TryGetNext(out TSource current) {
-            if(this.set==null) {
-                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator,TSource>(ref this.source);
-                this.set=hint>0 ? new HashSetSlim<TSource>(hint,comparer) : new HashSetSlim<TSource>(comparer);
+            if(set==null) {
+                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator,TSource>(ref source);
+                set=hint>0 ? new HashSetSlim<TSource>(hint,comparer) : new HashSetSlim<TSource>(comparer);
             }
 
-            while(this.source.TryGetNext(out var value)) {
-                if(this.set.Add(value)) {
+            while(source.TryGetNext(out var value)) {
+                if(set.Add(value)) {
                     current=value;
                     return true;
                 }
@@ -57,8 +57,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            this.set?.Dispose();
-            this.source.Dispose();
+            set?.Dispose();
+            source.Dispose();
         }
     }
 

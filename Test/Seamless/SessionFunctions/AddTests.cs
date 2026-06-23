@@ -29,46 +29,46 @@ public abstract class AddTests<TKey, TValue>
 
     [Fact, Trait("Category","Unit")]
     public void AddAndRead() {
-        var (dict,store)=this.CreateMemory();
+        var (dict,store)=CreateMemory();
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        dict.Add(this.Key(1),this.Value(1));
-        Assert.True(dict.TryGetValue(this.Key(1),out var value));
-        Assert.Equal(this.Value(1),value);
-        Assert.False(dict.TryGetValue(this.Key(99),out _));
+        dict.Add(Key(1),Value(1));
+        Assert.True(dict.TryGetValue(Key(1),out var value));
+        Assert.Equal(Value(1),value);
+        Assert.False(dict.TryGetValue(Key(99),out _));
     }
 
-    [Fact, Trait("Category","Unit")] public void Upsert() => this.DoUpsert();
-    [Fact, Trait("Category","Unit")] public void InPlaceWriter() => this.DoInPlaceWriter();
-    [Fact, Trait("Category","Unit")] public void RMW() => this.DoRMW();
-    [Fact, Trait("Category","Unit")] public void ConcurrentWriter() => this.DoConcurrentWriter();
-    [Fact, Trait("Category","Unit")] public void SingleReader() => this.DoSingleReader();
-    [Fact, Trait("Category","Unit")] public void ConcurrentReaderEmpty() => this.DoConcurrentReaderEmpty();
+    [Fact, Trait("Category","Unit")] public void Upsert() => DoUpsert();
+    [Fact, Trait("Category","Unit")] public void InPlaceWriter() => DoInPlaceWriter();
+    [Fact, Trait("Category","Unit")] public void RMW() => DoRMW();
+    [Fact, Trait("Category","Unit")] public void ConcurrentWriter() => DoConcurrentWriter();
+    [Fact, Trait("Category","Unit")] public void SingleReader() => DoSingleReader();
+    [Fact, Trait("Category","Unit")] public void ConcurrentReaderEmpty() => DoConcurrentReaderEmpty();
 
     [Fact, Trait("Category","Unit")]
     public void TryAddAfterFlushReportsExisting() {
-        var folder = this.CreateDiskFolder();
+        var folder = CreateDiskFolder();
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-        var (dict,store)=this.CreateDisk(logDevice,objDevice);
+        var (dict,store)=CreateDisk(logDevice,objDevice);
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        dict.Add(this.Key(0),this.Value(0));
-        this.FlushAndEvict(store);
-        Assert.Equal(TryAddResult.KeyAlreadyExists,this.TryAdd(dict,this.Key(0),this.Value(1)));
+        dict.Add(Key(0),Value(0));
+        FlushAndEvict(store);
+        Assert.Equal(TryAddResult.KeyAlreadyExists,TryAdd(dict,Key(0),Value(1)));
     }
 
     [Fact, Trait("Category","Unit")]
     public void ReadAfterFlush() {
-        var folder = this.CreateDiskFolder();
+        var folder = CreateDiskFolder();
         using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
         using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-        var (dict,store)=this.CreateDisk(logDevice,objDevice);
+        var (dict,store)=CreateDisk(logDevice,objDevice);
         using var _store = store;
         using var _dict = (IDisposable)dict;
-        dict[this.Key(0)]=this.Value(0);
-        this.FlushAndEvict(store);
-        Assert.True(dict.TryGetValue(this.Key(0),out var v));
-        Assert.Equal(this.Value(0),v);
+        dict[Key(0)]=Value(0);
+        FlushAndEvict(store);
+        Assert.True(dict.TryGetValue(Key(0),out var v));
+        Assert.Equal(Value(0),v);
     }
 }
