@@ -149,6 +149,25 @@ public sealed class CpuPresetCatalogTests{
         Assert.Contains("<div class=\"axis\"><span>0</span><span>0.25</span><span>0.5</span><span>0.75</span><span>1</span></div>",chart,StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ReportFormatter_BuildChartsHtml_IncludesExecutionPlanAndUpdatedChartFormatters(){
+        var rows = new[]{
+            CreateReportRow("System LINQ","Select","Completed","2000000 ns"),
+            CreateReportRow("System ZLinq","Select","Completed","3000000 ns"),
+            CreateReportRow("System FLinq","ExecutionPlan_FilterProjectCount","Completed","5000000 ns"),
+        };
+
+        var charts = BenchmarkReportFormatter.BuildChartsHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
+
+        Assert.Contains("function fmtShareMs",charts,StringComparison.Ordinal);
+        Assert.Contains("'% ('+fmtMs(value)+')'",charts,StringComparison.Ordinal);
+        Assert.Contains("options.colors=['#3a6ea5','#b94b48']",charts,StringComparison.Ordinal);
+        Assert.Contains("const executionPlans=",charts,StringComparison.Ordinal);
+        Assert.Contains("ExecutionPlan_FilterProjectCount",charts,StringComparison.Ordinal);
+        Assert.Contains("実行計画カテゴリのベンチ結果がありません。",charts,StringComparison.Ordinal);
+        Assert.Contains("executionPlan:renderExecutionPlan",charts,StringComparison.Ordinal);
+    }
+
     private static void AssertSegment(string chart,string series,string expectedWidth,string expectedMean,string expectedPercent){
         var escapedTitle = global::System.Text.RegularExpressions.Regex.Escape($"{series}: {expectedMean} ({expectedPercent})");
         var pattern = $@"<div class=""segment {series}""[^>]*style=""width:{expectedWidth}%""[^>]*title=""{escapedTitle}""";

@@ -730,6 +730,66 @@ public abstract class Methods1:Base {
 
     [LinqIntercept(true)]
     private void Zip_tuple_Impl() => srcCount(StreamShapeCount).AsX<int>().Zip(src2Count(StreamShapeCount)).Consume(consumer);
+    // [ExecutionPlan_FilterProjectCount]
+    [BenchFact, Benchmark]
+    [BenchmarkCategory(Categories.ExecutionPlan)]
+    public void ExecutionPlan_FilterProjectCount() => ExecutionPlan_FilterProjectCount_Impl();
+
+    [LinqIntercept(true)]
+    private void ExecutionPlan_FilterProjectCount_Impl() => srcCount(StreamFilterCount).AsX<int>()
+        .Where(x => (x&1)==0)
+        .Select(x => (x*3)%2048)
+        .CountBy(x => x)
+        .OrderByDescending(x => x.Value)
+        .Take(64)
+        .Consume(consumer);
+    // [ExecutionPlan_FilterGroupAggregate]
+    [BenchFact, Benchmark]
+    [BenchmarkCategory(Categories.ExecutionPlan)]
+    public void ExecutionPlan_FilterGroupAggregate() => ExecutionPlan_FilterGroupAggregate_Impl();
+
+    [LinqIntercept(true)]
+    private void ExecutionPlan_FilterGroupAggregate_Impl() => srcCount(GroupingCount).AsX<int>()
+        .Where(x => x%3!=0)
+        .Select(x => x+HoistInvariant.Value())
+        .CountBy(x => x%1024)
+        .OrderByDescending(x => x.Value)
+        .Take(128)
+        .Consume(consumer);
+    // [ExecutionPlan_FilterJoinAggregate]
+    [BenchFact, Benchmark]
+    [BenchmarkCategory(Categories.ExecutionPlan)]
+    public void ExecutionPlan_FilterJoinAggregate() => ExecutionPlan_FilterJoinAggregate_Impl();
+
+    [LinqIntercept(true)]
+    private void ExecutionPlan_FilterJoinAggregate_Impl() => srcCount(JoinCount).AsX<int>()
+        .Where(outer => (outer&1)==0)
+        .Join(
+            src2Count(JoinCount).Where(inner => inner%3==0),
+            outer => outer%4096,
+            inner => inner%4096,
+            (outer,inner) => outer+inner)
+        .CountBy(value => value%512)
+        .OrderByDescending(value => value.Value)
+        .Take(128)
+        .Consume(consumer);
+    // [ExecutionPlan_GroupJoinMaterialize]
+    [BenchFact, Benchmark]
+    [BenchmarkCategory(Categories.ExecutionPlan)]
+    public void ExecutionPlan_GroupJoinMaterialize() => ExecutionPlan_GroupJoinMaterialize_Impl();
+
+    [LinqIntercept(false)]
+    private void ExecutionPlan_GroupJoinMaterialize_Impl() => srcCount(JoinCount).AsX<int>()
+        .Where(outer => outer%5!=0)
+        .GroupJoin(
+            src2Count(JoinCount).Where(inner => (inner&1)==0),
+            outer => outer%2048,
+            inner => inner%2048,
+            (outer,inner) => outer+inner.Count())
+        .OrderByDescending(value => value)
+        .Take(128)
+        .ToList()
+        .Consume(consumer);
 
     private int[] outer = [];
     private int[] inner = [];
