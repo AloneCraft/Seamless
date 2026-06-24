@@ -9,6 +9,11 @@ public class AsEnumerable(int 番号, Enumerable source) : Enumerable(番号) {
         """;
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string? DirectEnumerableExpression => source.DirectEnumerableExpression;
+    public override bool CanProvideSpan => source.CanProvideSpan;
+    public override bool CanTryProvideSpan => source.CanTryProvideSpan;
+    public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
+    public override bool CountPreserving => source.CountPreserving;
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {

@@ -32,10 +32,10 @@ public class All_predicate(int 番号, Enumerable source, FuncFragment predicate
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderAll(range,predicate,番号,destVar,destType)
                 ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
-                    ? RenderDirectEnumerableCallInline(source,destVar,destType,"All",rangeLambda)
+                    ? RenderDirectEnumerableCallInline(source,destVar,destType,"All",rangeLambda) ?? RenderComputeInline(destVar,destType)
                     : RenderComputeInline(destVar,destType))
         : TryRenderDirectLambda(predicate) is { } lambda
-            ? RenderDirectEnumerableCallInline(source,destVar,destType,"All",lambda)
+            ? RenderDirectEnumerableCallInline(source,destVar,destType,"All",lambda) ?? RenderComputeInline(destVar,destType)
             : RenderComputeInline(destVar,destType);
     protected override string ComputeMembers {
         get {

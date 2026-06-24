@@ -232,16 +232,25 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         var snapshot = uniqueNumber;
+        var linqInvocationCountSnapshot = linqInvocationCount;
+        var staticMethodsSnapshot = staticMethods;
+        var builderLengthSnapshot = builder.Length;
         var tempName = GetUniqueIdentifier($"__linq{linqInvocationCount++}", usedNames);
         if(!呼び出し式からフラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector)) {
             if(!列挙式フラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var enumerableFragmentFallback,out invocationStaticMethods,unsafeAccessorCollector)) {
                 uniqueNumber=snapshot;
+                linqInvocationCount=linqInvocationCountSnapshot;
+                staticMethods=staticMethodsSnapshot;
+                builder.Length=builderLengthSnapshot;
                 return false;
             }
             fragment=enumerableFragmentFallback;
         }
         if(fragment is not Enumerable enumerableFragment) {
             uniqueNumber=snapshot;
+            linqInvocationCount=linqInvocationCountSnapshot;
+            staticMethods=staticMethodsSnapshot;
+            builder.Length=builderLengthSnapshot;
             return false;
         }
         if(!methodIsStatic) {
@@ -283,25 +292,74 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         var snapshot = uniqueNumber;
+        var linqInvocationCountSnapshot = linqInvocationCount;
+        var staticMethodsSnapshot = staticMethods;
+        var builderLengthSnapshot = builder.Length;
         var tempName = GetUniqueIdentifier($"__linq{linqInvocationCount++}", usedNames);
         if(!呼び出し式からフラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector)) {
             if(!列挙式フラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var enumerableFragmentFallback,out invocationStaticMethods,unsafeAccessorCollector)) {
                 uniqueNumber=snapshot;
+                linqInvocationCount=linqInvocationCountSnapshot;
+                staticMethods=staticMethodsSnapshot;
+                builder.Length=builderLengthSnapshot;
                 return false;
             }
             fragment=enumerableFragmentFallback;
         }
-        if(fragment is not Enumerable && !IsScalarConsumeMaterializeTerminal(linqInvocation,semanticModel)) {
+        if(fragment is not Enumerable && fragment is not Scalar) {
             uniqueNumber=snapshot;
+            linqInvocationCount=linqInvocationCountSnapshot;
+            staticMethods=staticMethodsSnapshot;
+            builder.Length=builderLengthSnapshot;
             return false;
         }
         if(!methodIsStatic) {
             fragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式));
         }
         ApplyCounterInstrumentation(fragment,semanticModel,linqInvocation);
+        var isScalarMaterializeTerminal=IsScalarConsumeMaterializeTerminal(linqInvocation,semanticModel);
+        var scalarResultTypeName = string.Empty;
+        string? scalarInlineComputation = null;
+        string? scalarConsumeEnumeratorExpression = null;
+        string? materializeEnumeratorExpression = null;
+        if(fragment is Scalar scalarPreflight && !isScalarMaterializeTerminal) {
+            var scalarResultTypeInfo = semanticModel.GetTypeInfo(linqInvocation);
+            scalarResultTypeName = (scalarResultTypeInfo.Type ?? scalarResultTypeInfo.ConvertedType)?.ToDisplayString(完全修飾形式)
+                ?? "object";
+            if(fragment is not DirectExecutionFragment) {
+                scalarInlineComputation=scalarPreflight.RenderInlineComputation(tempName,scalarResultTypeName);
+                if(scalarInlineComputation is null) {
+                    try {
+                        scalarConsumeEnumeratorExpression=fragment.GetEnumeratorExpression;
+                    } catch(NotSupportedException) {
+                        uniqueNumber=snapshot;
+                        linqInvocationCount=linqInvocationCountSnapshot;
+                        staticMethods=staticMethodsSnapshot;
+                        builder.Length=builderLengthSnapshot;
+                        return false;
+                    }
+                }
+            }
+        }
+        if(fragment is Scalar && isScalarMaterializeTerminal && fragment is not DirectExecutionFragment) {
+            try {
+                materializeEnumeratorExpression=fragment.GetEnumeratorExpression;
+            } catch(NotSupportedException) {
+                uniqueNumber=snapshot;
+                linqInvocationCount=linqInvocationCountSnapshot;
+                staticMethods=staticMethodsSnapshot;
+                builder.Length=builderLengthSnapshot;
+                return false;
+            }
+        }
+
         generatedFragments.Add(fragment);
         staticMethods=静的メソッドコード連結(staticMethods,invocationStaticMethods);
-        staticMethods=静的メソッドコード連結(staticMethods,fragment.GetEnumeratorStruct);
+        if(fragment is Scalar && !isScalarMaterializeTerminal) {
+            staticMethods=静的メソッドコード連結(staticMethods,スカラー対応補助メンバー取得(fragment,tempName,scalarResultTypeName));
+        } else {
+            staticMethods=静的メソッドコード連結(staticMethods,fragment.GetEnumeratorStruct);
+        }
 
         var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
         builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
@@ -310,21 +368,40 @@ public sealed partial class FLinqIncrementalGenerator {
             return true;
         }
 
-        if(fragment is Scalar && IsScalarConsumeMaterializeTerminal(linqInvocation,semanticModel)) {
+        if(fragment is Scalar && !isScalarMaterializeTerminal) {
+            if(fragment is DirectExecutionFragment directExecutionFragment) {
+                builder.AppendLine(directExecutionFragment.GetDirectExecutionStatement(tempName,scalarResultTypeName));
+            } else if(scalarInlineComputation is not null) {
+                builder.AppendLine(scalarInlineComputation);
+            } else {
+                var scalarEnumeratorName = GetUniqueIdentifier($"e_{SanitizeIdentifier(tempName)}",usedNames);
+                builder.AppendLine($"{scalarResultTypeName} {tempName}=default!;");
+                builder.AppendLine($"using var {scalarEnumeratorName}={scalarConsumeEnumeratorExpression!};");
+                builder.AppendLine($"{scalarEnumeratorName}.TryGetNext(out {tempName});");
+            }
+            builder.AppendLine($"{consumerName}.Consume({tempName});");
+            return true;
+        }
+
+        if(fragment is Scalar && isScalarMaterializeTerminal && fragment is DirectExecutionFragment materializeDirectExecutionFragment) {
             var resultTypeInfo = semanticModel.GetTypeInfo(linqInvocation);
             var resultTypeName = (resultTypeInfo.Type ?? resultTypeInfo.ConvertedType)?.ToDisplayString()
                 ?? "object";
-            string scalarEnumeratorExpression;
-            try {
-                scalarEnumeratorExpression=fragment.GetEnumeratorExpression;
-            } catch(NotSupportedException) {
-                uniqueNumber=snapshot;
-                return false;
-            }
+            builder.AppendLine(materializeDirectExecutionFragment.GetDirectExecutionStatement(tempName,resultTypeName));
+            builder.AppendLine($"foreach(var __item in {tempName}) {{");
+            builder.AppendLine($"    {consumerName}.Consume(__item);");
+            builder.AppendLine("}");
+            return true;
+        }
+
+        if(fragment is Scalar && isScalarMaterializeTerminal) {
+            var resultTypeInfo = semanticModel.GetTypeInfo(linqInvocation);
+            var resultTypeName = (resultTypeInfo.Type ?? resultTypeInfo.ConvertedType)?.ToDisplayString()
+                ?? "object";
 
             var scalarEnumeratorName = GetUniqueIdentifier($"e_{SanitizeIdentifier(tempName)}",usedNames);
             builder.AppendLine($"{resultTypeName} {tempName}=default!;");
-            builder.AppendLine($"using var {scalarEnumeratorName}={scalarEnumeratorExpression};");
+            builder.AppendLine($"using var {scalarEnumeratorName}={materializeEnumeratorExpression!};");
             builder.AppendLine($"{scalarEnumeratorName}.TryGetNext(out {tempName});");
             builder.AppendLine($"foreach(var __item in {tempName}) {{");
             builder.AppendLine($"    {consumerName}.Consume(__item);");
@@ -333,6 +410,9 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         uniqueNumber=snapshot;
+        linqInvocationCount=linqInvocationCountSnapshot;
+        staticMethods=staticMethodsSnapshot;
+        builder.Length=builderLengthSnapshot;
         return false;
     }
 

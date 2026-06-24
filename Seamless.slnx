@@ -1,7 +1,6 @@
 <Solution>
   <Folder Name="/Benchmarks/">
     <Project Path="Benchmark.DotNet.Linq.Enumerable.FLinq/Benchmark.DotNet.Linq.Enumerable.FLinq.csproj" />
-    <Project Path="Benchmark.DotNet.Linq.Enumerable.Linq/Benchmark.DotNet.Linq.Enumerable.Linq.csproj" />
     <Project Path="Benchmark.DotNet.Linq.Enumerable.ZLinq/Benchmark.DotNet.Linq.Enumerable.ZLinq.csproj" />
     <Project Path="Benchmark.Persisted.Collection/Benchmark.Persisted.Collection.csproj" />
     <Project Path="Benchmark.Persisted.Linq.Enumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
@@ -36,7 +35,6 @@
   <Project Path="Test.Persisted.Linq.Enumerable.FLinq/Test.Persisted.Linq.Enumerable.FLinq.csproj" />
   <Project Path="Test.Persisted.Linq.Enumerable.Linq/Test.Persisted.Linq.Enumerable.Linq.csproj" />
   <Project Path="Test.System.Linq.Enumerable.FLinq/Test.System.Linq.Enumerable.FLinq.csproj" />
-  <Project Path="Test.System.Linq.Enumerable.Linq/Test.System.Linq.Enumerable.Linq.csproj" />
   <Project Path="Test.System.Linq.Enumerable.ZLinq/Test.System.Linq.Enumerable.ZLinq.csproj" />
   <Project Path="Test.Tsavorite/Test.Tsavorite.csproj" />
   <Project Path="Test.Tsavorite.Linq.Enumerable.FLinq/Test.Tsavorite.Linq.Enumerable.FLinq.csproj" />

@@ -171,6 +171,111 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void PureOrderConsumeUsesSortedSpanDirectPath() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private static void OrderFast(int[] src, Consumer<int> consumer) =>
+                    src.Order().Consume(consumer);
+                private static void OrderByFast(int[] src, Consumer<int> consumer) =>
+                    src.OrderBy(static x => x).Consume(consumer);
+                public void Run(int[] src, Consumer<int> consumer) {
+                    OrderFast(src,consumer);
+                    OrderByFast(src,consumer);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("__orderedSource",StringComparison.Ordinal)
+            && generated.Contains("__orderedHandled",StringComparison.Ordinal)
+            && generated.Contains("__orderedSpan",StringComparison.Ordinal)
+            && !generated.Contains("global::System.Linq.Enumerable.Order(",StringComparison.Ordinal)
+            && !generated.Contains("global::System.Linq.Enumerable.OrderBy(",StringComparison.Ordinal),
+            "Pure Order/OrderBy Consume should use sorted span direct consume instead of delegating back to System.Linq.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void ScalarTerminalsUseFactsAndStaticComputeInline() {
+        const string source = """
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static (bool Any,long Count,long EvenCount) Scalars(int[] src) =>
+                    (src.Any(),src.LongCount(),src.LongCount(static x => (x&1)==0));
+                public void Run(int[] src) => _ = Scalars(src);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var compact = generated.Replace(" ","",StringComparison.Ordinal);
+
+        GeneratedSourceAssert.True(
+            compact.Contains(".Length)!=0",StringComparison.Ordinal)
+            && compact.Contains("=(long)(src.Length);",StringComparison.Ordinal)
+            && compact.Contains(".Compute(__s",StringComparison.Ordinal)
+            && !generated.Contains("global::Seamless.System.Carrier.IValueEnumerator<bool>",StringComparison.Ordinal)
+            && !generated.Contains("global::Seamless.System.Carrier.IValueEnumerator<long>",StringComparison.Ordinal),
+            "Scalar terminals should use source facts or static Compute inline without scalar enumerator structs.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void PredicateScalarConsumeUsesStaticComputeInline() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public static class Route {
+                public static IEnumerable<T> AsX<T>(this IEnumerable<T> source) => source;
+            }
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public class Base {
+                protected IEnumerable<int> srcCount(int count) =>
+                    Enumerable.AsEnumerable(new int[count]);
+            }
+            public class Container : Base {
+                private readonly Consumer<long> consumer = new();
+                private void LongCountPredicate() =>
+                    consumer.Consume(srcCount(1024).AsX<int>().LongCount(x => (x&1)==0));
+                public void Run() => LongCountPredicate();
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains(".Compute(__s",StringComparison.Ordinal)
+            && generated.Contains("var count = 0;",StringComparison.Ordinal)
+            && !generated.Contains("long count = 0;",StringComparison.Ordinal)
+            && !generated.Contains("global::Seamless.System.Carrier.IValueEnumerator<long>",StringComparison.Ordinal),
+            "Predicate scalar terminals consumed as arguments should use static Compute inline without scalar enumerator structs.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void BinarySetThenOrderUsesSharedPooledOrderBuffer() {
         const string source = """
             using System.Collections.Generic;

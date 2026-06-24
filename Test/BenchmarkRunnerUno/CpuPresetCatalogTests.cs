@@ -67,111 +67,77 @@ public sealed class CpuPresetCatalogTests{
     }
 
     [Fact]
-    public void ReportFormatter_KeepsDetailedCsv_AndBuildsAggregatedHtml(){
+    public void ComparisonFormatter_BuildsFixedPairs_WithLeftDividedByRight(){
         var rows = new[]{
-            new ReportRow("System LINQ","Method","","Method","Completed","1.0 ns","0.1","0.2","0","0","0",1,0.1,0.2,0,0,0,"0","P0","0(P0)","","","artifact",0),
+            CreateReportRow("SystemFLinq","Select","Completed",5,10),
+            CreateReportRow("SystemZLinq","Select","Completed",4,0),
+            CreateReportRow("PersistedFLinq","Select","Completed",6,0),
+            CreateReportRow("PersistedLinq","Select","Completed",3,12),
+            CreateReportRow("TsavoriteFLinq","Select","Completed",2,16),
+            CreateReportRow("TsavoriteLinq","Select","Completed",4,16),
         };
 
-        var csv = BenchmarkReportFormatter.BuildCsv(rows);
-        var html = BenchmarkReportFormatter.BuildHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
+        var comparison = Assert.Single(BenchmarkComparisonFormatter.BuildComparisonRows(rows));
 
-        Assert.Contains("LogicalCpu,Core,CpuDisplay,StartedAt,FinishedAt,ArtifactFolder,ExitCode",csv,StringComparison.Ordinal);
-        Assert.Contains("0(P0)",csv,StringComparison.Ordinal);
-        Assert.Contains("<thead><tr><th>Method</th><th>linq</th><th>zlinq</th><th>flinq</th><th>persistedlinq</th><th>persistedflinq</th><th>tsavoritelinq</th><th>tsavoriteflinq</th></tr></thead>",html,StringComparison.Ordinal);
-        Assert.DoesNotContain("<th>Project</th>",html,StringComparison.Ordinal);
-        Assert.DoesNotContain("<th>Status</th>",html,StringComparison.Ordinal);
-        Assert.DoesNotContain("CPU Display",html,StringComparison.Ordinal);
+        Assert.Equal("1.25",comparison.SystemRatio.TimeRatio.DisplayText);
+        Assert.Equal("2.00",comparison.PersistedRatio.TimeRatio.DisplayText);
+        Assert.Equal("0.50",comparison.TsavoriteRatio.TimeRatio.DisplayText);
+        Assert.Equal("−",comparison.PersistedRatio.AllocatedRatio.DisplayText);
+        Assert.Equal("−",comparison.PersistedFLinqTsavoriteFLinqRatio.AllocatedRatio.DisplayText);
     }
 
     [Fact]
-    public void ReportFormatter_AggregatesSystemBenchmarkMeans_ByMethod(){
-        var rows = new[]{
-            CreateReportRow("System FLinq","Select","Completed","5 ns"),
-            CreateReportRow("System LINQ","Select","Completed","2 ns"),
-            CreateReportRow("System ZLinq","Select","Completed","3 ns"),
-        };
+    public void ComparisonFormatter_WritesAndReadsWideNumericCsv(){
+        var rows = BenchmarkComparisonFormatter.BuildComparisonRows([
+            CreateReportRow("SystemFLinq","Select","Completed",5,10),
+            CreateReportRow("SystemZLinq","Select","Completed",4,0),
+        ]);
 
-        var html = BenchmarkReportFormatter.BuildHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
+        var csv = BenchmarkComparisonFormatter.WriteCsv(rows);
+        var read = Assert.Single(BenchmarkComparisonFormatter.ReadCsv(csv));
 
-        Assert.Contains("<tr><td>Select</td><td class=\"num\">2 ns</td><td class=\"num\">3 ns</td><td class=\"num\">5 ns</td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td></tr>",html,StringComparison.Ordinal);
+        Assert.StartsWith("ベンチマーク,SystemFLinq時間ns,SystemFLinq割当bytes,SystemZLinq時間ns,SystemZLinq割当bytes",csv,StringComparison.Ordinal);
+        Assert.Contains(",5,10,4,0,",csv,StringComparison.Ordinal);
+        Assert.Equal(5,read.SystemFLinq.TimeNanoseconds);
+        Assert.Equal(0,read.SystemZLinq.AllocatedBytes);
+        Assert.Equal("1.25",read.SystemRatio.TimeRatio.DisplayText);
     }
 
     [Fact]
-    public void ReportFormatter_IgnoresNonSystemProjects_InAggregatedReports(){
-        var rows = new[]{
-            CreateReportRow("System LINQ","Select","Completed","2 ns"),
-            CreateReportRow("External LINQ","Select","Completed","99 ns"),
-            CreateReportRow("Custom Project","CustomOnly","Completed","100 ns"),
-        };
+    public void ComparisonFormatter_UsesEmptyCsvCells_ForMissingValues(){
+        var rows = BenchmarkComparisonFormatter.BuildComparisonRows([
+            CreateReportRow("SystemFLinq","Select","Failed",5,10),
+            CreateReportRow("SystemZLinq","Select","Completed",4,0),
+        ]);
 
-        var html = BenchmarkReportFormatter.BuildHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
-        var chart = BenchmarkReportFormatter.BuildChartHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
+        var csv = BenchmarkComparisonFormatter.WriteCsv(rows);
 
-        Assert.Contains("<tr><td>Select</td><td class=\"num\">2 ns</td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td></tr>",html,StringComparison.Ordinal);
-        Assert.DoesNotContain("99 ns",html,StringComparison.Ordinal);
-        Assert.DoesNotContain("CustomOnly",html,StringComparison.Ordinal);
-        Assert.DoesNotContain("99 ns",chart,StringComparison.Ordinal);
-        Assert.DoesNotContain("CustomOnly",chart,StringComparison.Ordinal);
+        Assert.Contains("Select,,,4,0",csv,StringComparison.Ordinal);
+        Assert.Equal("-",Assert.Single(rows).SystemRatio.TimeRatio.DisplayText);
     }
 
     [Fact]
-    public void ReportFormatter_RendersMissingAndInvalidMeans_AsEmptyCellsAndZeroWidthSegments(){
-        var rows = new[]{
-            CreateReportRow("System LINQ","Where","Completed","2 ns"),
-            CreateReportRow("System ZLinq","Where","Failed","3 ns"),
-            CreateReportRow("System FLinq","Where","Completed","not measured"),
-            CreateReportRow("System LINQ","AllMissing","Failed","1 ns"),
-        };
-
-        var html = BenchmarkReportFormatter.BuildHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
-        var chart = BenchmarkReportFormatter.BuildChartHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
-
-        Assert.Contains("<tr><td>Where</td><td class=\"num\">2 ns</td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td></tr>",html,StringComparison.Ordinal);
-        Assert.Contains("<tr><td>AllMissing</td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td></tr>",html,StringComparison.Ordinal);
-        Assert.Contains("<div class=\"method\" title=\"AllMissing\">AllMissing</div>",chart,StringComparison.Ordinal);
-        Assert.Contains("<div class=\"segment zlinq\" data-key=\"zlinq\" data-value=\"0\" data-original=\"1\" style=\"width:0%\" title=\"zlinq:  (0.0%)\">",chart,StringComparison.Ordinal);
-        Assert.Contains("<div class=\"segment flinq\" data-key=\"flinq\" data-value=\"0\" data-original=\"2\" style=\"width:0%\" title=\"flinq:  (0.0%)\">",chart,StringComparison.Ordinal);
+    public void ComparisonFormatter_RejectsOldNamesAndOldCsv(){
+        Assert.Throws<InvalidDataException>(() => BenchmarkComparisonFormatter.BuildComparisonRows([
+            CreateReportRow("System LINQ","Select","Completed",1,0),
+        ]));
+        Assert.Throws<InvalidDataException>(() => BenchmarkComparisonFormatter.BuildComparisonRows([
+            CreateReportRow("System FLinq","Select","Completed",1,0),
+        ]));
+        Assert.Throws<InvalidDataException>(() => BenchmarkComparisonFormatter.ReadCsv("Project,Method,Mean\nSystemFLinq,Select,1 ns\n"));
     }
 
     [Fact]
-    public void ReportFormatter_BuildChartHtml_UsesMeanTotalRatios(){
-        var rows = new[]{
-            CreateReportRow("System LINQ","Select","Completed","2 ns"),
-            CreateReportRow("System ZLinq","Select","Completed","3 ns"),
-            CreateReportRow("System FLinq","Select","Completed","5 ns"),
-        };
+    public void ComparisonFormatter_Judgement_UsesFivePercentTieWindow(){
+        var win = RatioValue.FromNumeric(0.94);
+        var tieLow = RatioValue.FromNumeric(0.95);
+        var tieHigh = RatioValue.FromNumeric(1.05);
+        var lose = RatioValue.FromNumeric(1.06);
 
-        var chart = BenchmarkReportFormatter.BuildChartHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
-
-        AssertSegment(chart,"linq","20","2 ns","20.0%");
-        AssertSegment(chart,"zlinq","30","3 ns","30.0%");
-        AssertSegment(chart,"flinq","50","5 ns","50.0%");
-        Assert.Contains("<div class=\"axis\"><span>0</span><span>0.25</span><span>0.5</span><span>0.75</span><span>1</span></div>",chart,StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ReportFormatter_BuildChartsHtml_IncludesExecutionPlanAndUpdatedChartFormatters(){
-        var rows = new[]{
-            CreateReportRow("System LINQ","Select","Completed","2000000 ns"),
-            CreateReportRow("System ZLinq","Select","Completed","3000000 ns"),
-            CreateReportRow("System FLinq","ExecutionPlan_FilterProjectCount","Completed","5000000 ns"),
-        };
-
-        var charts = BenchmarkReportFormatter.BuildChartsHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
-
-        Assert.Contains("function fmtShareMs",charts,StringComparison.Ordinal);
-        Assert.Contains("'% ('+fmtMs(value)+')'",charts,StringComparison.Ordinal);
-        Assert.Contains("options.colors=['#3a6ea5','#b94b48']",charts,StringComparison.Ordinal);
-        Assert.Contains("const executionPlans=",charts,StringComparison.Ordinal);
-        Assert.Contains("ExecutionPlan_FilterProjectCount",charts,StringComparison.Ordinal);
-        Assert.Contains("実行計画カテゴリのベンチ結果がありません。",charts,StringComparison.Ordinal);
-        Assert.Contains("executionPlan:renderExecutionPlan",charts,StringComparison.Ordinal);
-    }
-
-    private static void AssertSegment(string chart,string series,string expectedWidth,string expectedMean,string expectedPercent){
-        var escapedTitle = global::System.Text.RegularExpressions.Regex.Escape($"{series}: {expectedMean} ({expectedPercent})");
-        var pattern = $@"<div class=""segment {series}""[^>]*style=""width:{expectedWidth}%""[^>]*title=""{escapedTitle}""";
-        Assert.Matches(pattern,chart);
+        Assert.Equal(RatioJudgement.LeftWin,win.Judgement);
+        Assert.Equal(RatioJudgement.Tie,tieLow.Judgement);
+        Assert.Equal(RatioJudgement.Tie,tieHigh.Judgement);
+        Assert.Equal(RatioJudgement.LeftLose,lose.Judgement);
     }
 
     private static IReadOnlyList<CpuCoreInfo> CreateHybridCpuSet(){
@@ -194,16 +160,7 @@ public sealed class CpuPresetCatalogTests{
         return items;
     }
 
-    private static ReportRow CreateReportRow(string project,string method,string status,string mean){
-        var meanNanoseconds=ParseMeanNanoseconds(mean);
-        return new ReportRow(project,method,string.Empty,string.Empty,status,mean,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,meanNanoseconds,0,0,0,0,0,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,null);
-    }
-
-    private static double ParseMeanNanoseconds(string mean){
-        const string suffix = " ns";
-        return mean.EndsWith(suffix,StringComparison.Ordinal)
-            && double.TryParse(mean[..^suffix.Length],global::System.Globalization.CultureInfo.InvariantCulture,out var value)
-                ? value
-                : 0;
+    private static ReportRow CreateReportRow(string project,string method,string status,double meanNanoseconds,long allocatedBytes){
+        return new ReportRow(project,method,string.Empty,string.Empty,status,meanNanoseconds+" ns",string.Empty,string.Empty,allocatedBytes+" B",string.Empty,string.Empty,meanNanoseconds,0,0,allocatedBytes,0,0,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,null);
     }
 }

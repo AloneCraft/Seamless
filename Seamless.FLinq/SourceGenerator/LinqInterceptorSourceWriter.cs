@@ -27,56 +27,56 @@ public sealed partial class FLinqIncrementalGenerator {
     }
 
     private static string インターセプターソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics) {
-        var builder = new StringBuilder();
+        var builder=new StringBuilder();
         builder.AppendLine("#nullable enable");
         builder.AppendLine("using System.Linq;");
 
         // このファイルで生成する匿名型→record struct 透過置換のレジストリを用意し、
         // ネストした静的メソッド群（関数式フラグメント生成 等）から ThreadStatic 経由で参照させる。
-        var anonRegistry = new AnonymousStructRecordRegistry(
+        var anonRegistry=new AnonymousStructRecordRegistry(
             AnonRecordFileToken(targets.IsDefaultOrEmpty ? string.Empty : targets[0].SourcePath));
-        var previousRegistry = _anonRegistry;
-        _anonRegistry = anonRegistry;
+        var previousRegistry=_anonRegistry;
+        _anonRegistry=anonRegistry;
         try {
-
-        foreach(var namespaceGroup in targets.GroupBy(static target=>インターセプト名前空間取得(target.EnclosingType),StringComparer.Ordinal)) {
-            builder.AppendLine();
-            builder.AppendLine($"namespace {namespaceGroup.Key} {{");
-            var originalNamespace = namespaceGroup.Key.StartsWith("Intercept.",StringComparison.Ordinal)
-                ? namespaceGroup.Key["Intercept.".Length..]
-                : string.Empty;
-            if(!string.IsNullOrWhiteSpace(originalNamespace)) {
-                // 生成コードは Intercept.{originalNamespace} という別名前空間に置かれるため、
-                // 元のネスト名前空間スコープで暗黙に見えていた親名前空間のメンバー（拡張メソッド等）を
-                // 解決できるよう、元の名前空間とその全祖先を using として出力する。
-                // 生成側の名前空間が Intercept.Test... のように元の先頭セグメントを内包するため、
-                // 素の using だと相対解決で Intercept.Test... を指してしまう。global:: で明示する。
-                for(var ns=originalNamespace;!string.IsNullOrEmpty(ns);ns=親名前空間取得(ns)) {
-                    builder.AppendLine($"    using global::{ns};");
-                }
+            foreach(var namespaceGroup in targets.GroupBy(static target => インターセプト名前空間取得(target.EnclosingType),
+                        StringComparer.Ordinal)) {
                 builder.AppendLine();
-            }
-            foreach(var typeGroup in namespaceGroup.GroupBy(static target=>target.EnclosingType.ToDisplayString(完全修飾形式),StringComparer.Ordinal)) {
-                var typeTargets = typeGroup.ToImmutableArray();
-                var typeSource = インターセプター型ソース構築(typeTargets,diagnostics);
-                インデント付き追記(builder,typeSource,"    ");
-            }
-            builder.AppendLine("}");
-        }
+                builder.AppendLine($"namespace {namespaceGroup.Key} {{");
+                var originalNamespace=namespaceGroup.Key.StartsWith("Intercept.",StringComparison.Ordinal)
+                    ? namespaceGroup.Key["Intercept.".Length..]
+                    : string.Empty;
+                if(!string.IsNullOrWhiteSpace(originalNamespace)) {
+                    // 生成コードは Intercept.{originalNamespace} という別名前空間に置かれるため、
+                    // 元のネスト名前空間スコープで暗黙に見えていた親名前空間のメンバー（拡張メソッド等）を
+                    // 解決できるよう、元の名前空間とその全祖先を using として出力する。
+                    // 生成側の名前空間が Intercept.Test... のように元の先頭セグメントを内包するため、
+                    // 素の using だと相対解決で Intercept.Test... を指してしまう。global:: で明示する。
+                    for(var ns=originalNamespace; !string.IsNullOrEmpty(ns); ns=親名前空間取得(ns)) {
+                        builder.AppendLine($"    using global::{ns};");
+                    }
 
-        // 匿名型置換で割り当てた record struct 定義をグローバル名前空間のホルダークラスとして出力する。
-        var holder = anonRegistry.RenderHolder();
-        if(!string.IsNullOrEmpty(holder)) {
-            builder.AppendLine();
-            builder.Append(holder);
+                    builder.AppendLine();
+                }
+                foreach(var typeGroup in namespaceGroup.GroupBy(
+                            static target => target.EnclosingType.ToDisplayString(完全修飾形式),StringComparer.Ordinal)) {
+                    var typeTargets=typeGroup.ToImmutableArray();
+                    var typeSource=インターセプター型ソース構築(typeTargets,diagnostics);
+                    インデント付き追記(builder,typeSource,"    ");
+                }
+                builder.AppendLine("}");
+            }
+            // 匿名型置換で割り当てた record struct 定義をグローバル名前空間のホルダークラスとして出力する。
+            var holder=anonRegistry.RenderHolder();
+            if(!string.IsNullOrEmpty(holder)) {
+                builder.AppendLine();
+                builder.Append(holder);
+            }
+            return builder.ToString();
         }
-        return builder.ToString();
-
-        } finally {
-            _anonRegistry = previousRegistry;
+        finally {
+            _anonRegistry=previousRegistry;
         }
     }
-
     /// <summary>
     /// 1 つの型に属するインターセプト対象群をまとめて <c>internal static class</c> ブロックへ出力する。
     /// <br/>アルゴリズム:

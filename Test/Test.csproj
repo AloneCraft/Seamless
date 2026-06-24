@@ -54,7 +54,6 @@
   <ItemGroup>
     <ProjectReference Include="..\DynamicLinq.Runner\DynamicLinq.Runner.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\Benchmark.Worker\Benchmark.Worker.csproj" />
-    <ProjectReference Include="..\Test.System.Linq.Enumerable.Linq\Test.System.Linq.Enumerable.Linq.csproj" PrivateAssets="all" Aliases="BenchmarkLinq" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.FLinq\Test.System.Linq.Enumerable.FLinq.csproj" PrivateAssets="all" Aliases="BenchmarkFLinq" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.ZLinq\Test.System.Linq.Enumerable.ZLinq.csproj" PrivateAssets="all" Aliases="BenchmarkZLinq" />
     <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" />

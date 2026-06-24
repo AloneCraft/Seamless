@@ -7,7 +7,8 @@ namespace Test.System.Linq.Intercept.FragmentCoverage;
 public sealed class Any {
     [Fact,Trait("Category","Unit")]
     public static void noArg(){
-        GeneratedInterceptorAssert.ContainsMethod<Any>(nameof(noArgImpl));
+        var generated=GeneratedInterceptorAssert.SourceFor<Any>(nameof(noArgImpl));
+        Assert.Contains(".Length)!=0",generated.Replace(" ","",StringComparison.Ordinal));
         var expected=new[]{1,2,3,4}.Any();
         var actual=noArgImpl();
         Assert.Equal(expected,actual);

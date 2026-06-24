@@ -186,6 +186,8 @@ ArrayRoot は配列 source 専用。IEnumerator<T> を作らず index で直接�
 */
 public class ArrayRoot(int 番号, string sourceExpression, string elementType) : Enumerable(番号) {
     public override bool CanProvideSpan => true;
+    public override string? NonEnumeratedCountExpression => $"{sourceExpression}.Length";
+    public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     // PrimarySource == null なので基底の EnumeratorTypeName は Struct のみ（型パラメータなし）を返す。
     public override string GetEnumeratorExpression => $"new {Struct}({sourceExpression})";
@@ -264,6 +266,8 @@ CollectionsMarshal.AsSpan(list) を index で読む。
 */
 public class ListRoot(int 番号, string sourceExpression, string elementType) : Enumerable(番号) {
     public override bool CanProvideSpan => true;
+    public override string? NonEnumeratedCountExpression => $"{sourceExpression}.Count";
+    public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     // PrimarySource == null なので基底の EnumeratorTypeName は Struct のみ（型パラメータなし）を返す。
     public override string GetEnumeratorExpression => $"new {Struct}({sourceExpression})";
@@ -400,6 +404,8 @@ RangeRoot は Enumerable.Range(start, count) を collection なしで生成す�
 public sealed class RangeRoot(int 番号,string startExpression,string countExpression) : Enumerable(番号) {
     internal string StartExpression => startExpression;
     internal string CountExpression => countExpression;
+    public override string? NonEnumeratedCountExpression => countExpression;
+    public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Range({startExpression}, {countExpression})";
     public override string GetEnumeratorExpression => $"new {Struct}({startExpression}, {countExpression})";
@@ -465,6 +471,8 @@ public sealed class RangeRoot(int 番号,string startExpression,string countExpr
 }
 
 public sealed class DescendingRangeRoot(int 番号,string startExpression,string countExpression) : Enumerable(番号) {
+    public override string? NonEnumeratedCountExpression => countExpression;
+    public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Range({startExpression}, {countExpression}).Reverse()";
     public override string GetEnumeratorExpression => $"new {Struct}({startExpression}, {countExpression})";
@@ -540,6 +548,8 @@ EmptyRoot は Enumerable.Empty<T>() を「常に false を返す enumerator」�
   空列挙は Consume direct execution では空文字列を返し、呼び出し元に不要な while を出さない。
 */
 public sealed class EmptyRoot(int 番号,string elementType) : Enumerable(番号) {
+    public override string? NonEnumeratedCountExpression => "0";
+    public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Empty<{elementType}>()";
     public override string GetEnumeratorExpression => $"new {Struct}()";
@@ -599,6 +609,8 @@ RepeatRoot は Enumerable.Repeat(value, count) を値と残数だけで生成す
 public sealed class RepeatRoot(int 番号,string valueExpression,string countExpression,string elementType) : Enumerable(番号) {
     internal string ValueExpression => valueExpression;
     internal string CountExpression => countExpression;
+    public override string? NonEnumeratedCountExpression => countExpression;
+    public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Repeat<{elementType}>({valueExpression}, {countExpression})";
     public override string GetEnumeratorExpression => $"new {Struct}({valueExpression}, {countExpression})";
