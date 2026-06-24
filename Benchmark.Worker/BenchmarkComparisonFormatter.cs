@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using Microsoft.VisualBasic.FileIO;
 
-namespace Benchmark.Runner.Uno;
+namespace Benchmark.Worker;
 
 public static class BenchmarkComparisonFormatter{
     public const string SystemFLinq = "SystemFLinq";

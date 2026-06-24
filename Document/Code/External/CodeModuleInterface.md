@@ -7,7 +7,7 @@ evidence_sources:
   - Tsavorite.Collections/Collections/
   - Tsavorite.Collections/Stores/
   - Seamless.Database/SourceGenerator/GenerateDatabase.cs
-  - Benchmark.Runner.Uno/Benchmark.Runner.Uno/
+  - Benchmark/
 derived_from:
   - Reverse/Code/Internal/
 confidence: medium
@@ -25,7 +25,7 @@ review_status: draft
 | `Tsavorite.Collections` collection API | `IDictionary<TKey,TValue>`、`IHashSet<T>`、`ISet<TRecord>`、`IMemoryCollection<T>` 相当の操作。 | `Tsavorite.Collections/Collections/IDictionary.cs:9`, `Tsavorite.Collections/Collections/IHashSet.cs:8`, `Tsavorite.Collections/Collections/ISet.cs:3`, `Tsavorite.Collections/Collections/IMemoryCollection.cs:6` |
 | `Tsavorite.Collections` LINQ API | `IHashSet<T>` に対する LINQ-like extension。 | `Tsavorite.Collections/Linq/Enumerable.cs:8`, `Tsavorite.Collections/Linq/Enumerable.cs:18`, `Tsavorite.Collections/Linq/Enumerable.cs:2238`, `Tsavorite.Collections/Linq/Enumerable.cs:2258` |
 | `Seamless.Database` source generator | `DatabaseGenerator` marker と schema partial struct を入力に、MemoryPack 対応 generated source を出す。 | `Seamless.Database/SourceGenerator/GenerateDatabase.cs:37`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:52`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:114` |
-| `Benchmark.Runner.Uno` | desktop UI と worker mode。Benchmark method discovery、CPU 選択、CSV/HTML report 出力。 | `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkWorkerHost.cs:17`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:841`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:1153` |
+| `Benchmark` | desktop UI と worker mode。Benchmark method discovery、CPU 選択、CSV/HTML report 出力。 | `Benchmark/BenchmarkWorkerHost.cs:17`, `Benchmark/MainPage.xaml.cs:841`, `Benchmark/MainPage.xaml.cs:1153` |
 
 ## API 利用順序
 
@@ -40,7 +40,7 @@ review_status: draft
 3. store から collection instance を生成して操作する。
 4. 必要に応じて LINQ extension または `LinqCounterScope` を使用する。
 
-### Benchmark.Runner.Uno
+### Benchmark
 1. UI は benchmark project/method を読み込む。
 2. selected CPU ごとに worker process を起動する。
 3. worker task/result message で BenchmarkDotNet 実行結果を戻す。
@@ -53,7 +53,7 @@ review_status: draft
 - `Tsavorite.Collections` は `IDisposable` を含む collection 契約を公開している。
 
 ### Inferred
-- confidence: medium。`Benchmark.Runner.Uno` はライブラリ利用者向け API ではなく、開発・計測用ツール境界である。
+- confidence: medium。`Benchmark` はライブラリ利用者向け API ではなく、開発・計測用ツール境界である。
 
 ### Unknown
 - NuGet package として公開される API surface の正式リスト。

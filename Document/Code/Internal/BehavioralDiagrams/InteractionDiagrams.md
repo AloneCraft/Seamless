@@ -5,8 +5,8 @@ canonical_target: Document/Code/Internal/BehavioralDiagrams/InteractionDiagrams.
 evidence_sources:
   - FLinq/SourceGenerator/interceptor.cs
   - Tsavorite.Collections/Stores/HashStore.cs
-  - Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs
-  - Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkWorkerHost.cs
+  - Benchmark/MainPage.xaml.cs
+  - Benchmark/BenchmarkWorkerHost.cs
 confidence: medium
 review_status: draft
 ---
@@ -75,7 +75,7 @@ sequenceDiagram
     UI->>Report: Write CSV/HTML
 ```
 
-根拠: `Benchmark.Runner.Uno/Benchmark.Runner.Uno/CpuTopologyProvider.cs:7`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:688`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:752`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkWorkerHost.cs:90`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:1153`。
+根拠: `Benchmark/CpuTopologyProvider.cs:7`, `Benchmark/MainPage.xaml.cs:688`, `Benchmark/MainPage.xaml.cs:752`, `Benchmark/BenchmarkWorkerHost.cs:90`, `Benchmark/MainPage.xaml.cs:1153`。
 
 ## Review Gate: Code Internal
 

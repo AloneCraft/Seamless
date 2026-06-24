@@ -7,7 +7,7 @@ evidence_sources:
   - FLinq/FLinq.csproj
   - Tsavorite.Collections/Tsavorite.Collections.csproj
   - Seamless.Database/Seamless.Database.csproj
-  - Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj
+  - Benchmark/Benchmark.csproj
 derived_from:
   - Reverse/Code/Basic/
 confidence: medium
@@ -20,13 +20,13 @@ review_status: draft
 
 | 技術 | 採用箇所 | 実装証拠 |
 |---|---|---|
-| .NET 10 | main projects と runner。 | `FLinq/FLinq.csproj:3`, `Tsavorite.Collections/Tsavorite.Collections.csproj:4`, `Seamless.Database/Seamless.Database.csproj:3`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj:3` |
+| .NET 10 | main projects と runner。 | `FLinq/FLinq.csproj:3`, `Tsavorite.Collections/Tsavorite.Collections.csproj:4`, `Seamless.Database/Seamless.Database.csproj:3`, `Benchmark/Benchmark.csproj:3` |
 | C# latest / 14 | generator と runtime。 | `FLinq/FLinq.csproj:4`, `Tsavorite.Collections/Tsavorite.Collections.csproj:5`, `Seamless.Database/Seamless.Database.csproj:4` |
 | Roslyn Source Generator | `FLinq`, `Seamless.Database`。 | `FLinq/FLinq.csproj:8`, `Seamless.Database/Seamless.Database.csproj:8`, `FLinq/FLinq.csproj:14`, `Seamless.Database/Seamless.Database.csproj:14` |
 | MemoryPack | collection serialization と schema generated record。 | `Tsavorite.Collections/Tsavorite.Collections.csproj:14`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:161` |
 | Microsoft.Garnet / Tsavorite | collection backing store。 | `Tsavorite.Collections/Tsavorite.Collections.csproj:15`, `Tsavorite.Collections/Stores/HashStore.cs:7` |
-| BenchmarkDotNet | benchmark projects と Uno runner worker。 | `Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj:33`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkWorkerHost.cs:9` |
-| Uno Platform | desktop benchmark runner。 | `Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj:1`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj:24` |
+| BenchmarkDotNet | benchmark projects と MAUI runner worker。 | `Benchmark/Benchmark.csproj:33`, `Benchmark/BenchmarkWorkerHost.cs:9` |
+| Syncfusion Toolkit for .NET MAUI | desktop benchmark runner。 | `Benchmark/Benchmark.csproj:1`, `Benchmark/Benchmark.csproj:24` |
 | xUnit | tests と benchmark-as-test。 | `Benchmark.Shared/Infrastructure/BenchFact.cs:7`, `Test/SourceGenerator/GeneratorTestHelpers.cs:11` |
 
 ## Review Gate: Code Concept

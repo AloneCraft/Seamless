@@ -2,7 +2,7 @@
 
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
-using static Seamless.SourceGenerators.GeneratorHelpers;
+using static Seamless.SourceGenerator.GeneratorHelpers;
 
 using Seamless.FLinq.Linq.Fragments;
 using Enumerable = Seamless.FLinq.Linq.Fragments.Enumerable;

@@ -1,4 +1,4 @@
-namespace Benchmark.Runner.Uno;
+namespace Benchmark.Worker;
 
 public sealed record CpuPresetDefinition(string Key,string Label,IReadOnlyList<int> LogicalProcessorIndexes);
 

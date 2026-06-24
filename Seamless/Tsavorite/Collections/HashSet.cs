@@ -345,9 +345,11 @@ public partial class HashSet<TKey> {
         return new Enumerator<MemoryKeyIterator,TKey>(ReadSession,new(),Store.Log.TailAddress,this);
     }
     public partial void ExceptWith(HashSet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
         base.ExceptWith(other,ExceptWith_ClientSession);
     }
     public partial void IntersectWith(HashSet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
         IntersectWith(this,other,IntersectWith_ClientSession);
     }
     public partial bool IsProperSubsetOf(HashSet<TKey> other) {
@@ -383,9 +385,11 @@ public partial class HashSet<TKey> {
         return Count==other.Count&&IsSubsetOf(other);
     }
     public partial void SymmetricExceptWith(HashSet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
         base.SymmetricExceptWith(other,SymmetricExceptWith_ClientSession);
     }
     public partial void UnionWith(HashSet<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
         base.UnionWith(other,Add_ClientSession);
     }
 }

@@ -1,7 +1,6 @@
 using Seamless.Tsavorite.Collections;
 using Seamless.Tsavorite.Stores;
 
-using Test.Seamless.Collections;
 namespace Test.Seamless.Stores;
 
 public class StoreTests {

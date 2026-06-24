@@ -54,6 +54,20 @@ internal static class GeneratedInterceptorAssert {
         var generatorTypeName = typeof(FLinqIncrementalGenerator).FullName
             ?? throw new InvalidOperationException("Could not resolve generator type name.");
 
+        var workGeneratedRoot = Path.Combine(
+            projectDirectory.Parent?.FullName
+                ?? throw new InvalidOperationException("Could not resolve solution directory."),
+            "Work",
+            "Generated",
+            typeof(TMarker).Assembly.GetName().Name ?? "Test",
+            configurationDirectory.Name,
+            targetFrameworkDirectory.Name,
+            generatorAssemblyName,
+            generatorTypeName);
+        if(Directory.Exists(workGeneratedRoot)) {
+            return workGeneratedRoot;
+        }
+
         return Path.Combine(
             projectDirectory.FullName,
             "obj",

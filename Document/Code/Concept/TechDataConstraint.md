@@ -7,7 +7,7 @@ evidence_sources:
   - Tsavorite.Collections/Stores/HashStore.cs
   - Tsavorite.Collections/LinqCounter.cs
   - Seamless.Database/SourceGenerator/GenerateDatabase.cs
-  - Benchmark.Runner.Uno/Benchmark.Runner.Uno/
+  - Benchmark/
 derived_from:
   - Reverse/Code/Basic/
 confidence: medium
@@ -26,14 +26,14 @@ review_status: draft
 | Checkpoint recovery | checkpoint dir と index metadata に依存する。 | `Tsavorite.Collections/Stores/HashStore.cs:64`, `Tsavorite.Collections/Stores/HashStore.cs:82`, `Tsavorite.Collections/Stores/HashStore.cs:94` |
 | Generated schema layout | unmanaged/managed split と MemoryPack serializer generated code に依存する。 | `Seamless.Database/SourceGenerator/GenerateDatabase.cs:124`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:148`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:151` |
 | Counter accuracy | `Interlocked` と `AsyncLocal` による計測。 | `Tsavorite.Collections/LinqCounter.cs:31`, `Tsavorite.Collections/LinqCounter.cs:52`, `Tsavorite.Collections/LinqCounter.cs:142` |
-| Benchmark isolation | CPU affinity と process lifecycle に依存する。 | `Benchmark.Runner.Uno/Benchmark.Runner.Uno/CpuTopologyProvider.cs:218`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:688`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:1050` |
+| Benchmark isolation | CPU affinity と process lifecycle に依存する。 | `Benchmark/CpuTopologyProvider.cs:218`, `Benchmark/MainPage.xaml.cs:688`, `Benchmark/MainPage.xaml.cs:1050` |
 
 ## 非機能観点
 
 - 性能: LINQ 変換、Tsavorite scan、BenchmarkDotNet、counter が性能検証に直結する。
 - メモリ: MemoryPack、blittable/unmanaged split、buffer/hash counter がメモリ/反復削減を示唆する。
 - 復旧: checkpoint metadata による index size 復元があるが、完全な障害復旧手順は未確認。
-- 可搬性: Uno runner は desktop target、CPU topology は Windows/Linux/macOS 分岐を持つ（`Benchmark.Runner.Uno/Benchmark.Runner.Uno/CpuTopologyProvider.cs:37`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/CpuTopologyProvider.cs:90`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/CpuTopologyProvider.cs:112`）。
+- 可搬性: MAUI runner は desktop target、CPU topology は Windows/Linux/macOS 分岐を持つ（`Benchmark/CpuTopologyProvider.cs:37`, `Benchmark/CpuTopologyProvider.cs:90`, `Benchmark/CpuTopologyProvider.cs:112`）。
 
 ## Review Gate: Code Concept
 

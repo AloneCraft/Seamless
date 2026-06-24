@@ -28,5 +28,4 @@
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
-  <Import Project="..\TestBenchmark.Collections.Shared\TestBenchmark.Collections.Shared.projitems" Label="Shared" />
 </Project>
