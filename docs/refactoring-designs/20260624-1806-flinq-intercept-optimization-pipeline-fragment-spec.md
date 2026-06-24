@@ -321,6 +321,83 @@ flowchart TD
 - 複雑な実引数は多重評価を避けるため一時変数へ退避する。
 - `ContainsAnchor` は inline 後の text に `.Anchor` が残る場合も検出する。
 
+### inline 展開と delegate 呼び出しの分岐
+
+lambda は `FuncFragment` として保持し、生成時に次の優先順位で展開する。
+
+```mermaid
+flowchart TD
+    A[FuncFragment] --> B{CanInlineAssign or expression lambda?}
+    B -->|yes| C[RenderInlineExpression / RenderInlineAssign]
+    B -->|no| D{RequiresStatementInlining?}
+    D -->|yes| E[statement inline with temp local]
+    D -->|no| F{CanInvokeAsDelegate?}
+    F -->|yes| G[delegate field Invoke]
+    F -->|no| H[unsupported or fallback Fragment]
+```
+
+式 lambda の場合、元 lambda body の parameter 参照を生成 loop の実変数へ置換する。
+
+```csharp
+// 入力
+source.Where(x => x > threshold).Select(x => x * 2)
+
+// 生成 loop 内の概念形
+while(sourceEnumerator.TryGetNext(out var item0)) {
+    if(!(item0 > this.threshold)) {
+        continue;
+    }
+
+    var current = item0 * 2;
+    yield return current;
+}
+```
+
+index 付き lambda は、生成 enumerator が持つ index 変数を実引数として直接埋め込む。
+
+```csharp
+// 入力
+source.Where((x,i) => x > i).Select((x,i) => x + i)
+
+// 生成 loop 内の概念形
+while(sourceEnumerator.TryGetNext(out var item0)) {
+    var index0 = this.index++;
+    if(!(item0 > index0)) {
+        continue;
+    }
+
+    var current = item0 + index0;
+    yield return current;
+}
+```
+
+直接式にできない lambda、匿名 delegate、式の型を安全に復元できない場合、または delegate として保持する必要がある場合は、Enumerator の field に delegate を持ち `Invoke` する。
+
+```csharp
+// 入力
+Func<int,bool> predicate = x => x > threshold;
+source.Where(predicate)
+
+// delegate fallback の概念形
+private readonly global::System.Func<int,bool> predicate0;
+
+public bool TryGetNext(out int current) {
+    while(this.source.TryGetNext(out var item0)) {
+        if(!this.predicate0.Invoke(item0)) {
+            continue;
+        }
+
+        current = item0;
+        return true;
+    }
+
+    current = default;
+    return false;
+}
+```
+
+delegate fallback は正しさ優先の経路であり、最適化の成功条件ではない。可能な場合は `FuncAssign` / `FuncInvokeCondition` が `RenderInlineAssign` / `RenderInlineExpression` を使い、`Func<T>.Invoke` を生成しない。
+
 ## capture 変数を Enumerator 引数へ入れる仕様
 
 Enumerator struct 内では元メソッドの local を直接参照できない。capture された値は Enumerator constructor の引数として渡し、field として保持する。
@@ -638,25 +715,232 @@ flowchart TD
     D --> E[Inline computed scalar into outer lambda]
 ```
 
-## 追加候補: Select chain 合成
+## 未実装仕様の表示
 
-現在 `Select.Select` は 1 つの Pipeline loop に載るため runtime loop は融合される。一方、stage list 上の `Select` 自体を 1 stage へ合成すると、stage dispatch と一時値をさらに減らせる。
+<div style="border-left:4px solid #d97706;padding:10px 14px;background:#fffbeb;color:#3f3f46;">
+<strong>未実装仕様:</strong> 追加候補セクションは、本文・表・コード・Mermaid 図を含む範囲全体に薄い網目背景を付ける。これは現行実装の保証ではなく、将来候補であることを示す。
+</div>
+
+以降の `## 追加候補:` セクションは、未実装または将来拡張として扱い、各セクションを `details open` の背景付き枠で囲む。
+
+## 追加候補: Enumerator ネスト除去
+
+<details open style="border-left:4px solid #d97706;padding:10px 14px;background:repeating-linear-gradient(135deg,#fffdf7 0,#fffdf7 12px,#fff7ed 12px,#fff7ed 24px);color:#3f3f46;">
+<summary><strong>未実装仕様:</strong> この枠内の本文・表・コード・Mermaid 図全体は実装候補であり、現行実装の保証ではない。</summary>
+
+`Select.Select` のような式合成そのものは、この仕様の最適化対象から外す。既に単一 Pipeline loop に載っている場合、`var temp = f(x); current = g(temp);` を `current = g(f(x));` に畳み込んでも、JIT が吸収できる範囲に収まりやすい。
+
+この追加候補の主対象は、生成コード上で Enumerator が入れ子になり、外側 Enumerator の `TryGetNext` / `TryMoveValue` 内部から内側 Enumerator の `TryGetNext` / `TryMoveValue` を毎要素呼ぶ形を、単一 state machine または単一 Pipeline loop へ展開することである。
+
+```mermaid
+flowchart TD
+    A[Generated chain] --> B{Nested Enumerator call remains?}
+    B -->|no| C[Do not optimize further]
+    B -->|yes| D{Streaming and single source?}
+    D -->|yes| E[Flatten into one Pipeline loop]
+    D -->|no| F{Specialized state machine possible?}
+    F -->|yes| G[Inline child state machine into parent]
+    F -->|no| H[Keep Fragment boundary]
+```
+
+判定は LINQ メソッド名ではなく、生成後の構造で行う。ただし `Select.Select` 専用の最適化は持たない。`Select.Select` は現状の Pipeline 正規化で単一 loop になる前提とし、式合成も専用 flatten も仕様対象外にする。将来、別経路で任意の generated Enumerator に nested call が残ることを検出した場合だけ、汎用 Enumerator flatten の入力として扱う。
+
+### 現状の chain 展開と Enumerator flatten 仕様
+
+現状は、連続する streaming operator を `PipelineEnumerable` の stage list として保持できる場合、1 つの `TryGetNext` loop 内で stage を順に評価する。この場合、runtime の enumerable/enumerator chain は既に融合済みなので、`Select.Select` や `Where.Where` を 1 つの `FuncFragment` へ代数的に合成することは仕様から外す。
 
 ```mermaid
 flowchart LR
-    A[Select f] --> B[Select g]
-    B --> C[Compose]
-    C --> D[Select x => g(f(x))]
+    A[Source Fragment] --> B[Pipeline stage: Where p1]
+    B --> C[Pipeline stage: Where p2]
+    C --> D[Pipeline stage: Select s1]
+    D --> E[Pipeline stage: Select s2]
+    E --> F[one generated TryGetNext state machine]
 ```
 
-仕様案:
+単一 Pipeline loop に正規化済みの `Select.Select` は、以下の現状概念形で十分とする。
 
-- `FuncFragment.RenderInlineExpression()` で前段 select の出力式を作る。
-- 後段 select の parameter を前段式に置換する。
-- どちらかが `RequiresStatementInlining` または `ContainsAnchor` の場合は合成しない。
-- capture/hoist/unsafe accessor/supporting member は両方から集約する。
+```csharp
+// 入力
+source.Select(x => x + 1).Select(y => y * 2)
+
+// 現状の概念形: 1 loop 内で stage を順に評価する
+while(sourceEnumerator.TryGetNext(out var item0)) {
+    var temp1 = item0 + 1;
+    var current = temp1 * 2;
+    yield return current;
+}
+```
+
+この形をさらに `current = (item0 + 1) * 2;` へ式合成することは、v1 の仕様対象外にする。
+`Select.Select` 由来の nested Enumerator 展開例は、この仕様から除外する。もし生成後検査で Select 由来の nested call が残る場合でも、それは `Select.Select` 固有の合成仕様ではなく、汎用の「nested Enumerator call が残っている」という診断として扱う。
+
+`Where.Where` も、Pipeline loop に載っている場合は predicate 合成ではなく、単一 loop 維持を保証する。
+
+```csharp
+// 入力
+source.Where(x => x > 0).Where(x => x % 2 == 0)
+
+// 現状の概念形: 1 loop 内で predicate を順に評価
+while(sourceEnumerator.TryGetNext(out var item0)) {
+    if(!(item0 > 0)) {
+        continue;
+    }
+    if(!(item0 % 2 == 0)) {
+        continue;
+    }
+
+    yield return item0;
+}
+```
+
+`Where.Where` が nested Enumerator として生成される場合は、内側の skip loop を外側に展開する。
+
+```csharp
+// 避けたい生成形
+public bool TryGetNext(out int current) {
+    while(this.innerWhere.TryGetNext(out var item0)) {
+        if(!(item0 % 2 == 0)) {
+            continue;
+        }
+
+        current = item0;
+        return true;
+    }
+
+    current = default;
+    return false;
+}
+
+// 望ましい生成形
+public bool TryGetNext(out int current) {
+    while(this.root.TryGetNext(out var item0)) {
+        if(!(item0 > 0)) {
+            continue;
+        }
+        if(!(item0 % 2 == 0)) {
+            continue;
+        }
+
+        current = item0;
+        return true;
+    }
+
+    current = default;
+    return false;
+}
+```
+
+現状実装では、`NormalizeStages` が連続 `Where` の一部を選択率ヒントに基づいて並べ替える可能性がある。`Anchor` を含む predicate は、評価順序・評価回数の変更を避けるため、flatten、複製、並べ替えの対象外にする。
+
+`Where.Select.Select` の現状概念形:
+
+```csharp
+// 入力
+source.Where(x => x.Active).Select(x => x.Price).Select(price => price * rate)
+
+// 現状の概念形
+while(sourceEnumerator.TryGetNext(out var item0)) {
+    if(!item0.Active) {
+        continue;
+    }
+
+    var temp1 = item0.Price;
+    var current = temp1 * this.rate;
+    yield return current;
+}
+```
+
+追加候補では、`Select` 連鎖の式合成ではなく、この形が nested Enumerator を経由せず単一 loop として生成されることを完了条件にする。
+
+### Enumerator ネストになりうる組み合わせ
+
+以下は nested Enumerator が残ると、毎要素ごとに `TryGetNext` / `TryMoveValue` 呼び出し階層が増える可能性がある。可能な限り Pipeline stage 化、または親 Fragment への child state machine inline により展開する。`Select.Select` は式合成に議論が寄りやすいため、この対象表には含めない。
+
+| chain shape | nested になりうる理由 | 対策 |
+| --- | --- | --- |
+| `Where.Where` | 外側 Where が内側 Where Enumerator を引く | predicate を順に評価する単一 skip loop へ展開 |
+| `Where.Select`, `Select.Where` | filter/projection の前後で Enumerator が階層化する | stage list に正規化し、root pull + stage evaluation にする |
+| `Take/Skip/TakeWhile/SkipWhile` と `Where/Select` | count/index/state を持つ streaming stage が wrapper 化する | index/count state を同一 Enumerator field として持つ |
+| `Cast/OfType` と `Where/Select` | type filter/projection が別 Enumerator になる | type check と projection を同一 loop に置く |
+| `Append/Prepend/DefaultIfEmpty` と streaming stage | source 前後に state transition が入り wrapper 化する | state enum を親 Pipeline に統合する |
+| `Reverse/OrderBy/GroupBy` 後の streaming stage | buffering stage 後の result enumerator をさらに包む | buffer build loop と result projection/filter loop を同一 Fragment に持つ |
+| `Join/GroupJoin` 後の `Where/Select/GroupBy` | lookup Fragment の出力を後段 Enumerator が包む | result selector/filter/grouping を Join Fragment 側へ吸収できる場合は吸収 |
+| `SelectMany` 後の `Where/Select` | outer/inner の二層 state machine を後段が包む | outer/inner state machine 内に後段 stage を入れる |
+| lambda 内 scalar LINQ | outer loop 内で別 Enumerator を毎回構築する | scalar Fragment を `InlinedScalarFunc` として statement inline する |
+
+```mermaid
+flowchart TD
+    A[Candidate chain] --> B{All stages streaming?}
+    B -->|yes| C[Normalize to Pipeline stages]
+    C --> D[Emit one root-pull TryGetNext loop]
+    B -->|no| E{Boundary stage can absorb following stages?}
+    E -->|yes| F[Inline child stages into Fragment state machine]
+    E -->|no| G[Keep boundary and avoid unsafe rewrite]
+    F --> H{Contains Anchor?}
+    H -->|yes| G
+    H -->|no| I[Flatten nested Enumerator calls]
+```
+
+### Fragment boundary での展開方針
+
+すべてを Pipeline stage にできない場合でも、Fragment boundary の前後で nested Enumerator を作らない余地がある。
+
+- `Join.Where` は、片側依存 predicate なら outer/inner source 側へ葉移動する。両側依存なら Join の probe 後に残す。
+- `Join.Select` は、result selector と後段 selector が安全に連結できる場合だけ Join の `resultSelector` に吸収する。ただし単なる `Select.Select` 式合成を目的にしない。
+- `Join.GroupBy` は、Join の lookup/probe は Fragment boundary として残し、GroupBy の buffer build を後段 Enumerator wrapper にしない。
+- `SelectMany.Where` は、predicate が inner item だけに依存するなら inner collection 側へ移動できる。outer と inner の両方に依存する場合は inner pull 後の yield 直前で評価する。
+- `OrderBy.Select` / `GroupBy.Select` は、buffering 後の result materialization loop に selector を入れ、別 Enumerator wrapper を作らない。
+- `TakeWhile.Where` など短絡 state を持つ stage は、停止条件と filter 条件を同一 loop 内で順序通り評価する。
+
+`Join.GroupBy` のように Fragment-backed stage を含む chain は、現状では boundary で一度 Pipeline を flush し、次の Fragment または buffering stage へ渡す。
+
+```mermaid
+flowchart LR
+    A[outer.Where/Select Pipeline] --> B[flush as PipelineEnumerable]
+    B --> C[Join Fragment builds lookup]
+    C --> D[GroupBy stage buffers joined rows]
+    D --> E[result selector / terminal]
+```
+
+`Join.GroupBy` の現状概念形:
+
+```csharp
+// 入力
+outer
+    .Where(o => o.Enabled)
+    .Join(inner, o => o.Id, i => i.OwnerId, (o,i) => new { o, i })
+    .GroupBy(x => x.o.Category, x => x.i.Value)
+
+// 現状の概念形
+var innerLookup = BuildLookup(innerEnumerator, i => i.OwnerId);
+foreach(var o in outer) {
+    if(!o.Enabled) {
+        continue;
+    }
+
+    var outerKey = o.Id;
+    if(!innerLookup.TryGetValue(outerKey, out var group)) {
+        continue;
+    }
+
+    foreach(var i in group) {
+        var joined = new JoinedRecord(o, i);
+        var groupKey = joined.o.Category;
+        var groupElement = joined.i.Value;
+        groupByDictionary[groupKey].Add(groupElement);
+    }
+}
+```
+
+追加候補では、`Join` の result carrier が匿名型である場合は record struct carrier に置換しつつ、`GroupBy` の `keySelector` / `elementSelector` が片側のみへ分解できるなら carrier 生成前へ部分的に押し込む余地がある。ただし v1 では `Join` 自体は lookup を持つ Fragment boundary として残し、`GroupBy` は buffering stage として扱う。
+
+</details>
 
 ## 追加候補: Where pushdown catalog
+
+<details open style="border-left:4px solid #d97706;padding:10px 14px;background:repeating-linear-gradient(135deg,#fffdf7 0,#fffdf7 12px,#fff7ed 12px,#fff7ed 24px);color:#3f3f46;">
+<summary><strong>未実装仕様:</strong> この枠内の本文・表・コード・Mermaid 図全体は実装候補であり、現行実装の保証ではない。</summary>
 
 `Join.Where` 以外も、carrier shape と依存パラメータを解析できる場合は葉へ押し下げできる。
 
@@ -684,7 +968,12 @@ flowchart TD
 
 Anchor を含む predicate は複製・順序変更を避ける。
 
+</details>
+
 ## 追加候補: Fragment と Pipeline の責務分界
+
+<details open style="border-left:4px solid #d97706;padding:10px 14px;background:repeating-linear-gradient(135deg,#fffdf7 0,#fffdf7 12px,#fff7ed 12px,#fff7ed 24px);color:#3f3f46;">
+<summary><strong>未実装仕様:</strong> この枠内の本文・表・コード・Mermaid 図全体は実装候補であり、現行実装の保証ではない。</summary>
 
 ```mermaid
 flowchart TD
@@ -703,7 +992,12 @@ flowchart TD
 - terminal で閉じることでだけ高速化できるなら Terminal fusion。
 - Tsavorite/Persisted の storage scan など provider 固有 API を使うなら provider-specific Fragment。
 
+</details>
+
 ## 追加候補: Provider-specific scan pipeline
+
+<details open style="border-left:4px solid #d97706;padding:10px 14px;background:repeating-linear-gradient(135deg,#fffdf7 0,#fffdf7 12px,#fff7ed 12px,#fff7ed 24px);color:#3f3f46;">
+<summary><strong>未実装仕様:</strong> この枠内の本文・表・コード・Mermaid 図全体は実装候補であり、現行実装の保証ではない。</summary>
 
 Tsavorite/Persisted root は通常 `IEnumerable<T>` enumerator より storage scan へ近い場所で terminal fusion できる。
 
@@ -724,7 +1018,12 @@ flowchart TD
 - sequence-returning query は generic Pipeline/Fragment path に任せる。
 - 未対応 storage operation は fallback で隠さず、未対応として検出可能にする。
 
+</details>
+
 ## 追加候補: ループ内部相関サブクエリの Lookup 化
+
+<details open style="border-left:4px solid #d97706;padding:10px 14px;background:repeating-linear-gradient(135deg,#fffdf7 0,#fffdf7 12px,#fff7ed 12px,#fff7ed 24px);color:#3f3f46;">
+<summary><strong>未実装仕様:</strong> この枠内の本文・表・コード・Mermaid 図全体は実装候補であり、現行実装の保証ではない。</summary>
 
 この最適化は未実装だが、既存 `JoinBase.BuildLookup` と同じ `Dictionary<TKey,List<TInner>>` 構築思想で実現可能である。対象は `Select` に限定せず、生成コード上の反復 loop 内で繰り返し評価される lambda の内部に出現する、outer 値へ相関した `Where` である。
 
@@ -941,6 +1240,8 @@ flowchart TD
 - `Select(x=>Aggregate(...相関サブクエリ...))` のように Aggregate が outer loop 内にある場合は lookup 化される。
 - inner source が outer 件数回ではなく 1 回だけ評価される。
 - `.Anchor` 付きでは lookup 化されず、元の相関評価回数に残る。
+
+</details>
 
 ## 失敗時仕様
 

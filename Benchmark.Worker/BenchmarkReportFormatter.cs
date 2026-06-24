@@ -183,6 +183,7 @@ public static class BenchmarkReportFormatter{
         var comparisonJson = BuildComparisonRowsJson(comparisonRows);
         var flinqSlowJson = BuildFLinqSlowRowsJson(comparisonRows);
         var runRowsJson = BuildReportRowsJson(rows);
+        var executionPlanJson = BuildExecutionPlanJson();
         var writer = new StringBuilder();
         writer.AppendLine("<!DOCTYPE html>");
         writer.AppendLine("<html lang=\"ja\">");
@@ -220,6 +221,7 @@ public static class BenchmarkReportFormatter{
         writer.Append("    const comparisonRows=").Append(comparisonJson).AppendLine(";");
         writer.Append("    const flinqSlowRows=").Append(flinqSlowJson).AppendLine(";");
         writer.Append("    const runRows=").Append(runRowsJson).AppendLine(";");
+        writer.Append("    const executionPlans=").Append(executionPlanJson).AppendLine(";");
         writer.AppendLine("    const seriesKeys=['linq','zlinq','flinq','persistedlinq','persistedflinq','tsavoritelinq','tsavoriteflinq'];");
         writer.AppendLine("    const names={linq:'linq',zlinq:'zlinq',flinq:'flinq',persistedlinq:'persistedlinq',persistedflinq:'persistedflinq',tsavoritelinq:'tsavoritelinq',tsavoriteflinq:'tsavoriteflinq'};");
         writer.AppendLine("    const colors={linq:'#3a6ea5',zlinq:'#5b8c5a',flinq:'#c06c3e',persistedlinq:'#8a63a8',persistedflinq:'#b7792f',tsavoritelinq:'#2f7f86',tsavoriteflinq:'#b94b48'};");
@@ -230,7 +232,7 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("      memory:[['allocatedShare','メモリアロケート比率'],['allocatedBar','メモリアロケート'],['peakRssBar','実測ピークRSS'],['memorySummaryTable','メモリ表']],");
         writer.AppendLine("      stability:[['errorBar','Error and StdDev'],['cvRanking','Variation ranking']],");
         writer.AppendLine("      cpu:[['cpuTimeline','CPU timeline'],['cpuHeatmap','CPU x Project heatmap']],");
-        writer.AppendLine("      flow:[['sankey','Sankey'],['alluvial','Alluvial-like flow'],['sunburstTable','Hierarchy table']]");
+        writer.AppendLine("      flow:[['executionPlan','Execution plan']]");
         writer.AppendLine("    };");
         writer.AppendLine("    const tabLabels={overview:'Overview',compare:'処理時間比率',memory:'メモリアロケート比率',stability:'Stability',cpu:'CPU',flow:'Flow'};");
         writer.AppendLine("    let activeTab='compare';let chart=null;");
@@ -239,13 +241,15 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("    tabDefinitions.memory=[['allocatedShare','割り当て比率'],['allocatedBar','割り当て量'],['peakRssBar','実測ピークRSS'],['memorySummaryTable','メモリ表']];");
         writer.AppendLine("    tabDefinitions.stability=[['errorBar','誤差と標準偏差'],['cvRanking','ばらつきランキング']];");
         writer.AppendLine("    tabDefinitions.cpu=[['cpuTimeline','CPUタイムライン'],['cpuHeatmap','CPU x 系列ヒートマップ']];");
-        writer.AppendLine("    tabDefinitions.flow=[['sankey','サンキー'],['alluvial','フロー'],['sunburstTable','階層表']];");
+        writer.AppendLine("    tabDefinitions.flow=[['executionPlan','実行計画']];");
         writer.AppendLine("    Object.assign(tabLabels,{overview:'概要',compare:'処理時間比較',memory:'メモリ',stability:'安定性',cpu:'CPU',flow:'フロー'});");
         writer.AppendLine("    function value(row,key){return Number(row[key]||0);}");
         writer.AppendLine("    function memoryValue(row,key){return Number(row[key+'AllocatedBytes']||0);}");
         writer.AppendLine("    function peakRssValue(row,key){return Number(row[key+'PeakRssBytes']||0);}");
         writer.AppendLine("    function estimatedPeakRssValue(row,key){return Number(row[key+'EstimatedPeakRssBytes']||0);}");
         writer.AppendLine("    function fmt(value){return Number(value).toLocaleString(undefined,{maximumFractionDigits:3})+' ns';}");
+        writer.AppendLine("    function fmtMs(value){return (Number(value||0)/1000000).toLocaleString(undefined,{maximumFractionDigits:3})+' ms';}");
+        writer.AppendLine("    function fmtShareMs(value,total){const share=total>0?Number(value||0)/total*100:0;return share.toFixed(1)+'% ('+fmtMs(value)+')';}");
         writer.AppendLine("    function fmtBytes(value){const n=Number(value||0);if(!n)return '-';const units=['B','KiB','MiB','GiB','TiB'];let v=n,i=0;while(v>=1024&&i<units.length-1){v/=1024;i++;}return v.toLocaleString(undefined,{maximumFractionDigits:i?2:0})+' '+units[i];}");
         writer.AppendLine("    function ratio(value,base){return base>0?value/base:null;}");
         writer.AppendLine("    function categoryOf(method){const p=String(method||'').split('_')[0];return p||'Other';}");
@@ -258,10 +262,10 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("    function baseBarOptions(series,categories,stacked=false,stackType=null,formatter=fmt,labels=false){return {series,categories,colors:series.map(s=>colors[s.name]||'#6c6f78'),chart:{type:'bar',height:Math.max(440,categories.length*28+150),stacked,stackType,toolbar:{show:true}},plotOptions:{bar:{horizontal:true}},xaxis:{categories},dataLabels:{enabled:labels,formatter:(value,opts)=>formatter(opts.w.config.series[opts.seriesIndex].data[opts.dataPointIndex])},legend:{position:'top'},tooltip:{y:{formatter}}};}");
         writer.AppendLine("    function renderGroupedBar(){const cats=comparisonRows.map(row=>row.method);makeChart(baseBarOptions(seriesKeys.map(key=>({name:key,data:comparisonRows.map(row=>value(row,key))})),cats));note('Absolute Mean comparison. Smaller is faster.');}");
         writer.AppendLine("    function renderRelativeBar(){const cats=comparisonRows.map(row=>row.method);makeChart(baseBarOptions(seriesKeys.map(key=>({name:key,data:comparisonRows.map(row=>{const r=ratio(value(row,key),value(row,'linq'));return r===null?0:Number(r.toFixed(3));})})),cats));note('LINQ is 1.0. Values below 1.0 are faster than LINQ.');}");
-        writer.AppendLine("    function renderStackedShare(){const cats=comparisonRows.map(row=>row.method);makeChart(baseBarOptions(seriesKeys.map(key=>({name:key,data:comparisonRows.map(row=>value(row,key))})),cats,true,'100%',fmt,true));note('100% share of processing time. Labels and tooltips show actual Mean values.');}");
+        writer.AppendLine("    function renderStackedShare(){const cats=comparisonRows.map(row=>row.method);const totals=comparisonRows.map(row=>seriesKeys.reduce((sum,key)=>sum+value(row,key),0));const options=baseBarOptions(seriesKeys.map(key=>({name:key,data:comparisonRows.map(row=>value(row,key))})),cats,true,'100%',fmt,true);options.plotOptions.bar.dataLabels={position:'right'};options.dataLabels={enabled:true,textAnchor:'end',style:{fontSize:'11px',fontWeight:600,colors:['#fff']},dropShadow:{enabled:true,top:0,left:0,blur:1,opacity:.45},formatter:(val,opts)=>{const actual=opts.w.config.series[opts.seriesIndex].data[opts.dataPointIndex];return val>=8?fmtShareMs(actual,totals[opts.dataPointIndex]):'';}};options.tooltip={custom:({seriesIndex,dataPointIndex,w})=>{const actual=w.config.series[seriesIndex].data[dataPointIndex];return `<div style=\"padding:6px\"><b>${w.config.series[seriesIndex].name}</b><br>${comparisonRows[dataPointIndex].method}<br>${fmtShareMs(actual,totals[dataPointIndex])}<br>${fmt(actual)}</div>`;}};makeChart(options);note('100% share of processing time. Labels are right-aligned as percent plus milliseconds.');}");
         writer.AppendLine("    function renderVerticalBenchmarkStack(){const items=comparisonRows.map(row=>({row,total:seriesKeys.reduce((sum,key)=>sum+value(row,key),0)})).filter(item=>item.total>0).sort((a,b)=>b.total-a.total||String(a.row.method).localeCompare(String(b.row.method)));const series=items.map(item=>({name:item.row.method,data:seriesKeys.map(key=>value(item.row,key))}));makeChart({series,chart:{type:'bar',height:Math.max(560,Math.min(1600,items.length*18+360)),stacked:true,toolbar:{show:true}},plotOptions:{bar:{horizontal:false,columnWidth:'62%'}},xaxis:{categories:seriesKeys.map(key=>names[key]||key),title:{text:'Implementation'}},yaxis:{title:{text:'Total Mean ns'},labels:{formatter:value=>Number(value).toLocaleString(undefined,{maximumFractionDigits:0})}},dataLabels:{enabled:false},legend:{position:'right',fontSize:'11px',showForSingleSeries:true},tooltip:{y:{formatter:fmt}},fill:{opacity:1}});note('Vertical stacked Mean by implementation. Each stacked segment is one benchmark method, ordered by total Mean across all implementations.');}");
         writer.AppendLine("    function renderVerticalBenchmarkStack(){const items=comparisonRows.map(row=>({row,total:seriesKeys.reduce((sum,key)=>sum+value(row,key),0)})).filter(item=>item.total>0).sort((a,b)=>b.total-a.total||String(a.row.method).localeCompare(String(b.row.method)));const totals=Object.fromEntries(seriesKeys.map(key=>[key,items.reduce((sum,item)=>sum+value(item.row,key),0)]));const orderedKeys=[...seriesKeys].sort((a,b)=>totals[a]-totals[b]||String(names[a]).localeCompare(String(names[b])));const series=items.map((item,index)=>({name:item.row.method,data:orderedKeys.map(key=>value(item.row,key)),color:colorForMethod(item.row.method,index)}));makeChart({series,colors:series.map(s=>s.color),chart:{type:'bar',height:Math.max(560,Math.min(1800,items.length*18+360)),stacked:true,toolbar:{show:true}},plotOptions:{bar:{horizontal:false,columnWidth:'62%'}},xaxis:{categories:orderedKeys.map(key=>names[key]||key),title:{text:'系列（合計Meanが速い順）'}},yaxis:{title:{text:'合計Mean ns'},labels:{formatter:value=>Number(value).toLocaleString(undefined,{maximumFractionDigits:0})}},dataLabels:{enabled:false},legend:{position:'right',fontSize:'11px',showForSingleSeries:true},tooltip:{custom:({seriesIndex,dataPointIndex,w})=>{const method=w.config.series[seriesIndex].name;const key=orderedKeys[dataPointIndex];const row=items[seriesIndex].row;const v=value(row,key);const total=totals[key]||0;const share=total>0?v/total*100:0;const z=value(row,'zlinq');const f=value(row,'flinq');const ratioText=z>0&&f>0?`<br>FLinq/ZLinq: ${(f/z).toFixed(3)}x (${((f/z-1)*100).toFixed(1)}%)`:'';return `<div style=\"padding:6px\"><b>${method}</b><br>${names[key]||key}: ${fmt(v)}<br>構成比: ${share.toFixed(1)}%${ratioText}</div>`;}},fill:{opacity:1}});note('系列ごとのMean合計を縦積み上げで表示します。x軸は合計Meanが小さい順、セグメント色はベンチマーク名に固定です。');}");
-        writer.AppendLine("    function renderFLinqSlowRanking(){if(!flinqSlowRows.length){tableMessage('System FLinq が System ZLinq より遅いベンチマークはありません。');note('FLinq遅延ランキングの対象はありません。');return;}const rows=[...flinqSlowRows].sort((a,b)=>b.delta-a.delta||String(a.method).localeCompare(String(b.method)));makeChart({series:[{name:'FLinq - ZLinq',data:rows.map(row=>row.delta)}],chart:{type:'bar',height:Math.max(440,rows.length*30+150),toolbar:{show:true}},plotOptions:{bar:{horizontal:true}},xaxis:{title:{text:'遅延差分 ns'},labels:{formatter:value=>Number(value).toLocaleString(undefined,{maximumFractionDigits:0})}},yaxis:{labels:{maxWidth:360}},dataLabels:{enabled:true,formatter:(value,opts)=>`${fmt(value)} / ${rows[opts.dataPointIndex].percentSlower.toFixed(1)}%遅い`},tooltip:{custom:({dataPointIndex})=>{const row=rows[dataPointIndex];return `<div style=\"padding:6px\"><b>${row.method}</b><br>ZLinq: ${fmt(row.zlinq)}<br>FLinq: ${fmt(row.flinq)}<br>差分: ${fmt(row.delta)}<br>${row.percentSlower.toFixed(1)}%遅い</div>`;}},colors:['#b94b48']});note('System FLinq が System ZLinq より遅いベンチマークを、差分時間が大きい順に表示します。');}");
+        writer.AppendLine("    function renderFLinqSlowRanking(){if(!flinqSlowRows.length){tableMessage('System FLinq が System ZLinq より遅いベンチマークはありません。');note('FLinq遅延ランキングの対象はありません。');return;}const rows=[...flinqSlowRows].sort((a,b)=>b.delta-a.delta||String(a.method).localeCompare(String(b.method)));makeChart({series:[{name:'FLinq - ZLinq',data:rows.map(row=>({x:row.method,y:row.delta}))}],chart:{type:'bar',height:Math.max(440,rows.length*30+150),toolbar:{show:true}},plotOptions:{bar:{horizontal:true}},xaxis:{title:{text:'遅延差分 ns'},labels:{formatter:value=>Number(value).toLocaleString(undefined,{maximumFractionDigits:0})}},yaxis:{labels:{maxWidth:360}},dataLabels:{enabled:true,formatter:(value,opts)=>`${fmt(value)} / ${rows[opts.dataPointIndex].percentSlower.toFixed(1)}%遅い`},tooltip:{custom:({dataPointIndex})=>{const row=rows[dataPointIndex];return `<div style=\"padding:6px\"><b>${row.method}</b><br>ZLinq: ${fmt(row.zlinq)}<br>FLinq: ${fmt(row.flinq)}<br>差分: ${fmt(row.delta)}<br>${row.percentSlower.toFixed(1)}%遅い</div>`;}},colors:['#b94b48']});note('System FLinq が System ZLinq より遅いベンチマークを、差分時間が大きい順に表示します。');}");
         writer.AppendLine("    function renderAllocatedShare(){const cats=comparisonRows.map(row=>row.method);makeChart(baseBarOptions(seriesKeys.map(key=>({name:key,data:comparisonRows.map(row=>memoryValue(row,key))})),cats,true,'100%',fmtBytes,true));note('100% share of allocated bytes. Labels and tooltips show actual allocated bytes.');}");
         writer.AppendLine("    function renderAllocatedBar(){const cats=comparisonRows.map(row=>row.method);makeChart(baseBarOptions(seriesKeys.map(key=>({name:key,data:comparisonRows.map(row=>memoryValue(row,key))})),cats,false,null,fmtBytes));note('Absolute allocated bytes from BenchmarkDotNet MemoryDiagnoser.');}");
         writer.AppendLine("    function renderPeakRssBar(){const cats=comparisonRows.map(row=>row.method);makeChart(baseBarOptions(seriesKeys.map(key=>({name:key,data:comparisonRows.map(row=>peakRssValue(row,key))})),cats,false,null,fmtBytes));note('Measured peak RSS of the worker process during each task.');}");
@@ -269,7 +273,7 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("    function renderWinnerHeatmap(){makeChart({series:seriesKeys.map(key=>({name:key,data:comparisonRows.map(row=>{const min=Math.min(...seriesKeys.map(k=>value(row,k)).filter(v=>v>0));const v=value(row,key);return {x:row.method,y:v>0&&min>0?Number((v/min).toFixed(3)):0};})})),chart:{type:'heatmap',height:Math.max(440,comparisonRows.length*24+140),toolbar:{show:true}},plotOptions:{heatmap:{shadeIntensity:.55,colorScale:{ranges:[{from:0,to:0.001,color:'#ececec',name:'n/a'},{from:.001,to:1.02,color:'#4f8b57',name:'winner'},{from:1.02,to:1.2,color:'#d6b656',name:'close'},{from:1.2,to:100000,color:'#b94b48',name:'slower'}]}}},dataLabels:{enabled:false},xaxis:{labels:{rotate:-45}},tooltip:{y:{formatter:v=>v?`${v}x winner`:'n/a'}}});note('Each cell is relative to the fastest implementation for that method.');}");
         writer.AppendLine("    function renderPareto(){const items=completedRows().sort((a,b)=>b.meanValue-a.meanValue);const total=items.reduce((s,r)=>s+r.meanValue,0);let running=0;makeChart({series:[{name:'Mean ns',type:'column',data:items.map(r=>r.meanValue)},{name:'Cumulative %',type:'line',data:items.map(r=>Number(((running+=r.meanValue)/Math.max(total,1)*100).toFixed(2)))}],chart:{height:520,type:'line',toolbar:{show:true}},stroke:{width:[0,3]},xaxis:{categories:items.map(r=>r.method+' / '+r.project),labels:{rotate:-45}},yaxis:[{title:{text:'Mean ns'}},{opposite:true,max:100,title:{text:'Cumulative %'}}],dataLabels:{enabled:false}});note('Largest benchmark costs first; useful for deciding where optimization work matters.');}");
         writer.AppendLine("    function renderTreemap(){const grouped={};completedRows().forEach(row=>{const key=categoryOf(row.method)+' / '+row.project;grouped[key]=(grouped[key]||0)+row.meanValue;});makeChart({series:[{data:Object.entries(grouped).map(([x,y])=>({x,y:Number(y.toFixed(3))}))}],chart:{type:'treemap',height:520,toolbar:{show:true}},tooltip:{y:{formatter:fmt}}});note('Area is total Mean by derived method category and project.');}");
-        writer.AppendLine("    function renderErrorBar(){const items=completedRows().sort((a,b)=>b.stdDevValue-a.stdDevValue).slice(0,80);makeChart(baseBarOptions([{name:'Error',data:items.map(r=>r.errorValue)},{name:'StdDev',data:items.map(r=>r.stdDevValue)}],items.map(r=>r.method+' / '+r.project)));note('Largest uncertainty values. High values can explain noisy comparisons.');}");
+        writer.AppendLine("    function renderErrorBar(){const items=completedRows().sort((a,b)=>b.stdDevValue-a.stdDevValue).slice(0,80);const options=baseBarOptions([{name:'Error',data:items.map(r=>r.errorValue)},{name:'StdDev',data:items.map(r=>r.stdDevValue)}],items.map(r=>r.method+' / '+r.project));options.colors=['#3a6ea5','#b94b48'];options.dataLabels={enabled:false};options.tooltip={custom:({seriesIndex,dataPointIndex,w})=>{const row=items[dataPointIndex];const name=w.config.series[seriesIndex].name;const actual=w.config.series[seriesIndex].data[dataPointIndex];return `<div style=\"padding:6px\"><b>${name}</b><br>${row.method} / ${row.project}<br>${fmt(actual)}</div>`;}};makeChart(options);note('Largest uncertainty values. Error and StdDev are shown as separate colored series.');}");
         writer.AppendLine("    function renderCvRanking(){const items=completedRows().map(r=>({...r,cv:r.meanValue>0?r.stdDevValue/r.meanValue:0})).sort((a,b)=>b.cv-a.cv).slice(0,80);makeChart(baseBarOptions([{name:'StdDev / Mean',data:items.map(r=>Number(r.cv.toFixed(5)))}],items.map(r=>r.method+' / '+r.project)));note('Variation coefficient ranking. Higher values are less stable.');}");
         writer.AppendLine("    function renderCpuHeatmap(){const cpus=[...new Set(runRows.map(r=>r.cpuDisplay||r.logicalCpu).filter(Boolean))].sort();makeChart({series:[...new Set(runRows.map(r=>r.project))].map(project=>({name:project,data:cpus.map(cpu=>{const values=runRows.filter(r=>r.project===project&&(r.cpuDisplay===cpu||r.logicalCpu===cpu)).map(r=>r.meanValue).filter(v=>v>0);return {x:cpu,y:values.length?Number((values.reduce((a,b)=>a+b,0)/values.length).toFixed(3)):0};})})),chart:{type:'heatmap',height:Math.max(440,cpus.length*34+160),toolbar:{show:true}},dataLabels:{enabled:false},tooltip:{y:{formatter:fmt}}});note('Average Mean by CPU lane and project. Empty/failed rows are zero.');}");
         writer.AppendLine("    function renderCpuTimeline(){");
@@ -296,8 +300,10 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("      note('Each lane is one selected CPU/logical processor. Each bar shows the task start and finish time handled on that CPU.');");
         writer.AppendLine("    }");
         writer.AppendLine("    function projectKey(project){const p=String(project).toLowerCase();if(p.includes('zlinq'))return 'zlinq';if(p.includes('flinq'))return 'flinq';if(p.includes('linq'))return 'linq';return project;}");
-        writer.AppendLine("    function renderSankey(){clearChart();const chartEl=document.querySelector('#chart');const winners={};comparisonRows.forEach(row=>{const cat=categoryOf(row.method);const winner=winnerOf(row)||'n/a';const key=cat+'|'+winner;winners[key]=(winners[key]||0)+1;});const cats=[...new Set(Object.keys(winners).map(k=>k.split('|')[0]))].sort();const targets=[...new Set(Object.keys(winners).map(k=>k.split('|')[1]))].sort();const width=Math.max(900,chartEl.clientWidth-30),height=Math.max(520,cats.length*28+80);const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('class','sankey');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);chartEl.appendChild(svg);const leftX=120,rightX=width-180;cats.forEach((cat,i)=>drawNode(svg,leftX,40+i*28,150,20,cat));targets.forEach((target,i)=>drawNode(svg,rightX,80+i*80,130,26,target));Object.entries(winners).forEach(([key,count])=>{const [cat,target]=key;const y1=50+cats.indexOf(cat)*28;const y2=93+targets.indexOf(target)*80;const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',`M ${leftX+150} ${y1} C ${width*.45} ${y1}, ${width*.55} ${y2}, ${rightX} ${y2}`);path.setAttribute('class','flow');path.setAttribute('stroke',colors[target]||'#6c6f78');path.setAttribute('stroke-width',String(Math.max(2,count*2)));path.appendChild(document.createElementNS(svg.namespaceURI,'title')).textContent=`${cat} -> ${target}: ${count}`;svg.insertBefore(path,svg.firstChild);});note('Derived flow: method category to fastest implementation. Width is method count.');}");
-        writer.AppendLine("    function renderAlluvial(){renderSankey();note('Alluvial-like view using the same category-to-winner flow. Future data can add stability bands as a third axis.');}");
+        writer.AppendLine("    function renderExecutionPlan(){const planMethods=Object.keys(executionPlans);const rows=completedRows().filter(row=>planMethods.includes(row.method));if(!rows.length){tableMessage('実行計画カテゴリのベンチ結果がありません。');note('実行計画カテゴリのベンチを実行すると、ここにSQL Server風の実行計画図を表示します。');return;}clearChart();const chartEl=document.querySelector('#chart');const methodOrder=[...new Set(rows.map(row=>row.method))].sort((a,b)=>a.localeCompare(b));const selectedMethod=methodOrder[0];const selectedRows=rows.filter(row=>row.method===selectedMethod).sort((a,b)=>a.meanValue-b.meanValue);const plan=executionPlans[selectedMethod];const width=Math.max(1120,chartEl.clientWidth-30),height=620;const controls=document.createElement('div');controls.className='toolbar';controls.innerHTML=`<label for=\"planMethod\">Method</label><select id=\"planMethod\">${methodOrder.map(method=>`<option value=\"${method}\">${method}</option>`).join('')}</select><label for=\"planProject\">Implementation</label><select id=\"planProject\"></select>`;chartEl.appendChild(controls);const host=document.createElement('div');chartEl.appendChild(host);function draw(){const method=document.querySelector('#planMethod').value;const methodRows=rows.filter(row=>row.method===method).sort((a,b)=>a.meanValue-b.meanValue);const projectSelect=document.querySelector('#planProject');const current=projectSelect.value;projectSelect.innerHTML=methodRows.map(row=>`<option value=\"${row.project}\">${row.project}</option>`).join('');if(methodRows.some(row=>row.project===current))projectSelect.value=current;const row=methodRows.find(r=>r.project===projectSelect.value)||methodRows[0];const p=executionPlans[method];host.innerHTML='';const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('class','sankey');svg.setAttribute('viewBox',`0 0 ${width} ${height}`);host.appendChild(svg);const title=document.createElementNS(svg.namespaceURI,'text');title.setAttribute('x',24);title.setAttribute('y',32);title.setAttribute('font-size','18');title.setAttribute('font-weight','700');title.textContent=`${method} / ${row.project}`;svg.appendChild(title);const stat=document.createElementNS(svg.namespaceURI,'text');stat.setAttribute('x',24);stat.setAttribute('y',56);stat.setAttribute('class','axis-label');stat.textContent=`Mean ${fmt(row.meanValue)} / ${fmtMs(row.meanValue)}   Error ${fmt(row.errorValue)}   StdDev ${fmt(row.stdDevValue)}`;svg.appendChild(stat);p.edges.forEach(edge=>drawPlanEdge(svg,p.nodes.find(node=>node.id===edge.from),p.nodes.find(node=>node.id===edge.to),edge));p.nodes.forEach(node=>drawPlanNode(svg,node,row));note('実行計画カテゴリの複雑なメソッドチェーンを、手動定義の推定コスト比率とベンチ全体の実測値で表示します。');}document.querySelector('#planMethod').addEventListener('change',draw);document.querySelector('#planProject').addEventListener('change',draw);draw();}");
+        writer.AppendLine("    function drawPlanEdge(svg,from,to,edge){if(!from||!to)return;const x1=from.x+from.w,y1=from.y+from.h/2,x2=to.x,y2=to.y+to.h/2;const line=document.createElementNS(svg.namespaceURI,'path');line.setAttribute('d',`M ${x1} ${y1} C ${(x1+x2)/2} ${y1}, ${(x1+x2)/2} ${y2}, ${x2} ${y2}`);line.setAttribute('fill','none');line.setAttribute('stroke','#6c6f78');line.setAttribute('stroke-width',String(Math.max(2,(edge.weight||1)*5)));line.setAttribute('marker-end','url(#arrow)');line.appendChild(document.createElementNS(svg.namespaceURI,'title')).textContent=edge.label||'';svg.insertBefore(line,svg.firstChild);ensureArrow(svg);}");
+        writer.AppendLine("    function ensureArrow(svg){if(svg.querySelector('#arrow'))return;const defs=document.createElementNS(svg.namespaceURI,'defs');const marker=document.createElementNS(svg.namespaceURI,'marker');marker.setAttribute('id','arrow');marker.setAttribute('markerWidth','10');marker.setAttribute('markerHeight','10');marker.setAttribute('refX','9');marker.setAttribute('refY','3');marker.setAttribute('orient','auto');const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d','M0,0 L0,6 L9,3 z');path.setAttribute('fill','#6c6f78');marker.appendChild(path);defs.appendChild(marker);svg.appendChild(defs);}");
+        writer.AppendLine("    function drawPlanNode(svg,node,row){const group=document.createElementNS(svg.namespaceURI,'g');svg.appendChild(group);const rect=document.createElementNS(svg.namespaceURI,'rect');rect.setAttribute('x',node.x);rect.setAttribute('y',node.y);rect.setAttribute('width',node.w);rect.setAttribute('height',node.h);rect.setAttribute('rx',4);rect.setAttribute('fill',node.kind==='blocking'?'#fff1d6':node.kind==='join'?'#e9f1fb':'#f8fbf2');rect.setAttribute('stroke',node.kind==='blocking'?'#b7792f':node.kind==='join'?'#3a6ea5':'#5b8c5a');rect.setAttribute('stroke-width','1.4');rect.appendChild(document.createElementNS(svg.namespaceURI,'title')).textContent=`${node.label}\\n推定コスト ${node.cost}%\\n${node.detail}\\nMean ${fmt(row.meanValue)} / ${fmtMs(row.meanValue)}\\nError ${fmt(row.errorValue)}\\nStdDev ${fmt(row.stdDevValue)}`;group.appendChild(rect);const label=document.createElementNS(svg.namespaceURI,'text');label.setAttribute('x',node.x+10);label.setAttribute('y',node.y+22);label.setAttribute('font-size','13');label.setAttribute('font-weight','700');label.textContent=node.label;group.appendChild(label);const cost=document.createElementNS(svg.namespaceURI,'text');cost.setAttribute('x',node.x+10);cost.setAttribute('y',node.y+44);cost.setAttribute('font-size','12');cost.textContent=`推定コスト ${node.cost}%`;group.appendChild(cost);const detail=document.createElementNS(svg.namespaceURI,'text');detail.setAttribute('x',node.x+10);detail.setAttribute('y',node.y+64);detail.setAttribute('font-size','11');detail.setAttribute('fill','#5b625f');detail.textContent=node.detail;group.appendChild(detail);}");
         writer.AppendLine("    function drawNode(svg,x,y,w,h,label){const r=document.createElementNS(svg.namespaceURI,'rect');r.setAttribute('x',x);r.setAttribute('y',y);r.setAttribute('width',w);r.setAttribute('height',h);r.setAttribute('rx','3');r.setAttribute('class','node');svg.appendChild(r);const t=document.createElementNS(svg.namespaceURI,'text');t.setAttribute('x',x+6);t.setAttribute('y',y+h*.68);t.setAttribute('class','node-label');t.textContent=label;svg.appendChild(t);}");
         writer.AppendLine("    function renderSummaryTable(){table(['Method','linq','zlinq','flinq','persistedlinq','persistedflinq','tsavoritelinq','tsavoriteflinq','Winner'],comparisonRows.map(row=>[row.method,fmt(value(row,'linq')),fmt(value(row,'zlinq')),fmt(value(row,'flinq')),fmt(value(row,'persistedlinq')),fmt(value(row,'persistedflinq')),fmt(value(row,'tsavoritelinq')),fmt(value(row,'tsavoriteflinq')),winnerOf(row)||'-']));note('Exact values behind the comparison charts.');}");
         writer.AppendLine("    function renderMemorySummaryTable(){table(['Method','Type','linq','zlinq','flinq','persistedlinq','persistedflinq','tsavoritelinq','tsavoriteflinq'],comparisonRows.flatMap(row=>[['Allocated',key=>fmtBytes(memoryValue(row,key))],['Peak RSS',key=>fmtBytes(peakRssValue(row,key))],['Estimated peak RSS',key=>fmtBytes(estimatedPeakRssValue(row,key))]].map(([label,projectValue])=>[row.method,label,projectValue('linq'),projectValue('zlinq'),projectValue('flinq'),projectValue('persistedlinq'),projectValue('persistedflinq'),projectValue('tsavoritelinq'),projectValue('tsavoriteflinq')])));note('Memory values used by the allocation and RSS charts.');}");
@@ -305,7 +311,7 @@ public static class BenchmarkReportFormatter{
         writer.AppendLine("    function table(headers,rows){clearChart();document.querySelector('#chart').innerHTML='<div class=\"fallback\"><table><thead><tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(cell=>`<td>${cell}</td>`).join('')+'</tr>').join('')+'</tbody></table></div>';}");
         writer.AppendLine("    function tableMessage(text){clearChart();document.querySelector('#chart').innerHTML=`<p style=\"margin:12px\">${text}</p>`;}");
         writer.AppendLine("    function note(text){document.querySelector('#note').textContent=text;}");
-        writer.AppendLine("    const renderers={verticalBenchmarkStack:renderVerticalBenchmarkStack,flinqSlowRanking:renderFLinqSlowRanking,groupedBar:renderGroupedBar,relativeBar:renderRelativeBar,scatter:renderScatter,stackedShare:renderStackedShare,allocatedShare:renderAllocatedShare,allocatedBar:renderAllocatedBar,peakRssBar:renderPeakRssBar,memorySummaryTable:renderMemorySummaryTable,winnerHeatmap:renderWinnerHeatmap,pareto:renderPareto,treemap:renderTreemap,summaryTable:renderSummaryTable,errorBar:renderErrorBar,cvRanking:renderCvRanking,cpuTimeline:renderCpuTimeline,cpuHeatmap:renderCpuHeatmap,sankey:renderSankey,alluvial:renderAlluvial,sunburstTable:renderSunburstTable};");
+        writer.AppendLine("    const renderers={verticalBenchmarkStack:renderVerticalBenchmarkStack,flinqSlowRanking:renderFLinqSlowRanking,groupedBar:renderGroupedBar,relativeBar:renderRelativeBar,scatter:renderScatter,stackedShare:renderStackedShare,allocatedShare:renderAllocatedShare,allocatedBar:renderAllocatedBar,peakRssBar:renderPeakRssBar,memorySummaryTable:renderMemorySummaryTable,winnerHeatmap:renderWinnerHeatmap,pareto:renderPareto,treemap:renderTreemap,summaryTable:renderSummaryTable,errorBar:renderErrorBar,cvRanking:renderCvRanking,cpuTimeline:renderCpuTimeline,cpuHeatmap:renderCpuHeatmap,executionPlan:renderExecutionPlan};");
         writer.AppendLine("    function setTab(tab){activeTab=tab;document.querySelectorAll('.tab').forEach(button=>button.classList.toggle('active',button.dataset.tab===tab));const select=document.querySelector('#chartMode');select.innerHTML=tabDefinitions[tab].map(([id,label])=>`<option value=\"${id}\">${label}</option>`).join('');renderSelected();}");
         writer.AppendLine("    function renderSelected(){renderMetrics();const mode=document.querySelector('#chartMode').value;(renderers[mode]||renderSummaryTable)();}");
         writer.AppendLine("    document.querySelector('#tabs').innerHTML=Object.keys(tabDefinitions).map(tab=>`<button class=\"tab\" data-tab=\"${tab}\">${tabLabels[tab]||tab}</button>`).join('');");
@@ -329,6 +335,7 @@ public static class BenchmarkReportFormatter{
         writer.Append(",\"rawRows\":").Append(BuildReportRowsJson(rows));
         writer.Append(",\"comparisonRows\":").Append(BuildComparisonRowsJson(comparisonRows));
         writer.Append(",\"flinqSlowRows\":").Append(BuildFLinqSlowRowsJson(comparisonRows));
+        writer.Append(",\"executionPlans\":").Append(BuildExecutionPlanJson());
         writer.Append('}');
         return writer.ToString();
     }
@@ -565,6 +572,128 @@ public static class BenchmarkReportFormatter{
             writer.Append('}');
         }
         writer.Append(']');
+        return writer.ToString();
+    }
+
+    private static string BuildExecutionPlanJson(){
+        var plans = new[]{
+            new ExecutionPlan(
+                "ExecutionPlan_FilterProjectCount",
+                [
+                    new ExecutionPlanNode("source","Index Scan",24,104,150,76,14,"stream","srcCount(StreamFilterCount)"),
+                    new ExecutionPlanNode("filter","Filter",224,104,140,76,12,"stream","x is even"),
+                    new ExecutionPlanNode("project","Compute Scalar",414,104,160,76,10,"stream","(x * 3) % 2048"),
+                    new ExecutionPlanNode("count","Hash Aggregate",624,104,170,76,34,"blocking","CountBy key"),
+                    new ExecutionPlanNode("sort","Top N Sort",844,104,150,76,22,"blocking","OrderBy desc + Take"),
+                ],
+                [
+                    new ExecutionPlanEdge("source","filter",1,"scan rows"),
+                    new ExecutionPlanEdge("filter","project",0.62,"filtered rows"),
+                    new ExecutionPlanEdge("project","count",0.62,"projected keys"),
+                    new ExecutionPlanEdge("count","sort",0.28,"grouped counts"),
+                ]),
+            new ExecutionPlan(
+                "ExecutionPlan_FilterGroupAggregate",
+                [
+                    new ExecutionPlanNode("source","Index Scan",24,104,150,76,16,"stream","srcCount(GroupingCount)"),
+                    new ExecutionPlanNode("filter","Filter",224,104,140,76,11,"stream","x % 3 != 0"),
+                    new ExecutionPlanNode("project","Compute Scalar",414,104,160,76,9,"stream","hoisted value"),
+                    new ExecutionPlanNode("group","Hash Aggregate",624,104,170,76,36,"blocking","CountBy key"),
+                    new ExecutionPlanNode("aggregate","Top N Sort",844,104,170,76,18,"blocking","Order by count"),
+                    new ExecutionPlanNode("top","Top",1064,104,120,76,10,"stream","Take 128"),
+                ],
+                [
+                    new ExecutionPlanEdge("source","filter",1,"scan rows"),
+                    new ExecutionPlanEdge("filter","project",0.67,"filtered rows"),
+                    new ExecutionPlanEdge("project","group",0.67,"group keys"),
+                    new ExecutionPlanEdge("group","aggregate",0.24,"groups"),
+                    new ExecutionPlanEdge("aggregate","top",0.18,"ordered totals"),
+                ]),
+            new ExecutionPlan(
+                "ExecutionPlan_FilterJoinAggregate",
+                [
+                    new ExecutionPlanNode("outer","Outer Scan",24,76,150,76,15,"stream","srcCount(JoinCount)"),
+                    new ExecutionPlanNode("outerFilter","Outer Filter",224,76,150,76,8,"stream","outer is even"),
+                    new ExecutionPlanNode("inner","Inner Scan",24,230,150,76,15,"stream","src2Count(JoinCount)"),
+                    new ExecutionPlanNode("innerFilter","Inner Filter",224,230,150,76,8,"stream","inner % 3 == 0"),
+                    new ExecutionPlanNode("join","Hash Join",464,150,160,86,30,"join","key % 4096"),
+                    new ExecutionPlanNode("group","Hash Aggregate",704,150,180,86,18,"blocking","CountBy joined key"),
+                    new ExecutionPlanNode("top","Top N Sort",964,150,150,86,6,"blocking","Take 128"),
+                ],
+                [
+                    new ExecutionPlanEdge("outer","outerFilter",1,"outer rows"),
+                    new ExecutionPlanEdge("inner","innerFilter",1,"inner rows"),
+                    new ExecutionPlanEdge("outerFilter","join",0.5,"outer build/probe"),
+                    new ExecutionPlanEdge("innerFilter","join",0.33,"inner build/probe"),
+                    new ExecutionPlanEdge("join","group",0.42,"joined rows"),
+                    new ExecutionPlanEdge("group","top",0.16,"aggregate rows"),
+                ]),
+            new ExecutionPlan(
+                "ExecutionPlan_GroupJoinMaterialize",
+                [
+                    new ExecutionPlanNode("outer","Outer Scan",24,76,150,76,16,"stream","srcCount(JoinCount)"),
+                    new ExecutionPlanNode("outerFilter","Outer Filter",224,76,150,76,8,"stream","outer % 5 != 0"),
+                    new ExecutionPlanNode("inner","Inner Scan",24,230,150,76,16,"stream","src2Count(JoinCount)"),
+                    new ExecutionPlanNode("innerFilter","Inner Filter",224,230,150,76,8,"stream","inner is even"),
+                    new ExecutionPlanNode("groupJoin","Group Join",464,150,170,86,32,"join","key % 2048"),
+                    new ExecutionPlanNode("sort","Top N Sort",724,150,160,86,15,"blocking","OrderBy desc"),
+                    new ExecutionPlanNode("materialize","Materialize",964,150,150,86,5,"blocking","ToList"),
+                ],
+                [
+                    new ExecutionPlanEdge("outer","outerFilter",1,"outer rows"),
+                    new ExecutionPlanEdge("inner","innerFilter",1,"inner rows"),
+                    new ExecutionPlanEdge("outerFilter","groupJoin",0.8,"outer groups"),
+                    new ExecutionPlanEdge("innerFilter","groupJoin",0.5,"inner groups"),
+                    new ExecutionPlanEdge("groupJoin","sort",0.34,"joined values"),
+                    new ExecutionPlanEdge("sort","materialize",0.12,"top values"),
+                ]),
+        };
+
+        var writer = new StringBuilder();
+        writer.Append('{');
+        for(var i=0;i<plans.Length;i++){
+            if(i>0){
+                writer.Append(',');
+            }
+
+            var plan = plans[i];
+            writer.Append('"').Append(EscapeJavaScriptString(plan.Method)).Append("\":{");
+            writer.Append("\"nodes\":[");
+            for(var nodeIndex=0;nodeIndex<plan.Nodes.Length;nodeIndex++){
+                if(nodeIndex>0){
+                    writer.Append(',');
+                }
+
+                var node = plan.Nodes[nodeIndex];
+                writer.Append('{');
+                AppendJsonString(writer,"id",node.Id);
+                AppendJsonString(writer,",label",node.Label);
+                AppendJsonNumber(writer,",\"x\":",node.X);
+                AppendJsonNumber(writer,",\"y\":",node.Y);
+                AppendJsonNumber(writer,",\"w\":",node.Width);
+                AppendJsonNumber(writer,",\"h\":",node.Height);
+                AppendJsonNumber(writer,",\"cost\":",node.CostPercent);
+                AppendJsonString(writer,",kind",node.Kind);
+                AppendJsonString(writer,",detail",node.Detail);
+                writer.Append('}');
+            }
+            writer.Append("],\"edges\":[");
+            for(var edgeIndex=0;edgeIndex<plan.Edges.Length;edgeIndex++){
+                if(edgeIndex>0){
+                    writer.Append(',');
+                }
+
+                var edge = plan.Edges[edgeIndex];
+                writer.Append('{');
+                AppendJsonString(writer,"from",edge.From);
+                AppendJsonString(writer,",to",edge.To);
+                AppendJsonNumber(writer,",\"weight\":",edge.Weight);
+                AppendJsonString(writer,",label",edge.Label);
+                writer.Append('}');
+            }
+            writer.Append("]}");
+        }
+        writer.Append('}');
         return writer.ToString();
     }
 
@@ -848,6 +977,28 @@ public static class BenchmarkReportFormatter{
     }
 
     private sealed record TimelineItem(ReportRow Row,DateTimeOffset? StartedAt,DateTimeOffset? FinishedAt);
+
+    private sealed record ExecutionPlan(
+        string Method,
+        ExecutionPlanNode[] Nodes,
+        ExecutionPlanEdge[] Edges);
+
+    private sealed record ExecutionPlanNode(
+        string Id,
+        string Label,
+        double X,
+        double Y,
+        double Width,
+        double Height,
+        double CostPercent,
+        string Kind,
+        string Detail);
+
+    private sealed record ExecutionPlanEdge(
+        string From,
+        string To,
+        double Weight,
+        string Label);
 
     private enum TimelineAxisLabelStyle{
         Seconds,
