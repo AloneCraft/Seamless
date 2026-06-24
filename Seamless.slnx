@@ -5,7 +5,7 @@
     <Project Path="Benchmark.Persisted.Collection/Benchmark.Persisted.Collection.csproj" />
     <Project Path="Benchmark.Persisted.Linq.Enumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark.Persisted.Linq.Enumerable.Linq/Benchmark.Persisted.Linq.Enumerable.Linq.csproj" />
-    <Project Path="Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj" />
+    <Project Path="Benchmark/Benchmark.csproj" />
     <Project Path="Benchmark.Shared/Benchmark.Shared.shproj" />
     <Project Path="Benchmark.Tsavorite.Collection/Benchmark.Tsavorite.Collection.csproj" />
     <Project Path="Benchmark.Tsavorite.Linq.Enumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.FLinq.csproj" />
@@ -17,7 +17,9 @@
     <File Path="Benchmark.Shared\Benchmark.Linq.Enumerable.Core.projitems" />
     <File Path="Benchmark.Shared\Benchmark.TestInfrastructure.projitems" />
     <File Path="Benchmark.Shared\Linq.Enumerable.Benchmark\Program.cs" />
-    <File Path="TestBenchmark.Collections.Shared\TestBenchmark.Collections.Shared.projitems" />
+    <File Path="DynamicLinq.Shared\DynamicLinq.Shared.projitems" />
+    <File Path="Persisted.Collection.Shared\Persisted.Collection.Shared.projitems" />
+    <File Path="Tsavorite.Collection.Shared\Tsavorite.Collection.Shared.projitems" />
     <File Path="AI_SYNTAX_RULES.md" />
     <File Path="CLAUDE.md" />
     <File Path="copilot-instructions.md" />
@@ -25,17 +27,22 @@
     <File Path="TextFile1.txt" />
   </Folder>
   <Folder Name="/Tests/" />
-  <Project Path="TestBenchmark.Collections.Shared/TestBenchmark.Collections.Shared.shproj" />
+  <Project Path="DynamicLinq.Shared/DynamicLinq.Shared.shproj" />
+  <Project Path="Persisted.Collection.Shared/Persisted.Collection.Shared.shproj" />
+  <Project Path="Tsavorite.Collection.Shared/Tsavorite.Collection.Shared.shproj" />
   <Project Path="Document/Document.csproj" Id="b6f45f7e-1008-41c4-a1d3-7f9efbf33610" />
   <Project Path="Seamless/Seamless.csproj" />
   <Project Path="Seamless.Database/Seamless.Database.csproj" />
   <Project Path="Seamless.FLinq/Seamless.FLinq.csproj" />
-  <Project Path="Seamless.SourceGenerators/Seamless.SourceGenerators.csproj" />
+  <Project Path="Seamless.SourceGenerator/Seamless.SourceGenerator.csproj" />
+  <Project Path="Test.Collections/Test.Collections.csproj" />
+  <Project Path="Test.Persisted.Collection/Test.Persisted.Collection.csproj" />
   <Project Path="Test.Persisted/Test.Persisted.csproj" />
   <Project Path="Test.Persisted.Linq.Enumerable.FLinq/Test.Persisted.Linq.Enumerable.FLinq.csproj" />
   <Project Path="Test.Persisted.Linq.Enumerable.Linq/Test.Persisted.Linq.Enumerable.Linq.csproj" />
   <Project Path="Test.System.Linq.Enumerable.FLinq/Test.System.Linq.Enumerable.FLinq.csproj" />
   <Project Path="Test.System.Linq.Enumerable.ZLinq/Test.System.Linq.Enumerable.ZLinq.csproj" />
+  <Project Path="Test.Tsavorite.Collection/Test.Tsavorite.Collection.csproj" />
   <Project Path="Test.Tsavorite/Test.Tsavorite.csproj" />
   <Project Path="Test.Tsavorite.Linq.Enumerable.FLinq/Test.Tsavorite.Linq.Enumerable.FLinq.csproj" />
   <Project Path="Test.Tsavorite.Linq.Enumerable.Linq/Test.Tsavorite.Linq.Enumerable.Linq.csproj" />

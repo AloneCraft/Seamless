@@ -6,8 +6,8 @@ evidence_sources:
   - FLinq/SourceGenerator/interceptor.cs
   - Tsavorite.Collections/Collections/
   - Tsavorite.Collections/LinqCounter.cs
-  - Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs
-  - Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkWorkerHost.cs
+  - Benchmark/MainPage.xaml.cs
+  - Benchmark/BenchmarkWorkerHost.cs
 derived_from:
   - Reverse/Code/Internal/
 confidence: medium
@@ -24,14 +24,14 @@ review_status: draft
 | `Tsavorite.Collections` collection | store factory から store/collection を作成。 | Add/Read/Remove/Clear/scan。 | `IDisposable` collection と store/device の破棄。 | `Tsavorite.Collections/Stores/HashStore.cs:146`, `Tsavorite.Collections/Collections/Collection.Tsavorite.cs:131`, `Tsavorite.Collections/Collections/IDictionary.cs:9`, `Tsavorite.Collections/Collections/IHashSet.cs:8` |
 | `LinqCounterScope` | `Start` で counter を AsyncLocal に設定。 | operations が counter を increment。 | `Scope.Dispose` で前 counter へ復帰。 | `Tsavorite.Collections/LinqCounter.cs:142`, `Tsavorite.Collections/LinqCounter.cs:148`, `Tsavorite.Collections/LinqCounter.cs:155`, `Tsavorite.Collections/LinqCounter.cs:162` |
 | `Seamless.Database` generator | Roslyn incremental pipeline 初期化。 | schema type 収集、generated source 構築。 | compiler pipeline に従う。 | `Seamless.Database/SourceGenerator/GenerateDatabase.cs:9`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:11`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:17` |
-| `Benchmark.Runner.Uno` UI | desktop host 起動、benchmark project/method 読み込み。 | worker 起動、queue 処理、UI 更新。 | process kill/graceful stop、report 出力。 | `Benchmark.Runner.Uno/Benchmark.Runner.Uno/Platforms/Desktop/Program.cs:22`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:841`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:688`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:738`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:831` |
-| `BenchmarkWorkerHost` | worker mode args で起動。 | stdin task を deserialize、BenchmarkDotNet 実行。 | result message 返却、exit code 設定。 | `Benchmark.Runner.Uno/Benchmark.Runner.Uno/Platforms/Desktop/Program.cs:10`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkWorkerHost.cs:17`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkWorkerHost.cs:39`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkWorkerHost.cs:96` |
+| `Benchmark` UI | desktop host 起動、benchmark project/method 読み込み。 | worker 起動、queue 処理、UI 更新。 | process kill/graceful stop、report 出力。 | `Benchmark/Platforms/Desktop/Program.cs:22`, `Benchmark/MainPage.xaml.cs:841`, `Benchmark/MainPage.xaml.cs:688`, `Benchmark/MainPage.xaml.cs:738`, `Benchmark/MainPage.xaml.cs:831` |
+| `BenchmarkWorkerHost` | worker mode args で起動。 | stdin task を deserialize、BenchmarkDotNet 実行。 | result message 返却、exit code 設定。 | `Benchmark/Platforms/Desktop/Program.cs:10`, `Benchmark/BenchmarkWorkerHost.cs:17`, `Benchmark/BenchmarkWorkerHost.cs:39`, `Benchmark/BenchmarkWorkerHost.cs:96` |
 
 ## 制約
 
 - source generator の lifecycle は compile-time に限定される。
 - collection lifecycle は `IDisposable` を含むため、利用側で破棄が必要である。
-- benchmark worker は process lifecycle を伴い、異常時には kill/requeue の分岐がある（`Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:802`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:815`）。
+- benchmark worker は process lifecycle を伴い、異常時には kill/requeue の分岐がある（`Benchmark/MainPage.xaml.cs:802`, `Benchmark/MainPage.xaml.cs:815`）。
 
 ## Review Gate: Code External
 

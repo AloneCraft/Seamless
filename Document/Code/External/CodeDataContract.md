@@ -6,7 +6,7 @@ evidence_sources:
   - Tsavorite.Collections/LinqCounter.cs
   - Tsavorite.Collections/Stores/HashStore.cs
   - Seamless.Database/SourceGenerator/GenerateDatabase.cs
-  - Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkRunnerModels.cs
+  - Benchmark/BenchmarkRunnerModels.cs
 derived_from:
   - Reverse/Code/Internal/
 confidence: medium
@@ -25,14 +25,14 @@ review_status: draft
 | serializer strategy | blittable / MemoryPack strategy。 | `Tsavorite.Collections/Stores/SerializerStrategy.cs:3`, `Tsavorite.Collections/Stores/SerializerStrategy.cs:7`, `Tsavorite.Collections/Stores/SerializerStrategy.cs:11` |
 | LINQ counter | physical/logical operation count、delegate count、hash/buffer count。 | `Tsavorite.Collections/LinqCounter.cs:31`, `Tsavorite.Collections/LinqCounter.cs:45`, `Tsavorite.Collections/LinqCounter.cs:47`, `Tsavorite.Collections/LinqCounter.cs:108` |
 | generated schema record | `_U` unmanaged storage、`_M` managed storage、MemoryPack serialize/deserialize。 | `Seamless.Database/SourceGenerator/GenerateDatabase.cs:148`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:151`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:170`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:175` |
-| benchmark worker message | task と result message。project/method/configuration/artifact/exit code などを運ぶ。 | `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkRunnerModels.cs:270`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkRunnerModels.cs:278` |
-| benchmark report row | project、method、CPU、status、mean/error/stddev、artifact folder。 | `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkRunnerModels.cs:288`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkReportFormatter.cs:7`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkReportFormatter.cs:27` |
+| benchmark worker message | task と result message。project/method/configuration/artifact/exit code などを運ぶ。 | `Benchmark/BenchmarkRunnerModels.cs:270`, `Benchmark/BenchmarkRunnerModels.cs:278` |
+| benchmark report row | project、method、CPU、status、mean/error/stddev、artifact folder。 | `Benchmark/BenchmarkRunnerModels.cs:288`, `Benchmark/BenchmarkReportFormatter.cs:7`, `Benchmark/BenchmarkReportFormatter.cs:27` |
 
 ## 保存形式
 
 - checkpoint metadata は filesystem 上に JSON として保存される（`Tsavorite.Collections/Stores/HashStore.cs:94`）。
 - schema generated record は MemoryPack serialization を実装する（`Seamless.Database/SourceGenerator/GenerateDatabase.cs:161`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:170`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:175`）。
-- benchmark runner は worker protocol に JSON serialization を使い、最終 report は CSV/HTML に出力する（`Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkWorkerHost.cs:39`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:1153`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:1160`）。
+- benchmark runner は worker protocol に JSON serialization を使い、最終 report は CSV/HTML に出力する（`Benchmark/BenchmarkWorkerHost.cs:39`, `Benchmark/MainPage.xaml.cs:1153`, `Benchmark/MainPage.xaml.cs:1160`）。
 
 ## Review Gate: Code External
 

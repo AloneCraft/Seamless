@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Seamless.SourceGenerators\Seamless.SourceGenerators.csproj" />
+    <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" />
   </ItemGroup>
 
   <Target Name="GetDependencyTargetPaths" DependsOnTargets="ResolveReferences">

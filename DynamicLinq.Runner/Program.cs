@@ -4,7 +4,7 @@ using System.Globalization;
 using Seamless.Linq;
 using Seamless.Tsavorite.Collections;
 
-using Test.System.Linq.Intercept;
+using DynamicLinq;
 
 var options = RunnerOptions.Parse(args);
 var cases = DynamicCase.Create(options).ToArray();

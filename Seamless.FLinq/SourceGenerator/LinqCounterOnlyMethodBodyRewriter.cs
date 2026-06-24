@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Text;
-using static Seamless.SourceGenerators.GeneratorHelpers;
+using static Seamless.SourceGenerator.GeneratorHelpers;
 
 namespace Seamless.FLinq;
 

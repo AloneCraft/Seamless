@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Seamless.SourceGenerators\Seamless.SourceGenerators.csproj" />
+    <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" />
   </ItemGroup>
 
   <!-- Roslyn �A�i���C�U�[�Ƃ��ĎQ�ƃv���W�F�N�g��ꏏ�Ƀ��[�h���� -->

@@ -1,5 +1,6 @@
 using System.Linq;
 
+using DynamicLinq;
 using Seamless.Tsavorite.Collections;
 
 namespace Test.System.Linq.Intercept;

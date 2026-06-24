@@ -16,14 +16,14 @@ review_status: draft
 
 ```mermaid
 flowchart LR
-    Shared[Seamless.SourceGenerators]
+    Shared[Seamless.SourceGenerator]
     FLinq[FLinq / Tsavorite.SourceGenerator]
     DB[Seamless.Database SourceGenerator]
     Collections[Tsavorite.Collections]
     BenchShared[Benchmark.Shared]
     BenchProjects[Benchmark.* Projects]
     Tests[Test Projects]
-    Uno[Benchmark.Runner.Uno]
+    Uno[Benchmark]
 
     Shared --> FLinq
     Shared --> DB
@@ -40,18 +40,18 @@ flowchart LR
 
 | コンポーネント | 役割 | 実装証拠 |
 |---|---|---|
-| `Seamless.SourceGenerators` | generator 共通ヘルパー。 | `Seamless.SourceGenerators/Seamless.SourceGenerators.csproj:3`, `Seamless.SourceGenerators/SourceGenerator/GeneratorHelpers.cs:3` |
+| `Seamless.SourceGenerator` | generator 共通ヘルパー。 | `Seamless.SourceGenerator/Seamless.SourceGenerator.csproj:3`, `Seamless.SourceGenerator/SourceGenerator/GeneratorHelpers.cs:3` |
 | `FLinq` | LINQ interceptor source generator。 | `FLinq/FLinq.csproj:8`, `FLinq/FLinq.csproj:14`, `FLinq/FLinq.csproj:19` |
 | `Seamless.Database` | schema source generator。 | `Seamless.Database/Seamless.Database.csproj:8`, `Seamless.Database/Seamless.Database.csproj:14`, `Seamless.Database/Seamless.Database.csproj:19` |
 | `Tsavorite.Collections` | collection runtime と LINQ/counter runtime。 | `Tsavorite.Collections/Tsavorite.Collections.csproj:4`, `Tsavorite.Collections/Tsavorite.Collections.csproj:14`, `Tsavorite.Collections/Tsavorite.Collections.csproj:15` |
-| `Benchmark.Runner.Uno` | benchmark UI/worker host。 | `Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj:1`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj:33`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj:34` |
+| `Benchmark` | benchmark UI/worker host。 | `Benchmark/Benchmark.csproj:1`, `Benchmark/Benchmark.csproj:33`, `Benchmark/Benchmark.csproj:34` |
 | `Test.*` | xUnit と生成コード検証。 | `Seamless.slnx:28`, `Seamless.slnx:31`, `Seamless.slnx:40` |
 
 ## Review Gate: Code Internal
 
 ### Confirmed
 - solution は source generator、runtime collection、benchmark、test に分割される。
-- `FLinq` と `Seamless.Database` は `Seamless.SourceGenerators` を参照する。
+- `FLinq` と `Seamless.Database` は `Seamless.SourceGenerator` を参照する。
 
 ### Inferred
 - confidence: medium。benchmark project は System LINQ / FLinq / ZLinq / Tsavorite LINQ の比較実行を目的とする。

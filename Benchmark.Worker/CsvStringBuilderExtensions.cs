@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Benchmark.Runner.Uno;
+namespace Benchmark.Worker;
 
 public static class CsvStringBuilderExtensions{
     public static StringBuilder AppendCsv(this StringBuilder builder,string value){

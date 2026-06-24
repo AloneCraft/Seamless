@@ -4,8 +4,8 @@ reverse_document: true
 canonical_target: Document/Code/Internal/BehavioralDiagrams/StateMachineDiagram.md
 evidence_sources:
   - FLinq/SourceGenerator/interceptor.cs
-  - Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkRunnerModels.cs
-  - Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs
+  - Benchmark/BenchmarkRunnerModels.cs
+  - Benchmark/MainPage.xaml.cs
 confidence: medium
 review_status: draft
 ---
@@ -27,7 +27,7 @@ stateDiagram-v2
     Canceled --> [*]
 ```
 
-根拠: `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkRunnerModels.cs:154`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:610`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:636`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:652`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:680`。
+根拠: `Benchmark/BenchmarkRunnerModels.cs:154`, `Benchmark/MainPage.xaml.cs:610`, `Benchmark/MainPage.xaml.cs:636`, `Benchmark/MainPage.xaml.cs:652`, `Benchmark/MainPage.xaml.cs:680`。
 
 ## Generator 出力状態
 

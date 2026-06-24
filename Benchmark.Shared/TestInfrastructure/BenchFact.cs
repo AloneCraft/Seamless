@@ -11,6 +11,7 @@ public sealed class TestPriorityAttribute(int priority) : Attribute
 {
     public int Priority { get; } = priority;
 }
+
 #else
 namespace Benchmark.Shared;
 

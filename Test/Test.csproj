@@ -12,20 +12,8 @@
     <RootNamespace>Test</RootNamespace>
     <DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(MSBuildProjectDirectory)\..\Work\Generated\$(MSBuildProjectName)\$(Configuration)\$(TargetFramework)</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
-  <ItemGroup>
-    <Compile Remove="Seamless\Collections\artifacts\**" />
-    <Compile Remove="Seamless\Persisted\Collections\**\*.cs" />
-    <Compile Remove="Seamless\Tsavorite\Collections\**\*.cs" />
-    <Compile Include="..\TestBenchmark.Collections.Shared\GlobalUsings.cs" Link="GlobalUsings.cs" />
-    <Compile Include="..\TestBenchmark.Collections.Shared\AssemblyInfo.cs" Link="AssemblyInfo.cs" />
-    <Compile Include="..\TestBenchmark.Collections.Shared\TestPath.cs" Link="TestPath.cs" />
-    <Compile Include="..\TestBenchmark.Collections.Shared\TestTypes.cs" Link="Seamless\Tsavorite\Collections\TestTypes.cs" />
-    <EmbeddedResource Remove="Seamless\Collections\artifacts\**" />
-    <EmbeddedResource Remove="Seamless\Collections\Garnet\**" />
-    <None Remove="Seamless\Collections\artifacts\**" />
-    <None Remove="Seamless\Collections\Garnet\**" />
-  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4">
       <PrivateAssets>all</PrivateAssets>
@@ -54,14 +42,16 @@
   <ItemGroup>
     <ProjectReference Include="..\DynamicLinq.Runner\DynamicLinq.Runner.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\Benchmark.Worker\Benchmark.Worker.csproj" />
+    <ProjectReference Include="..\Test.Collections\Test.Collections.csproj" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.FLinq\Test.System.Linq.Enumerable.FLinq.csproj" PrivateAssets="all" Aliases="BenchmarkFLinq" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.ZLinq\Test.System.Linq.Enumerable.ZLinq.csproj" PrivateAssets="all" Aliases="BenchmarkZLinq" />
     <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" />
-    <ProjectReference Include="..\Seamless.SourceGenerators\Seamless.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
+  <Import Project="..\DynamicLinq.Shared\DynamicLinq.Shared.projitems" Label="Shared" />
 </Project>

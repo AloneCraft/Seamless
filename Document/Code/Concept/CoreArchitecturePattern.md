@@ -44,7 +44,7 @@ flowchart TD
 | Store factory | `HashStore` が設定と serializer/device overload を集約する。 | `Tsavorite.Collections/Stores/HashStore.cs:38`, `Tsavorite.Collections/Stores/HashStore.cs:146`, `Tsavorite.Collections/Stores/HashStore.cs:247` |
 | Session function | collection 操作を Tsavorite session function へ分離する。 | `Tsavorite.Collections/SessionFunctions/Upsert.cs:11`, `Tsavorite.Collections/SessionFunctions/Read.cs:10`, `Tsavorite.Collections/SessionFunctions/Remove_TKey_TValue.cs:8` |
 | Instrumentation scope | `AsyncLocal` counter scope で logical/physical work を計測する。 | `Tsavorite.Collections/LinqCounter.cs:142`, `Tsavorite.Collections/LinqCounter.cs:148` |
-| Worker process isolation | benchmark を UI から分離した worker process で実行する。 | `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkWorkerHost.cs:17`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:688` |
+| Worker process isolation | benchmark を UI から分離した worker process で実行する。 | `Benchmark/BenchmarkWorkerHost.cs:17`, `Benchmark/MainPage.xaml.cs:688` |
 
 ## Review Gate: Code Concept
 

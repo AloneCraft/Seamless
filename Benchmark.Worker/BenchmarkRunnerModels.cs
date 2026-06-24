@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace Benchmark.Runner.Uno;
+namespace Benchmark.Worker;
 
 public abstract class BindableObject:INotifyPropertyChanged{
     public event PropertyChangedEventHandler? PropertyChanged;

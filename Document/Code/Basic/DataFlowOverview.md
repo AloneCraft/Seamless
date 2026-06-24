@@ -34,7 +34,7 @@ review_status: draft
 ### Benchmark execution
 `UI selection` -> `run queue` -> `worker task JSON` -> `BenchmarkDotNet run` -> `worker result JSON` -> `CSV/HTML report`
 
-根拠: `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:541`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:752`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkWorkerHost.cs:39`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/BenchmarkWorkerHost.cs:90`, `Benchmark.Runner.Uno/Benchmark.Runner.Uno/MainPage.xaml.cs:1153`。
+根拠: `Benchmark/MainPage.xaml.cs:541`, `Benchmark/MainPage.xaml.cs:752`, `Benchmark/BenchmarkWorkerHost.cs:39`, `Benchmark/BenchmarkWorkerHost.cs:90`, `Benchmark/MainPage.xaml.cs:1153`。
 
 ## Review Gate: Code Basic
 
