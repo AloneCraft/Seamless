@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.VisualBasic.FileIO;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 
 namespace Benchmark.Runner.Uno;
 
@@ -17,6 +18,10 @@ public sealed partial class MainPage:Page{
     private readonly ObservableCollection<CpuCoreInfo> cpuCores = [];
     private readonly ObservableCollection<CpuRowItem> cpuRows = [];
     private readonly ObservableCollection<BenchmarkRunItem> runningItems = [];
+    private readonly ObservableCollection<BenchmarkTableColumn> benchmarkTableColumns = [];
+    private readonly ObservableCollection<AnalysisRankingItem> rankingItems = [];
+    private readonly ObservableCollection<AnalysisHeatmapRow> heatmapRows = [];
+    private readonly ObservableCollection<AnalysisDetailItem> detailItems = [];
     private readonly Lock runGate = new();
     private readonly Queue<BenchmarkRunItem> pendingRunItems = new();
     private readonly List<BenchmarkRunItem> allRunItems = [];
@@ -30,8 +35,7 @@ public sealed partial class MainPage:Page{
     private BenchmarkProject canonicalMethodProject => this.benchmarkProjects[0];
 
     private CancellationTokenSource? runCancellation;
-    private string? htmlReportPath;
-    private string? chartReportPath;
+    private IReadOnlyList<BenchmarkComparisonRow> comparisonRows = [];
     private string? currentRunRoot;
     private DateTimeOffset? currentRunStartedAt;
     private DateTimeOffset? currentRunFinishedAt;
@@ -41,28 +45,102 @@ public sealed partial class MainPage:Page{
     private bool isBusy;
     private bool isRunning;
     private bool projectSelectionDirty = true;
+    private BenchmarkSortColumn sortColumn = BenchmarkSortColumn.Name;
+    private string? sortColumnKey;
+    private bool sortDescending;
+    private string selectedAnalysisPairKey = "System";
+    private AnalysisMetric selectedAnalysisMetric = AnalysisMetric.Time;
+    private AnalysisTab selectedAnalysisTab = AnalysisTab.Ranking;
+    private string? selectedAnalysisMethod;
+    private bool isChartCollapsed;
 
-    private sealed record RunReportPaths(
-        string? CsvPath,
-        string? HtmlPath,
-        string? ChartHtmlPath,
-        string? DataJsonPath);
+    private sealed record RunReportPaths(string? CsvPath);
+
+    private enum BenchmarkSortColumn{
+        Name,
+        Time,
+        Allocated,
+    }
+
+    private enum AnalysisMetric{
+        Time,
+        Allocated,
+    }
+
+    private enum AnalysisTab{
+        Ranking,
+        Heatmap,
+        Detail,
+    }
+
+    private sealed class BenchmarkSortValueComparer(bool descending):IComparer<object?>{
+        public int Compare(object? x,object? y){
+            var result = CompareCore(x,y);
+            return descending ? -result : result;
+        }
+
+        private static int CompareCore(object? x,object? y){
+            if(x is string xText&&y is string yText){
+                return string.Compare(xText,yText,StringComparison.OrdinalIgnoreCase);
+            }
+
+            if(x is IConvertible&&y is IConvertible){
+                var xNumber = Convert.ToDouble(x,CultureInfo.InvariantCulture);
+                var yNumber = Convert.ToDouble(y,CultureInfo.InvariantCulture);
+                return xNumber.CompareTo(yNumber);
+            }
+
+            return string.Compare(Convert.ToString(x,CultureInfo.InvariantCulture),Convert.ToString(y,CultureInfo.InvariantCulture),StringComparison.OrdinalIgnoreCase);
+        }
+    }
 
     public MainPage(){
         this.InitializeComponent();
     }
 
     private async void OnPageLoaded(object sender,RoutedEventArgs e){
+        this.InitializeBenchmarkTableColumns();
         this.InitializeProjectGrid();
         this.InitializeCpuList();
         this.BenchmarkItemsControl.ItemsSource= this.benchmarks;
-        this.BenchmarkProjectHeaderItemsControl.ItemsSource= this.benchmarkProjects;
+        this.BenchmarkTableHeaderItemsControl.ItemsSource= this.benchmarkTableColumns;
         this.CpuItemsControl.ItemsSource= this.cpuRows;
         this.RunningItemsControl.ItemsSource= this.runningItems;
+        this.RankingItemsControl.ItemsSource= this.rankingItems;
+        this.HeatmapItemsControl.ItemsSource= this.heatmapRows;
+        this.DetailItemsControl.ItemsSource= this.detailItems;
         this.UpdateSelectionSummary();
         this.UpdateProgress();
         this.UpdateCommandState();
         await this.LoadSelectedProjectsAsync(CancellationToken.None);
+    }
+
+    private void InitializeBenchmarkTableColumns(){
+        if(this.benchmarkTableColumns.Count>0){
+            return;
+        }
+
+        foreach(var pair in BenchmarkComparisonFormatter.PairDefinitions){
+            this.benchmarkTableColumns.Add(new BenchmarkTableColumn(
+                pair.Key+"Ratio",
+                BenchmarkTableColumnKind.Ratio,
+                pair.DisplayName,
+                pair.TooltipText,
+                leftProjectName:pair.LeftProject,
+                rightProjectName:pair.RightProject));
+            this.benchmarkTableColumns.Add(new BenchmarkTableColumn(
+                pair.Key+"Left",
+                BenchmarkTableColumnKind.Project,
+                pair.LeftProject,
+                pair.LeftProject,
+                projectName:pair.LeftProject));
+            this.benchmarkTableColumns.Add(new BenchmarkTableColumn(
+                pair.Key+"Right",
+                BenchmarkTableColumnKind.Project,
+                pair.RightProject,
+                pair.RightProject,
+                projectName:pair.RightProject));
+        }
     }
 
     private void InitializeProjectGrid(){
@@ -80,9 +158,10 @@ public sealed partial class MainPage:Page{
                 },
                 IsChecked=project.IsSelected,
                 FontSize=12,
-                HorizontalAlignment=HorizontalAlignment.Stretch,
+                HorizontalAlignment=HorizontalAlignment.Left,
                 Padding=new Thickness(0),
                 MinHeight=20,
+                MinWidth=120,
                 DataContext=project,
             };
             checkBox.Click+= this.OnProjectCheckBoxClick;
@@ -152,6 +231,7 @@ public sealed partial class MainPage:Page{
         this.RefreshBenchmarksFromCache();
         this.UpdateSelectionSummary();
         this.UpdateCommandState();
+        this.UpdateAnalysis();
     }
 
     private void OnProjectCheckBoxClick(object sender,RoutedEventArgs e){
@@ -189,7 +269,7 @@ public sealed partial class MainPage:Page{
     private void SetCpuSelected(CpuCoreInfo cpu,bool shouldSelect){
         if(!shouldSelect&& this.cpuCores.All(item => item==cpu||!item.IsSelected)){
             cpu.IsSelected=true;
-            this.SetStatus("Select at least one CPU.");
+            this.SetStatus("CPUを1つ以上選択してください。");
             this.UpdateCpuSummary();
             return;
         }
@@ -250,6 +330,7 @@ public sealed partial class MainPage:Page{
         this.selectionAnchorIndex= this.benchmarks.Count>0?0:null;
         this.UpdateSelectionSummary();
         this.UpdateCommandState();
+        this.UpdateAnalysis();
     }
 
     private void OnClearSelectionClick(object sender,RoutedEventArgs e){
@@ -260,12 +341,13 @@ public sealed partial class MainPage:Page{
         this.selectionAnchorIndex=null;
         this.UpdateSelectionSummary();
         this.UpdateCommandState();
+        this.UpdateAnalysis();
     }
 
     private async void OnRunClick(object sender,RoutedEventArgs e){
         var projects = this.GetSelectedProjects();
         if(projects.Count==0){
-            this.SetStatus("Select at least one project.");
+            this.SetStatus("プロジェクトを1つ以上選択してください。");
             return;
         }
 
@@ -275,12 +357,12 @@ public sealed partial class MainPage:Page{
 
         var selected = this.benchmarks.Where(static benchmark => benchmark.IsSelected).ToArray();
         if(selected.Length==0){
-            this.SetStatus("Select at least one benchmark.");
+            this.SetStatus("ベンチマークを1つ以上選択してください。");
             return;
         }
 
         if(this.cpuCores.All(static cpu => !cpu.IsSelected)){
-            this.SetStatus("Select at least one CPU.");
+            this.SetStatus("CPUを1つ以上選択してください。");
             return;
         }
 
@@ -292,17 +374,226 @@ public sealed partial class MainPage:Page{
         this.KillAllRunningProcesses(requeue:false);
     }
 
-    private void OnOpenHtmlReportClick(object sender,RoutedEventArgs e){
-        this.OpenReport(this.htmlReportPath);
+    private void OnBenchmarkHeaderClick(object sender,RoutedEventArgs e){
+        this.ApplyBenchmarkSort(BenchmarkSortColumn.Name,null);
     }
 
-    private void OnOpenChartReportClick(object sender,RoutedEventArgs e){
-        this.OpenReport(this.chartReportPath);
+    private void OnTableColumnTimeHeaderClick(object sender,RoutedEventArgs e){
+        if(sender is Button { Tag:BenchmarkTableColumn column }){
+            this.ApplyBenchmarkSort(BenchmarkSortColumn.Time,column.Key);
+        }
+    }
+
+    private void OnTableColumnAllocatedHeaderClick(object sender,RoutedEventArgs e){
+        if(sender is Button { Tag:BenchmarkTableColumn column }){
+            this.ApplyBenchmarkSort(BenchmarkSortColumn.Allocated,column.Key);
+        }
+    }
+
+    private void OnSelectTop10Click(object sender,RoutedEventArgs e){
+        var selected = this.benchmarks
+            .Take(10)
+            .ToHashSet();
+
+        foreach(var benchmark in this.benchmarks){
+            benchmark.IsSelected=selected.Contains(benchmark);
+        }
+
+        this.selectionAnchorIndex=this.benchmarks.Count>0?0:null;
+        this.UpdateSelectionSummary();
+        this.UpdateCommandState();
+        this.UpdateAnalysis();
+        this.SetStatus($"現在の並び順から上位 {selected.Count} 件を選択しました。");
+    }
+
+    private void OnSelectionHeaderClick(object sender,RoutedEventArgs e){
+        var selectAll = this.benchmarks.Any(static item => !item.IsSelected);
+        foreach(var benchmark in this.benchmarks){
+            benchmark.IsSelected=selectAll;
+        }
+
+        this.selectionAnchorIndex=this.benchmarks.Count>0?0:null;
+        this.UpdateSelectionSummary();
+        this.UpdateCommandState();
+        this.UpdateAnalysis();
+    }
+
+    private void OnChartToggleClick(object sender,RoutedEventArgs e){
+        this.isChartCollapsed=!this.isChartCollapsed;
+        this.AnalysisPanel.Visibility=this.isChartCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        this.ChartToggleButton.Content=this.isChartCollapsed ? "チャートを表示" : "チャートを隠す";
+    }
+
+    private void OnAnalysisPairClick(object sender,RoutedEventArgs e){
+        if(sender is Button { Tag:string key }){
+            this.selectedAnalysisPairKey=key;
+            this.selectedAnalysisTab=AnalysisTab.Ranking;
+            this.UpdateAnalysis();
+        }
+    }
+
+    private void OnAnalysisMetricClick(object sender,RoutedEventArgs e){
+        if(sender is Button { Tag:string key }){
+            this.selectedAnalysisMetric=string.Equals(key,"Allocated",StringComparison.Ordinal)
+                ? AnalysisMetric.Allocated
+                : AnalysisMetric.Time;
+            this.UpdateAnalysis();
+        }
+    }
+
+    private void OnCheckedOnlyClick(object sender,RoutedEventArgs e){
+        this.UpdateAnalysis();
+    }
+
+    private void OnAnalysisTabClick(object sender,RoutedEventArgs e){
+        if(sender is not Button { Tag:string key }){
+            return;
+        }
+
+        this.selectedAnalysisTab=key switch{
+            "Heatmap" => AnalysisTab.Heatmap,
+            "Detail" => AnalysisTab.Detail,
+            _ => AnalysisTab.Ranking,
+        };
+        this.UpdateAnalysis();
+    }
+
+    private void OnAnalysisRankingTapped(object sender,TappedRoutedEventArgs e){
+        if(sender is FrameworkElement { Tag:AnalysisRankingItem item }){
+            this.SelectAnalysisMethod(item.Benchmark);
+        }
+    }
+
+    private void OnAnalysisAddBenchmarkClick(object sender,RoutedEventArgs e){
+        if(sender is Button { Tag:AnalysisRankingItem item }){
+            this.AddBenchmarkToRerun(item.Benchmark);
+        }
+    }
+
+    private void OnAnalysisHeatmapCellClick(object sender,RoutedEventArgs e){
+        if(sender is Button { Tag:AnalysisHeatmapCell cell }){
+            this.selectedAnalysisPairKey=cell.PairKey;
+            this.SelectAnalysisMethod(cell.Benchmark);
+        }
+    }
+
+    private void OnLoadCsvClick(object sender,RoutedEventArgs e){
+        var path = this.CsvPathTextBox.Text?.Trim().Trim('"');
+        if(string.IsNullOrWhiteSpace(path)||!File.Exists(path)){
+            this.SetStatus("実測値CSVファイルが見つかりません。");
+            return;
+        }
+
+        try{
+            var rows = BenchmarkComparisonFormatter.ReadCsv(File.ReadAllText(path,Encoding.UTF8));
+            this.LoadComparisonRowsIntoBenchmarkTable(rows);
+            this.SetStatus($"実測値CSVを読み込みました: {path}");
+        }catch(Exception ex){
+            this.SetStatus(ex.Message);
+            this.AppendLog(ex.ToString());
+        }
+    }
+
+    private void LoadComparisonRowsIntoBenchmarkTable(IReadOnlyList<BenchmarkComparisonRow> rows){
+        var rowByMethod = rows.ToDictionary(static row => row.Benchmark,StringComparer.OrdinalIgnoreCase);
+        var missingMethods = rowByMethod.Keys
+            .Where(method => this.benchmarks.All(item => !string.Equals(item.MethodName,method,StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+        if(missingMethods.Length>0){
+            throw new InvalidDataException("CSV内のメソッドが現在のベンチマーク一覧に存在しません: "+string.Join(", ",missingMethods));
+        }
+
+        foreach(var benchmark in this.benchmarks){
+            benchmark.IsSelected=false;
+            foreach(var status in benchmark.ProjectStatuses){
+                status.Status=BenchmarkProjectRunStatus.NotSelected;
+                status.ClearResult();
+            }
+
+            if(!rowByMethod.TryGetValue(benchmark.MethodName,out var row)){
+                benchmark.RefreshDisplayCells();
+                continue;
+            }
+
+            this.ApplyMetricsToStatus(benchmark,BenchmarkComparisonFormatter.SystemFLinq,row.SystemFLinq);
+            this.ApplyMetricsToStatus(benchmark,BenchmarkComparisonFormatter.SystemZLinq,row.SystemZLinq);
+            this.ApplyMetricsToStatus(benchmark,BenchmarkComparisonFormatter.PersistedFLinq,row.PersistedFLinq);
+            this.ApplyMetricsToStatus(benchmark,BenchmarkComparisonFormatter.PersistedLinq,row.PersistedLinq);
+            this.ApplyMetricsToStatus(benchmark,BenchmarkComparisonFormatter.TsavoriteFLinq,row.TsavoriteFLinq);
+            this.ApplyMetricsToStatus(benchmark,BenchmarkComparisonFormatter.TsavoriteLinq,row.TsavoriteLinq);
+            benchmark.RefreshDisplayCells();
+        }
+
+        this.comparisonRows=rows;
+        this.SortBenchmarkItems();
+        this.UpdateSelectionSummary();
+        this.UpdateCommandState();
+        this.UpdateAnalysis();
+    }
+
+    private void ApplyMetricsToStatus(BenchmarkItem benchmark,string projectName,ProjectMetrics metrics){
+        var status = benchmark.ProjectStatuses.FirstOrDefault(cell => string.Equals(cell.DisplayName,projectName,StringComparison.OrdinalIgnoreCase));
+        if(status is null||!metrics.HasValue){
+            return;
+        }
+
+        status.IsProjectSelected=true;
+        status.Status=BenchmarkProjectRunStatus.Completed;
+        status.SetResult(
+            FormatShortDuration(metrics.TimeNanoseconds),
+            FormatNanoseconds(metrics.TimeNanoseconds),
+            metrics.TimeNanoseconds,
+            FormatShortBytes(metrics.AllocatedBytes),
+            metrics.AllocatedBytes is { } bytes ? bytes.ToString("N0",CultureInfo.InvariantCulture)+" B" : string.Empty,
+            metrics.AllocatedBytes);
+    }
+
+    private void AddBenchmarkToRerun(string benchmarkName){
+        var benchmark = this.benchmarks.FirstOrDefault(item => string.Equals(item.MethodName,benchmarkName,StringComparison.OrdinalIgnoreCase));
+        if(benchmark is null){
+            return;
+        }
+
+        benchmark.IsSelected=true;
+        this.UpdateSelectionSummary();
+        this.UpdateCommandState();
+        this.UpdateAnalysis();
+        this.SetStatus($"{benchmarkName} を再計測対象に追加しました。");
+    }
+
+    private void SelectAnalysisMethod(string benchmarkName){
+        this.selectedAnalysisMethod=benchmarkName;
+        this.selectedAnalysisTab=AnalysisTab.Detail;
+        this.UpdateAnalysis();
+    }
+
+    private void OnRerunNextScaleClick(object sender,RoutedEventArgs e){
+        if(!this.benchmarks.Any(static benchmark => benchmark.IsSelected)){
+            this.SetStatus("再計測するベンチマークを1つ以上選択してください。");
+            return;
+        }
+
+        this.SelectNextElementScale();
+        this.OnRunClick(sender,e);
+    }
+
+    private void ApplyBenchmarkSort(BenchmarkSortColumn column,string? columnKey){
+        if(this.sortColumn==column&&string.Equals(this.sortColumnKey,columnKey,StringComparison.Ordinal)){
+            this.sortDescending=!this.sortDescending;
+        }else{
+            this.sortColumn=column;
+            this.sortColumnKey=columnKey;
+            this.sortDescending=column!=BenchmarkSortColumn.Name;
+        }
+
+        this.UpdateBenchmarkSortHeaders();
+        this.SortBenchmarkItems();
+        this.UpdateAnalysis();
     }
 
     private void OpenReport(string? path){
         if(string.IsNullOrWhiteSpace(path)||!File.Exists(path)){
-            this.SetStatus("Report file was not found.");
+            this.SetStatus("レポートファイルが見つかりません。");
             return;
         }
 
@@ -361,7 +652,7 @@ public sealed partial class MainPage:Page{
     private Task LoadSelectedProjectsAsync(CancellationToken cancellationToken){
         var projects = this.GetSelectedProjects();
         if(projects.Count==0){
-            this.SetStatus("Select at least one project.");
+            this.SetStatus("プロジェクトを1つ以上選択してください。");
             return Task.CompletedTask;
         }
 
@@ -369,21 +660,21 @@ public sealed partial class MainPage:Page{
         var selectedMethodNames = this.GetSelectedMethodNames();
         this.benchmarks.Clear();
         this.selectionAnchorIndex=null;
-        this.SetReportPaths(null,null);
+        this.SetReportPaths(null);
         this.LogTextBox.Text=string.Empty;
-        this.SetStatus("Loading canonical method list...");
+        this.SetStatus("基準メソッド一覧を読み込んでいます...");
 
         try{
             cancellationToken.ThrowIfCancellationRequested();
             var configuration = this.GetConfiguration();
             var canonicalCacheKey = GetMethodCacheKey(configuration, this.canonicalMethodProject);
             if(!this.methodCache.ContainsKey(canonicalCacheKey)){
-                this.SetStatus($"Loading methods from {this.canonicalMethodProject.DisplayName}...");
+                this.SetStatus($"{this.canonicalMethodProject.DisplayName} からメソッドを読み込んでいます...");
                 this.methodCache[canonicalCacheKey]=LoadBenchmarkMethods(this.canonicalMethodProject.BenchmarkType);
             }
 
             this.RefreshBenchmarksFromCache(selectedMethodNames);
-            this.SetStatus($"Loaded {this.benchmarks.Count} common methods for {projects.Count} selected project(s).");
+            this.SetStatus($"{projects.Count} 個の選択プロジェクトで共通するメソッドを {this.benchmarks.Count} 件読み込みました。");
         }catch(OperationCanceledException){
             this.SetStatus("Load canceled.");
             this.AppendLog("Canceled.");
@@ -404,11 +695,11 @@ public sealed partial class MainPage:Page{
         this.currentRunRoot= this.CreateRunRoot(this.GetConfiguration());
         this.currentRunStartedAt=DateTimeOffset.Now;
         this.currentRunFinishedAt=null;
-        this.SetReportPaths(null,null);
+            this.SetReportPaths(null);
         this.UpdateRunTimeDisplay();
         this.AppendLog($"Benchmark started: {FormatRunTimestamp(this.currentRunStartedAt.Value)}");
         this.SetBusy(true,allowCpuChanges:true);
-        this.SetStatus($"Preparing {projects.Count} project(s) x {selectedMethods.Count} method(s) = {projects.Count*selectedMethods.Count} task(s), element scale {this.GetSelectedElementScale()}...");
+        this.SetStatus($"{projects.Count} プロジェクト x {selectedMethods.Count} メソッド = {projects.Count*selectedMethods.Count} タスクを準備中です。Element Scale: {this.GetSelectedElementScale()}");
         this.runningItems.Clear();
 
         lock(this.runGate){
@@ -425,22 +716,22 @@ public sealed partial class MainPage:Page{
             this.UpdateProgress();
             this.StartWorkersForSelectedCpus();
             await this.WaitForRunCompletionAsync(this.runCancellation.Token);
-            var reportPaths = this.CreateRunReport(this.currentRunRoot,includeHtml:true);
-            this.SetReportPaths(reportPaths.HtmlPath,reportPaths.ChartHtmlPath);
+            var reportPaths = this.CreateRunReport(this.currentRunRoot);
+            this.SetReportPaths(reportPaths.CsvPath);
             var failed = this.allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Failed);
             this.RecordRunFinished(failed==0?"Completed":$"Completed with {failed} failed task(s)",reportPaths);
             this.SetStatus(failed==0
-                ? "Benchmarks completed."
-                : $"Benchmarks completed with {failed} failed task(s).");
+                ? "ベンチマークが完了しました。"
+                : $"ベンチマークが完了しました。失敗: {failed} 件");
         }catch(OperationCanceledException){
-            var reportPaths = this.CreateRunReport(this.currentRunRoot,includeHtml:true);
-            this.SetReportPaths(reportPaths.HtmlPath,reportPaths.ChartHtmlPath);
+            var reportPaths = this.CreateRunReport(this.currentRunRoot);
+            this.SetReportPaths(reportPaths.CsvPath);
             this.RecordRunFinished("Canceled",reportPaths);
-            this.SetStatus("Benchmark canceled. Partial report was written.");
+            this.SetStatus("ベンチマークを中止しました。途中までのCSVを書き出しました。");
             this.AppendLog("Canceled.");
         }catch(Exception ex){
-            var reportPaths = this.CreateRunReport(this.currentRunRoot,includeHtml:true);
-            this.SetReportPaths(reportPaths.HtmlPath,reportPaths.ChartHtmlPath);
+            var reportPaths = this.CreateRunReport(this.currentRunRoot);
+            this.SetReportPaths(reportPaths.CsvPath);
             this.RecordRunFinished("Failed",reportPaths);
             this.SetStatus(ex.Message);
             this.AppendLog(ex.ToString());
@@ -496,13 +787,13 @@ public sealed partial class MainPage:Page{
         this.selectionAnchorIndex=null;
         if(projects.Count==0){
             this.projectSelectionDirty=true;
-            this.SetStatus("Select at least one project.");
+            this.SetStatus("プロジェクトを1つ以上選択してください。");
             return;
         }
 
         if(!this.methodCache.TryGetValue(GetMethodCacheKey(this.GetConfiguration(), this.canonicalMethodProject),out var canonicalMethods)){
             this.projectSelectionDirty=true;
-            this.SetStatus("Loading method list...");
+            this.SetStatus("メソッド一覧を読み込んでいます...");
             return;
         }
 
@@ -511,8 +802,84 @@ public sealed partial class MainPage:Page{
             this.benchmarks.Add(item);
         }
 
+        this.UpdateBenchmarkSortHeaders();
+        this.SortBenchmarkItems();
         this.projectSelectionDirty=false;
-        this.SetStatus($"Loaded {this.benchmarks.Count} common methods for {projects.Count} selected project(s).");
+        this.SetStatus($"{projects.Count} 個の選択プロジェクトで共通するメソッドを {this.benchmarks.Count} 件読み込みました。");
+    }
+
+    private void SortBenchmarkItems(){
+        if(this.benchmarks.Count<=1){
+            return;
+        }
+
+        var ordered = this.benchmarks
+            .OrderBy(item => GetBenchmarkSortMissingRank(item,this.sortColumn,this.sortColumnKey))
+            .ThenBy(item => GetBenchmarkSortValue(item,this.sortColumn,this.sortColumnKey),new BenchmarkSortValueComparer(this.sortDescending))
+            .ThenBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        this.benchmarks.Clear();
+        foreach(var item in ordered){
+            this.benchmarks.Add(item);
+        }
+    }
+
+    private void UpdateBenchmarkSortHeaders(){
+        if(this.BenchmarkHeaderButton is not null){
+            this.BenchmarkHeaderButton.Content=this.sortColumn==BenchmarkSortColumn.Name
+                ? "ベンチマーク "+GetSortGlyphText(this.sortDescending)
+                : "ベンチマーク";
+        }
+
+        foreach(var column in this.benchmarkTableColumns){
+            var isTime = this.sortColumn==BenchmarkSortColumn.Time&&string.Equals(this.sortColumnKey,column.Key,StringComparison.Ordinal);
+            var isAllocated = this.sortColumn==BenchmarkSortColumn.Allocated&&string.Equals(this.sortColumnKey,column.Key,StringComparison.Ordinal);
+            column.TimeHeaderText=isTime
+                ? "時間 "+GetSortGlyphText(this.sortDescending)
+                : "時間";
+            column.AllocatedHeaderText=isAllocated
+                ? "割当 "+GetSortGlyphText(this.sortDescending)
+                : "割当";
+        }
+    }
+
+    private static int GetBenchmarkSortMissingRank(BenchmarkItem item,BenchmarkSortColumn column,string? columnKey){
+        return GetBenchmarkSortValue(item,column,columnKey) is null
+            ? 1
+            : 0;
+    }
+
+    private static object? GetBenchmarkSortValue(BenchmarkItem item,BenchmarkSortColumn column,string? columnKey){
+        if(column==BenchmarkSortColumn.Name){
+            return item.MethodName;
+        }
+
+        if(string.IsNullOrWhiteSpace(columnKey)){
+            return null;
+        }
+
+        var cell = item.DisplayCells.FirstOrDefault(cell => string.Equals(cell.ColumnKey,columnKey,StringComparison.Ordinal));
+        return column switch{
+            BenchmarkSortColumn.Time => cell?.TimeSortValue,
+            BenchmarkSortColumn.Allocated => cell?.AllocatedSortValue,
+            _ => item.MethodName,
+        };
+    }
+
+    private static string GetSortGlyph(bool descending){
+        return descending ? "▼" : "▲";
+    }
+
+    private static string GetSortGlyphText(bool descending){
+        return descending ? "v" : "^";
+    }
+
+    private void SelectNextElementScale(){
+        if(this.ElementScaleComboBox.SelectedIndex+1<this.ElementScaleComboBox.Items.Count){
+            this.ElementScaleComboBox.SelectedIndex++;
+        }
+
+        this.SetStatus($"Element Scale を {this.GetSelectedElementScale()} にしました。");
     }
 
     private HashSet<string> GetSelectedMethodNames(){
@@ -537,6 +904,7 @@ public sealed partial class MainPage:Page{
             return [];
         }
 
+        var displayColumns = CreateBenchmarkTableColumns();
         return canonicalMethods
             .GroupBy(static method => method.MethodName,StringComparer.OrdinalIgnoreCase)
             .Select(static group => group.First())
@@ -551,9 +919,20 @@ public sealed partial class MainPage:Page{
                         method.MethodName,
                         method.Categories),
                     StringComparer.Ordinal);
-                return new BenchmarkItem(method.MethodName,method.MethodName,method.Categories,methodsByProject,projectColumns);
+                return new BenchmarkItem(method.MethodName,method.MethodName,method.Categories,methodsByProject,displayColumns,projectColumns);
             })
             .ToArray();
+    }
+
+    private static IReadOnlyList<BenchmarkTableColumn> CreateBenchmarkTableColumns(){
+        var columns = new List<BenchmarkTableColumn>();
+        foreach(var pair in BenchmarkComparisonFormatter.PairDefinitions){
+            columns.Add(new BenchmarkTableColumn(pair.Key+"Ratio",BenchmarkTableColumnKind.Ratio,pair.DisplayName,pair.TooltipText,leftProjectName:pair.LeftProject,rightProjectName:pair.RightProject));
+            columns.Add(new BenchmarkTableColumn(pair.Key+"Left",BenchmarkTableColumnKind.Project,pair.LeftProject,pair.LeftProject,projectName:pair.LeftProject));
+            columns.Add(new BenchmarkTableColumn(pair.Key+"Right",BenchmarkTableColumnKind.Project,pair.RightProject,pair.RightProject,projectName:pair.RightProject));
+        }
+
+        return columns;
     }
 
     private void StartWorkersForSelectedCpus(){
@@ -573,9 +952,39 @@ public sealed partial class MainPage:Page{
         }
     }
 
-    private static void SetRunItemStatus(BenchmarkRunItem item,BenchmarkRunStatus status){
+    private void SetRunItemStatus(BenchmarkRunItem item,BenchmarkRunStatus status){
         item.Status=status;
         item.Method.SetProjectStatus(item.Project.ProjectKey,status);
+        if(status is BenchmarkRunStatus.Pending or BenchmarkRunStatus.Running or BenchmarkRunStatus.Failed){
+            this.SetProjectCellResult(item.Method,item.Project.ProjectKey,null,null,null);
+        }
+    }
+
+    private void SetProjectCellResult(BenchmarkItem method,string projectKey,double? meanNanoseconds,string? meanText,long? allocatedBytes){
+        var cell = method.ProjectStatuses.FirstOrDefault(cell => string.Equals(cell.ProjectKey,projectKey,StringComparison.Ordinal));
+        if(cell is null){
+            return;
+        }
+
+        if(meanNanoseconds is null&&allocatedBytes is null){
+            cell.ClearResult();
+            method.RefreshDisplayCells();
+            return;
+        }
+
+        cell.SetResult(
+            FormatShortDuration(meanNanoseconds),
+            FirstText(meanText,FormatNanoseconds(meanNanoseconds)),
+            meanNanoseconds,
+            FormatShortBytes(allocatedBytes),
+            allocatedBytes is { } bytes ? bytes.ToString("N0",CultureInfo.InvariantCulture)+" B" : string.Empty,
+            allocatedBytes);
+        method.RefreshDisplayCells();
+    }
+
+    private void ApplyCanceledResult(BenchmarkRunItem item){
+        this.SetProjectCellResult(item.Method,item.Project.ProjectKey,null,null,null);
+        this.SortBenchmarkItems();
     }
 
     private void StartWorkerForCpu(CpuCoreInfo cpu){
@@ -692,6 +1101,7 @@ public sealed partial class MainPage:Page{
                 item.ProcessId=0;
                 item.FinishedAt=DateTimeOffset.Now;
                 SetRunItemStatus(item,BenchmarkRunStatus.Canceled);
+                this.ApplyCanceledResult(item);
             });
             throw;
         }catch(Exception ex){
@@ -755,6 +1165,11 @@ public sealed partial class MainPage:Page{
             item.FinishedAt=DateTimeOffset.Now;
             item.ProcessId=0;
             SetRunItemStatus(item,result.ExitCode==0 ? BenchmarkRunStatus.Completed : BenchmarkRunStatus.Failed);
+            if(result.ExitCode==0){
+                this.SetProjectCellResult(item.Method,item.Project.ProjectKey,meanNanoseconds,item.Mean,allocatedBytesValue);
+                this.SortBenchmarkItems();
+                this.RefreshComparisonRowsFromBenchmarks();
+            }
         });
         if(!string.IsNullOrWhiteSpace(result.Log)){
             this.AppendLog(result.Log);
@@ -933,7 +1348,7 @@ public sealed partial class MainPage:Page{
             }
 
             if(this.cpuCores.All(static cpu => !cpu.IsSelected)){
-                this.SetStatus("Paused. Select at least one CPU to resume.");
+                this.SetStatus("一時停止中です。再開するにはCPUを1つ以上選択してください。");
             }else{
                 foreach(var cpu in this.cpuCores.Where(static cpu => cpu.IsSelected)){
                     this.StartWorkerForCpu(cpu);
@@ -1018,6 +1433,7 @@ public sealed partial class MainPage:Page{
             .Where(static type => type is { IsAbstract:false, IsClass:true })
             .Where(static type => type.GetMethods(BindingFlags.Instance|BindingFlags.Public)
                 .Any(IsBenchmarkMethod))
+            .Where(static type => !string.Equals(CreateBenchmarkDisplayName(type),"SystemLinq",StringComparison.OrdinalIgnoreCase))
             .Select(type => new BenchmarkProject(CreateBenchmarkDisplayName(type),type,IsDefaultBenchmarkType(type)))
             .OrderBy(static project => GetBenchmarkProjectOrder(project.BenchmarkType))
             .ThenBy(static project => project.DisplayName,StringComparer.OrdinalIgnoreCase)
@@ -1092,8 +1508,7 @@ public sealed partial class MainPage:Page{
     }
 
     private static bool IsDefaultBenchmarkType(Type type){
-        return type.Name.Equals("Linq",StringComparison.Ordinal)
-            &&(type.Namespace?.Contains(".DotNet.",StringComparison.OrdinalIgnoreCase)??false);
+        return GetBenchmarkProjectOrder(type)<int.MaxValue;
     }
 
     private static int GetBenchmarkProjectOrder(Type type){
@@ -1103,9 +1518,9 @@ public sealed partial class MainPage:Page{
             BenchmarkSource.Tsavorite => 2,
             _ => 9,
         };
-        var kindOrder = type.Name.EndsWith("Linq",StringComparison.Ordinal)&&!type.Name.EndsWith("FLinq",StringComparison.Ordinal) ? 0
-            : type.Name.EndsWith("FLinq",StringComparison.Ordinal) ? 1
-            : type.Name.EndsWith("ZLinq",StringComparison.Ordinal) ? 2
+        var kindOrder = type.Name.EndsWith("FLinq",StringComparison.Ordinal) ? 0
+            : type.Name.EndsWith("ZLinq",StringComparison.Ordinal) ? 1
+            : type.Name.EndsWith("Linq",StringComparison.Ordinal)&&!type.Name.EndsWith("FLinq",StringComparison.Ordinal) ? 2
             : 9;
         var shapeOrder = type.Name.StartsWith("IEnumerable",StringComparison.Ordinal) ? 1
             : type.Name.StartsWith("IHashSet",StringComparison.Ordinal) ? 2
@@ -1123,17 +1538,17 @@ public sealed partial class MainPage:Page{
         var name = type.Name;
         var suffix = name.EndsWith("FLinq",StringComparison.Ordinal) ? "FLinq"
             : name.EndsWith("ZLinq",StringComparison.Ordinal) ? "ZLinq"
-            : name.EndsWith("Linq",StringComparison.Ordinal) ? "LINQ"
+            : name.EndsWith("Linq",StringComparison.Ordinal) ? "Linq"
             : name;
         var prefix = suffix switch{
             "FLinq" => name[..^5],
             "ZLinq" => name[..^5],
-            "LINQ" => name[..^4],
+            "Linq" => name[..^4],
             _ => string.Empty,
         };
         return string.IsNullOrWhiteSpace(prefix)
-            ? source+" "+suffix
-            : source+" "+prefix+" "+suffix;
+            ? source+suffix
+            : source+prefix+suffix;
     }
 
     private static BenchmarkSource GetBenchmarkSource(Type type){
@@ -1318,9 +1733,9 @@ public sealed partial class MainPage:Page{
         return (string.Empty,string.Empty,string.Empty,string.Empty);
     }
 
-    private RunReportPaths CreateRunReport(string? runRoot,bool includeHtml){
+    private RunReportPaths CreateRunReport(string? runRoot){
         if(string.IsNullOrWhiteSpace(runRoot)){
-            return new RunReportPaths(null,null,null,null);
+            return new RunReportPaths(null);
         }
 
         Directory.CreateDirectory(runRoot);
@@ -1358,39 +1773,16 @@ public sealed partial class MainPage:Page{
                 item.ExitCode))
             .ToArray();
 
+        this.comparisonRows=BenchmarkComparisonFormatter.BuildComparisonRows(rows);
+        this.UpdateAnalysis();
         var csvPath = Path.Combine(runRoot,"BenchmarkComparison.csv");
-        WriteRunCsv(csvPath,rows);
-        if(!includeHtml){
-            this.AppendLog($"Comparison CSV: {csvPath}");
-            return new RunReportPaths(csvPath,null,null,null);
-        }
-
-        var htmlPath = Path.Combine(runRoot,"BenchmarkComparison.html");
-        var chartHtmlPath = Path.Combine(runRoot,"BenchmarkComparisonCharts.html");
-        var dataJsonPath = Path.Combine(runRoot,"BenchmarkComparisonData.json");
-        WriteRunHtml(htmlPath,rows);
-        WriteRunChartsHtml(chartHtmlPath,rows);
-        WriteRunDataJson(dataJsonPath,rows);
-        this.AppendLog($"Comparison report: {htmlPath}");
-        this.AppendLog($"Comparison charts: {chartHtmlPath}");
-        this.AppendLog($"Comparison data: {dataJsonPath}");
-        return new RunReportPaths(csvPath,htmlPath,chartHtmlPath,dataJsonPath);
+        WriteRunCsv(csvPath,this.comparisonRows);
+        this.AppendLog($"実測値CSV: {csvPath}");
+        return new RunReportPaths(csvPath);
     }
 
-    private static void WriteRunCsv(string path,IReadOnlyList<ReportRow> rows){
-        File.WriteAllText(path,BenchmarkReportFormatter.BuildCsv(rows),Encoding.UTF8);
-    }
-
-    private static void WriteRunHtml(string path,IReadOnlyList<ReportRow> rows){
-        File.WriteAllText(path,BenchmarkReportFormatter.BuildHtml(rows,DateTimeOffset.Now),Encoding.UTF8);
-    }
-
-    private static void WriteRunChartsHtml(string path,IReadOnlyList<ReportRow> rows){
-        File.WriteAllText(path,BenchmarkReportFormatter.BuildChartsHtml(rows,DateTimeOffset.Now),Encoding.UTF8);
-    }
-
-    private static void WriteRunDataJson(string path,IReadOnlyList<ReportRow> rows){
-        File.WriteAllText(path,BenchmarkReportFormatter.BuildDataJson(rows,DateTimeOffset.Now),Encoding.UTF8);
+    private static void WriteRunCsv(string path,IReadOnlyList<BenchmarkComparisonRow> rows){
+        File.WriteAllText(path,BenchmarkComparisonFormatter.WriteCsv(rows),new UTF8Encoding(true));
     }
 
     private void WriteRunSummary(string status,RunReportPaths reportPaths){
@@ -1412,9 +1804,6 @@ public sealed partial class MainPage:Page{
         builder.AppendLine($"MaxPeakRssBytes: {MaxLongText(this.allRunItems.Select(static item => item.PeakRssBytes))}");
         builder.AppendLine($"MaxEstimatedPeakRssBytes: {MaxLongText(this.allRunItems.Select(static item => item.EstimatedPeakRssBytes))}");
         builder.AppendLine($"CsvReport: {reportPaths.CsvPath??string.Empty}");
-        builder.AppendLine($"HtmlReport: {reportPaths.HtmlPath??string.Empty}");
-        builder.AppendLine($"ChartReport: {reportPaths.ChartHtmlPath??string.Empty}");
-        builder.AppendLine($"DataJsonReport: {reportPaths.DataJsonPath??string.Empty}");
         File.WriteAllText(summaryPath,builder.ToString(),Encoding.UTF8);
         this.AppendLog($"Run summary: {summaryPath}");
     }
@@ -1437,16 +1826,11 @@ public sealed partial class MainPage:Page{
         this.UpdateCommandState();
     }
 
-    private void SetReportPaths(string? htmlPath,string? chartHtmlPath){
+    private void SetReportPaths(string? csvPath){
         this.RunOnUi(() => {
-            this.htmlReportPath=htmlPath;
-            this.chartReportPath=chartHtmlPath;
-            this.HtmlReportLinkButton.Visibility=string.IsNullOrWhiteSpace(htmlPath)
-                ? Visibility.Collapsed
-                : Visibility.Visible;
-            this.ChartReportLinkButton.Visibility=string.IsNullOrWhiteSpace(chartHtmlPath)
-                ? Visibility.Collapsed
-                : Visibility.Visible;
+            if(!string.IsNullOrWhiteSpace(csvPath)){
+                this.SetStatus($"CSVを書き出しました: {csvPath}");
+            }
         });
     }
 
@@ -1458,7 +1842,250 @@ public sealed partial class MainPage:Page{
 
     private void UpdateSelectionSummary(){
         var selectedCount = this.benchmarks.Count(static benchmark => benchmark.IsSelected);
-        this.SelectionSummaryText.Text=$"{selectedCount} / {this.benchmarks.Count} selected";
+        this.SelectionSummaryText.Text=$"{selectedCount} / {this.benchmarks.Count} 件を選択中";
+        if(this.SelectionHeaderButton is not null){
+            this.SelectionHeaderButton.Content=selectedCount==0
+                ? "☐"
+                : selectedCount==this.benchmarks.Count
+                    ? "☑"
+                    : "▣";
+        }
+    }
+
+    private void RefreshComparisonRowsFromBenchmarks(){
+        this.comparisonRows=BenchmarkComparisonFormatter.BuildComparisonRows(this.CreateReportRowsFromBenchmarkItems());
+        this.UpdateAnalysis();
+    }
+
+    private IReadOnlyList<ReportRow> CreateReportRowsFromBenchmarkItems(){
+        var rows = new List<ReportRow>();
+        foreach(var benchmark in this.benchmarks){
+            foreach(var cell in benchmark.ProjectStatuses){
+                rows.Add(new ReportRow(
+                    cell.DisplayName,
+                    benchmark.MethodName,
+                    string.Empty,
+                    benchmark.MethodName,
+                    cell.Status==BenchmarkProjectRunStatus.Completed ? "Completed" : cell.Status.ToString(),
+                    cell.TimeFullText,
+                    string.Empty,
+                    string.Empty,
+                    cell.AllocatedFullText,
+                    string.Empty,
+                    string.Empty,
+                    cell.TimeSortValue??0,
+                    0,
+                    0,
+                    cell.AllocatedSortValue??0,
+                    0,
+                    0,
+                    string.Empty,
+                    string.Empty,
+                    string.Empty,
+                    string.Empty,
+                    string.Empty,
+                    string.Empty,
+                    null));
+            }
+        }
+
+        return rows;
+    }
+
+    private void UpdateAnalysis(){
+        if(this.RankingItemsControl is null){
+            return;
+        }
+
+        var rows = this.GetAnalysisRows();
+        this.RankingItemsControl.Visibility=this.selectedAnalysisTab==AnalysisTab.Ranking ? Visibility.Visible : Visibility.Collapsed;
+        this.HeatmapItemsControl.Visibility=this.selectedAnalysisTab==AnalysisTab.Heatmap ? Visibility.Visible : Visibility.Collapsed;
+        this.DetailItemsControl.Visibility=this.selectedAnalysisTab==AnalysisTab.Detail ? Visibility.Visible : Visibility.Collapsed;
+        this.UpdateAnalysisSummary(rows);
+        this.UpdateRanking(rows);
+        this.UpdateHeatmap(rows);
+        this.UpdateDetail(rows);
+    }
+
+    private IReadOnlyList<BenchmarkComparisonRow> GetAnalysisRows(){
+        var rows = this.comparisonRows;
+        if(this.CheckedOnlyCheckBox?.IsChecked==true){
+            var selected = this.benchmarks
+                .Where(static item => item.IsSelected)
+                .Select(static item => item.MethodName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            rows=rows.Where(row => selected.Contains(row.Benchmark)).ToArray();
+        }
+
+        return rows;
+    }
+
+    private void UpdateAnalysisSummary(IReadOnlyList<BenchmarkComparisonRow> rows){
+        if(this.CheckedOnlyCheckBox?.IsChecked==true&&rows.Count==0){
+            this.AnalysisSummaryText.Text="チェック済み項目がありません";
+            return;
+        }
+
+        var pair = this.GetSelectedPairDefinition();
+        var ratios = rows
+            .Select(row => this.GetRatio(row,pair))
+            .Where(static ratio => ratio.Judgement!=RatioJudgement.None)
+            .ToArray();
+        var wins = ratios.Count(static ratio => ratio.Judgement==RatioJudgement.LeftWin);
+        var losses = ratios.Count(static ratio => ratio.Judgement==RatioJudgement.LeftLose);
+        var numeric = ratios
+            .Select(static ratio => ratio.NumericValue)
+            .Where(static value => value is not null)
+            .Select(static value => value!.Value)
+            .OrderBy(static value => value)
+            .ToArray();
+        var median = numeric.Length==0 ? "-" : numeric[numeric.Length/2].ToString("0.00",CultureInfo.InvariantCulture);
+        var worst = rows
+            .Select(row => new { Row = row, Ratio = this.GetRatio(row,pair), Score = GetSortScore(this.GetRatio(row,pair)) })
+            .Where(static item => item.Score is not null)
+            .OrderByDescending(static item => item.Score)
+            .FirstOrDefault();
+        this.AnalysisSummaryText.Text=rows.Count==0
+            ? "表示できる比較データがありません"
+            : $"対象 {rows.Count} 件 / 勝ち {wins} / 負け {losses} / 中央値 {median} / 最大悪化 {(worst is null ? "-" : worst.Row.Benchmark+" "+worst.Ratio.DisplayText)}";
+    }
+
+    private void UpdateRanking(IReadOnlyList<BenchmarkComparisonRow> rows){
+        this.rankingItems.Clear();
+        if(this.selectedAnalysisTab!=AnalysisTab.Ranking){
+            return;
+        }
+
+        var pair = this.GetSelectedPairDefinition();
+        foreach(var item in rows
+            .Select(row => new { Row = row, Ratio = this.GetRatio(row,pair), Score = GetSortScore(this.GetRatio(row,pair)) })
+            .Where(static item => item.Score is not null)
+            .OrderByDescending(static item => item.Score)
+            .ThenBy(static item => item.Row.Benchmark,StringComparer.OrdinalIgnoreCase)){
+            this.rankingItems.Add(new AnalysisRankingItem(
+                item.Row.Benchmark,
+                pair.Key,
+                item.Ratio.DisplayText,
+                GetBarWidth(item.Ratio),
+                GetRatioBrush(item.Ratio),
+                GetRatioBorderBrush(item.Ratio),
+                GetRatioBorderThickness(item.Ratio)));
+        }
+    }
+
+    private void UpdateHeatmap(IReadOnlyList<BenchmarkComparisonRow> rows){
+        this.heatmapRows.Clear();
+        if(this.selectedAnalysisTab!=AnalysisTab.Heatmap){
+            return;
+        }
+
+        foreach(var row in rows.OrderBy(static row => row.Benchmark,StringComparer.OrdinalIgnoreCase)){
+            var cells = BenchmarkComparisonFormatter.PairDefinitions
+                .Select(pair => CreateHeatmapCell(row,pair,this.GetRatio(row,pair)))
+                .ToArray();
+            this.heatmapRows.Add(new AnalysisHeatmapRow(row.Benchmark,cells[0],cells[1],cells[2],cells[3],cells[4]));
+        }
+    }
+
+    private void UpdateDetail(IReadOnlyList<BenchmarkComparisonRow> rows){
+        this.detailItems.Clear();
+        if(this.selectedAnalysisTab!=AnalysisTab.Detail){
+            return;
+        }
+
+        if(string.IsNullOrWhiteSpace(this.selectedAnalysisMethod)){
+            this.AnalysisSummaryText.Text="ランキングまたはヒートマップからメソッドを選択してください";
+            return;
+        }
+
+        var row = rows.FirstOrDefault(row => string.Equals(row.Benchmark,this.selectedAnalysisMethod,StringComparison.OrdinalIgnoreCase));
+        if(string.IsNullOrWhiteSpace(row.Benchmark)){
+            this.AnalysisSummaryText.Text="ランキングまたはヒートマップからメソッドを選択してください";
+            return;
+        }
+
+        foreach(var pair in BenchmarkComparisonFormatter.PairDefinitions){
+            var comparison = row.GetPair(pair.Key);
+            this.detailItems.Add(new AnalysisDetailItem(
+                pair.TooltipText,
+                comparison.TimeRatio.DisplayText,
+                comparison.AllocatedRatio.DisplayText,
+                FormatDetailMetrics(comparison.Left),
+                FormatDetailMetrics(comparison.Right)));
+        }
+    }
+
+    private ComparisonPairDefinition GetSelectedPairDefinition(){
+        var pair = BenchmarkComparisonFormatter.PairDefinitions.FirstOrDefault(pair => string.Equals(pair.Key,this.selectedAnalysisPairKey,StringComparison.Ordinal));
+        return string.IsNullOrWhiteSpace(pair.Key)
+            ? BenchmarkComparisonFormatter.PairDefinitions[0]
+            : pair;
+    }
+
+    private RatioValue GetRatio(BenchmarkComparisonRow row,ComparisonPairDefinition pair){
+        var comparison = row.GetPair(pair.Key);
+        return this.selectedAnalysisMetric==AnalysisMetric.Allocated
+            ? comparison.AllocatedRatio
+            : comparison.TimeRatio;
+    }
+
+    private static AnalysisHeatmapCell CreateHeatmapCell(BenchmarkComparisonRow row,ComparisonPairDefinition pair,RatioValue ratio){
+        return new AnalysisHeatmapCell(row.Benchmark,pair.Key,ratio.DisplayText,GetRatioBrush(ratio));
+    }
+
+    private static double? GetSortScore(RatioValue ratio){
+        return ratio.Kind switch{
+            RatioValueKind.LeftOnly => 2.0,
+            RatioValueKind.RightOnly => 0.5,
+            RatioValueKind.BothZero => 1.0,
+            RatioValueKind.Numeric => ratio.NumericValue,
+            _ => null,
+        };
+    }
+
+    private static double GetBarWidth(RatioValue ratio){
+        var score = GetSortScore(ratio)??0;
+        var clamped = Math.Clamp(score,0.5,2.0);
+        return 20+((clamped-0.5)/1.5*200);
+    }
+
+    private static Brush GetRatioBrush(RatioValue ratio){
+        var score = GetSortScore(ratio);
+        if(score is null){
+            return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255,235,235,235));
+        }
+
+        if(score>1){
+            var t = Math.Clamp((score.Value-1.0)/1.0,0,1);
+            return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255,(byte)(245),(byte)(210-(60*t)),(byte)(205-(70*t))));
+        }
+
+        if(score<1){
+            var t = Math.Clamp((1.0-score.Value)/0.5,0,1);
+            return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255,(byte)(215-(55*t)),(byte)(232-(20*t)),(byte)(222+(10*t))));
+        }
+
+        return new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255,240,238,230));
+    }
+
+    private static Brush GetRatioBorderBrush(RatioValue ratio){
+        return ratio.IsSaturatedHigh||ratio.IsSaturatedLow
+            ? new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255,60,60,60))
+            : new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255,200,195,185));
+    }
+
+    private static Thickness GetRatioBorderThickness(RatioValue ratio){
+        return ratio.IsSaturatedHigh||ratio.IsSaturatedLow
+            ? new Thickness(3)
+            : new Thickness(1);
+    }
+
+    private static string FormatDetailMetrics(ProjectMetrics metrics){
+        if(!metrics.HasValue){
+            return "-";
+        }
+
+        return $"{FormatShortDuration(metrics.TimeNanoseconds)} / {FormatShortBytes(metrics.AllocatedBytes)}";
     }
 
     private void UpdateProgress(){
@@ -1486,16 +2113,16 @@ public sealed partial class MainPage:Page{
 
     private void UpdateCpuSummary(){
         var selected = this.cpuCores.Count(static cpu => cpu.IsSelected);
-        this.CpuSummaryText.Text=$"{selected} / {this.cpuCores.Count} CPU selected";
+        this.CpuSummaryText.Text=$"{selected} / {this.cpuCores.Count} CPUを選択中";
     }
 
     private void UpdateRunTimeDisplay(){
         this.RunOnUi(() => {
             this.RunTimeText.Text=this.currentRunStartedAt is null
-                ? "Run time: -"
+                ? "実行時間: -"
                 : this.currentRunFinishedAt is null
-                    ? $"Run time: {FormatRunTimestamp(this.currentRunStartedAt.Value)} -> running"
-                    : $"Run time: {FormatRunTimestamp(this.currentRunStartedAt.Value)} -> {FormatRunTimestamp(this.currentRunFinishedAt.Value)} ({FormatRunElapsed(this.currentRunStartedAt,this.currentRunFinishedAt)})";
+                    ? $"実行時間: {FormatRunTimestamp(this.currentRunStartedAt.Value)} -> 実行中"
+                    : $"実行時間: {FormatRunTimestamp(this.currentRunStartedAt.Value)} -> {FormatRunTimestamp(this.currentRunFinishedAt.Value)} ({FormatRunElapsed(this.currentRunStartedAt,this.currentRunFinishedAt)})";
         });
     }
 
@@ -1587,6 +2214,46 @@ public sealed partial class MainPage:Page{
         return value is { } number&&double.IsFinite(number)
             ? number.ToString("N3",CultureInfo.InvariantCulture)+" ns"
             : string.Empty;
+    }
+
+    private static string FormatShortDuration(double? nanoseconds){
+        if(nanoseconds is not { } value||!double.IsFinite(value)||value<0){
+            return string.Empty;
+        }
+
+        if(value>=1_000_000_000){
+            return (value/1_000_000_000).ToString("0.##",CultureInfo.InvariantCulture)+" s";
+        }
+
+        if(value>=1_000_000){
+            return (value/1_000_000).ToString("0.##",CultureInfo.InvariantCulture)+" ms";
+        }
+
+        if(value>=1_000){
+            return (value/1_000).ToString("0.##",CultureInfo.InvariantCulture)+" us";
+        }
+
+        return value.ToString("0.##",CultureInfo.InvariantCulture)+" ns";
+    }
+
+    private static string FormatShortBytes(long? bytes){
+        if(bytes is not { } value||value<0){
+            return string.Empty;
+        }
+
+        if(value>=1024L*1024L*1024L){
+            return (value/(1024d*1024d*1024d)).ToString("0.##",CultureInfo.InvariantCulture)+" GB";
+        }
+
+        if(value>=1024L*1024L){
+            return (value/(1024d*1024d)).ToString("0.##",CultureInfo.InvariantCulture)+" MB";
+        }
+
+        if(value>=1024L){
+            return (value/1024d).ToString("0.##",CultureInfo.InvariantCulture)+" KB";
+        }
+
+        return value.ToString(CultureInfo.InvariantCulture)+" B";
     }
 
     private static double? ParseNanoseconds(string value){

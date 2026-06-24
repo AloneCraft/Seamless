@@ -7,7 +7,13 @@ namespace Test.System.Linq.Intercept.FragmentCoverage;
 public sealed class ThenBy {
     [Fact,Trait("Category","Unit")]
     public static void keySelector(){
-        GeneratedInterceptorAssert.ContainsMethod<ThenBy>(nameof(keySelectorImpl));
+        var generated=GeneratedInterceptorAssert.SourceFor<ThenBy>(nameof(keySelectorImpl));
+        Assert.Contains("global::System.Buffers.ArrayPool<int>.Shared.Rent",generated);
+        Assert.Contains("global::System.Array.Sort(__orderIndexesLocal",generated);
+        Assert.Contains("__orderIndexComparer",generated);
+        Assert.DoesNotContain("global::System.Collections.Generic.Comparer<int>.Create",generated);
+        Assert.DoesNotContain("global::System.Collections.Generic.List<SortItem>",generated);
+        Assert.DoesNotContain("items.Sort",generated);
         var expected=new[]{3,1,4,2}.OrderBy(static v => v%2).ThenBy(static v => v).ToList();
         var actual=keySelectorImpl();
         Assert.Equal(expected,actual);

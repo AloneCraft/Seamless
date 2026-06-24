@@ -57,6 +57,8 @@ public class Select_selector(int 番号,Enumerable source,FuncFragment selector)
         UseResultTypeParam
             ? $"{FactoryMethodName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})"
             : base.GetEnumerableExpression;
+    public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
+    public override bool CountPreserving => source.CountPreserving;
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
     public override string GetEnumeratorFields => string.Empty;
@@ -131,6 +133,9 @@ public class Select_WithInlinedScalar(int 番号, Enumerable source, Fragment sc
         """;
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     public override string GetEnumeratorFields => string.Empty;
+    public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
+    public override bool CountPreserving => source.CountPreserving;
+    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{e}.TryGetNonEnumeratedCount(out count);";
     public override string GetTryGetNextBody => $$"""
         if({{e}}.TryGetNext(out var {{outerParamName}})) {
             {{CounterCall("IncrementLogicalSelect")}}
@@ -243,9 +248,12 @@ public class Select_indexSelector(int 番号, Enumerable source, FuncFragment se
         UseResultTypeParam
             ? $"{FactoryMethodName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})"
             : $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Select({source.GetEnumerableExpression}, {selector.DelegateConstructorArg ?? selector.RenderAsLambda()})";
+    public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
+    public override bool CountPreserving => source.CountPreserving;
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
     public override string GetEnumeratorFields => $"private int {a} = -1;";
+    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{e}.TryGetNonEnumeratedCount(out count);";
     public override string GetTryGetNextBody => $$"""
         if({{e}}.TryGetNext(out var {{item}})) {
             {{CounterCall("IncrementLogicalSelect")}}

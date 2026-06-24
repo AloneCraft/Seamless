@@ -19,6 +19,17 @@ public sealed class LongCount {
     }
 
     [Fact,Trait("Category","Unit")]
+    public static void predicate(){
+        GeneratedInterceptorAssert.ContainsMethod<LongCount>(nameof(predicateImpl));
+        var expected=new[]{1,2,3,4}.LongCount(static v => v>2);
+        var actual=predicateImpl();
+        Assert.Equal(expected,actual);
+    }
+    private static long predicateImpl(){
+        return new[]{1,2,3,4}.LongCount(static v => v>2);
+    }
+
+    [Fact,Trait("Category","Unit")]
     public static void noArg_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<LongCount>(nameof(noArg_enumerableImpl));
         var expected=new[]{1,2,3,4}.LongCount();

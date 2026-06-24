@@ -77,35 +77,35 @@ public sealed class Consumer {
     private DigestCapture? digestCapture;
 
     public void Consume<T>(T value) {
-        if(captureEnabled) {
-            captured.Add(value);
+        if(this.captureEnabled) {
+            this.captured.Add(value);
         }
 
-        digestCapture?.Add(value);
-        inner.Consume(value);
+        this.digestCapture?.Add(value);
+        this.inner.Consume(value);
     }
 
     internal void BeginCapture() {
-        captured.Clear();
-        captureEnabled=true;
+        this.captured.Clear();
+        this.captureEnabled=true;
     }
 
     internal object?[] EndCapture() {
-        captureEnabled=false;
-        return captured.ToArray();
+        this.captureEnabled=false;
+        return this.captured.ToArray();
     }
 
     internal void BeginDigestCapture(Func<object?,string> normalize) {
-        if(digestCapture is not null) {
+        if(this.digestCapture is not null) {
             throw new InvalidOperationException("Digest capture is already active.");
         }
 
-        digestCapture=new DigestCapture(normalize);
+        this.digestCapture=new DigestCapture(normalize);
     }
 
     internal string EndDigestCapture() {
-        var capture=digestCapture??throw new InvalidOperationException("Digest capture is not active.");
-        digestCapture=null;
+        var capture= this.digestCapture??throw new InvalidOperationException("Digest capture is not active.");
+        this.digestCapture=null;
         return capture.End();
     }
 
@@ -124,29 +124,29 @@ public sealed class Consumer {
 
         public void Add(object? value) {
             var normalized=normalize(value);
-            count++;
-            if(first.Count<DigestSampleCount) {
-                first.Add(normalized);
+            this.count++;
+            if(this.first.Count<DigestSampleCount) {
+                this.first.Add(normalized);
             }
-            if(last.Count==DigestSampleCount) {
-                last.Dequeue();
+            if(this.last.Count==DigestSampleCount) {
+                this.last.Dequeue();
             }
-            last.Enqueue(normalized);
+            this.last.Enqueue(normalized);
 
             var bytes=System.Text.Encoding.UTF8.GetBytes(normalized);
             var lengthBytes=new byte[4];
             System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(lengthBytes,bytes.Length);
-            hash.AppendData(lengthBytes);
-            hash.AppendData(bytes);
+            this.hash.AppendData(lengthBytes);
+            this.hash.AppendData(bytes);
         }
 
         public string End() {
-            var hashText=Convert.ToHexString(hash.GetHashAndReset());
-            hash.Dispose();
-            return "count="+count
+            var hashText=Convert.ToHexString(this.hash.GetHashAndReset());
+            this.hash.Dispose();
+            return "count="+this.count
                 +";sha256="+hashText
-                +";first="+Format(first)
-                +";last="+Format(last);
+                +";first="+Format(this.first)
+                +";last="+Format(this.last);
         }
 
         private static string Format(IEnumerable<string> values) =>
@@ -179,7 +179,7 @@ public class Base {
         this.count=count>=0?count:(BenchmarkExecutionMode.IsTestMode?TestDefaultCount:BenchmarkDefaultCount);
 
     private protected int CountForTestTiming(int benchmarkCount) =>
-        BenchmarkExecutionMode.ScaleElementCount(BenchmarkExecutionMode.IsTestMode?count:benchmarkCount);
+        BenchmarkExecutionMode.ScaleElementCount(BenchmarkExecutionMode.IsTestMode? this.count :benchmarkCount);
 
     private protected int CountForComparison(int elementCount) =>
         BenchmarkExecutionMode.LimitForComparison(elementCount);
@@ -190,11 +190,11 @@ public class Base {
         }
 
         var method=invokeImpl
-            ? FindInstanceMethodInHierarchy(GetType(),methodName+"_Impl",nonPublic:true)
-            : FindBenchmarkMethod(GetType(),methodName);
+            ? FindInstanceMethodInHierarchy(this.GetType(),methodName+"_Impl",nonPublic:true)
+            : FindBenchmarkMethod(this.GetType(),methodName);
 
-        Result=MissingResult;
-        consumer.BeginDigestCapture(Normalize);
+        this.Result=MissingResult;
+        this.consumer.BeginDigestCapture(Normalize);
         object? returnValue=null;
         Exception? invocationError=null;
         var consumed=string.Empty;
@@ -203,7 +203,7 @@ public class Base {
         } catch(System.Reflection.TargetInvocationException ex) when(ex.InnerException is not null) {
             invocationError=ex.InnerException;
         } finally {
-            consumed=consumer.EndDigestCapture();
+            consumed=this.consumer.EndDigestCapture();
         }
 
         if(invocationError is not null) {
@@ -211,8 +211,8 @@ public class Base {
             throw new InvalidOperationException("Unreachable.");
         }
 
-        if(!ReferenceEquals(MissingResult,Result)) {
-            return Consumer.CreateSingleDigest(Normalize(Result));
+        if(!ReferenceEquals(MissingResult,this.Result)) {
+            return Consumer.CreateSingleDigest(Normalize(this.Result));
         }
         if(method.ReturnType!=typeof(void)) {
             return Consumer.CreateSingleDigest(Normalize(returnValue));
@@ -221,16 +221,16 @@ public class Base {
     }
 
     protected void AssertResults(Action linq,Action flinq,Action noOptimized,Action zlinq) {
-        var expected = CaptureResult(linq);
+        var expected = this.CaptureResult(linq);
 #if TSAVORITE_LINQ_COUNTER
         using var optimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
-        var flinqResult = CaptureResult(flinq);
+        var flinqResult = this.CaptureResult(flinq);
 #if TSAVORITE_LINQ_COUNTER
         using var noOptimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
-        var noOptimizedResult = CaptureResult(noOptimized);
-        var zlinqResult = CaptureResult(zlinq);
+        var noOptimizedResult = this.CaptureResult(noOptimized);
+        var zlinqResult = this.CaptureResult(zlinq);
 
         AssertEqual(expected,flinqResult,"FLinq result differs from LINQ.");
         AssertEqual(expected,noOptimizedResult,"Non-optimized FLinq result differs from LINQ.");
@@ -244,15 +244,15 @@ public class Base {
     }
 
     protected void AssertResults(Action linq,Action flinq,Action noOptimized) {
-        var expected = CaptureResult(linq);
+        var expected = this.CaptureResult(linq);
 #if TSAVORITE_LINQ_COUNTER
         using var optimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
-        var flinqResult = CaptureResult(flinq);
+        var flinqResult = this.CaptureResult(flinq);
 #if TSAVORITE_LINQ_COUNTER
         using var noOptimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
-        var noOptimizedResult = CaptureResult(noOptimized);
+        var noOptimizedResult = this.CaptureResult(noOptimized);
 
         AssertEqual(expected,flinqResult,"FLinq result differs from LINQ.");
         AssertEqual(expected,noOptimizedResult,"Non-optimized FLinq result differs from LINQ.");
@@ -265,12 +265,12 @@ public class Base {
     }
 
     private string CaptureResult(Action action) {
-        Result=MissingResult;
-        consumer.BeginCapture();
+        this.Result=MissingResult;
+        this.consumer.BeginCapture();
         action();
-        var consumed=consumer.EndCapture();
-        return !ReferenceEquals(MissingResult,Result)
-            ? Normalize(Result)
+        var consumed= this.consumer.EndCapture();
+        return !ReferenceEquals(MissingResult,this.Result)
+            ? Normalize(this.Result)
             : Normalize(consumed);
     }
 
@@ -373,7 +373,7 @@ public class Base {
     }
 
     protected IEnumerable<int> srcMinusPlus(int scale) {
-        var length=CountForComparison(BenchmarkExecutionMode.ScaleElementCount(count*scale));
+        var length= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale));
         for(var a = 0;a<length;a+=2) {
             yield return -a;
             yield return +a;
@@ -381,7 +381,7 @@ public class Base {
     }
 
     protected IEnumerable<int> srcMinusPlusCount(int elementCount) {
-        var length=CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
+        var length= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
         for(var a = 0;a<length;a+=2) {
             yield return -a;
             yield return +a;
@@ -389,7 +389,7 @@ public class Base {
     }
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> src(int scale) => System.Linq.Enumerable.AsEnumerable(GetOrCreate(scale,SourceKind.Src,static length => {
+    protected IEnumerable<int> src(int scale) => System.Linq.Enumerable.AsEnumerable(this.GetOrCreate(scale,SourceKind.Src,static length => {
         var values = new int[length];
         for(var i = 0;i<values.Length;i++) {
             values[i]=i+1;
@@ -398,7 +398,7 @@ public class Base {
     }));
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> srcCount(int elementCount) => System.Linq.Enumerable.AsEnumerable(GetOrCreateByLength(elementCount,SourceKind.SrcCount,static length => {
+    protected IEnumerable<int> srcCount(int elementCount) => System.Linq.Enumerable.AsEnumerable(this.GetOrCreateByLength(elementCount,SourceKind.SrcCount,static length => {
         var values = new int[length];
         for(var i = 0;i<values.Length;i++) {
             values[i]=i+1;
@@ -407,7 +407,7 @@ public class Base {
     }));
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> src2(int scale) => System.Linq.Enumerable.AsEnumerable(GetOrCreate(scale,SourceKind.Src2,static length => {
+    protected IEnumerable<int> src2(int scale) => System.Linq.Enumerable.AsEnumerable(this.GetOrCreate(scale,SourceKind.Src2,static length => {
         var values = new int[length/2];
         var start = length/2+1;
         for(var i = 0;i<values.Length;i++) {
@@ -417,7 +417,7 @@ public class Base {
     }));
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> src2Count(int elementCount) => System.Linq.Enumerable.AsEnumerable(GetOrCreateByLength(elementCount,SourceKind.Src2Count,static length => {
+    protected IEnumerable<int> src2Count(int elementCount) => System.Linq.Enumerable.AsEnumerable(this.GetOrCreateByLength(elementCount,SourceKind.Src2Count,static length => {
         var values = new int[length/2];
         var start = length/2+1;
         for(var i = 0;i<values.Length;i++) {
@@ -432,12 +432,12 @@ public class Base {
         static _ => [0]));
 
     private int[] GetOrCreate(int scale,SourceKind kind,Func<int,int[]> factory) {
-        var length=CountForComparison(BenchmarkExecutionMode.ScaleElementCount(count*scale));
+        var length= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale));
         return GetOrCreate(new SourceCacheKey(kind,length),factory);
     }
 
     private int[] GetOrCreateByLength(int elementCount,SourceKind kind,Func<int,int[]> factory) {
-        var effectiveLength=CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
+        var effectiveLength= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
         return GetOrCreate(new SourceCacheKey(kind,effectiveLength),factory);
     }
 
@@ -455,13 +455,13 @@ public class Base {
 
     [LinqIntercept(false)]
     protected IEnumerable<IEnumerable<int>> srcNested(int scale) {
-        var side = (int)Math.Sqrt(CountForComparison(BenchmarkExecutionMode.ScaleElementCount(count*scale)));
+        var side = (int)Math.Sqrt(this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale)));
         return System.Linq.Enumerable.Range(1,side).Select(_ => System.Linq.Enumerable.Range(1,side));
     }
 
     [LinqIntercept(false)]
     protected IEnumerable<IEnumerable<int>> srcNestedCount(int elementCount) {
-        var side = (int)Math.Sqrt(CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount)));
+        var side = (int)Math.Sqrt(this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount)));
         return System.Linq.Enumerable.Range(1,side).Select(_ => System.Linq.Enumerable.Range(1,side));
     }
 }

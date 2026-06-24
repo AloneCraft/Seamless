@@ -12,6 +12,8 @@ public class OfType(int 番号, Enumerable source, string resultElementType) : E
         : source.DirectEnumerableExpression is { } sourceExpression
         ? $"global::System.Linq.Enumerable.OfType<{resultElementType}>({sourceExpression})"
         : null;
+    public override string? NonEnumeratedCountExpression => IsIdentityType ? source.NonEnumeratedCountExpression : null;
+    public override bool CountPreserving => IsIdentityType && source.CountPreserving;
     public override string GetEnumerableExpression => IsIdentityType
         ? source.GetEnumerableExpression
         : DirectEnumerableExpression ?? base.GetEnumerableExpression;
@@ -22,6 +24,9 @@ public class OfType(int 番号, Enumerable source, string resultElementType) : E
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     public override string GetEnumeratorFields => string.Empty;
+    protected override string GetTryGetNonEnumeratedCountBody => IsIdentityType
+        ? $"return this.{e}.TryGetNonEnumeratedCount(out count);"
+        : base.GetTryGetNonEnumeratedCountBody;
     public override string GetTryGetNextBody => $$"""
         while({{e}}.MoveNext()) {
             if({{e}}.Current is {{resultElementType}} {{item}}) {

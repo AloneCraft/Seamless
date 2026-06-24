@@ -34,6 +34,8 @@ public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecu
     public virtual bool CanProvideSpan => false;
     // TryGetSpan を実行時に試してよいか。false の可能性があるため呼び出し側は必ず fallback を持つ。
     public virtual bool CanTryProvideSpan => CanProvideSpan;
+    public virtual string? NonEnumeratedCountExpression => null;
+    public virtual bool CountPreserving => false;
     // interceptor が IEnumerable<T> を返すときに使う ValueEnumerable 構築式。
     public virtual string GetEnumerableExpression => $"new global::Seamless.System.Carrier.ValueEnumerable<{EnumeratorTypeName}, {ElementType}>({GetEnumeratorExpression})";
     // 既定では下流の enumerator を Dispose する。

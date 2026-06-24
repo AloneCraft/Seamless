@@ -70,12 +70,29 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderAny(range,番号,destVar,destType)
         : source is RepeatRoot repeat
             ? RangePredicateOptimizer.RenderAny(repeat,番号,destVar,destType)
-            : RenderDirectEnumerableCallInline(source,destVar,destType,"Any");
+        : source.NonEnumeratedCountExpression is { } countExpression
+            ? $"{destType} {destVar}=({countExpression})!=0;"
+        : RenderDirectEnumerableCallInline(source,destVar,destType,"Any")
+            ?? RenderEnumeratorInline(destVar,destType);
+    private string RenderEnumeratorInline(string destVar,string destType) {
+        var enumeratorName=$"__s{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{enumeratorName}}={{source.GetEnumeratorExpression}}) {
+                if({{enumeratorName}}.TryGetNonEnumeratedCount(out var __count{{番号}})) {
+                    {{destVar}}=__count{{番号}}!=0;
+                }else{
+                    {{destVar}}={{enumeratorName}}.TryGetNext(out _);
+                }
+            }
+            """;
+    }
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{DefineScalarEnumeratorStruct("bool")}}
@@ -130,10 +147,10 @@ public class Any_predicate(int 番号, Enumerable source, FuncFragment predicate
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderAny(range,predicate,番号,destVar,destType)
                 ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
-                    ? RenderDirectEnumerableCallInline(source,destVar,destType,"Any",rangeLambda)
+                    ? RenderDirectEnumerableCallInline(source,destVar,destType,"Any",rangeLambda) ?? RenderComputeInline(destVar,destType)
                     : RenderComputeInline(destVar,destType))
         : TryRenderDirectLambda(predicate) is { } lambda
-            ? RenderDirectEnumerableCallInline(source,destVar,destType,"Any",lambda)
+            ? RenderDirectEnumerableCallInline(source,destVar,destType,"Any",lambda) ?? RenderComputeInline(destVar,destType)
             : RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""

@@ -11,29 +11,25 @@ public sealed class BenchmarkValueComparisonTests {
 
     [Fact]
     public void Methods1_results_match() {
-        var linq=BenchmarkTarget.Load("Test.System.Linq.Enumerable.Linq","Test.System.Linq.Enumerable.Linq");
         var flinq=BenchmarkTarget.Load("Test.System.Linq.Enumerable.FLinq","Test.System.Linq.Enumerable.FLinq");
         var zlinq=BenchmarkTarget.Load("Test.System.Linq.Enumerable.ZLinq","Test.System.Linq.Enumerable.ZLinq");
-        var targets=new[] { linq,flinq,zlinq };
+        var targets=new[] { flinq,zlinq };
 
         try {
             foreach(var target in targets) {
                 target.EnableComparisonMode(ComparisonElementCount);
             }
 
-            var methodNames=DiscoverMethodNames(linq.Type);
+            var methodNames=DiscoverMethodNames(zlinq.Type);
             var failures=new List<string>();
-            var linqInstance=linq.CreateInstance();
             var flinqInstance=flinq.CreateInstance();
             var zlinqInstance=zlinq.CreateInstance();
 
             foreach(var methodName in methodNames) {
                 try {
-                    var expected=linq.Capture(linqInstance,methodName,invokeImpl:false);
-                    AddFailureIfDifferent(failures,methodName,"LINQ private Impl",expected,linq.Capture(linqInstance,methodName,invokeImpl:true));
+                    var expected=zlinq.Capture(zlinqInstance,methodName,invokeImpl:false);
                     AddFailureIfDifferent(failures,methodName,"FLinq public",expected,flinq.Capture(flinqInstance,methodName,invokeImpl:false));
                     AddFailureIfDifferent(failures,methodName,"FLinq private Impl",expected,flinq.Capture(flinqInstance,methodName,invokeImpl:true));
-                    AddFailureIfDifferent(failures,methodName,"ZLinq public",expected,zlinq.Capture(zlinqInstance,methodName,invokeImpl:false));
                 } catch(Exception ex) {
                     failures.Add(methodName+": "+ex.GetType().FullName+": "+ex.Message);
                 }

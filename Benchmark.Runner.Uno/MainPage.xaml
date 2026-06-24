@@ -8,24 +8,32 @@
       MinWidth="1500"
       MinHeight="720"
       Background="#F8F7F2">
-  <Grid Padding="20"
-        RowSpacing="14"
+  <Page.Resources>
+    <Style TargetType="ScrollBar">
+      <Setter Property="MinWidth" Value="24" />
+      <Setter Property="Width" Value="24" />
+      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="Height" Value="24" />
+    </Style>
+  </Page.Resources>
+  <Grid Padding="16"
+        RowSpacing="10"
         RowDefinitions="Auto,Auto,*,Auto">
     <Grid ColumnSpacing="12"
-          ColumnDefinitions="320,*,120,110">
+          ColumnDefinitions="320,Auto,120,110,*">
       <StackPanel Spacing="4">
-        <TextBlock Text="Benchmark Runner"
+        <TextBlock Text="ベンチマーク ランナー"
                    FontSize="26"
                    FontWeight="SemiBold"
                    Foreground="#202020" />
-        <TextBlock Text="Select benchmark methods and run benchmark DLLs on selected CPUs."
+        <TextBlock Text="ベンチマークを選び、CPUを指定して計測します。"
                    Foreground="#5D625E" />
       </StackPanel>
       <Grid x:Name="ProjectGrid"
             Grid.Column="1"
             ColumnSpacing="10"
             RowSpacing="0"
-            ColumnDefinitions="*,*"
+            ColumnDefinitions="Auto,Auto"
             RowDefinitions="20,20,20,20" />
       <ComboBox x:Name="ConfigurationComboBox"
                 Grid.Column="2"
@@ -55,50 +63,72 @@
           ColumnSpacing="10"
           RowSpacing="6"
           RowDefinitions="Auto,Auto"
-          ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto">
-      <Button Content="Select all"
+          ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,260,Auto,*,Auto">
+      <Button x:Name="SelectAllButton"
+              Content="全選択"
               Click="OnSelectAllClick" />
-      <Button Grid.Column="1"
-              Content="Clear"
+      <Button x:Name="ClearSelectionButton"
+              Grid.Column="1"
+              Content="解除"
               Click="OnClearSelectionClick" />
       <Button x:Name="RunButton"
               Grid.Column="2"
-              Content="Run"
+              Content="実行"
               Click="OnRunClick" />
       <Button x:Name="CancelButton"
               Grid.Column="3"
-              Content="Cancel"
+              Content="中止"
               Click="OnCancelClick"
               IsEnabled="False" />
+      <Button x:Name="SelectTop10Button"
+              Grid.Column="4"
+              Content="上位10件を選択"
+              Click="OnSelectTop10Click" />
+      <Button x:Name="RerunNextScaleButton"
+              Grid.Column="5"
+              Content="次スケールで再計測"
+              Click="OnRerunNextScaleClick" />
+      <Button x:Name="ChartToggleButton"
+              Grid.Column="6"
+              Content="チャートを隠す"
+              Click="OnChartToggleClick" />
+      <TextBox x:Name="CsvPathTextBox"
+                 Grid.Column="7"
+                 MinWidth="250"
+                 PlaceholderText="実測値CSVのパス" />
+      <Button x:Name="CsvLoadButton"
+              Grid.Column="8"
+              Content="CSV読込"
+              Click="OnLoadCsvClick" />
       <TextBlock x:Name="SelectionSummaryText"
-                 Grid.Column="4"
+                 Grid.Column="9"
                  VerticalAlignment="Center"
                  Foreground="#3D4540" />
       <ProgressRing x:Name="BusyRing"
-                    Grid.Column="5"
+                    Grid.Column="10"
                     Width="24"
                     Height="24"
                     IsActive="False" />
       <ProgressBar x:Name="ProgressBar"
                    Grid.Row="1"
-                   Grid.ColumnSpan="4"
+                   Grid.ColumnSpan="7"
                    Height="8"
                    Minimum="0"
                    Maximum="1"
                    Value="0" />
       <TextBlock x:Name="ProgressText"
                  Grid.Row="1"
-                 Grid.Column="4"
+                 Grid.Column="9"
                  Grid.ColumnSpan="2"
-                 Text="No run queued"
+                 Text="実行待ちはありません"
                  FontSize="12"
                  Foreground="#3D4540"
                  VerticalAlignment="Center" />
     </Grid>
 
     <Grid Grid.Row="2"
-          ColumnSpacing="12"
-          ColumnDefinitions="3*,2*">
+          ColumnSpacing="10"
+          ColumnDefinitions="*,*">
       <Border BorderBrush="#D5D1C4"
               BorderThickness="1"
               Background="#FFFEFA"
@@ -106,11 +136,20 @@
         <Grid RowDefinitions="Auto,*">
           <Grid Padding="6,2"
                 ColumnDefinitions="24,220,Auto">
-            <TextBlock Grid.Column="1"
-                       Text="Benchmark"
-                       FontSize="11"
-                       FontWeight="SemiBold" />
-            <ItemsControl x:Name="BenchmarkProjectHeaderItemsControl"
+            <Button x:Name="SelectionHeaderButton"
+                    Content="☐"
+                    FontSize="12"
+                    Padding="0"
+                    Click="OnSelectionHeaderClick" />
+            <Button x:Name="BenchmarkHeaderButton"
+                    Grid.Column="1"
+                    Content="ベンチマーク"
+                    FontSize="11"
+                    FontWeight="SemiBold"
+                    Padding="0"
+                    HorizontalAlignment="Left"
+                    Click="OnBenchmarkHeaderClick" />
+            <ItemsControl x:Name="BenchmarkTableHeaderItemsControl"
                           Grid.Column="2">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -118,348 +157,373 @@
                 </ItemsPanelTemplate>
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="local:BenchmarkProject">
-                  <TextBlock Text="{Binding DisplayName}"
-                             Width="92"
-                             FontSize="11"
-                             FontWeight="SemiBold"
-                             TextTrimming="CharacterEllipsis"
-                             Opacity="{Binding ColumnOpacity}" />
+                <DataTemplate x:DataType="local:BenchmarkTableColumn">
+                  <Grid Width="190"
+                        RowDefinitions="18,20"
+                        ColumnDefinitions="95,95"
+                        ToolTipService.ToolTip="{Binding TooltipText}">
+                    <TextBlock Grid.ColumnSpan="2"
+                               Text="{Binding HeaderText}"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" />
+                    <Button Grid.Row="1"
+                            Content="{Binding TimeHeaderText}"
+                            Tag="{Binding}"
+                            FontSize="10"
+                            Padding="0"
+                            Click="OnTableColumnTimeHeaderClick" />
+                    <Button Grid.Row="1"
+                            Grid.Column="1"
+                            Content="{Binding AllocatedHeaderText}"
+                            Tag="{Binding}"
+                            FontSize="10"
+                            Padding="0"
+                            Click="OnTableColumnAllocatedHeaderClick" />
+                  </Grid>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </Grid>
-        <ScrollViewer Grid.Row="1"
-                      VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Auto">
-          <ItemsControl x:Name="BenchmarkItemsControl">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="local:BenchmarkItem">
-                <Grid Height="18"
-                      Padding="6,0"
-                      ColumnDefinitions="24,220,Auto"
-                      Tag="{Binding}"
-                      Tapped="OnBenchmarkRowTapped"
-                      Background="Transparent">
-                  <Border Grid.Column="0"
-                          Width="12"
-                          Height="12"
-                          BorderBrush="#8F938D"
-                          BorderThickness="1"
-                          CornerRadius="2"
-                          Background="#FFFFFF"
-                          HorizontalAlignment="Left"
-                          VerticalAlignment="Center">
-                    <TextBlock Text="{Binding CheckGlyph}"
-                               FontSize="9"
-                               FontWeight="SemiBold"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               Foreground="#202020" />
-                  </Border>
-                  <TextBlock Grid.Column="1"
-                             Text="{Binding DisplayName}"
-                             FontSize="11"
-                             TextTrimming="CharacterEllipsis"
-                             VerticalAlignment="Center" />
-                  <ItemsControl Grid.Column="2"
-                                ItemsSource="{Binding ProjectStatuses}"
-                                IsHitTestVisible="False">
-                    <ItemsControl.ItemsPanel>
-                      <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" />
-                      </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                      <DataTemplate x:DataType="local:BenchmarkProjectStatusCell">
-                        <Grid Width="92"
-                              Height="18"
-                              Opacity="{Binding Opacity}">
-                          <ProgressRing Width="12"
-                                        Height="12"
-                                        IsActive="True"
-                                        Visibility="{Binding RunningVisibility}"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center" />
-                          <TextBlock Text="{Binding Glyph}"
-                                     Visibility="{Binding GlyphVisibility}"
-                                     FontSize="11"
-                                     FontWeight="SemiBold"
-                                     HorizontalAlignment="Center"
-                                     VerticalAlignment="Center"
-                                     Foreground="#202020" />
-                        </Grid>
-                      </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
-                </Grid>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
+          <ScrollViewer Grid.Row="1"
+                        VerticalScrollBarVisibility="Visible"
+                        HorizontalScrollBarVisibility="Visible">
+            <ItemsControl x:Name="BenchmarkItemsControl">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:BenchmarkItem">
+                  <Grid Height="20"
+                        Padding="6,0"
+                        ColumnDefinitions="24,220,Auto"
+                        Tag="{Binding}"
+                        Tapped="OnBenchmarkRowTapped"
+                        Background="Transparent">
+                    <Border Grid.Column="0"
+                            Width="12"
+                            Height="12"
+                            BorderBrush="#8F938D"
+                            BorderThickness="1"
+                            CornerRadius="2"
+                            Background="#FFFFFF"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center">
+                      <TextBlock Text="{Binding CheckGlyph}"
+                                 FontSize="9"
+                                 FontWeight="SemiBold"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center"
+                                 Foreground="#202020" />
+                    </Border>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding DisplayName}"
+                               FontSize="11"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <ItemsControl Grid.Column="2"
+                                  ItemsSource="{Binding DisplayCells}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="local:BenchmarkDisplayCell">
+                          <Grid Width="190"
+                                Height="20"
+                                ColumnDefinitions="95,95"
+                                Opacity="{Binding Opacity}">
+                            <ProgressRing Width="12"
+                                          Height="12"
+                                          Grid.ColumnSpan="2"
+                                          IsActive="True"
+                                          Visibility="{Binding RunningVisibility}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Glyph}"
+                                       Grid.ColumnSpan="2"
+                                       Visibility="{Binding GlyphVisibility}"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="#202020" />
+                            <Grid Grid.ColumnSpan="2"
+                                  ColumnDefinitions="95,95"
+                                  Visibility="{Binding MetricsVisibility}">
+                              <TextBlock Text="{Binding TimeDisplay}"
+                                         FontSize="10"
+                                         TextAlignment="Right"
+                                         TextTrimming="CharacterEllipsis"
+                                         VerticalAlignment="Center"
+                                         Foreground="#A32424"
+                                         ToolTipService.ToolTip="{Binding TimeFullText}" />
+                              <TextBlock Grid.Column="1"
+                                         Text="{Binding AllocatedDisplay}"
+                                         FontSize="10"
+                                         TextAlignment="Right"
+                                         TextTrimming="CharacterEllipsis"
+                                         VerticalAlignment="Center"
+                                         Foreground="#A32424"
+                                         ToolTipService.ToolTip="{Binding AllocatedFullText}" />
+                            </Grid>
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
         </Grid>
       </Border>
 
-      <Grid Grid.Column="1"
-            RowSpacing="12"
-            RowDefinitions="Auto,*">
+      <Grid x:Name="AnalysisPanel"
+            Grid.Column="1"
+            RowSpacing="8"
+            RowDefinitions="Auto,Auto,*,180">
         <Border BorderBrush="#D5D1C4"
                 BorderThickness="1"
                 Background="#FFFEFA"
-                CornerRadius="6"
-                Height="220">
-          <Grid RowDefinitions="Auto,Auto,*">
-            <Grid Padding="8,4"
-                  ColumnDefinitions="*,Auto">
-              <TextBlock Text="CPU"
-                         FontSize="12"
-                         FontWeight="SemiBold" />
-              <TextBlock x:Name="CpuSummaryText"
-                         Grid.Column="1"
-                         Text="0 / 0 CPU selected"
-                         FontSize="12"
-                         Foreground="#5D625E" />
+                CornerRadius="6">
+          <Grid Padding="8"
+                RowSpacing="6"
+                RowDefinitions="Auto,Auto,Auto">
+            <Grid ColumnSpacing="6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Button Content="System比" Tag="System" Click="OnAnalysisPairClick" />
+              <Button Grid.Column="1" Content="Persisted比" Tag="Persisted" Click="OnAnalysisPairClick" />
+              <Button Grid.Column="2" Content="Tsavorite比" Tag="Tsavorite" Click="OnAnalysisPairClick" />
+              <Button Grid.Column="3" Content="PersistedLinq/TsavoriteLinq比" Tag="PersistedLinqTsavoriteLinq" Click="OnAnalysisPairClick" />
+              <Button Grid.Column="4" Content="PersistedFLinq/TsavoriteFLinq比" Tag="PersistedFLinqTsavoriteFLinq" Click="OnAnalysisPairClick" />
             </Grid>
-            <Grid x:Name="CpuPresetGrid"
-                  Grid.Row="1"
-                  Padding="6,0,6,4"
-                  ColumnSpacing="6" />
-            <ListView x:Name="CpuItemsControl"
-                      Grid.Row="2"
-                      ScrollViewer.VerticalScrollBarVisibility="Auto"
-                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                      SelectionMode="None"
-                      IsItemClickEnabled="False"
-                      HorizontalContentAlignment="Stretch"
-                      Padding="2,0,2,2"
-                      BorderThickness="0"
-                      Background="Transparent">
-              <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
-                  <Setter Property="Height" Value="16" />
-                  <Setter Property="MaxHeight" Value="16" />
-                  <Setter Property="Padding" Value="0" />
-                  <Setter Property="Margin" Value="0" />
-                  <Setter Property="MinHeight" Value="0" />
-                  <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                  <Setter Property="VerticalContentAlignment" Value="Stretch" />
-                </Style>
-              </ListView.ItemContainerStyle>
-              <ListView.ItemTemplate>
-                <DataTemplate x:DataType="local:CpuRowItem">
-                  <Grid Height="16"
-                        Padding="4,0"
-                        ColumnSpacing="4"
-                        ColumnDefinitions="*,*,*,*">
-                    <Grid Tag="{Binding Column0}"
-                          Tapped="OnCpuCellTapped"
-                          ColumnDefinitions="13,*"
-                          Visibility="{Binding Column0, Converter={StaticResource NullToVisibilityConverter}}"
-                          Background="Transparent">
-                      <Border Width="10"
-                              Height="10"
-                              BorderBrush="#8F938D"
-                              BorderThickness="1"
-                              CornerRadius="2"
-                              Background="#FFFFFF"
-                              HorizontalAlignment="Left"
-                              VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Column0.CheckGlyph}"
-                                   FontSize="9"
-                                   FontWeight="SemiBold"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   Foreground="#202020" />
-                      </Border>
-                      <TextBlock Grid.Column="1"
-                                 Text="{Binding Column0.DisplayText}"
-                                 FontSize="10"
-                                 TextTrimming="CharacterEllipsis"
-                                 VerticalAlignment="Center" />
-                    </Grid>
-                    <Grid Grid.Column="1"
-                          Tag="{Binding Column1}"
-                          Tapped="OnCpuCellTapped"
-                          ColumnDefinitions="13,*"
-                          Visibility="{Binding Column1, Converter={StaticResource NullToVisibilityConverter}}"
-                          Background="Transparent">
-                      <Border Width="10"
-                              Height="10"
-                              BorderBrush="#8F938D"
-                              BorderThickness="1"
-                              CornerRadius="2"
-                              Background="#FFFFFF"
-                              HorizontalAlignment="Left"
-                              VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Column1.CheckGlyph}"
-                                   FontSize="9"
-                                   FontWeight="SemiBold"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   Foreground="#202020" />
-                      </Border>
-                      <TextBlock Grid.Column="1"
-                                 Text="{Binding Column1.DisplayText}"
-                                 FontSize="10"
-                                 TextTrimming="CharacterEllipsis"
-                                 VerticalAlignment="Center" />
-                    </Grid>
-                    <Grid Grid.Column="2"
-                          Tag="{Binding Column2}"
-                          Tapped="OnCpuCellTapped"
-                          ColumnDefinitions="13,*"
-                          Visibility="{Binding Column2, Converter={StaticResource NullToVisibilityConverter}}"
-                          Background="Transparent">
-                      <Border Width="10"
-                              Height="10"
-                              BorderBrush="#8F938D"
-                              BorderThickness="1"
-                              CornerRadius="2"
-                              Background="#FFFFFF"
-                              HorizontalAlignment="Left"
-                              VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Column2.CheckGlyph}"
-                                   FontSize="9"
-                                   FontWeight="SemiBold"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   Foreground="#202020" />
-                      </Border>
-                      <TextBlock Grid.Column="1"
-                                 Text="{Binding Column2.DisplayText}"
-                                 FontSize="10"
-                                 TextTrimming="CharacterEllipsis"
-                                 VerticalAlignment="Center" />
-                    </Grid>
-                    <Grid Grid.Column="3"
-                          Tag="{Binding Column3}"
-                          Tapped="OnCpuCellTapped"
-                          ColumnDefinitions="13,*"
-                          Visibility="{Binding Column3, Converter={StaticResource NullToVisibilityConverter}}"
-                          Background="Transparent">
-                      <Border Width="10"
-                              Height="10"
-                              BorderBrush="#8F938D"
-                              BorderThickness="1"
-                              CornerRadius="2"
-                              Background="#FFFFFF"
-                              HorizontalAlignment="Left"
-                              VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Column3.CheckGlyph}"
-                                   FontSize="9"
-                                   FontWeight="SemiBold"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   Foreground="#202020" />
-                      </Border>
-                      <TextBlock Grid.Column="1"
-                                 Text="{Binding Column3.DisplayText}"
-                                 FontSize="10"
-                                 TextTrimming="CharacterEllipsis"
-                                 VerticalAlignment="Center" />
-                    </Grid>
-                  </Grid>
-                </DataTemplate>
-              </ListView.ItemTemplate>
-            </ListView>
+            <Grid Grid.Row="1"
+                  ColumnSpacing="6"
+                  ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*">
+              <Button Content="時間" Tag="Time" Click="OnAnalysisMetricClick" />
+              <Button Grid.Column="1" Content="割当" Tag="Allocated" Click="OnAnalysisMetricClick" />
+              <CheckBox x:Name="CheckedOnlyCheckBox"
+                        Grid.Column="2"
+                        Content="チェック済みのみ"
+                        Click="OnCheckedOnlyClick" />
+              <Button Grid.Column="3" Content="ランキング" Tag="Ranking" Click="OnAnalysisTabClick" />
+              <Button Grid.Column="4" Content="ヒートマップ" Tag="Heatmap" Click="OnAnalysisTabClick" />
+              <Button Grid.Column="5" Content="詳細" Tag="Detail" Click="OnAnalysisTabClick" HorizontalAlignment="Left" />
+            </Grid>
+            <TextBlock x:Name="AnalysisSummaryText"
+                       Grid.Row="2"
+                       Foreground="#3D4540"
+                       TextWrapping="Wrap" />
           </Grid>
         </Border>
 
-        <Border Grid.Row="1"
-                BorderBrush="#D5D1C4"
-                BorderThickness="1"
-                Background="#FFFEFA"
-                CornerRadius="6">
-          <Grid RowDefinitions="Auto,*">
-            <Grid Padding="6,2"
-                  ColumnDefinitions="1.2*,*,90,70,50">
-              <TextBlock Text="Project"
-                         FontSize="11"
-                         FontWeight="SemiBold" />
-              <TextBlock Grid.Column="1"
-                         Text="Method"
-                         FontSize="11"
-                         FontWeight="SemiBold" />
-              <TextBlock Grid.Column="2"
-                         Text="CPU"
-                         FontSize="11"
-                         FontWeight="SemiBold" />
-              <TextBlock Grid.Column="3"
-                         Text="Status"
-                         FontSize="11"
-                         FontWeight="SemiBold" />
-              <TextBlock Grid.Column="4"
-                         Text="PID"
-                         FontSize="11"
-                         FontWeight="SemiBold" />
-            </Grid>
-            <ScrollViewer Grid.Row="1"
-                          VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Auto">
-              <ItemsControl x:Name="RunningItemsControl">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="local:BenchmarkRunItem">
+        <ScrollViewer Grid.Row="1"
+                      Grid.RowSpan="2"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Auto">
+          <Grid>
+            <ItemsControl x:Name="RankingItemsControl">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:AnalysisRankingItem">
+                  <Grid Height="26"
+                        ColumnDefinitions="220,220,70,80"
+                        ColumnSpacing="8"
+                        Tag="{Binding}"
+                        Tapped="OnAnalysisRankingTapped">
+                    <TextBlock Text="{Binding Benchmark}"
+                               FontSize="11"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <Grid Grid.Column="1"
+                          Height="14"
+                          VerticalAlignment="Center">
+                      <Border Background="{Binding BarBrush}"
+                              BorderBrush="{Binding BorderBrush}"
+                              BorderThickness="{Binding BorderThickness}"
+                              CornerRadius="4"
+                              HorizontalAlignment="Left"
+                              Width="{Binding BarWidth}" />
+                    </Grid>
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding DisplayText}"
+                               TextAlignment="Right"
+                               VerticalAlignment="Center" />
+                    <Button Grid.Column="3"
+                            Content="追加"
+                            Tag="{Binding}"
+                            Click="OnAnalysisAddBenchmarkClick" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <ItemsControl x:Name="HeatmapItemsControl"
+                          Visibility="Collapsed">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:AnalysisHeatmapRow">
+                  <Grid Height="28"
+                        ColumnDefinitions="220,110,110,110,180,180"
+                        ColumnSpacing="4">
+                    <TextBlock Text="{Binding Benchmark}"
+                               FontSize="11"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="{Binding SystemDisplay}" Background="{Binding SystemCell.Background}" Tag="{Binding SystemCell}" Click="OnAnalysisHeatmapCellClick" />
+                    <Button Grid.Column="2" Content="{Binding PersistedDisplay}" Background="{Binding PersistedCell.Background}" Tag="{Binding PersistedCell}" Click="OnAnalysisHeatmapCellClick" />
+                    <Button Grid.Column="3" Content="{Binding TsavoriteDisplay}" Background="{Binding TsavoriteCell.Background}" Tag="{Binding TsavoriteCell}" Click="OnAnalysisHeatmapCellClick" />
+                    <Button Grid.Column="4" Content="{Binding PersistedLinqTsavoriteLinqDisplay}" Background="{Binding PersistedLinqTsavoriteLinqCell.Background}" Tag="{Binding PersistedLinqTsavoriteLinqCell}" Click="OnAnalysisHeatmapCellClick" />
+                    <Button Grid.Column="5" Content="{Binding PersistedFLinqTsavoriteFLinqDisplay}" Background="{Binding PersistedFLinqTsavoriteFLinqCell.Background}" Tag="{Binding PersistedFLinqTsavoriteFLinqCell}" Click="OnAnalysisHeatmapCellClick" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <ItemsControl x:Name="DetailItemsControl"
+                          Visibility="Collapsed">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:AnalysisDetailItem">
+                  <Grid Height="30"
+                        ColumnDefinitions="220,70,70,120,120"
+                        ColumnSpacing="8">
+                    <TextBlock Text="{Binding PairName}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding TimeRatio}" TextAlignment="Right" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding AllocatedRatio}" TextAlignment="Right" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="{Binding LeftValue}" TextAlignment="Right" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="{Binding RightValue}" TextAlignment="Right" VerticalAlignment="Center" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Grid>
+        </ScrollViewer>
+
+        <Grid Grid.Row="3"
+              ColumnSpacing="8"
+              ColumnDefinitions="*,*">
+          <Border BorderBrush="#D5D1C4"
+                  BorderThickness="1"
+                  Background="#FFFEFA"
+                  CornerRadius="6">
+            <Grid RowDefinitions="Auto,Auto,*">
+              <Grid Padding="8,4"
+                    ColumnDefinitions="*,Auto">
+                <TextBlock Text="CPU"
+                           FontSize="12"
+                           FontWeight="SemiBold" />
+                <TextBlock x:Name="CpuSummaryText"
+                           Grid.Column="1"
+                           Text="0 / 0 CPUを選択中"
+                           FontSize="12"
+                           Foreground="#5D625E" />
+              </Grid>
+              <Grid x:Name="CpuPresetGrid"
+                    Grid.Row="1"
+                    Padding="6,0,6,4"
+                    ColumnSpacing="6" />
+              <ListView x:Name="CpuItemsControl"
+                        Grid.Row="2"
+                        ScrollViewer.VerticalScrollBarVisibility="Auto"
+                        ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                        SelectionMode="None"
+                        IsItemClickEnabled="False"
+                        HorizontalContentAlignment="Stretch"
+                        Padding="2,0,2,2"
+                        BorderThickness="0"
+                        Background="Transparent">
+                <ListView.ItemTemplate>
+                  <DataTemplate x:DataType="local:CpuRowItem">
                     <Grid Height="20"
-                          Padding="6,0"
-                          ColumnDefinitions="1.2*,*,90,70,50">
-                      <TextBlock Text="{Binding ProjectDisplayName}"
-                                 FontSize="11"
-                                 TextTrimming="CharacterEllipsis"
-                                 VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="1"
-                                 Text="{Binding MethodName}"
-                                 FontSize="11"
-                                 TextTrimming="CharacterEllipsis"
-                                 VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="2"
-                                 Text="{Binding CpuDisplay}"
-                                 FontSize="11"
-                                 VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="3"
-                                 Text="{Binding StatusText}"
-                                 FontSize="11"
-                                 VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="4"
-                                 Text="{Binding ProcessIdText}"
-                                 FontSize="11"
-                                 VerticalAlignment="Center" />
+                          Padding="4,0"
+                          ColumnSpacing="4"
+                          ColumnDefinitions="*,*,*,*">
+                      <CheckBox Content="{Binding Column0.DisplayText}"
+                                IsChecked="{Binding Column0.IsSelected,Mode=OneWay}"
+                                Tag="{Binding Column0}"
+                                Click="OnCpuCheckBoxClick"
+                                FontSize="10"
+                                MinHeight="18"
+                                Padding="0" />
+                      <CheckBox Grid.Column="1"
+                                Content="{Binding Column1.DisplayText}"
+                                IsChecked="{Binding Column1.IsSelected,Mode=OneWay}"
+                                Tag="{Binding Column1}"
+                                Click="OnCpuCheckBoxClick"
+                                FontSize="10"
+                                MinHeight="18"
+                                Padding="0" />
+                      <CheckBox Grid.Column="2"
+                                Content="{Binding Column2.DisplayText}"
+                                IsChecked="{Binding Column2.IsSelected,Mode=OneWay}"
+                                Tag="{Binding Column2}"
+                                Click="OnCpuCheckBoxClick"
+                                FontSize="10"
+                                MinHeight="18"
+                                Padding="0" />
+                      <CheckBox Grid.Column="3"
+                                Content="{Binding Column3.DisplayText}"
+                                IsChecked="{Binding Column3.IsSelected,Mode=OneWay}"
+                                Tag="{Binding Column3}"
+                                Click="OnCpuCheckBoxClick"
+                                FontSize="10"
+                                MinHeight="18"
+                                Padding="0" />
                     </Grid>
                   </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </ScrollViewer>
-          </Grid>
-        </Border>
+                </ListView.ItemTemplate>
+              </ListView>
+            </Grid>
+          </Border>
+          <Border Grid.Column="1"
+                  BorderBrush="#D5D1C4"
+                  BorderThickness="1"
+                  Background="#FFFEFA"
+                  CornerRadius="6">
+            <Grid RowDefinitions="Auto,*">
+              <TextBlock Text="実行中"
+                         Padding="8,4"
+                         FontSize="12"
+                         FontWeight="SemiBold" />
+              <ScrollViewer Grid.Row="1"
+                            VerticalScrollBarVisibility="Auto"
+                            HorizontalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="RunningItemsControl">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:BenchmarkRunItem">
+                      <Grid Height="20"
+                            Padding="6,0"
+                            ColumnDefinitions="1.2*,*,70,50">
+                        <TextBlock Text="{Binding ProjectDisplayName}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="1" Text="{Binding MethodName}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="2" Text="{Binding StatusText}" FontSize="11" />
+                        <TextBlock Grid.Column="3" Text="{Binding ProcessIdText}" FontSize="11" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </Grid>
+          </Border>
+        </Grid>
       </Grid>
     </Grid>
 
     <Grid Grid.Row="3"
           RowSpacing="6"
-          RowDefinitions="Auto,Auto,160">
-      <Grid ColumnSpacing="12"
-            ColumnDefinitions="*,Auto,Auto,Auto">
-        <StackPanel Spacing="2">
-          <TextBlock x:Name="StatusText"
-                     Text="Ready"
-                     Foreground="#3D4540" />
-          <TextBlock x:Name="RunTimeText"
-                     Text="Run time: -"
-                     FontSize="12"
-                     Foreground="#5D625E" />
-        </StackPanel>
-        <HyperlinkButton x:Name="HtmlReportLinkButton"
-                         Grid.Column="1"
-                         Content="HTML"
-                         Visibility="Collapsed"
-                         Click="OnOpenHtmlReportClick" />
-        <HyperlinkButton x:Name="ChartReportLinkButton"
-                         Grid.Column="2"
-                         Content="Charts"
-                         Visibility="Collapsed"
-                         Click="OnOpenChartReportClick" />
-      </Grid>
+          RowDefinitions="Auto,160">
+      <StackPanel Spacing="2">
+        <TextBlock x:Name="StatusText"
+                   Text="準備完了"
+                   Foreground="#3D4540" />
+        <TextBlock x:Name="RunTimeText"
+                   Text="実行時間: -"
+                   FontSize="12"
+                   Foreground="#5D625E" />
+      </StackPanel>
       <TextBox x:Name="LogTextBox"
-               Grid.Row="2"
+               Grid.Row="1"
                AcceptsReturn="True"
                FontFamily="Cascadia Mono, Yu Gothic UI, Meiryo, Consolas"
                FontSize="12"

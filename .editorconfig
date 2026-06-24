@@ -29,3 +29,12 @@ dotnet_style_parentheses_in_arithmetic_binary_operators = never_if_unnecessary:s
 
 # 以下の設定で「型キャスト」の後のスペースも詰められます
 csharp_space_after_cast = false
+
+# this 修飾を必須化
+dotnet_style_qualification_for_field = true:warning
+dotnet_style_qualification_for_property = true:warning
+dotnet_style_qualification_for_method = true:warning
+dotnet_style_qualification_for_event = true:warning
+
+# 「this は冗長です」(IDE0003) を無効化
+dotnet_diagnostic.IDE0003.severity = none

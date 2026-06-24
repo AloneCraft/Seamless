@@ -32,6 +32,9 @@ public class Count(int 番号, Enumerable source, string resultType) : BufferedS
         if(source is RepeatRoot repeat) {
             return $"{destType} {destVar}=({destType})({repeat.CountExpression});";
         }
+        if(source.NonEnumeratedCountExpression is { } countExpression) {
+            return $"{destType} {destVar}=({destType})({countExpression});";
+        }
         if(source.DirectEnumerableExpression is not { } sourceExpression) {
             return RenderComputeInline(destVar,destType);
         }
@@ -110,10 +113,10 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
         return source is RangeRoot range
             ? RangePredicateOptimizer.RenderCount(range,predicate,番号,destVar,destType)
                 ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
-                    ? RenderDirectEnumerableCallInline(source,destVar,destType,methodName,rangeLambda)
+                    ? RenderDirectEnumerableCallInline(source,destVar,destType,methodName,rangeLambda) ?? RenderComputeInline(destVar,destType)
                     : RenderComputeInline(destVar,destType))
         : TryRenderDirectLambda(predicate) is { } lambda
-            ? RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda)
+            ? RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda) ?? RenderComputeInline(destVar,destType)
             : RenderComputeInline(destVar,destType);
     }
     protected override string ComputeMembers => source.CanProvideSpan
@@ -121,16 +124,14 @@ public class Count_predicate(int 番号, Enumerable source, FuncFragment predica
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
                 source.TryGetSpan(out var __span);
-                {{resultType}} count = 0;
-                checked{
-                    for(var __i = 0; __i < __span.Length; __i++) {
-                        var {{item}} = __span[__i];
-                        bool {{temp}} = default!;
-                        {{FuncAssignStaticIndented("            ",predicate,nameof(predicate),temp,item)}}
-                        if({{temp}}) count++;
-                    }
+                var count = 0;
+                for(var __i = 0; __i < __span.Length; __i++) {
+                    var {{item}} = __span[__i];
+                    bool {{temp}} = default!;
+                    {{FuncAssignStaticIndented("        ",predicate,nameof(predicate),temp,item)}}
+                    if({{temp}}) count++;
                 }
-                return count;
+                return ({{resultType}})count;
             }
             """
         : $$"""

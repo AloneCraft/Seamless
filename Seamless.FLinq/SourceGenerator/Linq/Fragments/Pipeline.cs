@@ -1797,12 +1797,14 @@ PipelineEnumerable は Where/Select/Take/OrderBy など複数 stage を1つの e
   1つの Struct に state field と loop 分岐を集め、CountPreserving な場合は TryCopyTo もまとめて生成する。
 */
 public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyList<PipelineStage> stages,string elementType):Enumerable(番号) {
-    private bool CountPreserving => stages.All(static stage => stage.Kind is PipelineStageKind.Select or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast);
+    private bool StagesCountPreserving => stages.All(static stage => stage.Kind is PipelineStageKind.Select or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast);
     private bool SingleDefaultIfEmpty => stages.Count==1 && stages[0].Kind==PipelineStageKind.DefaultIfEmpty;
     protected override Enumerable PrimarySource => source;
     public Enumerable Source => source;
     public IReadOnlyList<PipelineStage> Stages => stages;
     public override string ElementType => elementType;
+    public override string? NonEnumeratedCountExpression => StagesCountPreserving ? source.NonEnumeratedCountExpression : null;
+    public override bool CountPreserving => source.CountPreserving && StagesCountPreserving;
     public override bool CanTryProvideSpan => SingleDefaultIfEmpty && source.CanTryProvideSpan;
     private void AppendCounterCall(StringBuilder builder,string indent,string methodName) {
         var call=CounterCall(methodName);
@@ -1887,6 +1889,48 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         ?? base.GetConsumeExecutionStatement(consumerName);
 
     private string? RenderPureOrderingDirectConsume(string consumerName) {
+        var directOrderStages=OrderStages(0).ToArray();
+        if(directOrderStages.Length>0) {
+            var primaryOrder=directOrderStages[0];
+            if(CanUseSortedIntOrderFastPath(0,primaryOrder,directOrderStages)) {
+                var sourceName=$"__orderedSource{番号}";
+                var fallbackName=$"__orderedFallback{番号}";
+                var spanName=$"__orderedSpan{番号}";
+                var sortedName=$"__orderedSorted{番号}";
+                var handledName=$"__orderedHandled{番号}";
+                var directItemName=$"__orderedItem{番号}";
+                var itemExpression=primaryOrder.Descending
+                    ? $"{spanName}[{spanName}.Length-1-__i]"
+                    : $"{spanName}[__i]";
+                return $$"""
+                    var {{handledName}}=false;
+                    using var {{sourceName}}={{source.GetEnumeratorExpression}};
+                    if({{sourceName}}.TryGetSpan(out var {{spanName}})) {
+                        var {{sortedName}}=true;
+                        for(var __i=1;__i<{{spanName}}.Length;__i++) {
+                            if({{spanName}}[__i]<{{spanName}}[__i-1]) {
+                                {{sortedName}}=false;
+                                break;
+                            }
+                        }
+                        if({{sortedName}}) {
+                            for(var __i=0;__i<{{spanName}}.Length;__i++) {
+                                var {{directItemName}}={{itemExpression}};
+                                {{consumerName}}.Consume({{directItemName}});
+                            }
+                            {{handledName}}=true;
+                        }
+                    }
+                    if(!{{handledName}}) {
+                        using var {{fallbackName}}={{GetEnumeratorExpression}};
+                        while({{fallbackName}}.TryGetNext(out var {{directItemName}})) {
+                            {{consumerName}}.Consume({{directItemName}});
+                        }
+                    }
+                    """;
+            }
+        }
+
         if(stages.Count==0
             || !stages.All(static stage => stage.Kind is PipelineStageKind.OrderBy
                 or PipelineStageKind.OrderByDescending
@@ -1943,6 +1987,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             return null;
         }
     }
+
     public override string GetEnumeratorPrimaryConstructorParameters {
         get {
             var parameters = new List<string> { $"TEnum {e}" };
@@ -2001,6 +2046,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
                 } else if(stage.Kind is PipelineStageKind.Concat or PipelineStageKind.Append or PipelineStageKind.Prepend) {
                     builder.AppendLine($"private int {StateName(index)} = 0;");
                 } else if(stage.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending) {
+                    builder.AppendLine(OrderIndexComparerType(index));
                     builder.AppendLine($"private {stage.InputType}[]? {OrderValuesName(index)} = null;");
                     builder.AppendLine($"private int[]? {OrderIndexesName(index)} = null;");
                     builder.AppendLine($"private int {OrderCountName(index)} = 0;");
@@ -2075,7 +2121,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
                     return false;
                     """;
             }
-            return CountPreserving
+            return StagesCountPreserving
                 ? $"return this.{e}.TryGetNonEnumeratedCount(out count);"
                 : base.GetTryGetNonEnumeratedCountBody;
         }
@@ -2135,7 +2181,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
                     return false;
                     """;
             }
-            if(!CountPreserving) {
+            if(!StagesCountPreserving) {
                 return base.GetTryCopyToBody;
             }
 
@@ -2593,22 +2639,16 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             builder.AppendLine($"                {OrderKeysLocalName(orderIndex,orderStage)}![__orderKeyIndex{orderIndex}]={keyName};");
         }
         builder.AppendLine("            }");
-        foreach(var orderStage in orderStages) {
-            if(!CanUseDirectDefaultOrderCompare(orderStage)) {
-                builder.AppendLine($"            var {OrderComparerLocalName(OrderStageAbsoluteIndex(orderIndex,orderStage))}={OrderComparerName(OrderComparerOrdinal(OrderStageAbsoluteIndex(orderIndex,orderStage)))} ?? global::System.Collections.Generic.Comparer<{ComparerKeyType(orderStage)}>.Default;");
-            }
-        }
-        builder.AppendLine($"            global::System.Array.Sort({indexesLocal},0,{countLocal},global::System.Collections.Generic.Comparer<int>.Create((left,right) => {{");
-        for(var index=0;index<orderStages.Count;index++) {
-            var orderStage = orderStages[index];
-            var compareName = index==0 ? "__orderCompare" : $"__orderCompare{index}";
-            var keysLocal = OrderKeysLocalName(orderIndex,orderStage);
-            var comparerLocal = OrderComparerLocalName(OrderStageAbsoluteIndex(orderIndex,orderStage));
-            builder.AppendLine($"                var {compareName}={OrderCompareCall(orderStage,$"{keysLocal}![left]",$"{keysLocal}![right]",comparerLocal)};");
-            builder.AppendLine($"                if({compareName}!=0) return {OrderCompareExpression(orderStage,compareName)};");
-        }
-        builder.AppendLine("                return left.CompareTo(right);");
-        builder.AppendLine("            }));");
+        var comparerArgs = orderStages
+            .SelectMany(orderStage => {
+                var absoluteIndex=OrderStageAbsoluteIndex(orderIndex,orderStage);
+                var args = new List<string> { $"{OrderKeysLocalName(orderIndex,orderStage)}!" };
+                if(!CanUseDirectDefaultOrderCompare(orderStage)) {
+                    args.Add(OrderComparerName(OrderComparerOrdinal(absoluteIndex)));
+                }
+                return args;
+            });
+        builder.AppendLine($"            global::System.Array.Sort({indexesLocal},0,{countLocal},new {OrderIndexComparerName(orderIndex)}({string.Join(",",comparerArgs)}));");
         builder.AppendLine("        }");
     }
 
@@ -3573,6 +3613,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
     private string SetName(int index) => $"__set{item}_{index}";
     private string SecondSetName(int index) => $"__set2{item}_{index}";
     private string SortItemName(int index) => $"__sortitem{item}_{index}";
+    private string OrderIndexComparerName(int index) => $"__orderIndexComparer{item}_{index}";
     private string SortedItemsName(int index) => $"__sorted{item}_{index}";
     private string OrderValuesName(int index) => $"__orderValues{item}_{index}";
     private string OrderIndexesName(int index) => $"__orderIndexes{item}_{index}";
@@ -3589,6 +3630,8 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
     private string OrderValueForKeysLocalName(int index) => $"__orderValueForKeys{item}_{index}";
     private string OrderKeysLocalName(int orderIndex,PipelineStage orderStage) => $"__orderKeys{item}_{orderIndex}_{OrderStageAbsoluteIndex(orderIndex,orderStage)}";
     private string OrderKeyLocalName(int orderIndex,PipelineStage orderStage) => $"__orderKey{item}_{orderIndex}_{OrderStageAbsoluteIndex(orderIndex,orderStage)}";
+    private string OrderIndexComparerKeysFieldName(int orderIndex,PipelineStage orderStage) => $"keys{OrderStageAbsoluteIndex(orderIndex,orderStage)}";
+    private string OrderIndexComparerComparerFieldName(int orderIndex,PipelineStage orderStage) => $"comparer{OrderStageAbsoluteIndex(orderIndex,orderStage)}";
     private string GroupingName(int index) => $"__grouping{item}_{index}";
     private string GroupItemsName(int index) => $"__groups{item}_{index}";
     private string GroupName(int index) => $"__group{item}_{index}";
@@ -3680,6 +3723,52 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             public int Index { get; }
         }
         """;
+    }
+
+    private string OrderIndexComparerType(int orderIndex) {
+        var orderStages = OrderStages(orderIndex).ToArray();
+        var comparerName = OrderIndexComparerName(orderIndex);
+        var builder = new StringBuilder();
+        builder.AppendLine($"private readonly struct {comparerName} : global::System.Collections.Generic.IComparer<int> {{");
+        foreach(var orderStage in orderStages) {
+            builder.AppendLine($"    private readonly {ComparerKeyType(orderStage)}[] {OrderIndexComparerKeysFieldName(orderIndex,orderStage)};");
+            if(!CanUseDirectDefaultOrderCompare(orderStage)) {
+                builder.AppendLine($"    private readonly global::System.Collections.Generic.IComparer<{ComparerKeyType(orderStage)}> {OrderIndexComparerComparerFieldName(orderIndex,orderStage)};");
+            }
+        }
+
+        var parameters = orderStages
+            .SelectMany(orderStage => {
+                var args = new List<string> { $"{ComparerKeyType(orderStage)}[] {OrderIndexComparerKeysFieldName(orderIndex,orderStage)}" };
+                if(!CanUseDirectDefaultOrderCompare(orderStage)) {
+                    args.Add($"global::System.Collections.Generic.IComparer<{ComparerKeyType(orderStage)}>? {OrderIndexComparerComparerFieldName(orderIndex,orderStage)}");
+                }
+                return args;
+            });
+        builder.AppendLine($"    public {comparerName}({string.Join(",",parameters)}) {{");
+        foreach(var orderStage in orderStages) {
+            var keysField = OrderIndexComparerKeysFieldName(orderIndex,orderStage);
+            var comparerField = OrderIndexComparerComparerFieldName(orderIndex,orderStage);
+            builder.AppendLine($"        this.{keysField}={keysField};");
+            if(!CanUseDirectDefaultOrderCompare(orderStage)) {
+                builder.AppendLine($"        this.{comparerField}={comparerField} ?? global::System.Collections.Generic.Comparer<{ComparerKeyType(orderStage)}>.Default;");
+            }
+        }
+        builder.AppendLine("    }");
+        builder.AppendLine("    public int Compare(int left,int right) {");
+        for(var index=0;index<orderStages.Length;index++) {
+            var orderStage = orderStages[index];
+            var compareName = index==0 ? "__orderCompare" : $"__orderCompare{index}";
+            var keysField = OrderIndexComparerKeysFieldName(orderIndex,orderStage);
+            var comparerField = OrderIndexComparerComparerFieldName(orderIndex,orderStage);
+            var comparerExpression = CanUseDirectDefaultOrderCompare(orderStage) ? string.Empty : $"this.{comparerField}";
+            builder.AppendLine($"        var {compareName}={OrderCompareCall(orderStage,$"this.{keysField}[left]",$"this.{keysField}[right]",comparerExpression)};");
+            builder.AppendLine($"        if({compareName}!=0) return {OrderCompareExpression(orderStage,compareName)};");
+        }
+        builder.AppendLine("        return left.CompareTo(right);");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
     }
 
     private string GroupValueType(int index,PipelineStage stage) {

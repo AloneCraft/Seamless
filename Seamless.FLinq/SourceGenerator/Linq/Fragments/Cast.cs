@@ -9,7 +9,10 @@ public class Cast(int 番号, Enumerable source, string resultElementType) : Enu
         """;
     public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
+    public override bool CountPreserving => source.CountPreserving;
     public override string GetEnumeratorFields => string.Empty;
+    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{e}.TryGetNonEnumeratedCount(out count);";
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
             current = this.{{currentValue}} = ({{resultElementType}}){{e}}.Current!;

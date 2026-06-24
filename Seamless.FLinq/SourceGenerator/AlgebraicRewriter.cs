@@ -28,29 +28,29 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     };
     AlgebraicRewriter(SemanticModel model) {
         this.model=model;
-        enumerableType=model.Compilation.GetTypeByMetadataName("System.Linq.Enumerable");
+        this.enumerableType=model.Compilation.GetTypeByMetadataName("System.Linq.Enumerable");
     }
     public static TSyntax Rewrite<TSyntax>(TSyntax node,SemanticModel model) where TSyntax:SyntaxNode {
         return new AlgebraicRewriter(model).Visit(node) as TSyntax??node;
     }
     public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
-        if(TryReorderWhereRun(node,out var reordered)) return reordered;
-        if(TryFuseWherePredicate(node,out var fused)) return fused;
-        if(TryFuseOrderByFirst(node,out var minmax)) return minmax;
-        if(TryRemoveIdentityStage(node,out var stripped)) return stripped;
+        if(this.TryReorderWhereRun(node,out var reordered)) return reordered;
+        if(this.TryFuseWherePredicate(node,out var fused)) return fused;
+        if(this.TryFuseOrderByFirst(node,out var minmax)) return minmax;
+        if(this.TryRemoveIdentityStage(node,out var stripped)) return stripped;
         return base.VisitInvocationExpression(node);
     }
     public override SyntaxNode? VisitBinaryExpression(BinaryExpressionSyntax node) {
-        if(TryRewriteCountComparison(node,out var rewritten)) return rewritten;
+        if(this.TryRewriteCountComparison(node,out var rewritten)) return rewritten;
         return base.VisitBinaryExpression(node);
     }
     // src.Where(pred).Op() -> src.Op(pred)。Op は無引数オーバーロードのみ、pred は単一引数ラムダ。
     bool TryFuseWherePredicate(InvocationExpressionSyntax node,out SyntaxNode result) {
         result=null!;
-        if(!TryGetEnumerableExtensionCall(node,out var opName,out var opReceiver,out var opArgs)) return false;
+        if(!this.TryGetEnumerableExtensionCall(node,out var opName,out var opReceiver,out var opArgs)) return false;
         if(!FusableTerminals.Contains(opName)||opArgs.Count!=0) return false;
         if(Strip(opReceiver) is not InvocationExpressionSyntax whereInv) return false;
-        if(!TryGetWhereRunMember(whereInv,out var pred,out var whereSource)) return false;
+        if(!this.TryGetWhereRunMember(whereInv,out var pred,out var whereSource)) return false;
         result=CreateCall(whereSource,opName,pred);
         return true;
     }
@@ -60,10 +60,10 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     // tie は OrderBy 安定先頭＝MinBy/MaxBy の先頭（最初の最小/最大）一致で安全。Last 系/comparer 付き/ThenBy 連結は対象外。
     bool TryFuseOrderByFirst(InvocationExpressionSyntax node,out SyntaxNode result) {
         result=null!;
-        if(!TryGetEnumerableExtensionCall(node,out var fName,out var firstReceiver,out var firstArgs)) return false;
+        if(!this.TryGetEnumerableExtensionCall(node,out var fName,out var firstReceiver,out var firstArgs)) return false;
         if(fName!="First"||firstArgs.Count!=0) return false;
         if(Strip(firstReceiver) is not InvocationExpressionSyntax orderInv) return false;
-        if(!TryGetEnumerableExtensionCall(orderInv,out var oName,out var orderSource,out var oArgs)) return false;
+        if(!this.TryGetEnumerableExtensionCall(orderInv,out var oName,out var orderSource,out var oArgs)) return false;
         bool descending;
         if(oName=="OrderBy") {
             descending=false;
@@ -82,14 +82,14 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     // intercept 認識が壊れるため。最外段の AsEnumerable/恒等 Select は元々ゼロコストの素通しなので残す。
     bool TryRemoveIdentityStage(InvocationExpressionSyntax node,out SyntaxNode result) {
         result=null!;
-        if(!TryGetEnumerableExtensionCall(node,out var name,out var receiver,out var args)) return false;
-        if(!IsReceiverOfEnumerableCall(node)) return false;
+        if(!this.TryGetEnumerableExtensionCall(node,out var name,out var receiver,out var args)) return false;
+        if(!this.IsReceiverOfEnumerableCall(node)) return false;
         if(name=="AsEnumerable"&&args.Count==0) {
-            result=Visit(receiver) as SyntaxNode??receiver;
+            result=this.Visit(receiver) as SyntaxNode??receiver;
             return true;
         }
         if(name=="Select"&&args.Count==1&&TryGetSingleParamLambda(args[0],out var lambda)&&IsIdentityLambda(lambda)) {
-            result=Visit(receiver) as SyntaxNode??receiver;
+            result=this.Visit(receiver) as SyntaxNode??receiver;
             return true;
         }
         return false;
@@ -98,7 +98,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     bool IsReceiverOfEnumerableCall(ExpressionSyntax node) {
         if(node.Parent is not MemberAccessExpressionSyntax ma||ma.Expression!=node) return false;
         if(ma.Parent is not InvocationExpressionSyntax outer) return false;
-        return TryGetEnumerableExtensionCall(outer,out _,out _,out _);
+        return this.TryGetEnumerableExtensionCall(outer,out _,out _,out _);
     }
     // Count()/LongCount() と整数リテラル 0/1 の比較を Any()/!Any() へ。Count(pred) は Any(pred)。
     bool TryRewriteCountComparison(BinaryExpressionSyntax node,out SyntaxNode result) {
@@ -112,16 +112,16 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         InvocationExpressionSyntax countInv;
         int literal;
         bool countOnLeft;
-        if(TryGetCountInvocation(left,out countInv)&&TryGetIntLiteral(right,out literal)) {
+        if(this.TryGetCountInvocation(left,out countInv)&&TryGetIntLiteral(right,out literal)) {
             countOnLeft=true;
-        } else if(TryGetCountInvocation(right,out countInv)&&TryGetIntLiteral(left,out literal)) {
+        } else if(this.TryGetCountInvocation(right,out countInv)&&TryGetIntLiteral(left,out literal)) {
             countOnLeft=false;
         } else {
             return false;
         }
         var normalizedOp=countOnLeft?op:Reverse(op);
         if(!TryMapToAny(normalizedOp,literal,out var negate)) return false;
-        TryGetEnumerableExtensionCall(countInv,out _,out var countSource,out var countArgs);
+        this.TryGetEnumerableExtensionCall(countInv,out _,out var countSource,out var countArgs);
         ExpressionSyntax any=countArgs.Count==1
             ?CreateCall(countSource,"Any",countArgs[0].Expression)
             :CreateCall(countSource,"Any");
@@ -134,13 +134,13 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     // 連続 Where を実行順に集め、純粋・全域な場合のみ (passRate,cost,元index) で安定整列して再構築。
     bool TryReorderWhereRun(InvocationExpressionSyntax node,out SyntaxNode result) {
         result=null!;
-        if(!TryGetWhereRunMember(node,out _,out var receiver)) return false;
-        if(Strip(receiver) is not InvocationExpressionSyntax innerInv||!IsWhereCall(innerInv)) return false; // run 長 >=2
+        if(!this.TryGetWhereRunMember(node,out _,out var receiver)) return false;
+        if(Strip(receiver) is not InvocationExpressionSyntax innerInv||!this.IsWhereCall(innerInv)) return false; // run 長 >=2
         var preds=new List<ExpressionSyntax>();
         ExpressionSyntax current=node;
         ExpressionSyntax baseSource;
         while(true) {
-            if(Strip(current) is InvocationExpressionSyntax inv&&TryGetWhereRunMember(inv,out var pred,out var recv)) {
+            if(Strip(current) is InvocationExpressionSyntax inv&&this.TryGetWhereRunMember(inv,out var pred,out var recv)) {
                 preds.Add(pred);   // outer -> inner の順
                 current=recv;
             } else {
@@ -150,7 +150,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         }
         preds.Reverse();           // 実行順（innermost first）
         foreach(var p in preds) {
-            if(p is not LambdaExpressionSyntax l||!IsReorderSafe(l)) return false;
+            if(p is not LambdaExpressionSyntax l||!this.IsReorderSafe(l)) return false;
         }
         var ordered=preds
             .Select(static (p,i)=>(p,i))
@@ -173,20 +173,20 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     // メソッド/デリゲート呼び出し・インデクサ・代入・生成・throw 等を含めば不可。
     bool IsReorderSafe(LambdaExpressionSyntax lambda) {
         if(lambda.Body is not ExpressionSyntax body) return false;
-        return !AnchorAnalysis.ContainsAnchor(body,model)
-               && !HasNullSensitiveMemberAccess(body);
+        return !AnchorAnalysis.ContainsAnchor(body,this.model)
+               && !this.HasNullSensitiveMemberAccess(body);
     }
     bool HasNullSensitiveMemberAccess(ExpressionSyntax expression) {
         foreach(var memberAccess in expression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>()) {
             var receiver = Strip(memberAccess.Expression);
-            if(!IsNonNullableValueReceiver(receiver)) {
+            if(!this.IsNonNullableValueReceiver(receiver)) {
                 return true;
             }
         }
         return false;
     }
     bool IsNonNullableValueReceiver(ExpressionSyntax expr) {
-        if(model.GetTypeInfo(expr).Type is not { } t||!t.IsValueType) return false;
+        if(this.model.GetTypeInfo(expr).Type is not { } t||!t.IsValueType) return false;
         return !(t is INamedTypeSymbol n&&n.OriginalDefinition.SpecialType==SpecialType.System_Nullable_T);
     }
     static int Cost(LambdaExpressionSyntax lambda)=>lambda.Body is ExpressionSyntax b?b.DescendantNodesAndSelf().Count():int.MaxValue;
@@ -206,8 +206,8 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         receiver=null!;
         args=default;
         if(node.Expression is not MemberAccessExpressionSyntax ma) return false;
-        if(model.GetSymbolInfo(node).Symbol is not IMethodSymbol m||m.ReducedFrom is null) return false;
-        if(enumerableType is null||!SymbolEqualityComparer.Default.Equals(m.ContainingType,enumerableType)) return false;
+        if(this.model.GetSymbolInfo(node).Symbol is not IMethodSymbol m||m.ReducedFrom is null) return false;
+        if(this.enumerableType is null||!SymbolEqualityComparer.Default.Equals(m.ContainingType,this.enumerableType)) return false;
         name=m.Name;
         receiver=ma.Expression;
         args=node.ArgumentList.Arguments;
@@ -216,17 +216,17 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     bool TryGetWhereRunMember(InvocationExpressionSyntax inv,out ExpressionSyntax pred,out ExpressionSyntax receiver) {
         pred=null!;
         receiver=null!;
-        if(!TryGetEnumerableExtensionCall(inv,out var name,out var recv,out var args)) return false;
+        if(!this.TryGetEnumerableExtensionCall(inv,out var name,out var recv,out var args)) return false;
         if(name!="Where"||args.Count!=1||!TryGetSingleParamLambda(args[0],out _)) return false;
         pred=args[0].Expression;
         receiver=recv;
         return true;
     }
-    bool IsWhereCall(InvocationExpressionSyntax inv)=>TryGetWhereRunMember(inv,out _,out _);
+    bool IsWhereCall(InvocationExpressionSyntax inv)=> this.TryGetWhereRunMember(inv,out _,out _);
     bool TryGetCountInvocation(ExpressionSyntax e,out InvocationExpressionSyntax inv) {
         inv=null!;
         if(e is not InvocationExpressionSyntax i) return false;
-        if(!TryGetEnumerableExtensionCall(i,out var name,out _,out var args)) return false;
+        if(!this.TryGetEnumerableExtensionCall(i,out var name,out _,out var args)) return false;
         if(name is not("Count" or "LongCount")||args.Count>1) return false;
         inv=i;
         return true;
