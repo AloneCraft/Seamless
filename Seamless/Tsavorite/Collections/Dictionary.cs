@@ -40,8 +40,14 @@ public partial class Dictionary<
             array[arrayIndex++]=kvp;
         }
     }
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-    IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() {
+        VerifyThreadAffinity();
+        return GetEnumerator();
+    }
+    IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() {
+        VerifyThreadAffinity();
+        return GetEnumerator();
+    }
     public List<KeyValuePair<TKey,TValue>> ToList() {
         using var Enumerator = GetEnumerator();
         var capacity=checked((int)Math.Min(EntryCount,int.MaxValue));
@@ -118,6 +124,7 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         >(new());
     }
     public unsafe bool Remove(KeyValuePair<TKey,TValue> item) {
+        VerifyThreadAffinity();
         var Session = Remove_KeyValuePair_ClientSession;
         var Key0 = item.Key;
         var Value0 = item.Value;
@@ -132,6 +139,7 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         return Output;
     }
     public unsafe bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value) {
+        VerifyThreadAffinity();
         var Session = Remove_TKey_TValue_ClientSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var Input = default(EqualityEmpty);
@@ -152,16 +160,22 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
     public Enumerator<
         KeyValueIterator,
         KeyValuePair<TKey,TValue>
-    > GetEnumerator() => new(ReadSession,new(),Store.Log.TailAddress);
-    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() => new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(ReadSession,new(),Store.Log.TailAddress);
+    > GetEnumerator() {
+        VerifyThreadAffinity();
+        return new(ReadSession,new(),Store.Log.TailAddress,this);
+    }
+    IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() {
+        VerifyThreadAffinity();
+        return new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(ReadSession,new(),Store.Log.TailAddress,this);
+    }
     private ReadOnlyCollectionView<TIterator,T> CreateCollectionView<TIterator,T>()
-        where TIterator : ScanIteratorFunctions_List<T,PersistedList<T>>,ICreate<TIterator> =>
+        where TIterator : ScanIteratorFunctions_List<T>,ICreate<TIterator> =>
         new(this);
 
     private sealed class ReadOnlyCollectionView<TIterator,T>(
         Dictionary<TKey,TValue,TKeySerializer,TValueSerializer> dictionary
     ):ICollection<T>
-        where TIterator : ScanIteratorFunctions_List<T,PersistedList<T>>,ICreate<TIterator> {
+        where TIterator : ScanIteratorFunctions_List<T>,ICreate<TIterator> {
         public int Count => checked((int)dictionary.GetLongCount());
         public bool IsReadOnly => true;
         public void Add(T item) => throw new NotSupportedException();
@@ -186,17 +200,22 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
                 array[arrayIndex++]=e.Current;
             }
         }
-        public Enumerator<TIterator,T> GetEnumerator() => new(dictionary.ReadSession,TIterator.Create(),dictionary.Store.Log.TailAddress);
+        public Enumerator<TIterator,T> GetEnumerator() {
+            dictionary.VerifyThreadAffinity();
+            return new(dictionary.ReadSession,TIterator.Create(),dictionary.Store.Log.TailAddress,dictionary);
+        }
         IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
     public TValue this[TKey key] {
         get {
+            VerifyThreadAffinity("Item");
             if(TryGetValue(key,out var value))
                 return value;
             throw new KeyNotFoundException();
         }
         set {
+            VerifyThreadAffinity("Item");
             var KeyBytes = TKeySerializer.Serialize(ref key);
             var ValueBytes = TValueSerializer.Serialize(ref value);
             if(WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
