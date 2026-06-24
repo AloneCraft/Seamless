@@ -222,6 +222,15 @@ public sealed class BenchmarkRunItem:BindableObject{
     private string? mean;
     private string? error;
     private string? stdDev;
+    private string? allocatedBytes;
+    private string? peakRssBytes;
+    private string? estimatedPeakRssBytes;
+    private double? meanNanoseconds;
+    private double? errorNanoseconds;
+    private double? stdDevNanoseconds;
+    private long? allocatedBytesValue;
+    private long? peakRssBytesValue;
+    private long? estimatedPeakRssBytesValue;
     private int? exitCode;
     private DateTimeOffset? startedAt;
     private DateTimeOffset? finishedAt;
@@ -291,6 +300,51 @@ public sealed class BenchmarkRunItem:BindableObject{
         set => this.SetProperty(ref this.stdDev,value);
     }
 
+    public string? AllocatedBytes{
+        get => this.allocatedBytes;
+        set => this.SetProperty(ref this.allocatedBytes,value);
+    }
+
+    public string? PeakRssBytes{
+        get => this.peakRssBytes;
+        set => this.SetProperty(ref this.peakRssBytes,value);
+    }
+
+    public string? EstimatedPeakRssBytes{
+        get => this.estimatedPeakRssBytes;
+        set => this.SetProperty(ref this.estimatedPeakRssBytes,value);
+    }
+
+    public double? MeanNanoseconds{
+        get => this.meanNanoseconds;
+        set => this.SetProperty(ref this.meanNanoseconds,value);
+    }
+
+    public double? ErrorNanoseconds{
+        get => this.errorNanoseconds;
+        set => this.SetProperty(ref this.errorNanoseconds,value);
+    }
+
+    public double? StdDevNanoseconds{
+        get => this.stdDevNanoseconds;
+        set => this.SetProperty(ref this.stdDevNanoseconds,value);
+    }
+
+    public long? AllocatedBytesValue{
+        get => this.allocatedBytesValue;
+        set => this.SetProperty(ref this.allocatedBytesValue,value);
+    }
+
+    public long? PeakRssBytesValue{
+        get => this.peakRssBytesValue;
+        set => this.SetProperty(ref this.peakRssBytesValue,value);
+    }
+
+    public long? EstimatedPeakRssBytesValue{
+        get => this.estimatedPeakRssBytesValue;
+        set => this.SetProperty(ref this.estimatedPeakRssBytesValue,value);
+    }
+
     public int? ExitCode{
         get => this.exitCode;
         set => this.SetProperty(ref this.exitCode,value);
@@ -336,6 +390,10 @@ public sealed record WorkerResultMessage(
     string Mean,
     string Error,
     string StdDev,
+    double? MeanNanoseconds,
+    double? ErrorNanoseconds,
+    double? StdDevNanoseconds,
+    long? AllocatedBytes,
     int ExitCode,
     string ArtifactFolder,
     string Log);

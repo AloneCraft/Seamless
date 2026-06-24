@@ -1,0 +1,370 @@
+using Microsoft.CodeAnalysis;
+using Seamless.FLinq;
+using Xunit.Abstractions;
+
+namespace Test.SourceGenerator;
+
+[LinqIntercept(false)]
+public sealed class PerformanceShapeTests(ITestOutputHelper output) {
+    [Fact]
+    public void ModuloKeyedGroupingUsesKeyCardinalityCapacity() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static List<KeyValuePair<int,int>> AggregateByMod(int[] src) =>
+                    src.AggregateBy(static x => x%1000,0,static (acc,x) => acc+x).ToList();
+                private static List<KeyValuePair<int,int>> CountByMod(int[] src) =>
+                    src.CountBy(static x => x%1000).ToList();
+                private static ILookup<int,int> ToLookupMod(int[] src) =>
+                    src.ToLookup(static x => x%1000);
+                public void Run(int[] src) {
+                    _ = AggregateByMod(src);
+                    _ = CountByMod(src);
+                    _ = ToLookupMod(src);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::System.Math.Min(__span.Length,1999)",StringComparison.Ordinal)
+            && generated.Contains("global::System.Math.Min(__count,1999)",StringComparison.Ordinal)
+            && generated.Contains("var __capacity=__hasSpan",StringComparison.Ordinal)
+            && generated.Contains("new global::System.Collections.Generic.List<int>(__capacity)",StringComparison.Ordinal)
+            && !generated.Contains("Dictionary<int, int>(__span.Length)",StringComparison.Ordinal)
+            && !generated.Contains("Dictionary<int, int>(__count)",StringComparison.Ordinal),
+            "Modulo key selectors should use key cardinality, not input length, as hash/list capacity.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void DistinctByModuloUsesSmallBoolArrayConsumePath() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private static void DistinctByMod(int[] src, Consumer<int> consumer) =>
+                    src.DistinctBy(static x => x%1000).Consume(consumer);
+                public void Run(int[] src, Consumer<int> consumer) => DistinctByMod(src, consumer);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("new bool[1999]",StringComparison.Ordinal)
+            && generated.Contains("__seenIndex",StringComparison.Ordinal)
+            && generated.Contains(".Consume(value)",StringComparison.Ordinal)
+            && !generated.Contains("new global::System.Collections.Generic.HashSet<int>(__span.Length",StringComparison.Ordinal)
+            && !generated.Contains("new global::System.Collections.Generic.HashSet<int>(__count",StringComparison.Ordinal),
+            "DistinctBy with a small modulo int key should use a bool[] direct-consume path.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void DefaultIfEmptyPreservesNonEmptySpanFastPath() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static List<int> DefaultIfEmptyFast(int[] src) =>
+                    src.DefaultIfEmpty(0).ToList();
+                public void Run(int[] src) => _ = DefaultIfEmptyFast(src);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("TryGetSpan(out span)&&span.Length!=0",StringComparison.Ordinal)
+            && generated.Contains("__span.Slice(__spanStart,destination.Length).CopyTo(destination);",StringComparison.Ordinal)
+            && generated.Contains("destination[0]=0;",StringComparison.Ordinal),
+            "DefaultIfEmpty should expose/copy the source span when non-empty and only synthesize default for empty sources.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void ExplicitDefaultComparersUseSortedSpanFastPaths() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private static void DistinctFast(int[] src, Consumer<int> consumer) =>
+                    src.Distinct(EqualityComparer<int>.Default).Consume(consumer);
+                private static void ExceptFast(int[] src,int[] second, Consumer<int> consumer) =>
+                    src.Except(second,EqualityComparer<int>.Default).Consume(consumer);
+                private static List<int> OrderFast(int[] src) =>
+                    src.OrderBy(static x => x,Comparer<int>.Default).ToList();
+                public void Run(int[] src,int[] second, Consumer<int> consumer) {
+                    DistinctFast(src,consumer);
+                    ExceptFast(src,second,consumer);
+                    _ = OrderFast(src);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("__distinctSpan",StringComparison.Ordinal)
+            && generated.Contains("__setSrcSpan",StringComparison.Ordinal)
+            && generated.Contains("__orderSpan",StringComparison.Ordinal),
+            "Explicit default comparers should be treated as default comparer fast-path candidates.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void SortedOrderFastPathAllowsElementwiseContinuation() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static List<int> OrderThenFilterMapTake(int[] src) =>
+                    src.OrderBy(static x => x).Where(static x => x>1).Select(static x => x*2).Take(3).ToList();
+                public void Run(int[] src) => _ = OrderThenFilterMapTake(src);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("__orderSpan",StringComparison.Ordinal)
+            && generated.Contains("while(__orderNextIndex",StringComparison.Ordinal)
+            && generated.Contains("if(!(__it",StringComparison.Ordinal)
+            && generated.Contains(">1)) continue;",StringComparison.Ordinal),
+            "Sorted Order fast path should keep elementwise continuation inside a loop.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void BinarySetThenOrderUsesSharedPooledOrderBuffer() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static List<int> UnionOrderThenBy(int[] first,int[] second) =>
+                    first.Union(second).OrderBy(static x => x%2).ThenBy(static x => x).ToList();
+                public void Run(int[] first,int[] second) => _ = UnionOrderThenBy(first,second);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("__orderValues",StringComparison.Ordinal)
+            && generated.Contains("__orderIndexes",StringComparison.Ordinal)
+            && generated.Contains("global::System.Array.Sort(__orderIndexes",StringComparison.Ordinal)
+            && generated.Contains("global::System.Buffers.ArrayPool<int>.Shared.Rent",StringComparison.Ordinal)
+            && !generated.Contains("global::System.Collections.Generic.List<__sortitem",StringComparison.Ordinal),
+            "BinarySet followed by Order/ThenBy should materialize accepted values directly into the pooled order buffer.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void DistinctFallbackUsesHashSetSlim() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private static void DistinctFast(int[] src, Consumer<int> consumer) =>
+                    src.Distinct().Consume(consumer);
+                public void Run(int[] src, Consumer<int> consumer) => DistinctFast(src, consumer);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal)
+            && generated.Contains("using var __lk",StringComparison.Ordinal)
+            && !generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
+            "Distinct fallback should use pooled HashSetSlim for internal duplicate tracking.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void BinarySetOperationsUseHashSetSlim() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private static void SetOps(int[] first, int[] second, Consumer<int> consumer) {
+                    first.Union(second).Consume(consumer);
+                    first.Except(second).Consume(consumer);
+                    first.Intersect(second).Consume(consumer);
+                }
+                public void Run(int[] first, int[] second, Consumer<int> consumer) => SetOps(first, second, consumer);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal)
+            && generated.Contains(".Remove(value)",StringComparison.Ordinal)
+            && !generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
+            "Union/Except/Intersect internal sets should use HashSetSlim.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void BinarySetByOperationsUseHashSetSlim() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private static void SetByOps(int[] first, int[] second, string[] keys, Consumer<int> consumer) {
+                    first.UnionBy(second, static x => x.ToString()).Consume(consumer);
+                    first.ExceptBy(keys, static x => x.ToString()).Consume(consumer);
+                    first.IntersectBy(keys, static x => x.ToString()).Consume(consumer);
+                }
+                public void Run(int[] first, int[] second, string[] keys, Consumer<int> consumer) => SetByOps(first, second, keys, consumer);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::Seamless.System.Carrier.HashSetSlim<string>",StringComparison.Ordinal)
+            && !generated.Contains("global::System.Collections.Generic.HashSet<string>",StringComparison.Ordinal),
+            "UnionBy/ExceptBy/IntersectBy internal key sets should use HashSetSlim.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void BinarySetOrderFusionUsesHashSetSlimContains() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static List<int> ExceptOrderThenBy(int[] first,int[] second) =>
+                    first.Except(second).OrderBy(static x => x%2).ThenBy(static x => x).ToList();
+                public void Run(int[] first,int[] second) => _ = ExceptOrderThenBy(first,second);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal)
+            && generated.Contains(".Contains(",StringComparison.Ordinal)
+            && generated.Contains(".Dispose();",StringComparison.Ordinal)
+            && !generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
+            "Binary set followed by Order/ThenBy should use HashSetSlim fields and Contains in the fused pipeline.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void ToHashSetKeepsSystemHashSetResult() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static HashSet<int> ToHashSetFast(int[] src) =>
+                    src.ToHashSet();
+                public void Run(int[] src) => _ = ToHashSetFast(src);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal)
+            && !generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal),
+            "ToHashSet must keep returning System.Collections.Generic.HashSet<T>.",
+            generated,
+            output);
+    }
+
+    private static string GeneratedSource(string source) {
+        var comp = GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
+        GeneratorDriver driver = GeneratorTestHelpers.CreateDriver();
+        driver = driver.RunGeneratorsAndUpdateCompilation(comp,out var outputCompilation,out var generatorDiagnostics);
+        var generated = string.Concat(driver.GetRunResult().Results.SelectMany(static r => r.GeneratedSources).Select(static s => s.SourceText.ToString()));
+        var diagnostics = generatorDiagnostics
+            .Concat(outputCompilation.GetDiagnostics())
+            .Where(static d => d.Severity==DiagnosticSeverity.Error)
+            .Where(static d => d.Id!="CS9137")
+            .ToArray();
+        GeneratedSourceAssert.NoErrors(diagnostics,generated,null);
+        return generated;
+    }
+}

@@ -29,6 +29,11 @@ internal abstract class ToLookupBase(int 番号,Enumerable source,string resultT
     protected override string ComputeMembers=>string.Empty;
     protected override string ComputeExpression=>throw new NotSupportedException();
 
+    protected static string CapacityExpression(FuncFragment keySelector,string sourceCountExpression) =>
+        keySelector.CardinalityUpperBound is > 0 and var upperBound
+            ? $"global::System.Math.Min({sourceCountExpression},{upperBound})"
+            : sourceCountExpression;
+
     protected static string LookupImpl(string elementType,string keyType)=>$$"""
         private sealed class TsavoriteGrouping:global::System.Linq.IGrouping<{{keyType}},{{elementType}}>{
             private readonly {{keyType}} key;
@@ -70,8 +75,8 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
             private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(keySelector)}}) {
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
-                    ? __span.Length
-                    : source.TryGetNonEnumeratedCount(out var __count) ? __count : 0;
+                    ? {{CapacityExpression(keySelector,"__span.Length")}}
+                    : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
                 var map = __capacity>0
                     ? new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>(__capacity)
                     : new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>();
@@ -127,8 +132,8 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
             private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(keySelector, elementSelector)}}) {
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
-                    ? __span.Length
-                    : source.TryGetNonEnumeratedCount(out var __count) ? __count : 0;
+                    ? {{CapacityExpression(keySelector,"__span.Length")}}
+                    : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
                 var map = __capacity>0
                     ? new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>>(__capacity)
                     : new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>>();
@@ -189,8 +194,8 @@ internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFr
             private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{ClosureMethodParameterSuffix(keySelector)}}) {
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
-                    ? __span.Length
-                    : source.TryGetNonEnumeratedCount(out var __count) ? __count : 0;
+                    ? {{CapacityExpression(keySelector,"__span.Length")}}
+                    : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
                 var map = __capacity>0
                     ? new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>(__capacity,comparer)
                     : new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>(comparer);
@@ -247,8 +252,8 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
             private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{ClosureMethodParameterSuffix(keySelector, elementSelector)}}) {
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
-                    ? __span.Length
-                    : source.TryGetNonEnumeratedCount(out var __count) ? __count : 0;
+                    ? {{CapacityExpression(keySelector,"__span.Length")}}
+                    : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
                 var map = __capacity>0
                     ? new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>>(__capacity,comparer)
                     : new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>>(comparer);

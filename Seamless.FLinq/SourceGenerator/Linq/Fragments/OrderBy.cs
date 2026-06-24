@@ -28,7 +28,7 @@ OrderingBase は OrderBy/ThenBy 系を、全件 buffer + stable sort + buffer en
 public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment keySelector, string comparer, bool descending) : BufferedSequence(番号, source.ElementType) {
     // チェーン（ThenBy）検出用に一次ソースを公開
     internal FuncFragment OwnKeySelector => keySelector;
-    internal string OwnComparer => comparer;
+    internal string OwnComparer => ComparerExpressionSupport.RenderOrderComparer(comparer,FuncReturnTypeName(keySelector));
     internal bool OwnDescending => descending;
     internal Enumerable OwnSource => source;
 
@@ -54,8 +54,8 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
 
     public override string GetEnumeratorExpression =>
         PrimaryOrdering is { } po
-            ? $"new {EnumeratorTypeName}({UnorderedSource.GetEnumeratorExpression}, {comparer}, {po.OwnComparer}{ClosureArgsSuffix(keySelector, po.OwnKeySelector)})"
-            : $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{ClosureArgsSuffix(keySelector)})";
+            ? $"new {EnumeratorTypeName}({UnorderedSource.GetEnumeratorExpression}, {OwnComparer}, {po.OwnComparer}{ClosureArgsSuffix(keySelector, po.OwnKeySelector)})"
+            : $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {OwnComparer}{ClosureArgsSuffix(keySelector)})";
 
     public override string GetEnumeratorPrimaryConstructorParameters =>
         PrimaryOrdering is { } po

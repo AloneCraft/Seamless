@@ -25,16 +25,16 @@ internal static class TraversalSupport{
 
     public static void AppendHashSetInitialization(StringBuilder builder,string setName,string elementType,string enumeratorName,string comparer,string? capacityHint=null){
         var countName=$"__count_{setName}";
-        builder.AppendLine($"global::System.Collections.Generic.HashSet<{elementType}> {setName};");
         if(capacityHint is not null){
-            builder.AppendLine($"{setName}=new global::System.Collections.Generic.HashSet<{elementType}>({capacityHint},(global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer});");
+            builder.AppendLine($"using var {setName}=new global::Seamless.System.Carrier.HashSetSlim<{elementType}>({capacityHint},(global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer});");
             return;
         }
-        builder.AppendLine($"if({enumeratorName}.TryGetNonEnumeratedCount(out var {countName})){{");
-        builder.AppendLine($"    {setName}=new global::System.Collections.Generic.HashSet<{elementType}>({countName},(global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer});");
-        builder.AppendLine("}else{");
-        builder.AppendLine($"    {setName}=new global::System.Collections.Generic.HashSet<{elementType}>((global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer});");
-        builder.AppendLine("}");
+        var hasCountName=$"__hasCount_{setName}";
+        builder.AppendLine($"var {countName}=0;");
+        builder.AppendLine($"var {hasCountName}={enumeratorName}.TryGetNonEnumeratedCount(out {countName});");
+        builder.AppendLine($"using var {setName}={hasCountName}");
+        builder.AppendLine($"    ? new global::Seamless.System.Carrier.HashSetSlim<{elementType}>({countName},(global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer})");
+        builder.AppendLine($"    : new global::Seamless.System.Carrier.HashSetSlim<{elementType}>((global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer});");
     }
 
     public static string IndentBlock(string text,string indent){

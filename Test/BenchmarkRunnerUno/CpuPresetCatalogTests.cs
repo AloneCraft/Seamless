@@ -69,7 +69,7 @@ public sealed class CpuPresetCatalogTests{
     [Fact]
     public void ReportFormatter_KeepsDetailedCsv_AndBuildsAggregatedHtml(){
         var rows = new[]{
-            new ReportRow("System LINQ","Method","","Method","Completed","1.0 ns","0.1","0.2","0","P0","0(P0)","","","artifact",0),
+            new ReportRow("System LINQ","Method","","Method","Completed","1.0 ns","0.1","0.2","0","0","0",1,0.1,0.2,0,0,0,"0","P0","0(P0)","","","artifact",0),
         };
 
         var csv = BenchmarkReportFormatter.BuildCsv(rows);
@@ -77,7 +77,7 @@ public sealed class CpuPresetCatalogTests{
 
         Assert.Contains("LogicalCpu,Core,CpuDisplay,StartedAt,FinishedAt,ArtifactFolder,ExitCode",csv,StringComparison.Ordinal);
         Assert.Contains("0(P0)",csv,StringComparison.Ordinal);
-        Assert.Contains("<thead><tr><th>Method</th><th>linq</th><th>zlinq</th><th>flinq</th></tr></thead>",html,StringComparison.Ordinal);
+        Assert.Contains("<thead><tr><th>Method</th><th>linq</th><th>zlinq</th><th>flinq</th><th>persistedlinq</th><th>persistedflinq</th><th>tsavoritelinq</th><th>tsavoriteflinq</th></tr></thead>",html,StringComparison.Ordinal);
         Assert.DoesNotContain("<th>Project</th>",html,StringComparison.Ordinal);
         Assert.DoesNotContain("<th>Status</th>",html,StringComparison.Ordinal);
         Assert.DoesNotContain("CPU Display",html,StringComparison.Ordinal);
@@ -93,21 +93,21 @@ public sealed class CpuPresetCatalogTests{
 
         var html = BenchmarkReportFormatter.BuildHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
 
-        Assert.Contains("<tr><td>Select</td><td class=\"num\">2 ns</td><td class=\"num\">3 ns</td><td class=\"num\">5 ns</td></tr>",html,StringComparison.Ordinal);
+        Assert.Contains("<tr><td>Select</td><td class=\"num\">2 ns</td><td class=\"num\">3 ns</td><td class=\"num\">5 ns</td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td></tr>",html,StringComparison.Ordinal);
     }
 
     [Fact]
     public void ReportFormatter_IgnoresNonSystemProjects_InAggregatedReports(){
         var rows = new[]{
             CreateReportRow("System LINQ","Select","Completed","2 ns"),
-            CreateReportRow("Tsavorite LINQ","Select","Completed","99 ns"),
+            CreateReportRow("External LINQ","Select","Completed","99 ns"),
             CreateReportRow("Custom Project","CustomOnly","Completed","100 ns"),
         };
 
         var html = BenchmarkReportFormatter.BuildHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
         var chart = BenchmarkReportFormatter.BuildChartHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
 
-        Assert.Contains("<tr><td>Select</td><td class=\"num\">2 ns</td><td class=\"num\"></td><td class=\"num\"></td></tr>",html,StringComparison.Ordinal);
+        Assert.Contains("<tr><td>Select</td><td class=\"num\">2 ns</td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td></tr>",html,StringComparison.Ordinal);
         Assert.DoesNotContain("99 ns",html,StringComparison.Ordinal);
         Assert.DoesNotContain("CustomOnly",html,StringComparison.Ordinal);
         Assert.DoesNotContain("99 ns",chart,StringComparison.Ordinal);
@@ -126,8 +126,8 @@ public sealed class CpuPresetCatalogTests{
         var html = BenchmarkReportFormatter.BuildHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
         var chart = BenchmarkReportFormatter.BuildChartHtml(rows,new DateTimeOffset(2026,6,20,12,34,56,TimeSpan.Zero));
 
-        Assert.Contains("<tr><td>Where</td><td class=\"num\">2 ns</td><td class=\"num\"></td><td class=\"num\"></td></tr>",html,StringComparison.Ordinal);
-        Assert.Contains("<tr><td>AllMissing</td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td></tr>",html,StringComparison.Ordinal);
+        Assert.Contains("<tr><td>Where</td><td class=\"num\">2 ns</td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td></tr>",html,StringComparison.Ordinal);
+        Assert.Contains("<tr><td>AllMissing</td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td><td class=\"num\"></td></tr>",html,StringComparison.Ordinal);
         Assert.Contains("<div class=\"method\" title=\"AllMissing\">AllMissing</div>",chart,StringComparison.Ordinal);
         Assert.Contains("<div class=\"segment zlinq\" data-key=\"zlinq\" data-value=\"0\" data-original=\"1\" style=\"width:0%\" title=\"zlinq:  (0.0%)\">",chart,StringComparison.Ordinal);
         Assert.Contains("<div class=\"segment flinq\" data-key=\"flinq\" data-value=\"0\" data-original=\"2\" style=\"width:0%\" title=\"flinq:  (0.0%)\">",chart,StringComparison.Ordinal);
@@ -176,6 +176,15 @@ public sealed class CpuPresetCatalogTests{
     }
 
     private static ReportRow CreateReportRow(string project,string method,string status,string mean){
-        return new ReportRow(project,method,string.Empty,string.Empty,status,mean,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,null);
+        var meanNanoseconds=ParseMeanNanoseconds(mean);
+        return new ReportRow(project,method,string.Empty,string.Empty,status,mean,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,meanNanoseconds,0,0,0,0,0,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,null);
+    }
+
+    private static double ParseMeanNanoseconds(string mean){
+        const string suffix = " ns";
+        return mean.EndsWith(suffix,StringComparison.Ordinal)
+            && double.TryParse(mean[..^suffix.Length],global::System.Globalization.CultureInfo.InvariantCulture,out var value)
+                ? value
+                : 0;
     }
 }

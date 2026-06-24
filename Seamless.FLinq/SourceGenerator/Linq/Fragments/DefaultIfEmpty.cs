@@ -35,6 +35,7 @@ public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumer
     private Enumerable RootSource => Source is DefaultIfEmptyBase d ? d.RootSource : Source;
     private string EffectiveDefaultValue => Source is DefaultIfEmptyBase d ? d.EffectiveDefaultValue : OwnDefaultValue;
     protected override Enumerable PrimarySource => RootSource;
+    public override bool CanTryProvideSpan => RootSource.CanTryProvideSpan;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""
         {{RootSource.GetEnumeratorStruct}}
@@ -72,6 +73,44 @@ public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumer
             return true;
         }
         count=0;
+        return false;
+        """;
+    protected override string GetTryGetSpanBody => $$"""
+        if({{e}}.TryGetSpan(out span)&&span.Length!=0) {
+            return true;
+        }
+        span=default;
+        return false;
+        """;
+    protected override string GetTryCopyToBody => $$"""
+        if({{e}}.TryGetSpan(out var __span)&&__span.Length!=0) {
+            var __spanStart=__offset.GetOffset(__span.Length);
+            if(__spanStart<0||__spanStart>__span.Length||destination.Length>__span.Length-__spanStart) {
+                return false;
+            }
+            __span.Slice(__spanStart,destination.Length).CopyTo(destination);
+            return true;
+        }
+        if(!this.{{hasValue}}&&!this.{{yielded}}&&{{e}}.TryGetNonEnumeratedCount(out var __count)) {
+            if(__count==0) {
+                var __defaultStart=__offset.GetOffset(1);
+                if(__defaultStart<0||__defaultStart>1||destination.Length>1-__defaultStart) {
+                    return false;
+                }
+                if(destination.Length!=0) {
+                    destination[0]=defaultValue;
+                }
+                return true;
+            }
+            var __copyStart=__offset.GetOffset(__count);
+            if(__copyStart<0||__copyStart>__count||destination.Length>__count-__copyStart) {
+                return false;
+            }
+            return destination.Length==0||{{e}}.TryCopyTo(destination,__offset);
+        }
+        if({{e}}.TryCopyTo(destination,__offset)) {
+            return true;
+        }
         return false;
         """;
     public override string GetCurrentExpression => currentValue;

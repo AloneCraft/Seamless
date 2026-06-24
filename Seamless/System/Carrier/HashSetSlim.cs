@@ -1,9 +1,10 @@
 #pragma warning disable 0436
-namespace Seamless.System.Carrier.Internal;
+namespace Seamless.System.Carrier;
 
 // Most of the time we use class instead of struct because objects are kept in the heap.
 // Since we're only using it for duplicate checking in set operations, having `bool Add` is sufficient.
-internal sealed class HashSetSlim<T> : IDisposable
+[EditorBrowsable(EditorBrowsableState.Never)]
+public sealed class HashSetSlim<T> : IDisposable
 {
     const int MinimumSize = 16; // minimum arraypool size(power of 2)
     const double LoadFactor = 0.72;
@@ -67,6 +68,24 @@ internal sealed class HashSetSlim<T> : IDisposable
         entryIndex++;
 
         return true;
+    }
+
+    public bool Contains(T item)
+    {
+        var hashCode = InternalGetHashCode(item);
+        var index = buckets[GetBucketIndex(hashCode)] - 1;
+
+        while (index != -1)
+        {
+            ref var entry = ref entries[index];
+            if (entry.HashCode == hashCode &&comparer.Equals(entry.Value, item))
+            {
+                return true;
+            }
+            index = entry.Next;
+        }
+
+        return false;
     }
 
     void Resize()

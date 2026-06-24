@@ -18,6 +18,10 @@ CountBy は key ごとの出現数を数え、KeyValuePair<TKey,int> 相当を�
 public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : Enumerable(番号) {
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     protected override Enumerable PrimarySource => source;
+    private string CapacityExpression(string sourceCountExpression) =>
+        keySelector.CardinalityUpperBound is > 0 and var upperBound
+            ? $"global::System.Math.Min({sourceCountExpression},{upperBound})"
+            : sourceCountExpression;
     public override string StructMethod => FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumerableExpression =>
         $"global::Seamless.System.Carrier.ValueEnumerableExtensions.CountBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()})";
@@ -36,7 +40,7 @@ public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : 
     public override string GetTryGetNextBody => $$"""
         if(this.{{lookup}} is null) {
             if({{e}}.TryGetSpan(out var __span)) {
-                this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>(__span.Length);
+                this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>({{CapacityExpression("__span.Length")}});
                 for(var __i=0;__i<__span.Length;__i++) {
                     var {{item}}=__span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
@@ -46,7 +50,7 @@ public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : 
                 }
             }else{
                 if({{e}}.TryGetNonEnumeratedCount(out var __count)) {
-                    this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>(__count);
+                    this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>({{CapacityExpression("__count")}});
                 }else{
                     this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>();
                 }
