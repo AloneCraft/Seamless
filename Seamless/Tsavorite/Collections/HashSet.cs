@@ -3,7 +3,10 @@ using Seamless.Tsavorite.Stores;
 namespace Seamless.Tsavorite.Collections;
 
 /// <summary>
-/// Tsavorite 郢�E�蛛ｵ繝ｰ郢昴・縺醍ｹ�E�・�E�郢晢�E��E�郢晏ｳ�E�竊楢抁E�E�E�邵�E�繝ｻ縺檎ｹ晢�E��E�郢晢�E��E�郢晢�E��E�郢晢�E��E� HashSet邵�E�繝ｻ/// <see cref="System.Collections.Generic.ISet{T}"/> 郢�E�雋橸�E��E�貁E��・�E�繝ｻ・�E�邵�E�竏晁懸騾匁E���E�髢�E�繝ｻ竊�ETsavorite 邵�E�・�E�髫�E�・�E�驍擾�E��E�郢�E�螳夲�E��E�荵昶雷邵�E�・�E�邵�E�繝ｻ�E�繝ｻ/// 鬩�E�蟠趣�E��E�繝ｻ・帝坎・�E�邵�E�霈披・邵�E�竏壹�E�郢晢�E��E�邵�E�・�E�邵�E�・�E�郢�E�蜻茨�E��E�・�E�驍城亂笘�E�E��E�荵敖繧・・�E�邵�E�・�E� EqualityEmpty 隶堤洸�E�・�E�闖ｴ阮呻�E�定抄・�E�騾匁E���E�邵�E�蜷�E�・狗ｸ�E�繝ｻ/// </summary>
+/// Tsavorite のハッシュセット実装。
+/// <see cref="System.Collections.Generic.ISet{T}"/> を実装し、
+/// Tsavorite 永続ストア上で高速な追加・削除・検索を行うコレクションです。
+/// </summary>
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
 public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<TKey>,MemoryPackSerializer<EqualityEmpty>>, IHashSet<TKey> {
     //private readonly byte[] EmptyBytes;
@@ -165,6 +168,7 @@ public partial class HashSet<TKey> {
     }
 
     private void RunScanCursor(IScanIteratorFunctions adapter,Func<bool> shouldStop) {
+        VerifyThreadAffinity();
         var cursor = 0L;
         var untilAddress = Store.Log.TailAddress;
         while(!shouldStop()) {
@@ -260,9 +264,9 @@ internal static class HashSetScanUnsafe {
 
 
 /// <summary>
-/// Tsavorite 繝ｻ・�E�繝ｻ・�E�o繝ｻ・�E�b繝ｻ・�E�N繝ｻ・�E�G繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�h繝ｻ・�E�・我ｽ�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�I繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E� HashSet繝ｻ・�E�B
-/// <see cref="System.Collections.Generic.ISet{T}"/> 繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�A繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�p繝ｻ・�E�・偵�E��E�E�・�E� Tsavorite 繝ｻ・�E�・瑚ｩ�E�邏ｰ繧托ｽ�E�・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�・医�E��E�E�・�E�繝ｻ・�E�B
-/// 繝ｻ・�E�d繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�A繝ｻ・�E�L繝ｻ・�E�[繝ｻ・�E�・後∩繧托ｽ�E�・�E�i繝ｻ・�E�[繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�B繝ｻ・�E�l繝ｻ・�E�繝ｻ・�E� EqualityEmpty 繝ｻ・�E�\繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�・後ｑ�E�E�・�E�g繝ｻ・�E�p繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�繝ｻ・�E�B
+/// Tsavorite の HashSet スキャン操作向けの内部ヘルパークラス。
+/// <see cref="System.Collections.Generic.ISet{T}"/> の走査を非ジェネリック経由で実行するための
+/// 補助メソッドを提供します。
 /// </summary>
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
 public partial class HashSet<TKey> {
@@ -332,8 +336,14 @@ public partial class HashSet<TKey> {
     public Enumerator<
         KeyIterator,
         TKey
-    > GetEnumerator() => new(ReadSession,new(),Store.Log.TailAddress);
-    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() => new Enumerator<MemoryKeyIterator,TKey>(ReadSession,new(),Store.Log.TailAddress);
+    > GetEnumerator() {
+        VerifyThreadAffinity();
+        return new(ReadSession,new(),Store.Log.TailAddress,this);
+    }
+    IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() {
+        VerifyThreadAffinity();
+        return new Enumerator<MemoryKeyIterator,TKey>(ReadSession,new(),Store.Log.TailAddress,this);
+    }
     public partial void ExceptWith(HashSet<TKey> other) {
         base.ExceptWith(other,ExceptWith_ClientSession);
     }

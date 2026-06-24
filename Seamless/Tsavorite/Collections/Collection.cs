@@ -37,23 +37,17 @@ public abstract class Collection<
         TStoreFunctions
     > {
     /// <summary>
-    /// IterateLookup 驍ｵ・�E�繝ｻ・�E�驛｢・�E�繝ｻ・�E�驛｢譎�E樟邵�E�繝ｻ・�E�・�E�繝ｻ・�E�髯�E�闌ｨ・�E�・�E�驛｢譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�驛｢譎｢・�E�・�E�驛｢譎擾�E��E�・�E�繝ｻ繝ｻ1 驛｢譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�驛｢譏ｴ繝ｻ(= 髯�E�・�E�繝ｻ・�E�驍ｵ・�E�繝ｻ・�E�髯�E�繝ｻ・�E�・�E�驍ｵ・�E�隲�E�諛翫・驍ｵ・�E�隴�E�・�E�繝ｻ・�E�繝ｻ・�E�驍ｵ・�E�陷�E�・�E�繝ｻ・�E�・つ髫�E�蠑ｱ繝ｻList/List) 驍ｵ・�E�繝ｻ・�E�髮趣�E��E�遶丞､�E�・�E�・�E�鬮�E�雜｣・�E�・�E�驛｢・�E�・つ驍ｵ・�E�雋�E∞�E�E�竏ｫ・�E�・�E�繝ｻ・�E�
-    /// IScanIteratorFunctions 髯橸�E��E�雋�E�E��E�繝ｻ・�E�郢晢�E��E�郢晢�E��E�驛｢・�E�繝ｻ・�E�驛｢譏ｴ繝ｻ・取ｨ抵�E��E�譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�髯憺屮・�E�・�E�髯滓�E・�E�譚ｿ�E�郢�E�繝ｻ閠�E� *Iterator 髯懷姓�E�E�譏ｴ繝ｻ驍ｵ・�E�髦�E�蜷�E�繝ｻ驛｢・�E�繝ｻ・�E�驛｢譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�驛｢・�E�陜｣・�E�繝ｻ・�E�陷�E�諠�E�・�E�・�E�驍ｵ・�E�陷会ｽ�E�遯�E�・�E�
-    /// <see cref="Deserialize{TSourceLogRecord}"/> 驛｢・�E�髮区�E��E�・�E�・�E�雋�E�E��E�繝ｻ・�E�郢晢�E��E�隨倥・・�E�・�E�闕ｵ謨鳴郢晢�E��E�numerator 髫�E�蝣�E�霍昴・・�E�騾匁E���E�陷・�E��E�驍ｵ・�E�繝ｻ・�E�
-    /// <see cref="SetList"/> 驍ｵ・�E�繝ｻ・�E�髯�E�繝ｻ・�E�・�E�髯�E�迚呻�E��E�蟶吶・驛｢譎｢・�E�・�E�驛｢・�E�繝ｻ・�E�驛｢譎�E樟繝ｻ螳壽�E��E�繝ｻ・�E�驍ｵ・�E�髣埼屮・�E�・�E�繝ｻ・�E�驛｢・�E�・つ驍ｵ・�E�郢晢�E��E�
+    /// IScanIteratorFunctions 実装です。
+    /// IterateLookup から読んだレコードをデシリアライズしてチャンクへ格納します。
+    /// 列挙時は ResetChunk() で Count を初期化して再利用します。
     /// </summary>
-    public abstract class ScanIteratorFunctions_List<T, TList>:IScanIteratorFunctions
-        where TList : PersistedList<T> {
+    public abstract class ScanIteratorFunctions_List<T>:IScanIteratorFunctions {
         private const int MinimumScanChunkLength = 4096;
         public readonly T[] Chunk = new T[Math.Max(Const.Chunk_Length,MinimumScanChunkLength)];
         public int Count;
         public bool HasPendingItem => false;
-        private TList? List;
-        private readonly Lock Sync = new();
-        public void SetList(TList list) => List=list;
         public void ResetChunk() {
-            lock(Sync)
-                Count=0;
+            Count=0;
         }
         private protected virtual bool ShouldRead<TSourceLogRecord>(in TSourceLogRecord logRecord)
             where TSourceLogRecord : ISourceLogRecord => true;
@@ -65,23 +59,14 @@ public abstract class Collection<
                 cursorRecordResult=CursorRecordResult.Skip;
                 return true;
             }
-            if(List is { } list) {
-                lock(Sync)
-                    list.Add(Deserialize(logRecord));
-                cursorRecordResult=CursorRecordResult.Accept;
+            if(Count>=Chunk.Length) {
+                cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
                 return true;
             }
 
-            lock(Sync) {
-                if(Count>=Chunk.Length) {
-                    cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
-                    return true;
-                }
-
-                Chunk[Count++]=Deserialize(logRecord);
-                cursorRecordResult=CursorRecordResult.Accept;
-                return true;
-            }
+            Chunk[Count++]=Deserialize(logRecord);
+            cursorRecordResult=CursorRecordResult.Accept;
+            return true;
         }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) {
@@ -90,8 +75,7 @@ public abstract class Collection<
         }
     }
 
-    public abstract class MemoryScanIteratorFunctions<T, TList>:ScanIteratorFunctions_List<T,TList>
-        where TList : PersistedList<T> {
+    public abstract class MemoryScanIteratorFunctions<T>:ScanIteratorFunctions_List<T> {
         private protected sealed override bool ShouldRead<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             typeof(TSourceLogRecord)!=typeof(DiskLogRecord);
     }
@@ -122,6 +106,8 @@ public abstract class Collection<
         TStoreFunctions,
         TAllocator
     > ContainsDeleteSession { get; private set; } = null!;
+    private readonly int ThreadOwnerManagedThreadId = Environment.CurrentManagedThreadId;
+    private int ThreadAffinityWarningRaised;
     private readonly CollectionStore<
         TKey,
         TValue,
@@ -129,7 +115,10 @@ public abstract class Collection<
         TAllocator
     > CollectionStore;
     private protected TsavoriteKV<TStoreFunctions,TAllocator> Store => CollectionStore.Store;
-    public TryAddResult TryAdd(TKey Key,TValue Value) => PrivateTryAdd(Key,Value);
+    public TryAddResult TryAdd(TKey Key,TValue Value) {
+        VerifyThreadAffinity();
+        return PrivateTryAdd(Key,Value);
+    }
     public void Add(TKey Key,TValue Value) {
         var Result = TryAdd(Key,Value);
         switch(Result) {
@@ -140,7 +129,7 @@ public abstract class Collection<
         }
         Debug.Assert(Result==TryAddResult.Success);
     }
-    //todo 霑ｴ・�E�陜ｨ・�E�邵�E�・�E�郢晁�E繝ｻ郢�E�・�E�郢晢�E��E�郢晢�E��E�邵�E�・�E�邵�E�・�E�struct邵�E�・�E�邵�E�・�E�隴厁E���E�隴・�E��E�邵�E�・�E�邵�E�髦�E�竊�E�E��E�繝ｻ�E�繝ｻ
+    // TODO: Counter iterator used by GetLongCount().
     internal sealed class CounterIterator:IScanIteratorFunctions {
         public long Counter;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
@@ -159,6 +148,7 @@ public abstract class Collection<
         }
     }
     public long GetLongCount() {
+        VerifyThreadAffinity();
         var iterator = new CounterIterator();
         var cursor = 0L;
         ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
@@ -240,6 +230,7 @@ public abstract class Collection<
         session.Dispose();
     }
     public void Clear() {
+        VerifyThreadAffinity();
         DisposeAdditionalSessions();
         DisposeCoreSessions();
         CollectionStore.Store.Reset();
@@ -247,14 +238,16 @@ public abstract class Collection<
         RecreateAdditionalSessions();
     }
     public virtual void Refresh() {
-        // Tsavorite 驍ｵ・�E�繝ｻ・�E� log truncation/segment deletion 驍ｵ・�E�繝ｻ・�E�驍ｵ・�E�遶乗剌閹夐し・�E�郢晢�E��E�session 驍ｵ・�E�陟包�E��E�繝ｻ・�E�隴弱・莠憺し�E�E�陷�E�・�E�繝ｻ繝ｻepoch 髣匁E���E�驍丞�E・�E�・�E�繝ｻ・�E�髯�E�・�E�郢�E�蟲�E�繝ｻ驍ｵ・�E�繝ｻ・�E�髯溷私�E�E�・�E�鬯�E�・�E�繝ｻ・�E�驍ｵ・�E�髴郁E���E�・�E�讙趣�E��E�・�E�闕ｵ謨鳴郢晢�E��E�
-        // session 驛｢・�E�髮区�E��E�・�E�・�E�繝ｻ・�E�驛｢・�E�鬯・�E��E�・�E�蟶�E�・�E�・�E�陋ｹ・�E�遯�E�・�E� pending 驛｢・�E�陞ｳ螟ｲ・�E�・�E�繝ｻ・�E�髮趣�E��E�陋ｹ・�E�繝ｻ・�E�驍ｵ・�E�遶乗剌閹夐し・�E�郢晢�E��E�繝ｻ・�E�驍丞�E・�E�・�E�繝ｻ・�E�驛｢・�E�陷�E�閧�E�繝ｻ髫�E�・�E�繝ｻ・�E�驍ｵ・�E�陷�E�・�E�・つ郢晢�E��E�
+        VerifyThreadAffinity();
+        // Refresh() performs log truncation/segment deletion, then recreates sessions.
+        // Dispose active sessions, reset store, then recreate session objects.
         DisposeAdditionalSessions();
         DisposeCoreSessions();
         RecreateCoreSessions();
         RecreateAdditionalSessions();
     }
     public bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
+        VerifyThreadAffinity();
         var Status = Read(Key,out Value);
         if(Status.NotFound) {
             Value=default;
@@ -410,6 +403,7 @@ public abstract class Collection<
         >
         where TStrategy : struct, IForEachStrategy<TStrategy> {
         ArgumentNullException.ThrowIfNull(collection);
+        collection.VerifyThreadAffinity(nameof(ForEach));
         var readSession = collection.ReadSession;
         var iterator = new ForEachIterator<TStrategy>(strategy);
         var cursor = 0L;
@@ -582,6 +576,17 @@ public abstract class Collection<
         disposed=true;
     }
     ~Collection() => Dispose(false);
+    [global::System.Diagnostics.Conditional("DEBUG")]
+    internal void VerifyThreadAffinity([global::System.Runtime.CompilerServices.CallerMemberName] string operation = "") {
+        if(ThreadOwnerManagedThreadId==Environment.CurrentManagedThreadId)
+            return;
+        if(global::System.Threading.Interlocked.CompareExchange(ref ThreadAffinityWarningRaised,1,0)!=0)
+            return;
+        Debug.WriteLine(
+            $"[Tsavorite] Thread-affinity warning: {GetType().Name} should be used from thread {ThreadOwnerManagedThreadId}, " +
+            $"current thread {Environment.CurrentManagedThreadId} at {operation}. " +
+            "Create a new collection instance from Store.Create() for each thread.");
+    }
     private struct ScanIteratorFunctions_IsSubsetOf<TCollection>(TCollection other):IScanIteratorFunctions
         where TCollection : Collection<
             TKey,
@@ -657,6 +662,8 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(other);
+        self.VerifyThreadAffinity(nameof(IsSubsetOfSet));
+        other.VerifyThreadAffinity(nameof(IsSubsetOfSet));
         var ReadSession = self.ReadSession;
         var Iterator = new ScanIteratorFunctions_IsSubsetOf<TCollection>(other);
         var Cursor = 0L;
@@ -728,6 +735,8 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(other);
+        self.VerifyThreadAffinity(nameof(OverlapsSet));
+        other.VerifyThreadAffinity(nameof(OverlapsSet));
         var ReadSession = other.ReadSession;
         var Iterator = new ScanIteratorFunctions_Overlaps<TCollection>(self);
         var Cursor = 0L;
@@ -748,18 +757,20 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(Other);
+        Self.VerifyThreadAffinity(nameof(SetEqualsSet));
+        Other.VerifyThreadAffinity(nameof(SetEqualsSet));
         if(Self.GetLongCount()!=Other.GetLongCount()) {
             return false;
         }
         return IsSubsetOfSet(Self,Other);
     }
     /// <summary>
-    /// HashSet,HashSet驍ｵ・�E�陟包�E��E�繝ｻ・�E�繝ｻ・�E�驍ｵ・�E�郢晢�E��E�
+    /// Intersects this collection with another collection in place.
     /// </summary>
-    /// <typeparam name="TCollection"></typeparam>
-    /// <param name="self"></param>
-    /// <param name="other"></param>
-    /// <param name="Session"></param>
+    /// <typeparam name="TCollection">The collection type.</typeparam>
+    /// <param name="self">The collection to modify.</param>
+    /// <param name="other">The collection to intersect with.</param>
+    /// <param name="Session">The session used to tombstone keys.</param>
     private protected void IntersectWith<TCollection>(
         TCollection self,
         TCollection other,
@@ -785,14 +796,16 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(other);
+        self.VerifyThreadAffinity(nameof(IntersectWith));
+        other.VerifyThreadAffinity(nameof(IntersectWith));
         var ReadSession = self.ReadSession;
         var workListPath = CreateTemporaryWorkListPath("intersect-with");
         try {
             using var keysToExpire = new SerializedList<byte[],RawByteArraySerializer>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
             var Iterator = new ScanIteratorFunctions_IntersectWith<TCollection>(other,keysToExpire);
-            // IntersectWith 驍ｵ・�E�繝ｻ・�E�髫俶誓�E�E�・�E�髫�E�貊ゑ�E��E�・�E�驍ｵ・�E�陷会ｽ�E�遶企�E・�E�・�E�陟暮�E�会ｽ�E�繝ｻRMW 驍ｵ・�E�繝ｻ・�E� tombstone 驛｢・�E�陞ｳ螟ｲ・�E�・�E�繝ｻ・�E�鬮�E�・�E�陋滂ｽ�E�隨倥・・�E�・�E�闕ｵ譏ｶ陞ｺ驛｢・�E�遶丞仰郢晢�E��E�
-            // 髫俶誓�E�E�・�E�髫�E�貊ゑ�E��E�・�E�鬯�E�・�E�陷�E�・�E�繝ｻ・�E�陋ｹ・�E�陷・�E��E�驍ｵ・�E�繝ｻ・�E� TailAddress 驛｢・�E�陷代・・�E�・�E�闔ｨ竏晏�E�憺し�E�E�繝ｻ・�E�髯懈圜・�E�・�E�髯橸�E��E�陞｢・�E�繝ｻ・�E�驍ｵ・�E�繝ｻ・�E�髫�E�繝ｻ・�E�・�E�鬮�E�蜍溯㊥繝ｻ・�E�繝ｻ・�E�鬮�E�・�E�闔ｨ諛翫・驛｢・�E�髮区�E��E�繝ｻ髫俶誓�E�E�・�E�髫�E�貊ゑ�E��E�・�E�驍ｵ・�E�陷会ｽ�E�遶企�E・�E�・�E�郢晢�E��E�・つ郢晢�E��E�
-    var Cursor = 0L;
+            // IntersectWith first collects keys to expire, then tombstones them with RMW.
+            // This keeps the scan separate from the delete phase and avoids advancing TailAddress early.
+            var Cursor = 0L;
             ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
             ReadSession.BasicContext.CompletePending(wait: true);
             foreach(var keyBytes in keysToExpire) {
@@ -840,6 +853,7 @@ public abstract class Collection<
             EqualityEmpty,
             EqualityEmpty
         > {
+        other.VerifyThreadAffinity(nameof(SymmetricExceptWith));
         var strategy = new RmwSessionForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
@@ -871,6 +885,7 @@ public abstract class Collection<
             EqualityEmpty,
             EqualityEmpty
         > {
+        other.VerifyThreadAffinity(nameof(ExceptWith));
         var strategy = new DeleteSessionForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
@@ -902,6 +917,7 @@ public abstract class Collection<
             bool,
             EqualityEmpty
         > {
+        other.VerifyThreadAffinity(nameof(UnionWith));
         var strategy = new UpsertLogRecordForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
@@ -952,32 +968,32 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     SpanByteStoreAllocator//TAllocator
 >    where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-    public sealed class KeyIterator:ScanIteratorFunctions_List<TKey,PersistedList<TKey>>,ICreate<KeyIterator> {
+    public sealed class KeyIterator:ScanIteratorFunctions_List<TKey>,ICreate<KeyIterator> {
         public static KeyIterator Create() => new();
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    private protected sealed class MemoryKeyIterator:MemoryScanIteratorFunctions<TKey,PersistedList<TKey>> {
+    private protected sealed class MemoryKeyIterator:MemoryScanIteratorFunctions<TKey> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    private protected sealed class ValueIterator:ScanIteratorFunctions_List<TValue,PersistedList<TValue>>,ICreate<ValueIterator> {
+    private protected sealed class ValueIterator:ScanIteratorFunctions_List<TValue>,ICreate<ValueIterator> {
         public static ValueIterator Create() => new();
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
-    private protected sealed class MemoryValueIterator:MemoryScanIteratorFunctions<TValue,PersistedList<TValue>> {
+    private protected sealed class MemoryValueIterator:MemoryScanIteratorFunctions<TValue> {
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
-    public sealed class KeyValueIterator:ScanIteratorFunctions_List<KeyValuePair<TKey,TValue>,PersistedList<KeyValuePair<TKey,TValue>>> {
+    public sealed class KeyValueIterator:ScanIteratorFunctions_List<KeyValuePair<TKey,TValue>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
             var Key = TKeySerializer.Deserialize(logRecord.Key);
             var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
             return new(Key,Value);
         }
     }
-    private protected sealed class MemoryKeyValueIterator:MemoryScanIteratorFunctions<KeyValuePair<TKey,TValue>,PersistedList<KeyValuePair<TKey,TValue>>> {
+    private protected sealed class MemoryKeyValueIterator:MemoryScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
             var Key = TKeySerializer.Deserialize(logRecord.Key);
             var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
@@ -985,7 +1001,18 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
         }
     }
     public struct Enumerator<TIterator, T>:IEnumerator<T>
-        where TIterator : ScanIteratorFunctions_List<T,PersistedList<T>> {
+        where TIterator : ScanIteratorFunctions_List<T> {
+        private readonly Collection<
+            TKey,
+            TValue,
+            TValue,
+            TValue,
+            Read<TValue,TValueSerializer>,
+            Upsert<TValue,TValueSerializer>,
+            ContainsDelete,
+            SpanByteStoreFunctions,
+            SpanByteStoreAllocator
+        > CollectionInstance;
         private long Cursor;
         private int Index = -1;
         private int Count;
@@ -1012,7 +1039,19 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
             SpanByteStoreAllocator
         > session,
         TIterator iterator,
-        long untilAddress) {
+        long untilAddress,
+        Collection<
+            TKey,
+            TValue,
+            TValue,
+            TValue,
+            Read<TValue,TValueSerializer>,
+            Upsert<TValue,TValueSerializer>,
+            ContainsDelete,
+            SpanByteStoreFunctions,
+            SpanByteStoreAllocator
+        > collection) {
+            CollectionInstance=collection;
             _session=session;
             _untilAddress=untilAddress;
             _iterator=iterator;
@@ -1025,6 +1064,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
         public readonly T Current => CurrentValue;
         readonly object? IEnumerator.Current => Current;
         public bool MoveNext() {
+            CollectionInstance.VerifyThreadAffinity();
             var nextIndex = Index+1;
             if(nextIndex<Count) {
                 Index=nextIndex;
@@ -1086,12 +1126,15 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     private protected Collection(CollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
     }
     public bool ContainsKey(TKey Key) {
+        VerifyThreadAffinity(nameof(ContainsKey));
         return PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     }
     public bool Contains(TKey Key) {
+        VerifyThreadAffinity(nameof(Contains));
         return PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     }
     private protected override unsafe Status Read(TKey Key,out TValue Value) {
+        VerifyThreadAffinity(nameof(Read));
         var KeyBytes = TKeySerializer.Serialize(ref Key);
         var Session = ReadSession;
         TValue Output = default!;
@@ -1109,6 +1152,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
         return Status;
     }
     public unsafe bool Remove(TKey key) {
+        VerifyThreadAffinity();
         var ClientSession = ContainsDeleteSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var Input = default(EqualityEmpty);
@@ -1122,6 +1166,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
         return Output;
     }
     private protected override unsafe TryAddResult PrivateTryAdd(TKey key,TValue value) {
+        VerifyThreadAffinity(nameof(PrivateTryAdd));
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var serializedValueSize = TValueSerializer.Serialize(ref value).Length;
         if(WouldOverflowMutable(KeyBytes.Length,serializedValueSize))
@@ -1141,6 +1186,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     }
 
     private protected unsafe void PrivateUpsert(TKey key,TValue value) {
+        VerifyThreadAffinity(nameof(PrivateUpsert));
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var ValueBytes = TValueSerializer.Serialize(ref value);
         if(WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))

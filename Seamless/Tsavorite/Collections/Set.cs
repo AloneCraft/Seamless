@@ -175,10 +175,16 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
         if(disposing)
             ownedStore?.Dispose();
     }
-    public IEnumerator<TRecord> GetEnumerator() => new Enumerator<ValueIterator,TRecord>(ReadSession,new(),Store.Log.TailAddress);
+    public IEnumerator<TRecord> GetEnumerator() {
+        VerifyThreadAffinity();
+        return new Enumerator<ValueIterator,TRecord>(ReadSession,new(),Store.Log.TailAddress,this);
+    }
     IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-    IEnumerator<TRecord> IMemoryCollection<TRecord>.GetEnumerator() => new Enumerator<MemoryValueIterator,TRecord>(ReadSession,new(),Store.Log.TailAddress);
+    IEnumerator<TRecord> IMemoryCollection<TRecord>.GetEnumerator() {
+        VerifyThreadAffinity();
+        return new Enumerator<MemoryValueIterator,TRecord>(ReadSession,new(),Store.Log.TailAddress,this);
+    }
 }
 
 
