@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Diagnosers;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
 using BenchmarkDotNet.Toolchains.InProcess.Emit;
@@ -56,6 +57,10 @@ internal static class BenchmarkWorkerHost{
                     string.Empty,
                     string.Empty,
                     string.Empty,
+                    null,
+                    null,
+                    null,
+                    null,
                     1,
                     task?.ArtifactFolder??string.Empty,
                     ex.ToString());
@@ -87,6 +92,7 @@ internal static class BenchmarkWorkerHost{
             var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
             var config = ManualConfig
                 .Create(DefaultConfig.Instance)
+                .AddDiagnoser(MemoryDiagnoser.Default)
                 .AddJob(Job.Default.WithToolchain(InProcessEmitToolchain.Instance))
                 .WithArtifactsPath(task.ArtifactFolder);
             var summaries = BenchmarkSwitcher
@@ -95,6 +101,7 @@ internal static class BenchmarkWorkerHost{
             var summary = summaries.FirstOrDefault();
             var report = summary?.Reports.FirstOrDefault();
             var stats = report?.ResultStatistics;
+            var allocatedBytes = GetAllocatedBytes(report);
             var log = logWriter.ToString();
             File.WriteAllText(logPath,log,Encoding.UTF8);
             return new WorkerResultMessage(
@@ -103,6 +110,10 @@ internal static class BenchmarkWorkerHost{
                 FormatNanoseconds(stats?.Mean),
                 FormatNanoseconds(stats?.StandardError),
                 FormatNanoseconds(stats?.StandardDeviation),
+                stats?.Mean,
+                stats?.StandardError,
+                stats?.StandardDeviation,
+                allocatedBytes,
                 0,
                 task.ArtifactFolder,
                 log);
@@ -128,6 +139,22 @@ internal static class BenchmarkWorkerHost{
         return value is { } number&&double.IsFinite(number)
             ? number.ToString("N3",CultureInfo.InvariantCulture)+" ns"
             : string.Empty;
+    }
+
+    private static long? GetAllocatedBytes(object? report){
+        var gcStats = report?.GetType().GetProperty("GcStats")?.GetValue(report);
+        if(gcStats is null){
+            return null;
+        }
+
+        var totalMethod = gcStats.GetType().GetMethod("GetTotalAllocatedBytes",new[] { typeof(bool) });
+        if(totalMethod?.Invoke(gcStats,new object[] { true }) is long total&&total>=0){
+            return total;
+        }
+
+        return gcStats.GetType().GetProperty("AllocatedBytes")?.GetValue(gcStats) is long allocated&&allocated>=0
+            ? allocated
+            : null;
     }
 
     private static int ReadRequiredIntArg(string[] args,string name){

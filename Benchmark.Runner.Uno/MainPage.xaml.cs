@@ -45,7 +45,8 @@ public sealed partial class MainPage:Page{
     private sealed record RunReportPaths(
         string? CsvPath,
         string? HtmlPath,
-        string? ChartHtmlPath);
+        string? ChartHtmlPath,
+        string? DataJsonPath);
 
     public MainPage(){
         this.InitializeComponent();
@@ -666,6 +667,7 @@ public sealed partial class MainPage:Page{
         this.UpdateProgress();
 
         var taskId = Guid.NewGuid().ToString("N");
+        var selectedCpuCount = Math.Max(1,this.cpuCores.Count(static cpu => cpu.IsSelected));
         var message = new WorkerTaskMessage(
             "run",
             taskId,
@@ -675,12 +677,15 @@ public sealed partial class MainPage:Page{
             artifactFolder);
         WorkerResultMessage? result = null;
         Exception? workerException = null;
+        var peakRssBytes = 0L;
         var requeue = false;
         try{
             lock(this.runGate){
                 this.runningRunItems[cpu.LogicalProcessorIndex]=item;
             }
-            result = await this.SendWorkerTaskAsync(worker,message,cancellationToken);
+            var resultTask = this.SendWorkerTaskAsync(worker,message,cancellationToken);
+            peakRssBytes=await MeasurePeakWorkingSetUntilCompletedAsync(worker,resultTask,cancellationToken);
+            result=await resultTask;
         }catch(OperationCanceledException){
             await this.RunOnUiAsync(() => {
                 this.runningItems.Remove(item);
@@ -723,12 +728,30 @@ public sealed partial class MainPage:Page{
             throw new InvalidOperationException("Benchmark worker did not return a result.");
         }
 
+        var resultValues = ReadResultValues(result.ArtifactFolder,item.MethodName);
+        var meanNanoseconds = result.MeanNanoseconds??ParseNanoseconds(result.Mean)??ParseNanoseconds(resultValues.Mean);
+        var errorNanoseconds = result.ErrorNanoseconds??ParseNanoseconds(result.Error)??ParseNanoseconds(resultValues.Error);
+        var stdDevNanoseconds = result.StdDevNanoseconds??ParseNanoseconds(result.StdDev)??ParseNanoseconds(resultValues.StdDev);
+        var allocatedBytesValue = ParseMemoryBytes(resultValues.AllocatedBytes)??result.AllocatedBytes;
+        var peakRssBytesValue = peakRssBytes>0 ? peakRssBytes : (long?)null;
+        var estimatedPeakRssBytesValue = peakRssBytesValue is { } peak
+            ? peak*selectedCpuCount
+            : (long?)null;
         item.ExitCode=result.ExitCode;
         await this.RunOnUiAsync(() => {
             item.ExitCode=result.ExitCode;
-            item.Mean=result.Mean;
-            item.Error=result.Error;
-            item.StdDev=result.StdDev;
+            item.Mean=FirstText(result.Mean,resultValues.Mean,FormatNanoseconds(meanNanoseconds));
+            item.Error=FirstText(result.Error,resultValues.Error,FormatNanoseconds(errorNanoseconds));
+            item.StdDev=FirstText(result.StdDev,resultValues.StdDev,FormatNanoseconds(stdDevNanoseconds));
+            item.AllocatedBytes=FormatLong(allocatedBytesValue);
+            item.PeakRssBytes=FormatLong(peakRssBytesValue);
+            item.EstimatedPeakRssBytes=FormatLong(estimatedPeakRssBytesValue);
+            item.MeanNanoseconds=meanNanoseconds;
+            item.ErrorNanoseconds=errorNanoseconds;
+            item.StdDevNanoseconds=stdDevNanoseconds;
+            item.AllocatedBytesValue=allocatedBytesValue;
+            item.PeakRssBytesValue=peakRssBytesValue;
+            item.EstimatedPeakRssBytesValue=estimatedPeakRssBytesValue;
             item.FinishedAt=DateTimeOffset.Now;
             item.ProcessId=0;
             SetRunItemStatus(item,result.ExitCode==0 ? BenchmarkRunStatus.Completed : BenchmarkRunStatus.Failed);
@@ -738,6 +761,32 @@ public sealed partial class MainPage:Page{
         }
 
         this.UpdateProgress();
+    }
+
+    private static async Task<long> MeasurePeakWorkingSetUntilCompletedAsync(Process process,Task observedTask,CancellationToken cancellationToken){
+        var peak = ReadWorkingSet(process);
+        while(!observedTask.IsCompleted){
+            cancellationToken.ThrowIfCancellationRequested();
+            peak=Math.Max(peak,ReadWorkingSet(process));
+            await Task.Delay(100,cancellationToken);
+        }
+
+        return Math.Max(peak,ReadWorkingSet(process));
+    }
+
+    private static long ReadWorkingSet(Process process){
+        try{
+            if(process.HasExited){
+                return 0;
+            }
+
+            process.Refresh();
+            return process.WorkingSet64;
+        }catch(InvalidOperationException){
+            return 0;
+        }catch(System.ComponentModel.Win32Exception){
+            return 0;
+        }
     }
 
     private Process StartBenchmarkWorker(CpuCoreInfo cpu){
@@ -1226,7 +1275,7 @@ public sealed partial class MainPage:Page{
             .ToArray();
     }
 
-    private static (string Mean,string Error,string StdDev) ReadResultValues(string artifactFolder,string methodName){
+    private static (string Mean,string Error,string StdDev,string AllocatedBytes) ReadResultValues(string artifactFolder,string methodName){
         var csvFile = Directory.Exists(artifactFolder)
             ? Directory.GetFiles(artifactFolder,"*-report.csv",System.IO.SearchOption.AllDirectories)
                 .Select(static path => new FileInfo(path))
@@ -1234,7 +1283,7 @@ public sealed partial class MainPage:Page{
                 .FirstOrDefault()
             : null;
         if(csvFile is null){
-            return (string.Empty,string.Empty,string.Empty);
+            return (string.Empty,string.Empty,string.Empty,string.Empty);
         }
 
         using var parser = new TextFieldParser(csvFile.FullName,Encoding.UTF8){
@@ -1244,7 +1293,7 @@ public sealed partial class MainPage:Page{
         };
         parser.SetDelimiters(",");
         if(parser.EndOfData){
-            return (string.Empty,string.Empty,string.Empty);
+            return (string.Empty,string.Empty,string.Empty,string.Empty);
         }
 
         var header = parser.ReadFields()??[];
@@ -1252,26 +1301,34 @@ public sealed partial class MainPage:Page{
         var meanIndex = Array.IndexOf(header,"Mean");
         var errorIndex = Array.IndexOf(header,"Error");
         var stdDevIndex = Array.IndexOf(header,"StdDev");
+        var allocatedIndex = Array.IndexOf(header,"Allocated");
         while(!parser.EndOfData){
             var row = parser.ReadFields()??[];
             if(methodIndex>=0
                 &&row.Length>methodIndex
                 &&string.Equals(row[methodIndex],methodName,StringComparison.OrdinalIgnoreCase)){
-                return (GetCell(row,meanIndex),GetCell(row,errorIndex),GetCell(row,stdDevIndex));
+                return (
+                    GetCell(row,meanIndex),
+                    GetCell(row,errorIndex),
+                    GetCell(row,stdDevIndex),
+                    FormatLong(ParseMemoryBytes(GetCell(row,allocatedIndex))));
             }
         }
 
-        return (string.Empty,string.Empty,string.Empty);
+        return (string.Empty,string.Empty,string.Empty,string.Empty);
     }
 
     private RunReportPaths CreateRunReport(string? runRoot,bool includeHtml){
         if(string.IsNullOrWhiteSpace(runRoot)){
-            return new RunReportPaths(null,null,null);
+            return new RunReportPaths(null,null,null,null);
         }
 
         Directory.CreateDirectory(runRoot);
         var rows = this.allRunItems
-            .Where(static item => item.Status is BenchmarkRunStatus.Completed or BenchmarkRunStatus.Failed)
+            .Where(static item => item.Status is BenchmarkRunStatus.Completed
+                or BenchmarkRunStatus.Failed
+                or BenchmarkRunStatus.Canceled
+                or BenchmarkRunStatus.Running)
             .Select(static item => new ReportRow(
                 item.ProjectDisplayName,
                 item.MethodName,
@@ -1283,6 +1340,15 @@ public sealed partial class MainPage:Page{
                 item.Mean??string.Empty,
                 item.Error??string.Empty,
                 item.StdDev??string.Empty,
+                item.AllocatedBytes??string.Empty,
+                item.PeakRssBytes??string.Empty,
+                item.EstimatedPeakRssBytes??string.Empty,
+                item.MeanNanoseconds??0,
+                item.ErrorNanoseconds??0,
+                item.StdDevNanoseconds??0,
+                item.AllocatedBytesValue??0,
+                item.PeakRssBytesValue??0,
+                item.EstimatedPeakRssBytesValue??0,
                 item.AssignedCpu?.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture)??string.Empty,
                 item.AssignedCpu?.CoreLabel??string.Empty,
                 item.AssignedCpu?.CpuDisplayText??string.Empty,
@@ -1296,16 +1362,19 @@ public sealed partial class MainPage:Page{
         WriteRunCsv(csvPath,rows);
         if(!includeHtml){
             this.AppendLog($"Comparison CSV: {csvPath}");
-            return new RunReportPaths(csvPath,null,null);
+            return new RunReportPaths(csvPath,null,null,null);
         }
 
         var htmlPath = Path.Combine(runRoot,"BenchmarkComparison.html");
         var chartHtmlPath = Path.Combine(runRoot,"BenchmarkComparisonCharts.html");
+        var dataJsonPath = Path.Combine(runRoot,"BenchmarkComparisonData.json");
         WriteRunHtml(htmlPath,rows);
         WriteRunChartsHtml(chartHtmlPath,rows);
+        WriteRunDataJson(dataJsonPath,rows);
         this.AppendLog($"Comparison report: {htmlPath}");
         this.AppendLog($"Comparison charts: {chartHtmlPath}");
-        return new RunReportPaths(csvPath,htmlPath,chartHtmlPath);
+        this.AppendLog($"Comparison data: {dataJsonPath}");
+        return new RunReportPaths(csvPath,htmlPath,chartHtmlPath,dataJsonPath);
     }
 
     private static void WriteRunCsv(string path,IReadOnlyList<ReportRow> rows){
@@ -1318,6 +1387,10 @@ public sealed partial class MainPage:Page{
 
     private static void WriteRunChartsHtml(string path,IReadOnlyList<ReportRow> rows){
         File.WriteAllText(path,BenchmarkReportFormatter.BuildChartsHtml(rows,DateTimeOffset.Now),Encoding.UTF8);
+    }
+
+    private static void WriteRunDataJson(string path,IReadOnlyList<ReportRow> rows){
+        File.WriteAllText(path,BenchmarkReportFormatter.BuildDataJson(rows,DateTimeOffset.Now),Encoding.UTF8);
     }
 
     private void WriteRunSummary(string status,RunReportPaths reportPaths){
@@ -1336,9 +1409,12 @@ public sealed partial class MainPage:Page{
         builder.AppendLine($"CompletedTasks: {this.allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Completed)}");
         builder.AppendLine($"FailedTasks: {this.allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Failed)}");
         builder.AppendLine($"CanceledTasks: {this.allRunItems.Count(static item => item.Status==BenchmarkRunStatus.Canceled)}");
+        builder.AppendLine($"MaxPeakRssBytes: {MaxLongText(this.allRunItems.Select(static item => item.PeakRssBytes))}");
+        builder.AppendLine($"MaxEstimatedPeakRssBytes: {MaxLongText(this.allRunItems.Select(static item => item.EstimatedPeakRssBytes))}");
         builder.AppendLine($"CsvReport: {reportPaths.CsvPath??string.Empty}");
         builder.AppendLine($"HtmlReport: {reportPaths.HtmlPath??string.Empty}");
         builder.AppendLine($"ChartReport: {reportPaths.ChartHtmlPath??string.Empty}");
+        builder.AppendLine($"DataJsonReport: {reportPaths.DataJsonPath??string.Empty}");
         File.WriteAllText(summaryPath,builder.ToString(),Encoding.UTF8);
         this.AppendLog($"Run summary: {summaryPath}");
     }
@@ -1495,5 +1571,85 @@ public sealed partial class MainPage:Page{
 
     private static string GetCell(string[] row,int index){
         return index>=0&&index<row.Length ? row[index] : string.Empty;
+    }
+
+    private static string FirstText(params string?[] values){
+        foreach(var value in values){
+            if(!string.IsNullOrWhiteSpace(value)){
+                return value;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string FormatNanoseconds(double? value){
+        return value is { } number&&double.IsFinite(number)
+            ? number.ToString("N3",CultureInfo.InvariantCulture)+" ns"
+            : string.Empty;
+    }
+
+    private static double? ParseNanoseconds(string value){
+        var text = value.Trim();
+        if(text.EndsWith("ns",StringComparison.OrdinalIgnoreCase)){
+            text=text[..^2].Trim();
+        }
+
+        return double.TryParse(
+            text,
+            NumberStyles.AllowThousands|NumberStyles.Float,
+            CultureInfo.InvariantCulture,
+            out var number)
+            &&number>=0
+            ? number
+            : null;
+    }
+
+    private static string FormatLong(long? value){
+        return value is { } number&&number>=0
+            ? number.ToString(CultureInfo.InvariantCulture)
+            : string.Empty;
+    }
+
+    private static string MaxLongText(IEnumerable<string?> values){
+        var max = values
+            .Select(static value => long.TryParse(value,NumberStyles.Integer,CultureInfo.InvariantCulture,out var number) ? number : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+        return max>0
+            ? max.ToString(CultureInfo.InvariantCulture)
+            : string.Empty;
+    }
+
+    private static long? ParseMemoryBytes(string value){
+        var text = value.Trim();
+        if(string.IsNullOrWhiteSpace(text)||text=="-"){
+            return null;
+        }
+
+        var parts = text.Split(' ',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+        if(parts.Length==0){
+            return null;
+        }
+
+        var numberText = parts[0].Replace(",","",StringComparison.Ordinal);
+        if(!double.TryParse(numberText,NumberStyles.Float,CultureInfo.InvariantCulture,out var number)||number<0){
+            return null;
+        }
+
+        var unit = parts.Length>1 ? parts[1] : "B";
+        var multiplier = unit.ToUpperInvariant() switch{
+            "B" => 1d,
+            "BYTE" => 1d,
+            "BYTES" => 1d,
+            "KB" => 1024d,
+            "KIB" => 1024d,
+            "MB" => 1024d*1024d,
+            "MIB" => 1024d*1024d,
+            "GB" => 1024d*1024d*1024d,
+            "GIB" => 1024d*1024d*1024d,
+            _ => 1d,
+        };
+        return (long)Math.Round(number*multiplier,MidpointRounding.AwayFromZero);
     }
 }

@@ -26,24 +26,25 @@ DistinctBase は source.Distinct(comparer) を HashSet で既出判定する enu
 */
 internal abstract class DistinctBase(int 番号,Enumerable source,string comparer):Enumerable(番号),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
+    private string Comparer=>ComparerExpressionSupport.RenderEqualityComparer(comparer,source.ElementType);
     public override string StructMethod=>string.Empty;
-    public override string GetEnumerableExpression=>$"global::Seamless.System.Carrier.ValueEnumerableExtensions.Distinct({source.GetEnumerableExpression},{comparer})";
+    public override string GetEnumerableExpression=>$"global::Seamless.System.Carrier.ValueEnumerableExtensions.Distinct({source.GetEnumerableExpression},{Comparer})";
     public override string GetEnumeratorStruct=>$$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression},{comparer})";
+    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression},{Comparer})";
     public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     public override string GetEnumeratorConstructor=>$"this.{lookup}=CreateLookup({e},comparer);";
     public override string GetEnumeratorFields=>$$"""
-        private global::System.Collections.Generic.HashSet<{{source.ElementType}}> {{lookup}};
-        private static global::System.Collections.Generic.HashSet<{{source.ElementType}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
+        private global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> {{lookup}};
+        private static global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
             // Distinct は列挙途中で set を更新し続けるため、ここでは root の型に応じた span 判定を入れない。
             // 生成時点で root が span 直走査できる場合は上位の consumer 専用 lowering が選ばれ、それ以外はこの enumerator 経路に落ちる。
             if(source.TryGetNonEnumeratedCount(out var {{count}})){
-                return new global::System.Collections.Generic.HashSet<{{source.ElementType}}>({{count}},comparer);
+                return new global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}>({{count}},comparer);
             }else{
-                return new global::System.Collections.Generic.HashSet<{{source.ElementType}}>(comparer);
+                return new global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}>(comparer);
             }
         }
         """;
@@ -59,11 +60,15 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
         """;
     public override string GetCurrentExpression=> currentValue;
     public override string ElementType=>source.ElementType;
+    protected override string GetEnumeratorDisposeBody=>$"{lookup}.Dispose();\n{e}.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName){
         var sourceName=$"__src{番号}";
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
-        TraversalSupport.AppendHashSetInitialization(builder,lookup,source.ElementType,sourceName,comparer);
+        if(ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)&&IsInt32Type(source.ElementType)&&source.CanTryProvideSpan) {
+            AppendSortedIntDistinctFastPath(builder,sourceName,consumerName);
+        }
+        TraversalSupport.AppendHashSetInitialization(builder,lookup,source.ElementType,sourceName,Comparer);
         TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
             if({{lookup}}.Add(value)){
                 {{consumerName}}.Consume(value);
@@ -71,6 +76,31 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
             """,source.CanTryProvideSpan);
         return builder.ToString().TrimEnd();
     }
+
+    private void AppendSortedIntDistinctFastPath(StringBuilder builder,string sourceName,string consumerName) {
+        var spanName=$"__distinctSpan{番号}";
+        var sortedName=$"__distinctSorted{番号}";
+        builder.AppendLine($"if({sourceName}.TryGetSpan(out var {spanName})){{");
+        builder.AppendLine($"    var {sortedName}=true;");
+        builder.AppendLine($"    for(var __i=1;__i<{spanName}.Length;__i++){{");
+        builder.AppendLine($"        if({spanName}[__i]<={spanName}[__i-1]){{");
+        builder.AppendLine($"            {sortedName}=false;");
+        builder.AppendLine("            break;");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine($"    if({sortedName}){{");
+        builder.AppendLine($"        for(var __i=0;__i<{spanName}.Length;__i++){{");
+        builder.AppendLine($"            {consumerName}.Consume({spanName}[__i]);");
+        builder.AppendLine("        }");
+        builder.AppendLine("        return;");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+    }
+
+    private static bool IsInt32Type(string typeName) =>
+        string.Equals(typeName,"int",StringComparison.Ordinal)
+        || string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
+        || string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
 }
 
 /*
@@ -95,19 +125,19 @@ DistinctByBase は keySelector(item) の結果を HashSet に入れ、初めて�
 internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer):Enumerable(番号),ConsumeDirectExecutionFragment{
     protected override Enumerable PrimarySource=>source;
     private FuncFragment KeySelector=>keySelector;
-    private string Comparer=>comparer;
+    private string Comparer=>ComparerExpressionSupport.RenderEqualityComparer(comparer,FuncReturnTypeName(keySelector));
     public override string StructMethod=> FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumerableExpression=>$"global::Seamless.System.Carrier.ValueEnumerableExtensions.DistinctBy({source.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
+    public override string GetEnumerableExpression=>$"global::Seamless.System.Carrier.ValueEnumerableExtensions.DistinctBy({source.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{Comparer})";
     public override string GetEnumeratorStruct=>$$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression},{comparer}{ClosureArgsSuffix(keySelector)})";
+    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression},{Comparer}{ClosureArgsSuffix(keySelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorConstructor=>$"this.{lookup}=CreateLookup({e},comparer);";
     public override string GetEnumeratorFields=>$$"""
-        private global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> {{lookup}};
-        private static global::System.Collections.Generic.HashSet<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
+        private global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> {{lookup}};
+        private static global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
             // DistinctBy も同じで、span 走査かどうかの判定はここではしない。
             // コンパイル時に root 形状が分かる場合は上位で専用生成されるため、ここは汎用経路として最小状態だけを保持する。
             {{CreateLookupBody(FuncReturnTypeName(keySelector))}}
@@ -127,6 +157,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
         """;
     public override string GetCurrentExpression=> currentValue;
     public override string ElementType=>source.ElementType;
+    protected override string GetEnumeratorDisposeBody=>$"{lookup}.Dispose();\n{e}.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName){
         if(source is DistinctByBase previous
             && CanMergeWith(previous)) {
@@ -143,7 +174,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
         if(TryAppendSmallIntegralRangeConsume(builder,sourceName,keyName,consumerName)) {
             return builder.ToString().TrimEnd();
         }
-        TraversalSupport.AppendHashSetInitialization(builder,lookup,FuncReturnTypeName(keySelector),sourceName,comparer,KeyCapacityHint);
+        TraversalSupport.AppendHashSetInitialization(builder,lookup,FuncReturnTypeName(keySelector),sourceName,Comparer,KeyCapacityHint);
         TraversalSupport.AppendTraversalLoop(
             builder,
             sourceName,
@@ -167,7 +198,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
     private bool TryAppendSmallIntegralRangeConsume(StringBuilder builder,string sourceName,string keyName,string consumerName) {
         const int MaxRangeCount = 65536;
         var keyType=FuncReturnTypeName(keySelector);
-        if(!IsDefaultComparer(comparer)
+        if(!ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,keyType)
             || !IsInt32Type(keyType)
             || !keySelector.TryGetSmallIntegralRange(MaxRangeCount,out var min,out var max)) {
             return false;
@@ -200,12 +231,12 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
 
     private string CreateLookupBody(string keyType) =>
         KeyCapacityHint is { } capacityHint
-            ? $"return new global::System.Collections.Generic.HashSet<{keyType}>({capacityHint},comparer);"
+            ? $"return new global::Seamless.System.Carrier.HashSetSlim<{keyType}>({capacityHint},comparer);"
             : $$"""
               if(source.TryGetNonEnumeratedCount(out var {{count}})){
-                  return new global::System.Collections.Generic.HashSet<{{keyType}}>({{count}},comparer);
+                  return new global::Seamless.System.Carrier.HashSetSlim<{{keyType}}>({{count}},comparer);
               }else{
-                  return new global::System.Collections.Generic.HashSet<{{keyType}}>(comparer);
+                  return new global::Seamless.System.Carrier.HashSetSlim<{{keyType}}>(comparer);
               }
               """;
 
@@ -231,9 +262,6 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
             return false;
         }
     }
-
-    private static bool IsDefaultComparer(string comparer) =>
-        string.Equals(comparer,"null",StringComparison.Ordinal);
 
     private static bool IsInt32Type(string typeName) =>
         string.Equals(typeName,"int",StringComparison.Ordinal)

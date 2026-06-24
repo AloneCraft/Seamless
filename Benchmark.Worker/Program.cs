@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Diagnosers;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
@@ -50,6 +51,10 @@ while(await Console.In.ReadLineAsync() is { } line){
             string.Empty,
             string.Empty,
             string.Empty,
+            null,
+            null,
+            null,
+            null,
             1,
             task?.ArtifactFolder??string.Empty,
             ex.ToString());
@@ -80,6 +85,7 @@ static WorkerResultMessage RunBenchmark(
         var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
         var config = ManualConfig
             .Create(DefaultConfig.Instance)
+            .AddDiagnoser(MemoryDiagnoser.Default)
             .AddJob(Job.Default.WithToolchain(InProcessEmitToolchain.Instance))
             .WithArtifactsPath(task.ArtifactFolder);
         var summaries = BenchmarkSwitcher
@@ -88,6 +94,7 @@ static WorkerResultMessage RunBenchmark(
         var summary = summaries.FirstOrDefault();
         var report = summary?.Reports.FirstOrDefault();
         var stats = report?.ResultStatistics;
+        var allocatedBytes = GetAllocatedBytes(report);
         var log = logWriter.ToString();
         File.WriteAllText(logPath,log,Encoding.UTF8);
         return new WorkerResultMessage(
@@ -96,6 +103,10 @@ static WorkerResultMessage RunBenchmark(
             FormatNanoseconds(stats?.Mean),
             FormatNanoseconds(stats?.StandardError),
             FormatNanoseconds(stats?.StandardDeviation),
+            stats?.Mean,
+            stats?.StandardError,
+            stats?.StandardDeviation,
+            allocatedBytes,
             0,
             task.ArtifactFolder,
             log);
@@ -119,6 +130,22 @@ static string FormatNanoseconds(double? value){
     return value is { } number&&double.IsFinite(number)
         ? number.ToString("N3",CultureInfo.InvariantCulture)+" ns"
         : string.Empty;
+}
+
+static long? GetAllocatedBytes(object? report){
+    var gcStats = report?.GetType().GetProperty("GcStats")?.GetValue(report);
+    if(gcStats is null){
+        return null;
+    }
+
+    var totalMethod = gcStats.GetType().GetMethod("GetTotalAllocatedBytes",new[] { typeof(bool) });
+    if(totalMethod?.Invoke(gcStats,new object[] { true }) is long total&&total>=0){
+        return total;
+    }
+
+    return gcStats.GetType().GetProperty("AllocatedBytes")?.GetValue(gcStats) is long allocated&&allocated>=0
+        ? allocated
+        : null;
 }
 
 static string TrimUtf8Bom(string text){
@@ -188,6 +215,10 @@ internal sealed record WorkerResultMessage(
     string Mean,
     string Error,
     string StdDev,
+    double? MeanNanoseconds,
+    double? ErrorNanoseconds,
+    double? StdDevNanoseconds,
+    long? AllocatedBytes,
     int ExitCode,
     string ArtifactFolder,
     string Log);
