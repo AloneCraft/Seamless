@@ -30,13 +30,13 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private BenchmarkTab selectedTab = BenchmarkTab.Cpu;
     private ComparisonPairOption selectedComparisonPair;
     private ScaleOption? selectedScale;
-    private RunModeOption selectedRunMode;
     private ThresholdOption selectedThreshold;
     private CsvDateOption? selectedCsvDateOption;
     private DateTime? selectedCalendarDate;
     private string adaptiveThresholdSecondsText = "1";
     private MetricOption selectedMetric;
     private ChartModeOption selectedChartMode;
+    private ElementCountOption selectedElementCountOption;
     private ResultElementCountOption? selectedResultElementCount;
     private double chartHeight = 300;
     private bool isApplyingCpuSelection;
@@ -107,11 +107,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             ]),
         ];
         this.selectedComparisonPair=this.ComparisonPairs[0];
-        this.RunModes=[
-            new RunModeOption("Adaptive",BenchmarkRunMode.Adaptive),
-            new RunModeOption("Fixed",BenchmarkRunMode.Fixed),
-        ];
-        this.selectedRunMode=this.RunModes[0];
         this.ThresholdOptions=[
             new ThresholdOption("   1 ms",   1),
             new ThresholdOption("   2 ms",   2),
@@ -150,8 +145,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         ];
         this.selectedScale=this.ScaleOptions.First(static item => item.DisplayName=="1");
         foreach(var value in BenchmarkElementCounts.All){
-            this.ElementCountOptions.Add(new ElementCountOption(value,BenchmarkElementCounts.DefaultInitial.Contains(value)));
+            this.ElementCountOptions.Add(new ElementCountOption(value));
         }
+        this.selectedElementCountOption=this.ElementCountOptions.First(static item => item.Value==BenchmarkElementCounts.DefaultInitial[0]);
         this.RefreshCommand=new AsyncRelayCommand(this.RefreshAsync);
         this.SelectAllCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(true));
         this.ClearSelectionCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(false));
@@ -188,7 +184,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     public ObservableCollection<string> ChartWarnings { get; } = [];
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkColumnSelectionGroups { get; }
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkProjectSelectionGroups { get; }
-    public IReadOnlyList<RunModeOption> RunModes { get; }
     public IReadOnlyList<ComparisonPairOption> ComparisonPairs { get; }
     public IReadOnlyList<MetricOption> Metrics { get; }
     public IReadOnlyList<ChartModeOption> ChartModes { get; }
@@ -273,14 +268,14 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         set => this.SetProperty(ref this.selectedScale,value);
     }
 
-    public RunModeOption SelectedRunMode{
-        get => this.selectedRunMode;
-        set => this.SetProperty(ref this.selectedRunMode,value);
-    }
-
     public ThresholdOption SelectedThreshold{
         get => this.selectedThreshold;
         set => this.SetProperty(ref this.selectedThreshold,value);
+    }
+
+    public ElementCountOption SelectedElementCountOption{
+        get => this.selectedElementCountOption;
+        set => this.SetProperty(ref this.selectedElementCountOption,value);
     }
 
     public CsvDateOption? SelectedCsvDateOption{
@@ -656,7 +651,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 selected,
                 cpus,
                 this.GetSelectedElementCounts(),
-                this.SelectedRunMode.Mode,
+                BenchmarkRunMode.Adaptive,
                 this.GetAdaptiveThreshold(),
                 result => MainThread.BeginInvokeOnMainThread(() => {
                     this.HandleRunResult(result);
@@ -674,6 +669,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             this.comparisonRows=this.resultStore.BuildLatestComparisonRows();
             this.ApplyComparisonRowsToTable();
             this.ApplyStoredResultsToTable();
+            this.RestoreLatestCompletedLiveResult();
             this.UpdateChart();
         }
     }
@@ -692,6 +688,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.RegisterResultElementCount(result.ElementCount);
         this.RefreshVisibleResults();
         var row = this.BenchmarkRows.FirstOrDefault(item => string.Equals(item.MethodName,result.Method,StringComparison.OrdinalIgnoreCase));
+        if(string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase)){
+            foreach(var benchmarkRow in this.BenchmarkRows){
+                benchmarkRow.ClearLiveState();
+            }
+        }
         row?.ApplyRunResult(result,cpu);
         if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
             ||string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
@@ -701,8 +702,20 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             this.comparisonRows=this.resultStore.BuildLatestComparisonRows();
             this.ApplyComparisonRowsToTable();
             this.ApplyStoredResultsToTable();
+            row?.ApplyRunResult(result,cpu);
             this.UpdateChart();
         }
+    }
+
+    private void RestoreLatestCompletedLiveResult(){
+        var result = this.currentRunResultItems
+            .LastOrDefault(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase));
+        if(result is null){
+            return;
+        }
+
+        var row = this.BenchmarkRows.FirstOrDefault(item => string.Equals(item.MethodName,result.Method,StringComparison.OrdinalIgnoreCase));
+        row?.ApplyRunResult(result,null);
     }
 
     private void UpsertResultItem(BenchmarkResultItem result){
@@ -730,11 +743,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     }
 
     private IReadOnlyList<int> GetSelectedElementCounts(){
-        var selected = this.ElementCountOptions
-            .Where(static item => item.IsSelected)
-            .Select(static item => item.Value)
-            .ToArray();
-        return selected.Length==0 ? BenchmarkElementCounts.DefaultInitial : selected;
+        return BenchmarkElementCountLogic.BuildAdaptiveCandidates(BenchmarkElementCounts.All,this.SelectedElementCountOption.Value);
     }
 
     private TimeSpan GetAdaptiveThreshold(){

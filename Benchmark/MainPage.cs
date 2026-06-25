@@ -166,15 +166,6 @@ public sealed class MainPage:ContentPage{
         var cancelButton = this.CommandButton("Cancel",nameof(BenchmarkRunnerViewModel.CancelCommand));
         var exportButton = this.CommandButton("Save CSV",nameof(BenchmarkRunnerViewModel.ExportCsvCommand));
 
-        var modePicker = new Picker{
-            WidthRequest=98,
-            HeightRequest=30,
-            ItemDisplayBinding=new Binding(nameof(RunModeOption.DisplayName)),
-            Margin=new Thickness(0),
-        };
-        modePicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.RunModes));
-        modePicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedRunMode));
-
         var thresholdPicker = new Picker{
             WidthRequest=96,
             HeightRequest=30,
@@ -183,6 +174,15 @@ public sealed class MainPage:ContentPage{
         };
         thresholdPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ThresholdOptions));
         thresholdPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedThreshold));
+
+        var elementCountPicker = new Picker{
+            WidthRequest=110,
+            HeightRequest=30,
+            ItemDisplayBinding=new Binding(nameof(ElementCountOption.DisplayName)),
+            Margin=new Thickness(0),
+        };
+        elementCountPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ElementCountOptions));
+        elementCountPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedElementCountOption));
 
         var csvDatePicker = new Picker{
             WidthRequest=168,
@@ -225,10 +225,10 @@ public sealed class MainPage:ContentPage{
             ColumnSpacing=6,
         };
         grid.Add(refreshButton,0,0);
-        grid.Add(this.ToolbarLabel("Mode"),1,0);
-        grid.Add(modePicker,2,0);
-        grid.Add(this.ToolbarLabel("Limit"),3,0);
-        grid.Add(thresholdPicker,4,0);
+        grid.Add(this.ToolbarLabel("計測時間"),1,0);
+        grid.Add(thresholdPicker,2,0);
+        grid.Add(this.ToolbarLabel("要素数"),3,0);
+        grid.Add(elementCountPicker,4,0);
         grid.Add(runButton,5,0);
         grid.Add(cancelButton,6,0);
         grid.Add(exportButton,7,0);
@@ -397,8 +397,8 @@ public sealed class MainPage:ContentPage{
         var timeMapping = cellPath+"Time";
         var allocatedMapping = cellPath+"Allocated";
         grid.Columns.Add(this.CreateProjectCheckColumn(checkMapping,cellPath));
-        grid.Columns.Add(this.CreateProjectTextColumn("Time",timeMapping,cellPath+"."+nameof(BenchmarkProjectCell.TimeText),timeSortColumn,96,TextAlignment.End));
-        grid.Columns.Add(this.CreateProjectTextColumn("Allocated",allocatedMapping,cellPath+"."+nameof(BenchmarkProjectCell.AllocatedText),allocatedSortColumn,96,TextAlignment.End));
+        grid.Columns.Add(this.CreateProjectTextColumn("Time",timeMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.TimeText),timeSortColumn,96,TextAlignment.End));
+        grid.Columns.Add(this.CreateProjectTextColumn("Allocated",allocatedMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.AllocatedText),allocatedSortColumn,96,TextAlignment.End));
         return [checkMapping,timeMapping,allocatedMapping];
     }
 
@@ -506,11 +506,11 @@ public sealed class MainPage:ContentPage{
     private DataGridTemplateColumn CreateProjectCheckColumn(string mappingName,string cellPath){
         return new DataGridTemplateColumn{
             MappingName=mappingName,
-            HeaderText="☑",
+            HeaderText=string.Empty,
             Width=166,
             AllowSorting=false,
             HeaderTemplate=new DataTemplate(() => new Label{
-                Text="☑",
+                Text=string.Empty,
                 FontSize=12,
                 FontAttributes=FontAttributes.Bold,
                 TextColor=Color.FromArgb("#0F172A"),
@@ -522,8 +522,6 @@ public sealed class MainPage:ContentPage{
                 var layout = new Grid{
                     ColumnDefinitions = {
                         new ColumnDefinition { Width = new GridLength(BenchmarkCellCheckSlotWidth) },
-                        new ColumnDefinition { Width = new GridLength(18) },
-                        new ColumnDefinition { Width = new GridLength(18) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
                     ColumnSpacing=2,
@@ -533,22 +531,6 @@ public sealed class MainPage:ContentPage{
                 var check = this.CreateSfCheckBox(BenchmarkCellCheckBoxWidth,BenchmarkCellCheckBoxHeight);
                 check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsSelected),BindingMode.TwoWay));
                 check.SetBinding(IsEnabledProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCase));
-                var icon = new Label{
-                    FontSize=12,
-                    TextColor=Color.FromArgb("#0F172A"),
-                    HorizontalTextAlignment=TextAlignment.Center,
-                    VerticalTextAlignment=TextAlignment.Center,
-                };
-                icon.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.StatusIcon));
-                var spinner = new ActivityIndicator{
-                    WidthRequest=14,
-                    HeightRequest=14,
-                    Color=Color.FromArgb("#2563EB"),
-                    VerticalOptions=LayoutOptions.Center,
-                    HorizontalOptions=LayoutOptions.Center,
-                };
-                spinner.SetBinding(ActivityIndicator.IsRunningProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsRunning));
-                spinner.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsRunning));
                 var detail = new Label{
                     FontSize=9,
                     TextColor=Color.FromArgb("#334155"),
@@ -557,15 +539,13 @@ public sealed class MainPage:ContentPage{
                 };
                 detail.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionText));
                 layout.Add(check,0,0);
-                layout.Add(icon,1,0);
-                layout.Add(spinner,2,0);
-                layout.Add(detail,3,0);
+                layout.Add(detail,1,0);
                 return layout;
             }),
         };
     }
 
-    private DataGridTemplateColumn CreateProjectTextColumn(string header,string mappingName,string bindingPath,BenchmarkGridSortColumn sortColumn,double width,TextAlignment alignment){
+    private DataGridTemplateColumn CreateProjectTextColumn(string header,string mappingName,string cellPath,string bindingPath,BenchmarkGridSortColumn sortColumn,double width,TextAlignment alignment){
         return new DataGridTemplateColumn{
             MappingName=mappingName,
             HeaderText=header,
@@ -573,6 +553,27 @@ public sealed class MainPage:ContentPage{
             AllowSorting=false,
             HeaderTemplate=this.CreateHeaderTemplate(header,sortColumn),
             CellTemplate=new DataTemplate(() => {
+                var grid = new Grid{
+                    RowDefinitions = {
+                        new RowDefinition { Height = new GridLength(2) },
+                        new RowDefinition { Height = GridLength.Star },
+                        new RowDefinition { Height = new GridLength(2) },
+                    },
+                    ColumnDefinitions = {
+                        new ColumnDefinition { Width = new GridLength(2) },
+                        new ColumnDefinition { Width = GridLength.Star },
+                        new ColumnDefinition { Width = new GridLength(2) },
+                    },
+                    BackgroundColor=Colors.Transparent,
+                    VerticalOptions=LayoutOptions.Fill,
+                    HorizontalOptions=LayoutOptions.Fill,
+                };
+                var runningBackground = new BoxView{
+                    BackgroundColor=Color.FromArgb("#DBEAFE"),
+                    Opacity=0.85,
+                    InputTransparent=true,
+                };
+                runningBackground.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsRunningVisual));
                 var label = new Label{
                     FontSize=10,
                     TextColor=Color.FromArgb("#1E293B"),
@@ -583,8 +584,42 @@ public sealed class MainPage:ContentPage{
                     Padding=new Thickness(2,0),
                 };
                 label.SetBinding(Label.TextProperty,bindingPath);
-                return label;
+                grid.Add(runningBackground,0,0);
+                Grid.SetColumnSpan(runningBackground,3);
+                Grid.SetRowSpan(runningBackground,3);
+                grid.Add(label,0,0);
+                Grid.SetColumnSpan(label,3);
+                Grid.SetRowSpan(label,3);
+                this.AddMetricCompletedBorder(grid,cellPath);
+                return grid;
             }),
+        };
+    }
+
+    private void AddMetricCompletedBorder(Grid grid,string cellPath){
+        var color = Color.FromArgb("#22C55E");
+        var top = this.CreateMetricBorderSegment(color);
+        var bottom = this.CreateMetricBorderSegment(color);
+        var left = this.CreateMetricBorderSegment(color);
+        var right = this.CreateMetricBorderSegment(color);
+        top.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
+        bottom.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
+        left.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
+        right.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
+        grid.Add(top,0,0);
+        Grid.SetColumnSpan(top,3);
+        grid.Add(bottom,0,2);
+        Grid.SetColumnSpan(bottom,3);
+        grid.Add(left,0,0);
+        Grid.SetRowSpan(left,3);
+        grid.Add(right,2,0);
+        Grid.SetRowSpan(right,3);
+    }
+
+    private BoxView CreateMetricBorderSegment(Color color){
+        return new BoxView{
+            BackgroundColor=color,
+            InputTransparent=true,
         };
     }
 
@@ -732,32 +767,6 @@ public sealed class MainPage:ContentPage{
             },
         };
         list.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.CpuSections));
-        var nList = new CollectionView{
-            SelectionMode=SelectionMode.None,
-            HeightRequest=84,
-            ItemsLayout=new LinearItemsLayout(ItemsLayoutOrientation.Horizontal){
-                ItemSpacing=8,
-            },
-            ItemTemplate=new DataTemplate(() => {
-                var row = new HorizontalStackLayout{
-                    Spacing=2,
-                    Padding=new Thickness(2,0),
-                };
-                var check = this.CreateSfCheckBox(22,22);
-                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(ElementCountOption.IsSelected),BindingMode.TwoWay));
-                var label = new Label{
-                    FontSize=11,
-                    VerticalTextAlignment=TextAlignment.Center,
-                    TextColor=Color.FromArgb("#334155"),
-                };
-                label.SetBinding(Label.TextProperty,nameof(ElementCountOption.DisplayName));
-                row.Children.Add(check);
-                row.Children.Add(label);
-                return row;
-            }),
-        };
-        nList.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ElementCountOptions));
-
         var topGrid = new Grid{
             ColumnDefinitions = {
                 new ColumnDefinition { Width = GridLength.Star },
@@ -765,7 +774,9 @@ public sealed class MainPage:ContentPage{
             },
             ColumnSpacing=8,
             Children = {
-                nList,
+                new BoxView{
+                    BackgroundColor=Colors.Transparent,
+                },
                 this.CreateCsvCalendar(),
             },
         };

@@ -44,25 +44,15 @@ public sealed record ComparisonPairOption(string Key,string DisplayName,string L
 
 public sealed record ScaleOption(string DisplayName,string RunValue);
 
-public sealed class ElementCountOption:ObservableObject{
-    private bool isSelected;
-
-    public ElementCountOption(int value,bool isSelected){
+public sealed class ElementCountOption{
+    public ElementCountOption(int value){
         this.Value=value;
         this.DisplayName="N="+value.ToString("N0",CultureInfo.InvariantCulture);
-        this.isSelected=isSelected;
     }
 
     public int Value { get; }
     public string DisplayName { get; }
-
-    public bool IsSelected{
-        get => this.isSelected;
-        set => this.SetProperty(ref this.isSelected,value);
-    }
 }
-
-public sealed record RunModeOption(string DisplayName,BenchmarkRunMode Mode);
 
 public sealed record MetricOption(string DisplayName,BenchmarkMetricKind Kind);
 
@@ -76,7 +66,7 @@ public readonly record struct BenchmarkSortValue(string? Text,double? Number,boo
     public static BenchmarkSortValue FromText(string text) => new(text,null,string.IsNullOrWhiteSpace(text));
 
     public static BenchmarkSortValue FromMetric(ProjectMetrics metrics,BenchmarkMetricKind kind){
-        if(!metrics.HasValue){
+        if(!metrics.HasMeasuredValue){
             return Missing;
         }
 
@@ -131,6 +121,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     private string timeText = string.Empty;
     private string allocatedText = string.Empty;
     private bool isRunning;
+    private BenchmarkProjectLiveState liveState;
     private DateTimeOffset? lastMeasuredAt;
     private ProjectMetrics metrics = ProjectMetrics.Missing;
 
@@ -182,11 +173,29 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         private set => this.SetProperty(ref this.isRunning,value);
     }
 
+    public BenchmarkProjectLiveState LiveState{
+        get => this.liveState;
+        private set{
+            if(this.SetProperty(ref this.liveState,value)){
+                this.OnPropertyChanged(nameof(this.IsPendingVisual));
+                this.OnPropertyChanged(nameof(this.IsRunningVisual));
+                this.OnPropertyChanged(nameof(this.IsCompletedVisual));
+            }
+        }
+    }
+
+    public bool IsPendingVisual => BenchmarkProjectLiveStateLogic.IsPending(this.LiveState,this.Metrics.HasMeasuredValue);
+
+    public bool IsRunningVisual => BenchmarkProjectLiveStateLogic.IsRunning(this.LiveState);
+
+    public bool IsCompletedVisual => BenchmarkProjectLiveStateLogic.IsCompleted(this.LiveState);
+
     public void ApplyMetrics(ProjectMetrics value){
         this.metrics=value;
         this.TimeText=FormatTime(value);
         this.AllocatedText=FormatAllocated(value);
-        if(value.HasValue&&!this.IsRunning){
+        this.OnPropertyChanged(nameof(this.IsPendingVisual));
+        if(value.HasMeasuredValue&&!this.IsRunning){
             this.StatusIcon="✓";
             this.StatusText="完了";
         }
@@ -206,9 +215,10 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.StatusIcon="○";
             this.StatusText=result.Status;
         }
+        this.LiveState=BenchmarkProjectLiveState.Idle;
         this.ExecutionText=result.SourceCsvAt is { } csvAt
-            ? "CSV "+csvAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss",CultureInfo.InvariantCulture)
-            : result.MeasuredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss",CultureInfo.InvariantCulture);
+            ? BenchmarkTimestampDisplay.FormatLocal(csvAt)
+            : BenchmarkTimestampDisplay.FormatLocal(result.MeasuredAt);
     }
 
     public void ApplyRunResult(BenchmarkResultItem result,CpuSelectionItem? cpu){
@@ -233,15 +243,29 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.ExecutionText=cpu is null
             ? "N="+result.ElementCount.ToString(CultureInfo.InvariantCulture)
             : "CPU "+cpu.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture)+" "+cpu.CoreKindLabel+" N="+result.ElementCount.ToString(CultureInfo.InvariantCulture);
-        if(result.MeanNanoseconds is not null||result.AllocatedBytesValue is not null){
-            this.metrics=new ProjectMetrics(result.MeanNanoseconds,result.AllocatedBytesValue,string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase));
+        this.LiveState=this.IsRunning
+            ? BenchmarkProjectLiveState.Running
+            : string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                ? BenchmarkProjectLiveState.Completed
+                : BenchmarkProjectLiveState.Idle;
+        if(result.MeanNanoseconds is not null){
+            this.metrics=ProjectMetrics.FromMeasurement(
+                result.MeanNanoseconds,
+                result.AllocatedBytesValue);
+            this.OnPropertyChanged(nameof(this.IsPendingVisual));
         }
+    }
+
+    public void ClearLiveState(){
+        this.IsRunning=false;
+        this.LiveState=BenchmarkProjectLiveState.Idle;
     }
 
     public void ClearMetrics(){
         this.metrics=ProjectMetrics.Missing;
         this.TimeText=string.Empty;
         this.AllocatedText=string.Empty;
+        this.ClearLiveState();
         if(this.HasCase){
             this.StatusIcon="○";
             this.StatusText="未実行";
@@ -250,13 +274,13 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     }
 
     private static string FormatTime(ProjectMetrics metrics){
-        return metrics.HasValue&&metrics.TimeNanoseconds is { } value
+        return metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } value
             ? BenchmarkFormatting.FormatNanoseconds(value)
             : string.Empty;
     }
 
     private static string FormatAllocated(ProjectMetrics metrics){
-        return metrics.HasValue&&metrics.AllocatedBytes is { } value
+        return metrics.HasMeasuredValue&&metrics.AllocatedBytes is { } value
             ? BenchmarkFormatting.FormatBytes(value)
             : string.Empty;
     }
@@ -479,6 +503,12 @@ public sealed class BenchmarkTableRow:ObservableObject{
         }
     }
 
+    public void ClearLiveState(){
+        foreach(var cell in this.ProjectCells){
+            cell.ClearLiveState();
+        }
+    }
+
     public void ApplyComparison(BenchmarkComparisonRow? row){
         this.comparisonRow=row;
         if(row is null){
@@ -567,13 +597,13 @@ public sealed class BenchmarkTableRow:ObservableObject{
         new(project,this.CasesByProject.ContainsKey(project));
 
     private static string FormatTime(ProjectMetrics metrics){
-        return metrics.HasValue&&metrics.TimeNanoseconds is { } value
+        return metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } value
             ? BenchmarkFormatting.FormatNanoseconds(value)
             : string.Empty;
     }
 
     private static string FormatAllocated(ProjectMetrics metrics){
-        return metrics.HasValue&&metrics.AllocatedBytes is { } value
+        return metrics.HasMeasuredValue&&metrics.AllocatedBytes is { } value
             ? BenchmarkFormatting.FormatBytes(value)
             : string.Empty;
     }
@@ -959,15 +989,15 @@ public sealed class BenchmarkResultItem{
         this.Method=method;
         this.ElementCount=0;
         this.Name=project+" / "+method;
-        this.Status=metrics.HasValue?"Completed":"Missing";
-        this.Mean=metrics.HasValue&&metrics.TimeNanoseconds is { } time ? BenchmarkFormatting.FormatNanoseconds(time) : string.Empty;
-        this.AllocatedBytes=metrics.HasValue&&metrics.AllocatedBytes is { } allocated ? BenchmarkFormatting.FormatBytes(allocated) : string.Empty;
+        this.Status=metrics.HasMeasuredValue?"Completed":"Missing";
+        this.Mean=metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } time ? BenchmarkFormatting.FormatNanoseconds(time) : string.Empty;
+        this.AllocatedBytes=metrics.HasMeasuredValue&&metrics.AllocatedBytes is { } allocated ? BenchmarkFormatting.FormatBytes(allocated) : string.Empty;
         this.AllocatedBytesValue=metrics.AllocatedBytes;
         this.MeanNanoseconds=metrics.TimeNanoseconds;
         this.ErrorNanoseconds=null;
         this.StdDevNanoseconds=null;
         this.ArtifactFolder=string.Empty;
-        this.ExitCode=metrics.HasValue?0:null;
+        this.ExitCode=metrics.HasMeasuredValue?0:null;
         this.AssignedLogicalCpu=null;
         this.FailureReason=string.Empty;
     }

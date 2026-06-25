@@ -90,12 +90,12 @@ internal static class BenchmarkComparisonFormatter{
             foreach(var project in ProjectOrder){
                 var metrics = row.GetProject(project);
                 writer.Append(',');
-                if(metrics.HasValue&&metrics.TimeNanoseconds is { } time){
+                if(metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } time){
                     writer.Append(time.ToString("G17",CultureInfo.InvariantCulture));
                 }
 
                 writer.Append(',');
-                if(metrics.HasValue&&metrics.AllocatedBytes is { } allocated){
+                if(metrics.HasMeasuredValue&&metrics.AllocatedBytes is { } allocated){
                     writer.Append(allocated.ToString(CultureInfo.InvariantCulture));
                 }
             }
@@ -152,7 +152,10 @@ internal static class BenchmarkComparisonFormatter{
 
                 var time = ParseDoubleCell(timeText,csvHeader[timeIndex]);
                 var allocated = ParseLongCell(allocatedText,csvHeader[allocatedIndex]);
-                metrics[ProjectOrder[projectIndex]]=new ProjectMetrics(time,allocated,true);
+                var metric = ProjectMetrics.FromMeasurement(time,allocated);
+                if(metric.HasMeasuredValue){
+                    metrics[ProjectOrder[projectIndex]]=metric;
+                }
             }
 
             result.Add(CreateRow(method,metrics));
@@ -162,7 +165,7 @@ internal static class BenchmarkComparisonFormatter{
     }
 
     public static RatioValue CalculateTimeRatio(ProjectMetrics left,ProjectMetrics right){
-        if(!left.HasValue||!right.HasValue||left.TimeNanoseconds is not { } leftValue||right.TimeNanoseconds is not { } rightValue||leftValue<=0||rightValue<=0){
+        if(!left.HasMeasuredValue||!right.HasMeasuredValue||left.TimeNanoseconds is not { } leftValue||right.TimeNanoseconds is not { } rightValue||leftValue<=0||rightValue<=0){
             return RatioValue.Missing;
         }
 
@@ -170,7 +173,7 @@ internal static class BenchmarkComparisonFormatter{
     }
 
     public static RatioValue CalculateAllocatedRatio(ProjectMetrics left,ProjectMetrics right){
-        if(!left.HasValue||!right.HasValue||left.AllocatedBytes is not { } leftValue||right.AllocatedBytes is not { } rightValue){
+        if(!left.HasMeasuredValue||!right.HasMeasuredValue||left.AllocatedBytes is not { } leftValue||right.AllocatedBytes is not { } rightValue){
             return RatioValue.Missing;
         }
 
@@ -229,7 +232,7 @@ internal static class BenchmarkComparisonFormatter{
         }
 
         var time = row.MeanNanoseconds>0 ? row.MeanNanoseconds : (double?)null;
-        return new ProjectMetrics(time,row.AllocatedBytesValue,true);
+        return ProjectMetrics.FromMeasurement(time,row.AllocatedBytesValue);
     }
 
     private static string? NormalizeProjectName(string project){
@@ -300,6 +303,13 @@ internal static class BenchmarkComparisonFormatter{
 
 public readonly record struct ProjectMetrics(double? TimeNanoseconds,long? AllocatedBytes,bool HasValue){
     public static readonly ProjectMetrics Missing = new(null,null,false);
+
+    public bool HasMeasuredValue => this.HasValue&&this.TimeNanoseconds is not null;
+
+    public static ProjectMetrics FromMeasurement(double? timeNanoseconds,long? allocatedBytes) =>
+        timeNanoseconds is null
+            ? Missing
+            : new ProjectMetrics(timeNanoseconds,allocatedBytes,true);
 }
 
 public readonly record struct RatioValue(RatioValueKind Kind,double? NumericValue,string DisplayText,RatioJudgement Judgement){

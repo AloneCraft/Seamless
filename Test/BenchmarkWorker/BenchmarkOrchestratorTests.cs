@@ -120,6 +120,92 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
+    public async Task Orchestrator_AdaptiveMode_StopsAfterThresholdExceededBeforeNextElementCount(){
+        var root = CreateTempRoot();
+        var runner = new FakeRunner((job,_) => {
+            var mean = job.ElementCount>=4 ? 2_000_000d : 100d;
+            return new BenchmarkJobRunResult(
+                job.Project,
+                job.MethodName,
+                job.TypeFullName,
+                job.ElementCount,
+                "Completed",
+                mean+" ns",
+                string.Empty,
+                string.Empty,
+                mean,
+                0,
+                0,
+                0,
+                0,
+                job.ArtifactFolder,
+                string.Empty);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("SystemFLinq","Where")],
+                [0],
+                [1,2,4,8],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromMilliseconds(1),
+                TimeSpan.FromSeconds(30)),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var state = LoadOnlyState(root);
+        Assert.Equal([1,2,4],state.Jobs.Select(static job => job.ElementCount).Order().ToArray());
+        Assert.DoesNotContain(state.Jobs,static job => job.ElementCount==8);
+    }
+
+    [Fact]
+    public async Task Orchestrator_RunAsync_TreatsCompletedWithoutStatisticsAsFailed(){
+        var root = CreateTempRoot();
+        var runner = new FakeRunner((job,_) => new BenchmarkJobRunResult(
+            job.Project,
+            job.MethodName,
+            job.TypeFullName,
+            job.ElementCount,
+            "Completed",
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            null,
+            null,
+            null,
+            null,
+            0,
+            job.ArtifactFolder,
+            string.Empty));
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("SystemFLinq","Where")],
+                [0],
+                [1],
+                BenchmarkRunMode.Fixed,
+                TimeSpan.FromMilliseconds(1),
+                TimeSpan.FromSeconds(30)),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var job = Assert.Single(LoadOnlyState(root).Jobs);
+        Assert.Equal(JobStatus.Failed,job.Status);
+        Assert.Contains("without benchmark statistics",job.FailureReason,StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BenchmarkElementCountLogic_BuildAdaptiveCandidates_UsesOneToSelectedMaximum(){
+        var candidates = BenchmarkElementCountLogic.BuildAdaptiveCandidates(BenchmarkElementCounts.All,8192);
+
+        Assert.Equal([1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192],candidates);
+    }
+
+    [Fact]
     public void BenchmarkElementCounts_StartsAdaptiveWorkloadAtOne(){
         Assert.Equal(1,BenchmarkElementCounts.All[0]);
         Assert.Equal([1],BenchmarkElementCounts.DefaultInitial);

@@ -4,22 +4,13 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Runtime.InteropServices;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Diagnosers;
-using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
-using BenchmarkDotNet.Toolchains.InProcess.Emit;
 
 Console.OutputEncoding=Encoding.UTF8;
 Console.InputEncoding=Encoding.UTF8;
 const string ElementScaleEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
 const string ElementCountEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
-const int BenchmarkLaunchCount = 1;
-const int BenchmarkWarmupCount = 1;
-const int BenchmarkIterationCount = 1;
-const int BenchmarkInvocationCount = 1;
-const int BenchmarkUnrollFactor = 1;
 
 var logicalCpu = ReadRequiredIntArg(args,"--logical-cpu");
 var runRoot = ReadRequiredStringArg(args,"--run-root");
@@ -93,17 +84,7 @@ static WorkerResultMessage RunBenchmark(
             ElementCountEnvironmentVariable,
             task.ElementCount>0?task.ElementCount.ToString(CultureInfo.InvariantCulture):null);
         var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
-        var config = ManualConfig
-            .Create(DefaultConfig.Instance)
-            .AddDiagnoser(MemoryDiagnoser.Default)
-            .AddJob(Job.Default
-                .WithToolchain(InProcessEmitToolchain.Instance)
-                .WithLaunchCount(BenchmarkLaunchCount)
-                .WithWarmupCount(BenchmarkWarmupCount)
-                .WithIterationCount(BenchmarkIterationCount)
-                .WithInvocationCount(BenchmarkInvocationCount)
-                .WithUnrollFactor(BenchmarkUnrollFactor))
-            .WithArtifactsPath(task.ArtifactFolder);
+        var config = BenchmarkWorkerRuntime.CreateConfig(task.ArtifactFolder);
         var summaries = BenchmarkSwitcher
             .FromTypes([benchmarkType])
             .Run(["--filter","*."+task.MethodName],config);
@@ -113,6 +94,24 @@ static WorkerResultMessage RunBenchmark(
         var allocatedBytes = GetAllocatedBytes(report);
         var log = logWriter.ToString();
         File.WriteAllText(logPath,log,Encoding.UTF8);
+        if(!BenchmarkWorkerRuntime.HasUsableStatistics(stats?.Mean)){
+            return new WorkerResultMessage(
+                task.TaskId,
+                "Failed",
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                null,
+                null,
+                null,
+                null,
+                1,
+                task.ArtifactFolder,
+                string.IsNullOrWhiteSpace(log)
+                    ? "BenchmarkDotNet did not produce result statistics."
+                    : log);
+        }
+
         return new WorkerResultMessage(
             task.TaskId,
             "Completed",
@@ -156,14 +155,28 @@ static long? GetAllocatedBytes(object? report){
     }
 
     var totalMethod = gcStats.GetType().GetMethod("GetTotalAllocatedBytes",new[] { typeof(bool) });
-    if(totalMethod?.Invoke(gcStats,new object[] { true }) is long total&&total>=0){
-        return total;
+    var totalIncludingQuantum = ToNonNegativeLong(totalMethod?.Invoke(gcStats,new object[] { false }));
+    var totalExcludingQuantum = ToNonNegativeLong(totalMethod?.Invoke(gcStats,new object[] { true }));
+    var allocatedBytes = ToNonNegativeLong(gcStats.GetType().GetProperty("AllocatedBytes")?.GetValue(gcStats));
+    foreach(var value in new[] { totalIncludingQuantum,allocatedBytes,totalExcludingQuantum }){
+        if(value is >0){
+            return value;
+        }
     }
 
-    return gcStats.GetType().GetProperty("AllocatedBytes")?.GetValue(gcStats) is long allocated&&allocated>=0
-        ? allocated
-        : null;
+    return totalIncludingQuantum>=0
+        ? totalIncludingQuantum
+        : allocatedBytes>=0
+            ? allocatedBytes
+            : totalExcludingQuantum>=0
+                ? totalExcludingQuantum
+                : null;
 }
+
+static long? ToNonNegativeLong(object? value) =>
+    value is long number&&number>=0
+        ? number
+        : null;
 
 static string TrimUtf8Bom(string text){
     return text.Length>0&&text[0]=='\uFEFF'
