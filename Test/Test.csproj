@@ -34,6 +34,17 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\Benchmark\BenchmarkComparisonFormatter.cs" Link="Benchmark\BenchmarkComparisonFormatter.cs" />
+    <Compile Include="..\Benchmark\BenchmarkOrchestrationModels.cs" Link="Benchmark\BenchmarkOrchestrationModels.cs" />
+    <Compile Include="..\Benchmark\BenchmarkOrchestrator.cs" Link="Benchmark\BenchmarkOrchestrator.cs" />
+    <Compile Include="..\Benchmark\BenchmarkResultWriter.cs" Link="Benchmark\BenchmarkResultWriter.cs" />
+    <Compile Include="..\Benchmark\BenchmarkSharedModels.cs" Link="Benchmark\BenchmarkSharedModels.cs" />
+    <Compile Include="..\Benchmark\BenchmarkStateManager.cs" Link="Benchmark\BenchmarkStateManager.cs" />
+    <Compile Include="..\Benchmark\BenchmarkUiLogic.cs" Link="Benchmark\BenchmarkUiLogic.cs" />
+    <Compile Include="..\Benchmark\CpuPresetCatalog.cs" Link="Benchmark\CpuPresetCatalog.cs" />
+    <Compile Include="..\Benchmark\CsvStringBuilderExtensions.cs" Link="Benchmark\CsvStringBuilderExtensions.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <Reference Include="ZLinq">
       <HintPath>$(NuGetPackageRoot)zlinq/1.5.6/lib/net10.0/ZLinq.dll</HintPath>
       <Private>true</Private>
@@ -41,7 +52,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DynamicLinq.Runner\DynamicLinq.Runner.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
-    <ProjectReference Include="..\Benchmark.Orchestration\Benchmark.Orchestration.csproj" />
     <ProjectReference Include="..\Benchmark.Worker\Benchmark.Worker.csproj" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.FLinq\Test.System.Linq.Enumerable.FLinq.csproj" PrivateAssets="all" Aliases="BenchmarkFLinq" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.ZLinq\Test.System.Linq.Enumerable.ZLinq.csproj" PrivateAssets="all" Aliases="BenchmarkZLinq" />

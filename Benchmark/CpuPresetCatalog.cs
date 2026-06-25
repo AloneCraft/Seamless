@@ -1,8 +1,11 @@
-namespace Benchmark.Worker;
+namespace Benchmark;
 
-public sealed record CpuPresetDefinition(string Key,string Label,IReadOnlyList<int> LogicalProcessorIndexes);
+internal sealed record CpuPresetDefinition(string Key,string Label,IReadOnlyList<int> LogicalProcessorIndexes);
 
-public static class CpuPresetCatalog{
+#if TSAVORITE2_0BETA3
+[global::Seamless.FLinq.LinqIntercept(false)]
+#endif
+internal static class CpuPresetCatalog{
     public static IReadOnlyList<CpuPresetDefinition> Build(IReadOnlyList<CpuCoreInfo> cpuCores){
         if(cpuCores.Count==0){
             return [];

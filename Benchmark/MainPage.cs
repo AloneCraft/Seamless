@@ -1,9 +1,15 @@
 using Syncfusion.Maui.DataGrid;
+using Syncfusion.Maui.Toolkit.Calendar;
 using Syncfusion.Maui.Toolkit.Charts;
 
 namespace Benchmark;
 
 public sealed class MainPage:ContentPage{
+    private const double CpuCheckBoxWidth = 28;
+    private const double CpuCheckBoxHeight = 22;
+    private const double CpuLogicalColumnWidth = 220;
+    private const double CpuLogicalCheckColumnWidth = 34;
+    private const double CpuLogicalNumberWidth = 164;
     private BenchmarkRunnerViewModel? viewModel;
 
     public MainPage(){
@@ -64,21 +70,32 @@ public sealed class MainPage:ContentPage{
     }
 
     public async Task<bool> RequestCloseAsync(){
-        if(this.viewModel is null||!this.viewModel.IsRunning){
+        if(this.viewModel is null){
             return true;
         }
 
-        var shouldClose = await this.DisplayAlert(
-            "Benchmark is running",
-            "Stop the running benchmark worker and close the application?",
-            "OK",
-            "Cancel");
-        if(!shouldClose){
-            return false;
+        if(this.viewModel.IsRunning){
+            var shouldClose = await this.DisplayAlert(
+                "Benchmark is running",
+                "Stop the running benchmark worker and close the application?",
+                "OK",
+                "Cancel");
+            if(!shouldClose){
+                return false;
+            }
+
+            this.viewModel.StatusText="Stopping before close...";
+            await this.viewModel.CancelAndWaitAsync();
         }
 
-        this.viewModel.StatusText="Stopping before close...";
-        await this.viewModel.CancelAndWaitAsync();
+        var shouldSave = await this.DisplayAlert(
+            "Save benchmark state",
+            "Save selected CSV date and Benchmark x Project checks before closing?",
+            "Save",
+            "Don't save");
+        if(shouldSave){
+            this.viewModel.SaveUiState();
+        }
         return true;
     }
 
@@ -86,6 +103,10 @@ public sealed class MainPage:ContentPage{
         var resultService = new BenchmarkResultService();
         var comparisonService = new BenchmarkComparisonService(resultService);
         var csvService = new BenchmarkCsvService();
+        var benchmarkRoot = Path.Combine(
+            this.FindSolutionRoot()??Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Work",
+            "Benchmark");
         return new BenchmarkRunnerViewModel(
             new BenchmarkCatalogService(),
             new CpuTopologyService(),
@@ -95,7 +116,23 @@ public sealed class MainPage:ContentPage{
                 csvService,
                 comparisonService),
             csvService,
-            comparisonService);
+            comparisonService,
+            new BenchmarkResultStore(benchmarkRoot),
+            new BenchmarkCsvDiscoveryService(csvService),
+            new BenchmarkUiStateStore(benchmarkRoot),
+            benchmarkRoot);
+    }
+
+    private string? FindSolutionRoot(){
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while(directory is not null){
+            if(File.Exists(Path.Combine(directory.FullName,"Seamless.slnx"))){
+                return directory.FullName;
+            }
+            directory=directory.Parent;
+        }
+
+        return null;
     }
 
     private View CreateToolbar(){
@@ -105,7 +142,6 @@ public sealed class MainPage:ContentPage{
         var runButton = this.CommandButton("Run",nameof(BenchmarkRunnerViewModel.RunCommand));
         var cancelButton = this.CommandButton("Cancel",nameof(BenchmarkRunnerViewModel.CancelCommand));
         var exportButton = this.CommandButton("Save CSV",nameof(BenchmarkRunnerViewModel.ExportCsvCommand));
-        var loadButton = this.CommandButton("Load CSV",nameof(BenchmarkRunnerViewModel.LoadCsvCommand));
 
         var modePicker = new Picker{
             WidthRequest=98,
@@ -116,14 +152,23 @@ public sealed class MainPage:ContentPage{
         modePicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.RunModes));
         modePicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedRunMode));
 
-        var thresholdEntry = new Entry{
-            WidthRequest=64,
+        var thresholdPicker = new Picker{
+            WidthRequest=96,
             HeightRequest=30,
-            FontSize=12,
-            Keyboard=Keyboard.Numeric,
+            ItemDisplayBinding=new Binding(nameof(ThresholdOption.DisplayName)),
             Margin=new Thickness(0),
         };
-        thresholdEntry.SetBinding(Entry.TextProperty,nameof(BenchmarkRunnerViewModel.AdaptiveThresholdSecondsText));
+        thresholdPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ThresholdOptions));
+        thresholdPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedThreshold));
+
+        var csvDatePicker = new Picker{
+            WidthRequest=168,
+            HeightRequest=30,
+            ItemDisplayBinding=new Binding(nameof(CsvDateOption.DisplayName)),
+            Margin=new Thickness(0),
+        };
+        csvDatePicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.CsvDateOptions));
+        csvDatePicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedCsvDateOption));
 
         var statusLabel = new Label{
             FontSize=12,
@@ -150,6 +195,8 @@ public sealed class MainPage:ContentPage{
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Star },
             },
             ColumnSpacing=6,
@@ -159,13 +206,14 @@ public sealed class MainPage:ContentPage{
         grid.Add(clearButton,2,0);
         grid.Add(this.ToolbarLabel("Mode"),3,0);
         grid.Add(modePicker,4,0);
-        grid.Add(this.ToolbarLabel("Limit s"),5,0);
-        grid.Add(thresholdEntry,6,0);
+        grid.Add(this.ToolbarLabel("Limit"),5,0);
+        grid.Add(thresholdPicker,6,0);
         grid.Add(runButton,7,0);
         grid.Add(cancelButton,8,0);
         grid.Add(exportButton,9,0);
-        grid.Add(loadButton,10,0);
-        grid.Add(statusLabel,11,0);
+        grid.Add(this.ToolbarLabel("CSV"),10,0);
+        grid.Add(csvDatePicker,11,0);
+        grid.Add(statusLabel,12,0);
         return grid;
     }
 
@@ -214,25 +262,29 @@ public sealed class MainPage:ContentPage{
         StartupDiagnostics.WriteSyncfusionAssemblies("CreateBenchmarkGrid before SfDataGrid");
         var grid = new SfDataGrid{
             AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
-            RowHeight=24,
-            HeaderRowHeight=30,
+            RowHeight=36,
+            HeaderRowHeight=28,
             AllowTriStateSorting=false,
             SortingMode=DataGridSortingMode.None,
+            SelectionMode=DataGridSelectionMode.Extended,
+            SelectionUnit=DataGridSelectionUnit.Row,
+            HorizontalScrollBarVisibility=ScrollBarVisibility.Always,
+            VerticalScrollBarVisibility=ScrollBarVisibility.Always,
             DefaultColumnWidth=92,
         };
         grid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.BenchmarkRows));
 
         grid.Columns.Add(this.CreateCheckColumn());
         grid.Columns.Add(this.CreateTextColumn("Benchmark",nameof(BenchmarkTableRow.BenchmarkName),BenchmarkGridSortColumn.BenchmarkName,240,TextAlignment.Start));
-        this.AddMetricGroup(grid,"System ratio",("Time",nameof(BenchmarkTableRow.SystemRatioTimeText),BenchmarkGridSortColumn.SystemRatioTime),("Allocated",nameof(BenchmarkTableRow.SystemRatioAllocatedText),BenchmarkGridSortColumn.SystemRatioAllocated));
-        this.AddMetricGroup(grid,"System FLinq",("Time",nameof(BenchmarkTableRow.SystemFLinqTimeText),BenchmarkGridSortColumn.SystemFLinqTime),("Allocated",nameof(BenchmarkTableRow.SystemFLinqAllocatedText),BenchmarkGridSortColumn.SystemFLinqAllocated));
-        this.AddMetricGroup(grid,"System ZLinq",("Time",nameof(BenchmarkTableRow.SystemZLinqTimeText),BenchmarkGridSortColumn.SystemZLinqTime),("Allocated",nameof(BenchmarkTableRow.SystemZLinqAllocatedText),BenchmarkGridSortColumn.SystemZLinqAllocated));
-        this.AddMetricGroup(grid,"Persisted ratio",("Time",nameof(BenchmarkTableRow.PersistedRatioTimeText),BenchmarkGridSortColumn.PersistedRatioTime),("Allocated",nameof(BenchmarkTableRow.PersistedRatioAllocatedText),BenchmarkGridSortColumn.PersistedRatioAllocated));
-        this.AddMetricGroup(grid,"Persisted FLinq",("Time",nameof(BenchmarkTableRow.PersistedFLinqTimeText),BenchmarkGridSortColumn.PersistedFLinqTime),("Allocated",nameof(BenchmarkTableRow.PersistedFLinqAllocatedText),BenchmarkGridSortColumn.PersistedFLinqAllocated));
-        this.AddMetricGroup(grid,"Persisted Linq",("Time",nameof(BenchmarkTableRow.PersistedLinqTimeText),BenchmarkGridSortColumn.PersistedLinqTime),("Allocated",nameof(BenchmarkTableRow.PersistedLinqAllocatedText),BenchmarkGridSortColumn.PersistedLinqAllocated));
-        this.AddMetricGroup(grid,"Tsavorite ratio",("Time",nameof(BenchmarkTableRow.TsavoriteRatioTimeText),BenchmarkGridSortColumn.TsavoriteRatioTime),("Allocated",nameof(BenchmarkTableRow.TsavoriteRatioAllocatedText),BenchmarkGridSortColumn.TsavoriteRatioAllocated));
-        this.AddMetricGroup(grid,"Tsavorite FLinq",("Time",nameof(BenchmarkTableRow.TsavoriteFLinqTimeText),BenchmarkGridSortColumn.TsavoriteFLinqTime),("Allocated",nameof(BenchmarkTableRow.TsavoriteFLinqAllocatedText),BenchmarkGridSortColumn.TsavoriteFLinqAllocated));
-        this.AddMetricGroup(grid,"Tsavorite Linq",("Time",nameof(BenchmarkTableRow.TsavoriteLinqTimeText),BenchmarkGridSortColumn.TsavoriteLinqTime),("Allocated",nameof(BenchmarkTableRow.TsavoriteLinqAllocatedText),BenchmarkGridSortColumn.TsavoriteLinqAllocated));
+        this.AddMetricGroup(grid,"比(SystemFLinq/SystemZLinq)",("Time",nameof(BenchmarkTableRow.SystemRatioTimeText),BenchmarkGridSortColumn.SystemRatioTime),("Allocated",nameof(BenchmarkTableRow.SystemRatioAllocatedText),BenchmarkGridSortColumn.SystemRatioAllocated));
+        this.AddProjectGroup(grid,"SystemFLinq",nameof(BenchmarkTableRow.SystemFLinqCell),BenchmarkGridSortColumn.SystemFLinqTime,BenchmarkGridSortColumn.SystemFLinqAllocated);
+        this.AddProjectGroup(grid,"SystemZLinq",nameof(BenchmarkTableRow.SystemZLinqCell),BenchmarkGridSortColumn.SystemZLinqTime,BenchmarkGridSortColumn.SystemZLinqAllocated);
+        this.AddMetricGroup(grid,"比(PersistedFLinq/PersistedLinq)",("Time",nameof(BenchmarkTableRow.PersistedRatioTimeText),BenchmarkGridSortColumn.PersistedRatioTime),("Allocated",nameof(BenchmarkTableRow.PersistedRatioAllocatedText),BenchmarkGridSortColumn.PersistedRatioAllocated));
+        this.AddProjectGroup(grid,"PersistedFLinq",nameof(BenchmarkTableRow.PersistedFLinqCell),BenchmarkGridSortColumn.PersistedFLinqTime,BenchmarkGridSortColumn.PersistedFLinqAllocated);
+        this.AddProjectGroup(grid,"PersistedLinq",nameof(BenchmarkTableRow.PersistedLinqCell),BenchmarkGridSortColumn.PersistedLinqTime,BenchmarkGridSortColumn.PersistedLinqAllocated);
+        this.AddMetricGroup(grid,"比(TsavoriteFLinq/TsavoriteLinq)",("Time",nameof(BenchmarkTableRow.TsavoriteRatioTimeText),BenchmarkGridSortColumn.TsavoriteRatioTime),("Allocated",nameof(BenchmarkTableRow.TsavoriteRatioAllocatedText),BenchmarkGridSortColumn.TsavoriteRatioAllocated));
+        this.AddProjectGroup(grid,"TsavoriteFLinq",nameof(BenchmarkTableRow.TsavoriteFLinqCell),BenchmarkGridSortColumn.TsavoriteFLinqTime,BenchmarkGridSortColumn.TsavoriteFLinqAllocated);
+        this.AddProjectGroup(grid,"TsavoriteLinq",nameof(BenchmarkTableRow.TsavoriteLinqCell),BenchmarkGridSortColumn.TsavoriteLinqTime,BenchmarkGridSortColumn.TsavoriteLinqAllocated);
         return grid;
     }
 
@@ -275,6 +327,120 @@ public sealed class MainPage:ContentPage{
             ColumnMappingNames=time.property+","+allocated.property,
             Text=groupTitle,
         });
+    }
+
+    private void AddProjectGroup(
+        SfDataGrid grid,
+        string groupTitle,
+        string cellPath,
+        BenchmarkGridSortColumn timeSortColumn,
+        BenchmarkGridSortColumn allocatedSortColumn){
+        var checkMapping = cellPath+"Check";
+        var timeMapping = cellPath+"Time";
+        var allocatedMapping = cellPath+"Allocated";
+        grid.Columns.Add(this.CreateProjectCheckColumn(checkMapping,cellPath));
+        grid.Columns.Add(this.CreateProjectTextColumn("Time",timeMapping,cellPath+"."+nameof(BenchmarkProjectCell.TimeText),timeSortColumn,96,TextAlignment.End));
+        grid.Columns.Add(this.CreateProjectTextColumn("Allocated",allocatedMapping,cellPath+"."+nameof(BenchmarkProjectCell.AllocatedText),allocatedSortColumn,96,TextAlignment.End));
+        var stackedRow = grid.StackedHeaderRows.FirstOrDefault();
+        if(stackedRow is null){
+            stackedRow=new DataGridStackedHeaderRow();
+            grid.StackedHeaderRows.Add(stackedRow);
+        }
+        stackedRow.Columns.Add(new DataGridStackedColumn{
+            ColumnMappingNames=checkMapping+","+timeMapping+","+allocatedMapping,
+            Text=groupTitle,
+        });
+    }
+
+    private DataGridTemplateColumn CreateProjectCheckColumn(string mappingName,string cellPath){
+        return new DataGridTemplateColumn{
+            MappingName=mappingName,
+            HeaderText="☑",
+            Width=154,
+            AllowSorting=false,
+            HeaderTemplate=new DataTemplate(() => new Label{
+                Text="☑",
+                FontSize=12,
+                FontAttributes=FontAttributes.Bold,
+                TextColor=Color.FromArgb("#0F172A"),
+                BackgroundColor=Color.FromArgb("#F1F5F9"),
+                HorizontalTextAlignment=TextAlignment.Center,
+                VerticalTextAlignment=TextAlignment.Center,
+            }),
+            CellTemplate=new DataTemplate(() => {
+                var layout = new Grid{
+                    ColumnDefinitions = {
+                        new ColumnDefinition { Width = new GridLength(28) },
+                        new ColumnDefinition { Width = new GridLength(18) },
+                        new ColumnDefinition { Width = new GridLength(18) },
+                        new ColumnDefinition { Width = GridLength.Star },
+                    },
+                    ColumnSpacing=2,
+                    Padding=new Thickness(1,0),
+                    VerticalOptions=LayoutOptions.Center,
+                };
+                var check = new CheckBox{
+                    WidthRequest=24,
+                    HeightRequest=24,
+                    Margin=new Thickness(0),
+                    VerticalOptions=LayoutOptions.Center,
+                    HorizontalOptions=LayoutOptions.Center,
+                };
+                check.SetBinding(CheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsSelected),BindingMode.TwoWay));
+                check.SetBinding(IsEnabledProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCase));
+                var icon = new Label{
+                    FontSize=12,
+                    TextColor=Color.FromArgb("#0F172A"),
+                    HorizontalTextAlignment=TextAlignment.Center,
+                    VerticalTextAlignment=TextAlignment.Center,
+                };
+                icon.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.StatusIcon));
+                var spinner = new ActivityIndicator{
+                    WidthRequest=14,
+                    HeightRequest=14,
+                    Color=Color.FromArgb("#2563EB"),
+                    VerticalOptions=LayoutOptions.Center,
+                    HorizontalOptions=LayoutOptions.Center,
+                };
+                spinner.SetBinding(ActivityIndicator.IsRunningProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsRunning));
+                spinner.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsRunning));
+                var detail = new Label{
+                    FontSize=9,
+                    TextColor=Color.FromArgb("#334155"),
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                    VerticalTextAlignment=TextAlignment.Center,
+                };
+                detail.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionText));
+                layout.Add(check,0,0);
+                layout.Add(icon,1,0);
+                layout.Add(spinner,2,0);
+                layout.Add(detail,3,0);
+                return layout;
+            }),
+        };
+    }
+
+    private DataGridTemplateColumn CreateProjectTextColumn(string header,string mappingName,string bindingPath,BenchmarkGridSortColumn sortColumn,double width,TextAlignment alignment){
+        return new DataGridTemplateColumn{
+            MappingName=mappingName,
+            HeaderText=header,
+            Width=width,
+            AllowSorting=false,
+            HeaderTemplate=this.CreateHeaderTemplate(header,sortColumn),
+            CellTemplate=new DataTemplate(() => {
+                var label = new Label{
+                    FontSize=10,
+                    TextColor=Color.FromArgb("#1E293B"),
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                    HorizontalTextAlignment=alignment,
+                    VerticalTextAlignment=TextAlignment.Center,
+                    Margin=new Thickness(0),
+                    Padding=new Thickness(2,0),
+                };
+                label.SetBinding(Label.TextProperty,bindingPath);
+                return label;
+            }),
+        };
     }
 
     private DataGridTemplateColumn CreateTextColumn(string header,string property,BenchmarkGridSortColumn sortColumn,double width,TextAlignment alignment){
@@ -330,23 +496,13 @@ public sealed class MainPage:ContentPage{
         };
         grid.Add(this.CreateTabHeader(),0,0);
         grid.Add(this.CreateCpuView(),0,1);
-        grid.Add(this.CreateResultsView(),0,1);
         grid.Add(this.CreateChartView(),0,1);
         return grid;
     }
 
     private View CreateTabHeader(){
-        var cpuButton = this.CommandButton("CPU",nameof(BenchmarkRunnerViewModel.ShowCpuCommand));
-        var resultsButton = this.CommandButton("Results",nameof(BenchmarkRunnerViewModel.ShowResultsCommand));
-        var chartButton = this.CommandButton("Chart",nameof(BenchmarkRunnerViewModel.ShowChartCommand));
-        var pairPicker = new Picker{
-            WidthRequest=210,
-            HeightRequest=30,
-            ItemDisplayBinding=new Binding(nameof(ComparisonPairOption.DisplayName)),
-        };
-        pairPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ComparisonPairs));
-        pairPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedComparisonPair));
-
+        var cpuButton = this.TabButton("CPU",nameof(BenchmarkRunnerViewModel.ShowCpuCommand));
+        var chartButton = this.TabButton("比率チャート",nameof(BenchmarkRunnerViewModel.ShowChartCommand));
         var metricPicker = new Picker{
             WidthRequest=86,
             HeightRequest=30,
@@ -354,14 +510,6 @@ public sealed class MainPage:ContentPage{
         };
         metricPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.Metrics));
         metricPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedMetric));
-
-        var resultNPicker = new Picker{
-            WidthRequest=116,
-            HeightRequest=30,
-            ItemDisplayBinding=new Binding(nameof(ResultElementCountOption.DisplayName)),
-        };
-        resultNPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ResultElementCountOptions));
-        resultNPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedResultElementCount));
 
         var chartModePicker = new Picker{
             WidthRequest=126,
@@ -376,14 +524,21 @@ public sealed class MainPage:ContentPage{
             Padding=new Thickness(0,0,0,6),
             Children = {
                 cpuButton,
-                resultsButton,
                 chartButton,
-                resultNPicker,
                 chartModePicker,
-                pairPicker,
                 metricPicker,
             },
         };
+    }
+
+    private Button TabButton(string text,string commandPath){
+        var button = this.CommandButton(text,commandPath);
+        button.BackgroundColor=Color.FromArgb("#E2E8F0");
+        button.TextColor=Color.FromArgb("#0F172A");
+        button.CornerRadius=0;
+        button.BorderColor=Color.FromArgb("#CBD5E1");
+        button.BorderWidth=1;
+        return button;
     }
 
     private View CreateCpuView(){
@@ -425,15 +580,53 @@ public sealed class MainPage:ContentPage{
         };
         nList.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ElementCountOptions));
 
+        var topGrid = new Grid{
+            ColumnDefinitions = {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = new GridLength(260) },
+            },
+            ColumnSpacing=8,
+            Children = {
+                nList,
+                this.CreateCsvCalendar(),
+            },
+        };
+        topGrid.SetColumn(topGrid.Children[1],1);
+
         var layout = new VerticalStackLayout{
             Spacing=8,
             Children = {
-                nList,
+                topGrid,
                 list,
             },
         };
         layout.SetBinding(IsVisibleProperty,nameof(BenchmarkRunnerViewModel.IsCpuVisible));
         return layout;
+    }
+
+    private SfCalendar CreateCsvCalendar(){
+        var calendar = new SfCalendar{
+            View=CalendarView.Month,
+            HeightRequest=210,
+            MonthView=new CalendarMonthView(),
+        };
+        calendar.SetBinding(SfCalendar.SelectedDateProperty,new Binding(nameof(BenchmarkRunnerViewModel.SelectedCalendarDate),BindingMode.TwoWay));
+        this.ApplyCalendarSpecialDays(calendar);
+        if(this.viewModel is not null){
+            this.viewModel.CsvCalendarDates.CollectionChanged+=(_,_) => this.ApplyCalendarSpecialDays(calendar);
+        }
+        return calendar;
+    }
+
+    private void ApplyCalendarSpecialDays(SfCalendar calendar){
+        calendar.MonthView ??= new CalendarMonthView();
+        calendar.MonthView.SpecialDayPredicate=date => this.viewModel is not null
+            &&this.viewModel.CsvCalendarDates.Any(item => item.Date==date.Date)
+                ? new CalendarIconDetails{
+                    Icon=CalendarIcon.Dot,
+                    Fill=Color.FromArgb("#2563EB"),
+                }
+                : null!;
     }
 
     private View CreateCpuSectionView(){
@@ -445,7 +638,7 @@ public sealed class MainPage:ContentPage{
         };
         var headerGrid = new Grid{
             ColumnDefinitions = {
-                new ColumnDefinition { Width = new GridLength(24) },
+                new ColumnDefinition { Width = new GridLength(32) },
                 new ColumnDefinition { Width = new GridLength(24) },
                 new ColumnDefinition { Width = GridLength.Star },
                 new ColumnDefinition { Width = new GridLength(24) },
@@ -535,7 +728,7 @@ public sealed class MainPage:ContentPage{
             CellTemplate=new DataTemplate(() => {
                 var layout = new Grid{
                     ColumnDefinitions = {
-                        new ColumnDefinition { Width = new GridLength(22) },
+                        new ColumnDefinition { Width = new GridLength(32) },
                         new ColumnDefinition { Width = new GridLength(24) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
@@ -580,7 +773,7 @@ public sealed class MainPage:ContentPage{
         var labelWidth = section.Rows.Count==0
             ? 24
             : section.Rows.Max(static row => row.Label.Length)*7;
-        return Math.Max(96,22+24+labelWidth+18);
+        return Math.Max(112,32+24+labelWidth+22);
     }
 
     private DataGridTemplateColumn CreateCpuLogicalColumn(CpuTableColumn column){
@@ -588,29 +781,45 @@ public sealed class MainPage:ContentPage{
         return new DataGridTemplateColumn{
             MappingName="Cpu"+column.Index,
             HeaderText=column.HeaderText,
-            Width=48,
+            Width=CpuLogicalColumnWidth,
             AllowSorting=false,
             HeaderTemplate=this.CreateCpuColumnHeaderTemplate(column),
             CellTemplate=new DataTemplate(() => {
-                var layout = new HorizontalStackLayout{
-                    Spacing=0,
+                var layout = new Grid{
+                    ColumnDefinitions = {
+                        new ColumnDefinition { Width = new GridLength(CpuLogicalCheckColumnWidth) },
+                        new ColumnDefinition { Width = new GridLength(18) },
+                        new ColumnDefinition { Width = new GridLength(CpuLogicalNumberWidth) },
+                    },
+                    ColumnSpacing=2,
+                    WidthRequest=CpuLogicalCheckColumnWidth+CpuLogicalNumberWidth+22,
                     HorizontalOptions=LayoutOptions.Center,
                     VerticalOptions=LayoutOptions.Center,
                 };
                 layout.SetBinding(IsVisibleProperty,new Binding(cellPath,converter:new NullToBoolConverter()));
                 var check = this.CreateCpuCheckBox();
                 check.SetBinding(CheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsSelected),BindingMode.TwoWay));
+                var spinner = new ActivityIndicator{
+                    WidthRequest=14,
+                    HeightRequest=14,
+                    Color=Color.FromArgb("#2563EB"),
+                    VerticalOptions=LayoutOptions.Center,
+                    HorizontalOptions=LayoutOptions.Center,
+                };
+                spinner.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsRunningJob)));
+                spinner.SetBinding(IsVisibleProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsRunningJob)));
                 var label = new Label{
                     FontSize=10,
                     TextColor=Color.FromArgb("#0F172A"),
                     HorizontalTextAlignment=TextAlignment.Start,
                     VerticalTextAlignment=TextAlignment.Center,
                     LineBreakMode=LineBreakMode.TailTruncation,
-                    WidthRequest=18,
+                    WidthRequest=CpuLogicalNumberWidth,
                 };
                 label.SetBinding(Label.TextProperty,cellPath+"."+nameof(CpuTableCell.DisplayText));
-                layout.Children.Add(check);
-                layout.Children.Add(label);
+                layout.Add(check,0,0);
+                layout.Add(spinner,1,0);
+                layout.Add(label,2,0);
                 return layout;
             }),
         };
@@ -653,8 +862,8 @@ public sealed class MainPage:ContentPage{
 
     private CheckBox CreateCpuCheckBox(){
         return new CheckBox{
-            WidthRequest=22,
-            HeightRequest=22,
+            WidthRequest=CpuCheckBoxWidth,
+            HeightRequest=CpuCheckBoxHeight,
             HorizontalOptions=LayoutOptions.Center,
             VerticalOptions=LayoutOptions.Center,
             Margin=new Thickness(0),
@@ -700,7 +909,7 @@ public sealed class MainPage:ContentPage{
             },
         };
         resultList.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.VisibleResultItems));
-        resultList.SetBinding(IsVisibleProperty,nameof(BenchmarkRunnerViewModel.IsResultsVisible));
+        resultList.IsVisible=false;
         return resultList;
     }
 
@@ -794,6 +1003,22 @@ public sealed class MainPage:ContentPage{
         chart.Series.Add(leftSeries);
         chart.Series.Add(rightSeries);
 
+        var warningList = new CollectionView{
+            SelectionMode=SelectionMode.None,
+            HeightRequest=90,
+            ItemTemplate=new DataTemplate(() => {
+                var label = new Label{
+                    FontSize=11,
+                    TextColor=Color.FromArgb("#B45309"),
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                    Padding=new Thickness(4,1),
+                };
+                label.SetBinding(Label.TextProperty,".");
+                return label;
+            }),
+        };
+        warningList.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ChartWarnings));
+
         var emptyText = new Label{
             Text="Run benchmarks or load BenchmarkComparison.csv.",
             HorizontalOptions=LayoutOptions.Center,
@@ -801,18 +1026,60 @@ public sealed class MainPage:ContentPage{
             TextColor=Color.FromArgb("#64748B"),
         };
 
-        var grid = new Grid{
+        var chartContent = new Grid{
+            RowDefinitions = {
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Star },
+                new RowDefinition { Height = GridLength.Auto },
+            },
+            RowSpacing=6,
             Children = {
+                this.CreateChartPairTabs(),
                 new ScrollView{
                     Orientation=ScrollOrientation.Vertical,
                     Content=chart,
                 },
+                warningList,
+            },
+        };
+        chartContent.SetRow(chartContent.Children[1],1);
+        chartContent.SetRow(warningList,2);
+
+        var grid = new Grid{
+            Children = {
+                chartContent,
                 emptyText,
             },
         };
         grid.SetBinding(IsVisibleProperty,nameof(BenchmarkRunnerViewModel.IsChartVisible));
         emptyText.SetBinding(IsVisibleProperty,new Binding(nameof(BenchmarkRunnerViewModel.ChartPoints)+".Count",converter:new CountIsZeroConverter()));
         return grid;
+    }
+
+    private View CreateChartPairTabs(){
+        var layout = new HorizontalStackLayout{
+            Spacing=4,
+        };
+        foreach(var option in this.viewModel?.ComparisonPairs??[]){
+            var button = new Button{
+                Text=option.Key,
+                Padding=new Thickness(10,3),
+                HeightRequest=28,
+                FontSize=12,
+                CornerRadius=0,
+                BackgroundColor=Color.FromArgb("#E2E8F0"),
+                TextColor=Color.FromArgb("#0F172A"),
+                BorderColor=Color.FromArgb("#CBD5E1"),
+                BorderWidth=1,
+            };
+            button.Clicked+=(_,_) => {
+                if(this.viewModel is not null){
+                    this.viewModel.SelectedComparisonPair=option;
+                }
+            };
+            layout.Children.Add(button);
+        }
+        return layout;
     }
 
     private DataTemplate CreateDataLabelTemplate(string textPropertyName){

@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using Benchmark.Worker;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -11,6 +10,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private readonly IBenchmarkRunService runService;
     private readonly IBenchmarkCsvService csvService;
     private readonly IBenchmarkComparisonService comparisonService;
+    private readonly BenchmarkResultStore resultStore;
+    private readonly BenchmarkCsvDiscoveryService csvDiscoveryService;
+    private readonly BenchmarkUiStateStore uiStateStore;
+    private readonly string benchmarkRoot;
     private CancellationTokenSource? runCancellation;
     private string statusText = "Ready";
     private bool isRunning;
@@ -18,12 +21,16 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private ComparisonPairOption selectedComparisonPair;
     private ScaleOption? selectedScale;
     private RunModeOption selectedRunMode;
+    private ThresholdOption selectedThreshold;
+    private CsvDateOption? selectedCsvDateOption;
+    private DateTime? selectedCalendarDate;
     private string adaptiveThresholdSecondsText = "1";
     private MetricOption selectedMetric;
     private ChartModeOption selectedChartMode;
     private ResultElementCountOption? selectedResultElementCount;
     private double chartHeight = 300;
     private bool isApplyingCpuSelection;
+    private bool isApplyingUiState;
     private BenchmarkGridSortColumn currentSortColumn = BenchmarkGridSortColumn.BenchmarkName;
     private bool currentSortDescending;
     private IReadOnlyList<BenchmarkComparisonRow> comparisonRows = [];
@@ -33,18 +40,24 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         ICpuTopologyService cpuTopologyService,
         IBenchmarkRunService runService,
         IBenchmarkCsvService csvService,
-        IBenchmarkComparisonService comparisonService){
+        IBenchmarkComparisonService comparisonService,
+        BenchmarkResultStore resultStore,
+        BenchmarkCsvDiscoveryService csvDiscoveryService,
+        BenchmarkUiStateStore uiStateStore,
+        string benchmarkRoot){
         this.catalogService=catalogService;
         this.cpuTopologyService=cpuTopologyService;
         this.runService=runService;
         this.csvService=csvService;
         this.comparisonService=comparisonService;
+        this.resultStore=resultStore;
+        this.csvDiscoveryService=csvDiscoveryService;
+        this.uiStateStore=uiStateStore;
+        this.benchmarkRoot=benchmarkRoot;
         this.ComparisonPairs=[
             new ComparisonPairOption("System","System FLinq/ZLinq",BenchmarkComparisonFormatter.SystemFLinq,BenchmarkComparisonFormatter.SystemZLinq),
             new ComparisonPairOption("Persisted","PersistedFLinq/PersistedLinq",BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.PersistedLinq),
             new ComparisonPairOption("Tsavorite","TsavoriteFLinq/TsavoriteLinq",BenchmarkComparisonFormatter.TsavoriteFLinq,BenchmarkComparisonFormatter.TsavoriteLinq),
-            new ComparisonPairOption("PersistedLinqTsavoriteLinq","PersistedLinq/TsavoriteLinq",BenchmarkComparisonFormatter.PersistedLinq,BenchmarkComparisonFormatter.TsavoriteLinq),
-            new ComparisonPairOption("PersistedFLinqTsavoriteFLinq","PersistedFLinq/TsavoriteFLinq",BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.TsavoriteFLinq),
         ];
         this.selectedComparisonPair=this.ComparisonPairs[0];
         this.RunModes=[
@@ -52,6 +65,20 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             new RunModeOption("Fixed",BenchmarkRunMode.Fixed),
         ];
         this.selectedRunMode=this.RunModes[0];
+        this.ThresholdOptions=[
+            new ThresholdOption("1 ms",1),
+            new ThresholdOption("2 ms",2),
+            new ThresholdOption("4 ms",4),
+            new ThresholdOption("8 ms",8),
+            new ThresholdOption("16 ms",16),
+            new ThresholdOption("32 ms",32),
+            new ThresholdOption("64 ms",64),
+            new ThresholdOption("128 ms",128),
+            new ThresholdOption("256 ms",256),
+            new ThresholdOption("512 ms",512),
+            new ThresholdOption("1024 ms",1024),
+        ];
+        this.selectedThreshold=this.ThresholdOptions[0];
         this.Metrics=[
             new MetricOption("Time",BenchmarkMetricKind.Time),
             new MetricOption("Allocated",BenchmarkMetricKind.Allocated),
@@ -83,7 +110,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.ExportCsvCommand=new AsyncRelayCommand(this.ExportCsvAsync);
         this.LoadCsvCommand=new AsyncRelayCommand(this.LoadCsvAsync);
         this.ShowCpuCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Cpu);
-        this.ShowResultsCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Results);
         this.ShowChartCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Chart);
 
         foreach(var cpu in this.cpuTopologyService.Load()){
@@ -107,10 +133,14 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     public ObservableCollection<ScaleOption> ScaleOptions { get; } = [];
     public ObservableCollection<ElementCountOption> ElementCountOptions { get; } = [];
     public ObservableCollection<ResultElementCountOption> ResultElementCountOptions { get; } = [];
+    public ObservableCollection<CsvDateOption> CsvDateOptions { get; } = [];
+    public ObservableCollection<DateTime> CsvCalendarDates { get; } = [];
+    public ObservableCollection<string> ChartWarnings { get; } = [];
     public IReadOnlyList<RunModeOption> RunModes { get; }
     public IReadOnlyList<ComparisonPairOption> ComparisonPairs { get; }
     public IReadOnlyList<MetricOption> Metrics { get; }
     public IReadOnlyList<ChartModeOption> ChartModes { get; }
+    public IReadOnlyList<ThresholdOption> ThresholdOptions { get; }
     public IAsyncRelayCommand RefreshCommand { get; }
     public IRelayCommand SelectAllCommand { get; }
     public IRelayCommand ClearSelectionCommand { get; }
@@ -119,7 +149,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     public IAsyncRelayCommand ExportCsvCommand { get; }
     public IAsyncRelayCommand LoadCsvCommand { get; }
     public IRelayCommand ShowCpuCommand { get; }
-    public IRelayCommand ShowResultsCommand { get; }
     public IRelayCommand ShowChartCommand { get; }
 
     public string StatusText{
@@ -148,14 +177,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         set{
             if(this.SetProperty(ref this.selectedTab,value)){
                 this.OnPropertyChanged(nameof(this.IsCpuVisible));
-                this.OnPropertyChanged(nameof(this.IsResultsVisible));
                 this.OnPropertyChanged(nameof(this.IsChartVisible));
             }
         }
     }
 
     public bool IsCpuVisible => this.SelectedTab==BenchmarkTab.Cpu;
-    public bool IsResultsVisible => this.SelectedTab==BenchmarkTab.Results;
     public bool IsChartVisible => this.SelectedTab==BenchmarkTab.Chart;
 
     public ComparisonPairOption SelectedComparisonPair{
@@ -175,6 +202,39 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     public RunModeOption SelectedRunMode{
         get => this.selectedRunMode;
         set => this.SetProperty(ref this.selectedRunMode,value);
+    }
+
+    public ThresholdOption SelectedThreshold{
+        get => this.selectedThreshold;
+        set => this.SetProperty(ref this.selectedThreshold,value);
+    }
+
+    public CsvDateOption? SelectedCsvDateOption{
+        get => this.selectedCsvDateOption;
+        set{
+            if(this.SetProperty(ref this.selectedCsvDateOption,value)){
+                this.selectedCalendarDate=value?.Timestamp.ToLocalTime().Date;
+                this.OnPropertyChanged(nameof(this.SelectedCalendarDate));
+                if(!this.isApplyingUiState){
+                    this.ApplyCsvDateFilter(value?.Timestamp);
+                    this.SaveUiState();
+                }
+            }
+        }
+    }
+
+    public DateTime? SelectedCalendarDate{
+        get => this.selectedCalendarDate;
+        set{
+            if(this.SetProperty(ref this.selectedCalendarDate,value)){
+                if(value is { } date){
+                    this.SelectedCsvDateOption=this.CsvDateOptions
+                        .Where(option => option.Timestamp.ToLocalTime().Date==date.Date)
+                        .OrderByDescending(static option => option.Timestamp)
+                        .FirstOrDefault();
+                }
+            }
+        }
     }
 
     public string AdaptiveThresholdSecondsText{
@@ -257,17 +317,38 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.IsRunning=true;
         this.StatusText="Loading";
         try{
+            this.RefreshCsvScan();
+            var savedState = this.uiStateStore.Load();
             var loaded = await this.catalogService.LoadAsync(CancellationToken.None);
             var existingSelection = this.BenchmarkRows
                 .Where(static item => item.IsSelected)
                 .Select(static item => item.MethodName)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var existingCellSelection = this.BenchmarkRows
+                .SelectMany(static row => row.ProjectCells.Select(cell => new {
+                    Key=BenchmarkUiStateStore.CreateCellKey(row.MethodName,cell.Project),
+                    cell.IsSelected,
+                }))
+                .ToDictionary(static item => item.Key,static item => item.IsSelected,StringComparer.OrdinalIgnoreCase);
             this.BenchmarkRows.Clear();
             foreach(var row in this.CreateMethodRows(loaded)){
-                row.IsSelected=existingSelection.Contains(row.MethodName);
+                this.SubscribeBenchmarkRow(row);
+                row.IsSelected=existingSelection.Count==0
+                    ? savedState.RowSelections.GetValueOrDefault(row.MethodName,true)
+                    : existingSelection.Contains(row.MethodName);
+                foreach(var cell in row.ProjectCells){
+                    var key = BenchmarkUiStateStore.CreateCellKey(row.MethodName,cell.Project);
+                    if(existingCellSelection.TryGetValue(key,out var existing)){
+                        cell.IsSelected=existing;
+                    }else if(savedState.ProjectCellSelections.TryGetValue(key,out var saved)){
+                        cell.IsSelected=saved;
+                    }
+                }
                 this.BenchmarkRows.Add(row);
             }
             this.ApplyComparisonRowsToTable();
+            this.ApplyStoredResultsToTable();
+            this.RestoreCsvDateSelection(savedState.SelectedCsvTimestamp);
             this.ApplyCurrentSort();
             this.StatusText=this.BenchmarkRows.Count+" benchmarks";
         }catch(Exception ex){
@@ -291,9 +372,113 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     }
 
     private void SetAllBenchmarkSelection(bool selected){
+        this.isApplyingUiState=true;
         foreach(var item in this.BenchmarkRows){
             item.IsSelected=selected;
+            foreach(var cell in item.ProjectCells){
+                cell.IsSelected=selected;
+            }
         }
+        this.isApplyingUiState=false;
+        this.SaveUiState();
+    }
+
+    private void SubscribeBenchmarkRow(BenchmarkTableRow row){
+        row.PropertyChanged+=(_,args) => {
+            if(args.PropertyName==nameof(BenchmarkTableRow.IsSelected)&&!this.isApplyingUiState){
+                this.SaveUiState();
+            }
+        };
+        foreach(var cell in row.ProjectCells){
+            cell.PropertyChanged+=(_,args) => {
+                if(args.PropertyName==nameof(BenchmarkProjectCell.IsSelected)&&!this.isApplyingUiState){
+                    this.SaveUiState();
+                }
+            };
+        }
+    }
+
+    private void RefreshCsvScan(){
+        var scan = this.csvDiscoveryService.Scan(this.benchmarkRoot);
+        this.resultStore.UpsertMany(scan.Results);
+        this.resultStore.Save();
+        this.CsvDateOptions.Clear();
+        foreach(var option in scan.DateOptions){
+            this.CsvDateOptions.Add(option);
+        }
+        this.CsvCalendarDates.Clear();
+        foreach(var date in scan.CalendarDates){
+            this.CsvCalendarDates.Add(date);
+        }
+        this.comparisonRows=this.resultStore.BuildLatestComparisonRows();
+        this.UpdateChart();
+    }
+
+    private void RestoreCsvDateSelection(DateTimeOffset? timestamp){
+        if(timestamp is null){
+            return;
+        }
+
+        this.isApplyingUiState=true;
+        try{
+            this.SelectedCsvDateOption=this.CsvDateOptions.FirstOrDefault(option => option.Timestamp==timestamp.Value);
+            if(this.SelectedCsvDateOption is { } selected){
+                this.selectedCalendarDate=selected.Timestamp.ToLocalTime().Date;
+                this.OnPropertyChanged(nameof(this.SelectedCalendarDate));
+            }
+        }finally{
+            this.isApplyingUiState=false;
+        }
+    }
+
+    private void ApplyStoredResultsToTable(){
+        foreach(var row in this.BenchmarkRows){
+            foreach(var cell in row.ProjectCells){
+                var stored = this.resultStore.GetLatest(row.MethodName,cell.Project);
+                if(stored is not null){
+                    row.ApplyStoredResult(stored);
+                }
+            }
+        }
+    }
+
+    private void ApplyCsvDateFilter(DateTimeOffset? selectedTimestamp){
+        if(selectedTimestamp is null){
+            return;
+        }
+
+        this.isApplyingUiState=true;
+        try{
+            foreach(var row in this.BenchmarkRows){
+                var anySelected = false;
+                foreach(var cell in row.ProjectCells){
+                    if(!cell.HasCase){
+                        continue;
+                    }
+
+                    var lastMeasuredAt = this.resultStore.GetLatestMeasuredAt(row.MethodName,cell.Project);
+                    var shouldRun = lastMeasuredAt is null||lastMeasuredAt.Value<selectedTimestamp.Value;
+                    cell.IsSelected=shouldRun;
+                    anySelected|=shouldRun;
+                }
+                row.IsSelected=anySelected;
+            }
+        }finally{
+            this.isApplyingUiState=false;
+        }
+    }
+
+    public void SaveUiState(){
+        var state = new BenchmarkUiState(
+            this.SelectedCsvDateOption?.Timestamp,
+            this.BenchmarkRows
+                .SelectMany(static row => row.ProjectCells.Select(cell => new {
+                    Key=BenchmarkUiStateStore.CreateCellKey(row.MethodName,cell.Project),
+                    cell.IsSelected,
+                }))
+                .ToDictionary(static item => item.Key,static item => item.IsSelected,StringComparer.OrdinalIgnoreCase),
+            this.BenchmarkRows.ToDictionary(static row => row.MethodName,static row => row.IsSelected,StringComparer.OrdinalIgnoreCase));
+        this.uiStateStore.Save(state);
     }
 
     private async Task RunAsync(){
@@ -306,7 +491,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             return;
         }
 
-        this.SelectedTab=BenchmarkTab.Results;
+        this.SelectedTab=BenchmarkTab.Cpu;
         this.runCancellation?.Cancel();
         this.runCancellation=new CancellationTokenSource();
         this.IsRunning=true;
@@ -314,9 +499,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.VisibleResultItems.Clear();
         this.ResultElementCountOptions.Clear();
         this.SelectedResultElementCount=null;
-        this.comparisonRows=[];
-        this.ChartPoints.Clear();
-        this.ApplyComparisonRowsToTable();
         try{
             var cpus = this.CpuItems
                 .Where(static cpu => cpu.IsSelected)
@@ -329,25 +511,60 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 this.SelectedRunMode.Mode,
                 this.GetAdaptiveThreshold(),
                 result => MainThread.BeginInvokeOnMainThread(() => {
-                    this.ResultItems.Add(result);
-                    this.RegisterResultElementCount(result.ElementCount);
-                    this.RefreshVisibleResults();
-                    this.UpdateComparisonRowsFromResults();
+                    this.HandleRunResult(result);
                 }),
                 status => MainThread.BeginInvokeOnMainThread(() => this.StatusText=status),
                 this.runCancellation.Token);
+            this.RefreshCsvScan();
         }catch(OperationCanceledException){
             this.StatusText="Canceled";
         }finally{
             this.IsRunning=false;
             this.runCancellation?.Dispose();
             this.runCancellation=null;
-            this.UpdateComparisonRowsFromResults();
+            this.comparisonRows=this.resultStore.BuildLatestComparisonRows();
+            this.ApplyComparisonRowsToTable();
+            this.ApplyStoredResultsToTable();
+            this.UpdateChart();
+            this.SaveUiState();
         }
     }
 
     private void Cancel(){
         this.runCancellation?.Cancel();
+    }
+
+    private void HandleRunResult(BenchmarkResultItem result){
+        var cpu = result.AssignedLogicalCpu is { } logicalCpu
+            ? this.CpuItems.FirstOrDefault(item => item.LogicalProcessorIndex==logicalCpu)
+            : null;
+        cpu?.ApplyJob(result);
+        this.UpsertResultItem(result);
+        this.RegisterResultElementCount(result.ElementCount);
+        this.RefreshVisibleResults();
+        var row = this.BenchmarkRows.FirstOrDefault(item => string.Equals(item.MethodName,result.Method,StringComparison.OrdinalIgnoreCase));
+        row?.ApplyRunResult(result,cpu);
+        if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+            ||string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
+            this.resultStore.Upsert(result,DateTimeOffset.Now,null,string.Empty);
+            this.resultStore.Save();
+            this.comparisonRows=this.resultStore.BuildLatestComparisonRows();
+            this.ApplyComparisonRowsToTable();
+            this.ApplyStoredResultsToTable();
+            this.UpdateChart();
+        }
+    }
+
+    private void UpsertResultItem(BenchmarkResultItem result){
+        for(var index=this.ResultItems.Count-1;index>=0;index--){
+            var item = this.ResultItems[index];
+            if(string.Equals(item.Project,result.Project,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(item.Method,result.Method,StringComparison.OrdinalIgnoreCase)
+                &&item.ElementCount==result.ElementCount){
+                this.ResultItems.RemoveAt(index);
+            }
+        }
+        this.ResultItems.Add(result);
     }
 
     private IReadOnlyList<int> GetSelectedElementCounts(){
@@ -359,15 +576,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     }
 
     private TimeSpan GetAdaptiveThreshold(){
-        return double.TryParse(
-            this.AdaptiveThresholdSecondsText,
-            System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture,
-            out var seconds)
-            &&double.IsFinite(seconds)
-            &&seconds>0
-            ? TimeSpan.FromSeconds(seconds)
-            : TimeSpan.FromSeconds(1);
+        return TimeSpan.FromMilliseconds(this.SelectedThreshold.Milliseconds);
     }
 
     private async Task ExportCsvAsync(){
@@ -486,13 +695,32 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
     private void UpdateChart(){
         this.ChartPoints.Clear();
+        this.ChartWarnings.Clear();
         var points = this.SelectedChartMode.Mode==BenchmarkChartMode.ScaleTrend
             ? this.BuildScaleTrendPoints()
             : this.comparisonService.BuildChartPoints(this.comparisonRows,this.SelectedComparisonPair,this.SelectedMetric.Kind);
         foreach(var item in points){
             this.ChartPoints.Add(item);
         }
+        if(this.SelectedChartMode.Mode==BenchmarkChartMode.ElementComparison){
+            foreach(var warning in this.BuildChartWarnings()){
+                this.ChartWarnings.Add(warning);
+            }
+        }
         this.ChartHeight=Math.Max(300,this.ChartPoints.Count*28+72);
+    }
+
+    private IEnumerable<string> BuildChartWarnings(){
+        foreach(var row in this.comparisonRows){
+            var left = row.GetProject(this.SelectedComparisonPair.LeftProject);
+            var right = row.GetProject(this.SelectedComparisonPair.RightProject);
+            if(left.HasValue==right.HasValue){
+                continue;
+            }
+
+            var missing = left.HasValue ? this.SelectedComparisonPair.RightProject : this.SelectedComparisonPair.LeftProject;
+            yield return BenchmarkFormatting.ShortName(row.Benchmark)+" / "+missing+" 未計測";
+        }
     }
 
     private IReadOnlyList<ChartComparisonPoint> BuildScaleTrendPoints(){

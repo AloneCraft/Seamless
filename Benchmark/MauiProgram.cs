@@ -1,5 +1,6 @@
 using Syncfusion.Maui.Core.Hosting;
 using Syncfusion.Maui.Toolkit.Hosting;
+using Microsoft.Maui.LifecycleEvents;
 
 namespace Benchmark;
 
@@ -19,7 +20,25 @@ public static class MauiProgram {
         builder
             .UseMauiApp<App>()
             .ConfigureSyncfusionCore()
-            .ConfigureSyncfusionToolkit();
+            .ConfigureSyncfusionToolkit()
+            .ConfigureLifecycleEvents(events => {
+#if WINDOWS
+                events.AddWindows(windows => {
+                    windows.OnWindowCreated(window => {
+                        window.Closed+=async (_,args) => {
+                            if(Application.Current is not App app){
+                                return;
+                            }
+
+                            args.Handled=true;
+                            if(await app.RequestCloseAsync()){
+                                window.Close();
+                            }
+                        };
+                    });
+                });
+#endif
+            });
 
         var app = builder.Build();
         StartupDiagnostics.WriteSyncfusionAssemblies("CreateMauiApp completed");

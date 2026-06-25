@@ -1,0 +1,348 @@
+using System.Globalization;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+
+namespace Benchmark;
+
+public sealed record BenchmarkStoredResult(
+    string Project,
+    string Method,
+    int ElementCount,
+    string Status,
+    string Mean,
+    double? MeanNanoseconds,
+    long? AllocatedBytes,
+    DateTimeOffset MeasuredAt,
+    DateTimeOffset? SourceCsvAt,
+    string SourcePath){
+    public ProjectMetrics ToProjectMetrics() =>
+        string.Equals(this.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+            ? new ProjectMetrics(this.MeanNanoseconds,this.AllocatedBytes,true)
+            : ProjectMetrics.Missing;
+}
+
+public sealed record CsvDateOption(DateTimeOffset Timestamp,string DisplayName);
+
+public sealed record BenchmarkCsvScanResult(
+    IReadOnlyList<CsvDateOption> DateOptions,
+    IReadOnlyList<DateTime> CalendarDates,
+    IReadOnlyList<BenchmarkStoredResult> Results);
+
+public sealed class BenchmarkResultStore{
+    private static readonly JsonSerializerOptions JsonOptions = new(){
+        WriteIndented=true,
+    };
+
+    private readonly string path;
+    private readonly Dictionary<string,BenchmarkStoredResult> results = new(StringComparer.OrdinalIgnoreCase);
+
+    public BenchmarkResultStore(string benchmarkRoot){
+        this.path=Path.Combine(benchmarkRoot,"benchmark-results.json");
+        this.Load();
+    }
+
+    public IReadOnlyList<BenchmarkStoredResult> Results => this.results.Values.ToArray();
+
+    public void Upsert(BenchmarkResultItem item,DateTimeOffset measuredAt,DateTimeOffset? sourceCsvAt,string sourcePath){
+        if(item.ElementCount<=0){
+            return;
+        }
+
+        this.Upsert(new BenchmarkStoredResult(
+            item.Project,
+            item.Method,
+            item.ElementCount,
+            item.Status,
+            item.Mean,
+            item.MeanNanoseconds,
+            item.AllocatedBytesValue,
+            measuredAt,
+            sourceCsvAt,
+            sourcePath));
+    }
+
+    public void Upsert(BenchmarkStoredResult result){
+        this.results[CreateKey(result.Project,result.Method,result.ElementCount)]=result;
+    }
+
+    public void UpsertMany(IEnumerable<BenchmarkStoredResult> items){
+        foreach(var item in items){
+            this.Upsert(item);
+        }
+    }
+
+    public BenchmarkStoredResult? GetLatest(string method,string project){
+        return this.results.Values
+            .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(static result => result.MeasuredAt)
+            .ThenByDescending(static result => result.ElementCount)
+            .FirstOrDefault();
+    }
+
+    public DateTimeOffset? GetLatestMeasuredAt(string method,string project) =>
+        this.GetLatest(method,project)?.MeasuredAt;
+
+    public IReadOnlyList<BenchmarkComparisonRow> BuildLatestComparisonRows(){
+        var rows = this.results.Values
+            .Where(static result => string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
+            .GroupBy(static result => result.Method,StringComparer.OrdinalIgnoreCase)
+            .Select(group => {
+                var metrics = group
+                    .GroupBy(static result => result.Project,StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(
+                        static item => item.Key,
+                        static item => item
+                            .OrderByDescending(static result => result.MeasuredAt)
+                            .ThenByDescending(static result => result.ElementCount)
+                            .First()
+                            .ToProjectMetrics(),
+                        StringComparer.OrdinalIgnoreCase);
+                return CreateReportRows(group.Key,metrics);
+            })
+            .SelectMany(static item => item)
+            .ToArray();
+        return rows.Length==0
+            ? []
+            : BenchmarkComparisonFormatter.BuildComparisonRows(rows);
+    }
+
+    public void Save(){
+        Directory.CreateDirectory(Path.GetDirectoryName(this.path)??".");
+        var snapshot = new BenchmarkResultStoreSnapshot(this.results.Values
+            .OrderBy(static result => result.Method,StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static result => result.Project,StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static result => result.ElementCount)
+            .ToArray());
+        AtomicWrite(this.path,snapshot);
+    }
+
+    private void Load(){
+        if(!File.Exists(this.path)){
+            return;
+        }
+
+        var snapshot = JsonSerializer.Deserialize<BenchmarkResultStoreSnapshot>(File.ReadAllText(this.path,Encoding.UTF8),JsonOptions);
+        if(snapshot is null){
+            return;
+        }
+
+        foreach(var result in snapshot.Results){
+            this.Upsert(result);
+        }
+    }
+
+    private static IEnumerable<ReportRow> CreateReportRows(string method,IReadOnlyDictionary<string,ProjectMetrics> metrics){
+        foreach(var project in BenchmarkComparisonFormatter.ProjectOrder){
+            if(!metrics.TryGetValue(project,out var metric)||!metric.HasValue){
+                continue;
+            }
+
+            yield return new ReportRow(
+                project,
+                method,
+                string.Empty,
+                method,
+                "Completed",
+                metric.TimeNanoseconds?.ToString(CultureInfo.InvariantCulture)??string.Empty,
+                string.Empty,
+                string.Empty,
+                metric.AllocatedBytes?.ToString(CultureInfo.InvariantCulture)??string.Empty,
+                string.Empty,
+                string.Empty,
+                metric.TimeNanoseconds??0,
+                0,
+                0,
+                metric.AllocatedBytes??0,
+                0,
+                0,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                null);
+        }
+    }
+
+    private static string CreateKey(string project,string method,int elementCount) =>
+        string.Join("|",project,method,elementCount.ToString(CultureInfo.InvariantCulture));
+
+    private static void AtomicWrite<T>(string path,T value){
+        var tmpPath = path+".tmp";
+        Directory.CreateDirectory(Path.GetDirectoryName(path)??".");
+        File.WriteAllText(tmpPath,JsonSerializer.Serialize(value,JsonOptions),Encoding.UTF8);
+        File.Move(tmpPath,path,overwrite:true);
+    }
+
+    private sealed record BenchmarkResultStoreSnapshot(IReadOnlyList<BenchmarkStoredResult> Results);
+}
+
+public sealed class BenchmarkCsvDiscoveryService{
+    private readonly IBenchmarkCsvService csvService;
+
+    public BenchmarkCsvDiscoveryService(IBenchmarkCsvService csvService){
+        this.csvService=csvService;
+    }
+
+    public BenchmarkCsvScanResult Scan(string benchmarkRoot){
+        if(!Directory.Exists(benchmarkRoot)){
+            return new BenchmarkCsvScanResult([],[],[]);
+        }
+
+        var results = new List<BenchmarkStoredResult>();
+        var timestamps = new SortedSet<DateTimeOffset>();
+        foreach(var path in Directory.EnumerateFiles(benchmarkRoot,"*.csv",SearchOption.AllDirectories)){
+            var timestamp = TryExtractTimestamp(path);
+            if(timestamp is null){
+                continue;
+            }
+
+            var elementCount = TryExtractElementCount(path);
+            IReadOnlyList<BenchmarkComparisonRow> rows;
+            try{
+                rows=this.csvService.ReadComparisonCsv(path);
+            }catch(InvalidDataException){
+                continue;
+            }catch(IOException){
+                continue;
+            }
+
+            timestamps.Add(timestamp.Value);
+            foreach(var row in rows){
+                foreach(var project in BenchmarkComparisonFormatter.ProjectOrder){
+                    var metrics = row.GetProject(project);
+                    if(!metrics.HasValue){
+                        continue;
+                    }
+
+                    results.Add(new BenchmarkStoredResult(
+                        project,
+                        row.Benchmark,
+                        elementCount,
+                        "Completed",
+                        metrics.TimeNanoseconds?.ToString(CultureInfo.InvariantCulture)??string.Empty,
+                        metrics.TimeNanoseconds,
+                        metrics.AllocatedBytes,
+                        timestamp.Value,
+                        timestamp.Value,
+                        path));
+                }
+            }
+        }
+
+        var options = timestamps
+            .OrderByDescending(static timestamp => timestamp)
+            .Select(static timestamp => new CsvDateOption(
+                timestamp,
+                timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss",CultureInfo.InvariantCulture)))
+            .ToArray();
+        var calendarDates = timestamps
+            .Select(static timestamp => timestamp.ToLocalTime().Date)
+            .Distinct()
+            .OrderBy(static date => date)
+            .ToArray();
+        return new BenchmarkCsvScanResult(options,calendarDates,results);
+    }
+
+    public static DateTimeOffset? TryExtractTimestamp(string path){
+        var fileTimestamp = TryParseTimestamp(Path.GetFileNameWithoutExtension(path));
+        if(fileTimestamp is not null){
+            return fileTimestamp;
+        }
+
+        var directory = Path.GetDirectoryName(path);
+        while(!string.IsNullOrWhiteSpace(directory)){
+            var folderTimestamp = TryParseTimestamp(Path.GetFileName(directory));
+            if(folderTimestamp is not null){
+                return folderTimestamp;
+            }
+
+            directory=Path.GetDirectoryName(directory);
+        }
+
+        return null;
+    }
+
+    public static int TryExtractElementCount(string path){
+        var text = Path.GetFileNameWithoutExtension(path);
+        var match = Regex.Match(text,@"(?:^|[-_])N(?<n>\d+)(?:$|[-_])",RegexOptions.IgnoreCase);
+        return match.Success&&int.TryParse(match.Groups["n"].Value,NumberStyles.Integer,CultureInfo.InvariantCulture,out var value)
+            ? value
+            : 0;
+    }
+
+    private static DateTimeOffset? TryParseTimestamp(string text){
+        foreach(var pattern in TimestampPatterns()){
+            var match = Regex.Match(text,pattern.Regex,RegexOptions.IgnoreCase);
+            if(!match.Success){
+                continue;
+            }
+
+            var value = match.Groups["value"].Value;
+            if(DateTime.TryParseExact(value,pattern.Format,CultureInfo.InvariantCulture,DateTimeStyles.AssumeLocal,out var date)){
+                return new DateTimeOffset(date);
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<(string Regex,string Format)> TimestampPatterns(){
+        yield return (@"(?<value>\d{8}-\d{6})","yyyyMMdd-HHmmss");
+        yield return (@"(?<value>\d{14})","yyyyMMddHHmmss");
+        yield return (@"(?<value>\d{4}-\d{2}-\d{2}[-_ ]\d{2}[-_]\d{2}[-_]\d{2})","yyyy-MM-dd HH-mm-ss");
+        yield return (@"(?<value>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})","yyyy-MM-dd_HH-mm-ss");
+        yield return (@"(?<value>\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})","yyyy-MM-dd-HH-mm-ss");
+    }
+}
+
+public sealed class BenchmarkUiStateStore{
+    private static readonly JsonSerializerOptions JsonOptions = new(){
+        WriteIndented=true,
+    };
+
+    private readonly string path;
+
+    public BenchmarkUiStateStore(string benchmarkRoot){
+        this.path=Path.Combine(benchmarkRoot,"benchmark-ui-state.json");
+    }
+
+    public BenchmarkUiState Load(){
+        if(!File.Exists(this.path)){
+            return new BenchmarkUiState(null,new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase));
+        }
+
+        var state = JsonSerializer.Deserialize<BenchmarkUiStateSnapshot>(File.ReadAllText(this.path,Encoding.UTF8),JsonOptions);
+        return new BenchmarkUiState(
+            state?.SelectedCsvTimestamp,
+            new Dictionary<string,bool>(state?.ProjectCellSelections??new Dictionary<string,bool>(),StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string,bool>(state?.RowSelections??new Dictionary<string,bool>(),StringComparer.OrdinalIgnoreCase));
+    }
+
+    public void Save(BenchmarkUiState state){
+        Directory.CreateDirectory(Path.GetDirectoryName(this.path)??".");
+        var snapshot = new BenchmarkUiStateSnapshot(
+            state.SelectedCsvTimestamp,
+            state.ProjectCellSelections.OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase).ToDictionary(static item => item.Key,static item => item.Value,StringComparer.OrdinalIgnoreCase),
+            state.RowSelections.OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase).ToDictionary(static item => item.Key,static item => item.Value,StringComparer.OrdinalIgnoreCase));
+        var tmpPath = this.path+".tmp";
+        File.WriteAllText(tmpPath,JsonSerializer.Serialize(snapshot,JsonOptions),Encoding.UTF8);
+        File.Move(tmpPath,this.path,overwrite:true);
+    }
+
+    public static string CreateCellKey(string method,string project) =>
+        method+"|"+project;
+
+    private sealed record BenchmarkUiStateSnapshot(
+        DateTimeOffset? SelectedCsvTimestamp,
+        Dictionary<string,bool> ProjectCellSelections,
+        Dictionary<string,bool> RowSelections);
+}
+
+public sealed record BenchmarkUiState(
+    DateTimeOffset? SelectedCsvTimestamp,
+    Dictionary<string,bool> ProjectCellSelections,
+    Dictionary<string,bool> RowSelections);

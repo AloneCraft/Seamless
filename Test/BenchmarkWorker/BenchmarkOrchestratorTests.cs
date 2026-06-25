@@ -1,12 +1,15 @@
-using Benchmark.Worker;
+using Benchmark;
 
 namespace Test.BenchmarkWorker;
 
+#if TSAVORITE2_0BETA3
+[global::Seamless.FLinq.LinqIntercept(false)]
+#endif
 public sealed class BenchmarkOrchestratorTests{
     [Fact]
     public void StateManager_Load_MarksRunningJobsAsFailed(){
         var root = CreateTempRoot();
-        var stateManager = new Benchmark.Worker.BenchmarkStateManager(root);
+        var stateManager = new BenchmarkStateManager(root);
         var runRoot = Path.Combine(root,"run");
         var state = new ProgressState{
             RunId="run",
@@ -55,7 +58,7 @@ public sealed class BenchmarkOrchestratorTests{
             0,
             job.ArtifactFolder,
             string.Empty));
-        var orchestrator = new BenchmarkOrchestrator(new Benchmark.Worker.BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -75,7 +78,7 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_StopsMethodAfterThresholdExceeded(){
+    public async Task Orchestrator_AdaptiveMode_StopsOnlyCaseAfterThresholdExceeded(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
             var mean = job.ElementCount>=256&&job.Project=="SystemZLinq" ? 2_000_000_000d : 100d;
@@ -96,7 +99,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 string.Empty);
         });
-        var orchestrator = new BenchmarkOrchestrator(new Benchmark.Worker.BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -111,11 +114,15 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        Assert.Equal([128,256],state.Jobs.Select(static job => job.ElementCount).Distinct().Order().ToArray());
-        var adaptive = Assert.Single(state.AdaptiveStates);
-        Assert.True(adaptive.IsStopped);
-        Assert.Equal(256,adaptive.StoppedAtElementCount);
-        Assert.Equal("SystemZLinq",adaptive.TriggerProject);
+        Assert.Equal([128,256,512],state.Jobs.Select(static job => job.ElementCount).Distinct().Order().ToArray());
+        Assert.Contains(state.Jobs,static job => job.Project=="SystemFLinq"&&job.ElementCount==512);
+        Assert.DoesNotContain(state.Jobs,static job => job.Project=="SystemZLinq"&&job.ElementCount==512);
+    }
+
+    [Fact]
+    public void BenchmarkElementCounts_StartsAdaptiveWorkloadAtOne(){
+        Assert.Equal(1,BenchmarkElementCounts.All[0]);
+        Assert.Equal([1],BenchmarkElementCounts.DefaultInitial);
     }
 
     private static BenchmarkCase Case(string project,string method) =>
@@ -129,7 +136,7 @@ public sealed class BenchmarkOrchestratorTests{
 
     private static ProgressState LoadOnlyState(string root){
         var runRoot = Directory.GetDirectories(root).Single();
-        return new Benchmark.Worker.BenchmarkStateManager(root).Load(runRoot)!;
+        return new BenchmarkStateManager(root).Load(runRoot)!;
     }
 
     private sealed class FakeRunner(Func<BenchmarkJob,int,BenchmarkJobRunResult> run):IBenchmarkJobRunner{

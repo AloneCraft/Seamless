@@ -1,12 +1,15 @@
-namespace Benchmark.Worker;
+namespace Benchmark;
 
-public sealed record CpuTableSectionDefinition(string Title,CpuCoreKind CoreKind,IReadOnlyList<CpuTableRowDefinition> Rows){
+internal sealed record CpuTableSectionDefinition(string Title,CpuCoreKind CoreKind,IReadOnlyList<CpuTableRowDefinition> Rows){
     public int ColumnCount => Rows.Count==0 ? 0 : Rows.Max(static row => row.LogicalProcessorIndexes.Count);
 }
 
-public sealed record CpuTableRowDefinition(string Label,IReadOnlyList<int> LogicalProcessorIndexes);
+internal sealed record CpuTableRowDefinition(string Label,IReadOnlyList<int> LogicalProcessorIndexes);
 
-public static class CpuSelectionTableLogic{
+#if TSAVORITE2_0BETA3
+[global::Seamless.FLinq.LinqIntercept(false)]
+#endif
+internal static class CpuSelectionTableLogic{
     public static IReadOnlyList<CpuTableSectionDefinition> BuildSections(IReadOnlyList<CpuCoreInfo> cpuCores){
         return [
             ..BuildSection("P core",CpuCoreKind.Performance,cpuCores),
@@ -71,7 +74,7 @@ public static class CpuSelectionTableLogic{
     }
 }
 
-public readonly record struct UiSortValue(string? Text,double? Number,bool IsMissing){
+internal readonly record struct UiSortValue(string? Text,double? Number,bool IsMissing){
     public static readonly UiSortValue Missing = new(null,null,true);
     public static UiSortValue FromText(string text) => new(text,null,string.IsNullOrWhiteSpace(text));
     public static UiSortValue FromNumber(double? value) => value is { } number&&double.IsFinite(number) ? new(null,number,false) : Missing;

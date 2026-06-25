@@ -1,9 +1,12 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 
-namespace Benchmark.Worker;
+namespace Benchmark;
 
-public sealed class BenchmarkOrchestrator {
+#if TSAVORITE2_0BETA3
+[global::Seamless.FLinq.LinqIntercept(false)]
+#endif
+internal sealed class BenchmarkOrchestrator {
     private readonly BenchmarkStateManager stateManager;
     private readonly BenchmarkResultWriter resultWriter;
     private readonly IBenchmarkJobRunner jobRunner;
@@ -75,58 +78,35 @@ public sealed class BenchmarkOrchestrator {
         Action<BenchmarkProgressUpdate> progress,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
-        var casesByMethod = request.Benchmarks
-            .GroupBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(static item => item.Key,static item => item.ToArray(),StringComparer.OrdinalIgnoreCase);
         var cpus = NormalizeCpus(request.LogicalCpus);
-        var methodIndex = 0;
-        foreach(var methodState in state.AdaptiveStates.OrderBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)) {
+        var benchmarks = state.Jobs.Count>0
+            ? state.Jobs
+                .Select(static job => new BenchmarkCase(job.Project,job.AssemblyName,job.TypeFullName,job.MethodName))
+                .GroupBy(CreateBenchmarkKey,StringComparer.Ordinal)
+                .Select(static group => group.First())
+                .ToArray()
+            : request.Benchmarks;
+        for(var elementCountIndex=0;elementCountIndex<state.ElementCounts.Count;elementCountIndex++) {
             cancellationToken.ThrowIfCancellationRequested();
-            methodIndex++;
-            if(methodState.IsStopped||methodState.IsCompleted) {
-                continue;
+            var elementCount = state.ElementCounts[elementCountIndex];
+            var activeCases = benchmarks
+                .Where(benchmark => !IsAdaptiveCaseStopped(state,benchmark))
+                .OrderBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static item => item.Project,StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if(activeCases.Length==0) {
+                break;
             }
 
-            if(!casesByMethod.TryGetValue(methodState.MethodName,out var cases)) {
-                methodState.IsStopped=true;
-                methodState.Reason="Benchmark method is no longer selected.";
-                this.stateManager.Save(state);
-                continue;
+            var jobs = this.GetOrCreateAdaptiveJobs(state,activeCases,elementCount);
+            var pending = jobs.Where(static job => job.Status==JobStatus.Pending).ToArray();
+            if(pending.Length>0) {
+                statusChanged($"Adaptive N={elementCount}: {pending.Length}/{activeCases.Length} cells");
+                await this.RunJobBatchAsync(state,pending,cpus,request.JobTimeout,progress,cancellationToken);
             }
 
-            while(methodState.NextElementCountIndex<state.ElementCounts.Count&&!methodState.IsStopped) {
-                var elementCount = state.ElementCounts[methodState.NextElementCountIndex];
-                var jobs = this.GetOrCreateAdaptiveJobs(state,cases,elementCount);
-                var pending = jobs.Where(static job => job.Status==JobStatus.Pending).ToArray();
-                if(pending.Length>0) {
-                    statusChanged($"Adaptive {methodIndex}/{state.AdaptiveStates.Count}: {methodState.MethodName} N={elementCount}");
-                    await this.RunJobBatchAsync(state,pending,cpus,request.JobTimeout,progress,cancellationToken);
-                }
-
-                var currentJobs = jobs.Where(job => job.ElementCount==elementCount).ToArray();
-                if(currentJobs.Any(static job => job.Status==JobStatus.Pending||job.Status==JobStatus.Running)) {
-                    break;
-                }
-
-                var stopJob = currentJobs.FirstOrDefault(job => job.Status==JobStatus.Failed)
-                    ??currentJobs.FirstOrDefault(job =>
-                        job.MeanNanoseconds is { } mean
-                        &&mean>state.AdaptiveThresholdNanoseconds);
-                if(stopJob is not null) {
-                    methodState.IsStopped=true;
-                    methodState.StoppedAtElementCount=elementCount;
-                    methodState.TriggerProject=stopJob.Project;
-                    methodState.TriggerMeanNanoseconds=stopJob.MeanNanoseconds;
-                    methodState.Reason=stopJob.Status==JobStatus.Failed
-                        ? FirstText(stopJob.FailureReason,"Job failed before the next element count.")
-                        : $"Mean exceeded adaptive threshold: {FormatNanoseconds(stopJob.MeanNanoseconds)} > {FormatNanoseconds(state.AdaptiveThresholdNanoseconds)}.";
-                    this.stateManager.Save(state);
-                    break;
-                }
-
-                methodState.NextElementCountIndex++;
-                methodState.IsCompleted=methodState.NextElementCountIndex>=state.ElementCounts.Count;
-                this.stateManager.Save(state);
+            if(jobs.Any(static job => job.Status==JobStatus.Pending||job.Status==JobStatus.Running)) {
+                break;
             }
         }
     }
@@ -162,6 +142,7 @@ public sealed class BenchmarkOrchestrator {
         job.FinishedAt=null;
         job.FailureReason=string.Empty;
         this.stateManager.Save(state);
+        progress(new BenchmarkProgressUpdate(state,job));
 
         try {
             var result = await this.jobRunner.RunAsync(job,state.RunRoot,logicalCpu,timeout,cancellationToken);
@@ -273,11 +254,22 @@ public sealed class BenchmarkOrchestrator {
     private static string CreateJobId(BenchmarkCase benchmark,int elementCount) =>
         string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,elementCount);
 
+    private static string CreateBenchmarkKey(BenchmarkCase benchmark) =>
+        string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName);
+
     private static bool SameCase(BenchmarkCase benchmark,BenchmarkJob job) =>
         string.Equals(benchmark.Project,job.Project,StringComparison.OrdinalIgnoreCase)
         &&string.Equals(benchmark.AssemblyName,job.AssemblyName,StringComparison.Ordinal)
         &&string.Equals(benchmark.TypeFullName,job.TypeFullName,StringComparison.Ordinal)
         &&string.Equals(benchmark.MethodName,job.MethodName,StringComparison.Ordinal);
+
+    private static bool IsAdaptiveCaseStopped(ProgressState state,BenchmarkCase benchmark) =>
+        state.Jobs.Any(job =>
+            SameCase(benchmark,job)
+            &&(job.Status==JobStatus.Failed
+                ||(job.Status==JobStatus.Completed
+                    &&job.MeanNanoseconds is { } mean
+                    &&mean>state.AdaptiveThresholdNanoseconds)));
 
     private static IReadOnlyList<int> NormalizeCpus(IReadOnlyList<int> cpus) =>
         cpus.Count==0 ? [0] : cpus.Distinct().Order().ToArray();
@@ -297,10 +289,13 @@ public sealed class BenchmarkOrchestrator {
             : string.Empty;
 }
 
-public static class BenchmarkElementCounts {
+#if TSAVORITE2_0BETA3
+[global::Seamless.FLinq.LinqIntercept(false)]
+#endif
+internal static class BenchmarkElementCounts {
     public static IReadOnlyList<int> All { get; } =
-        Enumerable.Range(7,17).Select(static exponent => 1<<exponent).ToArray();
+        Enumerable.Range(0,24).Select(static exponent => 1<<exponent).ToArray();
 
     public static IReadOnlyList<int> DefaultInitial { get; } =
-        Enumerable.Range(7,8).Select(static exponent => 1<<exponent).ToArray();
+        [1];
 }

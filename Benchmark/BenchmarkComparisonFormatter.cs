@@ -2,9 +2,12 @@ using System.Globalization;
 using System.Text;
 using Microsoft.VisualBasic.FileIO;
 
-namespace Benchmark.Worker;
+namespace Benchmark;
 
-public static class BenchmarkComparisonFormatter{
+#if TSAVORITE2_0BETA3
+[global::Seamless.FLinq.LinqIntercept(false)]
+#endif
+internal static class BenchmarkComparisonFormatter{
     public const string SystemFLinq = "SystemFLinq";
     public const string SystemZLinq = "SystemZLinq";
     public const string PersistedFLinq = "PersistedFLinq";
@@ -45,7 +48,7 @@ public static class BenchmarkComparisonFormatter{
         "TsavoriteLinq割当bytes",
     ];
 
-    private static readonly HashSet<string> legacyProjectNames = new(StringComparer.OrdinalIgnoreCase){
+    private static readonly System.Collections.Generic.HashSet<string> legacyProjectNames = new(StringComparer.OrdinalIgnoreCase){
         "System LINQ",
         "SystemLINQ",
         "System FLinq",

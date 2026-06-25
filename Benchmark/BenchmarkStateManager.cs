@@ -1,8 +1,11 @@
 using System.Text.Json;
 
-namespace Benchmark.Worker;
+namespace Benchmark;
 
-public sealed class BenchmarkStateManager {
+#if TSAVORITE2_0BETA3
+[global::Seamless.FLinq.LinqIntercept(false)]
+#endif
+internal sealed class BenchmarkStateManager {
     public const string ProgressFileName = "progress.json";
     public const string LatestRunFileName = "latest-run.json";
 
@@ -86,4 +89,3 @@ public sealed class BenchmarkStateManager {
 
     private sealed record LatestRunMarker(string RunRoot,DateTimeOffset UpdatedAt);
 }
-

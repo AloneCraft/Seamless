@@ -1,8 +1,11 @@
 using System.Text;
 
-namespace Benchmark.Worker;
+namespace Benchmark;
 
-public sealed class BenchmarkResultWriter {
+#if TSAVORITE2_0BETA3
+[global::Seamless.FLinq.LinqIntercept(false)]
+#endif
+internal sealed class BenchmarkResultWriter {
     public IReadOnlyList<string> WriteOutputs(ProgressState state) {
         Directory.CreateDirectory(state.RunRoot);
         var paths = new List<string>();
@@ -50,4 +53,3 @@ public sealed class BenchmarkResultWriter {
         File.Move(tmpPath,path,overwrite:true);
     }
 }
-

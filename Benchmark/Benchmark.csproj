@@ -35,8 +35,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Benchmark.Orchestration\Benchmark.Orchestration.csproj" />
-    <ProjectReference Include="..\Benchmark.Worker\Benchmark.Worker.csproj" />
     <ProjectReference Include="..\Benchmark.DotNet.Linq.Enumerable.FLinq\Benchmark.DotNet.Linq.Enumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark.DotNet.Linq.Enumerable.ZLinq\Benchmark.DotNet.Linq.Enumerable.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark.Tsavorite.Linq.Enumerable.Linq\Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />

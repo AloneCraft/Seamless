@@ -1,9 +1,9 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace Benchmark.Worker;
+namespace Benchmark;
 
-public abstract class BindableObject:INotifyPropertyChanged{
+public abstract class BenchmarkBindableObject:INotifyPropertyChanged{
     public event PropertyChangedEventHandler? PropertyChanged;
 
     protected bool SetProperty<T>(ref T field,T value,[CallerMemberName] string? propertyName = null){
@@ -29,7 +29,7 @@ public enum CpuCoreKind{
     Unknown,
 }
 
-public sealed class CpuCoreInfo:BindableObject{
+public sealed class CpuCoreInfo:BenchmarkBindableObject{
     private bool isSelected;
 
     public CpuCoreInfo(
@@ -78,7 +78,7 @@ public sealed class CpuCoreInfo:BindableObject{
         : "affinity unsupported";
 }
 
-public sealed record CpuRowItem(
+internal sealed record CpuRowItem(
     CpuCoreInfo? Column0,
     CpuCoreInfo? Column1,
     CpuCoreInfo? Column2,

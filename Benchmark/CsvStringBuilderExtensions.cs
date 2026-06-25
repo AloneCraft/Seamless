@@ -1,8 +1,8 @@
 using System.Text;
 
-namespace Benchmark.Worker;
+namespace Benchmark;
 
-public static class CsvStringBuilderExtensions{
+internal static class CsvStringBuilderExtensions{
     public static StringBuilder AppendCsv(this StringBuilder builder,string value){
         if(value.Contains('"',StringComparison.Ordinal)
             ||value.Contains(',',StringComparison.Ordinal)
