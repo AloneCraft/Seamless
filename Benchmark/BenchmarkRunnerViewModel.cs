@@ -422,9 +422,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             .Select(static index => new CpuTableColumn(index,"Select"))
             .ToArray();
         var rows = groups
-            .Select(static group => new CpuTableRow(
+            .Select(group => new CpuTableRow(
                 CreateCpuRangeLabel(group),
-                group.Select(static cpu => new CpuTableCell(cpu)).ToArray()))
+                group[0].CoreKind,
+                group.Select(static cpu => new CpuTableCell(cpu)).ToArray(),
+                columnCount))
             .ToArray();
         this.CpuSections.Add(new CpuTableSection(title,kind,columns,rows));
     }

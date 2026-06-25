@@ -352,10 +352,21 @@ public sealed class MainPage:ContentPage{
         };
         var headerGrid = new Grid{
             ColumnDefinitions = {
+                new ColumnDefinition { Width = new GridLength(26) },
+                new ColumnDefinition { Width = new GridLength(24) },
                 new ColumnDefinition { Width = GridLength.Star },
                 new ColumnDefinition { Width = new GridLength(24) },
             },
+            ColumnSpacing=4,
         };
+        var sectionCheck = this.CreateSelectionStateBox();
+        sectionCheck.SetBinding(Label.TextProperty,nameof(CpuTableSection.StateGlyph));
+        var badge = this.CreateCoreBadge();
+        badge.SetBinding(BackgroundColorProperty,nameof(CpuTableSection.BadgeBackgroundColor));
+        if(badge.Content is Label badgeLabel){
+            badgeLabel.SetBinding(Label.TextProperty,nameof(CpuTableSection.BadgeText));
+            badgeLabel.SetBinding(Label.TextColorProperty,nameof(CpuTableSection.BadgeTextColor));
+        }
         var title = new Label{
             FontSize=12,
             FontAttributes=FontAttributes.Bold,
@@ -371,122 +382,200 @@ public sealed class MainPage:ContentPage{
             VerticalTextAlignment=TextAlignment.Center,
         };
         state.SetBinding(Label.TextProperty,nameof(CpuTableSection.StateText));
-        headerGrid.Add(title,0,0);
-        headerGrid.Add(state,1,0);
+        headerGrid.Add(sectionCheck,0,0);
+        headerGrid.Add(badge,1,0);
+        headerGrid.Add(title,2,0);
+        headerGrid.Add(state,3,0);
         header.Content=headerGrid;
-            var headerTap = new TapGestureRecognizer();
-            headerTap.Tapped+=(_,_) => {
-                if(header.BindingContext is CpuTableSection section){
-                    this.viewModel?.ToggleCpuSection(section);
-                }
-            };
+        var headerTap = new TapGestureRecognizer();
+        headerTap.Tapped+=(_,_) => {
+            if(header.BindingContext is CpuTableSection section){
+                this.viewModel?.ToggleCpuSection(section);
+            }
+        };
         header.GestureRecognizers.Add(headerTap);
 
-        var columnHeader = new Grid{
-            ColumnDefinitions = {
-                new ColumnDefinition { Width = new GridLength(58) },
-                new ColumnDefinition { Width = GridLength.Star },
-            },
-            ColumnSpacing=2,
-            Padding=new Thickness(0,2,0,0),
+        var grid = new SfDataGrid{
+            AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
+            RowHeight=24,
+            HeaderRowHeight=30,
+            AllowTriStateSorting=false,
+            SortingMode=DataGridSortingMode.None,
+            DefaultColumnWidth=56,
         };
-        columnHeader.Add(new Label{
-            Text="Core",
+        grid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(CpuTableSection.Rows));
+        grid.BindingContextChanged+=(_,_) => {
+            if(grid.BindingContext is not CpuTableSection section){
+                return;
+            }
+
+            this.RebuildCpuDataGridColumns(grid,section);
+            grid.HeightRequest=30+(section.Rows.Count*24)+2;
+        };
+
+        return new VerticalStackLayout{
+            Spacing=3,
+            Children = {
+                header,
+                grid,
+            },
+        };
+    }
+
+    private void RebuildCpuDataGridColumns(SfDataGrid grid,CpuTableSection section){
+        grid.Columns.Clear();
+        grid.Columns.Add(this.CreateCpuCoreColumn());
+        foreach(var column in section.Columns){
+            grid.Columns.Add(this.CreateCpuLogicalColumn(column));
+        }
+    }
+
+    private DataGridTemplateColumn CreateCpuCoreColumn(){
+        return new DataGridTemplateColumn{
+            MappingName=nameof(CpuTableRow.Label),
+            HeaderText="Core",
+            Width=86,
+            AllowSorting=false,
+            HeaderTemplate=this.CreateCpuSimpleHeaderTemplate("Core"),
+            CellTemplate=new DataTemplate(() => {
+                var layout = new Grid{
+                    ColumnDefinitions = {
+                        new ColumnDefinition { Width = new GridLength(24) },
+                        new ColumnDefinition { Width = GridLength.Star },
+                    },
+                    ColumnSpacing=4,
+                    Padding=new Thickness(2,0),
+                };
+                var badge = this.CreateCoreBadge();
+                badge.SetBinding(BackgroundColorProperty,nameof(CpuTableRow.BadgeBackgroundColor));
+                if(badge.Content is Label badgeLabel){
+                    badgeLabel.SetBinding(Label.TextProperty,nameof(CpuTableRow.BadgeText));
+                    badgeLabel.SetBinding(Label.TextColorProperty,nameof(CpuTableRow.BadgeTextColor));
+                }
+                var label = new Label{
+                    FontSize=10,
+                    TextColor=Color.FromArgb("#334155"),
+                    HorizontalTextAlignment=TextAlignment.Start,
+                    VerticalTextAlignment=TextAlignment.Center,
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                };
+                label.SetBinding(Label.TextProperty,nameof(CpuTableRow.Label));
+                layout.Add(badge,0,0);
+                layout.Add(label,1,0);
+                return layout;
+            }),
+        };
+    }
+
+    private DataGridTemplateColumn CreateCpuLogicalColumn(CpuTableColumn column){
+        var cellPath = nameof(CpuTableRow.GridCells)+"["+column.Index+"]";
+        return new DataGridTemplateColumn{
+            MappingName="Cpu"+column.Index,
+            HeaderText=column.HeaderText,
+            Width=64,
+            AllowSorting=false,
+            HeaderTemplate=this.CreateCpuColumnHeaderTemplate(column),
+            CellTemplate=new DataTemplate(() => {
+                var layout = new HorizontalStackLayout{
+                    Spacing=2,
+                    HorizontalOptions=LayoutOptions.Center,
+                    VerticalOptions=LayoutOptions.Center,
+                };
+                layout.SetBinding(IsVisibleProperty,new Binding(cellPath,converter:new NullToBoolConverter()));
+                var check = new CheckBox{
+                    WidthRequest=24,
+                    HeightRequest=24,
+                    HorizontalOptions=LayoutOptions.Center,
+                    VerticalOptions=LayoutOptions.Center,
+                    Margin=new Thickness(0),
+                };
+                check.SetBinding(CheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsSelected),BindingMode.TwoWay));
+                var label = new Label{
+                    FontSize=10,
+                    TextColor=Color.FromArgb("#0F172A"),
+                    HorizontalTextAlignment=TextAlignment.Start,
+                    VerticalTextAlignment=TextAlignment.Center,
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                    WidthRequest=22,
+                };
+                label.SetBinding(Label.TextProperty,cellPath+"."+nameof(CpuTableCell.DisplayText));
+                layout.Children.Add(check);
+                layout.Children.Add(label);
+                return layout;
+            }),
+        };
+    }
+
+    private DataTemplate CreateCpuSimpleHeaderTemplate(string text){
+        return new DataTemplate(() => new Label{
+            Text=text,
             FontSize=10,
-            TextColor=Color.FromArgb("#475569"),
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#0F172A"),
+            BackgroundColor=Color.FromArgb("#F1F5F9"),
             HorizontalTextAlignment=TextAlignment.Center,
             VerticalTextAlignment=TextAlignment.Center,
-        },0,0);
-        var columnItems = new HorizontalStackLayout{
-            Spacing=2,
-        };
-        columnItems.SetBinding(BindableLayout.ItemsSourceProperty,new Binding(nameof(CpuTableSection.Columns)));
-        BindableLayout.SetItemTemplate(columnItems,new DataTemplate(() => {
-            var border = this.CpuCellBorder();
-            var label = this.CpuCellLabel();
-            label.FontSize=9;
-            label.SetBinding(Label.TextProperty,nameof(CpuTableColumn.DisplayText));
-            border.Content=label;
-            var tap = new TapGestureRecognizer();
-            tap.Tapped+=(_,_) => {
-                if(border.BindingContext is CpuTableColumn column&&column.Section is { } section){
-                    this.viewModel?.ToggleCpuColumn(section,column.Index);
-                }
-            };
-            border.GestureRecognizers.Add(tap);
-            return border;
-        }));
-        columnHeader.Add(columnItems,1,0);
+            Padding=new Thickness(2,0),
+        });
+    }
 
-        var rows = new VerticalStackLayout{
-            Spacing=2,
-        };
-        rows.SetBinding(BindableLayout.ItemsSourceProperty,new Binding(nameof(CpuTableSection.Rows)));
-        BindableLayout.SetItemTemplate(rows,new DataTemplate(() => {
-            var rowGrid = new Grid{
-                ColumnDefinitions = {
-                    new ColumnDefinition { Width = new GridLength(58) },
-                    new ColumnDefinition { Width = GridLength.Star },
-                },
-                ColumnSpacing=2,
+    private DataTemplate CreateCpuColumnHeaderTemplate(CpuTableColumn column){
+        return new DataTemplate(() => {
+            var layout = new HorizontalStackLayout{
+                Spacing=3,
+                HorizontalOptions=LayoutOptions.Center,
+                VerticalOptions=LayoutOptions.Center,
+                BackgroundColor=Color.FromArgb("#F1F5F9"),
             };
-            var rowLabel = new Label{
+            var state = this.CreateSelectionStateBox();
+            state.SetBinding(Label.TextProperty,new Binding(nameof(CpuTableColumn.StateGlyph),source:column));
+            var label = new Label{
+                Text=column.HeaderText,
                 FontSize=10,
-                TextColor=Color.FromArgb("#334155"),
+                FontAttributes=FontAttributes.Bold,
+                TextColor=Color.FromArgb("#0F172A"),
                 HorizontalTextAlignment=TextAlignment.Center,
                 VerticalTextAlignment=TextAlignment.Center,
             };
-            rowLabel.SetBinding(Label.TextProperty,nameof(CpuTableRow.Label));
-            var cellItems = new HorizontalStackLayout{
-                Spacing=2,
+            layout.Children.Add(state);
+            layout.Children.Add(label);
+            var tap = new TapGestureRecognizer();
+            tap.Tapped+=(_,_) => {
+                if(column.Section is { } section){
+                    this.viewModel?.ToggleCpuColumn(section,column.Index);
+                }
             };
-            cellItems.SetBinding(BindableLayout.ItemsSourceProperty,new Binding(nameof(CpuTableRow.Cells)));
-            BindableLayout.SetItemTemplate(cellItems,new DataTemplate(() => {
-                var border = this.CpuCellBorder();
-                var label = this.CpuCellLabel();
-                label.SetBinding(Label.TextProperty,nameof(CpuTableCell.DisplayWithState));
-                border.Content=label;
-                var tap = new TapGestureRecognizer();
-                tap.Tapped+=(_,_) => {
-                    if(border.BindingContext is CpuTableCell cell){
-                        this.viewModel?.ToggleCpu(cell.Cpu);
-                    }
-                };
-                border.GestureRecognizers.Add(tap);
-                return border;
-            }));
-            rowGrid.Add(rowLabel,0,0);
-            rowGrid.Add(cellItems,1,0);
-            return rowGrid;
-        }));
+            layout.GestureRecognizers.Add(tap);
+            return layout;
+        });
+    }
 
-        return new VerticalStackLayout{
-            Spacing=2,
-            Children = {
-                header,
-                columnHeader,
-                rows,
+    private Border CreateCoreBadge(){
+        return new Border{
+            WidthRequest=20,
+            HeightRequest=18,
+            Stroke=Color.FromArgb("#CBD5E1"),
+            StrokeThickness=1,
+            Padding=new Thickness(0),
+            Content=new Label{
+                FontSize=10,
+                FontAttributes=FontAttributes.Bold,
+                HorizontalTextAlignment=TextAlignment.Center,
+                VerticalTextAlignment=TextAlignment.Center,
             },
         };
     }
 
-    private Border CpuCellBorder(){
-        return new Border{
-            WidthRequest=52,
-            HeightRequest=24,
-            Stroke=Color.FromArgb("#CBD5E1"),
-            StrokeThickness=1,
-            BackgroundColor=Colors.White,
-            Padding=new Thickness(1,0),
-        };
-    }
-
-    private Label CpuCellLabel(){
+    private Label CreateSelectionStateBox(){
         return new Label{
             FontSize=10,
+            FontAttributes=FontAttributes.Bold,
             TextColor=Color.FromArgb("#0F172A"),
+            BackgroundColor=Colors.White,
             HorizontalTextAlignment=TextAlignment.Center,
             VerticalTextAlignment=TextAlignment.Center,
+            WidthRequest=26,
+            HeightRequest=18,
             LineBreakMode=LineBreakMode.TailTruncation,
         };
     }
@@ -647,6 +736,16 @@ public sealed class MainPage:ContentPage{
 public sealed class CountIsZeroConverter:IValueConverter{
     public object Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture){
         return value is int count&&count==0;
+    }
+
+    public object ConvertBack(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture){
+        throw new NotSupportedException();
+    }
+}
+
+public sealed class NullToBoolConverter:IValueConverter{
+    public object Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture){
+        return value is not null;
     }
 
     public object ConvertBack(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture){
