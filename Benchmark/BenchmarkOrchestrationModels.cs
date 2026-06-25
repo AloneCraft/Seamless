@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Benchmark.Worker;
+namespace Benchmark;
 
 public sealed record BenchmarkCase(
     string Project,
@@ -75,7 +75,10 @@ public sealed class BenchmarkJob {
             this.ExitCode);
 }
 
-public sealed class AdaptiveBenchmarkState {
+#if TSAVORITE2_0BETA3
+[global::Seamless.FLinq.LinqIntercept(false)]
+#endif
+internal sealed class AdaptiveBenchmarkState {
     public string MethodName { get; set; } = string.Empty;
     public bool IsStopped { get; set; }
     public bool IsCompleted { get; set; }
@@ -86,7 +89,10 @@ public sealed class AdaptiveBenchmarkState {
     public double? TriggerMeanNanoseconds { get; set; }
 }
 
-public sealed class ProgressState {
+#if TSAVORITE2_0BETA3
+[global::Seamless.FLinq.LinqIntercept(false)]
+#endif
+internal sealed class ProgressState {
     public int SchemaVersion { get; set; } = 1;
     public string RunId { get; set; } = string.Empty;
     public BenchmarkRunMode Mode { get; set; }
@@ -102,7 +108,7 @@ public sealed class ProgressState {
         this.Jobs.Any(static job => job.Status is JobStatus.Pending or JobStatus.Running);
 }
 
-public sealed record BenchmarkRunRequest(
+internal sealed record BenchmarkRunRequest(
     IReadOnlyList<BenchmarkCase> Benchmarks,
     IReadOnlyList<int> LogicalCpus,
     IReadOnlyList<int> ElementCounts,
@@ -136,6 +142,6 @@ public interface IBenchmarkJobRunner {
         CancellationToken cancellationToken);
 }
 
-public sealed record BenchmarkProgressUpdate(ProgressState State,BenchmarkJob Job);
+internal sealed record BenchmarkProgressUpdate(ProgressState State,BenchmarkJob Job);
 
-public sealed record BenchmarkOrchestratorResult(string RunRoot,IReadOnlyList<string> CsvPaths);
+internal sealed record BenchmarkOrchestratorResult(string RunRoot,IReadOnlyList<string> CsvPaths);

@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
-using Benchmark.Worker;
 
 namespace Benchmark;
 
@@ -476,24 +475,25 @@ public sealed class BenchmarkComparisonService:IBenchmarkComparisonService {
     private static ChartComparisonPoint? CreateChartPoint(BenchmarkComparisonRow row,ComparisonPairOption pair,BenchmarkMetricKind metric) {
         var left = row.GetProject(pair.LeftProject);
         var right = row.GetProject(pair.RightProject);
-        if(!left.HasValue&&!right.HasValue) {
+        if(!left.HasValue||!right.HasValue) {
             return null;
         }
 
         var leftValue = GetMetricValue(left,metric);
         var rightValue = GetMetricValue(right,metric);
-        if(leftValue is null&&rightValue is null) {
+        if(leftValue is null||rightValue is null) {
             return null;
         }
 
         var leftNumber = Math.Max(0,leftValue??0);
         var rightNumber = Math.Max(0,rightValue??0);
+        var total = leftNumber+rightNumber;
         double? ratio = leftNumber>0&&rightNumber>0
             ? leftNumber/rightNumber
             : null;
         var metricName = metric==BenchmarkMetricKind.Time?"時間":"割当";
-        var leftText = FormatMetric(leftValue,metric);
-        var rightText = FormatMetric(rightValue,metric);
+        var leftText = total>0 ? (leftNumber/total).ToString("P0",CultureInfo.InvariantCulture) : "0%";
+        var rightText = total>0 ? (rightNumber/total).ToString("P0",CultureInfo.InvariantCulture) : "0%";
         var tooltip = $"{row.Benchmark}\n{pair.LeftProject} {metricName}: {FirstText(leftText,"-")}\n{pair.RightProject} {metricName}: {FirstText(rightText,"-")}\n比率: {(ratio is { } value?value.ToString("0.00",CultureInfo.InvariantCulture):"-")}";
         return new ChartComparisonPoint(
             row.Benchmark,

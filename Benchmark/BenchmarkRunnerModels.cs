@@ -1,12 +1,10 @@
 using System.Globalization;
-using Benchmark.Worker;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Benchmark;
 
 public enum BenchmarkTab{
     Cpu,
-    Results,
     Chart,
 }
 
@@ -72,6 +70,8 @@ public sealed record ChartModeOption(string DisplayName,BenchmarkChartMode Mode)
 
 public sealed record ResultElementCountOption(int Value,string DisplayName);
 
+public sealed record ThresholdOption(string DisplayName,int Milliseconds);
+
 public readonly record struct BenchmarkSortValue(string? Text,double? Number,bool IsMissing){
     public static BenchmarkSortValue FromText(string text) => new(text,null,string.IsNullOrWhiteSpace(text));
 
@@ -123,6 +123,145 @@ public readonly record struct BenchmarkSortValue(string? Text,double? Number,boo
     }
 }
 
+public sealed class BenchmarkProjectCell:ObservableObject{
+    private bool isSelected;
+    private string statusIcon;
+    private string statusText;
+    private string executionText = string.Empty;
+    private string timeText = string.Empty;
+    private string allocatedText = string.Empty;
+    private bool isRunning;
+    private DateTimeOffset? lastMeasuredAt;
+    private ProjectMetrics metrics = ProjectMetrics.Missing;
+
+    public BenchmarkProjectCell(string project,bool hasCase){
+        this.Project=project;
+        this.HasCase=hasCase;
+        this.isSelected=hasCase;
+        this.statusIcon=hasCase?"○":"-";
+        this.statusText=hasCase?"未実行":"対象なし";
+    }
+
+    public string Project { get; }
+    public bool HasCase { get; }
+    public ProjectMetrics Metrics => this.metrics;
+    public DateTimeOffset? LastMeasuredAt => this.lastMeasuredAt;
+
+    public bool IsSelected{
+        get => this.isSelected;
+        set => this.SetProperty(ref this.isSelected,this.HasCase&&value);
+    }
+
+    public string StatusIcon{
+        get => this.statusIcon;
+        private set => this.SetProperty(ref this.statusIcon,value);
+    }
+
+    public string StatusText{
+        get => this.statusText;
+        private set => this.SetProperty(ref this.statusText,value);
+    }
+
+    public string ExecutionText{
+        get => this.executionText;
+        private set => this.SetProperty(ref this.executionText,value);
+    }
+
+    public string TimeText{
+        get => this.timeText;
+        private set => this.SetProperty(ref this.timeText,value);
+    }
+
+    public string AllocatedText{
+        get => this.allocatedText;
+        private set => this.SetProperty(ref this.allocatedText,value);
+    }
+
+    public bool IsRunning{
+        get => this.isRunning;
+        private set => this.SetProperty(ref this.isRunning,value);
+    }
+
+    public void ApplyMetrics(ProjectMetrics value){
+        this.metrics=value;
+        this.TimeText=FormatTime(value);
+        this.AllocatedText=FormatAllocated(value);
+        if(value.HasValue&&!this.IsRunning){
+            this.StatusIcon="✓";
+            this.StatusText="完了";
+        }
+    }
+
+    public void ApplyStoredResult(BenchmarkStoredResult result){
+        this.lastMeasuredAt=result.MeasuredAt;
+        this.ApplyMetrics(result.ToProjectMetrics());
+        this.IsRunning=false;
+        if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)){
+            this.StatusIcon="✓";
+            this.StatusText="完了";
+        }else if(string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
+            this.StatusIcon="×";
+            this.StatusText="失敗";
+        }else{
+            this.StatusIcon="○";
+            this.StatusText=result.Status;
+        }
+        this.ExecutionText=result.SourceCsvAt is { } csvAt
+            ? "CSV "+csvAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss",CultureInfo.InvariantCulture)
+            : result.MeasuredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss",CultureInfo.InvariantCulture);
+    }
+
+    public void ApplyRunResult(BenchmarkResultItem result,CpuSelectionItem? cpu){
+        this.lastMeasuredAt=DateTimeOffset.Now;
+        this.TimeText=string.IsNullOrWhiteSpace(result.Mean) ? this.TimeText : result.Mean;
+        this.AllocatedText=string.IsNullOrWhiteSpace(result.AllocatedBytes) ? this.AllocatedText : result.AllocatedBytes;
+        this.IsRunning=string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
+        this.StatusIcon=this.IsRunning
+            ? "⟳"
+            : string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                ? "✓"
+                : string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)
+                    ? "×"
+                    : "○";
+        this.StatusText=this.IsRunning
+            ? "実行中"
+            : string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                ? "完了"
+                : string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)
+                    ? "失敗"
+                    : result.Status;
+        this.ExecutionText=cpu is null
+            ? "N="+result.ElementCount.ToString(CultureInfo.InvariantCulture)
+            : "CPU "+cpu.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture)+" "+cpu.CoreKindLabel+" N="+result.ElementCount.ToString(CultureInfo.InvariantCulture);
+        if(result.MeanNanoseconds is not null||result.AllocatedBytesValue is not null){
+            this.metrics=new ProjectMetrics(result.MeanNanoseconds,result.AllocatedBytesValue,string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    public void ClearMetrics(){
+        this.metrics=ProjectMetrics.Missing;
+        this.TimeText=string.Empty;
+        this.AllocatedText=string.Empty;
+        if(this.HasCase){
+            this.StatusIcon="○";
+            this.StatusText="未実行";
+            this.ExecutionText=string.Empty;
+        }
+    }
+
+    private static string FormatTime(ProjectMetrics metrics){
+        return metrics.HasValue&&metrics.TimeNanoseconds is { } value
+            ? BenchmarkFormatting.FormatNanoseconds(value)
+            : string.Empty;
+    }
+
+    private static string FormatAllocated(ProjectMetrics metrics){
+        return metrics.HasValue&&metrics.AllocatedBytes is { } value
+            ? BenchmarkFormatting.FormatBytes(value)
+            : string.Empty;
+    }
+}
+
 public sealed class BenchmarkTableRow:ObservableObject{
     private bool isSelected;
     private string systemRatioTimeText = string.Empty;
@@ -149,11 +288,23 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.MethodName=methodName;
         this.BenchmarkName=methodName;
         this.CasesByProject=casesByProject;
+        this.SystemFLinqCell=this.CreateCell(BenchmarkComparisonFormatter.SystemFLinq);
+        this.SystemZLinqCell=this.CreateCell(BenchmarkComparisonFormatter.SystemZLinq);
+        this.PersistedFLinqCell=this.CreateCell(BenchmarkComparisonFormatter.PersistedFLinq);
+        this.PersistedLinqCell=this.CreateCell(BenchmarkComparisonFormatter.PersistedLinq);
+        this.TsavoriteFLinqCell=this.CreateCell(BenchmarkComparisonFormatter.TsavoriteFLinq);
+        this.TsavoriteLinqCell=this.CreateCell(BenchmarkComparisonFormatter.TsavoriteLinq);
     }
 
     public string MethodName { get; }
     public string BenchmarkName { get; }
     public IReadOnlyDictionary<string,BenchmarkCase> CasesByProject { get; }
+    public BenchmarkProjectCell SystemFLinqCell { get; }
+    public BenchmarkProjectCell SystemZLinqCell { get; }
+    public BenchmarkProjectCell PersistedFLinqCell { get; }
+    public BenchmarkProjectCell PersistedLinqCell { get; }
+    public BenchmarkProjectCell TsavoriteFLinqCell { get; }
+    public BenchmarkProjectCell TsavoriteLinqCell { get; }
 
     public bool IsSelected{
         get => this.isSelected;
@@ -251,10 +402,36 @@ public sealed class BenchmarkTableRow:ObservableObject{
     }
 
     public IReadOnlyList<BenchmarkCase> GetRunCases(){
-        return this.CasesByProject
-            .OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase)
-            .Select(static item => item.Value)
+        return this.ProjectCells
+            .Where(static cell => cell.HasCase&&cell.IsSelected)
+            .Select(cell => this.CasesByProject[cell.Project])
             .ToArray();
+    }
+
+    public IEnumerable<BenchmarkProjectCell> ProjectCells{
+        get{
+            yield return this.SystemFLinqCell;
+            yield return this.SystemZLinqCell;
+            yield return this.PersistedFLinqCell;
+            yield return this.PersistedLinqCell;
+            yield return this.TsavoriteFLinqCell;
+            yield return this.TsavoriteLinqCell;
+        }
+    }
+
+    public BenchmarkProjectCell? GetProjectCell(string project) =>
+        this.ProjectCells.FirstOrDefault(cell => string.Equals(cell.Project,project,StringComparison.OrdinalIgnoreCase));
+
+    public void ApplyStoredResult(BenchmarkStoredResult result){
+        if(this.GetProjectCell(result.Project) is { } cell){
+            cell.ApplyStoredResult(result);
+        }
+    }
+
+    public void ApplyRunResult(BenchmarkResultItem result,CpuSelectionItem? cpu){
+        if(this.GetProjectCell(result.Project) is { } cell){
+            cell.ApplyRunResult(result,cpu);
+        }
     }
 
     public void ApplyComparison(BenchmarkComparisonRow? row){
@@ -269,20 +446,26 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.SystemRatioAllocatedText=FormatRatio(value.SystemRatio.AllocatedRatio);
         this.SystemFLinqTimeText=FormatTime(value.SystemFLinq);
         this.SystemFLinqAllocatedText=FormatAllocated(value.SystemFLinq);
+        this.SystemFLinqCell.ApplyMetrics(value.SystemFLinq);
         this.SystemZLinqTimeText=FormatTime(value.SystemZLinq);
         this.SystemZLinqAllocatedText=FormatAllocated(value.SystemZLinq);
+        this.SystemZLinqCell.ApplyMetrics(value.SystemZLinq);
         this.PersistedRatioTimeText=FormatRatio(value.PersistedRatio.TimeRatio);
         this.PersistedRatioAllocatedText=FormatRatio(value.PersistedRatio.AllocatedRatio);
         this.PersistedFLinqTimeText=FormatTime(value.PersistedFLinq);
         this.PersistedFLinqAllocatedText=FormatAllocated(value.PersistedFLinq);
+        this.PersistedFLinqCell.ApplyMetrics(value.PersistedFLinq);
         this.PersistedLinqTimeText=FormatTime(value.PersistedLinq);
         this.PersistedLinqAllocatedText=FormatAllocated(value.PersistedLinq);
+        this.PersistedLinqCell.ApplyMetrics(value.PersistedLinq);
         this.TsavoriteRatioTimeText=FormatRatio(value.TsavoriteRatio.TimeRatio);
         this.TsavoriteRatioAllocatedText=FormatRatio(value.TsavoriteRatio.AllocatedRatio);
         this.TsavoriteFLinqTimeText=FormatTime(value.TsavoriteFLinq);
         this.TsavoriteFLinqAllocatedText=FormatAllocated(value.TsavoriteFLinq);
+        this.TsavoriteFLinqCell.ApplyMetrics(value.TsavoriteFLinq);
         this.TsavoriteLinqTimeText=FormatTime(value.TsavoriteLinq);
         this.TsavoriteLinqAllocatedText=FormatAllocated(value.TsavoriteLinq);
+        this.TsavoriteLinqCell.ApplyMetrics(value.TsavoriteLinq);
     }
 
     public BenchmarkSortValue GetSortValue(BenchmarkGridSortColumn column){
@@ -330,7 +513,13 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.TsavoriteFLinqAllocatedText=string.Empty;
         this.TsavoriteLinqTimeText=string.Empty;
         this.TsavoriteLinqAllocatedText=string.Empty;
+        foreach(var cell in this.ProjectCells){
+            cell.ClearMetrics();
+        }
     }
+
+    private BenchmarkProjectCell CreateCell(string project) =>
+        new(project,this.CasesByProject.ContainsKey(project));
 
     private static string FormatTime(ProjectMetrics metrics){
         return metrics.HasValue&&metrics.TimeNanoseconds is { } value
@@ -357,6 +546,10 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
 public sealed class CpuSelectionItem:ObservableObject{
     private bool isSelected;
+    private string runStatusText = "待機";
+    private string runIcon = "○";
+    private string currentJobText = string.Empty;
+    private bool isRunningJob;
 
     public CpuSelectionItem(int logicalProcessorIndex,CpuCoreKind coreKind,int physicalCoreIndex,int kindCoreIndex,bool isSelected){
         this.LogicalProcessorIndex=logicalProcessorIndex;
@@ -375,11 +568,65 @@ public sealed class CpuSelectionItem:ObservableObject{
         CpuCoreKind.Efficiency => "E"+this.KindCoreIndex,
         _ => "Core "+this.PhysicalCoreIndex,
     };
+    public string CoreKindLabel => this.CoreKind switch{
+        CpuCoreKind.Performance => "P",
+        CpuCoreKind.Efficiency => "E",
+        _ => "U",
+    };
     public string DisplayName => "CPU "+this.LogicalProcessorIndex+" ("+this.CoreLabel+")";
+    public string RunStatusText{
+        get => this.runStatusText;
+        private set => this.SetProperty(ref this.runStatusText,value);
+    }
+    public string RunIcon{
+        get => this.runIcon;
+        private set => this.SetProperty(ref this.runIcon,value);
+    }
+    public string CurrentJobText{
+        get => this.currentJobText;
+        private set => this.SetProperty(ref this.currentJobText,value);
+    }
+    public bool IsRunningJob{
+        get => this.isRunningJob;
+        private set => this.SetProperty(ref this.isRunningJob,value);
+    }
+    public string StatusDisplayText =>
+        this.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture)
+        +" "+this.CoreKindLabel
+        +" "+this.RunIcon
+        +(string.IsNullOrWhiteSpace(this.CurrentJobText) ? string.Empty : " "+this.CurrentJobText);
 
     public bool IsSelected{
         get => this.isSelected;
         set => this.SetProperty(ref this.isSelected,value);
+    }
+
+    public void ApplyJob(BenchmarkResultItem item){
+        this.IsRunningJob=string.Equals(item.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
+        this.RunIcon=this.IsRunningJob
+            ? "⟳"
+            : string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                ? "✓"
+                : string.Equals(item.Status,"Failed",StringComparison.OrdinalIgnoreCase)
+                    ? "×"
+                    : "○";
+        this.RunStatusText=this.IsRunningJob
+            ? "実行中"
+            : string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                ? "完了"
+                : string.Equals(item.Status,"Failed",StringComparison.OrdinalIgnoreCase)
+                    ? "失敗"
+                    : item.Status;
+        this.CurrentJobText=item.Project+" / "+item.Method+" / N="+item.ElementCount.ToString(CultureInfo.InvariantCulture);
+        this.OnPropertyChanged(nameof(this.StatusDisplayText));
+    }
+
+    public void ClearJob(){
+        this.IsRunningJob=false;
+        this.RunIcon="○";
+        this.RunStatusText="待機";
+        this.CurrentJobText=string.Empty;
+        this.OnPropertyChanged(nameof(this.StatusDisplayText));
     }
 }
 
@@ -388,17 +635,23 @@ public sealed class CpuTableCell:ObservableObject{
 
     public CpuTableCell(CpuSelectionItem cpu){
         this.Cpu=cpu;
-        this.DisplayText=cpu.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture);
         this.isSelected=cpu.IsSelected;
         cpu.PropertyChanged+=(_,args) => {
             if(args.PropertyName==nameof(CpuSelectionItem.IsSelected)){
                 this.IsSelected=cpu.IsSelected;
+            }else if(args.PropertyName==nameof(CpuSelectionItem.StatusDisplayText)
+                ||args.PropertyName==nameof(CpuSelectionItem.CurrentJobText)
+                ||args.PropertyName==nameof(CpuSelectionItem.RunIcon)
+                ||args.PropertyName==nameof(CpuSelectionItem.RunStatusText)){
+                this.OnPropertyChanged(nameof(this.DisplayText));
+                this.OnPropertyChanged(nameof(this.IsRunningJob));
             }
         };
     }
 
     public CpuSelectionItem Cpu { get; }
-    public string DisplayText { get; }
+    public string DisplayText => this.Cpu.StatusDisplayText;
+    public bool IsRunningJob => this.Cpu.IsRunningJob;
 
     public bool IsSelected{
         get => this.isSelected;
@@ -634,6 +887,8 @@ public sealed class BenchmarkResultItem{
         this.StdDevNanoseconds=job.StdDevNanoseconds;
         this.ArtifactFolder=job.ArtifactFolder;
         this.ExitCode=job.ExitCode;
+        this.AssignedLogicalCpu=job.AssignedLogicalCpu;
+        this.FailureReason=job.FailureReason;
     }
 
     public BenchmarkResultItem(BenchmarkRunResult result){
@@ -650,6 +905,8 @@ public sealed class BenchmarkResultItem{
         this.StdDevNanoseconds=result.StdDevNanoseconds;
         this.ArtifactFolder=result.ArtifactFolder;
         this.ExitCode=result.ExitCode;
+        this.AssignedLogicalCpu=null;
+        this.FailureReason=result.Log;
     }
 
     public BenchmarkResultItem(string project,string method,ProjectMetrics metrics){
@@ -666,6 +923,8 @@ public sealed class BenchmarkResultItem{
         this.StdDevNanoseconds=null;
         this.ArtifactFolder=string.Empty;
         this.ExitCode=metrics.HasValue?0:null;
+        this.AssignedLogicalCpu=null;
+        this.FailureReason=string.Empty;
     }
 
     private BenchmarkResultItem(BenchmarkCase benchmark,Exception exception){
@@ -678,6 +937,8 @@ public sealed class BenchmarkResultItem{
         this.AllocatedBytes=string.Empty;
         this.ArtifactFolder=string.Empty;
         this.ExitCode=1;
+        this.AssignedLogicalCpu=null;
+        this.FailureReason=exception.ToString();
     }
 
     public string Project { get; }
@@ -693,6 +954,8 @@ public sealed class BenchmarkResultItem{
     public double? StdDevNanoseconds { get; }
     public string ArtifactFolder { get; }
     public int? ExitCode { get; }
+    public int? AssignedLogicalCpu { get; }
+    public string FailureReason { get; }
 
     public static BenchmarkResultItem Failed(BenchmarkCase benchmark,Exception exception) => new(benchmark,exception);
 }

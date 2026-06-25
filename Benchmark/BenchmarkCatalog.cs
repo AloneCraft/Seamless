@@ -1,5 +1,4 @@
 using System.Reflection;
-using Benchmark.Worker;
 using BenchmarkDotNet.Attributes;
 
 namespace Benchmark;
