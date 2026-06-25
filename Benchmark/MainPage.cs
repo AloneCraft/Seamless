@@ -630,8 +630,10 @@ public sealed class MainPage:ContentPage{
     }
 
     private View CreateTabHeader(){
-        var cpuButton = this.TabButton("CPU",nameof(BenchmarkRunnerViewModel.ShowCpuCommand));
-        var chartButton = this.TabButton("比率チャート",nameof(BenchmarkRunnerViewModel.ShowChartCommand));
+        var cpuButton = this.CommandTabButton("CPU",nameof(BenchmarkRunnerViewModel.ShowCpuCommand));
+        var chartButton = this.CommandTabButton("比率チャート",nameof(BenchmarkRunnerViewModel.ShowChartCommand));
+        this.BindTabButtonState(cpuButton,nameof(BenchmarkRunnerViewModel.SelectedTab),static viewModel => viewModel.SelectedTab==BenchmarkTab.Cpu);
+        this.BindTabButtonState(chartButton,nameof(BenchmarkRunnerViewModel.SelectedTab),static viewModel => viewModel.SelectedTab==BenchmarkTab.Chart);
         var metricPicker = new Picker{
             WidthRequest=86,
             HeightRequest=30,
@@ -660,14 +662,49 @@ public sealed class MainPage:ContentPage{
         };
     }
 
-    private Button TabButton(string text,string commandPath){
-        var button = this.CommandButton(text,commandPath);
-        button.BackgroundColor=Color.FromArgb("#E2E8F0");
-        button.TextColor=Color.FromArgb("#0F172A");
-        button.CornerRadius=0;
-        button.BorderColor=Color.FromArgb("#CBD5E1");
-        button.BorderWidth=1;
+    private Button CommandTabButton(string text,string commandPath){
+        var button = this.CreateTabButton(text);
+        button.SetBinding(Button.CommandProperty,commandPath);
         return button;
+    }
+
+    private Button CreateTabButton(string text){
+        var button = new Button{
+            Text=text,
+            CornerRadius=0,
+            BorderColor=Color.FromArgb("#CBD5E1"),
+            BorderWidth=1,
+            Margin=new Thickness(0),
+            FontSize=12,
+            MinimumHeightRequest=28,
+        };
+        this.ApplyTabButtonStyle(button,false);
+        return button;
+    }
+
+    private void BindTabButtonState(Button button,string propertyName,Func<BenchmarkRunnerViewModel,bool> isSelected){
+        void Apply(){
+            if(this.viewModel is not null){
+                this.ApplyTabButtonStyle(button,isSelected(this.viewModel));
+            }
+        }
+
+        Apply();
+        if(this.viewModel is not null){
+            this.viewModel.PropertyChanged+=(_,args) => {
+                if(args.PropertyName==propertyName){
+                    MainThread.BeginInvokeOnMainThread(Apply);
+                }
+            };
+        }
+    }
+
+    private void ApplyTabButtonStyle(Button button,bool isSelected){
+        button.BackgroundColor=isSelected ? Colors.White : Color.FromArgb("#EAF3FF");
+        button.TextColor=Color.FromArgb("#0F172A");
+        button.Padding=isSelected ? new Thickness(12,4) : new Thickness(10,3);
+        button.HeightRequest=isSelected ? 32 : 28;
+        button.FontAttributes=isSelected ? FontAttributes.Bold : FontAttributes.None;
     }
 
     private View CreateCpuView(){
@@ -1192,7 +1229,6 @@ public sealed class MainPage:ContentPage{
         var leftSeries = new StackingColumn100Series{
             XBindingPath=nameof(ChartComparisonPoint.DisplayName),
             YBindingPath=nameof(ChartComparisonPoint.LeftValue),
-            Label="Left",
             ShowDataLabels=true,
             EnableTooltip=true,
             Spacing=0,
@@ -1210,7 +1246,6 @@ public sealed class MainPage:ContentPage{
         var rightSeries = new StackingColumn100Series{
             XBindingPath=nameof(ChartComparisonPoint.DisplayName),
             YBindingPath=nameof(ChartComparisonPoint.RightValue),
-            Label="Right",
             ShowDataLabels=true,
             EnableTooltip=true,
             Spacing=0,
@@ -1224,6 +1259,7 @@ public sealed class MainPage:ContentPage{
         rightSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ChartPoints));
         rightSeries.LabelTemplate=this.CreateDataLabelTemplate(nameof(ChartComparisonPoint.RightText));
         rightSeries.TooltipTemplate=this.CreateTooltipTemplate();
+        this.BindChartSeriesLabels(leftSeries,rightSeries);
 
         chart.Series.Add(leftSeries);
         chart.Series.Add(rightSeries);
@@ -1281,22 +1317,36 @@ public sealed class MainPage:ContentPage{
         return grid;
     }
 
+    private void BindChartSeriesLabels(StackingColumn100Series leftSeries,StackingColumn100Series rightSeries){
+        void Apply(){
+            if(this.viewModel is null){
+                return;
+            }
+
+            leftSeries.Label=this.viewModel.ChartLeftLegendLabel;
+            rightSeries.Label=this.viewModel.ChartRightLegendLabel;
+        }
+
+        Apply();
+        if(this.viewModel is not null){
+            this.viewModel.PropertyChanged+=(_,args) => {
+                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.SelectedComparisonPair)){
+                    MainThread.BeginInvokeOnMainThread(Apply);
+                }
+            };
+        }
+    }
+
     private View CreateChartPairTabs(){
         var layout = new HorizontalStackLayout{
             Spacing=4,
         };
         foreach(var option in this.viewModel?.ComparisonPairs??[]){
-            var button = new Button{
-                Text=option.Key,
-                Padding=new Thickness(10,3),
-                HeightRequest=28,
-                FontSize=12,
-                CornerRadius=0,
-                BackgroundColor=Color.FromArgb("#E2E8F0"),
-                TextColor=Color.FromArgb("#0F172A"),
-                BorderColor=Color.FromArgb("#CBD5E1"),
-                BorderWidth=1,
-            };
+            var button = this.CreateTabButton(option.Key);
+            this.BindTabButtonState(
+                button,
+                nameof(BenchmarkRunnerViewModel.SelectedComparisonPair),
+                viewModel => viewModel.SelectedComparisonPair==option);
             button.Clicked+=(_,_) => {
                 if(this.viewModel is not null){
                     this.viewModel.SelectedComparisonPair=option;
