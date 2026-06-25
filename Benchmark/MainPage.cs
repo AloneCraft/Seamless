@@ -12,7 +12,7 @@ public sealed class MainPage:ContentPage{
     private const double BenchmarkSelectionColumnWidth = 52;
     private const double BenchmarkAggregateCheckBoxSize = 32;
     private const double BenchmarkCellCheckBoxSize = 28;
-    private const double BenchmarkHeaderCheckSlotWidth = 40;
+    private const double BenchmarkHeaderCheckSlotWidth = 48;
     private const double BenchmarkScrollBarSize = 20;
     private const double CpuLogicalColumnWidth = 220;
     private const double CpuLogicalCheckColumnWidth = 34;
@@ -275,30 +275,43 @@ public sealed class MainPage:ContentPage{
             VerticalScrollBarVisibility=ScrollBarVisibility.Always,
             DefaultColumnWidth=92,
         };
+        grid.QueryRowHeight+=(_,args) => {
+            if(args.RowIndex<2){
+                args.Height=30;
+            }
+        };
         grid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.BenchmarkRows));
         this.ConfigureDataGridScrollBars(grid);
 
+        var categoryHeaderRow = new DataGridStackedHeaderRow();
+        var projectHeaderRow = new DataGridStackedHeaderRow();
+        grid.StackedHeaderRows.Add(categoryHeaderRow);
+        grid.StackedHeaderRows.Add(projectHeaderRow);
+
         grid.Columns.Add(this.CreateCheckColumn());
         grid.Columns.Add(this.CreateTextColumn("Benchmark",nameof(BenchmarkTableRow.BenchmarkName),BenchmarkGridSortColumn.BenchmarkName,240,TextAlignment.Start));
-        this.AddBenchmarkBaseStackedHeaders(grid);
-        this.AddMetricGroup(grid,"比(SystemFLinq/SystemZLinq)",("Time",nameof(BenchmarkTableRow.SystemRatioTimeText),BenchmarkGridSortColumn.SystemRatioTime),("Allocated",nameof(BenchmarkTableRow.SystemRatioAllocatedText),BenchmarkGridSortColumn.SystemRatioAllocated));
+        this.AddBenchmarkBaseStackedHeaders(categoryHeaderRow,projectHeaderRow);
         var systemMappings = new[] {
             this.AddProjectColumns(grid,"FLinq",nameof(BenchmarkTableRow.SystemFLinqCell),BenchmarkGridSortColumn.SystemFLinqTime,BenchmarkGridSortColumn.SystemFLinqAllocated),
             this.AddProjectColumns(grid,"ZLinq",nameof(BenchmarkTableRow.SystemZLinqCell),BenchmarkGridSortColumn.SystemZLinqTime,BenchmarkGridSortColumn.SystemZLinqAllocated),
         };
-        this.AddBenchmarkSelectionGroup(grid,this.GetBenchmarkSelectionGroup("System"),systemMappings);
-        this.AddMetricGroup(grid,"比(PersistedFLinq/PersistedLinq)",("Time",nameof(BenchmarkTableRow.PersistedRatioTimeText),BenchmarkGridSortColumn.PersistedRatioTime),("Allocated",nameof(BenchmarkTableRow.PersistedRatioAllocatedText),BenchmarkGridSortColumn.PersistedRatioAllocated));
+        this.AddBenchmarkSelectionGroup(categoryHeaderRow,this.GetBenchmarkSelectionGroup("System"),systemMappings);
+        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.SystemFLinq,"FLinq"),systemMappings[0]);
+        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.SystemZLinq,"ZLinq"),systemMappings[1]);
         var persistedMappings = new[] {
             this.AddProjectColumns(grid,"FLinq",nameof(BenchmarkTableRow.PersistedFLinqCell),BenchmarkGridSortColumn.PersistedFLinqTime,BenchmarkGridSortColumn.PersistedFLinqAllocated),
             this.AddProjectColumns(grid,"Linq",nameof(BenchmarkTableRow.PersistedLinqCell),BenchmarkGridSortColumn.PersistedLinqTime,BenchmarkGridSortColumn.PersistedLinqAllocated),
         };
-        this.AddBenchmarkSelectionGroup(grid,this.GetBenchmarkSelectionGroup("Persisted"),persistedMappings);
-        this.AddMetricGroup(grid,"比(TsavoriteFLinq/TsavoriteLinq)",("Time",nameof(BenchmarkTableRow.TsavoriteRatioTimeText),BenchmarkGridSortColumn.TsavoriteRatioTime),("Allocated",nameof(BenchmarkTableRow.TsavoriteRatioAllocatedText),BenchmarkGridSortColumn.TsavoriteRatioAllocated));
+        this.AddBenchmarkSelectionGroup(categoryHeaderRow,this.GetBenchmarkSelectionGroup("Persisted"),persistedMappings);
+        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.PersistedFLinq,"FLinq"),persistedMappings[0]);
+        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.PersistedLinq,"Linq"),persistedMappings[1]);
         var tsavoriteMappings = new[] {
             this.AddProjectColumns(grid,"FLinq",nameof(BenchmarkTableRow.TsavoriteFLinqCell),BenchmarkGridSortColumn.TsavoriteFLinqTime,BenchmarkGridSortColumn.TsavoriteFLinqAllocated),
             this.AddProjectColumns(grid,"Linq",nameof(BenchmarkTableRow.TsavoriteLinqCell),BenchmarkGridSortColumn.TsavoriteLinqTime,BenchmarkGridSortColumn.TsavoriteLinqAllocated),
         };
-        this.AddBenchmarkSelectionGroup(grid,this.GetBenchmarkSelectionGroup("Tsavorite"),tsavoriteMappings);
+        this.AddBenchmarkSelectionGroup(categoryHeaderRow,this.GetBenchmarkSelectionGroup("Tsavorite"),tsavoriteMappings);
+        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.TsavoriteFLinq,"FLinq"),tsavoriteMappings[0]);
+        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.TsavoriteLinq,"Linq"),tsavoriteMappings[1]);
         return grid;
     }
 
@@ -333,33 +346,26 @@ public sealed class MainPage:ContentPage{
         };
     }
 
-    private void AddBenchmarkBaseStackedHeaders(SfDataGrid grid){
-        var stackedRow = this.EnsureBenchmarkStackedHeaderRow(grid);
-        stackedRow.Columns.Add(new DataGridStackedColumn{
+    private void AddBenchmarkBaseStackedHeaders(DataGridStackedHeaderRow categoryHeaderRow,DataGridStackedHeaderRow projectHeaderRow){
+        categoryHeaderRow.Columns.Add(new DataGridStackedColumn{
             MappingName="AllBenchmarkSelection",
             ColumnMappingNames=nameof(BenchmarkTableRow.IsSelectionChecked),
             Template=this.CreateAllBenchmarkSelectionHeaderTemplate(),
         });
-        stackedRow.Columns.Add(new DataGridStackedColumn{
+        categoryHeaderRow.Columns.Add(new DataGridStackedColumn{
             MappingName="BenchmarkNameHeader",
             ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkName),
             Text=string.Empty,
         });
-    }
-
-    private void AddMetricGroup(
-        SfDataGrid grid,
-        string groupTitle,
-        (string header,string property,BenchmarkGridSortColumn sortColumn) time,
-        (string header,string property,BenchmarkGridSortColumn sortColumn) allocated){
-        var first = this.CreateTextColumn(time.header,time.property,time.sortColumn,86,TextAlignment.End);
-        var second = this.CreateTextColumn(allocated.header,allocated.property,allocated.sortColumn,86,TextAlignment.End);
-        grid.Columns.Add(first);
-        grid.Columns.Add(second);
-        this.EnsureBenchmarkStackedHeaderRow(grid).Columns.Add(new DataGridStackedColumn{
-            MappingName="Metric"+time.property,
-            ColumnMappingNames=time.property+","+allocated.property,
-            Text=groupTitle,
+        projectHeaderRow.Columns.Add(new DataGridStackedColumn{
+            MappingName="AllBenchmarkSelectionProjectSpacer",
+            ColumnMappingNames=nameof(BenchmarkTableRow.IsSelectionChecked),
+            Text=string.Empty,
+        });
+        projectHeaderRow.Columns.Add(new DataGridStackedColumn{
+            MappingName="BenchmarkNameProjectSpacer",
+            ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkName),
+            Text=string.Empty,
         });
     }
 
@@ -378,27 +384,31 @@ public sealed class MainPage:ContentPage{
         return [checkMapping,timeMapping,allocatedMapping];
     }
 
-    private void AddBenchmarkSelectionGroup(SfDataGrid grid,BenchmarkColumnSelectionGroup group,IEnumerable<IReadOnlyList<string>> childMappings){
+    private void AddBenchmarkSelectionGroup(DataGridStackedHeaderRow headerRow,BenchmarkColumnSelectionGroup group,IEnumerable<IReadOnlyList<string>> childMappings){
         var mappings = childMappings.SelectMany(static item => item).ToArray();
-        this.EnsureBenchmarkStackedHeaderRow(grid).Columns.Add(new DataGridStackedColumn{
-            MappingName="BenchmarkGroup"+group.HeaderText,
+        headerRow.Columns.Add(new DataGridStackedColumn{
+            MappingName="BenchmarkGroup"+group.Id,
             ColumnMappingNames=string.Join(",",mappings),
             Template=this.CreateBenchmarkColumnGroupHeaderTemplate(group),
         });
     }
 
-    private DataGridStackedHeaderRow EnsureBenchmarkStackedHeaderRow(SfDataGrid grid){
-        var stackedRow = grid.StackedHeaderRows.FirstOrDefault();
-        if(stackedRow is null){
-            stackedRow=new DataGridStackedHeaderRow();
-            grid.StackedHeaderRows.Add(stackedRow);
-        }
-        return stackedRow;
+    private void AddBenchmarkProjectSelectionGroup(DataGridStackedHeaderRow headerRow,BenchmarkColumnSelectionGroup group,IReadOnlyList<string> childMappings){
+        headerRow.Columns.Add(new DataGridStackedColumn{
+            MappingName="BenchmarkProjectGroup"+group.Id,
+            ColumnMappingNames=string.Join(",",childMappings),
+            Template=this.CreateBenchmarkColumnGroupHeaderTemplate(group),
+        });
     }
 
-    private BenchmarkColumnSelectionGroup GetBenchmarkSelectionGroup(string headerText){
-        return this.viewModel?.BenchmarkColumnSelectionGroups.FirstOrDefault(group => group.HeaderText==headerText)
-            ??new BenchmarkColumnSelectionGroup(headerText,[]);
+    private BenchmarkColumnSelectionGroup GetBenchmarkSelectionGroup(string id){
+        return this.viewModel?.BenchmarkColumnSelectionGroups.FirstOrDefault(group => group.Id==id)
+            ??new BenchmarkColumnSelectionGroup(id,id,[]);
+    }
+
+    private BenchmarkColumnSelectionGroup GetBenchmarkProjectSelectionGroup(string id,string headerText){
+        return this.viewModel?.BenchmarkProjectSelectionGroups.FirstOrDefault(group => group.Id==id)
+            ??new BenchmarkColumnSelectionGroup(id,headerText,[]);
     }
 
     private DataTemplate CreateAllBenchmarkSelectionHeaderTemplate(){
@@ -1002,8 +1012,23 @@ public sealed class MainPage:ContentPage{
             visualContainer.InvalidateMeasure();
         }
 
-        grid.Loaded+=(_,_) => Apply();
-        grid.HandlerChanged+=(_,_) => MainThread.BeginInvokeOnMainThread(Apply);
+        void ApplySafely(){
+            try{
+                Apply();
+            }catch(Exception ex){
+                StartupDiagnostics.Write("Failed to apply benchmark grid scroll bar size.",ex);
+            }
+        }
+
+        async void ApplyNowAndLater(){
+            ApplySafely();
+            await Task.Delay(100);
+            MainThread.BeginInvokeOnMainThread(ApplySafely);
+        }
+
+        grid.Loaded+=(_,_) => ApplyNowAndLater();
+        grid.HandlerChanged+=(_,_) => MainThread.BeginInvokeOnMainThread(ApplyNowAndLater);
+        grid.SizeChanged+=(_,_) => MainThread.BeginInvokeOnMainThread(ApplySafely);
     }
 
     private void TrySetMemberValue(object target,string name,double value){

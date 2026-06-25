@@ -62,16 +62,36 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             new ComparisonPairOption("Tsavorite","TsavoriteFLinq/TsavoriteLinq",BenchmarkComparisonFormatter.TsavoriteFLinq,BenchmarkComparisonFormatter.TsavoriteLinq),
         ];
         this.BenchmarkColumnSelectionGroups=[
-            new BenchmarkColumnSelectionGroup("System",[
+            new BenchmarkColumnSelectionGroup("System","System",[
                 BenchmarkComparisonFormatter.SystemFLinq,
                 BenchmarkComparisonFormatter.SystemZLinq,
             ]),
-            new BenchmarkColumnSelectionGroup("Persisted",[
+            new BenchmarkColumnSelectionGroup("Persisted","Persisted",[
                 BenchmarkComparisonFormatter.PersistedFLinq,
                 BenchmarkComparisonFormatter.PersistedLinq,
             ]),
-            new BenchmarkColumnSelectionGroup("Tsavorite",[
+            new BenchmarkColumnSelectionGroup("Tsavorite","Tsavorite",[
                 BenchmarkComparisonFormatter.TsavoriteFLinq,
+                BenchmarkComparisonFormatter.TsavoriteLinq,
+            ]),
+        ];
+        this.BenchmarkProjectSelectionGroups=[
+            new BenchmarkColumnSelectionGroup(BenchmarkComparisonFormatter.SystemFLinq,"FLinq",[
+                BenchmarkComparisonFormatter.SystemFLinq,
+            ]),
+            new BenchmarkColumnSelectionGroup(BenchmarkComparisonFormatter.SystemZLinq,"ZLinq",[
+                BenchmarkComparisonFormatter.SystemZLinq,
+            ]),
+            new BenchmarkColumnSelectionGroup(BenchmarkComparisonFormatter.PersistedFLinq,"FLinq",[
+                BenchmarkComparisonFormatter.PersistedFLinq,
+            ]),
+            new BenchmarkColumnSelectionGroup(BenchmarkComparisonFormatter.PersistedLinq,"Linq",[
+                BenchmarkComparisonFormatter.PersistedLinq,
+            ]),
+            new BenchmarkColumnSelectionGroup(BenchmarkComparisonFormatter.TsavoriteFLinq,"FLinq",[
+                BenchmarkComparisonFormatter.TsavoriteFLinq,
+            ]),
+            new BenchmarkColumnSelectionGroup(BenchmarkComparisonFormatter.TsavoriteLinq,"Linq",[
                 BenchmarkComparisonFormatter.TsavoriteLinq,
             ]),
         ];
@@ -153,6 +173,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     public ObservableCollection<DateTime> CsvCalendarDates { get; } = [];
     public ObservableCollection<string> ChartWarnings { get; } = [];
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkColumnSelectionGroups { get; }
+    public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkProjectSelectionGroups { get; }
     public IReadOnlyList<RunModeOption> RunModes { get; }
     public IReadOnlyList<ComparisonPairOption> ComparisonPairs { get; }
     public IReadOnlyList<MetricOption> Metrics { get; }
@@ -461,6 +482,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             row.RefreshSelectionState();
         }
         foreach(var group in this.BenchmarkColumnSelectionGroups){
+            group.IsChecked=GetSelectionState(this.GetBenchmarkCells(group.ColumnKeys));
+        }
+        foreach(var group in this.BenchmarkProjectSelectionGroups){
             group.IsChecked=GetSelectionState(this.GetBenchmarkCells(group.ColumnKeys));
         }
         this.IsAllBenchmarkSelectionChecked=GetSelectionState(this.BenchmarkRows.SelectMany(static row => row.ProjectCells));
