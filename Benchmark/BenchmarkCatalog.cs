@@ -15,12 +15,12 @@ public sealed record BenchmarkCase(
 
 public static class BenchmarkCatalog {
     private static readonly BenchmarkProject[] projects = [
-        new("System FLinq","Benchmark.DotNet.Linq.Enumerable.FLinq"),
-        new("System ZLinq","Benchmark.DotNet.Linq.Enumerable.ZLinq"),
-        new("Tsavorite LINQ","Benchmark.Tsavorite.Linq.Enumerable.Linq"),
-        new("Tsavorite FLinq","Benchmark.Tsavorite.Linq.Enumerable.FLinq"),
-        new("Persisted LINQ","Benchmark.Persisted.Linq.Enumerable.Linq"),
-        new("Persisted FLinq","Benchmark.Persisted.Linq.Enumerable.FLinq"),
+        new("SystemFLinq","Benchmark.DotNet.Linq.Enumerable.FLinq"),
+        new("SystemZLinq","Benchmark.DotNet.Linq.Enumerable.ZLinq"),
+        new("TsavoriteLinq","Benchmark.Tsavorite.Linq.Enumerable.Linq"),
+        new("TsavoriteFLinq","Benchmark.Tsavorite.Linq.Enumerable.FLinq"),
+        new("PersistedLinq","Benchmark.Persisted.Linq.Enumerable.Linq"),
+        new("PersistedFLinq","Benchmark.Persisted.Linq.Enumerable.FLinq"),
         new("Persisted Collection","Benchmark.Persisted.Collection"),
         new("Tsavorite Collection","Benchmark.Tsavorite.Collection"),
     ];
