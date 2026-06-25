@@ -241,10 +241,15 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         get => this.selectedComparisonPair;
         set{
             if(this.SetProperty(ref this.selectedComparisonPair,value)){
+                this.OnPropertyChanged(nameof(this.ChartLeftLegendLabel));
+                this.OnPropertyChanged(nameof(this.ChartRightLegendLabel));
                 this.UpdateChart();
             }
         }
     }
+
+    public string ChartLeftLegendLabel => GetChartLegendLabel(this.SelectedComparisonPair.LeftProject);
+    public string ChartRightLegendLabel => GetChartLegendLabel(this.SelectedComparisonPair.RightProject);
 
     public ScaleOption? SelectedScale{
         get => this.selectedScale;
@@ -908,6 +913,17 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private static string FirstText(params string[] values){
         return values.FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value))??string.Empty;
     }
+
+    private static string GetChartLegendLabel(string project) =>
+        project switch{
+            BenchmarkComparisonFormatter.SystemFLinq => "FLinq",
+            BenchmarkComparisonFormatter.SystemZLinq => "ZLinq",
+            BenchmarkComparisonFormatter.PersistedFLinq => "FLinq",
+            BenchmarkComparisonFormatter.PersistedLinq => "Linq",
+            BenchmarkComparisonFormatter.TsavoriteFLinq => "FLinq",
+            BenchmarkComparisonFormatter.TsavoriteLinq => "Linq",
+            _ => project,
+        };
 
     private void ApplyCurrentSort(){
         if(this.BenchmarkRows.Count<2){
