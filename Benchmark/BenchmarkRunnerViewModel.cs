@@ -46,6 +46,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private BenchmarkGridSortColumn currentSortColumn = BenchmarkGridSortColumn.BenchmarkName;
     private bool currentSortDescending;
     private IReadOnlyList<BenchmarkComparisonRow> comparisonRows = [];
+    private readonly List<BenchmarkResultItem> currentRunResultItems = [];
 
     public BenchmarkRunnerViewModel(
         IBenchmarkCatalogService catalogService,
@@ -640,6 +641,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.IsRunning=true;
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
+        this.currentRunResultItems.Clear();
         this.ResultElementCountOptions.Clear();
         this.SelectedResultElementCount=null;
         try{
@@ -683,6 +685,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             : null;
         cpu?.ApplyJob(result);
         this.UpsertResultItem(result);
+        this.UpsertCurrentRunResultItem(result);
         this.RegisterResultElementCount(result.ElementCount);
         this.RefreshVisibleResults();
         var row = this.BenchmarkRows.FirstOrDefault(item => string.Equals(item.MethodName,result.Method,StringComparison.OrdinalIgnoreCase));
@@ -711,6 +714,18 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.ResultItems.Add(result);
     }
 
+    private void UpsertCurrentRunResultItem(BenchmarkResultItem result){
+        for(var index=this.currentRunResultItems.Count-1;index>=0;index--){
+            var item = this.currentRunResultItems[index];
+            if(string.Equals(item.Project,result.Project,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(item.Method,result.Method,StringComparison.OrdinalIgnoreCase)
+                &&item.ElementCount==result.ElementCount){
+                this.currentRunResultItems.RemoveAt(index);
+            }
+        }
+        this.currentRunResultItems.Add(result);
+    }
+
     private IReadOnlyList<int> GetSelectedElementCounts(){
         var selected = this.ElementCountOptions
             .Where(static item => item.IsSelected)
@@ -725,8 +740,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
     private async Task ExportCsvAsync(){
         await Task.Yield();
-        if(this.ResultItems.Count==0&&this.comparisonRows.Count==0){
-            this.StatusText="No results";
+        if(this.currentRunResultItems.Count==0){
+            this.StatusText="No current run results";
             return;
         }
 
@@ -735,9 +750,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             "Work",
             "Benchmark",
             DateTime.Now.ToString("yyyyMMdd-HHmmss",System.Globalization.CultureInfo.InvariantCulture));
-        var rows = this.comparisonRows.Count>0
-            ? this.comparisonRows
-            : this.comparisonService.BuildRows(this.ResultItems);
+        var rows = this.comparisonService.BuildRows(this.currentRunResultItems);
         var path = this.csvService.WriteComparisonCsv(root,rows);
         this.StatusText="CSV saved: "+path;
     }
